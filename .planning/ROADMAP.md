@@ -48,7 +48,7 @@ Plans:
   3. Player moves in cardinal directions with grid collision checking; moving into an enemy tile triggers bump-to-attack detection
   4. Keyboard input maps to semantic actions, action map is rebindable, and browser default scrolling is suppressed
   5. game/setup.ts is the sole wiring point that bootstraps engine + game together
-**Plans**: TBD
+**Plans**: 4
 
 Plans:
 - [ ] 02-01: State Machine & Game States (generic FSM with enter/exit hooks + 5 game state definitions)
