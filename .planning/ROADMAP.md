@@ -30,13 +30,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Developer can query entities by component composition (e.g., all entities with Position + Health) and get O(1) component lookups
   3. Developer can create a 2D grid with walkability queries, entity-at-position lookups, and multi-layer tile data
   4. Engine directory has zero imports from game, rendering, network, or UI — enforced by ESLint import/no-restricted-paths
-**Plans**: TBD
+**Plans**: 4
 
 Plans:
-- [ ] 01-01: ECS Core (world, entity lifecycle, component CRUD, queries, event emission)
-- [ ] 01-02: Entity Composition Pipeline (builder, registry, factory, JSON templates, Zod validation)
-- [ ] 01-03: Event Bus & Grid (typed event bus + 2D grid data structure with spatial indexing)
-- [ ] 01-04: Project Scaffolding & Architecture Enforcement (module structure, ESLint boundary rules, Vitest setup)
+- [ ] 01-01: Project Scaffolding & Architecture Enforcement (module structure, ESLint boundary rules, Vitest setup)
+- [ ] 01-02: ECS Core & Event Bus (World, entity lifecycle, component CRUD, queries, typed EventBus with queued flush)
+- [ ] 01-03: Grid & Game Layer (2D grid with spatial indexing, game components, game event types)
+- [ ] 01-04: Entity Composition Pipeline (builder, registry, factory, JSON templates, Zod validation, mixin composition)
 
 ### Phase 2: Game Loop & Player Control
 **Goal**: Turn-based game loop processes player actions and state transitions through a complete turn cycle
