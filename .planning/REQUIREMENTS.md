@@ -187,27 +187,95 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ECS-01 through ECS-10 | TBD | Pending |
-| EVT-01 through EVT-03 | TBD | Pending |
-| FSM-01 through FSM-04 | TBD | Pending |
-| TURN-01 through TURN-06 | TBD | Pending |
-| GRID-01 through GRID-04 | TBD | Pending |
-| GEN-01 through GEN-07 | TBD | Pending |
-| MOV-01 through MOV-03 | TBD | Pending |
-| INP-01 through INP-03 | TBD | Pending |
-| CMB-01 through CMB-04 | TBD | Pending |
-| AI-01 through AI-04 | TBD | Pending |
-| ITEM-01 through ITEM-03 | TBD | Pending |
-| RND-01 through RND-14 | TBD | Pending |
-| SRV-01 through SRV-08 | TBD | Pending |
-| UI-01 through UI-06 | TBD | Pending |
-| ARCH-01 through ARCH-04 | TBD | Pending |
+| ARCH-01 | Phase 1 | Pending |
+| ARCH-02 | Phase 1 | Pending |
+| ECS-01 | Phase 1 | Pending |
+| ECS-02 | Phase 1 | Pending |
+| ECS-03 | Phase 1 | Pending |
+| ECS-04 | Phase 1 | Pending |
+| ECS-05 | Phase 1 | Pending |
+| ECS-06 | Phase 1 | Pending |
+| ECS-07 | Phase 1 | Pending |
+| ECS-08 | Phase 1 | Pending |
+| ECS-09 | Phase 1 | Pending |
+| ECS-10 | Phase 1 | Pending |
+| EVT-01 | Phase 1 | Pending |
+| EVT-02 | Phase 1 | Pending |
+| EVT-03 | Phase 1 | Pending |
+| GRID-01 | Phase 1 | Pending |
+| GRID-02 | Phase 1 | Pending |
+| GRID-03 | Phase 1 | Pending |
+| GRID-04 | Phase 1 | Pending |
+| ARCH-03 | Phase 2 | Pending |
+| FSM-01 | Phase 2 | Pending |
+| FSM-02 | Phase 2 | Pending |
+| FSM-03 | Phase 2 | Pending |
+| FSM-04 | Phase 2 | Pending |
+| INP-01 | Phase 2 | Pending |
+| INP-02 | Phase 2 | Pending |
+| INP-03 | Phase 2 | Pending |
+| MOV-01 | Phase 2 | Pending |
+| MOV-02 | Phase 2 | Pending |
+| MOV-03 | Phase 2 | Pending |
+| TURN-01 | Phase 2 | Pending |
+| TURN-02 | Phase 2 | Pending |
+| TURN-03 | Phase 2 | Pending |
+| TURN-04 | Phase 2 | Pending |
+| TURN-05 | Phase 2 | Pending |
+| TURN-06 | Phase 2 | Pending |
+| RND-01 | Phase 3 | Pending |
+| RND-02 | Phase 3 | Pending |
+| RND-03 | Phase 3 | Pending |
+| RND-04 | Phase 3 | Pending |
+| RND-05 | Phase 3 | Pending |
+| RND-06 | Phase 3 | Pending |
+| RND-07 | Phase 3 | Pending |
+| RND-08 | Phase 3 | Pending |
+| RND-09 | Phase 3 | Pending |
+| RND-10 | Phase 3 | Pending |
+| RND-11 | Phase 3 | Pending |
+| RND-12 | Phase 3 | Pending |
+| RND-13 | Phase 3 | Pending |
+| RND-14 | Phase 3 | Pending |
+| AI-01 | Phase 4 | Pending |
+| AI-02 | Phase 4 | Pending |
+| AI-03 | Phase 4 | Pending |
+| AI-04 | Phase 4 | Pending |
+| CMB-01 | Phase 4 | Pending |
+| CMB-02 | Phase 4 | Pending |
+| CMB-03 | Phase 4 | Pending |
+| CMB-04 | Phase 4 | Pending |
+| GEN-01 | Phase 4 | Pending |
+| GEN-02 | Phase 4 | Pending |
+| GEN-03 | Phase 4 | Pending |
+| GEN-04 | Phase 4 | Pending |
+| GEN-05 | Phase 4 | Pending |
+| GEN-06 | Phase 4 | Pending |
+| GEN-07 | Phase 4 | Pending |
+| ITEM-01 | Phase 4 | Pending |
+| ITEM-02 | Phase 4 | Pending |
+| ITEM-03 | Phase 4 | Pending |
+| ARCH-04 | Phase 5 | Pending |
+| SRV-01 | Phase 5 | Pending |
+| SRV-02 | Phase 5 | Pending |
+| SRV-03 | Phase 5 | Pending |
+| SRV-04 | Phase 5 | Pending |
+| SRV-05 | Phase 5 | Pending |
+| SRV-06 | Phase 5 | Pending |
+| SRV-07 | Phase 5 | Pending |
+| SRV-08 | Phase 5 | Pending |
+| UI-01 | Phase 6 | Pending |
+| UI-02 | Phase 6 | Pending |
+| UI-03 | Phase 6 | Pending |
+| UI-04 | Phase 6 | Pending |
+| UI-05 | Phase 6 | Pending |
+| UI-06 | Phase 6 | Pending |
 
 **Coverage:**
-- v1 requirements: 67 total
-- Mapped to phases: 0
-- Unmapped: 67 ⚠️
+- v1 requirements: 83 total
+- Mapped to phases: 83
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-13*
-*Last updated: 2026-03-13 after initialization*
+*Last updated: 2026-03-13 — traceability updated with phase mappings*
