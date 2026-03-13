@@ -66,7 +66,7 @@ Plans:
   3. FOV renders three visibility states (visible at full brightness, explored dimmed, hidden black) and entities are only visible when their tile is in the player's current FOV
   4. Entities animate smoothly between tiles (~100ms lerp), attacks show sprite shake/flash, and death triggers a fade-out animation
   5. Entity destruction triggers display object cleanup — removed from container, destroyed, deleted from the EntityId → DisplayObject tracking map
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
 - [ ] 03-01: PixiJS Application & Tile Rendering (independent canvas mount, CompositeTilemap, layer ordering, tilemap built once)
