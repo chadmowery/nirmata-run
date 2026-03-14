@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { buildTilemap, TileType } from '../../src/rendering/tilemap';
+import { buildTilemap } from '../../src/rendering/tilemap';
 import { TILE_SIZE } from '../../src/rendering/constants';
 
 describe('buildTilemap', () => {
@@ -7,7 +7,7 @@ describe('buildTilemap', () => {
     const grid = {
       width: 2,
       height: 2,
-      getTile: vi.fn((x, y) => ({ terrain: TileType.Floor, walkable: true })),
+      getTile: vi.fn((x, y) => ({ terrain: 'floor', walkable: true })),
     };
     const tilemap = {
       clear: vi.fn(),
@@ -26,7 +26,7 @@ describe('buildTilemap', () => {
     const grid = {
       width: 10,
       height: 10,
-      getTile: vi.fn((x, y) => ({ terrain: TileType.Floor, walkable: true })),
+      getTile: vi.fn((x, y) => ({ terrain: 'floor', walkable: true })),
     };
     const tilemap = {
       clear: vi.fn(),
@@ -48,7 +48,7 @@ describe('buildTilemap', () => {
     const grid = {
       width: 3,
       height: 1,
-      getTile: vi.fn((x, y) => ({ terrain: TileType.Floor, walkable: true })),
+      getTile: vi.fn((x, y) => ({ terrain: 'floor', walkable: true })),
     };
     const tilemap = {
       clear: vi.fn(),
@@ -74,9 +74,9 @@ describe('buildTilemap', () => {
       width: 3,
       height: 1,
       getTile: vi.fn((x, y) => {
-        if (x === 0) return { terrain: TileType.Floor, walkable: true };
-        if (x === 1) return { terrain: TileType.Wall, walkable: false };
-        if (x === 2) return { terrain: TileType.Door, walkable: true };
+        if (x === 0) return { terrain: 'floor', walkable: true };
+        if (x === 1) return { terrain: 'wall', walkable: false };
+        if (x === 2) return { terrain: 'door', walkable: true };
         return undefined;
       }),
     };

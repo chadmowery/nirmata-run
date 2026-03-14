@@ -5,13 +5,22 @@ import { TILE_SIZE } from './constants';
 export interface Grid {
   width: number;
   height: number;
-  getTile(x: number, y: number): { terrain: number; walkable: boolean } | undefined;
+  getTile(x: number, y: number): { terrain: string; walkable: boolean } | undefined;
 }
 
-export enum TileType {
-  Floor = 0,
-  Wall = 1,
-  Door = 2,
+/**
+ * Maps engine terrain type to tileset frame name.
+ */
+export function tileTerrainToFrame(terrain: string): string {
+  switch (terrain) {
+    case 'wall':
+      return 'wall';
+    case 'door':
+      return 'door';
+    case 'floor':
+    default:
+      return 'floor';
+  }
 }
 
 export interface BuildTilemapOptions {
@@ -21,20 +30,6 @@ export interface BuildTilemapOptions {
   playerPos?: { x: number; y: number };
 }
 
-/**
- * Maps engine terrain type to tileset frame name.
- */
-export function tileTerrainToFrame(terrain: number): string {
-  switch (terrain) {
-    case TileType.Wall:
-      return 'wall';
-    case TileType.Door:
-      return 'door';
-    case TileType.Floor:
-    default:
-      return 'floor';
-  }
-}
 
 /**
  * Computes alpha for a tile based on FOV and exploration state.
