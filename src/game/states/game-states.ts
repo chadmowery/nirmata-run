@@ -1,0 +1,46 @@
+import { Phase } from '../../engine/ecs/types';
+import { StateMachine } from '../../engine/state-machine/state-machine';
+import { StateConfig, TransitionTable } from '../../engine/state-machine/types';
+import { GameState } from './types';
+
+// Placeholder for GameContext, to be defined more fully in setup.ts
+export type GameContext = any;
+
+export const GAME_TRANSITIONS: TransitionTable<GameState> = [
+  [GameState.Loading, GameState.MainMenu],
+  [GameState.MainMenu, GameState.Playing],
+  [GameState.Playing, GameState.Paused],
+  [GameState.Playing, GameState.GameOver],
+  [GameState.Paused, GameState.Playing],
+  [GameState.Paused, GameState.MainMenu],
+  [GameState.GameOver, GameState.MainMenu],
+];
+
+export const ACTIVE_PHASES: Record<GameState, Phase[]> = {
+  [GameState.Loading]: [],
+  [GameState.MainMenu]: [Phase.RENDER],
+  [GameState.Playing]: [Phase.PRE_TURN, Phase.ACTION, Phase.POST_TURN, Phase.RENDER],
+  [GameState.Paused]: [Phase.RENDER],
+  [GameState.GameOver]: [Phase.RENDER],
+};
+
+export const GAME_STATE_CONFIGS: Record<GameState, StateConfig<GameState, GameContext>> = {
+  [GameState.Loading]: {},
+  [GameState.MainMenu]: {},
+  [GameState.Playing]: {},
+  [GameState.Paused]: {},
+  [GameState.GameOver]: {},
+};
+
+export function getActivePhases(state: GameState): Phase[] {
+  return ACTIVE_PHASES[state];
+}
+
+export function createGameFSM(context?: GameContext): StateMachine<GameState, GameContext> {
+  return new StateMachine<GameState, GameContext>(
+    GameState.Loading,
+    GAME_STATE_CONFIGS,
+    GAME_TRANSITIONS,
+    context
+  );
+}
