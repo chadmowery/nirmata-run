@@ -7,4 +7,6 @@ export * from './hostile';
 export * from './attack';
 export * from './defense';
 export * from './loot-table';
+export * from './ai-state';
+export * from './fov-awareness';
 export * from './blocks-movement';

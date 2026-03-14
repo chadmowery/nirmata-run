@@ -20,8 +20,8 @@ describe('EntityFactory', () => {
   const { Position, Health } = Components;
 
   const componentRegistry: ComponentRegistry = {
-    get: (key: string) => Object.values(Components).find(c => c.key === key),
-    has: (key: string) => Object.values(Components).some(c => c.key === key)
+    get: (key: string) => Object.values(Components).find(c => c && typeof c === 'object' && 'key' in c && (c as any).key === key) as any,
+    has: (key: string) => Object.values(Components).some(c => c && typeof c === 'object' && 'key' in c && (c as any).key === key)
   };
 
   beforeEach(() => {

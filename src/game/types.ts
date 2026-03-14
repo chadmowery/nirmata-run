@@ -9,6 +9,7 @@ import { GameEvents } from './events/types';
 import { GameState } from './states/types';
 
 import { CombatSystem } from './systems/combat';
+import { AISystem } from './systems/ai';
 import { EntityFactory } from '@engine/entity/factory';
 
 /**
@@ -23,5 +24,6 @@ export interface GameContext {
   inputManager: InputManager;
   movementSystem: MovementSystem;
   combatSystem: CombatSystem;
+  aiSystem: AISystem;
   entityFactory: EntityFactory;
 }

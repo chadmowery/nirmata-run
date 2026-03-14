@@ -17,6 +17,7 @@ import { EntityFactory } from '../engine/entity/factory';
 import { registerGameTemplates } from './entities';
 import * as Components from './components';
 import { createCombatSystem } from './systems/combat';
+import { createAISystem } from './systems/ai';
 
 import { GameContext } from './types';
 
@@ -38,7 +39,9 @@ export function createGame(config: GameConfig): GameContext {
   registerGameTemplates(entityRegistry);
   const entityFactory = new EntityFactory(entityRegistry);
   const componentsMap = Object.fromEntries(
-    Object.entries(Components).map(([_, component]) => [component.key, component])
+    Object.entries(Components)
+      .filter(([_, component]) => component && typeof component === 'object' && 'key' in component)
+      .map(([_, component]) => [(component as any).key, component])
   );
   const componentRegistry: any = {
     get: (key: string) => componentsMap[key],
@@ -53,6 +56,7 @@ export function createGame(config: GameConfig): GameContext {
     entityFactory, 
     componentRegistry
   );
+  const aiSystem = createAISystem(world, grid, movementSystem, eventBus);
 
   // Initialize systems
   combatSystem.init();
@@ -72,6 +76,7 @@ export function createGame(config: GameConfig): GameContext {
     eventBus,
     movementSystem,
     combatSystem,
+    aiSystem,
     entityFactory,
     turnManager,
     inputManager,
@@ -142,9 +147,9 @@ export function createGame(config: GameConfig): GameContext {
     eventBus.emit('PLAYER_ACTION', { action, entityId });
   });
 
-  // Default enemy action handler (Phase 4 AI will replace this)
-  turnManager.setEnemyActionHandler(() => {
-    // No-op for now
+  // Enemy action handler
+  turnManager.setEnemyActionHandler((entityId) => {
+    aiSystem.processEnemyTurn(entityId);
   });
 
   return context;
