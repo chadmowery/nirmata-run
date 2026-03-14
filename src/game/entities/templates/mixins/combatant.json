@@ -1,0 +1,6 @@
+{
+  "name": "combatant",
+  "components": {
+    "health": { "current": 10, "max": 10 }
+  }
+}

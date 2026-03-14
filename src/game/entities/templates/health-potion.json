@@ -1,0 +1,5 @@
+{
+  "name": "health_potion",
+  "mixins": ["physical"],
+  "components": {}
+}

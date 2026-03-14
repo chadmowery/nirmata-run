@@ -1,0 +1,8 @@
+{
+  "name": "player",
+  "mixins": ["physical", "combatant"],
+  "components": {},
+  "overrides": {
+    "health": { "current": 20, "max": 20 }
+  }
+}

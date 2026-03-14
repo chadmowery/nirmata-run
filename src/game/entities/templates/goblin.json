@@ -1,0 +1,8 @@
+{
+  "name": "goblin",
+  "mixins": ["physical", "combatant"],
+  "components": {},
+  "overrides": {
+    "health": { "current": 8, "max": 8 }
+  }
+}
