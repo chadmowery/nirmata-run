@@ -1,0 +1,25 @@
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/Users/chadmowery/personal/dev/dungeon-runner/flash-test[39m
+
+[90mstderr[2m | src/engine/turn/turn-manager.test.ts[2m > [22m[2mTurnManager[2m > [22m[2mdeducts energy and calls playerActionHandler on submitAction
+[22m[39mMax sub-ticks reached in TurnManager. Check for degenerate speed values.
+
+[90mstderr[2m | src/engine/turn/turn-manager.test.ts[2m > [22m[2mTurnManager[2m > [22m[2mdeducts half cost for wait action
+[22m[39mMax sub-ticks reached in TurnManager. Check for degenerate speed values.
+
+ [32m✓[39m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22mstarts at AWAIT_INPUT phase after start()[32m 1[2mms[22m[39m
+ [32m✓[39m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22maccumulates energy during start() if player not ready[32m 0[2mms[22m[39m
+ [32m✓[39m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22mgating: ignores submitAction when not in AWAIT_INPUT[32m 0[2mms[22m[39m
+ [32m✓[39m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22mdeducts energy and calls playerActionHandler on submitAction[32m 2[2mms[22m[39m
+ [32m✓[39m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22mdeducts half cost for wait action[32m 2[2mms[22m[39m
+ [32m✓[39m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22mprocesses enemy turns deterministically (ID order)[32m 0[2mms[22m[39m
+ [32m✓[39m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22mskips dead enemies[32m 0[2mms[22m[39m
+ [32m✓[39m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22mexecutes turn cycle phases in order[32m 0[2mms[22m[39m
+ [32m✓[39m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22mhandles fast enemies with sub-tick processing[32m 0[2mms[22m[39m
+ [32m✓[39m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22memits TURN_START and TURN_END events[32m 0[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m10 passed[39m[22m[90m (10)[39m
+[2m   Start at [22m 18:19:09
+[2m   Duration [22m 132ms[2m (transform 32ms, setup 0ms, import 59ms, tests 7ms, environment 0ms)[22m
+

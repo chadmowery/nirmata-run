@@ -1,0 +1,65 @@
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/Users/chadmowery/personal/dev/dungeon-runner/flash-test[39m
+
+[90mstdout[2m | src/engine/turn/turn-manager.test.ts[2m > [22m[2mTurnManager[2m > [22m[2mdeducts energy and calls playerActionHandler on submitAction
+[22m[39m[TurnManager] Tick 1, player energy: 100
+[TurnManager] Tick 2, player energy: 200
+[TurnManager] Tick 3, player energy: 300
+[TurnManager] Tick 4, player energy: 400
+[TurnManager] Tick 5, player energy: 500
+[TurnManager] Tick 6, player energy: 600
+[TurnManager] Tick 7, player energy: 700
+[TurnManager] Tick 8, player energy: 800
+[TurnManager] Tick 9, player energy: 900
+[TurnManager] Tick 10, player energy: 1000
+[TurnManager] Player action: move, cost: 1000, energy: 1000 -> 0
+[TurnManager] Tick 1, player energy: 100
+[TurnManager] Tick 2, player energy: 200
+[TurnManager] Tick 3, player energy: 300
+[TurnManager] Tick 4, player energy: 400
+[TurnManager] Tick 5, player energy: 500
+[TurnManager] Tick 6, player energy: 600
+[TurnManager] Tick 7, player energy: 700
+[TurnManager] Tick 8, player energy: 800
+[TurnManager] Tick 9, player energy: 900
+[TurnManager] Tick 10, player energy: 1000
+
+ [2m[90m↓[39m[22m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22mstarts at AWAIT_INPUT phase after start()
+ [2m[90m↓[39m[22m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22maccumulates energy during start() if player not ready
+ [2m[90m↓[39m[22m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22mgating: ignores submitAction when not in AWAIT_INPUT
+ [31m×[39m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22mdeducts energy and calls playerActionHandler on submitAction[32m 4[2mms[22m[39m
+[31m   → expected 1000 to be +0 // Object.is equality[39m
+ [2m[90m↓[39m[22m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22mdeducts half cost for wait action
+ [2m[90m↓[39m[22m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22mprocesses enemy turns deterministically (ID order)
+ [2m[90m↓[39m[22m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22mskips dead enemies
+ [2m[90m↓[39m[22m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22mexecutes turn cycle phases in order
+ [2m[90m↓[39m[22m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22mhandles fast enemies with sub-tick processing
+ [2m[90m↓[39m[22m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22memits TURN_START and TURN_END events
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 1 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/engine/turn/turn-manager.test.ts[2m > [22mTurnManager[2m > [22mdeducts energy and calls playerActionHandler on submitAction
+[31m[1mAssertionError[22m: expected 1000 to be +0 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 0[39m
+[31m+ 1000[39m
+
+[36m [2m❯[22m src/engine/turn/turn-manager.test.ts:[2m74:35[22m[39m
+    [90m 72|[39m     [34mexpect[39m(handler)[33m.[39m[34mtoHaveBeenCalledWith[39m([32m'move'[39m[33m,[39m playerEntity)[33m;[39m
+    [90m 73|[39m     [35mconst[39m updatedEnergy [33m=[39m world[33m.[39m[34mgetComponent[39m(playerEntity[33m,[39m [33mEnergy[39m)[33m![39m[33m;[39m
+    [90m 74|[39m     [34mexpect[39m(updatedEnergy[33m.[39mcurrent)[33m.[39m[34mtoBe[39m([34m0[39m)[33m;[39m [90m// 1000 - 1000 cost[39m
+    [90m   |[39m                                   [31m^[39m
+    [90m 75|[39m   })[33m;[39m
+    [90m 76|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[33m9 skipped[39m[90m (10)[39m
+[2m   Start at [22m 18:18:50
+[2m   Duration [22m 128ms[2m (transform 30ms, setup 0ms, import 56ms, tests 5ms, environment 0ms)[22m
+

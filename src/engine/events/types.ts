@@ -15,4 +15,10 @@ export interface EngineEvents {
   
   /** Queued when a component is removed from an entity. */
   COMPONENT_REMOVED: { entityId: EntityId; componentKey: string };
+
+  /** Queued when a turn cycle starts. */
+  TURN_START: { turnNumber: number };
+
+  /** Queued when a turn cycle ends. */
+  TURN_END: { turnNumber: number };
 }
