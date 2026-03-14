@@ -19,12 +19,16 @@ import * as Components from './components';
 import { createCombatSystem } from './systems/combat';
 import { createAISystem } from './systems/ai';
 import { createItemPickupSystem } from './systems/item-pickup';
+import { generateDungeon } from './generation/dungeon-generator';
+import { placeEntities } from './generation/entity-placement';
+import RNG from 'rot-js/lib/rng';
 
 import { GameContext } from './types';
 
 export interface GameConfig {
   gridWidth: number;
   gridHeight: number;
+  seed?: string;
 }
 
 /**
@@ -95,6 +99,70 @@ export function createGame(config: GameConfig): GameContext {
     },
     [GameState.Playing]: {
       onEnter: (ctx) => {
+        // Generate dungeon and place entities on first enter
+        if (!ctx.playerId) {
+          const seed = config.seed ?? `dungeon-${Date.now()}`;
+          ctx.currentSeed = seed;
+
+          const dungeonResult = generateDungeon({
+            width: config.gridWidth,
+            height: config.gridHeight,
+            seed,
+          });
+
+          // Replace the grid in context with the generated one
+          (ctx as any).grid = dungeonResult.grid;
+
+          // Update systems that reference grid
+          const newMovementSystem = createMovementSystem(ctx.world, dungeonResult.grid, ctx.eventBus);
+          (ctx as any).movementSystem = newMovementSystem;
+          const newCombatSystem = createCombatSystem(
+            ctx.world,
+            dungeonResult.grid,
+            ctx.eventBus,
+            ctx.entityFactory,
+            componentRegistry
+          );
+          newCombatSystem.init();
+          (ctx as any).combatSystem = newCombatSystem;
+          const newAISystem = createAISystem(ctx.world, dungeonResult.grid, newMovementSystem, ctx.eventBus);
+          (ctx as any).aiSystem = newAISystem;
+          const newItemPickupSystem = createItemPickupSystem(ctx.world, dungeonResult.grid, ctx.eventBus);
+          newItemPickupSystem.init();
+          (ctx as any).itemPickupSystem = newItemPickupSystem;
+
+          // Use rot-js RNG for deterministic entity placement
+          RNG.setSeed(hashSeedForPlacement(seed));
+          const rng = { random: () => RNG.getUniform() };
+
+          const placement = placeEntities(
+            ctx.world,
+            dungeonResult.grid,
+            ctx.entityFactory,
+            componentRegistry,
+            dungeonResult.rooms,
+            dungeonResult.playerSpawnRoom,
+            rng
+          );
+
+          ctx.playerId = placement.playerId;
+
+          // Rewire turn manager enemy handler with new AI system
+          ctx.turnManager.setEnemyActionHandler((entityId) => {
+            newAISystem.processEnemyTurn(entityId);
+          });
+
+          // Rewire player action handler with new movement system
+          ctx.turnManager.setPlayerActionHandler((action: string, entityId: number) => {
+            const gameAction = action as GameAction;
+            if (DIRECTIONS[gameAction]) {
+              const { dx, dy } = DIRECTIONS[gameAction];
+              newMovementSystem.processMove(entityId, dx, dy);
+            }
+            ctx.eventBus.emit('PLAYER_ACTION', { action, entityId });
+          });
+        }
+
         ctx.inputManager.enable();
         ctx.turnManager.start();
       },
@@ -157,4 +225,15 @@ export function createGame(config: GameConfig): GameContext {
   });
 
   return context;
+}
+
+/**
+ * Hash a string seed into a numeric value for rot-js RNG.
+ */
+function hashSeedForPlacement(seed: string): number {
+  let hash = 5381;
+  for (let i = 0; i < seed.length; i++) {
+    hash = ((hash << 5) + hash + seed.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
 }

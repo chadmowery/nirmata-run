@@ -66,6 +66,7 @@ describe('Game Setup Integration', () => {
     grid.addEntity(player, 1, 1);
 
     // 2. Transition to Playing
+    context.playerId = player;
     fsm.transition(GameState.MainMenu);
     fsm.transition(GameState.Playing);
 
@@ -105,6 +106,7 @@ describe('Game Setup Integration', () => {
     grid.addEntity(enemy, 2, 1);
 
     // 3. Transition to Playing
+    context.playerId = player;
     fsm.transition(GameState.MainMenu);
     fsm.transition(GameState.Playing);
 

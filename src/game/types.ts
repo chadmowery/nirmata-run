@@ -1,4 +1,5 @@
 import { World } from '../engine/ecs/world';
+import { EntityId } from '../engine/ecs/types';
 import { Grid } from '../engine/grid/grid';
 import { EventBus } from '../engine/events/event-bus';
 import { StateMachine } from '../engine/state-machine/state-machine';
@@ -28,4 +29,6 @@ export interface GameContext {
   aiSystem: AISystem;
   itemPickupSystem: ItemPickupSystem;
   entityFactory: EntityFactory;
+  playerId?: EntityId;
+  currentSeed?: string;
 }
