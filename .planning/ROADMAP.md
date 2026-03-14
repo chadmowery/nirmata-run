@@ -84,7 +84,7 @@ Plans:
   3. Enemies transition between idle → chasing → attacking based on FOV awareness, pathfind toward player via A*, and bump-attack when adjacent
   4. Items are entities on the grid; player picks them up by walking over, and immediate-effect items apply on pickup (e.g., health potion heals)
   5. BSP tree generates seed-reproducible dungeons with rooms (min 3×3), corridors, doors, flood-fill-validated connectivity, and placed player spawn, enemies, and items
-**Plans**: TBD
+**Plans**: 4
 
 Plans:
 - [ ] 04-01: Combat System (attack vs defense damage calc, health component, death handling, loot drops)
