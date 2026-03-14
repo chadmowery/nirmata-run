@@ -10,6 +10,7 @@ import { GameState } from './states/types';
 
 import { CombatSystem } from './systems/combat';
 import { AISystem } from './systems/ai';
+import { ItemPickupSystem } from './systems/item-pickup';
 import { EntityFactory } from '@engine/entity/factory';
 
 /**
@@ -25,5 +26,6 @@ export interface GameContext {
   movementSystem: MovementSystem;
   combatSystem: CombatSystem;
   aiSystem: AISystem;
+  itemPickupSystem: ItemPickupSystem;
   entityFactory: EntityFactory;
 }

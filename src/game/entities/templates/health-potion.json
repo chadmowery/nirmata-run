@@ -1,5 +1,9 @@
 {
   "name": "health_potion",
   "mixins": ["physical"],
-  "components": {}
+  "components": {
+    "item": { "name": "Health Potion", "description": "Restores 5 HP" },
+    "pickupEffect": { "type": "heal", "value": 5 },
+    "sprite": { "key": "item_potion" }
+  }
 }

@@ -18,6 +18,7 @@ import { registerGameTemplates } from './entities';
 import * as Components from './components';
 import { createCombatSystem } from './systems/combat';
 import { createAISystem } from './systems/ai';
+import { createItemPickupSystem } from './systems/item-pickup';
 
 import { GameContext } from './types';
 
@@ -57,9 +58,11 @@ export function createGame(config: GameConfig): GameContext {
     componentRegistry
   );
   const aiSystem = createAISystem(world, grid, movementSystem, eventBus);
+  const itemPickupSystem = createItemPickupSystem(world, grid, eventBus);
 
   // Initialize systems
   combatSystem.init();
+  itemPickupSystem.init();
 
   const turnManager = new TurnManager(world, eventBus as any, {
     energyThreshold: 1000,
@@ -77,6 +80,7 @@ export function createGame(config: GameConfig): GameContext {
     movementSystem,
     combatSystem,
     aiSystem,
+    itemPickupSystem,
     entityFactory,
     turnManager,
     inputManager,

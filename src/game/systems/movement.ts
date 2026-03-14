@@ -66,6 +66,15 @@ export function createMovementSystem(world: World, grid: Grid, eventBus: EventBu
       // Update grid spatial index
       grid.moveEntity(entityId, oldX, oldY, targetX, targetY);
 
+      // Emit movement event
+      eventBus.emit('ENTITY_MOVED', {
+        entityId,
+        fromX: oldX,
+        fromY: oldY,
+        toX: targetX,
+        toY: targetY,
+      });
+
       return 'moved';
     }
   };
