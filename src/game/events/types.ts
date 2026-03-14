@@ -12,4 +12,7 @@ export interface GameEvents {
   
   /** Queued when an entity picks up an item. */
   ITEM_PICKED_UP: { entityId: EntityId; itemId: EntityId };
+
+  /** Queued when an entity attempts to move into a hostile entity. */
+  BUMP_ATTACK: { attackerId: EntityId; defenderId: EntityId };
 }
