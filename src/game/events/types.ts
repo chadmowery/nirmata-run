@@ -1,9 +1,10 @@
 import { EntityId } from '@engine/ecs/types';
+import { EngineEvents } from '@engine/events/types';
 
 /**
  * Game-specific domain events.
  */
-export interface GameEvents {
+export interface GameEvents extends EngineEvents {
   /** Queued when an entity deals damage to another. */
   DAMAGE_DEALT: { attackerId: EntityId; defenderId: EntityId; amount: number };
   
@@ -15,4 +16,22 @@ export interface GameEvents {
 
   /** Queued when an entity attempts to move into a hostile entity. */
   BUMP_ATTACK: { attackerId: EntityId; defenderId: EntityId };
+
+  /** Queued at the start of each turn. */
+  TURN_START: { turnNumber: number };
+
+  /** Queued at the end of each turn. */
+  TURN_END: { turnNumber: number };
+
+  /** Queued when the player performs an action. */
+  PLAYER_ACTION: { action: string; entityId: EntityId };
+
+  /** Queued after an entity successfully moves. */
+  ENTITY_MOVED: { 
+    entityId: EntityId; 
+    fromX: number; 
+    fromY: number; 
+    toX: number; 
+    toY: number 
+  };
 }

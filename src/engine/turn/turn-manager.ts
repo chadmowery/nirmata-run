@@ -1,7 +1,7 @@
 import { World } from '../ecs/world';
 import { EventBus } from '../events/event-bus';
 import { EngineEvents } from '../events/types';
-import { Phase } from '../ecs/types';
+import { EntityId, Phase } from '../ecs/types';
 import { 
   TurnPhase, 
   TurnManagerConfig, 

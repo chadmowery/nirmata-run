@@ -3,8 +3,7 @@ import { StateMachine } from '../../engine/state-machine/state-machine';
 import { StateConfig, TransitionTable } from '../../engine/state-machine/types';
 import { GameState } from './types';
 
-// Placeholder for GameContext, to be defined more fully in setup.ts
-export type GameContext = any;
+import { GameContext } from '../types';
 
 export const GAME_TRANSITIONS: TransitionTable<GameState> = [
   [GameState.Loading, GameState.MainMenu],
@@ -36,7 +35,7 @@ export function getActivePhases(state: GameState): Phase[] {
   return ACTIVE_PHASES[state];
 }
 
-export function createGameFSM(context?: GameContext): StateMachine<GameState, GameContext> {
+export function createGameFSM(context: GameContext): StateMachine<GameState, GameContext> {
   return new StateMachine<GameState, GameContext>(
     GameState.Loading,
     GAME_STATE_CONFIGS,

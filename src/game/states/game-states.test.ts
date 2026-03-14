@@ -24,19 +24,19 @@ describe('Game States', () => {
   });
 
   it('createGameFSM starts at Loading state', () => {
-    const fsm = createGameFSM();
+    const fsm = createGameFSM({} as any);
     expect(fsm.getCurrentState()).toBe(GameState.Loading);
   });
 
   it('createGameFSM follows valid transition path (Loading -> MainMenu -> Playing)', () => {
-    const fsm = createGameFSM();
+    const fsm = createGameFSM({} as any);
     expect(fsm.transition(GameState.MainMenu)).toBe(true);
     expect(fsm.transition(GameState.Playing)).toBe(true);
     expect(fsm.getCurrentState()).toBe(GameState.Playing);
   });
 
   it('createGameFSM rejects invalid transitions (Loading -> Playing)', () => {
-    const fsm = createGameFSM();
+    const fsm = createGameFSM({} as any);
     expect(fsm.transition(GameState.Playing)).toBe(false);
     expect(fsm.getCurrentState()).toBe(GameState.Loading);
   });
