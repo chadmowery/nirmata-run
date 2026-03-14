@@ -8,6 +8,9 @@ import { MovementSystem } from './systems/movement';
 import { GameEvents } from './events/types';
 import { GameState } from './states/types';
 
+import { CombatSystem } from './systems/combat';
+import { EntityFactory } from '@engine/entity/factory';
+
 /**
  * The unified context that holds all engine and game modules.
  */
@@ -19,4 +22,6 @@ export interface GameContext {
   turnManager: TurnManager;
   inputManager: InputManager;
   movementSystem: MovementSystem;
+  combatSystem: CombatSystem;
+  entityFactory: EntityFactory;
 }

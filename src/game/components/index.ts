@@ -3,3 +3,8 @@ export * from './health';
 export * from './energy';
 export * from './actor';
 export * from './sprite';
+export * from './hostile';
+export * from './attack';
+export * from './defense';
+export * from './loot-table';
+export * from './blocks-movement';

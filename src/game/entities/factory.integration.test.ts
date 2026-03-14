@@ -9,22 +9,19 @@ import { EventBus } from '../../engine/events/event-bus';
 import { EngineEvents } from '../../engine/events/types';
 import { registerGameTemplates } from './index';
 
+import * as Components from '../components';
+
 describe('EntityFactory', () => {
   let world: World;
   let registry: EntityRegistry;
   let factory: EntityFactory;
   let eventBus: EventBus<EngineEvents>;
 
-  const Position = defineComponent('position', z.object({ x: z.number(), y: z.number() }));
-  const Health = defineComponent('health', z.object({ current: z.number().int().min(0), max: z.number().int().positive() }));
+  const { Position, Health } = Components;
 
   const componentRegistry: ComponentRegistry = {
-    get: (key: string) => {
-      if (key === 'position') return Position;
-      if (key === 'health') return Health;
-      return undefined;
-    },
-    has: (key: string) => key === 'position' || key === 'health'
+    get: (key: string) => Object.values(Components).find(c => c.key === key),
+    has: (key: string) => Object.values(Components).some(c => c.key === key)
   };
 
   beforeEach(() => {

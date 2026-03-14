@@ -1,8 +1,17 @@
 {
   "name": "goblin",
   "mixins": ["physical", "combatant"],
-  "components": {},
+  "components": {
+    "hostile": {},
+    "lootTable": {
+      "drops": [
+        { "template": "health_potion", "chance": 0.3 }
+      ]
+    }
+  },
   "overrides": {
-    "health": { "current": 8, "max": 8 }
+    "health": { "current": 8, "max": 8 },
+    "attack": { "power": 3 },
+    "defense": { "armor": 0 }
   }
 }

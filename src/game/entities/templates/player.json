@@ -3,6 +3,8 @@
   "mixins": ["physical", "combatant"],
   "components": {},
   "overrides": {
-    "health": { "current": 20, "max": 20 }
+    "health": { "current": 20, "max": 20 },
+    "attack": { "power": 5 },
+    "defense": { "armor": 2 }
   }
 }

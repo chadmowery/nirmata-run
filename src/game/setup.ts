@@ -12,6 +12,12 @@ import { GameEvents } from './events/types';
 import { GameState } from './states/types';
 import { GAME_TRANSITIONS } from './states/game-states';
 
+import { EntityRegistry } from '../engine/entity/registry';
+import { EntityFactory } from '../engine/entity/factory';
+import { registerGameTemplates } from './entities';
+import * as Components from './components';
+import { createCombatSystem } from './systems/combat';
+
 import { GameContext } from './types';
 
 export interface GameConfig {
@@ -26,7 +32,30 @@ export function createGame(config: GameConfig): GameContext {
   const eventBus = new EventBus<GameEvents>();
   const world = new World(eventBus as any);
   const grid = new Grid(config.gridWidth, config.gridHeight);
+  
+  // Entity pipeline
+  const entityRegistry = new EntityRegistry();
+  registerGameTemplates(entityRegistry);
+  const entityFactory = new EntityFactory(entityRegistry);
+  const componentsMap = Object.fromEntries(
+    Object.entries(Components).map(([_, component]) => [component.key, component])
+  );
+  const componentRegistry: any = {
+    get: (key: string) => componentsMap[key],
+    has: (key: string) => !!componentsMap[key],
+  };
+
   const movementSystem = createMovementSystem(world, grid, eventBus);
+  const combatSystem = createCombatSystem(
+    world, 
+    grid, 
+    eventBus, 
+    entityFactory, 
+    componentRegistry
+  );
+
+  // Initialize systems
+  combatSystem.init();
 
   const turnManager = new TurnManager(world, eventBus as any, {
     energyThreshold: 1000,
@@ -42,6 +71,8 @@ export function createGame(config: GameConfig): GameContext {
     grid,
     eventBus,
     movementSystem,
+    combatSystem,
+    entityFactory,
     turnManager,
     inputManager,
   } as GameContext;
