@@ -197,7 +197,9 @@ export class TurnManager {
   }
 
   // Setters for handlers
-  setPlayerActionHandler(handler: PlayerActionHandler): void { this.playerActionHandler = handler; }
+  setPlayerActionHandler(handler: PlayerActionHandler): void { 
+    this.playerActionHandler = handler; 
+  }
   setEnemyActionHandler(handler: EnemyActionHandler): void { this.enemyActionHandler = handler; }
 
   // Getters

@@ -31,4 +31,5 @@ export interface GameContext {
   entityFactory: EntityFactory;
   playerId?: EntityId;
   currentSeed?: string;
+  sessionId?: string;
 }

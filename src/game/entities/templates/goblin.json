@@ -2,9 +2,13 @@
   "name": "goblin",
   "mixins": ["physical", "combatant"],
   "components": {
+    "actor": { "isPlayer": false },
+    "energy": { "current": 0, "speed": 80, "threshold": 1000 },
+    "sprite": { "key": "goblin" },
     "hostile": {},
     "aiState": { "behavior": "idle", "sightRadius": 6 },
     "fovAwareness": { "canSeePlayer": false },
+    "blocksMovement": {},
     "lootTable": {
       "drops": [
         { "template": "health_potion", "chance": 0.3 }

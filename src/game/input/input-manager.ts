@@ -9,6 +9,7 @@ export class InputManager {
   private handler: ActionHandler | null = null;
   private enabled: boolean = false;
   private keydownHandler: ((event: KeyboardEvent) => void) | null = null;
+  private isRequestPending: boolean = false;
 
   constructor(bindings: Record<string, GameAction> = DEFAULT_BINDINGS) {
     this.bindings = new Map(Object.entries(bindings));
@@ -22,6 +23,14 @@ export class InputManager {
   }
 
   /**
+   * Sets whether a server request is currently pending.
+   * While pending, all mapped inputs are ignored.
+   */
+  setRequestPending(pending: boolean): void {
+    this.isRequestPending = pending;
+  }
+
+  /**
    * Enables input listening.
    */
   enable(): void {
@@ -31,6 +40,9 @@ export class InputManager {
       // Ignore if event is repeating or if it's from an input element
       if (event.repeat) return;
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+      
+      // Ignore if a request is pending
+      if (this.isRequestPending) return;
 
       const action = this.bindings.get(event.code);
       if (action && this.handler) {

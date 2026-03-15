@@ -51,6 +51,7 @@ export class EventBus<TEventMap extends Record<string, any>> {
     this.isFlushing = true;
 
     let depth = 0;
+// ... (rest of flush logic)
     while (this.queue.length > 0) {
       if (depth >= this.MAX_FLUSH_DEPTH) {
         this.isFlushing = false;

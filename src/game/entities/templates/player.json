@@ -1,7 +1,11 @@
 {
   "name": "player",
   "mixins": ["physical", "combatant"],
-  "components": {},
+  "components": {
+    "actor": { "isPlayer": true },
+    "energy": { "current": 1000, "speed": 100, "threshold": 1000 },
+    "sprite": { "key": "player" }
+  },
   "overrides": {
     "health": { "current": 20, "max": 20 },
     "attack": { "power": 5 },

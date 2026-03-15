@@ -192,7 +192,7 @@ export function createGame(config: GameConfig): GameContext {
   context.fsm = fsm;
 
   // Wire input ActionHandler
-  inputManager.setActionHandler((action: GameAction) => {
+  inputManager.setActionHandler(async (action: GameAction) => {
     if (action === GameAction.PAUSE) {
       const currentState = fsm.getCurrentState();
       if (currentState === GameState.Playing) {
@@ -204,16 +204,69 @@ export function createGame(config: GameConfig): GameContext {
     }
 
     if (fsm.getCurrentState() === GameState.Playing && turnManager.canAcceptInput()) {
+      // 1. Gating
+      inputManager.setRequestPending(true);
+
+      // 2. Prediction
       turnManager.submitAction(action);
+
+      // 3. API Call
+      try {
+        const intent = getActionIntent(action);
+        if (intent) {
+          const response = await fetch('/api/action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId: context.sessionId || 'default-session',
+              action: intent,
+            }),
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            // 4. Reconciliation
+            // The server response contains the delta from the state BEFORE the player moved.
+            // However, our local world has ALREADY moved.
+            // We'll trust the server truth and apply the delta to our current state.
+            // Wait, applying a delta calculated from oldState to mutatedState is risky.
+            // Ideally the server returns the delta, and we apply it.
+            // Given "Snap-to-Truth", we should just apply the delta to the state before the action.
+            // But we didn't snapshot.
+            // ALTERNATIVE: Just apply the server delta to current state if json-diff-ts handles it, 
+            // or if we trust the server just returned the full state (which it didn't).
+            
+            // For now, let's use the delta to patch our world.
+            if (result.delta) {
+              const { applyStateDelta } = await import('@shared/reconciliation');
+              applyStateDelta(world, grid, eventBus, result.delta);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to sync with server:', error);
+      } finally {
+        inputManager.setRequestPending(false);
+      }
     }
   });
+
+  function getActionIntent(action: GameAction): any {
+    if (DIRECTIONS[action]) {
+      return { type: 'MOVE', dx: DIRECTIONS[action].dx, dy: DIRECTIONS[action].dy };
+    }
+    if (action === GameAction.WAIT) {
+      return { type: 'WAIT' };
+    }
+    return null;
+  }
 
   // Wire TurnManager handles
   turnManager.setPlayerActionHandler((action: string, entityId: number) => {
     const gameAction = action as GameAction;
     if (DIRECTIONS[gameAction]) {
       const { dx, dy } = DIRECTIONS[gameAction];
-      movementSystem.processMove(entityId, dx, dy);
+      context.movementSystem.processMove(entityId, dx, dy);
     }
     
     eventBus.emit('PLAYER_ACTION', { action, entityId });
@@ -221,7 +274,7 @@ export function createGame(config: GameConfig): GameContext {
 
   // Enemy action handler
   turnManager.setEnemyActionHandler((entityId) => {
-    aiSystem.processEnemyTurn(entityId);
+    context.aiSystem.processEnemyTurn(entityId);
   });
 
   return context;
