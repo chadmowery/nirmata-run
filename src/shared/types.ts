@@ -32,6 +32,13 @@ export const ActionIntentSchema = z.discriminatedUnion('type', [
 
 export type ActionIntent = z.infer<typeof ActionIntentSchema>;
 
+export const ActionRequestSchema = z.object({
+  sessionId: z.string(),
+  action: ActionIntentSchema,
+});
+
+export type ActionRequest = z.infer<typeof ActionRequestSchema>;
+
 /**
  * Serialized World Schemas
  */
