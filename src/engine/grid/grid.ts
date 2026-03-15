@@ -123,4 +123,33 @@ export class Grid {
       tile.items.delete(itemId);
     }
   }
+
+  /**
+   * Returns a copy of the internal tiles for serialization.
+   */
+  getSerializableTiles() {
+    return this.tiles.map(tile => ({
+      ...tile,
+      entities: Array.from(tile.entities),
+      items: Array.from(tile.items),
+    }));
+  }
+
+  /**
+   * Loads tiles into the grid.
+   */
+  loadSerializableTiles(serializedTiles: any[]): void {
+    if (serializedTiles.length !== this.tiles.length) {
+      throw new Error('Serialized tile count does not match grid size');
+    }
+
+    for (let i = 0; i < serializedTiles.length; i++) {
+      const sTile = serializedTiles[i];
+      this.tiles[i] = {
+        ...sTile,
+        entities: new Set(sTile.entities),
+        items: new Set(sTile.items),
+      };
+    }
+  }
 }

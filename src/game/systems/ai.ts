@@ -4,10 +4,10 @@ import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityId } from '@engine/ecs/types';
-import { Position } from '../components/position';
-import { Actor } from '../components/actor';
-import { AIState, AIBehavior } from '../components/ai-state';
-import { FovAwareness } from '../components/fov-awareness';
+import { Position } from '@shared/components/position';
+import { Actor } from '@shared/components/actor';
+import { AIState, AIBehavior } from '@shared/components/ai-state';
+import { FovAwareness } from '@shared/components/fov-awareness';
 import { GameEvents } from '../events/types';
 import { MovementSystem } from './movement';
 

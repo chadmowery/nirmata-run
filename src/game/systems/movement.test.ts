@@ -3,9 +3,9 @@ import { createMovementSystem } from './movement';
 import { Grid } from '@engine/grid/grid';
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
-import { Position } from '../components/position';
-import { Hostile } from '../components/hostile';
-import { BlocksMovement } from '../components/blocks-movement';
+import { Position } from '@shared/components/position';
+import { Hostile } from '@shared/components/hostile';
+import { BlocksMovement } from '@shared/components/blocks-movement';
 import { GameEvents } from '../events/types';
 
 describe('MovementSystem', () => {

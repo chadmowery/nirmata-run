@@ -9,7 +9,7 @@ import { EventBus } from '../../engine/events/event-bus';
 import { EngineEvents } from '../../engine/events/types';
 import { registerGameTemplates } from './index';
 
-import * as Components from '../components';
+import * as Components from '@shared/components';
 
 describe('EntityFactory', () => {
   let world: World;

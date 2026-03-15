@@ -3,10 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createGame } from './setup';
 import { GameState } from './states/types';
 import { GameAction } from './input/actions';
-import { Position } from './components/position';
-import { Actor } from './components/actor';
-import { Energy } from './components/energy';
-import { Hostile } from './components/hostile';
+import * as Components from '@shared/components';
+const { Position, Actor, Energy, Hostile } = Components;
 
 describe('Game Setup Integration', () => {
   let context: ReturnType<typeof createGame>;

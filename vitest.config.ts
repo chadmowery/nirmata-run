@@ -10,6 +10,7 @@ export default defineConfig({
     alias: {
       '@engine': path.resolve(__dirname, './src/engine'),
       '@game': path.resolve(__dirname, './src/game'),
+      '@shared': path.resolve(__dirname, './src/shared'),
     },
   },
 });

@@ -4,7 +4,8 @@ import { EntityFactory } from '../../engine/entity/factory';
 import { EntityId } from '../../engine/ecs/types';
 import { ComponentRegistry } from '../../engine/entity/types';
 import { Room } from '../../engine/generation/types';
-import { Position } from '../components/position';
+import { Position } from '@shared/components/position';
+import { Hostile } from '@shared/components/hostile';
 
 /**
  * Configuration for entity placement in generated dungeons.

@@ -3,10 +3,11 @@ import { ItemPickupSystem, createItemPickupSystem } from './item-pickup';
 import { Grid } from '../../engine/grid/grid';
 import { World } from '../../engine/ecs/world';
 import { EventBus } from '../../engine/events/event-bus';
-import { Actor } from '../components/actor';
-import { Item } from '../components/item';
-import { PickupEffect, EffectType } from '../components/pickup-effect';
-import { Health } from '../components/health';
+import { Actor } from '@shared/components/actor';
+import { Item } from '@shared/components/item';
+import { PickupEffect, EffectType } from '@shared/components/pickup-effect';
+import { Health } from '@shared/components/health';
+import { Position } from '@shared/components/position';
 import { GameEvents } from '../events/types';
 
 describe('ItemPickupSystem', () => {

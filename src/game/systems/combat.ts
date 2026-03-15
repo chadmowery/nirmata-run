@@ -3,7 +3,7 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { EntityId } from '@engine/ecs/types';
-import { Attack, Defense, LootTable, Health, Position } from '../components';
+import { Attack, Defense, LootTable, Health, Position } from '@shared/components';
 import { GameEvents } from '../events/types';
 
 import { ComponentRegistry } from '@engine/entity/types';

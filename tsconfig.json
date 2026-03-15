@@ -6,7 +6,8 @@
     "baseUrl": ".",
     "paths": {
       "@engine/*": ["./src/engine/*"],
-      "@game/*": ["./src/game/*"]
+      "@game/*": ["./src/game/*"],
+      "@shared/*": ["./src/shared/*"]
     },
     "strict": true,
     "skipLibCheck": true,

@@ -118,7 +118,7 @@ Plans:
   2. HUD displays player health and stats; scrollable message log shows combat events, pickups, and system messages
   3. Main menu screen starts a new game; game over screen shows on player death with a restart option
   4. Complete 60-second tech demo is playable end-to-end: player spawns in a generated dungeon, explores with FOV, fights enemies, picks up items, server validates every action
-**Plans**: TBD
+**Plans**: 3
 
 Plans:
 - [ ] 06-01: Zustand State Bridge (vanilla stores for player, messages, game state; engine-side writes)

@@ -4,7 +4,7 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { createCombatSystem } from './combat';
-import { Health, Attack, Defense, Position, LootTable } from '../components';
+import { Attack, Defense, LootTable, Health, Position } from '@shared/components';
 import { GameEvents } from '../events/types';
 import { ComponentRegistry } from '@engine/entity/types';
 

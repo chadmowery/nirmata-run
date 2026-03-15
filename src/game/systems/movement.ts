@@ -2,9 +2,9 @@ import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityId } from '@engine/ecs/types';
-import { Position } from '../components/position';
-import { Hostile } from '../components/hostile';
-import { BlocksMovement } from '../components/blocks-movement';
+import { Position } from '@shared/components/position';
+import { Hostile } from '@shared/components/hostile';
+import { BlocksMovement } from '@shared/components/blocks-movement';
 import { GameEvents } from '../events/types';
 
 export type MoveResult = 'moved' | 'blocked' | 'bump-attack';

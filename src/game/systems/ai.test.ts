@@ -3,10 +3,10 @@ import { createAISystem } from './ai';
 import { Grid } from '@engine/grid/grid';
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
-import { Position } from '../components/position';
-import { Actor } from '../components/actor';
-import { AIState, AIBehavior } from '../components/ai-state';
-import { FovAwareness } from '../components/fov-awareness';
+import { Position } from '@shared/components/position';
+import { Actor } from '@shared/components/actor';
+import { AIState, AIBehavior } from '@shared/components/ai-state';
+import { FovAwareness } from '@shared/components/fov-awareness';
 import { GameEvents } from '../events/types';
 
 describe('AISystem', () => {

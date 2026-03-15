@@ -7,11 +7,10 @@ import { EntityRegistry } from '../../engine/entity/registry';
 import { EntityFactory } from '../../engine/entity/factory';
 import { ComponentRegistry } from '../../engine/entity/types';
 import { registerGameTemplates } from '../entities';
-import * as Components from '../components';
+import * as Components from '@shared/components';
+const { Position, Hostile } = Components;
 import { Room } from '../../engine/generation/types';
 import { placeEntities, PlacementConfig } from './entity-placement';
-
-const { Position } = Components;
 
 function makeComponentRegistry(): ComponentRegistry {
   return {

@@ -151,4 +151,38 @@ export class World {
       }
     }
   }
+
+  /**
+   * Returns a copy of the internal state for serialization.
+   */
+  getSerializableState() {
+    const storesRecord: Record<string, Record<number, unknown>> = {};
+    for (const [key, store] of this.stores.entries()) {
+      storesRecord[key] = Object.fromEntries(store.entries());
+    }
+
+    return {
+      nextId: this.nextId,
+      entities: Array.from(this.entities),
+      stores: storesRecord,
+    };
+  }
+
+  /**
+   * Loads state into the world.
+   */
+  loadSerializableState(state: { nextId: number; entities: number[]; stores: Record<string, Record<number, unknown>> }): void {
+    this.nextId = state.nextId;
+    this.entities = new Set(state.entities);
+    this.stores = new Map();
+
+    for (const [key, storeRecord] of Object.entries(state.stores)) {
+      const store = new Map<EntityId, unknown>();
+      for (const [entityIdStr, data] of Object.entries(storeRecord)) {
+        // Deep clone the component data to ensure isolation
+        store.set(Number(entityIdStr), JSON.parse(JSON.stringify(data)));
+      }
+      this.stores.set(key, store);
+    }
+  }
 }

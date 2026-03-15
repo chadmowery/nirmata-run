@@ -2,10 +2,10 @@ import { World } from '../../engine/ecs/world';
 import { Grid } from '../../engine/grid/grid';
 import { EventBus } from '../../engine/events/event-bus';
 import { GameEvents } from '../events/types';
-import { Actor } from '../components/actor';
-import { Item } from '../components/item';
-import { PickupEffect, EffectType } from '../components/pickup-effect';
-import { Health } from '../components/health';
+import { Actor } from '@shared/components/actor';
+import { Item } from '@shared/components/item';
+import { PickupEffect, EffectType } from '@shared/components/pickup-effect';
+import { Health } from '@shared/components/health';
 
 export interface ItemPickupSystem {
   init(): void;

@@ -4,7 +4,7 @@ import { EventBus } from '../events/event-bus';
 import { EngineEvents } from '../events/types';
 import { TurnManager } from './turn-manager';
 import { TurnPhase, ENERGY_THRESHOLD } from './types';
-import { Actor, Energy, Health } from '../../game/components';
+import { Actor, Energy, Health } from '@shared/components';
 import { Phase } from '../ecs/types';
 
 describe('TurnManager', () => {

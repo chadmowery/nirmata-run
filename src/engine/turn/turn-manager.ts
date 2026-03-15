@@ -9,7 +9,7 @@ import {
   EnemyActionHandler, 
   DEFAULT_ACTION_COSTS 
 } from './types';
-import { Actor, Energy, Health } from '../../game/components';
+import { Actor, Energy, Health } from '@shared/components';
 
 /**
  * Orchestrates the game turn loop using an energy-based system.

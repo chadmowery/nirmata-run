@@ -15,7 +15,7 @@ import { GAME_TRANSITIONS } from './states/game-states';
 import { EntityRegistry } from '../engine/entity/registry';
 import { EntityFactory } from '../engine/entity/factory';
 import { registerGameTemplates } from './entities';
-import * as Components from './components';
+import * as Components from '@shared/components';
 import { createCombatSystem } from './systems/combat';
 import { createAISystem } from './systems/ai';
 import { createItemPickupSystem } from './systems/item-pickup';
