@@ -1,8 +1,9 @@
 import { GameContext } from '../types';
 import { gameStore, GameStatus } from './store';
-import { EntityId } from '@engine/ecs/types';
 import { Health } from '@shared/components/health';
 import { Progression } from '@shared/components/progression';
+import { Position, PositionData } from '@shared/components/position';
+import { SpriteComponent } from '@shared/components/sprite';
 
 export function syncEngineToStore(context: GameContext) {
   const { eventBus, world } = context;
@@ -58,8 +59,31 @@ export function syncEngineToStore(context: GameContext) {
     gameStore.getState().setGameStatus(event.newState as GameStatus);
   });
 
+  // FOV updates
+  eventBus.on('FOV_UPDATED', (event) => {
+    const visibleEntities = world.query(Position)
+      .filter(id => {
+        // Skip player and only include entities with a position in the visible set
+        if (id === context.playerId) return false;
+        const pos = world.getComponent(id, Position) as PositionData;
+        return pos && event.visibleSet.has(`${pos.x},${pos.y}`);
+      })
+      .map(id => {
+        const health = world.getComponent(id, Health);
+        const sprite = world.getComponent(id, SpriteComponent);
+        return {
+          id: id as number,
+          name: sprite?.key || 'Unknown',
+          hp: health?.current ?? 0,
+          maxHp: health?.max ?? 0,
+        };
+      });
+
+    gameStore.getState().setVisibleEntities(visibleEntities);
+  });
+
   // Entity Death messages (optional, could be done via MESSAGE_EMITTED too)
-  eventBus.on('ENTITY_DIED', (event) => {
+  eventBus.on('ENTITY_DIED', () => {
     // If we want specific UI feedback for deaths
   });
 }

@@ -1,0 +1,146 @@
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 1rem;
+  display: grid;
+  grid-template-areas:
+    "stats . ."
+    "log . entities";
+  grid-template-columns: 300px 1fr 250px;
+  grid-template-rows: auto 1fr;
+  gap: 1rem;
+  box-sizing: border-box;
+}
+
+.terminalPanel {
+  background: var(--panel-bg);
+  border: 2px solid var(--border-color);
+  padding: 0.75rem;
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
+  display: flex;
+  flex-direction: column;
+}
+
+.panelHeader {
+  color: var(--text-bright);
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.9rem;
+  letter-spacing: 1px;
+}
+
+/* Player HUD */
+.statsPanel {
+  grid-area: stats;
+}
+
+.statRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.statLabel {
+  color: var(--text-dim);
+}
+
+.statValue {
+  color: var(--text-bright);
+}
+
+.barContainer {
+  width: 100%;
+  height: 0.75rem;
+  background: #111;
+  border: 1px solid #333;
+  margin-bottom: 0.75rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  transition: width 0.3s ease-out;
+}
+
+.hpBar { background: var(--hp-color); }
+.xpBar { background: var(--xp-color); }
+
+/* Message Log */
+.messageLogPanel {
+  grid-area: log;
+  max-height: 250px;
+  align-self: end;
+}
+
+.scrollArea {
+  overflow-y: auto;
+  flex-grow: 1;
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-dim) transparent;
+}
+
+.scrollArea::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollArea::-webkit-scrollbar-thumb {
+  background: var(--text-dim);
+}
+
+.messageEntry {
+  margin-bottom: 0.25rem;
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+
+.msgInfo { color: var(--info-color); }
+.msgCombat { color: var(--warning-color); }
+.msgError { color: var(--error-color); }
+
+.msgCount {
+  color: var(--text-dim);
+  margin-left: 0.5rem;
+  font-style: italic;
+}
+
+/* Nearby Entities */
+.entitiesPanel {
+  grid-area: entities;
+}
+
+.entityItem {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.75rem;
+  padding: 0.25rem;
+  border-left: 2px solid transparent;
+  transition: border-color 0.2s;
+}
+
+.entityItem:hover {
+  border-left-color: var(--text-bright);
+  background: rgba(0, 255, 65, 0.05);
+}
+
+.entityName {
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.entityHealthBar {
+  width: 100%;
+  height: 4px;
+  background: #222;
+}
+
+.entityHealthFill {
+  height: 100%;
+  background: var(--hp-color);
+}

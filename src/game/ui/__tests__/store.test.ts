@@ -9,6 +9,7 @@ describe('UI Store', () => {
       player: { hp: 0, maxHp: 0, xp: 0, level: 1, statuses: [] },
       messages: [],
       gameStatus: GameState.Loading,
+      visibleEntities: [],
     });
   });
 
@@ -63,5 +64,14 @@ describe('UI Store', () => {
   it('should update game status', () => {
     gameStore.getState().setGameStatus(GameState.Playing);
     expect(gameStore.getState().gameStatus).toBe(GameState.Playing);
+  });
+
+  it('should update visible entities', () => {
+    const enemies = [
+      { id: 10, name: 'Orc', hp: 10, maxHp: 10 },
+      { id: 11, name: 'Goblin', hp: 5, maxHp: 5 },
+    ];
+    gameStore.getState().setVisibleEntities(enemies);
+    expect(gameStore.getState().visibleEntities).toEqual(enemies);
   });
 });

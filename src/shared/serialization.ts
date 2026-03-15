@@ -1,5 +1,5 @@
-import { World } from '../engine/ecs/World';
-import { Grid } from '../engine/grid/Grid';
+import { World } from '../engine/ecs/world';
+import { Grid } from '../engine/grid/grid';
 import { EventBus } from '../engine/events/event-bus';
 import { SerializedWorld, SerializedGrid } from './types';
 

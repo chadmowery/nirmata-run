@@ -1,6 +1,6 @@
 import { diff } from 'json-diff-ts';
-import { World } from '../engine/ecs/World';
-import { Grid } from '../engine/grid/Grid';
+import { World } from '../engine/ecs/world';
+import { Grid } from '../engine/grid/grid';
 import { EventBus } from '../engine/events/event-bus';
 import { ActionIntent, StateDelta } from './types';
 import { serializeWorld, serializeGrid, deserializeWorld, deserializeGrid } from './serialization';

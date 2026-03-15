@@ -1,5 +1,5 @@
-import { World } from '../ecs/World';
-import { Grid } from '../grid/Grid';
+import { World } from '../ecs/world';
+import { Grid } from '../grid/grid';
 import { TurnManager } from '../turn/turn-manager';
 import { EventBus } from '../events/event-bus';
 

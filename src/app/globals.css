@@ -1,0 +1,117 @@
+:root {
+  --bg-color: #000000;
+  --text-color: #00ff41; /* Classic Matrix/Green Terminal color */
+  --text-dim: #008f11;
+  --text-bright: #00ff41;
+  --border-color: #00ff41;
+  --panel-bg: rgba(0, 20, 0, 0.85);
+  --error-color: #ff0000;
+  --warning-color: #ffff00;
+  --info-color: #ffffff;
+  --xp-color: #00ffff;
+  --hp-color: #ff0044;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: 'Courier New', Courier, monospace;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+
+#canvas-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#ui-root {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  pointer-events: none; /* Allow clicks to pass through to canvas by default */
+}
+
+#ui-root > * {
+  pointer-events: auto; /* Re-enable for UI elements */
+}
+
+/* CRT Scanline Effect Overlay */
+.crt-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%,
+    rgba(0, 0, 0, 0.25) 50%
+  ),
+  linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.06),
+    rgba(0, 255, 0, 0.02),
+    rgba(0, 0, 255, 0.06)
+  );
+  background-size: 100% 2px, 3px 100%;
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0.15;
+}
+
+.crt-flicker {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(18, 16, 16, 0.1);
+  opacity: 0;
+  z-index: 101;
+  pointer-events: none;
+  animation: flicker 0.15s infinite;
+}
+
+@keyframes flicker {
+  0% { opacity: 0.1; }
+  5% { opacity: 0.2; }
+  10% { opacity: 0.1; }
+  15% { opacity: 0.15; }
+  20% { opacity: 0.25; }
+  25% { opacity: 0.1; }
+  30% { opacity: 0.1; }
+  35% { opacity: 0.1; }
+  40% { opacity: 0.2; }
+  45% { opacity: 0.1; }
+  50% { opacity: 0.1; }
+  55% { opacity: 0.1; }
+  60% { opacity: 0.2; }
+  65% { opacity: 0.1; }
+  70% { opacity: 0.1; }
+  75% { opacity: 0.1; }
+  80% { opacity: 0.1; }
+  85% { opacity: 0.1; }
+  90% { opacity: 0.1; }
+  95% { opacity: 0.1; }
+  100% { opacity: 0.1; }
+}

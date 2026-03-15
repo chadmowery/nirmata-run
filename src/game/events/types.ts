@@ -46,4 +46,7 @@ export interface GameEvents extends EngineEvents {
 
   /** Queued when the game state machine transitions. */
   STATE_TRANSITION: { newState: string };
+
+  /** Queued when the player's FOV is recalculated. */
+  FOV_UPDATED: { visibleSet: Set<string> };
 }

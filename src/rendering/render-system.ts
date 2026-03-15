@@ -6,10 +6,7 @@ import { Grid } from '../engine/grid/grid';
 import { EntityId } from '../engine/ecs/types';
 import { Position } from '@shared/components/position';
 import { SpriteComponent } from '@shared/components/sprite';
-import { Health } from '@shared/components/health';
-import { FovAwareness } from '@shared/components/fov-awareness';
 import { Actor } from '@shared/components/actor';
-import { Item } from '@shared/components/item';
 import { WorldLayers } from './layers';
 import { TILE_SIZE, FOV_RADIUS } from './constants';
 import { computeFov, createExploredSet, clearExplored, isEntityVisible } from './fov';
@@ -30,7 +27,7 @@ export interface RenderSystemConfig {
 
 export function createRenderSystem(config: RenderSystemConfig) {
   const { app, layers, world, eventBus, getGrid, getPlayerEntity, lightPasses } = config;
-  let exploredSet = createExploredSet();
+  const exploredSet = createExploredSet();
   let cameraTarget = { x: 0, y: 0 };
 
   const handleEntityCreated = (payload: { entityId: EntityId }) => {
@@ -100,6 +97,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
       // 1. FOV
       const fovSet = computeFov(playerPos.x, playerPos.y, FOV_RADIUS, lightPasses, exploredSet);
+      eventBus.emit('FOV_UPDATED', { visibleSet: fovSet });
 
       // 2. Camera
       cameraTarget = computeCameraTarget(playerPos.x, playerPos.y);
