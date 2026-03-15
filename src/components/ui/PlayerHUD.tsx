@@ -5,6 +5,8 @@ import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import styles from './styles.module.css';
 import { Heart, Trophy, Zap } from 'lucide-react';
+import { dispatchUIAction } from '@/game/input/input-bridge';
+import { GameAction } from '@/game/input/actions';
 
 export const PlayerHUD: React.FC = () => {
   const player = useStore(gameStore, (s) => s.player);
@@ -51,16 +53,16 @@ export const PlayerHUD: React.FC = () => {
         />
       </div>
 
-      {/* Buffs/Statuses */}
-      {player.statuses.length > 0 && (
-        <div className="mt-2 flex gap-2">
-          {player.statuses.map((status, i) => (
-            <span key={i} className="text-xs px-1 border border-green-500 uppercase">
-              {status}
-            </span>
-          ))}
-        </div>
-      )}
+      {/* Action Controls */}
+      <div className={styles.actionRow}>
+        <button 
+          className={styles.hudButton}
+          onClick={() => dispatchUIAction(GameAction.WAIT)}
+          title="Skip turn and recover energy (Z)"
+        >
+          Wait
+        </button>
+      </div>
     </div>
   );
 };

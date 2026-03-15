@@ -1,5 +1,6 @@
 import { GameContext } from '../types';
 import { gameStore, GameStatus } from './store';
+import { GameState } from '../states/types';
 import { Health } from '@shared/components/health';
 import { Progression } from '@shared/components/progression';
 import { Position, PositionData } from '@shared/components/position';
@@ -82,8 +83,19 @@ export function syncEngineToStore(context: GameContext) {
     gameStore.getState().setVisibleEntities(visibleEntities);
   });
 
-  // Entity Death messages (optional, could be done via MESSAGE_EMITTED too)
-  eventBus.on('ENTITY_DIED', () => {
-    // If we want specific UI feedback for deaths
+  // Turn tracking
+  eventBus.on('TURN_END', (event) => {
+    gameStore.getState().updateStats({ turns: event.turnNumber });
+  });
+
+  // Entity Death
+  eventBus.on('ENTITY_DIED', (event) => {
+    if (event.entityId === context.playerId) {
+      gameStore.getState().setGameStatus(GameState.GameOver);
+    } else {
+      // It was an enemy death (likely)
+      const currentKills = gameStore.getState().stats.kills;
+      gameStore.getState().updateStats({ kills: currentKills + 1 });
+    }
   });
 }

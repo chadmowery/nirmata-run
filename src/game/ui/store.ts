@@ -26,17 +26,24 @@ export interface VisibleEntity {
   maxHp: number;
 }
 
+export interface RunStats {
+  turns: number;
+  kills: number;
+}
+
 export interface UIState {
   player: PlayerStats;
   messages: MessageEntry[];
   gameStatus: GameStatus;
   visibleEntities: VisibleEntity[];
+  stats: RunStats;
   
   // Actions
   updatePlayerStats: (stats: Partial<PlayerStats>) => void;
   addMessage: (text: string, type: MessageType) => void;
   setGameStatus: (status: GameStatus) => void;
   setVisibleEntities: (entities: VisibleEntity[]) => void;
+  updateStats: (stats: Partial<RunStats>) => void;
 }
 
 const MAX_MESSAGES = 50;
@@ -50,12 +57,21 @@ export const gameStore = createStore<UIState>((set) => ({
     statuses: [],
   },
   messages: [],
-  gameStatus: GameState.Loading,
+  gameStatus: GameState.MainMenu,
   visibleEntities: [],
+  stats: {
+    turns: 0,
+    kills: 0,
+  },
 
   updatePlayerStats: (stats) => 
     set((state) => ({
       player: { ...state.player, ...stats },
+    })),
+
+  updateStats: (stats: Partial<RunStats>) => 
+    set((state) => ({
+      stats: { ...state.stats, ...stats },
     })),
 
   addMessage: (text, type) =>

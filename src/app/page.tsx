@@ -1,20 +1,27 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { createGame } from '@/game/setup';
+import { useRef, useEffect } from 'react';
+import { createGame, destroyGame } from '@/game/setup';
 import { initRenderer, destroyRenderer } from '@/rendering/renderer';
 import { createRenderSystem } from '@/rendering/render-system';
 import { createWorldContainer } from '@/rendering/layers';
+import { useStore } from 'zustand';
+import { gameStore } from '@/game/ui/store';
+import { GameState } from '@/game/states/types';
 import { HUDOverlay } from '@/components/ui/HUDOverlay';
+import { MainMenu } from '@/components/ui/MainMenu';
+import { GameOver } from '@/components/ui/GameOver';
+import { GameContext } from '@/game/types';
 
 export default function GamePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const initialized = useRef(false);
+  const contextRef = useRef<GameContext | null>(null);
+  const status = useStore(gameStore, (s) => s.gameStatus);
 
   useEffect(() => {
-    if (initialized.current || !canvasRef.current) return;
-    initialized.current = true;
-
+    // Only start engine if we are in Playing state and not already initialized
+    if (status !== GameState.Playing || contextRef.current || !canvasRef.current) return;
+    
     async function start() {
       // 1. Init PixiJS
       const app = await initRenderer(canvasRef.current!);
@@ -23,8 +30,9 @@ export default function GamePage() {
       const context = createGame({
         gridWidth: 80,
         gridHeight: 45,
-        seed: 'dungeon-run-1'
+        seed: `run-${Date.now()}`
       });
+      contextRef.current = context;
 
       // 3. Init Render System
       const layers = createWorldContainer();
@@ -48,24 +56,35 @@ export default function GamePage() {
       });
 
       // 4. Start Game
-      context.fsm.transition('PLAYING');
+      context.fsm.transition(GameState.Playing);
+
+      // Focus management: ensure window is focused for input
+      window.focus();
     }
 
     start();
 
     return () => {
+      if (contextRef.current) {
+        destroyGame(contextRef.current);
+        contextRef.current = null;
+      }
       destroyRenderer();
-      initialized.current = false;
     };
-  }, []);
+  }, [status]);
 
   return (
-    <main className="relative w-screen h-screen overflow-hidden bg-black">
+    <main className="relative w-screen h-screen overflow-hidden bg-black font-mono">
       <div id="canvas-container">
-        <canvas ref={canvasRef} />
+        <canvas ref={canvasRef} className={status === GameState.Playing ? 'block' : 'hidden'} />
       </div>
+      
       <div id="ui-root">
-        <HUDOverlay />
+        {status === GameState.MainMenu && <MainMenu />}
+        
+        {status === GameState.Playing && <HUDOverlay />}
+        
+        {status === GameState.GameOver && <GameOver />}
       </div>
     </main>
   );

@@ -1,10 +1,14 @@
-.overlay {
+.overlay, .menuOverlay {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   padding: 1rem;
+  box-sizing: border-box;
+}
+
+.overlay {
   display: grid;
   grid-template-areas:
     "stats . ."
@@ -12,7 +16,16 @@
   grid-template-columns: 300px 1fr 250px;
   grid-template-rows: auto 1fr;
   gap: 1rem;
-  box-sizing: border-box;
+}
+
+.menuOverlay {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(4px);
+  z-index: 100;
 }
 
 .terminalPanel {
@@ -143,4 +156,93 @@
 .entityHealthFill {
   height: 100%;
   background: var(--hp-color);
+}
+/* Main Menu & Game Over Styles */
+.titleContainer {
+  text-align: center;
+  margin-bottom: 3rem;
+  animation: flicker 0.15s infinite secondary;
+}
+
+@keyframes flicker {
+  0% { opacity: 0.97; }
+  5% { opacity: 0.95; }
+  10% { opacity: 0.97; }
+  15% { opacity: 0.94; }
+  20% { opacity: 0.98; }
+  100% { opacity: 1; }
+}
+
+.mainTitle {
+  font-size: 4rem;
+  color: var(--text-bright);
+  text-shadow: 0 0 20px var(--text-bright);
+  margin: 0;
+  letter-spacing: 0.5rem;
+  text-transform: uppercase;
+}
+
+.subTitle {
+  font-size: 1.2rem;
+  color: var(--text-dim);
+  margin-top: 0.5rem;
+  letter-spacing: 0.2rem;
+}
+
+.menuActions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 300px;
+}
+
+.menuButton {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-bright);
+  padding: 1rem 2rem;
+  font-family: inherit;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  position: relative;
+  overflow: hidden;
+}
+
+.menuButton:hover {
+  background: var(--border-color);
+  color: #000;
+  box-shadow: 0 0 20px var(--border-color);
+}
+
+.menuButton:active {
+  transform: scale(0.98);
+}
+
+/* Stats Grid for Game Over */
+.statsGrid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1rem 2rem;
+  margin: 2rem 0;
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  width: 100%;
+  max-width: 400px;
+}
+
+.statLabel {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  font-size: 0.9rem;
+}
+
+.statValue {
+  color: var(--text-bright);
+  text-align: right;
+  font-weight: bold;
 }

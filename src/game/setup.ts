@@ -25,6 +25,7 @@ import RNG from 'rot-js/lib/rng';
 
 import { GameContext } from './types';
 import { syncEngineToStore } from './ui/sync-bridge';
+import { registerInputBridge } from './input/input-bridge';
 
 export interface GameConfig {
   gridWidth: number;
@@ -198,6 +199,7 @@ export function createGame(config: GameConfig): GameContext {
 
   // Initialize UI Bridge
   syncEngineToStore(context);
+  registerInputBridge((action) => turnManager.submitAction(action));
 
   // Wire input ActionHandler
   inputManager.setActionHandler(async (action: GameAction) => {
@@ -286,6 +288,18 @@ export function createGame(config: GameConfig): GameContext {
   });
 
   return context;
+}
+
+/**
+ * Cleans up game resources and systems.
+ */
+export function destroyGame(context: GameContext) {
+  (context.combatSystem as any).dispose?.();
+  (context.itemPickupSystem as any).dispose?.();
+  (context.aiSystem as any).dispose?.();
+  (context.movementSystem as any).dispose?.();
+  context.inputManager.disable();
+  context.eventBus.clear();
 }
 
 /**
