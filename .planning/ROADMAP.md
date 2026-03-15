@@ -102,7 +102,7 @@ Plans:
   3. Client applies optimistic visual updates (sprite position only) before server responds, then replaces full state with server snapshot on response
   4. Irreversible side effects (death, messages, inventory changes) wait for server confirmation — never applied optimistically
   5. Action pipeline is a pure function: same code runs locally (client-side) and on the server (API route), with shared types in shared/ directory
-**Plans**: TBD
+**Plans**: 3
 
 Plans:
 - [ ] 05-01: Action Pipeline & Shared Types (pure function pipeline, shared/ directory, Zod schemas for payloads and snapshots)
