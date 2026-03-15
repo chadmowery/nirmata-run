@@ -12,3 +12,4 @@ export * from './fov-awareness';
 export * from './blocks-movement';
 export * from './item';
 export * from './pickup-effect';
+export * from './progression';

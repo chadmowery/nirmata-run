@@ -24,6 +24,7 @@ import { placeEntities } from './generation/entity-placement';
 import RNG from 'rot-js/lib/rng';
 
 import { GameContext } from './types';
+import { syncEngineToStore } from './ui/sync-bridge';
 
 export interface GameConfig {
   gridWidth: number;
@@ -95,10 +96,12 @@ export function createGame(config: GameConfig): GameContext {
     [GameState.MainMenu]: {
       onEnter: (ctx) => {
         ctx.inputManager.disable();
+        ctx.eventBus.emit('STATE_TRANSITION', { newState: GameState.MainMenu });
       },
     },
     [GameState.Playing]: {
       onEnter: (ctx) => {
+        ctx.eventBus.emit('STATE_TRANSITION', { newState: GameState.Playing });
         // Generate dungeon and place entities on first enter
         if (!ctx.playerId) {
           const seed = config.seed ?? `dungeon-${Date.now()}`;
@@ -173,11 +176,13 @@ export function createGame(config: GameConfig): GameContext {
     [GameState.Paused]: {
       onEnter: (ctx) => {
         ctx.inputManager.disable();
+        ctx.eventBus.emit('STATE_TRANSITION', { newState: GameState.Paused });
       },
     },
     [GameState.GameOver]: {
       onEnter: (ctx) => {
         ctx.inputManager.disable();
+        ctx.eventBus.emit('STATE_TRANSITION', { newState: GameState.GameOver });
       },
     },
   };
@@ -190,6 +195,9 @@ export function createGame(config: GameConfig): GameContext {
   );
 
   context.fsm = fsm;
+
+  // Initialize UI Bridge
+  syncEngineToStore(context);
 
   // Wire input ActionHandler
   inputManager.setActionHandler(async (action: GameAction) => {

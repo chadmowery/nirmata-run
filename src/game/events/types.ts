@@ -34,4 +34,16 @@ export interface GameEvents extends EngineEvents {
     toX: number; 
     toY: number 
   };
+
+  /** Queued when an entity is healed. */
+  HEALED: { entityId: EntityId; amount: number };
+
+  /** Queued when an entity gains experience. */
+  XP_GAINED: { entityId: EntityId; amount: number };
+
+  /** Queued to emit a message to the UI log. */
+  MESSAGE_EMITTED: { text: string; type: 'info' | 'combat' | 'error' };
+
+  /** Queued when the game state machine transitions. */
+  STATE_TRANSITION: { newState: string };
 }
