@@ -1,9 +1,8 @@
 import { Container } from 'pixi.js';
-import { CompositeTilemap } from '@pixi/tilemap';
 
 export interface WorldLayers {
   worldContainer: Container;
-  terrainLayer: CompositeTilemap;
+  terrainLayer: Container;
   itemLayer: Container;
   entityLayer: Container;
   effectsLayer: Container;
@@ -16,7 +15,7 @@ export interface WorldLayers {
 export function createWorldContainer(): WorldLayers {
   const worldContainer = new Container();
 
-  const terrainLayer = new CompositeTilemap();
+  const terrainLayer = new Container();
   const itemLayer = new Container();
   const entityLayer = new Container();
   const effectsLayer = new Container();

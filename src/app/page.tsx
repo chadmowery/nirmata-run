@@ -2,6 +2,7 @@
 
 import { useRef, useEffect } from 'react';
 import { createGame, destroyGame } from '@/game/setup';
+import { loadAssets } from '@/rendering/assets';
 import { initRenderer, destroyRenderer } from '@/rendering/renderer';
 import { createRenderSystem } from '@/rendering/render-system';
 import { createWorldContainer } from '@/rendering/layers';
@@ -17,55 +18,69 @@ export default function GamePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contextRef = useRef<GameContext | null>(null);
   const status = useStore(gameStore, (s) => s.gameStatus);
+  const isInitializing = useRef(false);
 
   useEffect(() => {
     // Only start engine if we are in Playing state and not already initialized
-    if (status !== GameState.Playing || contextRef.current || !canvasRef.current) return;
+    if (status !== GameState.Playing || contextRef.current || !canvasRef.current || isInitializing.current) return;
     
     async function start() {
-      // 1. Init PixiJS
-      const app = await initRenderer(canvasRef.current!);
-      
-      // 2. Init Game Engine
-      const context = createGame({
-        gridWidth: 80,
-        gridHeight: 45,
-        seed: `run-${Date.now()}`
-      });
-      contextRef.current = context;
+      isInitializing.current = true;
+      try {
+        console.log('--- STARTING ENGINE ---');
+        // 1. Init PixiJS
+        const app = await initRenderer(canvasRef.current!);
+        await loadAssets();
+        
+        // 2. Init Game Engine
+        const context = createGame({
+          gridWidth: 80,
+          gridHeight: 45,
+          seed: `run-${Date.now()}`
+        });
+        contextRef.current = context;
+        // Expose for debugging
+        (window as any).gameContext = context;
 
-      // 3. Init Render System
-      const layers = createWorldContainer();
-      app.stage.addChild(layers.worldContainer);
+        // 3. Init Render System
+        const layers = createWorldContainer();
+        app.stage.addChild(layers.worldContainer);
 
-      const renderSystem = createRenderSystem({
-        app,
-        layers,
-        world: context.world,
-        eventBus: context.eventBus,
-        getGrid: () => context.grid,
-        getPlayerEntity: () => context.playerId!,
-        lightPasses: (x: number, y: number) => context.grid.isTransparent(x, y),
-      });
+        const renderSystem = createRenderSystem({
+          app,
+          layers,
+          world: context.world,
+          eventBus: context.eventBus,
+          getGrid: () => context.grid,
+          getPlayerEntity: () => context.playerId!,
+          lightPasses: (x: number, y: number) => context.grid.isTransparent(x, y),
+        });
 
-      renderSystem.init();
+        renderSystem.init();
 
-      // Start rendering loop sync
-      app.ticker.add(() => {
-        renderSystem.renderSystem();
-      });
+        // Start rendering loop sync
+        app.ticker.add(() => {
+          renderSystem.renderSystem();
+        });
 
-      // 4. Start Game
-      context.fsm.transition(GameState.Playing);
+        // 4. Start Game
+        context.fsm.transition(GameState.Playing);
 
-      // Focus management: ensure window is focused for input
-      window.focus();
+        // Focus management: ensure window is focused for input
+        window.focus();
+        console.log('--- ENGINE READY ---');
+      } catch (error) {
+        console.error('CRITICAL: Game initialization failed:', error);
+      } finally {
+        isInitializing.current = false;
+      }
     }
 
     start();
 
     return () => {
       if (contextRef.current) {
+        console.log('--- DESTROYING ENGINE ---');
         destroyGame(contextRef.current);
         contextRef.current = null;
       }

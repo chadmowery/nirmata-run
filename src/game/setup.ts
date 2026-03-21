@@ -40,7 +40,7 @@ export function createGame(config: GameConfig): GameContext {
   const eventBus = new EventBus<GameEvents>();
   const world = new World(eventBus as any);
   const grid = new Grid(config.gridWidth, config.gridHeight);
-  
+
   // Entity pipeline
   const entityRegistry = new EntityRegistry();
   registerGameTemplates(entityRegistry);
@@ -57,10 +57,10 @@ export function createGame(config: GameConfig): GameContext {
 
   const movementSystem = createMovementSystem(world, grid, eventBus);
   const combatSystem = createCombatSystem(
-    world, 
-    grid, 
-    eventBus, 
-    entityFactory, 
+    world,
+    grid,
+    eventBus,
+    entityFactory,
     componentRegistry
   );
   const aiSystem = createAISystem(world, grid, movementSystem, eventBus);
@@ -102,73 +102,90 @@ export function createGame(config: GameConfig): GameContext {
     },
     [GameState.Playing]: {
       onEnter: (ctx) => {
-        ctx.eventBus.emit('STATE_TRANSITION', { newState: GameState.Playing });
+        console.log('[SETUP] Entering Playing state');
+
         // Generate dungeon and place entities on first enter
         if (!ctx.playerId) {
-          const seed = config.seed ?? `dungeon-${Date.now()}`;
-          ctx.currentSeed = seed;
+          console.log('[SETUP] Initializing new dungeon...');
+          try {
+            const seed = config.seed ?? `dungeon-${Date.now()}`;
+            ctx.currentSeed = seed;
 
-          const dungeonResult = generateDungeon({
-            width: config.gridWidth,
-            height: config.gridHeight,
-            seed,
-          });
+            const dungeonResult = generateDungeon({
+              width: config.gridWidth,
+              height: config.gridHeight,
+              seed,
+            });
+            console.log('[SETUP] Dungeon generated successfully');
 
-          // Replace the grid in context with the generated one
-          (ctx as any).grid = dungeonResult.grid;
+            // Replace the grid in context with the generated one
+            (ctx as any).grid = dungeonResult.grid;
 
-          // Update systems that reference grid
-          const newMovementSystem = createMovementSystem(ctx.world, dungeonResult.grid, ctx.eventBus);
-          (ctx as any).movementSystem = newMovementSystem;
-          const newCombatSystem = createCombatSystem(
-            ctx.world,
-            dungeonResult.grid,
-            ctx.eventBus,
-            ctx.entityFactory,
-            componentRegistry
-          );
-          newCombatSystem.init();
-          (ctx as any).combatSystem = newCombatSystem;
-          const newAISystem = createAISystem(ctx.world, dungeonResult.grid, newMovementSystem, ctx.eventBus);
-          (ctx as any).aiSystem = newAISystem;
-          const newItemPickupSystem = createItemPickupSystem(ctx.world, dungeonResult.grid, ctx.eventBus);
-          newItemPickupSystem.init();
-          (ctx as any).itemPickupSystem = newItemPickupSystem;
+            // Update systems that reference grid
+            const newMovementSystem = createMovementSystem(ctx.world, dungeonResult.grid, ctx.eventBus);
+            (ctx as any).movementSystem = newMovementSystem;
+            const newCombatSystem = createCombatSystem(
+              ctx.world,
+              dungeonResult.grid,
+              ctx.eventBus,
+              ctx.entityFactory,
+              componentRegistry
+            );
+            newCombatSystem.init();
+            (ctx as any).combatSystem = newCombatSystem;
+            const newAISystem = createAISystem(ctx.world, dungeonResult.grid, newMovementSystem, ctx.eventBus);
+            (ctx as any).aiSystem = newAISystem;
+            const newItemPickupSystem = createItemPickupSystem(ctx.world, dungeonResult.grid, ctx.eventBus);
+            newItemPickupSystem.init();
+            (ctx as any).itemPickupSystem = newItemPickupSystem;
 
-          // Use rot-js RNG for deterministic entity placement
-          RNG.setSeed(hashSeedForPlacement(seed));
-          const rng = { random: () => RNG.getUniform() };
+            console.log('[SETUP] Systems re-initialized with new grid');
 
-          const placement = placeEntities(
-            ctx.world,
-            dungeonResult.grid,
-            ctx.entityFactory,
-            componentRegistry,
-            dungeonResult.rooms,
-            dungeonResult.playerSpawnRoom,
-            rng
-          );
+            // Use rot-js RNG for deterministic entity placement
+            RNG.setSeed(hashSeedForPlacement(seed));
+            const rng = { random: () => RNG.getUniform() };
 
-          ctx.playerId = placement.playerId;
+            console.log('[SETUP] Placing entities...');
+            const placement = placeEntities(
+              ctx.world,
+              dungeonResult.grid,
+              ctx.entityFactory,
+              componentRegistry,
+              dungeonResult.rooms,
+              dungeonResult.playerSpawnRoom,
+              rng
+            );
 
-          // Rewire turn manager enemy handler with new AI system
-          ctx.turnManager.setEnemyActionHandler((entityId) => {
-            newAISystem.processEnemyTurn(entityId);
-          });
+            ctx.playerId = placement.playerId;
+            console.log('[SETUP] Player created with ID:', ctx.playerId);
 
-          // Rewire player action handler with new movement system
-          ctx.turnManager.setPlayerActionHandler((action: string, entityId: number) => {
-            const gameAction = action as GameAction;
-            if (DIRECTIONS[gameAction]) {
-              const { dx, dy } = DIRECTIONS[gameAction];
-              newMovementSystem.processMove(entityId, dx, dy);
-            }
-            ctx.eventBus.emit('PLAYER_ACTION', { action, entityId });
-          });
+            // Now that player is created, emit transition and dungeon events
+            ctx.eventBus.emit('STATE_TRANSITION', { newState: GameState.Playing });
+            ctx.eventBus.emit('DUNGEON_GENERATED', { seed });
+
+            // Rewire turn manager enemy handler with new AI system
+            ctx.turnManager.setEnemyActionHandler((entityId) => {
+              newAISystem.processEnemyTurn(entityId);
+            });
+
+            // Rewire player action handler with new movement system
+            ctx.turnManager.setPlayerActionHandler((action: string, entityId: number) => {
+              const gameAction = action as GameAction;
+              if (DIRECTIONS[gameAction]) {
+                const { dx, dy } = DIRECTIONS[gameAction];
+                newMovementSystem.processMove(entityId, dx, dy);
+              }
+              ctx.eventBus.emit('PLAYER_ACTION', { action, entityId });
+            });
+            console.log('[SETUP] Turn manager handlers rewired');
+          } catch (err) {
+            console.error('[SETUP] CRITICAL ERROR during Playing onEnter:', err);
+          }
         }
 
         ctx.inputManager.enable();
         ctx.turnManager.start();
+        console.log('[SETUP] Input manager enabled and Turn manager started');
       },
       onExit: (ctx) => {
         ctx.inputManager.disable();
@@ -235,18 +252,6 @@ export function createGame(config: GameConfig): GameContext {
 
           if (response.ok) {
             const result = await response.json();
-            // 4. Reconciliation
-            // The server response contains the delta from the state BEFORE the player moved.
-            // However, our local world has ALREADY moved.
-            // We'll trust the server truth and apply the delta to our current state.
-            // Wait, applying a delta calculated from oldState to mutatedState is risky.
-            // Ideally the server returns the delta, and we apply it.
-            // Given "Snap-to-Truth", we should just apply the delta to the state before the action.
-            // But we didn't snapshot.
-            // ALTERNATIVE: Just apply the server delta to current state if json-diff-ts handles it, 
-            // or if we trust the server just returned the full state (which it didn't).
-            
-            // For now, let's use the delta to patch our world.
             if (result.delta) {
               const { applyStateDelta } = await import('@shared/reconciliation');
               applyStateDelta(world, grid, eventBus, result.delta);
@@ -278,7 +283,7 @@ export function createGame(config: GameConfig): GameContext {
       const { dx, dy } = DIRECTIONS[gameAction];
       context.movementSystem.processMove(entityId, dx, dy);
     }
-    
+
     eventBus.emit('PLAYER_ACTION', { action, entityId });
   });
 

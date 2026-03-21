@@ -11,10 +11,13 @@ export function syncEngineToStore(context: GameContext) {
 
   // Helper to update player stats from world state
   const refreshPlayerStats = () => {
+    console.log('[SYNC] Refreshing player stats. context.playerId:', context.playerId);
     if (!context.playerId) return;
 
     const health = world.getComponent(context.playerId, Health);
     const progression = world.getComponent(context.playerId, Progression);
+
+    console.log('[SYNC] Found health:', health, 'progression:', progression);
 
     gameStore.getState().updatePlayerStats({
       hp: health?.current ?? 0,
@@ -26,7 +29,9 @@ export function syncEngineToStore(context: GameContext) {
 
   // 1. Initial Sync
   refreshPlayerStats();
-  gameStore.getState().setGameStatus(context.fsm.getCurrentState() as GameStatus);
+  // REMOVED: gameStore.getState().setGameStatus(context.fsm.getCurrentState() as GameStatus);
+  // This was causing a race condition in React by triggering a cleanup/init cycle.
+  // The engine emits its own STATE_TRANSITION once it's actually ready.
 
   // 2. Register Listeners
   
@@ -55,9 +60,26 @@ export function syncEngineToStore(context: GameContext) {
     gameStore.getState().addMessage(event.text, event.type);
   });
 
+  // Item pickup
+  eventBus.on('ITEM_PICKED_UP', (event) => {
+    if (event.entityId === context.playerId) {
+      refreshPlayerStats();
+    }
+  });
+
   // Game Status
   eventBus.on('STATE_TRANSITION', (event) => {
+    console.log('[SYNC] STATE_TRANSITION:', event.newState);
     gameStore.getState().setGameStatus(event.newState as GameStatus);
+    if (event.newState === GameState.Playing) {
+      refreshPlayerStats();
+    }
+  });
+
+  // Dungeon generation
+  eventBus.on('DUNGEON_GENERATED', () => {
+    console.log('[SYNC] DUNGEON_GENERATED');
+    refreshPlayerStats();
   });
 
   // FOV updates
@@ -72,11 +94,13 @@ export function syncEngineToStore(context: GameContext) {
       .map(id => {
         const health = world.getComponent(id, Health);
         const sprite = world.getComponent(id, SpriteComponent);
+        const currentHp = health?.current ?? 0;
+        const maxHp = health?.max ?? 1; // Prevent division by zero
         return {
           id: id as number,
           name: sprite?.key || 'Unknown',
-          hp: health?.current ?? 0,
-          maxHp: health?.max ?? 0,
+          hp: currentHp,
+          maxHp: maxHp,
         };
       });
 

@@ -7,6 +7,7 @@ import { GameContext } from '../types';
 
 export const GAME_TRANSITIONS: TransitionTable<GameState> = [
   [GameState.Loading, GameState.MainMenu],
+  [GameState.Loading, GameState.Playing],
   [GameState.MainMenu, GameState.Playing],
   [GameState.Playing, GameState.Paused],
   [GameState.Playing, GameState.GameOver],
@@ -37,7 +38,7 @@ export function getActivePhases(state: GameState): Phase[] {
 
 export function createGameFSM(context: GameContext): StateMachine<GameState, GameContext> {
   return new StateMachine<GameState, GameContext>(
-    GameState.Loading,
+    GameState.MainMenu,
     GAME_STATE_CONFIGS,
     GAME_TRANSITIONS,
     context

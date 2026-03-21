@@ -60,10 +60,10 @@ export function applyStateDelta(
               if (componentKey === 'position') {
                 eventBus.emit('ENTITY_MOVED', {
                   entityId,
-                  fromX: property === 'x' ? change.oldValue : currentData.x,
-                  fromY: property === 'y' ? change.oldValue : currentData.y,
-                  toX: currentData.x,
-                  toY: currentData.y
+                  fromX: property === 'x' ? change.oldValue : (currentData as any).x,
+                  fromY: property === 'y' ? change.oldValue : (currentData as any).y,
+                  toX: (currentData as any).x,
+                  toY: (currentData as any).y
                 });
               }
             }

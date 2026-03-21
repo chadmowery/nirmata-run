@@ -4,7 +4,7 @@
   "components": {
     "actor": { "isPlayer": false },
     "energy": { "current": 0, "speed": 80, "threshold": 1000 },
-    "sprite": { "key": "goblin" },
+    "sprite": { "key": "enemy_triangle" },
     "hostile": {},
     "aiState": { "behavior": "idle", "sightRadius": 6 },
     "fovAwareness": { "canSeePlayer": false },

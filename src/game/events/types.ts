@@ -14,6 +14,9 @@ export interface GameEvents extends EngineEvents {
   /** Queued when an entity picks up an item. */
   ITEM_PICKED_UP: { entityId: EntityId; itemId: EntityId };
 
+  /** Queued when a dungeon is fully generated and populated. */
+  DUNGEON_GENERATED: { seed: string };
+
   /** Queued when an entity attempts to move into a hostile entity. */
   BUMP_ATTACK: { attackerId: EntityId; defenderId: EntityId };
 

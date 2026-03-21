@@ -9,9 +9,9 @@ import { SpriteComponent } from '@shared/components/sprite';
 import { Actor } from '@shared/components/actor';
 import { WorldLayers } from './layers';
 import { TILE_SIZE, FOV_RADIUS } from './constants';
-import { computeFov, createExploredSet, clearExplored, isEntityVisible } from './fov';
+import { computeFov, createExploredSet, isEntityVisible } from './fov';
 import { computeCameraTarget, lerpCamera, getVisibleTileRange } from './camera';
-import { buildTilemap } from './tilemap';
+import { buildTilemap, clearTilemap } from './tilemap';
 import { createEntitySprite, destroyEntitySprite, getEntitySprite, clearAllSprites } from './sprite-map';
 import { tickAnimations, queueMoveTween, queueAttackAnimationWithDefender, queueDeathAnimation, clearAnimations, hasActiveAnimation } from './animations';
 
@@ -74,6 +74,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.on('ENTITY_DESTROYED', handleEntityDestroyed);
       eventBus.on('ENTITY_MOVED', handleEntityMoved);
       eventBus.on('BUMP_ATTACK', handleBumpAttack);
+      eventBus.on('DUNGEON_GENERATED', () => this.onDungeonGenerated());
       
       app.ticker.add(updateCameraFrame);
 
@@ -128,15 +129,26 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
         // Visibility gating
         const entityType = actor?.isPlayer ? 'player' : (actor ? 'enemy' : 'item');
-        const { visible, alpha } = isEntityVisible(pos, entityType as any, fovSet, exploredSet);
+        let { visible, alpha } = isEntityVisible(pos, entityType as any, fovSet, exploredSet);
         
+        // FORCE PLAYER VISIBLE FOR DEBUGGING
+        if (entityType === 'player') {
+          visible = true;
+          alpha = 1.0;
+        }
+
         sprite.visible = visible;
         sprite.alpha = alpha;
+        
+        // Ensure sprite is on top within its container
+        if (visible && sprite.parent) {
+          sprite.parent.addChild(sprite);
+        }
       }
     },
 
     onDungeonGenerated() {
-      clearExplored(exploredSet);
+      clearTilemap(layers.terrainLayer);
       clearAnimations();
       clearAllSprites();
       
@@ -147,6 +159,16 @@ export function createRenderSystem(config: RenderSystemConfig) {
         cameraTarget = computeCameraTarget(playerPos.x, playerPos.y);
         layers.worldContainer.x = cameraTarget.x;
         layers.worldContainer.y = cameraTarget.y;
+      }
+
+      // Re-initialize sprites for all existing entities in the new dungeon
+      const entities = world.query(SpriteComponent, Position);
+      for (const entityId of entities) {
+        const spriteComp = world.getComponent(entityId, SpriteComponent)!;
+        const pos = world.getComponent(entityId, Position)!;
+        const sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
+        sprite.x = pos.x * TILE_SIZE;
+        sprite.y = pos.y * TILE_SIZE;
       }
 
       this.renderSystem();

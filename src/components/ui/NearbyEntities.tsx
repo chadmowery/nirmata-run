@@ -23,7 +23,7 @@ export const NearbyEntities: React.FC = () => {
             <div className={styles.entityHealthBar}>
               <div 
                 className={styles.entityHealthFill} 
-                style={{ width: `${Math.max(0, (entity.hp / entity.maxHp) * 100)}%` }} 
+                style={{ width: `${entity.maxHp > 0 ? Math.max(0, (entity.hp / entity.maxHp) * 100) : 0}%` }} 
               />
             </div>
           </div>

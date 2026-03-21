@@ -11,9 +11,9 @@ import { GameAction } from '@/game/input/actions';
 export const PlayerHUD: React.FC = () => {
   const player = useStore(gameStore, (s) => s.player);
 
-  const hpPercent = Math.min(100, Math.max(0, (player.hp / player.maxHp) * 100)) || 0;
-  const xpNextLevel = player.level * 100; // Simple XP curve for now
-  const xpPercent = Math.min(100, Math.max(0, (player.xp / xpNextLevel) * 100)) || 0;
+  const hpPercent = (player.maxHp > 0 ? (player.hp / player.maxHp) * 100 : 0) || 0;
+  const xpNextLevel = (player.level || 1) * 100; // Simple XP curve for now
+  const xpPercent = (xpNextLevel > 0 ? (player.xp / xpNextLevel) * 100 : 0) || 0;
 
   return (
     <div className={`${styles.terminalPanel} ${styles.statsPanel}`}>
