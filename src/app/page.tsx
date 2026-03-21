@@ -32,11 +32,33 @@ export default function GamePage() {
         const app = await initRenderer(canvasRef.current!);
         await loadAssets();
         
+        // 1.5 Get Session from Server
+        const seed = `run-${Date.now()}`;
+        const sessionResponse = await fetch('/api/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            seed,
+            width: 80,
+            height: 45
+          })
+        });
+        
+        let sessionId: string | undefined;
+        if (sessionResponse.ok) {
+          const sessionData = await sessionResponse.json();
+          sessionId = sessionData.sessionId;
+          console.log('[CLIENT] Server session initialized:', sessionId);
+        } else {
+          console.warn('[CLIENT] Failed to initialize server session. Falling back to local only.');
+        }
+
         // 2. Init Game Engine
         const context = createGame({
           gridWidth: 80,
           gridHeight: 45,
-          seed: `run-${Date.now()}`
+          seed,
+          sessionId
         });
         contextRef.current = context;
         // Expose for debugging

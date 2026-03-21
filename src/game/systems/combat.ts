@@ -16,7 +16,8 @@ export function createCombatSystem(
   grid: Grid,
   eventBus: EventBus<GameEvents>,
   entityFactory: EntityFactory,
-  componentRegistry: ComponentRegistry
+  componentRegistry: ComponentRegistry,
+  options: { skipLoot?: boolean } = {}
 ) {
   const resolveBumpAttack = (payload: GameEvents['BUMP_ATTACK']) => {
     const { attackerId, defenderId } = payload;
@@ -58,7 +59,7 @@ export function createCombatSystem(
     }
 
     // 2. Roll loot table
-    if (lootTable && pos) {
+    if (!options.skipLoot && lootTable && pos) {
       for (const drop of lootTable.drops) {
         if (Math.random() < drop.chance) {
           const itemId = entityFactory.create(

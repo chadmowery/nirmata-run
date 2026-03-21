@@ -1,31 +1,15 @@
-import { World } from '../engine/ecs/world';
-import { Grid } from '../engine/grid/grid';
-import { EventBus } from '../engine/events/event-bus';
-import { EngineEvents } from '../engine/events/types';
-import { StateMachine } from '../engine/state-machine/state-machine';
-import { StateConfig } from '../engine/state-machine/types';
-import { TurnManager } from '../engine/turn/turn-manager';
-import { InputManager } from './input/input-manager';
-import { MovementSystem, createMovementSystem } from './systems/movement';
-import { GameAction, DIRECTIONS, DEFAULT_BINDINGS } from './input/actions';
-import { GameEvents } from './events/types';
-import { GameState } from './states/types';
-import { GAME_TRANSITIONS } from './states/game-states';
-
-import { EntityRegistry } from '../engine/entity/registry';
-import { EntityFactory } from '../engine/entity/factory';
-import { registerGameTemplates } from './entities';
-import * as Components from '@shared/components';
-import { createCombatSystem } from './systems/combat';
-import { createAISystem } from './systems/ai';
-import { createItemPickupSystem } from './systems/item-pickup';
-import { generateDungeon } from './generation/dungeon-generator';
-import { placeEntities } from './generation/entity-placement';
-import RNG from 'rot-js/lib/rng';
-
+import { createEngineInstance } from './engine-factory';
+import { serializeWorld, serializeGrid } from '@shared/serialization';
 import { GameContext } from './types';
 import { syncEngineToStore } from './ui/sync-bridge';
 import { registerInputBridge } from './input/input-bridge';
+import { StateMachine } from '../engine/state-machine/state-machine';
+import { StateConfig } from '../engine/state-machine/types';
+import { GameState } from './states/types';
+import { GAME_TRANSITIONS } from './states/game-states';
+import { InputManager } from './input/input-manager';
+import { GameAction, DIRECTIONS, DEFAULT_BINDINGS } from './input/actions';
+import { GameEvents } from './events/types';
 
 export interface GameConfig {
   gridWidth: number;
@@ -36,60 +20,32 @@ export interface GameConfig {
 /**
  * Bootstraps the game and engine together.
  */
-export function createGame(config: GameConfig): GameContext {
-  const eventBus = new EventBus<GameEvents>();
-  const world = new World(eventBus as any);
-  const grid = new Grid(config.gridWidth, config.gridHeight);
-
-  // Entity pipeline
-  const entityRegistry = new EntityRegistry();
-  registerGameTemplates(entityRegistry);
-  const entityFactory = new EntityFactory(entityRegistry);
-  const componentsMap = Object.fromEntries(
-    Object.entries(Components)
-      .filter(([_, component]) => component && typeof component === 'object' && 'key' in component)
-      .map(([_, component]) => [(component as any).key, component])
-  );
-  const componentRegistry: any = {
-    get: (key: string) => componentsMap[key],
-    has: (key: string) => !!componentsMap[key],
-  };
-
-  const movementSystem = createMovementSystem(world, grid, eventBus);
-  const combatSystem = createCombatSystem(
-    world,
-    grid,
-    eventBus,
-    entityFactory,
-    componentRegistry
-  );
-  const aiSystem = createAISystem(world, grid, movementSystem, eventBus);
-  const itemPickupSystem = createItemPickupSystem(world, grid, eventBus);
-
-  // Initialize systems
-  combatSystem.init();
-  itemPickupSystem.init();
-
-  const turnManager = new TurnManager(world, eventBus as any, {
-    energyThreshold: 1000,
-    defaultActionCost: 1000,
-    waitActionCost: 500,
+export function createGame(config: GameConfig & { sessionId?: string }): GameContext {
+  const seed = config.seed ?? `run-${Date.now()}`;
+  const instance = createEngineInstance({
+    width: config.gridWidth,
+    height: config.gridHeight,
+    seed,
+    isClient: true
   });
 
+  const { world, grid, eventBus, turnManager, entityFactory, systems, playerId } = instance;
   const inputManager = new InputManager(DEFAULT_BINDINGS);
 
-  // Partial context to break circular dependency during initialization
   const context = {
     world,
     grid,
     eventBus,
-    movementSystem,
-    combatSystem,
-    aiSystem,
-    itemPickupSystem,
-    entityFactory,
     turnManager,
+    entityFactory,
+    playerId,
     inputManager,
+    sessionId: config.sessionId,
+    currentSeed: seed,
+    movementSystem: systems.movement,
+    combatSystem: systems.combat,
+    aiSystem: systems.ai,
+    itemPickupSystem: systems.itemPickup,
   } as GameContext;
 
   const stateConfigs: Record<GameState, StateConfig<GameState, GameContext>> = {
@@ -103,89 +59,14 @@ export function createGame(config: GameConfig): GameContext {
     [GameState.Playing]: {
       onEnter: (ctx) => {
         console.log('[SETUP] Entering Playing state');
-
-        // Generate dungeon and place entities on first enter
-        if (!ctx.playerId) {
-          console.log('[SETUP] Initializing new dungeon...');
-          try {
-            const seed = config.seed ?? `dungeon-${Date.now()}`;
-            ctx.currentSeed = seed;
-
-            const dungeonResult = generateDungeon({
-              width: config.gridWidth,
-              height: config.gridHeight,
-              seed,
-            });
-            console.log('[SETUP] Dungeon generated successfully');
-
-            // Replace the grid in context with the generated one
-            (ctx as any).grid = dungeonResult.grid;
-
-            // Update systems that reference grid
-            const newMovementSystem = createMovementSystem(ctx.world, dungeonResult.grid, ctx.eventBus);
-            (ctx as any).movementSystem = newMovementSystem;
-            const newCombatSystem = createCombatSystem(
-              ctx.world,
-              dungeonResult.grid,
-              ctx.eventBus,
-              ctx.entityFactory,
-              componentRegistry
-            );
-            newCombatSystem.init();
-            (ctx as any).combatSystem = newCombatSystem;
-            const newAISystem = createAISystem(ctx.world, dungeonResult.grid, newMovementSystem, ctx.eventBus);
-            (ctx as any).aiSystem = newAISystem;
-            const newItemPickupSystem = createItemPickupSystem(ctx.world, dungeonResult.grid, ctx.eventBus);
-            newItemPickupSystem.init();
-            (ctx as any).itemPickupSystem = newItemPickupSystem;
-
-            console.log('[SETUP] Systems re-initialized with new grid');
-
-            // Use rot-js RNG for deterministic entity placement
-            RNG.setSeed(hashSeedForPlacement(seed));
-            const rng = { random: () => RNG.getUniform() };
-
-            console.log('[SETUP] Placing entities...');
-            const placement = placeEntities(
-              ctx.world,
-              dungeonResult.grid,
-              ctx.entityFactory,
-              componentRegistry,
-              dungeonResult.rooms,
-              dungeonResult.playerSpawnRoom,
-              rng
-            );
-
-            ctx.playerId = placement.playerId;
-            console.log('[SETUP] Player created with ID:', ctx.playerId);
-
-            // Now that player is created, emit transition and dungeon events
-            ctx.eventBus.emit('STATE_TRANSITION', { newState: GameState.Playing });
-            ctx.eventBus.emit('DUNGEON_GENERATED', { seed });
-
-            // Rewire turn manager enemy handler with new AI system
-            ctx.turnManager.setEnemyActionHandler((entityId) => {
-              newAISystem.processEnemyTurn(entityId);
-            });
-
-            // Rewire player action handler with new movement system
-            ctx.turnManager.setPlayerActionHandler((action: string, entityId: number) => {
-              const gameAction = action as GameAction;
-              if (DIRECTIONS[gameAction]) {
-                const { dx, dy } = DIRECTIONS[gameAction];
-                newMovementSystem.processMove(entityId, dx, dy);
-              }
-              ctx.eventBus.emit('PLAYER_ACTION', { action, entityId });
-            });
-            console.log('[SETUP] Turn manager handlers rewired');
-          } catch (err) {
-            console.error('[SETUP] CRITICAL ERROR during Playing onEnter:', err);
-          }
-        }
-
+        // Initial setup already handled by createEngineInstance in createGame
         ctx.inputManager.enable();
         ctx.turnManager.start();
         console.log('[SETUP] Input manager enabled and Turn manager started');
+
+        // Emit events for UI sync
+        ctx.eventBus.emit('STATE_TRANSITION', { newState: GameState.Playing });
+        ctx.eventBus.emit('DUNGEON_GENERATED', { seed: ctx.currentSeed || 'unknown' });
       },
       onExit: (ctx) => {
         ctx.inputManager.disable();
@@ -234,13 +115,18 @@ export function createGame(config: GameConfig): GameContext {
       // 1. Gating
       inputManager.setRequestPending(true);
 
-      // 2. Prediction
+      // 2. Snapshot (for reconciliation)
+      const baseWorldState = serializeWorld(world);
+      const baseGridState = serializeGrid(grid);
+
+      // 3. Prediction
       turnManager.submitAction(action);
 
-      // 3. API Call
+      // 4. API Call
       try {
         const intent = getActionIntent(action);
         if (intent) {
+          console.log(`[CLIENT] Sending action to server. SessionId: ${context.sessionId || 'default-session'}`);
           const response = await fetch('/api/action', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -254,7 +140,7 @@ export function createGame(config: GameConfig): GameContext {
             const result = await response.json();
             if (result.delta) {
               const { applyStateDelta } = await import('@shared/reconciliation');
-              applyStateDelta(world, grid, eventBus, result.delta);
+              applyStateDelta(world, grid, eventBus, result.delta, baseWorldState, baseGridState);
             }
           }
         }
@@ -305,15 +191,4 @@ export function destroyGame(context: GameContext) {
   (context.movementSystem as any).dispose?.();
   context.inputManager.disable();
   context.eventBus.clear();
-}
-
-/**
- * Hash a string seed into a numeric value for rot-js RNG.
- */
-function hashSeedForPlacement(seed: string): number {
-  let hash = 5381;
-  for (let i = 0; i < seed.length; i++) {
-    hash = ((hash << 5) + hash + seed.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash);
 }

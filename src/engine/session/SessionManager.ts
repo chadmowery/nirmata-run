@@ -52,4 +52,8 @@ export class SessionManager {
   }
 }
 
-export const sessionManager = SessionManager.getInstance();
+const globalForSession = global as unknown as { sessionManager: SessionManager };
+
+export const sessionManager = globalForSession.sessionManager || SessionManager.getInstance();
+
+if (process.env.NODE_ENV !== 'production') globalForSession.sessionManager = sessionManager;
