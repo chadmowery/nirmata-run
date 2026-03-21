@@ -3,7 +3,7 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { EntityId } from '@engine/ecs/types';
-import { Attack, Defense, LootTable, Health, Position } from '@shared/components';
+import { Attack, Defense, LootTable, Health, Position, Actor } from '@shared/components';
 import { GameEvents } from '../events/types';
 
 import { ComponentRegistry } from '@engine/entity/types';
@@ -35,13 +35,21 @@ export function createCombatSystem(
 
     defenderHealth.current = Math.max(0, defenderHealth.current - damage);
 
-    // Update world with new health data
-    world.addComponent(defenderId, Health, { ...defenderHealth });
-
     eventBus.emit('DAMAGE_DEALT', {
       attackerId,
       defenderId,
       amount: damage,
+    });
+
+    // Emit UI message
+    const attackerActor = world.getComponent(attackerId, Actor);
+    const defenderActor = world.getComponent(defenderId, Actor);
+    const attackerName = attackerActor?.isPlayer ? 'You' : 'The enemy';
+    const defenderName = defenderActor?.isPlayer ? 'you' : 'the enemy';
+    
+    eventBus.emit('MESSAGE_EMITTED', {
+      text: `${attackerName} hit ${defenderName} for ${damage} damage.`,
+      type: 'combat'
     });
 
     if (defenderHealth.current <= 0) {
@@ -77,6 +85,13 @@ export function createCombatSystem(
 
     // 3. Emit death event
     eventBus.emit('ENTITY_DIED', { entityId, killerId });
+
+    const actor = world.getComponent(entityId, Actor);
+    const name = actor?.isPlayer ? 'You' : 'The enemy';
+    eventBus.emit('MESSAGE_EMITTED', {
+      text: `${name} died!`,
+      type: 'combat'
+    });
 
     // 4. Destroy entity
     world.destroyEntity(entityId);

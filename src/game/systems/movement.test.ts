@@ -5,6 +5,7 @@ import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
 import { Position } from '@shared/components/position';
 import { Hostile } from '@shared/components/hostile';
+import { Actor } from '@shared/components/actor';
 import { BlocksMovement } from '@shared/components/blocks-movement';
 import { GameEvents } from '../events/types';
 
@@ -96,7 +97,12 @@ describe('MovementSystem', () => {
 
   it('should trigger BUMP_ATTACK when moving into a hostile entity', () => {
     const playerPos = { x: 5, y: 5 };
-    vi.mocked(world.getComponent).mockReturnValue(playerPos);
+    vi.mocked(world.getComponent).mockImplementation((id, comp) => {
+      if (id === PLAYER_ID && comp === Position) return playerPos;
+      if (id === PLAYER_ID && comp === Actor) return { isPlayer: true };
+      if (id === ENEMY_ID && comp === Actor) return { isPlayer: false };
+      return null;
+    });
     vi.mocked(world.hasComponent).mockImplementation((id, comp) => {
       if (id === ENEMY_ID && comp === Hostile) return true;
       return false;

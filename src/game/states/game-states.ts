@@ -38,7 +38,7 @@ export function getActivePhases(state: GameState): Phase[] {
 
 export function createGameFSM(context: GameContext): StateMachine<GameState, GameContext> {
   return new StateMachine<GameState, GameContext>(
-    GameState.MainMenu,
+    GameState.Loading,
     GAME_STATE_CONFIGS,
     GAME_TRANSITIONS,
     context

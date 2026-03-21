@@ -4,6 +4,7 @@ import { sessionManager } from '@engine/session/SessionManager';
 import { serializeWorld, serializeGrid } from '@shared/serialization';
 import { diff } from 'json-diff-ts';
 import { DIRECTIONS, GameAction } from '@game/input/actions';
+import { logger } from '@shared/utils/logger';
 
 export async function POST(req: Request) {
   try {
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
     const { sessionId, action } = result.data;
     const session = sessionManager.getSession(sessionId);
     if (!session) {
-      console.warn(`[API] Session NOT FOUND: ${sessionId}`);
+      logger.warn(`[API] Session NOT FOUND: ${sessionId}`);
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
       turnNumber: turnManager.getTurnNumber()
     });
   } catch (error: any) {
-    console.error('API Error:', error);
+    logger.error('API Error:', error);
     return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
   }
 }

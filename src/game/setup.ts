@@ -10,6 +10,7 @@ import { GAME_TRANSITIONS } from './states/game-states';
 import { InputManager } from './input/input-manager';
 import { GameAction, DIRECTIONS, DEFAULT_BINDINGS } from './input/actions';
 import { GameEvents } from './events/types';
+import { logger } from '@shared/utils/logger';
 
 export interface GameConfig {
   gridWidth: number;
@@ -58,11 +59,11 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     },
     [GameState.Playing]: {
       onEnter: (ctx) => {
-        console.log('[SETUP] Entering Playing state');
+        logger.info('[SETUP] Entering Playing state');
         // Initial setup already handled by createEngineInstance in createGame
         ctx.inputManager.enable();
         ctx.turnManager.start();
-        console.log('[SETUP] Input manager enabled and Turn manager started');
+        logger.info('[SETUP] Input manager enabled and Turn manager started');
 
         // Emit events for UI sync
         ctx.eventBus.emit('STATE_TRANSITION', { newState: GameState.Playing });
@@ -126,7 +127,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
       try {
         const intent = getActionIntent(action);
         if (intent) {
-          console.log(`[CLIENT] Sending action to server. SessionId: ${context.sessionId || 'default-session'}`);
+          logger.info(`[CLIENT] Sending action to server. SessionId: ${context.sessionId || 'default-session'}`);
           const response = await fetch('/api/action', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -145,7 +146,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
           }
         }
       } catch (error) {
-        console.error('Failed to sync with server:', error);
+        logger.error('Failed to sync with server:', error);
       } finally {
         inputManager.setRequestPending(false);
       }

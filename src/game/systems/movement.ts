@@ -4,6 +4,7 @@ import { EventBus } from '@engine/events/event-bus';
 import { EntityId } from '@engine/ecs/types';
 import { Position } from '@shared/components/position';
 import { Hostile } from '@shared/components/hostile';
+import { Actor } from '@shared/components/actor';
 import { BlocksMovement } from '@shared/components/blocks-movement';
 import { GameEvents } from '../events/types';
 
@@ -37,11 +38,18 @@ export function createMovementSystem(world: World, grid: Grid, eventBus: EventBu
 
       // 3. Check entity collisions
       const occupants = grid.getEntitiesAt(targetX, targetY);
+      const attacker = world.getComponent(entityId, Actor);
+      const isAttackerPlayer = attacker?.isPlayer ?? false;
+
       for (const occupantId of occupants) {
         if (occupantId === entityId) continue;
 
-        // Check for hostile entities (bump-attack)
-        if (world.hasComponent(occupantId, Hostile)) {
+        const defenderHostile = world.hasComponent(occupantId, Hostile);
+        const defenderActor = world.getComponent(occupantId, Actor);
+        const isDefenderPlayer = defenderActor?.isPlayer ?? false;
+
+        // Attack if: Player -> Hostile OR Hostile -> Player
+        if ((isAttackerPlayer && defenderHostile) || (!isAttackerPlayer && isDefenderPlayer)) {
           eventBus.emit('BUMP_ATTACK', {
             attackerId: entityId,
             defenderId: occupantId,

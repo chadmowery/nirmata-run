@@ -28,6 +28,7 @@ describe('Tech Demo Integration', () => {
     // 2. Start Game
     const context = createGame(config);
     context.fsm.transition(GameState.Playing);
+    context.eventBus.flush();
     
     expect(gameStore.getState().gameStatus).toBe(GameState.Playing);
     expect(context.playerId).toBeDefined();

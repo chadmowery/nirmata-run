@@ -3,7 +3,7 @@ import { World } from '../../engine/ecs/World';
 import { Grid } from '../../engine/grid/Grid';
 import { EventBus } from '../../engine/events/event-bus';
 import { runActionPipeline } from '../pipeline';
-import { Position, Health, Hostile, Attack, Defense } from '../../shared/components';
+import { Position, Health, Hostile, Attack, Defense, Actor } from '../../shared/components';
 
 describe('ActionPipeline', () => {
   let world: World;
@@ -22,6 +22,7 @@ describe('ActionPipeline', () => {
     world.addComponent(pId, Position, { x: 5, y: 5 });
     world.addComponent(pId, Health, { current: 10, max: 10 });
     world.addComponent(pId, Attack, { power: 3 });
+    world.addComponent(pId, Actor, { isPlayer: true });
     grid.addEntity(pId, 5, 5);
   });
 
@@ -51,6 +52,7 @@ describe('ActionPipeline', () => {
     world.addComponent(eId, Health, { current: 10, max: 10 });
     world.addComponent(eId, Hostile, {});
     world.addComponent(eId, Defense, { armor: 1 });
+    world.addComponent(eId, Actor, { isPlayer: false });
     grid.addEntity(eId, 6, 5);
 
     const action = { type: 'MOVE' as const, dx: 1, dy: 0 };

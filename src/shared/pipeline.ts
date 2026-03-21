@@ -4,6 +4,8 @@ import { Grid } from '../engine/grid/grid';
 import { EventBus } from '../engine/events/event-bus';
 import { ActionIntent, StateDelta } from './types';
 import { serializeWorld, serializeGrid, deserializeWorld, deserializeGrid } from './serialization';
+import { logger } from './utils/logger';
+import { Actor } from './components/actor';
 
 import { Position, Hostile, BlocksMovement, Attack, Health, Defense, Item, PickupEffect, EffectType } from './components';
 
@@ -17,6 +19,7 @@ export function runActionPipeline(
   playerId: number,
   action: ActionIntent
 ): { world: World; grid: Grid; delta: StateDelta } {
+  logger.debug(`[PIPELINE] Processing action: ${action.type}`, action);
   // 1. Snapshot initial state
   const oldWorldState = serializeWorld(world);
   const oldGridState = serializeGrid(grid);
@@ -68,7 +71,6 @@ function processAction(world: World, grid: Grid, eventBus: EventBus<any>, entity
 
 function handleMove(world: World, grid: Grid, eventBus: EventBus<any>, entityId: number, dx: number, dy: number) {
   const pos = world.getComponent(entityId, Position);
-  // console.log(`DEBUG: handleMove entityId=${entityId} pos=`, pos);
   if (!pos) return;
 
   const targetX = pos.x + dx;
@@ -79,10 +81,18 @@ function handleMove(world: World, grid: Grid, eventBus: EventBus<any>, entityId:
   }
 
   const occupants = grid.getEntitiesAt(targetX, targetY);
+  const attacker = world.getComponent(entityId, Actor);
+  const isAttackerPlayer = attacker?.isPlayer ?? false;
+
   for (const occupantId of occupants) {
     if (occupantId === entityId) continue;
 
-    if (world.hasComponent(occupantId, Hostile)) {
+    const defenderHostile = world.hasComponent(occupantId, Hostile);
+    const defenderActor = world.getComponent(occupantId, Actor);
+    const isDefenderPlayer = defenderActor?.isPlayer ?? false;
+
+    // Attack if: Player -> Hostile OR Hostile -> Player
+    if ((isAttackerPlayer && defenderHostile) || (!isAttackerPlayer && isDefenderPlayer)) {
       eventBus.emit('BUMP_ATTACK', { attackerId: entityId, defenderId: occupantId });
       return;
     }
@@ -137,6 +147,17 @@ function setupInternalHandlers(world: World, grid: Grid, eventBus: EventBus<any>
     
     eventBus.emit('DAMAGE_DEALT', { attackerId, defenderId, amount: damage });
 
+    // Emit UI message
+    const attackerActor = world.getComponent(attackerId, Actor);
+    const defenderActor = world.getComponent(defenderId, Actor);
+    const attackerName = attackerActor?.isPlayer ? 'You' : 'The enemy';
+    const defenderName = defenderActor?.isPlayer ? 'you' : 'the enemy';
+    
+    eventBus.emit('MESSAGE_EMITTED', {
+      text: `${attackerName} hit ${defenderName} for ${damage} damage.`,
+      type: 'combat'
+    });
+
     if (defenderHealth.current <= 0) {
       handleDeath(world, grid, eventBus, defenderId, attackerId);
     }
@@ -163,5 +184,13 @@ function handleDeath(world: World, grid: Grid, eventBus: EventBus<any>, entityId
   // ARCH deviation: If loot is critical for prediction, we need a pure version of EntityFactory.
   
   eventBus.emit('ENTITY_DIED', { entityId, killerId });
+  
+  const actor = world.getComponent(entityId, Actor);
+  const name = actor?.isPlayer ? 'You' : 'The enemy';
+  eventBus.emit('MESSAGE_EMITTED', {
+    text: `${name} died!`,
+    type: 'combat'
+  });
+
   world.destroyEntity(entityId);
 }

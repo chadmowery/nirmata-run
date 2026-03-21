@@ -19,8 +19,8 @@ describe('Game States', () => {
     ]);
   });
 
-  it('GAME_TRANSITIONS has exactly 7 entries', () => {
-    expect(GAME_TRANSITIONS.length).toBe(7);
+  it('GAME_TRANSITIONS has exactly 8 entries', () => {
+    expect(GAME_TRANSITIONS.length).toBe(8);
   });
 
   it('createGameFSM starts at Loading state', () => {
@@ -35,10 +35,11 @@ describe('Game States', () => {
     expect(fsm.getCurrentState()).toBe(GameState.Playing);
   });
 
-  it('createGameFSM rejects invalid transitions (Loading -> Playing)', () => {
+  it('createGameFSM rejects invalid transitions (MainMenu -> Loading)', () => {
     const fsm = createGameFSM({} as any);
-    expect(fsm.transition(GameState.Playing)).toBe(false);
-    expect(fsm.getCurrentState()).toBe(GameState.Loading);
+    fsm.transition(GameState.MainMenu);
+    expect(fsm.transition(GameState.Loading)).toBe(false);
+    expect(fsm.getCurrentState()).toBe(GameState.MainMenu);
   });
 
   it('getActivePhases returns correct phases for each state', () => {
