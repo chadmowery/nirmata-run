@@ -1,5 +1,5 @@
 import { createEngineInstance } from './engine-factory';
-import { serializeWorld, serializeGrid } from '@shared/serialization';
+import { serializeWorld } from '@shared/serialization';
 import { GameContext } from './types';
 import { syncEngineToStore } from './ui/sync-bridge';
 import { registerInputBridge } from './input/input-bridge';
@@ -9,7 +9,6 @@ import { GameState } from './states/types';
 import { GAME_TRANSITIONS } from './states/game-states';
 import { InputManager } from './input/input-manager';
 import { GameAction, DIRECTIONS, DEFAULT_BINDINGS } from './input/actions';
-import { GameEvents } from './events/types';
 import { logger } from '@shared/utils/logger';
 
 export interface GameConfig {
@@ -98,10 +97,10 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
   // Initialize UI Bridge
   syncEngineToStore(context);
-  registerInputBridge((action) => turnManager.submitAction(action));
+  registerInputBridge((action) => handlePlayerInput(action as GameAction));
 
-  // Wire input ActionHandler
-  inputManager.setActionHandler(async (action: GameAction) => {
+  // The shared handler for both Keyboard (InputManager) and UI Buttons (InputBridge)
+  async function handlePlayerInput(action: GameAction) {
     if (action === GameAction.PAUSE) {
       const currentState = fsm.getCurrentState();
       if (currentState === GameState.Playing) {
@@ -118,7 +117,6 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
       // 2. Snapshot (for reconciliation)
       const baseWorldState = serializeWorld(world);
-      const baseGridState = serializeGrid(grid);
 
       // 3. Prediction
       turnManager.submitAction(action);
@@ -126,6 +124,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
       // 4. API Call
       try {
         const intent = getActionIntent(action);
+        
         if (intent) {
           logger.info(`[CLIENT] Sending action to server. SessionId: ${context.sessionId || 'default-session'}`);
           const response = await fetch('/api/action', {
@@ -141,7 +140,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
             const result = await response.json();
             if (result.delta) {
               const { applyStateDelta } = await import('@shared/reconciliation');
-              applyStateDelta(world, grid, eventBus, result.delta, baseWorldState, baseGridState);
+              applyStateDelta(world, grid, eventBus, result.delta, baseWorldState);
             }
           }
         }
@@ -151,9 +150,12 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
         inputManager.setRequestPending(false);
       }
     }
-  });
+  }
 
-  function getActionIntent(action: GameAction): any {
+  // Wire input ActionHandler for keyboard
+  inputManager.setActionHandler(handlePlayerInput);
+
+  function getActionIntent(action: GameAction): { type: string; dx?: number; dy?: number } | null {
     if (DIRECTIONS[action]) {
       return { type: 'MOVE', dx: DIRECTIONS[action].dx, dy: DIRECTIONS[action].dy };
     }
@@ -175,7 +177,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   });
 
   // Enemy action handler
-  turnManager.setEnemyActionHandler((entityId) => {
+  turnManager.setEnemyActionHandler((entityId: number) => {
     context.aiSystem.processEnemyTurn(entityId);
   });
 

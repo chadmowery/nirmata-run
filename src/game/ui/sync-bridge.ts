@@ -27,6 +27,24 @@ export function syncEngineToStore(context: GameContext) {
     });
   };
 
+  // Helper to update specific visible entity's health
+  const updateVisibleEntityHealth = (entityId: number) => {
+    const state = gameStore.getState();
+    const entityIndex = state.visibleEntities.findIndex(e => e.id === entityId);
+    if (entityIndex !== -1) {
+      const health = world.getComponent(entityId, Health);
+      if (health) {
+        const updatedEntities = [...state.visibleEntities];
+        updatedEntities[entityIndex] = {
+          ...updatedEntities[entityIndex],
+          hp: health.current,
+          maxHp: health.max,
+        };
+        state.setVisibleEntities(updatedEntities);
+      }
+    }
+  };
+
   // 1. Initial Sync
   refreshPlayerStats();
   // REMOVED: gameStore.getState().setGameStatus(context.fsm.getCurrentState() as GameStatus);
@@ -39,12 +57,16 @@ export function syncEngineToStore(context: GameContext) {
   eventBus.on('DAMAGE_DEALT', (event) => {
     if (event.defenderId === context.playerId) {
       refreshPlayerStats();
+    } else {
+      updateVisibleEntityHealth(event.defenderId);
     }
   });
 
   eventBus.on('HEALED', (event) => {
     if (event.entityId === context.playerId) {
       refreshPlayerStats();
+    } else {
+      updateVisibleEntityHealth(event.entityId);
     }
   });
 
@@ -118,8 +140,13 @@ export function syncEngineToStore(context: GameContext) {
       gameStore.getState().setGameStatus(GameState.GameOver);
     } else {
       // It was an enemy death (likely)
-      const currentKills = gameStore.getState().stats.kills;
-      gameStore.getState().updateStats({ kills: currentKills + 1 });
+      const state = gameStore.getState();
+      const currentKills = state.stats.kills;
+      state.updateStats({ kills: currentKills + 1 });
+      
+      // Remove dead entity from visible threats
+      const updatedEntities = state.visibleEntities.filter(e => e.id !== event.entityId);
+      state.setVisibleEntities(updatedEntities);
     }
   });
 }

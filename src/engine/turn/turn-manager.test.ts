@@ -6,6 +6,7 @@ import { TurnManager } from './turn-manager';
 import { TurnPhase, ENERGY_THRESHOLD } from './types';
 import { Actor, Energy, Health } from '@shared/components';
 import { Phase } from '../ecs/types';
+import { GameAction } from '../../game/input/actions';
 
 describe('TurnManager', () => {
   let world: World;
@@ -80,7 +81,7 @@ describe('TurnManager', () => {
     const energy = world.getComponent(playerEntity, Energy)!;
     world.addComponent(playerEntity, Energy, { ...energy, current: 1000, speed: 0 });
     
-    turnManager.submitAction('wait');
+    turnManager.submitAction(GameAction.WAIT);
 
     const updatedEnergy = world.getComponent(playerEntity, Energy)!;
     expect(updatedEnergy.current).toBe(500); // 1000 - 500 cost

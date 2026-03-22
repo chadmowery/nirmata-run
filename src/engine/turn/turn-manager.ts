@@ -40,7 +40,7 @@ export class TurnManager {
     }
 
     // Process player action
-    const cost = action === 'wait' ? this.config.waitActionCost : this.config.defaultActionCost;
+    const cost = action === 'WAIT' ? this.config.waitActionCost : this.config.defaultActionCost;
     this.deductEnergy(playerEntity, cost);
     
     if (this.playerActionHandler) {
