@@ -19,17 +19,17 @@ export const DEFAULT_BINDINGS: Record<string, GameAction> = {
   ArrowDown: GameAction.MOVE_SOUTH,
   ArrowLeft: GameAction.MOVE_WEST,
   ArrowRight: GameAction.MOVE_EAST,
-  
+
   // WASD keys
   KeyW: GameAction.MOVE_NORTH,
   KeyS: GameAction.MOVE_SOUTH,
   KeyA: GameAction.MOVE_WEST,
   KeyD: GameAction.MOVE_EAST,
-  
+
   // Wait
-  Period: GameAction.WAIT,
+  Space: GameAction.WAIT,
   Numpad5: GameAction.WAIT,
-  
+
   // UI
   Escape: GameAction.PAUSE,
 };
