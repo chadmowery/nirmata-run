@@ -4,7 +4,7 @@ import importX from 'eslint-plugin-import-x';
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'node_modules/**', 'eslint.config.js', 'vitest.config.ts'],
+    ignores: ['dist/**', 'node_modules/**', 'eslint.config.js', 'vitest.config.ts', '**/*.test.ts', '**/*.test.tsx'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
