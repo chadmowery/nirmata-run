@@ -38,4 +38,13 @@ export interface GameplayEvents extends EngineEvents {
 
   /** Queued to emit a message (e.g., to the UI log). */
   MESSAGE_EMITTED: { text: string; type: 'info' | 'combat' | 'error' };
+
+  /** Queued when an entity's shell stats are updated. */
+  SHELL_STATS_CHANGED: { entityId: EntityId; shellId: string };
+
+  /** Queued when an entity's equipment slots change. */
+  EQUIPMENT_CHANGED: { entityId: EntityId; slotType: string };
+
+  /** Queued when a shell is selected for a new run. */
+  SHELL_SELECTED: { shellId: string };
 }

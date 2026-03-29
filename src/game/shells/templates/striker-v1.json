@@ -1,0 +1,16 @@
+{
+  "id": "striker-v1",
+  "name": "STRIKER-v1",
+  "baseStats": {
+    "speed": 120,
+    "stability": 5,
+    "armor": 1,
+    "maxHealth": 15
+  },
+  "basePorts": {
+    "maxFirmware": 2,
+    "maxAugment": 1,
+    "maxSoftware": 2
+  },
+  "upgrades": []
+}

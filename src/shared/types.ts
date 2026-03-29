@@ -23,11 +23,38 @@ export const WaitActionSchema = z.object({
   type: z.literal('WAIT'),
 });
 
+export const EquipActionSchema = z.object({
+  type: z.literal('EQUIP'),
+  shellId: z.string(),
+  slotType: z.enum(['firmware', 'augment', 'software']),
+  itemEntityId: z.number(),
+});
+
+export const UnequipActionSchema = z.object({
+  type: z.literal('UNEQUIP'),
+  slotType: z.enum(['firmware', 'augment', 'software']),
+  slotIndex: z.number(),
+});
+
+export const SelectShellActionSchema = z.object({
+  type: z.literal('SELECT_SHELL'),
+  shellId: z.string(),
+});
+
+export const UpgradeShellActionSchema = z.object({
+  type: z.literal('UPGRADE_SHELL'),
+  shellId: z.string(),
+});
+
 export const ActionIntentSchema = z.discriminatedUnion('type', [
   MoveActionSchema,
   AttackActionSchema,
   PickupActionSchema,
   WaitActionSchema,
+  EquipActionSchema,
+  UnequipActionSchema,
+  SelectShellActionSchema,
+  UpgradeShellActionSchema,
 ]);
 
 export type ActionIntent = z.infer<typeof ActionIntentSchema>;

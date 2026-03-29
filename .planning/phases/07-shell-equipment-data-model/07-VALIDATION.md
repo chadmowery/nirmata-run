@@ -1,10 +1,11 @@
 ---
 phase: 7
 slug: shell-equipment-data-model
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-29
+validated: 2026-03-29
 ---
 
 # Phase 7 — Validation Strategy
@@ -38,14 +39,14 @@ created: 2026-03-29
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 07-01-01 | 01 | 1 | SHELL-01 | unit | `npx vitest run src/shared/components/__tests__/shell.test.ts` | ❌ W0 | ⬜ pending |
-| 07-01-02 | 01 | 1 | SHELL-02 | unit | `npx vitest run src/shared/components/__tests__/port-config.test.ts` | ❌ W0 | ⬜ pending |
-| 07-01-03 | 01 | 1 | SHELL-07 | unit | `npx vitest run src/game/shells/__tests__/shell-registry.test.ts` | ❌ W0 | ⬜ pending |
-| 07-01-04 | 01 | 1 | SHELL-07 | unit | `npx vitest run src/game/shells/__tests__/template-loading.test.ts` | ❌ W0 | ⬜ pending |
-| 07-02-01 | 02 | 2 | SHELL-02 | unit | `npx vitest run src/game/systems/__tests__/equipment.test.ts` | ❌ W0 | ⬜ pending |
-| 07-02-02 | 02 | 2 | SHELL-03 | integration | `npx vitest run src/tests/integration/shell-to-player.test.ts` | ❌ W0 | ⬜ pending |
-| 07-03-01 | 03 | 2 | SHELL-04 | integration | `npx vitest run src/tests/integration/death-equipment-clear.test.ts` | ❌ W0 | ⬜ pending |
-| 07-03-02 | 03 | 2 | SHELL-05 | integration | `npx vitest run src/tests/integration/shell-upgrade.test.ts` | ❌ W0 | ⬜ pending |
+| 07-01-01 | 01 | 1 | SHELL-01 | unit | `npx vitest run src/shared/components/__tests__/shell.test.ts` | ✅ | ✅ green |
+| 07-01-02 | 01 | 1 | SHELL-02 | unit | `npx vitest run src/shared/components/__tests__/port-config.test.ts` | ✅ | ✅ green |
+| 07-01-03 | 01 | 1 | SHELL-07 | unit | `npx vitest run src/game/shells/__tests__/shell-registry.test.ts` | ✅ | ✅ green |
+| 07-01-04 | 01 | 1 | SHELL-07 | unit | `npx vitest run src/game/shells/__tests__/template-loading.test.ts` | ✅ | ✅ green |
+| 07-02-01 | 02 | 2 | SHELL-02 | unit | `npx vitest run src/game/systems/__tests__/equipment.test.ts` | ✅ | ✅ green |
+| 07-02-02 | 02 | 2 | SHELL-03 | integration | `npx vitest run src/tests/integration/shell-to-player.test.ts` | ✅ | ✅ green |
+| 07-03-01 | 03 | 2 | SHELL-04 | integration | `npx vitest run src/tests/integration/death-equipment-clear.test.ts` | ✅ | ✅ green |
+| 07-03-02 | 03 | 2 | SHELL-05 | integration | `npx vitest run src/tests/integration/shell-upgrade.test.ts` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -53,14 +54,14 @@ created: 2026-03-29
 
 ## Wave 0 Requirements
 
-- [ ] `src/shared/components/__tests__/shell.test.ts` — stubs for SHELL-01 component schema
-- [ ] `src/shared/components/__tests__/port-config.test.ts` — stubs for SHELL-02 port config schema
-- [ ] `src/game/shells/__tests__/shell-registry.test.ts` — stubs for SHELL-07 registry CRUD
-- [ ] `src/game/shells/__tests__/template-loading.test.ts` — stubs for SHELL-07 JSON template parsing
-- [ ] `src/game/systems/__tests__/equipment.test.ts` — stubs for SHELL-02 slot limit enforcement
-- [ ] `src/tests/integration/shell-to-player.test.ts` — stubs for SHELL-03 Shell→player entity stamping
-- [ ] `src/tests/integration/death-equipment-clear.test.ts` — stubs for SHELL-04 death clears equip
-- [ ] `src/tests/integration/shell-upgrade.test.ts` — stubs for SHELL-05 upgrade transactions
+- [x] `src/shared/components/__tests__/shell.test.ts` — verified SHELL-01 component schema
+- [x] `src/shared/components/__tests__/port-config.test.ts` — verified SHELL-02 port config schema
+- [x] `src/game/shells/__tests__/shell-registry.test.ts` — verified SHELL-07 registry CRUD
+- [x] `src/game/shells/__tests__/template-loading.test.ts` — verified SHELL-07 JSON template parsing
+- [x] `src/game/systems/__tests__/equipment.test.ts` — verified SHELL-02 slot limit enforcement
+- [x] `src/tests/integration/shell-to-player.test.ts` — verified SHELL-03 Shell→player entity stamping
+- [x] `src/tests/integration/death-equipment-clear.test.ts` — verified SHELL-04 death clears equip
+- [x] `src/tests/integration/shell-upgrade.test.ts` — verified SHELL-05 upgrade transactions
 
 *Existing test infrastructure (vitest + jsdom) covers all needs. No new dependencies required.*
 
@@ -77,11 +78,11 @@ created: 2026-03-29
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 10s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 10s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** verified

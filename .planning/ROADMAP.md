@@ -11,7 +11,7 @@ Build the Nirmata Runner game systems on top of the validated v1.0 engine founda
 - Integer phases (7, 8, 9): Planned milestone work
 - Decimal phases (7.1, 7.2): Urgent insertions (marked with INSERTED)
 
-- [ ] **Phase 7: Shell & Equipment Data Model** — Shell archetypes, Port configurations, Loadout component, equipment slot system, JSON entity templates for all 3 starter Shells
+- [x] **Phase 7: Shell & Equipment Data Model** — Shell archetypes, Port configurations, Loadout component, equipment slot system, JSON entity templates for all 3 starter Shells
 - [ ] **Phase 8: Firmware & Neural Heat System** — Active abilities with Heat costs, Heat bar, dissipation/venting, Kernel Panic table, 3 starter Firmware abilities, turn-based adaptation
 - [ ] **Phase 9: Status Effects & Augment Synergy** — Generic status effect system, Augment "Trigger & Payload" engine, 3 trigger types, 3 starter Augments, visual trigger feedback, stacking rules
 - [ ] **Phase 10: Software System & Enhanced Combat** — Software consumable modifiers, Burn mechanic, rarity tiers, stacking rules, integration with combat damage pipeline, 3+ Software types
@@ -37,9 +37,9 @@ Build the Nirmata Runner game systems on top of the validated v1.0 engine founda
 **UI hint**: no
 
 Plans:
-- [ ] 07-01: Shell Components & Entity Templates (ShellComponent, PortConfig, LoadoutComponent, 3 starter Shell JSON templates, Zod schemas)
-- [ ] 07-02: Equipment Slot System (equip/unequip logic, slot limit validation, server-side equipment state, Shell selection flow)
-- [ ] 07-03: Shell Persistence & Upgrades (Shell survives death, upgrade transactions via action pipeline, Shell rotation availability)
+- [x] 07-01: Shell Components & Entity Templates (ShellComponent, PortConfig, LoadoutComponent, 3 starter Shell JSON templates, Zod schemas)
+- [x] 07-02: Equipment Slot System (equip/unequip logic, slot limit validation, server-side equipment state, Shell selection flow)
+- [x] 07-03: Shell Persistence & Upgrades (Shell survives death, upgrade transactions via action pipeline, Shell rotation availability)
 
 ### Phase 8: Firmware & Neural Heat System
 **Goal**: Players can use active abilities that cost Heat, risk Kernel Panics in the Corruption Zone, and manage Heat through dissipation and venting
@@ -218,7 +218,7 @@ Phases execute in numeric order: 7 → 8 → 9 → 10 → 11 → 12 → 13 → 1
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 7. Shell & Equipment Data Model | 0/3 | Not started | - |
+| 7. Shell & Equipment Data Model | 3/3 | Completed | 2026-03-29 |
 | 8. Firmware & Neural Heat System | 0/4 | Not started | - |
 | 9. Status Effects & Augment Synergy | 0/4 | Not started | - |
 | 10. Software System & Enhanced Combat | 0/3 | Not started | - |

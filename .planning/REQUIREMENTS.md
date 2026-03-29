@@ -9,13 +9,13 @@ Requirements for the Nirmata Runner core game systems. Each maps to roadmap phas
 
 ### Shell & Loadout
 
-- [ ] **SHELL-01**: Player can select from multiple Shell archetypes (Striker, Bastion, Signal) each with distinct base stats (Speed, Stability, Armor)
-- [ ] **SHELL-02**: Each Shell defines a Port configuration that determines the number of Firmware, Augment, and Software slots available
+- [x] **SHELL-01**: Player can select from multiple Shell archetypes (Striker, Bastion, Signal) each with distinct base stats (Speed, Stability, Armor)
+- [x] **SHELL-02**: Each Shell defines a Port configuration that determines the number of Firmware, Augment, and Software slots available
 - [ ] **SHELL-03**: Player can select their Shell before each run from the Neural Deck
-- [ ] **SHELL-04**: Shells persist across death — never lost on a failed run
+- [x] **SHELL-04**: Shells persist across death — never lost on a failed run
 - [ ] **SHELL-05**: Player can upgrade Shell base stats and Port configurations by spending Materials/Flux
-- [ ] **SHELL-06**: Certain Shells may be unavailable in specific weeks based on live rotation conditions
-- [ ] **SHELL-07**: Shell data is defined in JSON entity templates using the existing builder/registry/factory pipeline
+- [x] **SHELL-06**: Certain Shells may be unavailable in specific weeks based on live rotation conditions
+- [x] **SHELL-07**: Shell data is defined in JSON entity templates using the existing builder/registry/factory pipeline
 
 ### Firmware & Neural Heat
 
@@ -188,13 +188,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SHELL-01 | Phase 7 | Pending |
-| SHELL-02 | Phase 7 | Pending |
+| SHELL-01 | Phase 7 | Implemented |
+| SHELL-02 | Phase 7 | Implemented |
 | SHELL-03 | Phase 7 | Pending |
-| SHELL-04 | Phase 7 | Pending |
+| SHELL-04 | Phase 7 | Implemented |
 | SHELL-05 | Phase 7 | Pending |
-| SHELL-06 | Phase 7 | Pending |
-| SHELL-07 | Phase 7 | Pending |
+| SHELL-06 | Phase 7 | Implemented |
+| SHELL-07 | Phase 7 | Implemented |
 | FIRM-01 | Phase 8 | Pending |
 | FIRM-02 | Phase 8 | Pending |
 | FIRM-03 | Phase 8 | Pending |

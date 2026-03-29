@@ -1,0 +1,16 @@
+{
+  "id": "signal-v1",
+  "name": "SIGNAL-v1",
+  "baseStats": {
+    "speed": 100,
+    "stability": 8,
+    "armor": 1,
+    "maxHealth": 18
+  },
+  "basePorts": {
+    "maxFirmware": 2,
+    "maxAugment": 2,
+    "maxSoftware": 3
+  },
+  "upgrades": []
+}

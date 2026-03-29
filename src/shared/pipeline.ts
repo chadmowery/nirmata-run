@@ -8,7 +8,11 @@ import { serializeWorld, serializeGrid, deserializeWorld, deserializeGrid } from
 import { logger } from './utils/logger';
 import { Actor } from './components/actor';
 
-import { Position, Hostile, BlocksMovement, Attack, Health, Defense, Item, PickupEffect, EffectType } from './components';
+import { 
+  Position, Hostile, BlocksMovement, Attack, Health, Defense, Item, PickupEffect, EffectType,
+  FirmwareSlots, AugmentSlots, SoftwareSlots 
+} from './components';
+import { handleEquip, handleUnequip } from './systems/equipment';
 
 /**
  * Runs a game action against a world/grid state and returns the new state and delta.
@@ -66,6 +70,21 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
     case 'ATTACK':
       // Explicit attack intent
       eventBus.emit('BUMP_ATTACK', { attackerId: entityId, defenderId: action.targetId });
+      break;
+    case 'EQUIP':
+      handleEquip(world, eventBus, entityId, action.slotType, action.itemEntityId);
+      break;
+    case 'UNEQUIP':
+      handleUnequip(world, eventBus, entityId, action.slotType, action.slotIndex);
+      break;
+    case 'SELECT_SHELL':
+      // Placeholder for Phase 7: emitting event is enough for now, 
+      // actual stat stamping happens in engine-factory or special system
+      eventBus.emit('SHELL_SELECTED', { shellId: action.shellId });
+      break;
+    case 'UPGRADE_SHELL':
+      // Will be handled by ShellStatsSystem listening to event
+      eventBus.emit('SHELL_STATS_CHANGED', { entityId, shellId: action.shellId });
       break;
   }
 }
@@ -171,6 +190,23 @@ function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, eventBu
     for (const itemId of Array.from(itemsAtPos)) {
       handlePickup(world, grid, eventBus, entityId, itemId);
     }
+  });
+
+  // Death Clearing Logic (Phase 7 - Plan 03)
+  eventBus.on('ENTITY_DIED', (payload) => {
+    const { entityId } = payload;
+    
+    // Clear equipment slots on death
+    const fw = world.getComponent(entityId, FirmwareSlots);
+    if (fw) fw.equipped = [];
+    
+    const aug = world.getComponent(entityId, AugmentSlots);
+    if (aug) aug.equipped = [];
+    
+    const sw = world.getComponent(entityId, SoftwareSlots);
+    if (sw) sw.equipped = [];
+    
+    // Note: The ShellRecord in ShellRegistry persists outside ECS
   });
 }
 

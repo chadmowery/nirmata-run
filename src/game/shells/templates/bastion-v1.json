@@ -1,0 +1,16 @@
+{
+  "id": "bastion-v1",
+  "name": "BASTION-v1",
+  "baseStats": {
+    "speed": 80,
+    "stability": 10,
+    "armor": 3,
+    "maxHealth": 25
+  },
+  "basePorts": {
+    "maxFirmware": 1,
+    "maxAugment": 1,
+    "maxSoftware": 1
+  },
+  "upgrades": []
+}

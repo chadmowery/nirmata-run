@@ -18,11 +18,14 @@ import RNG from 'rot-js/lib/rng';
 import { GameAction, DIRECTIONS } from './input/actions';
 import { GameEvents } from './events/types';
 
+import { ShellRecord } from './shells/types';
+
 export interface EngineInitConfig {
   width: number;
   height: number;
   seed: string;
   isClient?: boolean;
+  shellRecord?: ShellRecord;
 }
 
 export interface EngineInstance {
@@ -99,6 +102,22 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   RNG.setSeed(hashSeedForPlacement(config.seed));
   const rng = { random: () => RNG.getUniform() };
 
+  // Prepare shell overrides if shellRecord is present
+  const playerOverrides: Record<string, Record<string, unknown>> = {};
+  if (config.shellRecord) {
+    const { currentStats, portConfig } = config.shellRecord;
+    playerOverrides['health'] = { max: currentStats.maxHealth, current: currentStats.maxHealth } as unknown as Record<string, unknown>;
+    playerOverrides['defense'] = { armor: currentStats.armor } as unknown as Record<string, unknown>;
+    playerOverrides['energy'] = { speed: currentStats.speed } as unknown as Record<string, unknown>;
+    
+    // Core Shell Components
+    playerOverrides['shell'] = currentStats as unknown as Record<string, unknown>;
+    playerOverrides['portConfig'] = portConfig as unknown as Record<string, unknown>;
+    playerOverrides['firmwareSlots'] = { equipped: [] };
+    playerOverrides['augmentSlots'] = { equipped: [] };
+    playerOverrides['softwareSlots'] = { equipped: [] };
+  }
+
   const placement = placeEntities(
     world,
     grid,
@@ -106,7 +125,8 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
     componentRegistry,
     dungeonResult.rooms,
     dungeonResult.playerSpawnRoom,
-    rng
+    rng,
+    { playerOverrides }
   );
 
   // Turn Manager Handlers

@@ -17,6 +17,8 @@ export interface PlacementConfig {
   enemyTemplates: string[];
   /** Template names for item entities. */
   itemTemplates: string[];
+  /** Optional overrides for the player entity. */
+  playerOverrides?: Record<string, Record<string, unknown>>;
 }
 
 const DEFAULT_PLACEMENT: PlacementConfig = {
@@ -24,6 +26,7 @@ const DEFAULT_PLACEMENT: PlacementConfig = {
   itemsPerRoom: { min: 0, max: 2 },
   enemyTemplates: ['goblin'],
   itemTemplates: ['health_potion'],
+  playerOverrides: {}
 };
 
 /**
@@ -65,9 +68,12 @@ export function placeEntities<T extends EngineEvents>(
   const itemIds: EntityId[] = [];
 
   // Place player at spawn room center
-  const playerId = factory.create(world, 'player', componentRegistry, {
-    position: { x: spawnRoom.centerX, y: spawnRoom.centerY },
-  });
+  const playerOverrides = {
+    ...cfg.playerOverrides,
+    position: { x: spawnRoom.centerX, y: spawnRoom.centerY } as unknown as Record<string, unknown>,
+  };
+
+  const playerId = factory.create(world, 'player', componentRegistry, playerOverrides);
   grid.addEntity(playerId, spawnRoom.centerX, spawnRoom.centerY);
 
   // Place enemies and items in non-spawn rooms

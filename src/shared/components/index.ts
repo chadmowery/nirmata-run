@@ -13,6 +13,11 @@ import { BlocksMovement } from './blocks-movement';
 import { Item } from './item';
 import { PickupEffect } from './pickup-effect';
 import { Progression } from './progression';
+import { Shell } from './shell';
+import { PortConfig } from './port-config';
+import { FirmwareSlots } from './firmware-slots';
+import { AugmentSlots } from './augment-slots';
+import { SoftwareSlots } from './software-slots';
 
 export const COMPONENTS_REGISTRY = [
   Position,
@@ -29,7 +34,12 @@ export const COMPONENTS_REGISTRY = [
   BlocksMovement,
   Item,
   PickupEffect,
-  Progression
+  Progression,
+  Shell,
+  PortConfig,
+  FirmwareSlots,
+  AugmentSlots,
+  SoftwareSlots
 ] as const;
 
 export * from './position';
@@ -47,4 +57,9 @@ export * from './blocks-movement';
 export * from './item';
 export * from './pickup-effect';
 export * from './progression';
+export * from './shell';
+export * from './port-config';
+export * from './firmware-slots';
+export * from './augment-slots';
+export * from './software-slots';
 
