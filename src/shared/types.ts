@@ -61,6 +61,8 @@ export const SerializedTileSchema = z.object({
   items: z.array(z.number()),
 });
 
+export type SerializedTile = z.infer<typeof SerializedTileSchema>;
+
 export const SerializedGridSchema = z.object({
   width: z.number(),
   height: z.number(),

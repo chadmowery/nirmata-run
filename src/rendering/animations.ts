@@ -25,7 +25,7 @@ export function tickAnimations(deltaMs: number, getSprite: (id: EntityId) => Spr
     const anim = activeAnimations[i];
     anim.elapsed += deltaMs;
     const t = Math.min(anim.elapsed / anim.duration, 1);
-    
+
     const sprite = getSprite(anim.entityId);
     if (!sprite || sprite.destroyed) {
       activeAnimations.splice(i, 1);
@@ -70,29 +70,6 @@ export function queueMoveTween(entityId: EntityId, fromX: number, fromY: number,
 }
 
 /**
- * Queues an attack animation (lunge + return).
- */
-export function queueAttackAnimation(
-  attackerId: EntityId,
-  attackerPos: { x: number; y: number },
-  defenderPos: { x: number; y: number },
-  getSprite: (id: EntityId) => Sprite | undefined
-): void {
-  const startX = attackerPos.x * TILE_SIZE;
-  const startY = attackerPos.y * TILE_SIZE;
-  
-  // Compute lunge target: 30% toward defender
-  const diffX = (defenderPos.x - attackerPos.x) * TILE_SIZE;
-  const diffY = (defenderPos.y - attackerPos.y) * TILE_SIZE;
-  const targetX = startX + diffX * 0.3;
-  const targetY = startY + diffY * 0.3;
-
-  // Apply red tint to defender
-  const defenderSprite = getSprite(attackerId); // Wait, this should find defender sprite
-  // Actually the caller should probably handle the tint or we pass defenderId
-}
-
-/**
  * Queues an attack animation (lunge + return) with defender feedback.
  */
 export function queueAttackAnimationWithDefender(
@@ -104,7 +81,7 @@ export function queueAttackAnimationWithDefender(
 ): void {
   const startX = attackerPos.x * TILE_SIZE;
   const startY = attackerPos.y * TILE_SIZE;
-  
+
   const diffX = (defenderPos.x - attackerPos.x) * TILE_SIZE;
   const diffY = (defenderPos.y - attackerPos.y) * TILE_SIZE;
   const lungeX = startX + diffX * 0.3;

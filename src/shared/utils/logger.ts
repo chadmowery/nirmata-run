@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * A consistent, structured logging utility for the application.
  */
@@ -9,7 +10,7 @@ class Logger {
     return new Date().toISOString();
   }
 
-  private formatMessage(level: LogLevel, message: string, ...args: any[]): string {
+  private formatMessage(level: LogLevel, message: string): string {
     const timestamp = this.getTimestamp();
     const prefix = `[${timestamp}] [${level}]`;
     return `${prefix} ${message}`;

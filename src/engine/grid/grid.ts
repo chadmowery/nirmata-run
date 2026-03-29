@@ -1,5 +1,6 @@
 import { EntityId } from '../ecs/types';
 import { Tile, createDefaultTile } from './types';
+import { SerializedTile } from '@shared/types';
 
 /**
  * A 2D grid for managing spatial data, including terrain, entities, and items.
@@ -127,7 +128,7 @@ export class Grid {
   /**
    * Returns a copy of the internal tiles for serialization.
    */
-  getSerializableTiles() {
+  getSerializableTiles(): SerializedTile[] {
     return this.tiles.map(tile => ({
       ...tile,
       entities: Array.from(tile.entities),
@@ -138,7 +139,7 @@ export class Grid {
   /**
    * Loads tiles into the grid.
    */
-  loadSerializableTiles(serializedTiles: any[]): void {
+  loadSerializableTiles(serializedTiles: SerializedTile[]): void {
     if (serializedTiles.length !== this.tiles.length) {
       throw new Error('Serialized tile count does not match grid size');
     }

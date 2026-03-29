@@ -1,4 +1,4 @@
-import { Sprite, Container, Texture, Assets, Graphics } from 'pixi.js';
+import { Sprite, Container, Texture, Assets } from 'pixi.js';
 import { EntityId } from '../engine/ecs/types';
 import { TILE_SIZE } from './constants';
 
@@ -15,7 +15,7 @@ export function createEntitySprite(entityId: EntityId, spriteKey: string, contai
   }
 
   let texture: Texture | undefined;
-  
+
   // 1. Try Assets.get (might return spritesheet or direct asset)
   const asset = Assets.get('tileset');
   if (asset && asset.textures && asset.textures[spriteKey]) {
@@ -34,10 +34,10 @@ export function createEntitySprite(entityId: EntityId, spriteKey: string, contai
   sprite.height = TILE_SIZE;
 
   // Debug graphic removed
-  
+
   container.addChild(sprite);
   entitySprites.set(entityId, sprite);
-  
+
   return sprite;
 }
 

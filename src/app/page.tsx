@@ -23,7 +23,7 @@ export default function GamePage() {
   useEffect(() => {
     // Only start engine if we are in Playing state and not already initialized
     if (status !== GameState.Playing || contextRef.current || !canvasRef.current || isInitializing.current) return;
-    
+
     async function start() {
       isInitializing.current = true;
       try {
@@ -31,7 +31,7 @@ export default function GamePage() {
         // 1. Init PixiJS
         const app = await initRenderer(canvasRef.current!);
         await loadAssets();
-        
+
         // 1.5 Get Session from Server
         const seed = `run-${Date.now()}`;
         const sessionResponse = await fetch('/api/session', {
@@ -43,7 +43,7 @@ export default function GamePage() {
             height: 45
           })
         });
-        
+
         let sessionId: string | undefined;
         if (sessionResponse.ok) {
           const sessionData = await sessionResponse.json();
@@ -62,6 +62,7 @@ export default function GamePage() {
         });
         contextRef.current = context;
         // Expose for debugging
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (window as any).gameContext = context;
 
         // 3. Init Render System
@@ -115,12 +116,12 @@ export default function GamePage() {
       <div id="canvas-container">
         <canvas ref={canvasRef} className={status === GameState.Playing ? 'block' : 'hidden'} />
       </div>
-      
+
       <div id="ui-root">
         {status === GameState.MainMenu && <MainMenu />}
-        
+
         {status === GameState.Playing && <HUDOverlay />}
-        
+
         {status === GameState.GameOver && <GameOver />}
       </div>
     </main>
