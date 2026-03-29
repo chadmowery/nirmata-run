@@ -1,73 +1,98 @@
-# Research Summary
+# Research Summary: Nirmata Runner v2.0
 
-**Domain:** Web-based 2D Roguelike Dungeon Crawler Engine
-**Synthesized:** 2026-03-13
-**Sources:** STACK.md, FEATURES.md, ARCHITECTURE.md, PITFALLS.md
+## Executive Summary
+
+Adding Nirmata Runner's game systems to the existing engine requires **11 major feature groups** built on top of validated v1.0 infrastructure. The critical dependency chain runs: **Shell data model → Firmware/Heat → Augments → Status Effects → Enemy Hierarchy → Multi-Floor Generation → Stability/Extraction → Economy → Blueprint Cycle → Run Modes → Hub UI → Visual Polish**. No new external libraries are required — the existing stack (PixiJS, React, Next.js, rot-js, Zustand, Zod) handles all needs with targeted extensions (PixiJS filters for visual effects, API routes for persistence).
+
+---
+
+## Stack Additions
+
+| Addition | Purpose | Risk |
+|----------|---------|------|
+| Status effect system (in-house) | Neural Heat consequences, enemy debuffs, Kernel Panic effects | Low — pure ECS components |
+| Server-side JSON persistence | Stash, Vault, Blueprint library, currency between runs | Low — extends existing API pattern |
+| Enhanced seeded generation | Weekly/Daily global seeds, multi-floor dungeons | Low — extends rot-js Alea PRNG |
+| PixiJS filter pipeline | Glitch effects, CRT overlay, heat visualization | Medium — custom shaders need testing |
+| Leaderboard API | Daily/Weekly scoring and ranking | Low — simple sorted storage |
+| Temporal scheduling | Weekly reset, Legacy Code degradation | Medium — needs reliable timing |
+
+**What NOT to add:** No database (JSON persistence sufficient), no WebSockets (turn-based HTTP is fine), no physics engine, no animation library (PixiJS handles it), no state machine library (custom FSM works).
 
 ---
 
-## Stack Summary
+## Feature Table Stakes
 
-**Core (pre-decided):** PixiJS v8.17 + React 19 + TypeScript 5.9 + Next.js 16
+### Must-ship (game doesn't work without these):
+1. **Shell archetypes** with base stats and Port configurations
+2. **Firmware abilities** with Heat costs (at least 3 starter abilities)
+3. **Neural Heat bar** (0-100 safe, 100+ Corruption Zone)
+4. **Kernel Panic table** (escalating consequences above 100 Heat)
+5. **Augment triggers** with visual feedback (at least 3 starters)
+6. **Software consumable modifiers** (burn, use, lose on death)
+7. **All 6 enemy types** across 3 tiers with unique behaviors
+8. **Reality Stability bar** with drain mechanics
+9. **Stability Anchors** with Extract/Descend decision
+10. **Multi-floor dungeon** generation
+11. **3 run modes** (Simulation, Daily, Weekly)
+12. **3-tier currency** (Scrap, Blueprints, Flux)
+13. **Blueprint discovery → compilation → installation cycle**
+14. **Weekly reset** with Legacy Code degradation
+15. **Neural Deck hub** for between-run management
+16. **"Vibrant Decay" visual theme** (palette, typography, effects)
 
-**Key supporting libraries:**
-- **@pixi/tilemap v5.0.2** — batched GPU tile rendering (mandatory, don't use individual sprites)
-- **zustand v5.0.11** — UI state bridge; vanilla API enables engine-side writes without React hooks
-- **rot-js v2.2.1** — cherry-pick FOV (recursive shadowcasting), RNG (seeded Alea PRNG), pathfinding (A*/Dijkstra); skip its display and map gen
-- **zod v3.x** — runtime validation for JSON entity schemas and server action payloads
-- **vitest v4.1** — test engine logic (ECS, generation, turns, state machine); don't test PixiJS rendering
-
-**Do NOT use:** Phaser (conflicts with custom ECS), bitECS/miniplex (conflicts with JSON composability), @pixi/react for game rendering (ECS must own scene graph), Redux/MobX (overkill for UI reflection layer), WebSockets (HTTP sufficient for turn-based single-player)
-
-## Feature Summary
-
-**16 table stakes systems** across 5 domains:
-1. **Core Infrastructure:** ECS core, entity composition pipeline, event bus, game state machine
-2. **Gameplay Loop:** Turn manager, grid/tilemap data, dungeon gen (BSP), movement, input
-3. **Rendering:** Tile rendering + camera, FOV/fog of war
-4. **Combat/AI:** Basic combat (bump-to-attack), basic AI (chase + attack), item pickup
-5. **Network/UI:** Server-authoritative pipeline, optimistic client + reconciliation, UI state bridge + HUD
-
-**3 recommended differentiators for v1:** Message log (LOW complexity, HIGH UX), animation/tweens (MEDIUM, transforms feel), energy/speed system (MEDIUM, tactical depth)
-
-**18 anti-features explicitly excluded:** Audio, save/load, multiplayer, advanced procgen (WFC), mobile, character classes, skill trees, quests, dialogue, crafting, item modifiers, multi-floor, meta-progression, modding API, replay, accessibility, i18n, tutorial
-
-## Architecture Summary
-
-**Four-layer architecture** (downward-only dependencies):
-- **Platform:** PixiJS, React, Next.js, rot-js, browser APIs
-- **Engine:** ECS, state machine, turn manager, event bus, entity builder/registry/factory, generation interface, action pipeline, grid
-- **Game:** Components, systems, JSON entity templates, BSP algorithm, action validators, game states
-- **Presentation:** PixiJS renderer (canvas) + React UI (DOM overlay)
-
-**Engine/game boundary:** Engine knows nothing about goblins, health, or dungeons. Game implements engine interfaces. `game/setup.ts` is the sole wiring point. Enforce with ESLint import restrictions.
-
-**Client-server flow:** Action intent → optimistic client apply → POST to Next.js → server validates → returns full state snapshot → client replaces state. Full-state-replace for v1 (state is ~10-50KB/turn).
-
-**ECS storage:** `Map<string, Map<EntityId, Component>>` — O(1) lookup, trivially debuggable, optimized for developer ergonomics over cache coherence (irrelevant at <200 entities/turn).
-
-## Critical Pitfalls
-
-1. **ECS over-engineering** — Timebox to 2 days. Start with Map-of-Maps. Build 3 real systems before refactoring API.
-2. **Rendering through React** — PixiJS Application mounts independently. ECS render systems own the scene graph. React is DOM overlay only.
-3. **Server before local game works** — Build Phases 1-5 client-side. Action pipeline is a pure function locally. Move validation to server in Phase 6.
-4. **PixiJS display object leaks** — Strict `Map<EntityId, DisplayObject>` tracking. Subscribe to `ENTITY_DESTROYED` event. Destroy sprites explicitly.
-5. **Leaky engine/game boundary** — ESLint `import/no-restricted-paths` from day 1. Engine never imports from game/.
-6. **State machine explosion** — Keep top-level FSM to 5 states. Sub-phases are flags on the turn manager, not new states.
-7. **Optimistic reconciliation edge cases** — Use full-state-replace for v1. Only visual sprite positions are optimistic. State commits wait for server confirmation.
-
-## Build Order
-
-Critical path dependency chain:
-1. ECS core + grid + entity composition (zero rendering, pure TypeScript + Vitest)
-2. Game state machine + turn manager + input + movement + event bus
-3. Tile rendering + camera + FOV (first browser/canvas work)
-4. Combat + AI + item pickup + dungeon generation (playable local game)
-5. Server-authoritative pipeline + optimistic client + reconciliation
-6. UI state bridge + HUD + message log (React layer)
-
-**Key insight:** Phases 1-2 need zero browser dependencies. Pure TypeScript + Vitest enables fast iteration on the hardest problems (ECS, game loop) before canvas/rendering complexity is introduced.
+### Can-defer (nice-to-have for v2.0):
+- Shell visual customization
+- Shell availability rotation per week
+- Software stacking rules
+- Dynamic pricing
+- Winner's Item system
+- Post-run Synergy Report
+- 3D Shell visualization in Neural Deck
 
 ---
-*Research synthesis for: Roguelike Dungeon Crawler Engine*
-*Synthesized: 2026-03-13*
+
+## Watch Out For
+
+### Critical Risks (from Pitfalls research):
+
+1. **🔴 Optimal Avoidance:** Players never overclock if Kernel Panic is too punishing → build "warmth bonuses" in Corruption Zone
+2. **🔴 Invisible Augments:** Synergy triggers without clear feedback → visual flash + message log is mandatory, not polish
+3. **🔴 Weekly Reset Betrayal:** Reset feels like punishment → frame as event, Legacy Code must be usable
+4. **🟡 Economy Inflation:** Scrap accumulates with no sink → every faucet needs a hard sink
+5. **🟡 Consumable Hoarding:** Software never used on practice runs → make drops generous in Simulation mode
+6. **🟡 Turn-Based Adaptation:** Real-time concepts (dash, homing, toggles) must be explicitly reframed in turn-based terms
+7. **🟡 Monotonous Descent:** Deeper floors must introduce new enemy types and mechanics, not just stat scaling
+8. **🟠 Component Explosion:** 20+ new components could make ECS unwieldy → compound components, clear system ordering
+9. **🟠 Flow Breaker UI:** Stability Anchor transition must be snappy (< 2 seconds), offer skip for experienced players
+10. **🟠 Unfair System_Admin:** Instant-kill stalker needs heavy foreshadowing and multiple escape options
+
+### Architectural Safeguards:
+- All economy mutations must go through server-validated action pipeline
+- Status effects must be ECS components (not special-cased logic)
+- Every new system must follow single-responsibility principle
+- Engine/game boundary must hold — new game systems go in `src/game/`
+- Event tier classification (from AGENTS.md) must be followed for all new events
+
+---
+
+## Recommended Build Order
+
+```
+Phase 1: Shell & Equipment Data Model
+Phase 2: Firmware & Neural Heat System
+Phase 3: Status Effects & Augment Synergy
+Phase 4: Software System & Enhanced Combat
+Phase 5: Enemy Hierarchy (3 Tiers)
+Phase 6: Multi-Floor Generation & Stability/Extraction
+Phase 7: Currency, Economy & Blueprint System
+Phase 8: Run Modes & Leaderboard
+Phase 9: Neural Deck Hub UI
+Phase 10: Visual Identity & Glitch Effects
+Phase 11: Starter Loadouts & Integration Polish
+```
+
+This order follows the critical dependency chain: data models first, systems that consume them second, meta-game last.
+
+---
+*Research synthesized: 2026-03-29*
