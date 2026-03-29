@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
+milestone: v2.0
+milestone_name: Nirmata Runner — Core Game Systems
 status: planning
-stopped_at: Phase 3 context gathered
-last_updated: "2026-03-13T23:07:48.873Z"
-last_activity: 2026-03-13 — Roadmap created
+stopped_at: Defining requirements
+last_updated: "2026-03-29T19:27:00.000Z"
+last_activity: 2026-03-29 — Milestone v2.0 started
 progress:
-  total_phases: 6
+  total_phases: 0
   completed_phases: 0
-  total_plans: 8
+  total_plans: 0
   completed_plans: 0
   percent: 0
 ---
@@ -18,19 +18,19 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-13)
+See: .planning/PROJECT.md (updated 2026-03-29)
 
-**Core value:** A solid, server-authoritative turn-based engine foundation where every player action is validated server-side while the client remains responsive through optimistic simulation.
-**Current focus:** Phase 1 — ECS Core & Data Foundation
+**Core value:** The Shell/Firmware/Augment/Software customization hierarchy combined with the Neural Heat risk system — every encounter is a resource management puzzle.
+**Current focus:** Defining requirements for v2.0
 
 ## Current Position
 
-Phase: 1 of 6 (ECS Core & Data Foundation)
-Plan: 0 of 4 in current phase
-Status: Ready to plan
-Last activity: 2026-03-13 — Roadmap created
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-29 — Milestone v2.0 started
 
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/22 plans)
+Progress: [░░░░░░░░░░░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
@@ -41,20 +41,7 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/2
 
 **By Phase:**
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 1. ECS Core & Data Foundation | 0/4 | — | — |
-| 2. Game Loop & Player Control | 0/4 | — | — |
-| 3. Rendering & Camera | 0/4 | — | — |
-| 4. Combat, AI, Items & Dungeon Generation | 0/4 | — | — |
-| 5. Server Authority | 0/3 | — | — |
-| 6. UI & Integration | 0/3 | — | — |
-
-**Recent Trend:**
-- Last 5 plans: —
-- Trend: —
-
-*Updated after each plan completion*
+(Phases not yet defined — roadmap pending)
 
 ## Accumulated Context
 
@@ -63,12 +50,13 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/2
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Roadmap]: 6 phases derived from research build order — ECS/grid first (pure TS), game loop second (pure TS), rendering third, gameplay fourth, server fifth, UI sixth
-- [Roadmap]: Phases 1-2 have zero browser/rendering dependencies — pure TypeScript + Vitest
-- [Roadmap]: Action pipeline designed as pure function from the start — usable both locally and on server
-- [Roadmap]: PixiJS mounts independently from React — never through React reconciler
-- [Roadmap]: Server authority comes after local game is fully playable (Phase 5 after Phase 4)
-- [Roadmap]: Full-state-replace reconciliation for v1 (no diff/merge)
+- [v1.0]: 6 phases built engine from ECS/grid up through server authority and UI integration
+- [v1.0]: Action pipeline is a pure function — usable both locally and on server
+- [v1.0]: PixiJS mounts independently from React — never through React reconciler
+- [v1.0]: Full-state-replace reconciliation for v1
+- [v2.0]: All "real-time" design doc mechanics adapted to turn-based
+- [v2.0]: Neural Heat replaces traditional cooldowns — risk/reward resource management
+- [v2.0]: Weekly blueprint reset prevents power creep and forces meta-shifts
 
 ### Pending Todos
 
@@ -80,10 +68,10 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-13T23:07:48.866Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-rendering-camera/03-CONTEXT.md
+Last session: 2026-03-29
+Stopped at: Defining requirements for v2.0
+Resume file: —
 
 ---
 *State initialized: 2026-03-13*
-*Last updated: 2026-03-13*
+*Last updated: 2026-03-29 — Milestone v2.0 started*
