@@ -1,6 +1,6 @@
 import { createEngineInstance } from './engine-factory';
 import { serializeWorld } from '@shared/serialization';
-import { GameContext } from './types';
+import { GameContext, GameSystem } from './types';
 import { syncEngineToStore } from './ui/sync-bridge';
 import { registerInputBridge } from './input/input-bridge';
 import { StateMachine } from '../engine/state-machine/state-machine';
@@ -32,7 +32,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   const { world, grid, eventBus, turnManager, entityFactory, systems, playerId } = instance;
   const inputManager = new InputManager(DEFAULT_BINDINGS);
 
-  const context = {
+  const contextBase: Omit<GameContext, "fsm"> = {
     world,
     grid,
     eventBus,
@@ -46,8 +46,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     combatSystem: systems.combat,
     aiSystem: systems.ai,
     itemPickupSystem: systems.itemPickup,
-    fsm: null as any,
-  } as GameContext;
+  };
 
   const stateConfigs: Record<GameState, StateConfig<GameState, GameContext>> = {
     [GameState.Loading]: {},
@@ -90,11 +89,15 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   const fsm = new StateMachine<GameState, GameContext>(
     GameState.Loading,
     stateConfigs,
-    GAME_TRANSITIONS,
-    context
+    GAME_TRANSITIONS
   );
 
-  context.fsm = fsm;
+  const context: GameContext = {
+    ...contextBase,
+    fsm,
+  };
+
+  fsm.setContext(context);
 
   // Initialize UI Bridge
   syncEngineToStore(context);
@@ -189,10 +192,17 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
  * Cleans up game resources and systems.
  */
 export function destroyGame(context: GameContext) {
-  (context.combatSystem as any).dispose?.();
-  (context.itemPickupSystem as any).dispose?.();
-  (context.aiSystem as any).dispose?.();
-  (context.movementSystem as any).dispose?.();
+  const systems: GameSystem[] = [
+    context.combatSystem,
+    context.itemPickupSystem,
+    context.aiSystem,
+    context.movementSystem
+  ];
+
+  for (const sys of systems) {
+    sys.dispose?.();
+  }
+
   context.inputManager.disable();
   context.eventBus.clear();
 }

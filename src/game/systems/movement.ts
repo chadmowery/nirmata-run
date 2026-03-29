@@ -89,7 +89,8 @@ export function createMovementSystem<T extends GameplayEvents>(
       });
 
       return 'moved';
-    }
+    },
+    dispose() {}
   };
 }
 

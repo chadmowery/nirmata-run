@@ -4,7 +4,9 @@ import { EventBus } from '../engine/events/event-bus';
 import { TurnManager } from '../engine/turn/turn-manager';
 import { EntityRegistry } from '../engine/entity/registry';
 import { EntityFactory } from '../engine/entity/factory';
-import * as Components from '@shared/components';
+import { COMPONENTS_REGISTRY } from '@shared/components';
+import { ComponentRegistry } from '../engine/entity/types';
+import { ComponentDef } from '../engine/ecs/types';
 import { registerGameTemplates } from './entities';
 import { createMovementSystem } from './systems/movement';
 import { createCombatSystem } from './systems/combat';
@@ -51,12 +53,10 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   registerGameTemplates(entityRegistry);
   const entityFactory = new EntityFactory(entityRegistry);
   
-  const componentsMap = Object.fromEntries(
-    Object.entries(Components)
-      .filter(([, component]) => component && typeof component === 'object' && 'key' in component)
-      .map(([, component]) => [(component as any).key, component])
+  const componentsMap: Record<string, ComponentDef<unknown>> = Object.fromEntries(
+    COMPONENTS_REGISTRY.map((component) => [component.key, component])
   );
-  const componentRegistry: any = {
+  const componentRegistry: ComponentRegistry = {
     get: (key: string) => componentsMap[key],
     has: (key: string) => !!componentsMap[key],
   };

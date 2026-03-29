@@ -27,6 +27,7 @@ export async function POST(req: Request) {
     console.log(`[API] Session created: ${sessionId} (seed: ${seed})`);
 
     return NextResponse.json({ sessionId });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error('API Error (session creation):', error);
     return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });

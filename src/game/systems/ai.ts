@@ -151,7 +151,8 @@ export function createAISystem<T extends GameplayEvents>(
         const dy = player.y - pos.y;
         movementSystem.processMove(entityId, dx, dy);
       }
-    }
+    },
+    dispose() {}
   };
 }
 

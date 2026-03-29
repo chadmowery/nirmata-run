@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { useStore } from 'zustand';
-import { gameStore, MessageEntry } from '@/game/ui/store';
+import { gameStore } from '@/game/ui/store';
 import styles from './styles.module.css';
 
 export const MessageLog: React.FC = () => {

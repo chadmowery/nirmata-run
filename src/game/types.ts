@@ -14,6 +14,11 @@ import { AISystem } from './systems/ai';
 import { ItemPickupSystem } from './systems/item-pickup';
 import { EntityFactory } from '@engine/entity/factory';
 
+export interface GameSystem {
+  init?(): void;
+  dispose?(): void;
+}
+
 /**
  * The unified context that holds all engine and game modules.
  */
