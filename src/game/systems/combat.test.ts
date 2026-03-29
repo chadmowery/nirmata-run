@@ -5,20 +5,20 @@ import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { createCombatSystem } from './combat';
 import { Attack, Defense, LootTable, Health, Position } from '@shared/components';
-import { GameEvents } from '../events/types';
+import { GameplayEvents } from '@shared/events/types';
 import { ComponentRegistry } from '@engine/entity/types';
 
 describe('CombatSystem', () => {
-  let world: World;
+  let world: World<GameplayEvents>;
   let grid: Grid;
-  let eventBus: EventBus<GameEvents>;
+  let eventBus: EventBus<GameplayEvents>;
   let entityFactory: EntityFactory;
   let componentRegistry: ComponentRegistry;
   let combatSystem: ReturnType<typeof createCombatSystem>;
 
   beforeEach(() => {
-    eventBus = new EventBus<GameEvents>();
-    world = new World(eventBus as any);
+    eventBus = new EventBus<GameplayEvents>();
+    world = new World<GameplayEvents>(eventBus);
     grid = new Grid(10, 10);
     // Mock registry/factory for loot
     const mockRegistry = { get: vi.fn() } as any;

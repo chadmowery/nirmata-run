@@ -69,7 +69,13 @@ export const SerializedGridSchema = z.object({
 
 export type SerializedGrid = z.infer<typeof SerializedGridSchema>;
 
+import { Changeset } from 'json-diff-ts';
+
 /**
- * State Delta type (placeholder for json-diff-ts output)
+ * State Delta type representing the difference between two world/grid states.
  */
-export type StateDelta = any; // We'll refine this if needed once we use json-diff-ts
+export type StateDelta = {
+  world: Changeset;
+  grid: Changeset;
+};
+

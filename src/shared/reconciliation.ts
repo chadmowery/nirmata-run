@@ -1,20 +1,21 @@
-import { applyChangeset } from 'json-diff-ts';
+import { applyChangeset, diff, IChange } from 'json-diff-ts';
 import { World } from '../engine/ecs/world';
 import { Grid } from '../engine/grid/grid';
 import { EventBus } from '../engine/events/event-bus';
+import { GameplayEvents } from './events/types';
 import { serializeWorld } from './serialization';
-import { StateDelta } from './types';
-import { diff } from 'json-diff-ts';
+import { StateDelta, SerializedWorld } from './types';
+import { Position } from './components/position';
 
 /**
  * Applies a StateDelta to a World and Grid instance and emits relevant events.
  */
-export function applyStateDelta(
-  world: World,
+export function applyStateDelta<T extends GameplayEvents>(
+  world: World<T>,
   grid: Grid,
-  eventBus: EventBus<any>,
+  eventBus: EventBus<T>,
   delta: StateDelta,
-  baseWorldState?: any
+  baseWorldState?: SerializedWorld
 ): void {
   // 1. Get base states (either provided or current)
   const currentWorldState = baseWorldState || serializeWorld(world);
@@ -63,7 +64,8 @@ export function applyStateDelta(
   
   if (patchedWorld.stores && patchedWorld.stores.position) {
     const itemStore = patchedWorld.stores.item || {};
-    for (const [idStr, pos] of Object.entries(patchedWorld.stores.position as Record<string, any>)) {
+    const positionStore = (patchedWorld.stores.position || {}) as Record<string, { x: number; y: number }>;
+    for (const [idStr, pos] of Object.entries(positionStore)) {
       const id = Number(idStr);
       if (!isNaN(id) && pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
         if (itemStore[idStr]) {
@@ -79,7 +81,7 @@ export function applyStateDelta(
   // For Movement: Only emit if there was a misprediction (predicted != server)
   // For other things (Combat, Items): Always emit if present in server delta (since we don't predict them yet)
   
-  const processChanges = (changes: any[], currentPath: string[], isMisprediction: boolean) => {
+  const processChanges = (changes: IChange[], currentPath: string[], isMisprediction: boolean) => {
     for (const change of changes) {
       const path = [...currentPath, ...change.key.split('.')];
 
@@ -111,15 +113,17 @@ export function applyStateDelta(
             if (componentKey === 'position') {
               // Only emit ENTITY_MOVED if this is part of a misprediction reconciliation
               if (isMisprediction) {
-                const currentPos = world.getComponent(entityId, { key: 'position' } as any) as any;
+                const currentPos = world.getComponent(entityId, Position);
 
-                eventBus.emit('ENTITY_MOVED', {
-                  entityId,
-                  fromX: property === 'x' ? change.oldValue : currentPos?.x,
-                  fromY: property === 'y' ? change.oldValue : currentPos?.y,
-                  toX: currentPos?.x,
-                  toY: currentPos?.y
-                });
+                if (currentPos && typeof currentPos.x === 'number' && typeof currentPos.y === 'number') {
+                  eventBus.emit('ENTITY_MOVED', {
+                    entityId,
+                    fromX: property === 'x' ? change.oldValue : currentPos.x,
+                    fromY: property === 'y' ? change.oldValue : currentPos.y,
+                    toX: currentPos.x,
+                    toY: currentPos.y
+                  });
+                }
               }
             }
           } else if (change.changes) {
@@ -137,8 +141,8 @@ export function applyStateDelta(
   };
 
   // Process server delta for generic events (non-movement)
-  processChanges(delta.world as any[], [], false);
+  processChanges(delta.world, [], false);
   
   // Process misprediction delta for movement correction
-  processChanges(mispredictionDelta as any[], [], true);
+  processChanges(mispredictionDelta, [], true);
 }

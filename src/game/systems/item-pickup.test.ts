@@ -7,13 +7,12 @@ import { Actor } from '@shared/components/actor';
 import { Item } from '@shared/components/item';
 import { PickupEffect, EffectType } from '@shared/components/pickup-effect';
 import { Health } from '@shared/components/health';
-import { Position } from '@shared/components/position';
-import { GameEvents } from '../events/types';
+import { GameplayEvents } from '@shared/events/types';
 
 describe('ItemPickupSystem', () => {
-  let world: World;
+  let world: World<GameplayEvents>;
   let grid: Grid;
-  let eventBus: EventBus<GameEvents>;
+  let eventBus: EventBus<GameplayEvents>;
   let itemPickupSystem: ItemPickupSystem;
   let eventHandlers: Record<string, (payload: unknown) => void> = {};
 
@@ -21,6 +20,8 @@ describe('ItemPickupSystem', () => {
   const ITEM_ID = 2;
 
   beforeEach(() => {
+    eventBus = new EventBus<GameplayEvents>();
+    world = new World<GameplayEvents>(eventBus);
     grid = new Grid(10, 10);
     // Set all tiles to walkable
     for (let y = 0; y < 10; y++) {
@@ -36,13 +37,13 @@ describe('ItemPickupSystem', () => {
         return () => { delete eventHandlers[event]; };
       }),
       emit: vi.fn(),
-    } as unknown as EventBus<GameEvents>;
+    } as unknown as EventBus<GameplayEvents>;
 
     world = {
       getComponent: vi.fn(),
       hasComponent: vi.fn(),
       destroyEntity: vi.fn(),
-    } as unknown as World;
+    } as unknown as World<GameplayEvents>;
 
     itemPickupSystem = createItemPickupSystem(world, grid, eventBus);
     itemPickupSystem.init();

@@ -7,12 +7,12 @@ import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
 import { AIState, AIBehavior } from '@shared/components/ai-state';
 import { FovAwareness } from '@shared/components/fov-awareness';
-import { GameEvents } from '../events/types';
+import { GameplayEvents } from '@shared/events/types';
 
 describe('AISystem', () => {
-  let world: World;
+  let world: World<GameplayEvents>;
   let grid: Grid;
-  let eventBus: EventBus<GameEvents>;
+  let eventBus: EventBus<GameplayEvents>;
   let movementSystem: any;
   let aiSystem: any;
 
@@ -42,7 +42,7 @@ describe('AISystem', () => {
       processMove: vi.fn(),
     };
 
-    aiSystem = createAISystem(world, grid, movementSystem, eventBus);
+    aiSystem = createAISystem(world, grid, movementSystem);
   });
 
   const setupEntities = (playerPos: { x: number, y: number }, enemyPos: { x: number, y: number }) => {

@@ -3,6 +3,7 @@ import { EntityId } from '../ecs/types';
 import { EntityRegistry } from './registry';
 import { buildEntity, resolveMixins } from './builder';
 import { ComponentRegistry } from './types';
+import { EngineEvents } from '../events/types';
 
 /**
  * High-level factory for creating entities from templates.
@@ -17,8 +18,8 @@ export class EntityFactory {
    * @param componentRegistry Component registry for validation.
    * @param runtimeOverrides Optional overrides to apply at creation time.
    */
-  create(
-    world: World,
+  create<T extends EngineEvents>(
+    world: World<T>,
     templateName: string,
     componentRegistry: ComponentRegistry,
     runtimeOverrides?: Record<string, Record<string, unknown>>

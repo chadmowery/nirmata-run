@@ -2,21 +2,25 @@ import { World } from '../ecs/world';
 import { Grid } from '../grid/grid';
 import { TurnManager } from '../turn/turn-manager';
 import { EventBus } from '../events/event-bus';
+import { EngineEvents } from '@engine/events/types';
 
-export interface WorldState {
-  world: World;
+/**
+ * WorldState container for sessions.
+ */
+export interface WorldState<T extends EngineEvents = EngineEvents> {
+  world: World<T>;
   grid: Grid;
+  turnManager: TurnManager<T>;
+  eventBus: EventBus<T>;
   playerId: number;
-  turnManager: TurnManager;
-  eventBus: EventBus<any>;
 }
 
 /**
- * Singleton class to manage in-memory game sessions.
+ * High-level manager for game sessions.
  */
 export class SessionManager {
   private static instance: SessionManager;
-  private sessions: Map<string, WorldState>;
+  private sessions = new Map<string, unknown>();
 
   private constructor() {
     this.sessions = new Map();
@@ -29,22 +33,24 @@ export class SessionManager {
     return SessionManager.instance;
   }
 
-  public createSession(sessionId: string, state: WorldState): void {
+  public createSession<T extends EngineEvents>(sessionId: string, state: WorldState<T>): void {
     this.sessions.set(sessionId, state);
   }
 
-  public getSession(sessionId: string): WorldState | undefined {
-    return this.sessions.get(sessionId);
-  }
-
-  public updateSession(sessionId: string, state: WorldState): void {
-    if (this.sessions.has(sessionId)) {
-      this.sessions.set(sessionId, state);
-    }
+  public getSession<T extends EngineEvents = EngineEvents>(sessionId: string): WorldState<T> | undefined {
+    return this.sessions.get(sessionId) as WorldState<T> | undefined;
   }
 
   public deleteSession(sessionId: string): void {
     this.sessions.delete(sessionId);
+  }
+
+  public listSessions(): string[] {
+    return Array.from(this.sessions.keys());
+  }
+
+  public hasSession(sessionId: string): boolean {
+    return this.sessions.has(sessionId);
   }
 
   public clear(): void {

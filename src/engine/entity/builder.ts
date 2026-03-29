@@ -90,12 +90,14 @@ export function resolveMixins(
   return resolvedComponents;
 }
 
+import { EngineEvents } from '../events/types';
+
 /**
  * Validates and stamps an entity into the world.
  * @throws Error if a component is unknown or validation fails.
  */
-export function buildEntity(
-  world: World,
+export function buildEntity<T extends EngineEvents>(
+  world: World<T>,
   templateName: string,
   resolvedComponents: Record<string, unknown>,
   componentRegistry: ComponentRegistry

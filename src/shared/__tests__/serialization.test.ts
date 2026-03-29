@@ -1,15 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { World } from '../../engine/ecs/World';
-import { Grid } from '../../engine/grid/Grid';
+import { World } from '../../engine/ecs/world';
+import { Grid } from '../../engine/grid/grid';
 import { EventBus } from '../../engine/events/event-bus';
+import { GameplayEvents } from '../events/types';
 import { serializeWorld, deserializeWorld, serializeGrid, deserializeGrid } from '../serialization';
 import { Position } from '../../shared/components/position';
 import { Health } from '../../shared/components/health';
 
 describe('Serialization', () => {
-  let world: World;
+  let world: World<GameplayEvents>;
   let grid: Grid;
-  let eventBus: EventBus<any>;
+  let eventBus: EventBus<GameplayEvents>;
 
   beforeEach(() => {
     eventBus = new EventBus();

@@ -2,23 +2,20 @@ import AStar from 'rot-js/lib/path/astar';
 import PreciseShadowcasting from 'rot-js/lib/fov/precise-shadowcasting';
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
-import { EventBus } from '@engine/events/event-bus';
 import { EntityId } from '@engine/ecs/types';
 import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
 import { AIState, AIBehavior } from '@shared/components/ai-state';
 import { FovAwareness } from '@shared/components/fov-awareness';
-import { GameEvents } from '../events/types';
-import { MovementSystem } from './movement';
+import { GameplayEvents } from '@shared/events/types';
 
 /**
  * AI System handles enemy decision making and behavior state transitions.
  */
-export function createAISystem(
-  world: World,
+export function createAISystem<T extends GameplayEvents>(
+  world: World<T>,
   grid: Grid,
-  movementSystem: MovementSystem,
-  _eventBus: EventBus<GameEvents>
+  movementSystem: { processMove: (eid: EntityId, dx: number, dy: number) => void }
 ) {
   /**
    * Finds the player entity in the world.

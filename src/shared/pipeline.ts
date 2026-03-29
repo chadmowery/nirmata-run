@@ -2,6 +2,7 @@ import { diff } from 'json-diff-ts';
 import { World } from '../engine/ecs/world';
 import { Grid } from '../engine/grid/grid';
 import { EventBus } from '../engine/events/event-bus';
+import { GameplayEvents } from './events/types';
 import { ActionIntent, StateDelta } from './types';
 import { serializeWorld, serializeGrid, deserializeWorld, deserializeGrid } from './serialization';
 import { logger } from './utils/logger';
@@ -14,18 +15,18 @@ import { Position, Hostile, BlocksMovement, Attack, Health, Defense, Item, Picku
  * This is a pure function (it clones the input state).
  */
 export function runActionPipeline(
-  world: World,
+  world: World<GameplayEvents>,
   grid: Grid,
   playerId: number,
   action: ActionIntent
-): { world: World; grid: Grid; delta: StateDelta } {
+): { world: World<GameplayEvents>; grid: Grid; delta: StateDelta } {
   logger.debug(`[PIPELINE] Processing action: ${action.type}`, action);
   // 1. Snapshot initial state
   const oldWorldState = serializeWorld(world);
   const oldGridState = serializeGrid(grid);
 
   // 2. Clone for processing (using a local event bus to avoid global side effects)
-  const localEventBus = new EventBus<any>();
+  const localEventBus = new EventBus<GameplayEvents>();
   const newWorld = deserializeWorld(oldWorldState, localEventBus);
   const newGrid = deserializeGrid(oldGridState);
 
@@ -50,7 +51,7 @@ export function runActionPipeline(
   return { world: newWorld, grid: newGrid, delta };
 }
 
-function processAction(world: World, grid: Grid, eventBus: EventBus<any>, entityId: number, action: ActionIntent) {
+function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>, entityId: number, action: ActionIntent) {
   switch (action.type) {
     case 'MOVE':
       handleMove(world, grid, eventBus, entityId, action.dx, action.dy);
@@ -69,7 +70,7 @@ function processAction(world: World, grid: Grid, eventBus: EventBus<any>, entity
   }
 }
 
-function handleMove(world: World, grid: Grid, eventBus: EventBus<any>, entityId: number, dx: number, dy: number) {
+function handleMove(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>, entityId: number, dx: number, dy: number) {
   const pos = world.getComponent(entityId, Position);
   if (!pos) return;
 
@@ -111,7 +112,7 @@ function handleMove(world: World, grid: Grid, eventBus: EventBus<any>, entityId:
   eventBus.emit('ENTITY_MOVED', { entityId, fromX: oldX, fromY: oldY, toX: targetX, toY: targetY });
 }
 
-function handlePickup(world: World, grid: Grid, eventBus: EventBus<any>, entityId: number, itemId: number) {
+function handlePickup(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>, entityId: number, itemId: number) {
   if (!world.hasComponent(itemId, Item)) return;
 
   const effect = world.getComponent(itemId, PickupEffect);
@@ -130,9 +131,9 @@ function handlePickup(world: World, grid: Grid, eventBus: EventBus<any>, entityI
   eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
 }
 
-function setupInternalHandlers(world: World, grid: Grid, eventBus: EventBus<any>) {
+function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>) {
   // BUMP_ATTACK handler (Combat Logic)
-  eventBus.on('BUMP_ATTACK', (payload: any) => {
+  eventBus.on('BUMP_ATTACK', (payload) => {
     const { attackerId, defenderId } = payload;
     const attackerAttack = world.getComponent(attackerId, Attack);
     const defenderHealth = world.getComponent(defenderId, Health);
@@ -164,7 +165,7 @@ function setupInternalHandlers(world: World, grid: Grid, eventBus: EventBus<any>
   });
 
   // ENTITY_MOVED handler (Auto-pickup Logic)
-  eventBus.on('ENTITY_MOVED', (payload: any) => {
+  eventBus.on('ENTITY_MOVED', (payload) => {
     const { entityId, toX, toY } = payload;
     const itemsAtPos = grid.getItemsAt(toX, toY);
     for (const itemId of Array.from(itemsAtPos)) {
@@ -173,7 +174,7 @@ function setupInternalHandlers(world: World, grid: Grid, eventBus: EventBus<any>
   });
 }
 
-function handleDeath(world: World, grid: Grid, eventBus: EventBus<any>, entityId: number, killerId: number) {
+function handleDeath(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>, entityId: number, killerId: number) {
   const pos = world.getComponent(entityId, Position);
   if (pos) {
     grid.removeEntity(entityId, pos.x, pos.y);

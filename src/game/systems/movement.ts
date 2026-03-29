@@ -6,14 +6,19 @@ import { Position } from '@shared/components/position';
 import { Hostile } from '@shared/components/hostile';
 import { Actor } from '@shared/components/actor';
 import { BlocksMovement } from '@shared/components/blocks-movement';
-import { GameEvents } from '../events/types';
+
+import { GameplayEvents } from '@shared/events/types';
 
 export type MoveResult = 'moved' | 'blocked' | 'bump-attack';
 
 /**
  * Creates a movement system that handles entity movement and collision.
  */
-export function createMovementSystem(world: World, grid: Grid, eventBus: EventBus<GameEvents>) {
+export function createMovementSystem<T extends GameplayEvents>(
+  world: World<T>, 
+  grid: Grid, 
+  eventBus: EventBus<T>
+) {
   return {
     /**
      * Processes a movement intent for an entity.

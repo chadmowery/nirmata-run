@@ -6,14 +6,14 @@ import { EngineEvents } from '../events/types';
  * The World class is the central coordinator of the ECS.
  * It manages entities, components, and systems.
  */
-export class World {
+export class World<TEvents extends EngineEvents = EngineEvents> {
   private nextId: EntityId = 1;
   private entities: Set<EntityId> = new Set();
   private stores: Map<string, Map<EntityId, unknown>> = new Map();
   private systems: Map<Phase, SystemFn[]> = new Map();
-  private eventBus: EventBus<EngineEvents>;
+  private eventBus: EventBus<TEvents>;
 
-  constructor(eventBus: EventBus<EngineEvents>) {
+  constructor(eventBus: EventBus<TEvents>) {
     this.eventBus = eventBus;
   }
 

@@ -8,11 +8,12 @@ import { EventBus } from '@engine/events/event-bus';
 import { Actor, Position, Energy, Health } from '@shared/components';
 import { GameAction, DIRECTIONS } from '@game/input/actions';
 import { createMovementSystem } from '@game/systems/movement';
+import { GameplayEvents } from '@shared/events/types';
 
 // Mock NextResponse
 vi.mock('next/server', () => ({
   NextResponse: {
-    json: (data: any, init?: any) => ({
+    json: (data: unknown, init?: ResponseInit) => ({
       json: async () => data,
       status: init?.status || 200,
     }),
@@ -20,15 +21,15 @@ vi.mock('next/server', () => ({
 }));
 
 describe('Action API Route', () => {
-  let world: World;
+  let world: World<GameplayEvents>;
   let grid: Grid;
-  let eventBus: EventBus<any>;
-  let turnManager: TurnManager;
+  let eventBus: EventBus<GameplayEvents>;
+  let turnManager: TurnManager<GameplayEvents>;
   const sessionId = 'test-session';
 
   beforeEach(() => {
     sessionManager.clear();
-    eventBus = new EventBus();
+    eventBus = new EventBus<GameplayEvents>();
     world = new World(eventBus);
     grid = new Grid(10, 10);
     turnManager = new TurnManager(world, eventBus, {
@@ -41,7 +42,7 @@ describe('Action API Route', () => {
     const playerId = world.createEntity();
     world.addComponent(playerId, Actor, { isPlayer: true });
     world.addComponent(playerId, Position, { x: 5, y: 5 });
-    world.addComponent(playerId, Energy, { current: 100, speed: 10 });
+    world.addComponent(playerId, Energy, { current: 100, speed: 10, threshold: 1000 });
     world.addComponent(playerId, Health, { current: 10, max: 10 });
     grid.addEntity(playerId, 5, 5);
 
@@ -67,15 +68,16 @@ describe('Action API Route', () => {
   });
 
   it('should process a valid MOVE action', async () => {
-    const req = {
-      json: async () => ({
+    const req = new Request('http://localhost/api/action', {
+      method: 'POST',
+      body: JSON.stringify({
         sessionId,
         action: { type: 'MOVE', dx: 1, dy: 0 },
       }),
-    } as Request;
+    });
 
     const response = await POST(req);
-    const data = await (response as any).json();
+    const data = await response.json();
 
     expect(response.status).toBe(200);
     expect(data.delta).toBeDefined();
@@ -88,15 +90,16 @@ describe('Action API Route', () => {
   });
 
   it('should process a WAIT action', async () => {
-    const req = {
-      json: async () => ({
+    const req = new Request('http://localhost/api/action', {
+      method: 'POST',
+      body: JSON.stringify({
         sessionId,
         action: { type: 'WAIT' },
       }),
-    } as Request;
+    });
 
     const response = await POST(req);
-    const data = await (response as any).json();
+    const data = await response.json();
 
     expect(response.status).toBe(200);
     expect(data.turnNumber).toBeGreaterThan(0);
@@ -108,24 +111,26 @@ describe('Action API Route', () => {
   });
 
   it('should return 404 for missing session', async () => {
-    const req = {
-      json: async () => ({
+    const req = new Request('http://localhost/api/action', {
+      method: 'POST',
+      body: JSON.stringify({
         sessionId: 'non-existent',
         action: { type: 'WAIT' },
       }),
-    } as Request;
+    });
 
     const response = await POST(req);
     expect(response.status).toBe(404);
   });
 
   it('should return 400 for invalid request body', async () => {
-    const req = {
-      json: async () => ({
+    const req = new Request('http://localhost/api/action', {
+      method: 'POST',
+      body: JSON.stringify({
         sessionId,
         action: { type: 'INVALID' },
       }),
-    } as Request;
+    });
 
     const response = await POST(req);
     expect(response.status).toBe(400);
@@ -139,13 +144,13 @@ describe('Action API Route', () => {
     const enemyId = world.createEntity();
     world.addComponent(enemyId, Actor, { isPlayer: false });
     world.addComponent(enemyId, Position, { x: 7, y: 7 });
-    world.addComponent(enemyId, Energy, { current: 100, speed: 10 });
+    world.addComponent(enemyId, Energy, { current: 100, speed: 10, threshold: 1000 });
     world.addComponent(enemyId, Health, { current: 5, max: 5 });
     grid.addEntity(enemyId, 7, 7);
 
     // Mock AI System
     const aiSystem = {
-      processEnemyTurn: vi.fn((eid) => {
+      processEnemyTurn: vi.fn((eid: number) => {
         // Simple AI move: step west
         movementSystem.processMove(eid, -1, 0);
       }),
@@ -155,12 +160,13 @@ describe('Action API Route', () => {
       aiSystem.processEnemyTurn(eid);
     });
 
-    const req = {
-      json: async () => ({
+    const req = new Request('http://localhost/api/action', {
+      method: 'POST',
+      body: JSON.stringify({
         sessionId,
         action: { type: 'MOVE', dx: 1, dy: 0 },
       }),
-    } as Request;
+    });
 
     const response = await POST(req);
     expect(response.status).toBe(200);

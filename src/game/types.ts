@@ -18,11 +18,11 @@ import { EntityFactory } from '@engine/entity/factory';
  * The unified context that holds all engine and game modules.
  */
 export interface GameContext {
-  world: World;
+  world: World<GameEvents>;
   grid: Grid;
   eventBus: EventBus<GameEvents>;
   fsm: StateMachine<GameState, GameContext>;
-  turnManager: TurnManager;
+  turnManager: TurnManager<GameEvents>;
   inputManager: InputManager;
   movementSystem: MovementSystem;
   combatSystem: CombatSystem;

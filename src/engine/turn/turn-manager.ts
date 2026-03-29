@@ -6,23 +6,22 @@ import {
   TurnPhase, 
   TurnManagerConfig, 
   PlayerActionHandler, 
-  EnemyActionHandler, 
-  DEFAULT_ACTION_COSTS 
+  EnemyActionHandler 
 } from './types';
 import { Actor, Energy, Health } from '@shared/components';
 
 /**
  * Orchestrates the game turn loop using an energy-based system.
  */
-export class TurnManager {
+export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
   private phase: TurnPhase = TurnPhase.AWAIT_INPUT;
   private turnNumber: number = 0;
   private playerActionHandler: PlayerActionHandler | null = null;
   private enemyActionHandler: EnemyActionHandler | null = null;
 
   constructor(
-    private world: World,
-    private eventBus: EventBus<EngineEvents>,
+    private world: World<TEvents>,
+    private eventBus: EventBus<TEvents>,
     private config: TurnManagerConfig
   ) {}
 

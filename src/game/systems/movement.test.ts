@@ -7,12 +7,12 @@ import { Position } from '@shared/components/position';
 import { Hostile } from '@shared/components/hostile';
 import { Actor } from '@shared/components/actor';
 import { BlocksMovement } from '@shared/components/blocks-movement';
-import { GameEvents } from '../events/types';
+import { GameplayEvents } from '@shared/events/types';
 
 describe('MovementSystem', () => {
-  let world: World;
+  let world: World<GameplayEvents>;
   let grid: Grid;
-  let eventBus: EventBus<GameEvents>;
+  let eventBus: EventBus<GameplayEvents>;
   let movementSystem: any;
 
   const PLAYER_ID = 1;

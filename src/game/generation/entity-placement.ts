@@ -4,8 +4,6 @@ import { EntityFactory } from '../../engine/entity/factory';
 import { EntityId } from '../../engine/ecs/types';
 import { ComponentRegistry } from '../../engine/entity/types';
 import { Room } from '../../engine/generation/types';
-import { Position } from '@shared/components/position';
-import { Hostile } from '@shared/components/hostile';
 
 /**
  * Configuration for entity placement in generated dungeons.
@@ -37,6 +35,8 @@ export interface PlacementResult {
   itemIds: EntityId[];
 }
 
+import { EngineEvents } from '../../engine/events/types';
+
 /**
  * Place player, enemies, and items in a generated dungeon.
  *
@@ -50,8 +50,8 @@ export interface PlacementResult {
  * @param config Optional placement configuration
  * @returns IDs of all placed entities
  */
-export function placeEntities(
-  world: World,
+export function placeEntities<T extends EngineEvents>(
+  world: World<T>,
   grid: Grid,
   factory: EntityFactory,
   componentRegistry: ComponentRegistry,

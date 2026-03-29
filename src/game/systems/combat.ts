@@ -4,22 +4,23 @@ import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { EntityId } from '@engine/ecs/types';
 import { Attack, Defense, LootTable, Health, Position, Actor } from '@shared/components';
-import { GameEvents } from '../events/types';
+
+import { GameplayEvents } from '@shared/events/types';
 
 import { ComponentRegistry } from '@engine/entity/types';
 
 /**
  * Combat system that resolves damage and handles entity death.
  */
-export function createCombatSystem(
-  world: World,
+export function createCombatSystem<T extends GameplayEvents>(
+  world: World<T>,
   grid: Grid,
-  eventBus: EventBus<GameEvents>,
+  eventBus: EventBus<T>,
   entityFactory: EntityFactory,
   componentRegistry: ComponentRegistry,
   options: { skipLoot?: boolean } = {}
 ) {
-  const resolveBumpAttack = (payload: GameEvents['BUMP_ATTACK']) => {
+  const resolveBumpAttack = (payload: T['BUMP_ATTACK']) => {
     const { attackerId, defenderId } = payload;
 
     const attackerAttack = world.getComponent(attackerId, Attack);

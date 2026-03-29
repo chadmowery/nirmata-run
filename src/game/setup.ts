@@ -46,6 +46,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     combatSystem: systems.combat,
     aiSystem: systems.ai,
     itemPickupSystem: systems.itemPickup,
+    fsm: null as any,
   } as GameContext;
 
   const stateConfigs: Record<GameState, StateConfig<GameState, GameContext>> = {

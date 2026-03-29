@@ -6,9 +6,9 @@ import { EntityRegistry } from '../engine/entity/registry';
 import { EntityFactory } from '../engine/entity/factory';
 import * as Components from '@shared/components';
 import { registerGameTemplates } from './entities';
-import { MovementSystem, createMovementSystem } from './systems/movement';
-import { CombatSystem, createCombatSystem } from './systems/combat';
-import { AISystem, createAISystem } from './systems/ai';
+import { createMovementSystem } from './systems/movement';
+import { createCombatSystem } from './systems/combat';
+import { createAISystem } from './systems/ai';
 import { ItemPickupSystem, createItemPickupSystem } from './systems/item-pickup';
 import { generateDungeon } from './generation/dungeon-generator';
 import { placeEntities } from './generation/entity-placement';
@@ -24,16 +24,16 @@ export interface EngineInitConfig {
 }
 
 export interface EngineInstance {
-  world: World;
+  world: World<GameEvents>;
   grid: Grid;
   eventBus: EventBus<GameEvents>;
-  turnManager: TurnManager;
+  turnManager: TurnManager<GameEvents>;
   entityFactory: EntityFactory;
   playerId: number;
   systems: {
-    movement: MovementSystem;
-    combat: CombatSystem;
-    ai: AISystem;
+    movement: ReturnType<typeof createMovementSystem<GameEvents>>;
+    combat: ReturnType<typeof createCombatSystem<GameEvents>>;
+    ai: ReturnType<typeof createAISystem<GameEvents>>;
     itemPickup: ItemPickupSystem;
   };
 }
@@ -44,7 +44,7 @@ export interface EngineInstance {
  */
 export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   const eventBus = new EventBus<GameEvents>();
-  const world = new World(eventBus as any);
+  const world = new World<GameEvents>(eventBus);
   
   // Entity pipeline
   const entityRegistry = new EntityRegistry();
@@ -53,8 +53,8 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   
   const componentsMap = Object.fromEntries(
     Object.entries(Components)
-      .filter(([_, component]) => component && typeof component === 'object' && 'key' in component)
-      .map(([_, component]) => [(component as any).key, component])
+      .filter(([, component]) => component && typeof component === 'object' && 'key' in component)
+      .map(([, component]) => [(component as any).key, component])
   );
   const componentRegistry: any = {
     get: (key: string) => componentsMap[key],
@@ -75,13 +75,13 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   const combatSystem = createCombatSystem(world, grid, eventBus, entityFactory, componentRegistry, {
     skipLoot: config.isClient
   });
-  const aiSystem = createAISystem(world, grid, movementSystem, eventBus);
+  const aiSystem = createAISystem(world, grid, movementSystem);
   const itemPickupSystem = createItemPickupSystem(world, grid, eventBus);
 
   combatSystem.init();
   itemPickupSystem.init();
 
-  const turnManager = new TurnManager(world, eventBus as any, {
+  const turnManager = new TurnManager<GameEvents>(world, eventBus, {
     energyThreshold: 1000,
     defaultActionCost: 1000,
     waitActionCost: 500,

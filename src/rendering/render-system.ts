@@ -18,7 +18,7 @@ import { tickAnimations, queueMoveTween, queueAttackAnimationWithDefender, queue
 export interface RenderSystemConfig {
   app: Application;
   layers: WorldLayers;
-  world: World;
+  world: World<GameEvents>;
   eventBus: EventBus<GameEvents>;
   getGrid: () => Grid;
   getPlayerEntity: () => EntityId;

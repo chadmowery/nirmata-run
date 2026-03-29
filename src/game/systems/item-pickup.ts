@@ -1,7 +1,7 @@
 import { World } from '../../engine/ecs/world';
 import { Grid } from '../../engine/grid/grid';
 import { EventBus } from '../../engine/events/event-bus';
-import { GameEvents } from '../events/types';
+import { GameplayEvents } from '@shared/events/types';
 import { Actor } from '@shared/components/actor';
 import { Item } from '@shared/components/item';
 import { PickupEffect, EffectType } from '@shared/components/pickup-effect';
@@ -12,13 +12,13 @@ export interface ItemPickupSystem {
   dispose(): void;
 }
 
-export function createItemPickupSystem(
-  world: World,
+export function createItemPickupSystem<T extends GameplayEvents>(
+  world: World<T>,
   grid: Grid,
-  eventBus: EventBus<GameEvents>
+  eventBus: EventBus<T>
 ): ItemPickupSystem {
 
-  function onEntityMoved(payload: GameEvents['ENTITY_MOVED']) {
+  function onEntityMoved(payload: T['ENTITY_MOVED']) {
     const { entityId, toX, toY } = payload;
 
     // 1. Check if mover is the player
