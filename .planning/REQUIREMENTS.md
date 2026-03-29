@@ -186,13 +186,117 @@ Explicitly excluded. Documented to prevent scope creep.
 
 Which phases cover which requirements. Updated during roadmap creation.
 
-(Empty — populated by roadmapper)
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| SHELL-01 | Phase 7 | Pending |
+| SHELL-02 | Phase 7 | Pending |
+| SHELL-03 | Phase 7 | Pending |
+| SHELL-04 | Phase 7 | Pending |
+| SHELL-05 | Phase 7 | Pending |
+| SHELL-06 | Phase 7 | Pending |
+| SHELL-07 | Phase 7 | Pending |
+| FIRM-01 | Phase 8 | Pending |
+| FIRM-02 | Phase 8 | Pending |
+| FIRM-03 | Phase 8 | Pending |
+| FIRM-04 | Phase 8 | Pending |
+| FIRM-05 | Phase 8 | Pending |
+| FIRM-06 | Phase 8 | Pending |
+| FIRM-07 | Phase 8 | Pending |
+| FIRM-08 | Phase 8 | Pending |
+| FIRM-09 | Phase 8 | Pending |
+| FIRM-10 | Phase 8 | Pending |
+| FIRM-11 | Phase 8 | Pending |
+| AUG-01 | Phase 9 | Pending |
+| AUG-02 | Phase 9 | Pending |
+| AUG-03 | Phase 9 | Pending |
+| AUG-04 | Phase 9 | Pending |
+| AUG-05 | Phase 9 | Pending |
+| AUG-06 | Phase 9 | Pending |
+| AUG-07 | Phase 9 | Pending |
+| AUG-08 | Phase 9 | Pending |
+| SOFT-01 | Phase 10 | Pending |
+| SOFT-02 | Phase 10 | Pending |
+| SOFT-03 | Phase 10 | Pending |
+| SOFT-04 | Phase 10 | Pending |
+| SOFT-05 | Phase 10 | Pending |
+| SOFT-06 | Phase 10 | Pending |
+| SOFT-07 | Phase 10 | Pending |
+| ENEMY-01 | Phase 11 | Pending |
+| ENEMY-02 | Phase 11 | Pending |
+| ENEMY-03 | Phase 11 | Pending |
+| ENEMY-04 | Phase 11 | Pending |
+| ENEMY-05 | Phase 11 | Pending |
+| ENEMY-06 | Phase 11 | Pending |
+| ENEMY-07 | Phase 11 | Pending |
+| ENEMY-08 | Phase 11 | Pending |
+| ENEMY-09 | Phase 11 | Pending |
+| ENEMY-10 | Phase 11 | Pending |
+| ENEMY-11 | Phase 11 | Pending |
+| STAB-01 | Phase 12 | Pending |
+| STAB-02 | Phase 12 | Pending |
+| STAB-03 | Phase 12 | Pending |
+| STAB-04 | Phase 12 | Pending |
+| STAB-05 | Phase 12 | Pending |
+| STAB-06 | Phase 12 | Pending |
+| STAB-07 | Phase 12 | Pending |
+| STAB-08 | Phase 12 | Pending |
+| STAB-09 | Phase 12 | Pending |
+| FLOOR-01 | Phase 12 | Pending |
+| FLOOR-02 | Phase 12 | Pending |
+| FLOOR-03 | Phase 12 | Pending |
+| FLOOR-04 | Phase 12 | Pending |
+| FLOOR-05 | Phase 12 | Pending |
+| FLOOR-06 | Phase 12 | Pending |
+| FLOOR-07 | Phase 12 | Pending |
+| ECON-01 | Phase 13 | Pending |
+| ECON-02 | Phase 13 | Pending |
+| ECON-03 | Phase 13 | Pending |
+| ECON-04 | Phase 13 | Pending |
+| ECON-05 | Phase 13 | Pending |
+| ECON-06 | Phase 13 | Pending |
+| BP-01 | Phase 13 | Pending |
+| BP-02 | Phase 13 | Pending |
+| BP-03 | Phase 13 | Pending |
+| BP-04 | Phase 13 | Pending |
+| BP-05 | Phase 13 | Pending |
+| BP-06 | Phase 13 | Pending |
+| BP-07 | Phase 13 | Pending |
+| STASH-01 | Phase 14 | Pending |
+| STASH-02 | Phase 14 | Pending |
+| STASH-03 | Phase 14 | Pending |
+| STASH-04 | Phase 14 | Pending |
+| RUN-01 | Phase 14 | Pending |
+| RUN-02 | Phase 14 | Pending |
+| RUN-03 | Phase 14 | Pending |
+| RUN-04 | Phase 14 | Pending |
+| RUN-05 | Phase 14 | Pending |
+| RUN-06 | Phase 14 | Pending |
+| RUN-07 | Phase 14 | Pending |
+| HUB-01 | Phase 15 | Pending |
+| HUB-02 | Phase 15 | Pending |
+| HUB-03 | Phase 15 | Pending |
+| HUB-04 | Phase 15 | Pending |
+| HUB-05 | Phase 15 | Pending |
+| HUB-06 | Phase 15 | Pending |
+| HUB-07 | Phase 15 | Pending |
+| HUB-08 | Phase 15 | Pending |
+| VIS-01 | Phase 16 | Pending |
+| VIS-02 | Phase 16 | Pending |
+| VIS-03 | Phase 16 | Pending |
+| VIS-04 | Phase 16 | Pending |
+| VIS-05 | Phase 16 | Pending |
+| VIS-06 | Phase 16 | Pending |
+| VIS-07 | Phase 16 | Pending |
+| VIS-08 | Phase 16 | Pending |
+| LOAD-01 | Phase 16 | Pending |
+| LOAD-02 | Phase 16 | Pending |
+| LOAD-03 | Phase 16 | Pending |
 
 **Coverage:**
 - v2.0 requirements: 83 total
-- Mapped to phases: 0
-- Unmapped: 83
+- Mapped to phases: 83
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-29*
-*Last updated: 2026-03-29*
+*Last updated: 2026-03-29 — traceability updated with phase mappings*
