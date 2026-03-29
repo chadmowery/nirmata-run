@@ -84,6 +84,18 @@ export function clearExplored(exploredSet: Set<string>): void {
 export type EntityVisibilityType = 'player' | 'enemy' | 'item';
 
 /**
+ * Maps actor/item state to EntityVisibilityType.
+ * @param isPlayer True if the entity is a player.
+ * @param hasActor True if the entity has an Actor component (usually an enemy).
+ * @returns The corresponding EntityVisibilityType.
+ */
+export function getEntityVisibilityType(isPlayer?: boolean, hasActor?: boolean): EntityVisibilityType {
+  if (isPlayer) return 'player';
+  if (hasActor) return 'enemy';
+  return 'item';
+}
+
+/**
  * Determines if an entity is visible and what its alpha should be.
  * @param pos The position of the entity.
  * @param entityType The type of the entity.

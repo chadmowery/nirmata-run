@@ -9,7 +9,7 @@ import { SpriteComponent } from '@shared/components/sprite';
 import { Actor } from '@shared/components/actor';
 import { WorldLayers } from './layers';
 import { TILE_SIZE, FOV_RADIUS } from './constants';
-import { computeFov, createExploredSet, isEntityVisible } from './fov';
+import { computeFov, createExploredSet, isEntityVisible, getEntityVisibilityType } from './fov';
 import { computeCameraTarget, lerpCamera, getVisibleTileRange } from './camera';
 import { buildTilemap, clearTilemap } from './tilemap';
 import { createEntitySprite, destroyEntitySprite, getEntitySprite, clearAllSprites } from './sprite-map';
@@ -128,8 +128,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
         }
 
         // Visibility gating
-        const entityType = actor?.isPlayer ? 'player' : (actor ? 'enemy' : 'item');
-        let { visible, alpha } = isEntityVisible(pos, entityType as any, fovSet, exploredSet);
+        const entityType = getEntityVisibilityType(actor?.isPlayer, !!actor);
+        let { visible, alpha } = isEntityVisible(pos, entityType, fovSet, exploredSet);
         
         // FORCE PLAYER VISIBLE FOR DEBUGGING
         if (entityType === 'player') {
