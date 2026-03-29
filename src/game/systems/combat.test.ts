@@ -4,7 +4,7 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { createCombatSystem } from './combat';
-import { Attack, Defense, LootTable, Health, Position } from '@shared/components';
+import { Attack, Defense, LootTable, Health, Position, Heat } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { ComponentRegistry } from '@engine/entity/types';
 
@@ -66,6 +66,22 @@ describe('CombatSystem', () => {
 
     const health = world.getComponent(defender, Health);
     expect(health?.current).toBe(9);
+  });
+
+  it('should ignore armor if defender is venting', () => {
+    const attacker = world.createEntity();
+    world.addComponent(attacker, Attack, { power: 5 });
+
+    const defender = world.createEntity();
+    world.addComponent(defender, Health, { current: 10, max: 10 });
+    world.addComponent(defender, Defense, { armor: 10 });
+    world.addComponent(defender, Heat, { current: 50, maxSafe: 100, isVenting: true });
+
+    eventBus.emit('BUMP_ATTACK', { attackerId: attacker, defenderId: defender });
+    eventBus.flush();
+
+    const health = world.getComponent(defender, Health);
+    expect(health?.current).toBe(5); // 10 - 5 (armor ignored)
   });
 
   it('should not deal damage if attacker lacks Attack component', () => {

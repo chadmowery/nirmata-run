@@ -12,10 +12,14 @@ import { createMovementSystem } from './systems/movement';
 import { createCombatSystem } from './systems/combat';
 import { createAISystem } from './systems/ai';
 import { ItemPickupSystem, createItemPickupSystem } from './systems/item-pickup';
+import { createHeatSystem, HeatSystem } from './systems/heat';
+import { createStatusEffectSystem, StatusEffectSystem } from './systems/status-effects';
+import { createFirmwareSystem, FirmwareSystem } from './systems/firmware';
+import { createKernelPanicSystem, KernelPanicSystem } from './systems/kernel-panic';
 import { generateDungeon } from './generation/dungeon-generator';
 import { placeEntities } from './generation/entity-placement';
 import RNG from 'rot-js/lib/rng';
-import { GameAction, DIRECTIONS } from './input/actions';
+import { GameAction, DIRECTIONS, isFirmwareAction, getFirmwareSlotIndex } from './input/actions';
 import { GameEvents } from './events/types';
 
 import { ShellRecord } from './shells/types';
@@ -40,6 +44,10 @@ export interface EngineInstance {
     combat: ReturnType<typeof createCombatSystem<GameEvents>>;
     ai: ReturnType<typeof createAISystem<GameEvents>>;
     itemPickup: ItemPickupSystem;
+    heat: HeatSystem;
+    statusEffect: StatusEffectSystem;
+    firmware: FirmwareSystem;
+    kernelPanic: KernelPanicSystem;
   };
 }
 
@@ -80,9 +88,16 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   });
   const aiSystem = createAISystem(world, grid, movementSystem);
   const itemPickupSystem = createItemPickupSystem(world, grid, eventBus);
+  const heatSystem = createHeatSystem(world, eventBus);
+  const statusEffectSystem = createStatusEffectSystem(world, eventBus);
+  const firmwareSystem = createFirmwareSystem(world, grid, eventBus, movementSystem, heatSystem);
+  const kernelPanicSystem = createKernelPanicSystem(world, eventBus, statusEffectSystem);
 
   combatSystem.init();
   itemPickupSystem.init();
+  heatSystem.init();
+  statusEffectSystem.init();
+  kernelPanicSystem.init();
 
   const turnManager = new TurnManager<GameEvents>(world, eventBus, {
     energyThreshold: 1000,
@@ -144,6 +159,15 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
       }
     } else if (action === GameAction.WAIT) {
       // Wait action usually just consumes energy/time, which TurnManager already did
+    } else if (isFirmwareAction(action as GameAction)) {
+      const slotIndex = getFirmwareSlotIndex(action as GameAction);
+      if (slotIndex !== null) {
+        // Default handler assumes (0,0) as target if not specified;
+        // The real handler in setup.ts uses proper targeting data.
+        firmwareSystem.activateAbility(entityId, slotIndex, 0, 0);
+      }
+    } else if (action === GameAction.VENT) {
+      heatSystem.vent(entityId);
     }
     
     eventBus.emit('PLAYER_ACTION', { action, entityId });
@@ -161,6 +185,10 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
       combat: combatSystem,
       ai: aiSystem,
       itemPickup: itemPickupSystem,
+      heat: heatSystem,
+      statusEffect: statusEffectSystem,
+      firmware: firmwareSystem,
+      kernelPanic: kernelPanicSystem,
     }
   };
 }

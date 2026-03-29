@@ -8,7 +8,9 @@ import { StateConfig } from '../engine/state-machine/types';
 import { GameState } from './states/types';
 import { GAME_TRANSITIONS } from './states/game-states';
 import { InputManager } from './input/input-manager';
-import { GameAction, DIRECTIONS, DEFAULT_BINDINGS } from './input/actions';
+import { GameAction, DIRECTIONS, DEFAULT_BINDINGS, isFirmwareAction, getFirmwareSlotIndex } from './input/actions';
+import { createTargetingManager } from './input/targeting';
+import { AbilityDef, FirmwareSlots, Position } from '@shared/components';
 import { logger } from '@shared/utils/logger';
 
 export interface GameConfig {
@@ -25,7 +27,7 @@ import { globalShellRegistry } from './shells';
  */
 export function createGame(config: GameConfig & { sessionId?: string }): GameContext {
   const seed = config.seed ?? `run-${Date.now()}`;
-  
+
   // Fetch shell record for the player
   let shellRecord;
   if (config.shellId) {
@@ -64,6 +66,10 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     combatSystem: systems.combat,
     aiSystem: systems.ai,
     itemPickupSystem: systems.itemPickup,
+    heatSystem: systems.heat,
+    statusEffectSystem: systems.statusEffect,
+    firmwareSystem: systems.firmware,
+    kernelPanicSystem: systems.kernelPanic,
   };
 
   const stateConfigs: Record<GameState, StateConfig<GameState, GameContext>> = {
@@ -119,7 +125,35 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
   // Initialize UI Bridge
   syncEngineToStore(context);
+
+  const targetingManager = createTargetingManager(eventBus, (slotIndex, targetX, targetY) => {
+    handleConfirmedTarget(slotIndex, targetX, targetY);
+  });
+  inputManager.setTargetingManager(targetingManager);
+
   registerInputBridge((action) => handlePlayerInput(action as GameAction));
+
+  async function handleConfirmedTarget(slotIndex: number, targetX: number, targetY: number) {
+    if (fsm.getCurrentState() === GameState.Playing && turnManager.canAcceptInput() && playerId) {
+      inputManager.setRequestPending(true);
+      const baseWorldState = serializeWorld(world);
+
+      // Submit action to engine
+      // We encode targeting data into the action key for the TurnManager's playerActionHandler
+      // though the prediction here calls firmwareSystem directly.
+      systems.firmware.activateAbility(playerId, slotIndex, targetX, targetY);
+      turnManager.submitAction(`USE_FIRMWARE_${slotIndex}`);
+
+      await sendActionToServer({
+        type: 'USE_FIRMWARE',
+        slotIndex,
+        targetX,
+        targetY,
+      });
+
+      inputManager.setRequestPending(false);
+    }
+  }
 
   // The shared handler for both Keyboard (InputManager) and UI Buttons (InputBridge)
   async function handlePlayerInput(action: GameAction) {
@@ -133,56 +167,81 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
       return;
     }
 
-    if (fsm.getCurrentState() === GameState.Playing && turnManager.canAcceptInput()) {
-      // 1. Gating
-      inputManager.setRequestPending(true);
-
-      // 2. Snapshot (for reconciliation)
-      const baseWorldState = serializeWorld(world);
-
-      // 3. Prediction
-      turnManager.submitAction(action);
-
-      // 4. API Call
-      try {
-        const intent = getActionIntent(action);
-        
-        if (intent) {
-          logger.info(`[CLIENT] Sending action to server. SessionId: ${context.sessionId || 'default-session'}`);
-          const response = await fetch('/api/action', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sessionId: context.sessionId || 'default-session',
-              action: intent,
-            }),
-          });
-
-          if (response.ok) {
-            const result = await response.json();
-            if (result.delta) {
-              const { applyStateDelta } = await import('@shared/reconciliation');
-              applyStateDelta(world, grid, eventBus, result.delta, baseWorldState);
+    if (fsm.getCurrentState() === GameState.Playing && turnManager.canAcceptInput() && playerId) {
+      // Handle Firmware Actions with Targeting
+      if (isFirmwareAction(action)) {
+        const slotIndex = getFirmwareSlotIndex(action);
+        if (slotIndex !== null) {
+          const slots = world.getComponent(playerId, FirmwareSlots);
+          const firmwareId = slots?.equipped[slotIndex];
+          if (firmwareId !== undefined) {
+            const abilityDef = world.getComponent(firmwareId, AbilityDef);
+            if (abilityDef) {
+              if (abilityDef.effectType === 'toggle_vision') {
+                await handleConfirmedTarget(slotIndex, 0, 0);
+              } else {
+                const pos = world.getComponent(playerId, Position);
+                if (pos) {
+                  targetingManager.startTargeting(
+                    slotIndex,
+                    pos.x,
+                    pos.y,
+                    abilityDef.range || abilityDef.dashDistance,
+                    abilityDef.effectType
+                  );
+                }
+              }
+              return;
             }
           }
         }
-      } catch (error) {
-        logger.error('Failed to sync with server:', error);
-      } finally {
-        inputManager.setRequestPending(false);
       }
+
+      inputManager.setRequestPending(true);
+      const baseWorldState = serializeWorld(world);
+      turnManager.submitAction(action);
+      await sendActionToServer(getActionIntent(action));
+      inputManager.setRequestPending(false);
+    }
+  }
+
+  async function sendActionToServer(intent: any) {
+    if (!intent) return;
+    try {
+      logger.info(`[CLIENT] Sending action to server. SessionId: ${context.sessionId || 'default-session'}`);
+      const response = await fetch('/api/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: context.sessionId || 'default-session',
+          action: intent,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.delta) {
+          const { applyStateDelta } = await import('@shared/reconciliation');
+          applyStateDelta(world, grid, eventBus, result.delta, serializeWorld(world));
+        }
+      }
+    } catch (error) {
+      logger.error('Failed to sync with server:', error);
     }
   }
 
   // Wire input ActionHandler for keyboard
   inputManager.setActionHandler(handlePlayerInput);
 
-  function getActionIntent(action: GameAction): { type: string; dx?: number; dy?: number } | null {
+  function getActionIntent(action: GameAction): any {
     if (DIRECTIONS[action]) {
       return { type: 'MOVE', dx: DIRECTIONS[action].dx, dy: DIRECTIONS[action].dy };
     }
     if (action === GameAction.WAIT) {
       return { type: 'WAIT' };
+    }
+    if (action === GameAction.VENT) {
+      return { type: 'VENT' };
     }
     return null;
   }
@@ -193,7 +252,11 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     if (DIRECTIONS[gameAction]) {
       const { dx, dy } = DIRECTIONS[gameAction];
       context.movementSystem.processMove(entityId, dx, dy);
+    } else if (action === GameAction.VENT) {
+      context.heatSystem.vent(entityId);
     }
+    // Note: USE_FIRMWARE is handled via prediction/targeting bridge above
+    // but the engine-factory default handler also catches it for safety.
 
     eventBus.emit('PLAYER_ACTION', { action, entityId });
   });
@@ -214,7 +277,11 @@ export function destroyGame(context: GameContext) {
     context.combatSystem,
     context.itemPickupSystem,
     context.aiSystem,
-    context.movementSystem
+    context.movementSystem,
+    context.heatSystem,
+    context.statusEffectSystem,
+    context.firmwareSystem,
+    context.kernelPanicSystem
   ];
 
   for (const sys of systems) {

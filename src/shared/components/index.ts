@@ -18,6 +18,9 @@ import { PortConfig } from './port-config';
 import { FirmwareSlots } from './firmware-slots';
 import { AugmentSlots } from './augment-slots';
 import { SoftwareSlots } from './software-slots';
+import { Heat } from './heat';
+import { AbilityDef } from './ability-def';
+import { StatusEffects } from './status-effects';
 
 export const COMPONENTS_REGISTRY = [
   Position,
@@ -39,7 +42,10 @@ export const COMPONENTS_REGISTRY = [
   PortConfig,
   FirmwareSlots,
   AugmentSlots,
-  SoftwareSlots
+  SoftwareSlots,
+  Heat,
+  AbilityDef,
+  StatusEffects
 ] as const;
 
 export * from './position';
@@ -62,4 +68,6 @@ export * from './port-config';
 export * from './firmware-slots';
 export * from './augment-slots';
 export * from './software-slots';
-
+export * from './heat';
+export * from './ability-def';
+export * from './status-effects';

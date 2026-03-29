@@ -40,6 +40,16 @@ export async function POST(req: Request) {
       }
     } else if (action.type === 'WAIT') {
       actionKey = GameAction.WAIT;
+    } else if (action.type === 'USE_FIRMWARE') {
+      if (session.systems?.firmware) {
+        session.systems.firmware.activateAbility(session.playerId, action.slotIndex, action.targetX, action.targetY);
+        actionKey = `USE_FIRMWARE_${action.slotIndex}`;
+      }
+    } else if (action.type === 'VENT') {
+      if (session.systems?.heat) {
+        session.systems.heat.vent(session.playerId);
+        actionKey = GameAction.VENT;
+      }
     }
 
     if (actionKey && turnManager.canAcceptInput()) {

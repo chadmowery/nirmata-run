@@ -47,4 +47,19 @@ export interface GameplayEvents extends EngineEvents {
 
   /** Queued when a shell is selected for a new run. */
   SHELL_SELECTED: { shellId: string };
+
+  /** Queued when an entity's Heat level changes. */
+  HEAT_CHANGED: { entityId: EntityId; oldHeat: number; newHeat: number; maxSafe: number };
+
+  /** Queued when a Firmware ability is activated. */
+  FIRMWARE_ACTIVATED: { entityId: EntityId; firmwareEntityId: EntityId; abilityName: string; heatCost: number; targetX: number; targetY: number };
+
+  /** Queued when a Kernel Panic roll triggers a consequence. */
+  KERNEL_PANIC_TRIGGERED: { entityId: EntityId; tier: number; effectName: string; severity: string };
+
+  /** Queued when an entity completes a Heat vent. */
+  VENT_COMPLETED: { entityId: EntityId; oldHeat: number; newHeat: number };
+
+  /** Queued when a toggle Firmware ability changes state. */
+  FIRMWARE_TOGGLED: { entityId: EntityId; firmwareEntityId: EntityId; abilityName: string; active: boolean };
 }

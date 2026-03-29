@@ -12,7 +12,7 @@ Build the Nirmata Runner game systems on top of the validated v1.0 engine founda
 - Decimal phases (7.1, 7.2): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 7: Shell & Equipment Data Model** — Shell archetypes, Port configurations, Loadout component, equipment slot system, JSON entity templates for all 3 starter Shells
-- [ ] **Phase 8: Firmware & Neural Heat System** — Active abilities with Heat costs, Heat bar, dissipation/venting, Kernel Panic table, 3 starter Firmware abilities, turn-based adaptation
+- [x] **Phase 8: Firmware & Neural Heat System** — Active abilities with Heat costs, Heat bar, dissipation/venting, Kernel Panic table, 3 starter Firmware abilities, turn-based adaptation
 - [ ] **Phase 9: Status Effects & Augment Synergy** — Generic status effect system, Augment "Trigger & Payload" engine, 3 trigger types, 3 starter Augments, visual trigger feedback, stacking rules
 - [ ] **Phase 10: Software System & Enhanced Combat** — Software consumable modifiers, Burn mechanic, rarity tiers, stacking rules, integration with combat damage pipeline, 3+ Software types
 - [ ] **Phase 11: Enemy Hierarchy** — 3-tier enemy system (6 enemy types), unique AI behaviors per type, enemy-specific death effects, depth-based distribution, JSON entity templates
@@ -55,10 +55,10 @@ Plans:
 **UI hint**: no
 
 Plans:
-- [ ] 08-01: HeatComponent & Heat System (Heat bar, accumulation, dissipation per turn, Vent action, HeatComponent on player entity)
-- [ ] 08-02: Firmware System & Ability Pipeline (FirmwareComponent, ability activation during turn, Heat cost deduction, integration with action pipeline)
-- [ ] 08-03: Kernel Panic System (overclock detection, probability rolls, 4-tier consequence table, status effect application)
-- [ ] 08-04: Starter Firmware Abilities (Phase_Shift.sh turn-based dash, Neural_Spike.exe ranged attack, Extended_Sight.sys toggle vision, JSON templates)
+- [x] 08-01: HeatComponent & Heat System (Heat bar, accumulation, dissipation per turn, Vent action, HeatComponent on player entity)
+- [x] 08-02: Firmware System & Ability Pipeline (FirmwareComponent, ability activation during turn, Heat cost deduction, integration with action pipeline)
+- [x] 08-03: Kernel Panic System (overclock detection, probability rolls, 4-tier consequence table, status effect application)
+- [x] 08-04: Starter Firmware Abilities (Phase_Shift.sh turn-based dash, Neural_Spike.exe ranged attack, Extended_Sight.sys toggle vision, JSON templates)
 
 ### Phase 9: Status Effects & Augment Synergy
 **Goal**: Generic status effect system enables Augment triggers, Kernel Panic consequences, and enemy debuffs — Augments fire reliably with clear feedback
@@ -219,7 +219,7 @@ Phases execute in numeric order: 7 → 8 → 9 → 10 → 11 → 12 → 13 → 1
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 7. Shell & Equipment Data Model | 3/3 | Completed | 2026-03-29 |
-| 8. Firmware & Neural Heat System | 0/4 | Not started | - |
+| 8. Firmware & Neural Heat System | 4/4 | Completed | 2026-03-29 |
 | 9. Status Effects & Augment Synergy | 0/4 | Not started | - |
 | 10. Software System & Enhanced Combat | 0/3 | Not started | - |
 | 11. Enemy Hierarchy | 0/4 | Not started | - |

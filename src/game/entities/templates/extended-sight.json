@@ -1,0 +1,18 @@
+{
+  "name": "extended_sight",
+  "components": {
+    "abilityDef": {
+      "name": "Extended_Sight.sys",
+      "heatCost": 10,
+      "range": 0,
+      "effectType": "toggle_vision",
+      "damageAmount": 0,
+      "dashDistance": 0,
+      "visionRadius": 12,
+      "heatPerTurn": 10,
+      "isToggle": true,
+      "isActive": false,
+      "isLegacy": false
+    }
+  }
+}

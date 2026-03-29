@@ -22,6 +22,7 @@ export async function POST(req: Request) {
       playerId: instance.playerId,
       turnManager: instance.turnManager,
       eventBus: instance.eventBus,
+      systems: instance.systems,
     });
 
     console.log(`[API] Session created: ${sessionId} (seed: ${seed})`);

@@ -8,6 +8,12 @@ export enum GameAction {
   MOVE_WEST = 'MOVE_WEST',
   WAIT = 'WAIT',
   PAUSE = 'PAUSE',
+  USE_FIRMWARE_0 = 'USE_FIRMWARE_0',
+  USE_FIRMWARE_1 = 'USE_FIRMWARE_1',
+  USE_FIRMWARE_2 = 'USE_FIRMWARE_2',
+  VENT = 'VENT',
+  CANCEL_TARGET = 'CANCEL_TARGET',
+  CONFIRM_TARGET = 'CONFIRM_TARGET',
 }
 
 /**
@@ -32,6 +38,12 @@ export const DEFAULT_BINDINGS: Record<string, GameAction> = {
 
   // UI
   Escape: GameAction.PAUSE,
+
+  // Firmware
+  Digit1: GameAction.USE_FIRMWARE_0,
+  Digit2: GameAction.USE_FIRMWARE_1,
+  Digit3: GameAction.USE_FIRMWARE_2,
+  KeyV: GameAction.VENT,
 };
 
 /**
@@ -54,4 +66,27 @@ export function isMovementAction(action: GameAction): boolean {
     GameAction.MOVE_WEST,
     GameAction.MOVE_EAST,
   ].includes(action);
+}
+
+/**
+ * Type guard to check if an action is a firmware activation action.
+ */
+export function isFirmwareAction(action: GameAction): boolean {
+  return [
+    GameAction.USE_FIRMWARE_0,
+    GameAction.USE_FIRMWARE_1,
+    GameAction.USE_FIRMWARE_2,
+  ].includes(action);
+}
+
+/**
+ * Helper to get the firmware slot index from a GameAction.
+ */
+export function getFirmwareSlotIndex(action: GameAction): number | null {
+  switch (action) {
+    case GameAction.USE_FIRMWARE_0: return 0;
+    case GameAction.USE_FIRMWARE_1: return 1;
+    case GameAction.USE_FIRMWARE_2: return 2;
+    default: return null;
+  }
 }

@@ -12,6 +12,10 @@ import { GameState } from './states/types';
 import { CombatSystem } from './systems/combat';
 import { AISystem } from './systems/ai';
 import { ItemPickupSystem } from './systems/item-pickup';
+import { HeatSystem } from './systems/heat';
+import { StatusEffectSystem } from './systems/status-effects';
+import { FirmwareSystem } from './systems/firmware';
+import { KernelPanicSystem } from './systems/kernel-panic';
 import { EntityFactory } from '@engine/entity/factory';
 
 export interface GameSystem {
@@ -33,6 +37,10 @@ export interface GameContext {
   combatSystem: CombatSystem;
   aiSystem: AISystem;
   itemPickupSystem: ItemPickupSystem;
+  heatSystem: HeatSystem;
+  statusEffectSystem: StatusEffectSystem;
+  firmwareSystem: FirmwareSystem;
+  kernelPanicSystem: KernelPanicSystem;
   entityFactory: EntityFactory;
   playerId?: EntityId;
   currentSeed?: string;

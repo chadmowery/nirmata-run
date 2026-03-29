@@ -6,6 +6,9 @@ import combatant from './templates/mixins/combatant.json';
 import player from './templates/player.json';
 import goblin from './templates/goblin.json';
 import health_potion from './templates/health-potion.json';
+import phase_shift from './templates/phase-shift.json';
+import neural_spike from './templates/neural-spike.json';
+import extended_sight from './templates/extended-sight.json';
 
 /**
  * Registers all game entity templates and mixins.
@@ -19,4 +22,7 @@ export function registerGameTemplates(registry: EntityRegistry): void {
   registry.register(player as unknown as RawTemplate);
   registry.register(goblin as unknown as RawTemplate);
   registry.register(health_potion as unknown as RawTemplate);
+  registry.register(phase_shift as unknown as RawTemplate);
+  registry.register(neural_spike as unknown as RawTemplate);
+  registry.register(extended_sight as unknown as RawTemplate);
 }

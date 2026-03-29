@@ -46,6 +46,17 @@ export const UpgradeShellActionSchema = z.object({
   shellId: z.string(),
 });
 
+export const UseFirmwareActionSchema = z.object({
+  type: z.literal('USE_FIRMWARE'),
+  slotIndex: z.number().int().min(0).max(2),
+  targetX: z.number().int(),
+  targetY: z.number().int(),
+});
+
+export const VentActionSchema = z.object({
+  type: z.literal('VENT'),
+});
+
 export const ActionIntentSchema = z.discriminatedUnion('type', [
   MoveActionSchema,
   AttackActionSchema,
@@ -55,6 +66,8 @@ export const ActionIntentSchema = z.discriminatedUnion('type', [
   UnequipActionSchema,
   SelectShellActionSchema,
   UpgradeShellActionSchema,
+  UseFirmwareActionSchema,
+  VentActionSchema,
 ]);
 
 export type ActionIntent = z.infer<typeof ActionIntentSchema>;
@@ -107,4 +120,3 @@ export type StateDelta = {
   world: Changeset;
   grid: Changeset;
 };
-

@@ -3,7 +3,7 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { EntityId } from '@engine/ecs/types';
-import { Attack, Defense, LootTable, Health, Position, Actor } from '@shared/components';
+import { Attack, Defense, LootTable, Health, Position, Actor, Heat } from '@shared/components';
 
 import { GameplayEvents } from '@shared/events/types';
 
@@ -32,7 +32,9 @@ export function createCombatSystem<T extends GameplayEvents>(
     }
 
     const armor = defenderDefense?.armor ?? 0;
-    const damage = Math.max(1, attackerAttack.power - armor);
+    const defenderHeat = world.getComponent(defenderId, Heat);
+    const effectiveArmor = defenderHeat?.isVenting ? 0 : armor;
+    const damage = Math.max(1, attackerAttack.power - effectiveArmor);
 
     defenderHealth.current = Math.max(0, defenderHealth.current - damage);
 

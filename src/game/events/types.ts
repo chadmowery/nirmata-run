@@ -13,4 +13,13 @@ export interface GameEvents extends GameplayEvents {
 
   /** Queued when the player's FOV is recalculated. */
   FOV_UPDATED: { visibleSet: Set<string> };
+
+  /** Queued when the player enters targeting mode for a Firmware ability. */
+  TARGETING_STARTED: { firmwareSlotIndex: number; range: number; effectType: string };
+
+  /** Queued when the player cancels targeting mode. */
+  TARGETING_CANCELLED: Record<string, never>;
+
+  /** Queued when the player confirms a target in targeting mode. */
+  TARGETING_CONFIRMED: { targetX: number; targetY: number };
 }

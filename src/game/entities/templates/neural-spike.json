@@ -1,0 +1,18 @@
+{
+  "name": "neural_spike",
+  "components": {
+    "abilityDef": {
+      "name": "Neural_Spike.exe",
+      "heatCost": 40,
+      "range": 6,
+      "effectType": "ranged_attack",
+      "damageAmount": 15,
+      "dashDistance": 0,
+      "visionRadius": 0,
+      "heatPerTurn": 0,
+      "isToggle": false,
+      "isActive": false,
+      "isLegacy": false
+    }
+  }
+}

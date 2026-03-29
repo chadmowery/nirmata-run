@@ -13,6 +13,7 @@ export interface WorldState<T extends EngineEvents = EngineEvents> {
   turnManager: TurnManager<T>;
   eventBus: EventBus<T>;
   playerId: number;
+  systems?: any; // EngineInstance.systems
 }
 
 /**

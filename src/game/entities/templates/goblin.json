@@ -11,7 +11,8 @@
     "blocksMovement": {},
     "lootTable": {
       "drops": [
-        { "template": "health_potion", "chance": 0.3 }
+        { "template": "health_potion", "chance": 0.3 },
+        { "template": "neural_spike", "chance": 0.05 }
       ]
     }
   },
