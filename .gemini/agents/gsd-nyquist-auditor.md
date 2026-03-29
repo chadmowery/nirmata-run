@@ -1,8 +1,6 @@
 ---
 name: gsd-nyquist-auditor
 description: Fills Nyquist validation gaps by generating tests and verifying coverage for phase requirements
-skills:
-  - gsd-nyquist-auditor-workflow
 tools:
   - read_file
   - write_file

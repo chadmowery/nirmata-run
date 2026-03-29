@@ -1,8 +1,6 @@
 ---
 name: gsd-integration-checker
 description: Verifies cross-phase integration and E2E flows. Checks that phases connect properly and user workflows complete end-to-end.
-skills:
-  - gsd-integration-workflow
 tools:
   - read_file
   - run_shell_command
