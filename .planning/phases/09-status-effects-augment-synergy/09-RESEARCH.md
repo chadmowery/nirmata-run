@@ -121,20 +121,28 @@ The AugmentSystem subscribes to `GameplayEvents` to detect trigger conditions:
 
 ### 2.2 Trigger Evaluation Flow
 
+**EventBus Architecture Insight** *(added post-review):*
+The EventBus (`src/engine/events/event-bus.ts`) is **queued** — `emit()` pushes to a queue, `flush()` processes all events in order. During a flush, handler-emitted events are processed in subsequent iterations (up to `MAX_FLUSH_DEPTH=10`). This means ALL cascading events from a single action resolve within one `flush()` call synchronously. There is no need for `setTimeout(0)` or microtask deferral.
+
+**Concrete collect-then-evaluate approach** *(replaces the vague "queue" concept):*
 ```
 1. Primary action starts (e.g., Firmware ability)
 2. Events fire: FIRMWARE_ACTIVATED, DAMAGE_DEALT, ENTITY_DIED, HEAT_CHANGED
-3. AugmentSystem collects these into a TriggerContext
-4. Primary action completes
-5. AugmentSystem.resolveQueuedTriggers():
-   a. For each equipped Augment on the acting entity:
+3. AugmentSystem event handlers ONLY COLLECT data into pendingContext buffer
+4. PLAYER_ACTION event fires (already emitted at end of playerActionHandler)
+5. AugmentSystem PLAYER_ACTION handler:
+   a. Check pendingContext is not null
+   b. Set isResolving = true (circular guard)
+   c. For each equipped Augment on the acting entity:
       - Check maxTriggersPerTurn against AugmentState.activationsThisTurn
       - Check cooldownsRemaining
-      - Recursively evaluate ConditionNodeSchema against TriggerContext
+      - Recursively evaluate ConditionNodeSchema against pendingContext
       - If TRUE: queue payload for execution
-   b. Execute all queued payloads
-   c. Emit batched AUGMENT_TRIGGERED event (one event, array of results)
-   d. Emit individual MESSAGE_EMITTED for each triggered augment (D-04)
+   d. Execute all queued payloads
+   e. Emit batched AUGMENT_TRIGGERED event (one event, array of results)
+   f. Emit individual MESSAGE_EMITTED for each triggered augment (D-04)
+   g. Set isResolving = false
+   h. Set pendingContext = null
 ```
 
 ### 2.3 Recursive AST Evaluator
@@ -338,11 +346,13 @@ AUGMENT_FLASH: {
 | Risk | Severity | Mitigation |
 |------|----------|------------|
 | Recursive AST can infinite-loop with malformed JSON | Medium | Add recursion depth limit (max 10 levels) to `evaluateCondition()` |
-| Event ordering: augment payloads fire before action completes | High | Explicit queue-then-resolve pattern; no immediate effects during event handlers |
+| Event ordering: augment payloads fire before action completes | ~~High~~ **Resolved** | Collect-then-evaluate pattern using `PLAYER_ACTION` as completion signal *(Review: Event Buffering)* |
 | z.lazy() type inference breaks | Low | Define `ConditionNode` interface separately, pass to `z.ZodType<ConditionNode>` |
 | StatusEffects tick timing change breaks Kernel Panic stun | Medium | Verify existing Kernel Panic tests still pass after refactor |
 | Multiple augments modifying state simultaneously | Medium | Process payloads sequentially in a deterministic order (array index) |
 | AugmentSystem needs access to multiple other systems | Medium | Pass StatusEffectSystem and HeatSystem as constructor deps (same pattern as KernelPanicSystem) |
+| Circular augment cascades (Augment A triggers B triggers A) | Low | `isResolving` boolean guard prevents re-entrant evaluation *(Review: Infinite Loop Protection)* |
+| Stale TriggerContext leaking across turns | Low | `pendingContext` cleared after evaluation and at `resetTurnState()` *(Review: Context Clear Logic)* |
 
 ---
 

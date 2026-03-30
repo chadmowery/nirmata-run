@@ -47,7 +47,6 @@ Progress: [███░░░░░░░░░░░░░░░░] 18% (7/38 
 | 7. Shell & Equipment Data Model | 3/3 | 3h | 1h |
 | 8. Firmware & Neural Heat System | 4/4 | 4h | 1h |
 | 9. Status Effects & Augment Synergy | 0/4 | — | — |
-| 9. Status Effects & Augment Synergy | 0/4 | — | — |
 | 10. Software System & Enhanced Combat | 0/3 | — | — |
 | 11. Enemy Hierarchy | 0/4 | — | — |
 | 12. Multi-Floor Generation & Stability/Extraction | 0/4 | — | — |
