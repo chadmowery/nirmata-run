@@ -89,13 +89,14 @@ Plans:
   3. At least 3 Software types function: Bleed.exe (DoT), Auto-Loader.msi (action speed bonus), Vampire.exe (heal on kill)
   4. Software rarity tiers scale the magnitude of the effect; multiple Software can stack on one item within Port slot limits
   5. Combat damage pipeline resolves in correct order: base attack → Software modifiers → Augment payloads → defense → final damage
-**Plans**: 3
+**Plans**: 4
 **UI hint**: no
 
 Plans:
-- [ ] 10-01: Software Components & Burn Mechanic (SoftwareComponent, BurnedOnto reference, equip/unequip, port slot validation)
-- [ ] 10-02: Software Combat Integration (modifier pipeline, damage calculation order, DoT/heal/speed effects, rarity scaling)
-- [ ] 10-03: Software Loot & Templates (3+ Software JSON templates, rarity tiers, drop tables, shop purchase stub)
+- [ ] 10-00-PLAN.md — Wave 0 test scaffolds (software.test.ts, combat.test.ts extension, pipeline.test.ts)
+- [ ] 10-01-PLAN.md — Software components (SoftwareDef, BurnedSoftware, RarityTier), RunInventory registry, BURN_SOFTWARE action, death clearing
+- [ ] 10-02-PLAN.md — Combat damage pipeline refactor (modifier list pattern), Bleed DoT, Auto-Loader action economy, Vampire heal-on-kill, rarity scaling
+- [ ] 10-03-PLAN.md — 12 Software JSON entity templates (3 types x 4 rarities), template validation tests, loot table compatibility
 
 ### Phase 11: Enemy Hierarchy
 **Goal**: Six distinct enemy types across 3 tiers with unique AI behaviors create varied tactical challenges per depth band
@@ -221,7 +222,7 @@ Phases execute in numeric order: 7 → 8 → 9 → 10 → 11 → 12 → 13 → 1
 | 7. Shell & Equipment Data Model | 3/3 | Completed | 2026-03-29 |
 | 8. Firmware & Neural Heat System | 4/4 | Completed | 2026-03-29 |
 | 9. Status Effects & Augment Synergy | 0/4 | Not started | - |
-| 10. Software System & Enhanced Combat | 0/3 | Not started | - |
+| 10. Software System & Enhanced Combat | 0/4 | Not started | - |
 | 11. Enemy Hierarchy | 0/4 | Not started | - |
 | 12. Multi-Floor Generation & Stability/Extraction | 0/4 | Not started | - |
 | 13. Currency, Economy & Blueprint System | 0/4 | Not started | - |
@@ -231,4 +232,4 @@ Phases execute in numeric order: 7 → 8 → 9 → 10 → 11 → 12 → 13 → 1
 
 ---
 *Roadmap created: 2026-03-29*
-*Last updated: 2026-03-29*
+*Last updated: 2026-03-30*
