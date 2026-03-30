@@ -1,30 +1,137 @@
 ---
 wave: 3
-depends_on: ["09-02"]
-files_modified: ["src/engine/turn/turn-manager.ts", "src/game/systems/__tests__/augment-integration.test.ts"]
+depends_on: ["09-01", "09-02"]
+files_modified:
+  - src/game/engine-factory.ts
+  - src/game/types.ts
+  - src/game/setup.ts
+  - src/game/systems/augment-integration.test.ts
 autonomous: true
-requirements_addressed: ["AUG-03", "AUG-05"]
+requirements: ["AUG-05", "AUG-08"]
 ---
 
-# Plan 09-03: Augment Integration & Stacking
+# Phase 9 - Plan 03: Augment Integration & Stacking
 
 <objective>
-Wire up the payload execution step into the primary game loop processing safely to prevent mid-cycle ECS state corruption.
+Wire the AugmentSystem into the engine-factory.ts and setup.ts initialization pipeline, ensure queued payload resolution (D-06) happens after primary action completion, enable multi-augment stacking from a single Firmware action (AUG-05), and add Augment loss-on-death logic (AUG-08).
 </objective>
 
-<tasks>
-  <task>
-    <description>Integrate Queued Payload Execution</description>
-    <read_first>
-      - `src/engine/turn/turn-manager.ts` (or equivalent loop container managing action queue)
-      - `.planning/phases/09-status-effects-augment-synergy/09-CONTEXT.md`
-    </read_first>
-    <action>
-      Ensure the Game Engine evaluates `augmentSystem.resolveQueuedPayloads()` at the absolute end of the primary atomic action resolution step (D-06). 
-      Dispatch the payload resolutions directly.
-    </action>
-    <acceptance_criteria>
-      - Action evaluation queues payload rather than processing immediately (D-06).
-    </acceptance_criteria>
-  </task>
-</tasks>
+<task type="auto">
+  <read_first>
+    - src/game/types.ts
+  </read_first>
+  <action>
+    Update `src/game/types.ts` to add the AugmentSystem to the GameContext interface.
+
+    1. Add import: `import { AugmentSystem } from './systems/augment';`
+    2. Add field to `GameContext` interface: `augmentSystem: AugmentSystem;`
+
+    This follows the existing pattern where all systems are exposed on GameContext (heatSystem, firmwareSystem, kernelPanicSystem, etc).
+  </action>
+  <acceptance_criteria>
+    - `grep -q "augmentSystem: AugmentSystem" src/game/types.ts` exits 0
+    - `grep -q "import.*AugmentSystem" src/game/types.ts` exits 0
+  </acceptance_criteria>
+</task>
+
+<task type="auto">
+  <read_first>
+    - src/game/engine-factory.ts
+    - src/game/systems/augment.ts
+    - src/game/systems/status-effects.ts
+    - src/game/systems/heat.ts
+  </read_first>
+  <action>
+    Update `src/game/engine-factory.ts` to create, wire, and initialize the AugmentSystem:
+
+    1. Add import: `import { createAugmentSystem, AugmentSystem } from './systems/augment';`
+
+    2. Add `AugmentSystem` to the `EngineInstance.systems` interface:
+       ```typescript
+       augment: AugmentSystem;
+       ```
+
+    3. Create the augment system after kernelPanicSystem (line ~94):
+       ```typescript
+       const augmentSystem = createAugmentSystem(world, eventBus, statusEffectSystem, heatSystem);
+       ```
+
+    4. Add `augmentSystem.init()` after `kernelPanicSystem.init()` (line ~100).
+
+    5. Add `augment: augmentSystem` to the returned `systems` object (line ~191).
+
+    6. In the `playerActionHandler` callback, add `augmentSystem.resetTurnState(entityId)` alongside the `statusEffectSystem.tickDown(entityId)` call at the top (both fire at start of entity's turn).
+
+    7. In the `enemyActionHandler` callback, add `augmentSystem.resetTurnState(entityId)` similarly.
+  </action>
+  <acceptance_criteria>
+    - `grep -q "createAugmentSystem" src/game/engine-factory.ts` exits 0
+    - `grep -q "augmentSystem.init" src/game/engine-factory.ts` exits 0
+    - `grep -q "augment: augmentSystem" src/game/engine-factory.ts` exits 0
+    - `grep -q "augmentSystem.resetTurnState" src/game/engine-factory.ts` exits 0
+  </acceptance_criteria>
+</task>
+
+<task type="auto">
+  <read_first>
+    - src/game/setup.ts
+    - src/game/types.ts
+  </read_first>
+  <action>
+    Update `src/game/setup.ts`:
+
+    1. Add `augmentSystem: systems.augment` to the `contextBase` object (around line ~73, after `kernelPanicSystem: systems.kernelPanic`).
+
+    2. Add `context.augmentSystem` to the `destroyGame()` systems array (around line ~277, after `context.kernelPanicSystem`).
+
+    This follows the exact pattern used for heatSystem, firmwareSystem, and kernelPanicSystem.
+  </action>
+  <acceptance_criteria>
+    - `grep -q "augmentSystem: systems.augment" src/game/setup.ts` exits 0
+    - `grep -q "context.augmentSystem" src/game/setup.ts` exits 0
+  </acceptance_criteria>
+</task>
+
+<task type="tdd">
+  <read_first>
+    - src/game/engine-factory.ts
+    - src/game/systems/augment.ts
+    - src/game/systems/status-effects.ts
+    - src/shared/components/augment-data.ts
+    - src/shared/components/augment-slots.ts
+  </read_first>
+  <action>
+    Create `src/game/systems/augment-integration.test.ts` with integration tests:
+
+    1. **Multi-trigger stacking (AUG-05):** Create a player entity with 2 equipped Augments (both with `ON_ACTIVATION` trigger). Simulate a `FIRMWARE_ACTIVATED` event. Verify both augments fire — check that `AUGMENT_TRIGGERED` event contains both augment names.
+
+    2. **Payload queuing (D-06):** Verify that augment payloads execute after the `FIRMWARE_ACTIVATED` event handler completes (not inline during event processing). This can be verified by checking that the Health/StatusEffects modifications happen after the firmware activation resolves.
+
+    3. **Compound trigger (AUG-06):** Create an Augment with `AND(ON_ACTIVATION, HEAT_ABOVE(80))`. Verify it fires only when both conditions are met. Test with Heat at 50 (should not fire) and Heat at 90 (should fire).
+
+    4. **Rate limiting cross-check:** Create an Augment with `maxTriggersPerTurn: 1` and `ON_TARGET_HIT` trigger. Simulate 3 hits in one action. Verify only 1 payload executes.
+
+    Test setup should use the existing test patterns from `status-effects.test.ts` — create a World, EventBus, and systems directly without the full engine-factory pipeline.
+  </action>
+  <acceptance_criteria>
+    - `test -f src/game/systems/augment-integration.test.ts` exits 0
+    - `npx vitest run src/game/systems/augment-integration.test.ts` exits 0
+  </acceptance_criteria>
+</task>
+
+<verification>
+After completing all tasks:
+1. `npx vitest run src/game/systems/augment-integration.test.ts` — all integration tests pass
+2. `npx vitest run` — full suite passes (including Phase 8 tests)
+3. `npx tsc --noEmit` — TypeScript compiles clean
+</verification>
+
+<must_haves>
+- AugmentSystem wired into engine-factory.ts with init() and resetTurnState() calls
+- AugmentSystem added to GameContext in types.ts
+- AugmentSystem wired into setup.ts for context assembly and dispose
+- Multiple augments trigger independently from a single Firmware action (AUG-05)
+- Payload resolution occurs after primary action completes (D-06)
+- Compound triggers evaluate correctly (AUG-06)
+- Rate limiting works across multi-hit scenarios (D-05)
+</must_haves>
