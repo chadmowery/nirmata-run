@@ -25,6 +25,15 @@ The Augment Synergy and generic Status Effect engine that enables combat customi
 ### Visual Feedback Clutter
 - **D-04:** Batch visual flash on multiple triggers but write all events individually to the message log.
 
+### Augment Internal Cooldowns
+- **D-05:** Configurable limit per Augment in JSON to cap highly powerful effects while letting generic ones trigger often.
+
+### Payload Resolution Sequence
+- **D-06:** Queued to resolve after the current action fully completes to keep ECS state safe.
+
+### Status Effect Intensity
+- **D-07:** Highest single magnitude active applies for overlapping effects of the same type.
+
 </decisions>
 
 <canonical_refs>

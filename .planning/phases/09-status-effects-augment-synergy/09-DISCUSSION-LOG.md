@@ -39,3 +39,25 @@
   2. Flash individually strictly once per event
   3. Queue flashes to play back chronologically
 - **Selected:** 1 (Batch the visual flash entirely, but write all events to the message log)
+
+### Area 5: Augment Internal Cooldowns
+- **Question:** How should Augment frequency be limited?
+- **Options:**
+  1. Configurable limit per Augment in JSON (Recommended)
+  2. No limits — if the condition is met, it triggers
+  3. Strictly one activation per turn for ALL augments
+- **Selected:** 1 (Configurable limit per Augment in JSON)
+
+### Area 6: Payload Resolution Sequence
+- **Question:** When should Augment Payloads execute?
+- **Options:**
+  1. Queued: Resolve after the current action fully completes (Recommended)
+  2. Immediate: Interrupt the current action logic and process instantly
+- **Selected:** 1 (Queued: Resolve after the current action fully completes)
+
+### Area 7: Status Effect Intensity
+- **Question:** How should the engine calculate the potency of overlapping statuses?
+- **Options:**
+  1. Highest single magnitude active applies (Recommended)
+  2. Magnitudes stack additively
+- **Selected:** 1 (Highest single magnitude active applies)
