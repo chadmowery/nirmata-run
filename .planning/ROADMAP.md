@@ -13,8 +13,8 @@ Build the Nirmata Runner game systems on top of the validated v1.0 engine founda
 
 - [x] **Phase 7: Shell & Equipment Data Model** — Shell archetypes, Port configurations, Loadout component, equipment slot system, JSON entity templates for all 3 starter Shells
 - [x] **Phase 8: Firmware & Neural Heat System** — Active abilities with Heat costs, Heat bar, dissipation/venting, Kernel Panic table, 3 starter Firmware abilities, turn-based adaptation
-- [ ] **Phase 9: Status Effects & Augment Synergy** — Generic status effect system, Augment "Trigger & Payload" engine, 3 trigger types, 3 starter Augments, visual trigger feedback, stacking rules
-- [ ] **Phase 10: Software System & Enhanced Combat** — Software consumable modifiers, Burn mechanic, rarity tiers, stacking rules, integration with combat damage pipeline, 3+ Software types
+- [x] **Phase 9: Status Effects & Augment Synergy** — Generic status effect system, Augment "Trigger & Payload" engine, 3 trigger types, 3 starter Augments, visual trigger feedback, stacking rules
+- [x] **Phase 10: Software System & Enhanced Combat** — Software consumable modifiers, Burn mechanic, rarity tiers, stacking rules, integration with combat damage pipeline, 3+ Software types
 - [ ] **Phase 11: Enemy Hierarchy** — 3-tier enemy system (6 enemy types), unique AI behaviors per type, enemy-specific death effects, depth-based distribution, JSON entity templates
 - [ ] **Phase 12: Multi-Floor Generation & Stability/Extraction** — Multi-floor dungeon descent, floor transitions, Stability bar, Stability Anchors, Extract/Descend decision, item loss/keep logic, System Handshake UI
 - [ ] **Phase 13: Currency, Economy & Blueprint System** — 3-tier currency, wallet/transaction system, Blueprint discovery/compilation/installation, weekly reset with Legacy Code, server-validated economy
@@ -74,10 +74,10 @@ Plans:
 **UI hint**: no
 
 Plans:
-- [ ] 09-01: Status Effect System (StatusEffectsComponent, effect types, tick/expire/apply logic, event emission)
-- [ ] 09-02: Augment Components & Trigger Engine (AugmentComponent, TriggerType enum, condition evaluation, payload dispatch)
-- [ ] 09-03: Augment Integration & Stacking (multi-trigger resolution, compound triggers, Firmware event wiring, system ordering)
-- [ ] 09-04: Starter Augments & Visual Feedback (3 starter Augment templates, geometric flash rendering, message log integration)
+- [x] 09-01: Status Effect System (StatusEffectsComponent, effect types, tick/expire/apply logic, event emission)
+- [x] 09-02: Augment Components & Trigger Engine (AugmentComponent, TriggerType enum, condition evaluation, payload dispatch)
+- [x] 09-03: Augment Integration & Stacking (multi-trigger resolution, compound triggers, Firmware event wiring, system ordering)
+- [x] 09-04: Starter Augments & Visual Feedback (3 starter Augment templates, geometric flash rendering, message log integration)
 
 ### Phase 10: Software System & Enhanced Combat
 **Goal**: Software modifiers enhance combat with consumable effects — damage pipeline integrates Shell stats, Firmware, Augments, and Software modifiers
@@ -93,10 +93,10 @@ Plans:
 **UI hint**: no
 
 Plans:
-- [ ] 10-00-PLAN.md — Wave 0 test scaffolds (software.test.ts, combat.test.ts extension, pipeline.test.ts)
-- [ ] 10-01-PLAN.md — Software components (SoftwareDef, BurnedSoftware, RarityTier), RunInventory registry, BURN_SOFTWARE action, death clearing
-- [ ] 10-02-PLAN.md — Combat damage pipeline refactor (modifier list pattern), Bleed DoT, Auto-Loader action economy, Vampire heal-on-kill, rarity scaling
-- [ ] 10-03-PLAN.md — 12 Software JSON entity templates (3 types x 4 rarities), template validation tests, loot table compatibility
+- [x] 10-00-PLAN.md — Wave 0 test scaffolds (software.test.ts, combat.test.ts extension, pipeline.test.ts)
+- [x] 10-01-PLAN.md — Software components (SoftwareDef, BurnedSoftware, RarityTier), RunInventory registry, BURN_SOFTWARE action, death clearing
+- [x] 10-02-PLAN.md — Combat damage pipeline refactor (modifier list pattern), Bleed DoT, Auto-Loader action economy, Vampire heal-on-kill, rarity scaling
+- [x] 10-03-PLAN.md — 12 Software JSON entity templates (3 types x 4 rarities), template validation tests, loot table compatibility
 
 ### Phase 11: Enemy Hierarchy
 **Goal**: Six distinct enemy types across 3 tiers with unique AI behaviors create varied tactical challenges per depth band
