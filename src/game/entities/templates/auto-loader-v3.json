@@ -1,0 +1,23 @@
+{
+  "name": "auto_loader_v3",
+  "components": {
+    "softwareDef": {
+      "name": "Auto-Loader.msi",
+      "type": "auto-loader",
+      "targetSlot": "weapon",
+      "baseMagnitude": 1,
+      "effectType": "action_economy",
+      "description": "Move and use Firmware in the same turn. Does not apply to Vent.",
+      "purchaseCost": 750
+    },
+    "rarityTier": {
+      "tier": "v3.x",
+      "scaleFactor": 3.0,
+      "minFloor": 10
+    },
+    "item": {
+      "name": "Auto-Loader.msi",
+      "description": "Move and use Firmware in the same turn."
+    }
+  }
+}

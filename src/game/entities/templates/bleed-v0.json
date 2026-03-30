@@ -1,0 +1,23 @@
+{
+  "name": "bleed_v0",
+  "components": {
+    "softwareDef": {
+      "name": "Bleed.exe",
+      "type": "bleed",
+      "targetSlot": "weapon",
+      "baseMagnitude": 2,
+      "effectType": "dot",
+      "description": "Apply bleeding DoT on physical attacks. 2 damage/tick for 3 turns.",
+      "purchaseCost": 25
+    },
+    "rarityTier": {
+      "tier": "v0.x",
+      "scaleFactor": 1.0,
+      "minFloor": 0
+    },
+    "item": {
+      "name": "Bleed.exe",
+      "description": "Apply bleeding DoT on physical attacks."
+    }
+  }
+}

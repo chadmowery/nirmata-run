@@ -3,11 +3,72 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { EntityId } from '@engine/ecs/types';
-import { Attack, Defense, LootTable, Health, Position, Actor, Heat } from '@shared/components';
+import { Attack, Defense, LootTable, Health, Position, Actor, Heat, BurnedSoftware, SoftwareDef, RarityTier } from '@shared/components';
 
 import { GameplayEvents } from '@shared/events/types';
 
 import { ComponentRegistry } from '@engine/entity/types';
+import { applyBleedOnHit, applyVampireOnKill } from './software-effects';
+
+export interface DamageModifier {
+  source: string;       // e.g., 'software:bleed', 'augment:static-siphon'
+  type: 'additive';     // Per D-12: Software modifiers are additive only
+  value: number;        // Flat bonus after rarity scaling
+  phase: 'pre_defense'; // Per D-11: Software + Augment modifiers apply before defense
+}
+
+/**
+ * Pure function to resolve final damage after modifiers and defense.
+ * Per D-11: base attack -> Software modifiers (additive) -> Augment payloads -> defense -> final damage.
+ */
+export function resolveDamage(
+  baseAttack: number,
+  modifiers: DamageModifier[],
+  defense: number
+): number {
+  let damage = baseAttack;
+  
+  // Apply all pre-defense modifiers (Software + Augments per D-11)
+  for (const mod of modifiers) {
+    if (mod.phase === 'pre_defense' && mod.type === 'additive') {
+      damage += mod.value;
+    }
+  }
+  
+  // Apply defense
+  damage = Math.max(1, damage - defense);
+  return Math.floor(damage);
+}
+
+/**
+ * Collects active damage modifiers for an entity based on burned software.
+ */
+export function collectDamageModifiers<T extends GameplayEvents>(
+  world: World<T>,
+  attackerId: EntityId
+): DamageModifier[] {
+  const modifiers: DamageModifier[] = [];
+  const burnedSoftware = world.getComponent(attackerId, BurnedSoftware);
+  if (!burnedSoftware) return modifiers;
+
+  // Collect weapon Software modifier (offensive Software on weapon)
+  if (burnedSoftware.weapon !== null) {
+    const softwareDef = world.getComponent(burnedSoftware.weapon, SoftwareDef);
+    const rarity = world.getComponent(burnedSoftware.weapon, RarityTier);
+    if (softwareDef && rarity && softwareDef.effectType !== 'dot' && softwareDef.effectType !== 'action_economy' && softwareDef.effectType !== 'heal_on_kill') {
+      // Non-DoT weapon Software adds flat damage bonus
+      // (Bleed applies via status effect, not direct modifier)
+      modifiers.push({
+        source: `software:${softwareDef.type}`,
+        type: 'additive',
+        value: softwareDef.baseMagnitude * rarity.scaleFactor,
+        phase: 'pre_defense',
+      });
+    }
+  }
+
+  return modifiers;
+}
 
 /**
  * Combat system that resolves damage and handles entity death.
@@ -31,10 +92,12 @@ export function createCombatSystem<T extends GameplayEvents>(
       return;
     }
 
+    const modifiers = collectDamageModifiers(world, attackerId);
     const armor = defenderDefense?.armor ?? 0;
     const defenderHeat = world.getComponent(defenderId, Heat);
     const effectiveArmor = defenderHeat?.isVenting ? 0 : armor;
-    const damage = Math.max(1, attackerAttack.power - effectiveArmor);
+    
+    const damage = resolveDamage(attackerAttack.power, modifiers, effectiveArmor);
 
     defenderHealth.current = Math.max(0, defenderHealth.current - damage);
 
@@ -43,6 +106,9 @@ export function createCombatSystem<T extends GameplayEvents>(
       defenderId,
       amount: damage,
     });
+
+    // Apply software effects like Bleed
+    applyBleedOnHit(world, eventBus, attackerId, defenderId);
 
     // Emit UI message
     const attackerActor = world.getComponent(attackerId, Actor);
@@ -88,6 +154,9 @@ export function createCombatSystem<T extends GameplayEvents>(
 
     // 3. Emit death event
     eventBus.emit('ENTITY_DIED', { entityId, killerId });
+
+    // Apply software effects like Vampire (heal on kill)
+    applyVampireOnKill(world, eventBus, killerId);
 
     const actor = world.getComponent(entityId, Actor);
     const name = actor?.isPlayer ? 'You' : 'The enemy';

@@ -23,6 +23,9 @@ import { AbilityDef } from './ability-def';
 import { StatusEffects } from './status-effects';
 import { AugmentData } from './augment-data';
 import { AugmentState } from './augment-state';
+import { SoftwareDef } from './software-def';
+import { BurnedSoftware } from './burned-software';
+import { RarityTier } from './rarity-tier';
 
 export const COMPONENTS_REGISTRY = [
   Position,
@@ -50,6 +53,9 @@ export const COMPONENTS_REGISTRY = [
   StatusEffects,
   AugmentData,
   AugmentState,
+  SoftwareDef,
+  BurnedSoftware,
+  RarityTier,
 ] as const;
 
 export * from './position';
@@ -77,3 +83,6 @@ export * from './ability-def';
 export * from './status-effects';
 export * from './augment-data';
 export * from './augment-state';
+export * from './software-def';
+export * from './burned-software';
+export * from './rarity-tier';

@@ -8,11 +8,14 @@ import { serializeWorld, serializeGrid, deserializeWorld, deserializeGrid } from
 import { logger } from './utils/logger';
 import { Actor } from './components/actor';
 
-import { 
+import {
   Position, Hostile, BlocksMovement, Attack, Health, Defense, Item, PickupEffect, EffectType,
-  FirmwareSlots, AugmentSlots, SoftwareSlots 
+  FirmwareSlots, AugmentSlots, SoftwareSlots, SoftwareDef, BurnedSoftware, Heat
 } from './components';
 import { handleEquip, handleUnequip } from './systems/equipment';
+import { runInventoryRegistry } from '../game/systems/run-inventory';
+import { resolveDamage, collectDamageModifiers } from '../game/systems/combat';
+import { checkAutoLoader, applyBleedOnHit, applyVampireOnKill } from '../game/systems/software-effects';
 
 /**
  * Runs a game action against a world/grid state and returns the new state and delta.
@@ -22,7 +25,8 @@ export function runActionPipeline(
   world: World<GameplayEvents>,
   grid: Grid,
   playerId: number,
-  action: ActionIntent
+  action: ActionIntent,
+  sessionId?: string
 ): { world: World<GameplayEvents>; grid: Grid; delta: StateDelta } {
   logger.debug(`[PIPELINE] Processing action: ${action.type}`, action);
   // 1. Snapshot initial state
@@ -35,11 +39,11 @@ export function runActionPipeline(
   const newGrid = deserializeGrid(oldGridState);
 
   // 3. Process Action
-  processAction(newWorld, newGrid, localEventBus, playerId, action);
+  processAction(newWorld, newGrid, localEventBus, playerId, action, sessionId);
 
   // 4. Flush internal events (e.g., BUMP_ATTACK -> DAMAGE_DEALT)
   // We need to register local handlers for things that link systems
-  setupInternalHandlers(newWorld, newGrid, localEventBus);
+  setupInternalHandlers(newWorld, newGrid, localEventBus, sessionId);
   localEventBus.flush();
 
   // 5. Serialize final state
@@ -55,7 +59,7 @@ export function runActionPipeline(
   return { world: newWorld, grid: newGrid, delta };
 }
 
-function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>, entityId: number, action: ActionIntent) {
+function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>, entityId: number, action: ActionIntent, sessionId?: string) {
   switch (action.type) {
     case 'MOVE':
       handleMove(world, grid, eventBus, entityId, action.dx, action.dy);
@@ -77,6 +81,74 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
     case 'UNEQUIP':
       handleUnequip(world, eventBus, entityId, action.slotType, action.slotIndex);
       break;
+    case 'BURN_SOFTWARE': {
+      if (!sessionId) {
+        eventBus.emit('MESSAGE_EMITTED', { text: 'Session ID required for burning software.', type: 'error' });
+        return;
+      }
+      const inventory = runInventoryRegistry.getOrCreate(sessionId);
+      const swItem = inventory.software[action.runInventoryIndex];
+      if (!swItem) {
+        eventBus.emit('MESSAGE_EMITTED', { text: 'Invalid software index.', type: 'error' });
+        return;
+      }
+
+      const swDef = world.getComponent(swItem.entityId, SoftwareDef);
+      if (!swDef) {
+        eventBus.emit('MESSAGE_EMITTED', { text: 'Software definition not found.', type: 'error' });
+        return;
+      }
+
+      // 1. Slot check
+      if (swDef.targetSlot !== action.targetSlot) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `Cannot burn ${swDef.name} onto ${action.targetSlot} slot. It requires ${swDef.targetSlot}.`,
+          type: 'error'
+        });
+        return;
+      }
+
+      // 2. Duplicate check
+      let burned = world.getComponent(entityId, BurnedSoftware);
+      if (!burned) {
+        const newData = { weapon: null, armor: null };
+        world.addComponent(entityId, BurnedSoftware, newData);
+        burned = newData;
+      }
+
+      const activeSoftwareIds = [burned.weapon, burned.armor].filter((id): id is number => id !== null);
+      for (const activeId of activeSoftwareIds) {
+        const activeDef = world.getComponent(activeId, SoftwareDef);
+        if (activeDef && activeDef.type === swDef.type) {
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: `Software type ${swDef.type} is already active.`,
+            type: 'error'
+          });
+          return;
+        }
+      }
+
+      // 3. Overwrite/Burn
+      const oldEntityId = burned[action.targetSlot];
+      if (oldEntityId !== null) {
+        world.destroyEntity(oldEntityId);
+      }
+
+      burned[action.targetSlot] = swItem.entityId;
+      runInventoryRegistry.removeSoftware(sessionId, action.runInventoryIndex);
+
+      eventBus.emit('SOFTWARE_BURNED', {
+        entityId,
+        softwareId: swItem.entityId,
+        targetSlot: action.targetSlot
+      });
+
+      eventBus.emit('MESSAGE_EMITTED', {
+        text: `Successfully burned ${swDef.name} onto ${action.targetSlot}.`,
+        type: 'combat'
+      });
+      break;
+    }
     case 'SELECT_SHELL':
       // Placeholder for Phase 7: emitting event is enough for now, 
       // actual stat stamping happens in engine-factory or special system
@@ -85,6 +157,29 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
     case 'UPGRADE_SHELL':
       // Will be handled by ShellStatsSystem listening to event
       eventBus.emit('SHELL_STATS_CHANGED', { entityId, shellId: action.shellId });
+      break;
+    case 'USE_FIRMWARE':
+      // For now, emit intent. Full resolution in Phase 13 or specific system.
+      // This allows MOVE_AND_USE_FIRMWARE to at least emit the intent.
+      eventBus.emit('PLAYER_ACTION', { action: 'USE_FIRMWARE', entityId });
+      break;
+    case 'VENT':
+      eventBus.emit('PLAYER_ACTION', { action: 'VENT', entityId });
+      break;
+    case 'MOVE_AND_USE_FIRMWARE':
+      // Only allowed if checkAutoLoader returns true
+      if (!checkAutoLoader(world, entityId)) {
+        eventBus.emit('MESSAGE_EMITTED', { text: 'Auto-Loader.msi required', type: 'error' });
+        break;
+      }
+      handleMove(world, grid, eventBus, entityId, action.dx, action.dy);
+      // Delegate to USE_FIRMWARE handling
+      processAction(world, grid, eventBus, entityId, {
+        type: 'USE_FIRMWARE',
+        slotIndex: action.firmwareSlotIndex,
+        targetX: action.targetX,
+        targetY: action.targetY,
+      });
       break;
   }
 }
@@ -150,7 +245,7 @@ function handlePickup(world: World<GameplayEvents>, grid: Grid, eventBus: EventB
   eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
 }
 
-function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>) {
+export function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>, sessionId?: string) {
   // BUMP_ATTACK handler (Combat Logic)
   eventBus.on('BUMP_ATTACK', (payload) => {
     const { attackerId, defenderId } = payload;
@@ -160,19 +255,26 @@ function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, eventBu
 
     if (!attackerAttack || !defenderHealth) return;
 
+    const modifiers = collectDamageModifiers(world, attackerId);
     const armor = defenderDefense?.armor ?? 0;
-    const damage = Math.max(1, attackerAttack.power - armor);
+    const defenderHeat = world.getComponent(defenderId, Heat);
+    const effectiveArmor = defenderHeat?.isVenting ? 0 : armor;
+
+    const damage = resolveDamage(attackerAttack.power, modifiers, effectiveArmor);
 
     defenderHealth.current = Math.max(0, defenderHealth.current - damage);
-    
+
     eventBus.emit('DAMAGE_DEALT', { attackerId, defenderId, amount: damage });
+
+    // Apply software effects like Bleed
+    applyBleedOnHit(world, eventBus, attackerId, defenderId);
 
     // Emit UI message
     const attackerActor = world.getComponent(attackerId, Actor);
     const defenderActor = world.getComponent(defenderId, Actor);
     const attackerName = attackerActor?.isPlayer ? 'You' : 'The enemy';
     const defenderName = defenderActor?.isPlayer ? 'you' : 'the enemy';
-    
+
     eventBus.emit('MESSAGE_EMITTED', {
       text: `${attackerName} hit ${defenderName} for ${damage} damage.`,
       type: 'combat'
@@ -192,21 +294,44 @@ function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, eventBu
     }
   });
 
-  // Death Clearing Logic (Phase 7 - Plan 03)
+  // Death Clearing Logic (Phase 7 - Plan 03, Phase 10 - Plan 01)
   eventBus.on('ENTITY_DIED', (payload) => {
     const { entityId } = payload;
-    
+
     // Clear equipment slots on death
     const fw = world.getComponent(entityId, FirmwareSlots);
     if (fw) fw.equipped = [];
-    
+
     const aug = world.getComponent(entityId, AugmentSlots);
     if (aug) aug.equipped = [];
-    
+
     const sw = world.getComponent(entityId, SoftwareSlots);
     if (sw) sw.equipped = [];
-    
+
+    // Clear burned software (Phase 10)
+    const burned = world.getComponent(entityId, BurnedSoftware);
+    if (burned) {
+      burned.weapon = null;
+      burned.armor = null;
+    }
+
+    // If player died, clear run inventory
+    const actor = world.getComponent(entityId, Actor);
+    if (actor?.isPlayer && sessionId) {
+      runInventoryRegistry.clear(sessionId);
+      eventBus.emit('MESSAGE_EMITTED', { text: 'Neural feedback destroyed all unsynced software.', type: 'error' });
+    }
+
     // Note: The ShellRecord in ShellRegistry persists outside ECS
+  });
+
+  // Extraction handler (Phase 10)
+  eventBus.on('EXTRACTION_TRIGGERED', (payload) => {
+    const { sessionId: sid } = payload;
+    if (sid) {
+      runInventoryRegistry.transferToStash(sid);
+      eventBus.emit('MESSAGE_EMITTED', { text: 'Software successfully extracted to stash.', type: 'info' });
+    }
   });
 }
 
@@ -215,13 +340,16 @@ function handleDeath(world: World<GameplayEvents>, grid: Grid, eventBus: EventBu
   if (pos) {
     grid.removeEntity(entityId, pos.x, pos.y);
   }
-  
+
   // Note: Loot generation requires EntityFactory which might have browser/asset dependencies.
   // For now, we skip loot in the pure pipeline, or we pass it in if needed.
   // ARCH deviation: If loot is critical for prediction, we need a pure version of EntityFactory.
-  
+
   eventBus.emit('ENTITY_DIED', { entityId, killerId });
-  
+
+  // Apply software effects like Vampire (heal on kill)
+  applyVampireOnKill(world, eventBus, killerId);
+
   const actor = world.getComponent(entityId, Actor);
   const name = actor?.isPlayer ? 'You' : 'The enemy';
   eventBus.emit('MESSAGE_EMITTED', {

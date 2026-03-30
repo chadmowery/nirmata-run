@@ -57,6 +57,21 @@ export const VentActionSchema = z.object({
   type: z.literal('VENT'),
 });
 
+export const BurnSoftwareActionSchema = z.object({
+  type: z.literal('BURN_SOFTWARE'),
+  runInventoryIndex: z.number().int().min(0).max(4),
+  targetSlot: z.enum(['weapon', 'armor']),
+});
+
+export const MoveAndUseFirmwareActionSchema = z.object({
+  type: z.literal('MOVE_AND_USE_FIRMWARE'),
+  dx: z.number(),
+  dy: z.number(),
+  firmwareSlotIndex: z.number().int().min(0).max(2),
+  targetX: z.number().int(),
+  targetY: z.number().int(),
+});
+
 export const ActionIntentSchema = z.discriminatedUnion('type', [
   MoveActionSchema,
   AttackActionSchema,
@@ -68,6 +83,8 @@ export const ActionIntentSchema = z.discriminatedUnion('type', [
   UpgradeShellActionSchema,
   UseFirmwareActionSchema,
   VentActionSchema,
+  BurnSoftwareActionSchema,
+  MoveAndUseFirmwareActionSchema,
 ]);
 
 export type ActionIntent = z.infer<typeof ActionIntentSchema>;

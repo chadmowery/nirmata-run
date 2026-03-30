@@ -162,4 +162,14 @@ describe('CombatSystem', () => {
     expect(entityFactory.create).not.toHaveBeenCalled();
     vi.restoreAllMocks();
   });
+
+  describe('Damage Pipeline (Phase 10)', () => {
+    it.todo('resolveDamage with no modifiers returns base - defense');
+    it.todo('resolveDamage with additive pre_defense modifier increases damage');
+    it.todo('resolveDamage with multiple modifiers applies all additively');
+    it.todo('resolveDamage minimum damage is 1');
+    it.todo('collectDamageModifiers reads BurnedSoftware weapon slot');
+    it.todo('collectDamageModifiers returns empty when no BurnedSoftware');
+    it.todo('venting defender has effectiveArmor=0 (existing behavior preserved)');
+  });
 });

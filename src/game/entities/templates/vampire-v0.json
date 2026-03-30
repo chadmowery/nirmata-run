@@ -1,0 +1,23 @@
+{
+  "name": "vampire_v0",
+  "components": {
+    "softwareDef": {
+      "name": "Vampire.exe",
+      "type": "vampire",
+      "targetSlot": "armor",
+      "baseMagnitude": 5,
+      "effectType": "heal_on_kill",
+      "description": "Heal 5 HP on any kill.",
+      "purchaseCost": 50
+    },
+    "rarityTier": {
+      "tier": "v0.x",
+      "scaleFactor": 1.0,
+      "minFloor": 0
+    },
+    "item": {
+      "name": "Vampire.exe",
+      "description": "Heal 5 HP on any kill."
+    }
+  }
+}

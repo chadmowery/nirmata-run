@@ -83,4 +83,30 @@ export interface GameplayEvents extends EngineEvents {
     entityId: EntityId;
     augments: Array<{ name: string; payloadType: string; magnitude: number }>;
   };
+
+  /** Queued when a Software item is burned onto an equipment slot. */
+  SOFTWARE_BURNED: {
+    entityId: EntityId;
+    softwareId: EntityId;
+    targetSlot: 'weapon' | 'armor';
+  };
+
+  /** Queued when a Software modifier is applied during combat resolution. */
+  SOFTWARE_MODIFIER_APPLIED: {
+    entityId: EntityId;
+    softwareType: string;
+    magnitude: number;
+  };
+
+  /** Queued when the run-scoped software inventory changes. */
+  RUN_INVENTORY_CHANGED: {
+    sessionId: string;
+    action: 'added' | 'removed' | 'cleared';
+    slotCount: number;
+  };
+
+  /** Queued when an extraction is triggered. */
+  EXTRACTION_TRIGGERED: {
+    sessionId: string;
+  };
 }
