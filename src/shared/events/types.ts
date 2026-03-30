@@ -52,7 +52,7 @@ export interface GameplayEvents extends EngineEvents {
   HEAT_CHANGED: { entityId: EntityId; oldHeat: number; newHeat: number; maxSafe: number };
 
   /** Queued when a Firmware ability is activated. */
-  FIRMWARE_ACTIVATED: { entityId: EntityId; firmwareEntityId: EntityId; abilityName: string; heatCost: number; targetX: number; targetY: number };
+  FIRMWARE_ACTIVATED: { entityId: EntityId; firmwareEntityId: EntityId; slotIndex: number; abilityName: string; heatCost: number; targetX: number; targetY: number };
 
   /** Queued when a Kernel Panic roll triggers a consequence. */
   KERNEL_PANIC_TRIGGERED: { entityId: EntityId; tier: number; effectName: string; severity: string };

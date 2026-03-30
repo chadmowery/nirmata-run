@@ -5,6 +5,8 @@ import { serializeWorld, serializeGrid } from '@shared/serialization';
 import { diff } from 'json-diff-ts';
 import { DIRECTIONS, GameAction } from '@game/input/actions';
 import { logger } from '@shared/utils/logger';
+import { GameplayEvents } from '@shared/events/types';
+import { EngineInstance } from '@game/engine-factory';
 
 export async function POST(req: Request) {
   try {
@@ -15,7 +17,7 @@ export async function POST(req: Request) {
     }
 
     const { sessionId, action } = result.data;
-    const session = sessionManager.getSession(sessionId);
+    const session = sessionManager.getSession<GameplayEvents, EngineInstance['systems']>(sessionId);
     if (!session) {
       logger.warn(`[API] Session NOT FOUND: ${sessionId}`);
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });

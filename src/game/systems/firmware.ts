@@ -151,9 +151,10 @@ export function createFirmwareSystem<T extends GameplayEvents>(
 
         eventBus.emit('FIRMWARE_TOGGLED', {
           entityId,
-          firmwareId,
-          isActive: abilityDef.isActive
-        } as any); // Type cast until FIRMWARE_TOGGLED added to GameplayEvents
+          firmwareEntityId: firmwareId,
+          abilityName: abilityDef.name,
+          active: abilityDef.isActive
+        });
 
         eventBus.emit('MESSAGE_EMITTED', {
           text: `${abilityDef.name} ${abilityDef.isActive ? 'activated' : 'deactivated'}.`,
@@ -163,11 +164,13 @@ export function createFirmwareSystem<T extends GameplayEvents>(
 
       eventBus.emit('FIRMWARE_ACTIVATED', {
         entityId,
+        firmwareEntityId: firmwareId,
         slotIndex,
+        abilityName: abilityDef.name,
+        heatCost: effectiveHeatCost,
         targetX,
         targetY,
-        abilityName: abilityDef.name
-      } as any);
+      });
 
       return true;
     },

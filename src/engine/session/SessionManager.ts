@@ -7,13 +7,13 @@ import { EngineEvents } from '@engine/events/types';
 /**
  * WorldState container for sessions.
  */
-export interface WorldState<T extends EngineEvents = EngineEvents> {
+export interface WorldState<T extends EngineEvents = EngineEvents, S = unknown> {
   world: World<T>;
   grid: Grid;
   turnManager: TurnManager<T>;
   eventBus: EventBus<T>;
   playerId: number;
-  systems?: any; // EngineInstance.systems
+  systems?: S; // EngineInstance.systems
 }
 
 /**
@@ -34,12 +34,12 @@ export class SessionManager {
     return SessionManager.instance;
   }
 
-  public createSession<T extends EngineEvents>(sessionId: string, state: WorldState<T>): void {
+  public createSession<T extends EngineEvents, S = unknown>(sessionId: string, state: WorldState<T, S>): void {
     this.sessions.set(sessionId, state);
   }
 
-  public getSession<T extends EngineEvents = EngineEvents>(sessionId: string): WorldState<T> | undefined {
-    return this.sessions.get(sessionId) as WorldState<T> | undefined;
+  public getSession<T extends EngineEvents = EngineEvents, S = unknown>(sessionId: string): WorldState<T, S> | undefined {
+    return this.sessions.get(sessionId) as WorldState<T, S> | undefined;
   }
 
   public deleteSession(sessionId: string): void {

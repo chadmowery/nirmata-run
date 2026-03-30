@@ -11,6 +11,7 @@ import { InputManager } from './input/input-manager';
 import { GameAction, DIRECTIONS, DEFAULT_BINDINGS, isFirmwareAction, getFirmwareSlotIndex } from './input/actions';
 import { createTargetingManager } from './input/targeting';
 import { AbilityDef, FirmwareSlots, Position } from '@shared/components';
+import { ActionIntent } from '@shared/types';
 import { logger } from '@shared/utils/logger';
 
 export interface GameConfig {
@@ -205,7 +206,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     }
   }
 
-  async function sendActionToServer(intent: any) {
+  async function sendActionToServer(intent: ActionIntent | null) {
     if (!intent) return;
     try {
       logger.info(`[CLIENT] Sending action to server. SessionId: ${context.sessionId || 'default-session'}`);
@@ -233,7 +234,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   // Wire input ActionHandler for keyboard
   inputManager.setActionHandler(handlePlayerInput);
 
-  function getActionIntent(action: GameAction): any {
+  function getActionIntent(action: GameAction): ActionIntent | null {
     if (DIRECTIONS[action]) {
       return { type: 'MOVE', dx: DIRECTIONS[action].dx, dy: DIRECTIONS[action].dy };
     }
