@@ -9,6 +9,9 @@ import health_potion from './templates/health-potion.json';
 import phase_shift from './templates/phase-shift.json';
 import neural_spike from './templates/neural-spike.json';
 import extended_sight from './templates/extended-sight.json';
+import displacement_venting from './templates/displacement-venting.json';
+import static_siphon from './templates/static-siphon.json';
+import neural_feedback from './templates/neural-feedback.json';
 
 /**
  * Registers all game entity templates and mixins.
@@ -25,4 +28,7 @@ export function registerGameTemplates(registry: EntityRegistry): void {
   registry.register(phase_shift as unknown as RawTemplate);
   registry.register(neural_spike as unknown as RawTemplate);
   registry.register(extended_sight as unknown as RawTemplate);
+  registry.register(displacement_venting as unknown as RawTemplate);
+  registry.register(static_siphon as unknown as RawTemplate);
+  registry.register(neural_feedback as unknown as RawTemplate);
 }

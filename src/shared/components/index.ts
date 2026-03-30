@@ -21,6 +21,8 @@ import { SoftwareSlots } from './software-slots';
 import { Heat } from './heat';
 import { AbilityDef } from './ability-def';
 import { StatusEffects } from './status-effects';
+import { AugmentData } from './augment-data';
+import { AugmentState } from './augment-state';
 
 export const COMPONENTS_REGISTRY = [
   Position,
@@ -45,7 +47,9 @@ export const COMPONENTS_REGISTRY = [
   SoftwareSlots,
   Heat,
   AbilityDef,
-  StatusEffects
+  StatusEffects,
+  AugmentData,
+  AugmentState,
 ] as const;
 
 export * from './position';
@@ -71,3 +75,5 @@ export * from './software-slots';
 export * from './heat';
 export * from './ability-def';
 export * from './status-effects';
+export * from './augment-data';
+export * from './augment-state';

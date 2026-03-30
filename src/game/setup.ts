@@ -71,6 +71,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     statusEffectSystem: systems.statusEffect,
     firmwareSystem: systems.firmware,
     kernelPanicSystem: systems.kernelPanic,
+    augmentSystem: systems.augment,
   };
 
   const stateConfigs: Record<GameState, StateConfig<GameState, GameContext>> = {
@@ -250,6 +251,8 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   // Wire TurnManager handles
   turnManager.setPlayerActionHandler((action: string, entityId: number) => {
     const gameAction = action as GameAction;
+    context.statusEffectSystem.tickDown(entityId);
+    context.augmentSystem.resetTurnState(entityId);
     if (DIRECTIONS[gameAction]) {
       const { dx, dy } = DIRECTIONS[gameAction];
       context.movementSystem.processMove(entityId, dx, dy);
@@ -264,6 +267,8 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
   // Enemy action handler
   turnManager.setEnemyActionHandler((entityId: number) => {
+    context.statusEffectSystem.tickDown(entityId);
+    context.augmentSystem.resetTurnState(entityId);
     context.aiSystem.processEnemyTurn(entityId);
   });
 
@@ -282,7 +287,8 @@ export function destroyGame(context: GameContext) {
     context.heatSystem,
     context.statusEffectSystem,
     context.firmwareSystem,
-    context.kernelPanicSystem
+    context.kernelPanicSystem,
+    context.augmentSystem
   ];
 
   for (const sys of systems) {

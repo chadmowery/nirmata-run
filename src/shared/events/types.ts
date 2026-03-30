@@ -62,4 +62,25 @@ export interface GameplayEvents extends EngineEvents {
 
   /** Queued when a toggle Firmware ability changes state. */
   FIRMWARE_TOGGLED: { entityId: EntityId; firmwareEntityId: EntityId; abilityName: string; active: boolean };
+
+  /** Queued when a status effect is applied to an entity. */
+  STATUS_EFFECT_APPLIED: {
+    entityId: EntityId;
+    effectName: string;
+    duration: number;
+    magnitude: number;
+    source: string;
+  };
+
+  /** Queued when a status effect expires on an entity. */
+  STATUS_EFFECT_EXPIRED: {
+    entityId: EntityId;
+    effectName: string;
+  };
+
+  /** Queued when one or more Augments trigger from an action. */
+  AUGMENT_TRIGGERED: {
+    entityId: EntityId;
+    augments: Array<{ name: string; payloadType: string; magnitude: number }>;
+  };
 }

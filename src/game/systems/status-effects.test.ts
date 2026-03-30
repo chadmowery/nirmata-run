@@ -81,7 +81,71 @@ describe('Status Effects System', () => {
       expect(statusEffectSystem.hasEffect(playerId, 'TEST')).toBe(false);
     });
 
-    it('subscribes to TURN_START', () => {
+    it('getMagnitude returns the highest magnitude for overlapping effects', () => {
+      statusEffectSystem.applyEffect(playerId, { name: 'SLOW', duration: 3, magnitude: 10 });
+      statusEffectSystem.applyEffect(playerId, { name: 'SLOW', duration: 2, magnitude: 20 });
+      statusEffectSystem.applyEffect(playerId, { name: 'SLOW', duration: 5, magnitude: 5 });
+
+      expect(statusEffectSystem.getMagnitude(playerId, 'SLOW')).toBe(20);
+    });
+
+    it('getMagnitude returns 0 when no effect exists', () => {
+      expect(statusEffectSystem.getMagnitude(playerId, 'NON_EXISTENT')).toBe(0);
+    });
+
+    it('getEffectiveCount returns the number of active instances', () => {
+      statusEffectSystem.applyEffect(playerId, { name: 'POISON', duration: 3, magnitude: 5 });
+      statusEffectSystem.applyEffect(playerId, { name: 'POISON', duration: 2, magnitude: 5 });
+      
+      expect(statusEffectSystem.getEffectiveCount(playerId, 'POISON')).toBe(2);
+      expect(statusEffectSystem.getEffectiveCount(playerId, 'STUN')).toBe(0);
+    });
+
+    it('getTotalMagnitude returns the sum of all magnitudes', () => {
+      statusEffectSystem.applyEffect(playerId, { name: 'CORRUPTION', duration: 3, magnitude: 10 });
+      statusEffectSystem.applyEffect(playerId, { name: 'CORRUPTION', duration: 2, magnitude: 15 });
+      
+      expect(statusEffectSystem.getTotalMagnitude(playerId, 'CORRUPTION')).toBe(25);
+    });
+
+    it('applyEffect emits STATUS_EFFECT_APPLIED event', () => {
+      const spy = vi.fn();
+      eventBus.on('STATUS_EFFECT_APPLIED', spy);
+
+      statusEffectSystem.applyEffect(playerId, { 
+        name: 'GLITCH', 
+        duration: 3, 
+        magnitude: 5, 
+        source: 'TEST_SOURCE' 
+      });
+
+      eventBus.flush();
+
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({
+        entityId: playerId,
+        effectName: 'GLITCH',
+        duration: 3,
+        magnitude: 5,
+        source: 'TEST_SOURCE'
+      }));
+    });
+
+    it('tickDown emits STATUS_EFFECT_EXPIRED event', () => {
+      const spy = vi.fn();
+      eventBus.on('STATUS_EFFECT_EXPIRED', spy);
+
+      statusEffectSystem.applyEffect(playerId, { name: 'EXPIRING', duration: 1 });
+      statusEffectSystem.tickDown(playerId);
+
+      eventBus.flush();
+
+      expect(spy).toHaveBeenCalledWith(expect.objectContaining({
+        entityId: playerId,
+        effectName: 'EXPIRING'
+      }));
+    });
+
+    it('no longer automatically ticks down on TURN_START', () => {
       statusEffectSystem.applyEffect(playerId, { name: 'TEST', duration: 2 });
       
       statusEffectSystem.init();
@@ -89,7 +153,8 @@ describe('Status Effects System', () => {
       eventBus.flush();
       
       const status = world.getComponent(playerId, StatusEffects)!;
-      expect(status.effects[0].duration).toBe(1);
+      // Should still be 2 because it's no longer subscribed to TURN_START
+      expect(status.effects[0].duration).toBe(2);
     });
   });
 });

@@ -1,0 +1,16 @@
+{
+  "name": "neural_feedback",
+  "components": {
+    "augmentData": {
+      "name": "Neural_Feedback.arc",
+      "trigger": {
+        "type": "ON_KILL"
+      },
+      "payloads": [
+        { "type": "DAMAGE_BONUS", "magnitude": 25, "statusEffectDuration": 1 }
+      ],
+      "maxTriggersPerTurn": 1,
+      "cooldownTurns": 0
+    }
+  }
+}

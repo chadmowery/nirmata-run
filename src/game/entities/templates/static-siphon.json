@@ -1,0 +1,20 @@
+{
+  "name": "static_siphon",
+  "components": {
+    "augmentData": {
+      "name": "Static_Siphon.arc",
+      "trigger": {
+        "type": "AND",
+        "conditions": [
+          { "type": "ON_ACTIVATION" },
+          { "type": "ON_KILL" }
+        ]
+      },
+      "payloads": [
+        { "type": "SHIELD", "magnitude": 5 }
+      ],
+      "maxTriggersPerTurn": 1,
+      "cooldownTurns": 0
+    }
+  }
+}

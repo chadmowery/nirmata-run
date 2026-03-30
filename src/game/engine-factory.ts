@@ -16,6 +16,7 @@ import { createHeatSystem, HeatSystem } from './systems/heat';
 import { createStatusEffectSystem, StatusEffectSystem } from './systems/status-effects';
 import { createFirmwareSystem, FirmwareSystem } from './systems/firmware';
 import { createKernelPanicSystem, KernelPanicSystem } from './systems/kernel-panic';
+import { createAugmentSystem, AugmentSystem } from './systems/augment';
 import { generateDungeon } from './generation/dungeon-generator';
 import { placeEntities } from './generation/entity-placement';
 import RNG from 'rot-js/lib/rng';
@@ -48,6 +49,7 @@ export interface EngineInstance {
     statusEffect: StatusEffectSystem;
     firmware: FirmwareSystem;
     kernelPanic: KernelPanicSystem;
+    augment: AugmentSystem;
   };
 }
 
@@ -92,12 +94,14 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   const statusEffectSystem = createStatusEffectSystem(world, eventBus);
   const firmwareSystem = createFirmwareSystem(world, grid, eventBus, movementSystem, heatSystem);
   const kernelPanicSystem = createKernelPanicSystem(world, eventBus, statusEffectSystem);
+  const augmentSystem = createAugmentSystem(world, eventBus, statusEffectSystem, heatSystem);
 
   combatSystem.init();
   itemPickupSystem.init();
   heatSystem.init();
   statusEffectSystem.init();
   kernelPanicSystem.init();
+  augmentSystem.init();
 
   const turnManager = new TurnManager<GameEvents>(world, eventBus, {
     energyThreshold: 1000,
@@ -117,8 +121,13 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   RNG.setSeed(hashSeedForPlacement(config.seed));
   const rng = { random: () => RNG.getUniform() };
 
-  // Prepare shell overrides if shellRecord is present
-  const playerOverrides: Record<string, Record<string, unknown>> = {};
+  // Prepare shell overrides
+  const playerOverrides: Record<string, Record<string, unknown>> = {
+    'augmentSlots': { equipped: [] },
+    'augmentState': { activationsThisTurn: {}, cooldownsRemaining: {} },
+    'heat': { current: 0, maxSafe: 100, baseDissipation: 5, ventPercentage: 0.5 }
+  };
+
   if (config.shellRecord) {
     const { currentStats, portConfig } = config.shellRecord;
     playerOverrides['health'] = { max: currentStats.maxHealth, current: currentStats.maxHealth } as unknown as Record<string, unknown>;
@@ -129,7 +138,6 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
     playerOverrides['shell'] = currentStats as unknown as Record<string, unknown>;
     playerOverrides['portConfig'] = portConfig as unknown as Record<string, unknown>;
     playerOverrides['firmwareSlots'] = { equipped: [] };
-    playerOverrides['augmentSlots'] = { equipped: [] };
     playerOverrides['softwareSlots'] = { equipped: [] };
   }
 
@@ -146,12 +154,16 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
 
   // Turn Manager Handlers
   turnManager.setEnemyActionHandler((entityId) => {
+    statusEffectSystem.tickDown(entityId);
+    augmentSystem.resetTurnState(entityId);
     aiSystem.processEnemyTurn(entityId);
   });
 
   turnManager.setPlayerActionHandler((action: string, entityId: number) => {
     // This handler will be customized by the environment (client vs server)
     // but we provide a default one that uses the systems we just created.
+    statusEffectSystem.tickDown(entityId);
+    augmentSystem.resetTurnState(entityId);
     if (DIRECTIONS[action]) {
       const { dx, dy } = DIRECTIONS[action];
       if (dx !== 0 || dy !== 0) {
@@ -189,6 +201,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
       statusEffect: statusEffectSystem,
       firmware: firmwareSystem,
       kernelPanic: kernelPanicSystem,
+      augment: augmentSystem,
     }
   };
 }

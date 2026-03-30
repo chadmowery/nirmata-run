@@ -1,7 +1,7 @@
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityId } from '@engine/ecs/types';
-import { StatusEffects, Actor } from '@shared/components';
+import { StatusEffects } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 
 /**
@@ -21,6 +21,11 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
       if (effect.duration > 0) {
         remainingEffects.push(effect);
       } else {
+        eventBus.emit('STATUS_EFFECT_EXPIRED', {
+          entityId,
+          effectName: effect.name,
+        });
+
         eventBus.emit('MESSAGE_EMITTED', {
           text: `${effect.name} has worn off.`,
           type: 'info',
@@ -41,11 +46,21 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
       statusEffects = world.getComponent(entityId, StatusEffects)!;
     }
 
-    statusEffects.effects.push({
+    const newEffect = {
       name: effect.name,
       duration: effect.duration,
       magnitude: effect.magnitude ?? 0,
       source: effect.source,
+    };
+
+    statusEffects.effects.push(newEffect);
+
+    eventBus.emit('STATUS_EFFECT_APPLIED', {
+      entityId,
+      effectName: newEffect.name,
+      duration: newEffect.duration,
+      magnitude: newEffect.magnitude,
+      source: newEffect.source ?? 'unknown',
     });
 
     eventBus.emit('MESSAGE_EMITTED', {
@@ -64,26 +79,44 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
     return statusEffects ? statusEffects.effects.find(e => e.name === name) : undefined;
   };
 
-  const onTurnStart = () => {
-    const actors = world.query(Actor).filter(id => world.getComponent(id, Actor)?.isPlayer);
-    for (const actorId of actors) {
-      tickDown(actorId);
-    }
+  const getMagnitude = (entityId: EntityId, name: string): number => {
+    const statusEffects = world.getComponent(entityId, StatusEffects);
+    if (!statusEffects) return 0;
+    const matching = statusEffects.effects.filter(e => e.name === name);
+    if (matching.length === 0) return 0;
+    return Math.max(...matching.map(e => e.magnitude));
+  };
+
+  const getEffectiveCount = (entityId: EntityId, name: string): number => {
+    const statusEffects = world.getComponent(entityId, StatusEffects);
+    if (!statusEffects) return 0;
+    return statusEffects.effects.filter(e => e.name === name).length;
+  };
+
+  const getTotalMagnitude = (entityId: EntityId, name: string): number => {
+    const statusEffects = world.getComponent(entityId, StatusEffects);
+    if (!statusEffects) return 0;
+    return statusEffects.effects
+      .filter(e => e.name === name)
+      .reduce((sum, e) => sum + e.magnitude, 0);
   };
 
   return {
     init() {
-      eventBus.on('TURN_START', onTurnStart);
+      // System is now externally driven by engine-factory turn handlers
     },
 
     dispose() {
-      eventBus.off('TURN_START', onTurnStart);
+      // No cleanup needed as we no longer subscribe to events
     },
 
     tickDown,
     applyEffect,
     hasEffect,
     getEffect,
+    getMagnitude,
+    getEffectiveCount,
+    getTotalMagnitude,
   };
 }
 

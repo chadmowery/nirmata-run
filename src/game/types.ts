@@ -16,6 +16,7 @@ import { HeatSystem } from './systems/heat';
 import { StatusEffectSystem } from './systems/status-effects';
 import { FirmwareSystem } from './systems/firmware';
 import { KernelPanicSystem } from './systems/kernel-panic';
+import { AugmentSystem } from './systems/augment';
 import { EntityFactory } from '@engine/entity/factory';
 
 export interface GameSystem {
@@ -41,6 +42,7 @@ export interface GameContext {
   statusEffectSystem: StatusEffectSystem;
   firmwareSystem: FirmwareSystem;
   kernelPanicSystem: KernelPanicSystem;
+  augmentSystem: AugmentSystem;
   entityFactory: EntityFactory;
   playerId?: EntityId;
   currentSeed?: string;

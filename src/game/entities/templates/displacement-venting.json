@@ -1,0 +1,16 @@
+{
+  "name": "displacement_venting",
+  "components": {
+    "augmentData": {
+      "name": "Displacement_Venting.arc",
+      "trigger": {
+        "type": "ON_ACTIVATION"
+      },
+      "payloads": [
+        { "type": "VENT_HEAT", "magnitude": 15 }
+      ],
+      "maxTriggersPerTurn": 1,
+      "cooldownTurns": 0
+    }
+  }
+}
