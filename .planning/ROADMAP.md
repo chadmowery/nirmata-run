@@ -131,10 +131,10 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 12-01: Multi-Floor Generation (floor-specific seeded BSP, staircase entities, floor transition system, depth tracking)
-- [ ] 12-02: Stability System (StabilityComponent, drain per floor, escalating rate, zero = run end, UI bar display)
-- [ ] 12-03: Stability Anchor & Extraction Logic (Anchor entities, interaction trigger, Extract/Descend actions, item transfer/loss, server validation)
-- [ ] 12-04: System Handshake UI & Depth Content (Anchor decision UI, inventory manifest, visual transition, depth-based enemy/loot/tile theming)
+- [ ] 12-01-PLAN.md — Multi-floor generation (floor components, depth config, loot tables, dungeon generator extension, floor manager system, staircase/anchor placement)
+- [ ] 12-02-PLAN.md — Stability system & Scrap currency (StabilityComponent, ScrapComponent, dual-drain system, death/extraction pipeline, UI state extensions)
+- [ ] 12-03-PLAN.md — Anchor interaction & extraction logic (screen effects, turn manager pause, anchor interaction system, run ender extension, staircase input)
+- [ ] 12-04-PLAN.md — System Handshake UI & HUD (CSS tokens, StabilityBar, FloorIndicator, AnchorOverlay, BSODScreen, RunResultsScreen, page integration)
 
 ### Phase 13: Currency, Economy & Blueprint System
 **Goal**: Three-tier currency system with Blueprint discovery, compilation, and weekly reset creates the between-run progression loop
@@ -232,4 +232,4 @@ Phases execute in numeric order: 7 → 8 → 9 → 10 → 11 → 12 → 13 → 1
 
 ---
 *Roadmap created: 2026-03-29*
-*Last updated: 2026-03-30*
+*Last updated: 2026-03-31*
