@@ -18,6 +18,15 @@ export class Grid {
   }
 
   /**
+   * Resets all tiles in the grid to their default state.
+   */
+  public clear(): void {
+    for (let i = 0; i < this.tiles.length; i++) {
+      this.tiles[i] = createDefaultTile();
+    }
+  }
+
+  /**
    * Converts x, y coordinates to a flat array index.
    */
   private toIndex(x: number, y: number): number {

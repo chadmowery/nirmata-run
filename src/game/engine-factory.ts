@@ -21,6 +21,9 @@ import { createAugmentSystem, AugmentSystem } from './systems/augment';
 import { createPackCoordinatorSystem, PackCoordinatorSystem } from './systems/pack-coordinator';
 import { createTileCorruptionSystem } from './systems/tile-corruption';
 import { createRunEnderSystem } from './systems/run-ender';
+import { createStabilitySystem, StabilitySystem } from './systems/stability';
+import { createFloorManagerSystem, FloorManagerSystem } from './systems/floor-manager';
+import { createAnchorInteractionSystem, AnchorInteractionSystem } from './systems/anchor-interaction';
 import { generateDungeon } from './generation/dungeon-generator';
 import { placeEntities } from './generation/entity-placement';
 import RNG from 'rot-js/lib/rng';
@@ -59,8 +62,11 @@ export interface EngineInstance {
     packCoordinator: PackCoordinatorSystem;
     tileCorruption: ReturnType<typeof createTileCorruptionSystem<GameEvents>>;
     runEnder: ReturnType<typeof createRunEnderSystem<GameEvents>>;
-    };
-    }
+    stability: StabilitySystem;
+    floorManager: FloorManagerSystem;
+    anchorInteraction: AnchorInteractionSystem;
+  };
+}
 
 /**
  * Creates and initializes a pure game engine instance.
@@ -88,6 +94,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
     width: config.width,
     height: config.height,
     seed: config.seed,
+    depth: 1
   });
 
   const grid = dungeonResult.grid;
@@ -108,6 +115,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   const packCoordinatorSystem = createPackCoordinatorSystem(world, grid, eventBus);
   const tileCorruptionSystem = createTileCorruptionSystem(world, grid, eventBus, entityFactory, componentRegistry);
   const runEnderSystem = createRunEnderSystem(world, grid, eventBus);
+  const stabilitySystem = createStabilitySystem(world, eventBus);
 
   combatSystem.init();
   deadZoneSystem.init();
@@ -119,6 +127,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   packCoordinatorSystem.init();
   tileCorruptionSystem.init();
   runEnderSystem.init();
+  stabilitySystem.init();
 
   // Register ticks to POST_TURN phase
   world.registerSystem(Phase.POST_TURN, () => {
@@ -133,14 +142,6 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   });
 
   // Entity Placement
-  function hashSeedForPlacement(seed: string): number {
-    let hash = 5381;
-    for (let i = 0; i < seed.length; i++) {
-      hash = ((hash << 5) + hash + seed.charCodeAt(i)) | 0;
-    }
-    return Math.abs(hash);
-  }
-
   RNG.setSeed(hashSeedForPlacement(config.seed));
   const rng = { random: () => RNG.getUniform() };
 
@@ -148,7 +149,10 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   const playerOverrides: Record<string, Record<string, unknown>> = {
     'augmentSlots': { equipped: [] },
     'augmentState': { activationsThisTurn: {}, cooldownsRemaining: {} },
-    'heat': { current: 0, maxSafe: 100, baseDissipation: 5, ventPercentage: 0.5 }
+    'heat': { current: 0, maxSafe: 100, baseDissipation: 5, ventPercentage: 0.5, isVenting: false },
+    'stability': { current: 100, max: 100 },
+    'scrap': { amount: 0 },
+    'floorState': { currentFloor: 1, maxFloor: 15, runSeed: config.seed }
   };
 
   if (config.shellRecord) {
@@ -172,8 +176,27 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
     dungeonResult.rooms,
     dungeonResult.playerSpawnRoom,
     rng,
-    { playerOverrides }
+    { playerOverrides, depth: 1 }
   );
+
+  const floorManagerSystem = createFloorManagerSystem(
+    world,
+    grid,
+    eventBus,
+    entityFactory,
+    componentRegistry,
+    placement.playerId
+  );
+  floorManagerSystem.init();
+
+  const anchorInteractionSystem = createAnchorInteractionSystem(
+    world,
+    grid,
+    eventBus,
+    turnManager,
+    placement.playerId
+  );
+  anchorInteractionSystem.init();
 
   // Turn Manager Handlers
   turnManager.setEnemyActionHandler((entityId) => {
@@ -184,8 +207,6 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   });
 
   turnManager.setPlayerActionHandler((action: string, entityId: number) => {
-    // This handler will be customized by the environment (client vs server)
-    // but we provide a default one that uses the systems we just created.
     statusEffectSystem.tickDown(entityId);
     augmentSystem.resetTurnState(entityId);
     packCoordinatorSystem.resetTurnState();
@@ -195,12 +216,10 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
         movementSystem.processMove(entityId, dx, dy);
       }
     } else if (action === GameAction.WAIT) {
-      // Wait action usually just consumes energy/time, which TurnManager already did
+      // Wait
     } else if (isFirmwareAction(action as GameAction)) {
       const slotIndex = getFirmwareSlotIndex(action as GameAction);
       if (slotIndex !== null) {
-        // Default handler assumes (0,0) as target if not specified;
-        // The real handler in setup.ts uses proper targeting data.
         firmwareSystem.activateAbility(entityId, slotIndex, 0, 0);
       }
     } else if (action === GameAction.VENT) {
@@ -231,6 +250,20 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
       packCoordinator: packCoordinatorSystem,
       tileCorruption: tileCorruptionSystem,
       runEnder: runEnderSystem,
+      stability: stabilitySystem,
+      floorManager: floorManagerSystem,
+      anchorInteraction: anchorInteractionSystem
     }
   };
+}
+
+/**
+ * Hashes a seed string into a numeric seed for placement RNG.
+ */
+export function hashSeedForPlacement(seed: string): number {
+  let hash = 5381;
+  for (let i = 0; i < seed.length; i++) {
+    hash = ((hash << 5) + hash + seed.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
 }

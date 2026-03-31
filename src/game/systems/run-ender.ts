@@ -5,6 +5,7 @@ import { EntityId } from '@engine/ecs/types';
 import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
 import { AIState, AIBehaviorType } from '@shared/components/ai-state';
+import { FloorState } from '@shared/components/floor-state';
 import { GameplayEvents } from '@shared/events/types';
 
 /**
@@ -38,10 +39,13 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     if (!player) return;
 
     if (isAdjacentOrSame(x, y, player.x, player.y)) {
+      const floorState = world.getComponent(player.id, FloorState);
       eventBus.emit('RUN_ENDED', { 
         reason: 'FATAL: ADMIN_CONTACT', 
-        entityId: player.id 
-      });
+        entityId: player.id,
+        floorNumber: floorState?.currentFloor ?? 1,
+        stats: {} 
+      } as unknown as T['RUN_ENDED']);
       eventBus.emit('MESSAGE_EMITTED', { 
         text: 'FATAL: System_Admin made contact. Run terminated.', 
         type: 'error' 
@@ -68,10 +72,13 @@ export function createRunEnderSystem<T extends GameplayEvents>(
         if (adminAI?.behaviorType === AIBehaviorType.SYSTEM_ADMIN) {
           const adminPos = world.getComponent(adminId, Position)!;
           if (isAdjacentOrSame(toX, toY, adminPos.x, adminPos.y)) {
+            const floorState = world.getComponent(entityId, FloorState);
             eventBus.emit('RUN_ENDED', { 
               reason: 'FATAL: ADMIN_CONTACT', 
-              entityId: entityId 
-            });
+              entityId: entityId,
+              floorNumber: floorState?.currentFloor ?? 1,
+              stats: {}
+            } as unknown as T['RUN_ENDED']);
             eventBus.emit('MESSAGE_EMITTED', { 
               text: 'FATAL: System_Admin made contact. Run terminated.', 
               type: 'error' 
@@ -83,12 +90,31 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     }
   }
 
+  const handleStabilityZero = (payload: T['STABILITY_ZERO']) => {
+    const actor = world.getComponent(payload.entityId, Actor);
+    if (actor?.isPlayer) {
+      const floorState = world.getComponent(payload.entityId, FloorState);
+      eventBus.emit('RUN_ENDED', {
+        reason: 'CRITICAL_INSTABILITY',
+        entityId: payload.entityId,
+        floorNumber: floorState?.currentFloor ?? 1,
+        stats: {}
+      } as unknown as T['RUN_ENDED']);
+      eventBus.emit('MESSAGE_EMITTED', {
+        text: 'FATAL: Reality anchor collapsed. Neural link lost.',
+        type: 'error'
+      });
+    }
+  };
+
   return {
     init() {
       eventBus.on('ENTITY_MOVED', handleEntityMoved);
+      eventBus.on('STABILITY_ZERO', handleStabilityZero);
     },
     dispose() {
       eventBus.off('ENTITY_MOVED', handleEntityMoved);
+      eventBus.off('STABILITY_ZERO', handleStabilityZero);
     }
   };
 }

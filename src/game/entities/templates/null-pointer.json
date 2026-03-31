@@ -12,7 +12,7 @@
     "statusEffects": { "effects": [] },
     "lootTable": {
       "drops": [
-        { "template": "health_potion", "chance": 0.25 },
+        { "template": "health-potion", "chance": 0.25 },
         { "template": "bleed-v0", "chance": 0.15 }
       ]
     }

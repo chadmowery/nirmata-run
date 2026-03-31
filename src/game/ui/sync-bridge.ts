@@ -5,6 +5,10 @@ import { Health } from '@shared/components/health';
 import { Progression } from '@shared/components/progression';
 import { Position, PositionData } from '@shared/components/position';
 import { SpriteComponent } from '@shared/components/sprite';
+import { Stability } from '@shared/components/stability';
+import { Scrap } from '@shared/components/scrap';
+import { FloorState } from '@shared/components/floor-state';
+import { getDepthBand } from '../generation/dungeon-generator';
 
 export function syncEngineToStore(context: GameContext) {
   const { eventBus, world } = context;
@@ -16,15 +20,32 @@ export function syncEngineToStore(context: GameContext) {
 
     const health = world.getComponent(context.playerId, Health);
     const progression = world.getComponent(context.playerId, Progression);
+    const stability = world.getComponent(context.playerId, Stability);
+    const scrap = world.getComponent(context.playerId, Scrap);
+    const floorState = world.getComponent(context.playerId, FloorState);
 
     console.log('[SYNC] Found health:', health, 'progression:', progression);
 
-    gameStore.getState().updatePlayerStats({
+    const store = gameStore.getState();
+    store.updatePlayerStats({
       hp: health?.current ?? 0,
       maxHp: health?.max ?? 0,
       xp: progression?.xp ?? 0,
       level: progression?.level ?? 1,
     });
+
+    if (stability) {
+      store.updateStability(stability.current, stability.max);
+    }
+
+    if (scrap) {
+      store.updateScrap(scrap.amount);
+    }
+
+    if (floorState) {
+      const band = getDepthBand(floorState.currentFloor);
+      store.updateFloor(floorState.currentFloor, band ? band.label : 'Unknown');
+    }
   };
 
   // Helper to update specific visible entity's health
@@ -52,7 +73,7 @@ export function syncEngineToStore(context: GameContext) {
   // The engine emits its own STATE_TRANSITION once it's actually ready.
 
   // 2. Register Listeners
-  
+
   // Health updates
   eventBus.on('DAMAGE_DEALT', (event) => {
     if (event.defenderId === context.playerId) {
@@ -129,9 +150,56 @@ export function syncEngineToStore(context: GameContext) {
     gameStore.getState().setVisibleEntities(visibleEntities);
   });
 
-  // Turn tracking
+  // TURN_END listener
   eventBus.on('TURN_END', (event) => {
     gameStore.getState().updateStats({ turns: event.turnNumber });
+    refreshPlayerStats(); // Refresh everything each turn
+  });
+
+  // Stability updates
+  eventBus.on('STABILITY_CHANGED', (event) => {
+    if (event.entityId === context.playerId) {
+      refreshPlayerStats();
+    }
+  });
+
+  // Floor updates
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  eventBus.on('FLOOR_TRANSITION', (event) => {
+    refreshPlayerStats();
+  });
+
+  // Anchor interaction - show overlay
+  eventBus.on('ANCHOR_INTERACTION', (event) => {
+    if (event.entityId === context.playerId) {
+      // For now, we'll just populate some placeholder data for the overlay.
+      // A more robust implementation would read all these values from context.
+      const stability = world.getComponent(context.playerId, Stability);
+      const scrap = world.getComponent(context.playerId, Scrap);
+
+      gameStore.getState().showAnchorOverlay({
+        floorNumber: event.floorNumber,
+        stabilityPercent: stability?.current ?? 0,
+        inventory: { firmware: [], augments: [], software: [], scrap: scrap?.amount ?? 0 },
+        descendCost: event.floorNumber * 10,
+        nextFloorEnemyTier: 'ELITE',
+        estimatedStabilityAfterDescent: (stability?.current ?? 0) + 50,
+        anchorId: event.anchorId
+      });
+    }
+  });
+
+  // Run End handler
+  eventBus.on('RUN_ENDED', (event) => {
+    gameStore.getState().showRunResults({
+      reason: event.reason,
+      floorsCleared: event.floorNumber,
+      enemiesKilled: gameStore.getState().stats.kills,
+      turnsElapsed: gameStore.getState().stats.turns,
+      peakHeat: 0, // TODO: track peak heat
+      itemsSecured: { firmware: 0, augments: 0, software: 0, scrap: 0 },
+      score: 0 // TODO: calculate score
+    });
   });
 
   // Entity Death
@@ -143,7 +211,7 @@ export function syncEngineToStore(context: GameContext) {
       const state = gameStore.getState();
       const currentKills = state.stats.kills;
       state.updateStats({ kills: currentKills + 1 });
-      
+
       // Remove dead entity from visible threats
       const updatedEntities = state.visibleEntities.filter(e => e.id !== event.entityId);
       state.setVisibleEntities(updatedEntities);

@@ -12,12 +12,18 @@ import { GameState } from '@/game/states/types';
 import { HUDOverlay } from '@/components/ui/HUDOverlay';
 import { MainMenu } from '@/components/ui/MainMenu';
 import { GameOver } from '@/components/ui/GameOver';
+import { AnchorOverlay } from '@/components/ui/AnchorOverlay';
+import { BSODScreen } from '@/components/ui/BSODScreen';
+import { RunResultsScreen } from '@/components/ui/RunResultsScreen';
 import { GameContext } from '@/game/types';
 
 export default function GamePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contextRef = useRef<GameContext | null>(null);
   const status = useStore(gameStore, (s) => s.gameStatus);
+  const anchorOverlayVisible = useStore(gameStore, (s) => s.anchorOverlayVisible);
+  const bsodVisible = useStore(gameStore, (s) => s.bsodVisible);
+  const runResultsVisible = useStore(gameStore, (s) => s.runResultsVisible);
   const isInitializing = useRef(false);
 
   useEffect(() => {
@@ -120,7 +126,14 @@ export default function GamePage() {
       <div id="ui-root">
         {status === GameState.MainMenu && <MainMenu />}
 
-        {status === GameState.Playing && <HUDOverlay />}
+        {status === GameState.Playing && (
+          <>
+            <HUDOverlay />
+            {anchorOverlayVisible && <AnchorOverlay />}
+            {bsodVisible && <BSODScreen />}
+            {runResultsVisible && <RunResultsScreen />}
+          </>
+        )}
 
         {status === GameState.GameOver && <GameOver />}
       </div>

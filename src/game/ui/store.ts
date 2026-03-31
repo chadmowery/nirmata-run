@@ -31,6 +31,27 @@ export interface RunStats {
   kills: number;
 }
 
+export interface AnchorOverlayData {
+  floorNumber: number;
+  stabilityPercent: number;
+  inventory: { firmware: string[]; augments: string[]; software: string[]; scrap: number };
+  descendCost: number;
+  nextFloorEnemyTier: string;
+  estimatedStabilityAfterDescent: number;
+  anchorId: number;
+}
+
+export interface RunResultsData {
+  reason: string;
+  floorsCleared: number;
+  enemiesKilled: number;
+  turnsElapsed: number;
+  peakHeat: number;
+  itemsSecured: { firmware: number; augments: number; software: number; scrap: number };
+  score: number;
+  deathReason?: string;
+}
+
 export interface UIState {
   player: PlayerStats;
   messages: MessageEntry[];
@@ -38,12 +59,38 @@ export interface UIState {
   visibleEntities: VisibleEntity[];
   stats: RunStats;
   
+  // Phase 12 stability & floor state
+  stability: number;       // 0-100
+  maxStability: number;    // 100
+  currentFloor: number;    // 1-15
+  depthBand: string;       // "CORRUPTED_DATA" | "STATIC_HORRORS" | "LOGIC_BREAKERS"
+  scrap: number;           // Current Scrap amount
+  
+  // Overlays
+  anchorOverlayVisible: boolean;
+  anchorData: AnchorOverlayData | null;
+  runResultsVisible: boolean;
+  runResults: RunResultsData | null;
+  bsodVisible: boolean;
+  bsodReason: string;
+
   // Actions
   updatePlayerStats: (stats: Partial<PlayerStats>) => void;
   addMessage: (text: string, type: MessageType) => void;
   setGameStatus: (status: GameStatus) => void;
   setVisibleEntities: (entities: VisibleEntity[]) => void;
   updateStats: (stats: Partial<RunStats>) => void;
+  
+  // Phase 12 actions
+  updateStability: (stability: number, max: number) => void;
+  updateFloor: (floor: number, band: string) => void;
+  updateScrap: (amount: number) => void;
+  showAnchorOverlay: (data: AnchorOverlayData) => void;
+  hideAnchorOverlay: () => void;
+  makeAnchorDecision: (decision: 'extract' | 'descend') => void;
+  showRunResults: (results: RunResultsData) => void;
+  showBSOD: (reason: string) => void;
+  hideBSOD: () => void;
 }
 
 const MAX_MESSAGES = 50;
@@ -63,6 +110,19 @@ export const gameStore = createStore<UIState>((set) => ({
     turns: 0,
     kills: 0,
   },
+
+  // Phase 12 defaults
+  stability: 100,
+  maxStability: 100,
+  currentFloor: 1,
+  depthBand: 'CORRUPTED_DATA',
+  scrap: 0,
+  anchorOverlayVisible: false,
+  anchorData: null,
+  runResultsVisible: false,
+  runResults: null,
+  bsodVisible: false,
+  bsodReason: '',
 
   updatePlayerStats: (stats) => 
     set((state) => ({
@@ -107,4 +167,22 @@ export const gameStore = createStore<UIState>((set) => ({
   setGameStatus: (status) => set({ gameStatus: status }),
 
   setVisibleEntities: (entities) => set({ visibleEntities: entities }),
+
+  // Phase 12 actions
+  updateStability: (stability, max) => set({ stability, maxStability: max }),
+  updateFloor: (floor, band) => set({ currentFloor: floor, depthBand: band }),
+  updateScrap: (amount) => set({ scrap: amount }),
+  showAnchorOverlay: (data) => set({ anchorOverlayVisible: true, anchorData: data }),
+  hideAnchorOverlay: () => set({ anchorOverlayVisible: false, anchorData: null }),
+  makeAnchorDecision: (decision: 'extract' | 'descend') => {
+    // In a real environment, we'd use a better bridge, but for now we use the global context
+    const context = (window as unknown as { gameContext: { eventBus: { emit: (event: string, payload: unknown) => void } } }).gameContext;
+    if (context) {
+      context.eventBus.emit('ANCHOR_DECISION_MADE', { decision });
+    }
+    set({ anchorOverlayVisible: false, anchorData: null });
+  },
+  showRunResults: (results) => set({ runResultsVisible: true, runResults: results }),
+  showBSOD: (reason) => set({ bsodVisible: true, bsodReason: reason }),
+  hideBSOD: () => set({ bsodVisible: false, bsodReason: '' }),
 }));

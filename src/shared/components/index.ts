@@ -29,6 +29,11 @@ import { RarityTier } from './rarity-tier';
 import { PackMember } from './pack-member';
 import { DeadZone } from './dead-zone';
 import { CorruptionState } from './corruption-state';
+import { Stability } from './stability';
+import { Scrap } from './scrap';
+import { FloorState } from './floor-state';
+import { StaircaseMarker } from './staircase-marker';
+import { AnchorMarker } from './anchor-marker';
 
 export const COMPONENTS_REGISTRY = [
   Position,
@@ -62,6 +67,11 @@ export const COMPONENTS_REGISTRY = [
   PackMember,
   DeadZone,
   CorruptionState,
+  Stability,
+  Scrap,
+  FloorState,
+  StaircaseMarker,
+  AnchorMarker,
 ] as const;
 
 export * from './position';
@@ -95,3 +105,8 @@ export * from './rarity-tier';
 export * from './pack-member';
 export * from './dead-zone';
 export * from './corruption-state';
+export * from './stability';
+export * from './scrap';
+export * from './floor-state';
+export * from './staircase-marker';
+export * from './anchor-marker';

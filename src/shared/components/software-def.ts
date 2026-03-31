@@ -13,7 +13,7 @@ export const SoftwareDef = defineComponent(
     baseMagnitude: z.number(), // base effect value before rarity scaling
     effectType: z.enum(['dot', 'action_economy', 'heal_on_kill']), // discriminator for effect resolution
     description: z.string(), // flavor text
-    purchaseCost: z.number().int().min(0).default(0), // Scrap cost, stubbed for Phase 13
+    purchaseCost: z.number().int().min(0).optional().default(0), // Scrap cost, stubbed for Phase 13
   }),
 );
 

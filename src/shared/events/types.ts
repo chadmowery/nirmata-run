@@ -42,6 +42,20 @@ export interface GameplayEvents extends EngineEvents {
   /** Queued when an entity's shell stats are updated. */
   SHELL_STATS_CHANGED: { entityId: EntityId; shellId: string };
 
+  /** Queued when an entity's Stability level changes. */
+  STABILITY_CHANGED: {
+    entityId: EntityId;
+    oldValue: number;
+    newValue: number;
+    reason: 'floor_entry' | 'turn_bleed' | 'anchor_refill';
+  };
+
+  /** Queued when an entity's Stability reaches zero. */
+  STABILITY_ZERO: { entityId: EntityId };
+
+  /** Queued when an entity takes damage from a degraded Stability state. */
+  DEGRADED_DAMAGE: { entityId: EntityId; damage: number };
+
   /** Queued when an entity's equipment slots change. */
   EQUIPMENT_CHANGED: { entityId: EntityId; slotType: string };
 
@@ -119,6 +133,21 @@ export interface GameplayEvents extends EngineEvents {
     damage: number;
   };
 
+  /** Queued after floor generation completes. */
+  FLOOR_TRANSITION: { floorNumber: number; depthBand: string };
+
+  /** Queued when player steps on staircase. */
+  STAIRCASE_INTERACTION: { entityId: EntityId; staircaseId: EntityId; targetFloor: number };
+
+  /** Queued when player steps on anchor. */
+  ANCHOR_INTERACTION: { entityId: EntityId; anchorId: EntityId; floorNumber: number };
+
+  /** Queued when player chooses to extract at an anchor. */
+  ANCHOR_EXTRACT: Record<string, never>;
+
+  /** Queued when player chooses to descend at an anchor. */
+  ANCHOR_DESCEND: { anchorId: EntityId; cost: number };
+
   /** Queued when an enemy teleports (e.g., Null-Pointer). */
   ENEMY_TELEPORTED: {
     entityId: EntityId;
@@ -131,7 +160,9 @@ export interface GameplayEvents extends EngineEvents {
   /** Queued when the run ends (e.g., via System_Admin). */
   RUN_ENDED: {
     reason: string;
-    entityId: EntityId;
+    floorNumber: number;
+    stats: Record<string, unknown>;
+    entityId?: EntityId;
   };
 
   /** Queued when a Dead Zone tile is created. */

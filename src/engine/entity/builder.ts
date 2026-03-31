@@ -61,7 +61,7 @@ export function resolveMixins(
   }
 
   // Merge template's own components
-  for (const [key, data] of Object.entries(template.components)) {
+  for (const [key, data] of Object.entries(template.components || {})) {
     resolvedComponents[key] = data;
   }
 

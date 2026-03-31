@@ -1,5 +1,5 @@
 {
-  "name": "auto_loader_v1",
+  "name": "auto-loader-v1",
   "components": {
     "softwareDef": {
       "name": "Auto-Loader.msi",

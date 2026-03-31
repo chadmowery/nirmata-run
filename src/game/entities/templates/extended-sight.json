@@ -1,5 +1,5 @@
 {
-  "name": "extended_sight",
+  "name": "extended-sight",
   "components": {
     "abilityDef": {
       "name": "Extended_Sight.sys",

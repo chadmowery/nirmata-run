@@ -141,7 +141,6 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   async function handleConfirmedTarget(slotIndex: number, targetX: number, targetY: number) {
     if (fsm.getCurrentState() === GameState.Playing && turnManager.canAcceptInput() && playerId) {
       inputManager.setRequestPending(true);
-      const baseWorldState = serializeWorld(world);
 
       // Submit action to engine
       // We encode targeting data into the action key for the TurnManager's playerActionHandler
@@ -203,7 +202,6 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
       }
 
       inputManager.setRequestPending(true);
-      const baseWorldState = serializeWorld(world);
       turnManager.submitAction(action);
       await sendActionToServer(getActionIntent(action));
       inputManager.setRequestPending(false);

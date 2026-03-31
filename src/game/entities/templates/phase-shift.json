@@ -1,5 +1,5 @@
 {
-  "name": "phase_shift",
+  "name": "phase-shift",
   "components": {
     "abilityDef": {
       "name": "Phase_Shift.sh",

@@ -1,5 +1,5 @@
 {
-  "name": "neural_spike",
+  "name": "neural-spike",
   "components": {
     "abilityDef": {
       "name": "Neural_Spike.exe",

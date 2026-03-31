@@ -7,6 +7,7 @@ import styles from './styles.module.css';
 import { Heart, Trophy, Zap } from 'lucide-react';
 import { dispatchUIAction } from '@/game/input/input-bridge';
 import { GameAction } from '@/game/input/actions';
+import { StabilityBar } from './StabilityBar';
 
 export const PlayerHUD: React.FC = () => {
   const player = useStore(gameStore, (s) => s.player);
@@ -52,6 +53,9 @@ export const PlayerHUD: React.FC = () => {
           style={{ width: `${xpPercent}%` }} 
         />
       </div>
+
+      {/* Stability Bar */}
+      <StabilityBar />
 
       {/* Action Controls */}
       <div className={styles.actionRow}>

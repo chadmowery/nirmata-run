@@ -1,5 +1,5 @@
 {
-  "name": "displacement_venting",
+  "name": "displacement-venting",
   "components": {
     "augmentData": {
       "name": "Displacement_Venting.arc",

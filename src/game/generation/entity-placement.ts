@@ -5,6 +5,9 @@ import { EntityId } from '../../engine/ecs/types';
 import { ComponentRegistry } from '../../engine/entity/types';
 import { Room } from '../../engine/generation/types';
 import depthDistribution from '../entities/templates/spawn-tables/depth-distribution.json';
+import lootDistribution from './loot-distribution.json';
+import depthConfig from './depth-config.json';
+import { getDepthBand } from './dungeon-generator';
 
 /**
  * Configuration for entity placement in generated dungeons.
@@ -39,11 +42,21 @@ interface DepthTable {
   templates: SpawnTableEntry[];
 }
 
+interface LootEntry {
+  template: string;
+  weight: number;
+}
+
+interface LootDepthBand {
+  depthRange: { min: number; max: number };
+  loot: LootEntry[];
+}
+
 const DEFAULT_PLACEMENT: PlacementConfig = {
   enemiesPerRoom: { min: 1, max: 3 },
   itemsPerRoom: { min: 0, max: 2 },
   enemyTemplates: ['goblin'],
-  itemTemplates: ['health_potion'],
+  itemTemplates: ['health-potion'],
   playerOverrides: {}
 };
 
@@ -64,7 +77,14 @@ function getTableForDepth(depth: number): DepthTable | undefined {
   );
 }
 
-function selectWeightedTemplate(templates: SpawnTableEntry[], rng: { random(): number }): SpawnTableEntry | undefined {
+function getLootForDepth(depth: number): LootEntry[] | undefined {
+  const band = (lootDistribution.depthBands as LootDepthBand[]).find(
+    (b) => depth >= b.depthRange.min && depth <= b.depthRange.max
+  );
+  return band?.loot;
+}
+
+function selectWeightedTemplate<T extends { weight: number }>(templates: T[], rng: { random(): number }): T | undefined {
   const totalWeight = templates.reduce((sum, t) => sum + t.weight, 0);
   let random = rng.random() * totalWeight;
   for (const template of templates) {
@@ -102,8 +122,12 @@ export function placeEntities<T extends EngineEvents>(
   const cfg: PlacementConfig = { ...DEFAULT_PLACEMENT, ...config };
   const enemyIds: EntityId[] = [];
   const itemIds: EntityId[] = [];
+  const depth = cfg.depth || 1;
 
-  const depthTable = cfg.depth !== undefined ? getTableForDepth(cfg.depth) : undefined;
+  const depthTable = getTableForDepth(depth);
+  const lootTable = getLootForDepth(depth);
+  const bandConfig = getDepthBand(depth);
+
   const enemiesPerRoom = depthTable ? depthTable.enemiesPerRoom : cfg.enemiesPerRoom;
   const spawnedCountPerTemplate: Record<string, number> = {};
 
@@ -116,71 +140,135 @@ export function placeEntities<T extends EngineEvents>(
   const playerId = factory.create(world, 'player', componentRegistry, playerOverrides);
   grid.addEntity(playerId, spawnRoom.centerX, spawnRoom.centerY);
 
+  // Find furthest room for staircase (D-03)
+  let furthestRoom = rooms[0];
+  let maxDist = -1;
+  for (const room of rooms) {
+    if (room === spawnRoom) continue;
+    const dx = room.centerX - spawnRoom.centerX;
+    const dy = room.centerY - spawnRoom.centerY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist > maxDist) {
+      maxDist = dist;
+      furthestRoom = room;
+    }
+  }
+
+  // Place staircase if not on last floor
+  if (depth < depthConfig.maxFloor) {
+    const staircaseId = factory.create(world, 'staircase', componentRegistry, {
+      position: { x: furthestRoom.centerX, y: furthestRoom.centerY },
+      staircaseMarker: { targetFloor: depth + 1 },
+      sprite: { key: 'staircase' }
+    });
+    grid.addEntity(staircaseId, furthestRoom.centerX, furthestRoom.centerY);
+  }
+
+  // Place Anchor on floors 5, 10, 15 (D-15)
+  let anchorRoom: Room | undefined;
+  if (depth % 5 === 0 && depth > 0) {
+    const candidateRooms = rooms.filter(r => r !== spawnRoom && r !== furthestRoom);
+    if (candidateRooms.length > 0) {
+      anchorRoom = candidateRooms[Math.floor(rng.random() * candidateRooms.length)];
+      const anchorId = factory.create(world, 'anchor', componentRegistry, {
+        position: { x: anchorRoom.centerX, y: anchorRoom.centerY },
+        anchorMarker: { used: false },
+        sprite: { key: 'anchor' }
+      });
+      grid.addEntity(anchorId, anchorRoom.centerX, anchorRoom.centerY);
+    }
+  }
+
   // Place enemies and items in non-spawn rooms
   for (const room of rooms) {
     if (room === spawnRoom) continue;
 
+    // Special Room handling (D-25)
+    let isTreasureRoom = false;
+    let isChallengeRoom = false;
+    if (room !== furthestRoom && room !== anchorRoom && bandConfig) {
+      const roll = rng.random();
+      if (roll < bandConfig.specialRoomProbability.treasure) {
+        isTreasureRoom = true;
+      } else if (roll < bandConfig.specialRoomProbability.treasure + bandConfig.specialRoomProbability.challenge) {
+        isChallengeRoom = true;
+      }
+      // Hazard room tagging TBD
+    }
+
     // Collect walkable positions in this room (excluding positions already occupied)
     const walkablePositions = getWalkablePositions(grid, room);
 
-    // Spawn enemies
-    const enemyCount = randomIntRange(rng, enemiesPerRoom.min, enemiesPerRoom.max);
-    for (let i = 0; i < enemyCount && walkablePositions.length > 0; i++) {
-      const entry = depthTable
-        ? selectWeightedTemplate(depthTable.templates, rng)
-        : { name: cfg.enemyTemplates[Math.floor(rng.random() * cfg.enemyTemplates.length)], weight: 1 };
-
-      if (!entry) continue;
-
-      // Check maxPerFloor constraint
-      if (entry.maxPerFloor !== undefined) {
-        const currentCount = spawnedCountPerTemplate[entry.name] || 0;
-        if (currentCount >= entry.maxPerFloor) continue;
+    // Spawn enemies (None in treasure rooms)
+    if (!isTreasureRoom) {
+      let enemyCount = randomIntRange(rng, enemiesPerRoom.min, enemiesPerRoom.max);
+      if (isChallengeRoom) {
+        enemyCount = Math.floor(enemyCount * 1.5) + 1;
       }
 
-      // Check minDistanceFromPlayer constraint
-      if (entry.minDistanceFromPlayer !== undefined) {
-        const dx = Math.abs(room.centerX - spawnRoom.centerX);
-        const dy = Math.abs(room.centerY - spawnRoom.centerY);
-        const dist = dx + dy; // Manhattan distance
-        if (dist < entry.minDistanceFromPlayer) continue;
-      }
+      for (let i = 0; i < enemyCount && walkablePositions.length > 0; i++) {
+        const entry = depthTable
+          ? selectWeightedTemplate(depthTable.templates, rng)
+          : { name: cfg.enemyTemplates[Math.floor(rng.random() * cfg.enemyTemplates.length)], weight: 1 };
 
-      if (entry.isPack) {
-        const packSize = randomIntRange(rng, entry.packSize?.min || 1, entry.packSize?.max || 1);
-        const packId = `pack-${room.x}-${room.y}`;
+        if (!entry) continue;
 
-        for (let p = 0; p < packSize && walkablePositions.length > 0; p++) {
+        // Check maxPerFloor constraint
+        if (entry.maxPerFloor !== undefined) {
+          const currentCount = spawnedCountPerTemplate[entry.name] || 0;
+          if (currentCount >= entry.maxPerFloor) continue;
+        }
+
+        // Check minDistanceFromPlayer constraint
+        if (entry.minDistanceFromPlayer !== undefined) {
+          const dx = Math.abs(room.centerX - spawnRoom.centerX);
+          const dy = Math.abs(room.centerY - spawnRoom.centerY);
+          const dist = dx + dy; // Manhattan distance
+          if (dist < entry.minDistanceFromPlayer) continue;
+        }
+
+        if (entry.isPack) {
+          const packSize = randomIntRange(rng, entry.packSize?.min || 1, entry.packSize?.max || 1);
+          const packId = `pack-${room.x}-${room.y}`;
+
+          for (let p = 0; p < packSize && walkablePositions.length > 0; p++) {
+            const posIdx = Math.floor(rng.random() * walkablePositions.length);
+            const pos = walkablePositions.splice(posIdx, 1)[0];
+
+            const enemyId = factory.create(world, entry.name, componentRegistry, {
+              position: { x: pos.x, y: pos.y },
+              packMember: { packId, isLeader: p === 0 },
+            });
+            grid.addEntity(enemyId, pos.x, pos.y);
+            enemyIds.push(enemyId);
+            spawnedCountPerTemplate[entry.name] = (spawnedCountPerTemplate[entry.name] || 0) + 1;
+          }
+        } else {
           const posIdx = Math.floor(rng.random() * walkablePositions.length);
           const pos = walkablePositions.splice(posIdx, 1)[0];
 
           const enemyId = factory.create(world, entry.name, componentRegistry, {
             position: { x: pos.x, y: pos.y },
-            packMember: { packId, isLeader: p === 0 },
           });
           grid.addEntity(enemyId, pos.x, pos.y);
           enemyIds.push(enemyId);
           spawnedCountPerTemplate[entry.name] = (spawnedCountPerTemplate[entry.name] || 0) + 1;
         }
-      } else {
-        const posIdx = Math.floor(rng.random() * walkablePositions.length);
-        const pos = walkablePositions.splice(posIdx, 1)[0];
-
-        const enemyId = factory.create(world, entry.name, componentRegistry, {
-          position: { x: pos.x, y: pos.y },
-        });
-        grid.addEntity(enemyId, pos.x, pos.y);
-        enemyIds.push(enemyId);
-        spawnedCountPerTemplate[entry.name] = (spawnedCountPerTemplate[entry.name] || 0) + 1;
       }
     }
 
     // Spawn items
-    const itemCount = randomIntRange(rng, cfg.itemsPerRoom.min, cfg.itemsPerRoom.max);
+    const itemCount = isTreasureRoom
+      ? randomIntRange(rng, 2, 3)
+      : randomIntRange(rng, cfg.itemsPerRoom.min, cfg.itemsPerRoom.max);
+
     for (let i = 0; i < itemCount && walkablePositions.length > 0; i++) {
       const posIdx = Math.floor(rng.random() * walkablePositions.length);
       const pos = walkablePositions.splice(posIdx, 1)[0];
-      const templateName = cfg.itemTemplates[Math.floor(rng.random() * cfg.itemTemplates.length)];
+
+      const templateName = (lootTable && rng.random() > 0.3) // 70% chance to use depth-gated loot if available
+        ? selectWeightedTemplate(lootTable, rng)?.template || cfg.itemTemplates[0]
+        : cfg.itemTemplates[Math.floor(rng.random() * cfg.itemTemplates.length)];
 
       const itemId = factory.create(world, templateName, componentRegistry, {
         position: { x: pos.x, y: pos.y },

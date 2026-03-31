@@ -10,7 +10,8 @@ import { Actor } from './components/actor';
 
 import {
   Position, Hostile, BlocksMovement, Attack, Health, Defense, Item, PickupEffect, EffectType,
-  FirmwareSlots, AugmentSlots, SoftwareSlots, SoftwareDef, BurnedSoftware, Heat
+  FirmwareSlots, AugmentSlots, SoftwareSlots, SoftwareDef, BurnedSoftware, Heat,
+  Stability, Scrap, FloorState, AnchorMarker
 } from './components';
 import { handleEquip, handleUnequip } from './systems/equipment';
 import { runInventoryRegistry } from '../game/systems/run-inventory';
@@ -181,6 +182,42 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
         targetY: action.targetY,
       });
       break;
+    case 'ANCHOR_DESCEND': {
+      const scrap = world.getComponent(entityId, Scrap);
+      if (!scrap || scrap.amount < action.cost) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `INSUFFICIENT_SCRAP: ${action.cost} REQUIRED`,
+          type: 'error'
+        });
+        return;
+      }
+      scrap.amount -= action.cost;
+      const stability = world.getComponent(entityId, Stability);
+      if (stability) {
+        const oldValue = stability.current;
+        stability.current = Math.min(stability.max, stability.current + stability.max * 0.5);
+        eventBus.emit('STABILITY_CHANGED', {
+          entityId,
+          oldValue,
+          newValue: stability.current,
+          reason: 'anchor_refill'
+        });
+      }
+      const anchorMarker = world.getComponent(action.anchorId, AnchorMarker);
+      if (anchorMarker) {
+        anchorMarker.used = true;
+      }
+      eventBus.emit('MESSAGE_EMITTED', {
+        text: `STABILIZE_AND_DESCEND: -${action.cost} Scrap, Stability refilled`,
+        type: 'info'
+      });
+      break;
+    }
+    case 'ANCHOR_EXTRACT':
+      if (sessionId) {
+        eventBus.emit('EXTRACTION_TRIGGERED', { sessionId });
+      }
+      break;
   }
 }
 
@@ -294,7 +331,7 @@ export function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, 
     }
   });
 
-  // Death Clearing Logic (Phase 7 - Plan 03, Phase 10 - Plan 01)
+  // ENTITY_DIED handler (Phase 7 - Plan 03, Phase 10 - Plan 01, Phase 12 - Plan 02)
   eventBus.on('ENTITY_DIED', (payload) => {
     const { entityId } = payload;
 
@@ -315,22 +352,59 @@ export function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, 
       burned.armor = null;
     }
 
-    // If player died, clear run inventory
+    // If player died, handle Scrap pity payout (Phase 12)
     const actor = world.getComponent(entityId, Actor);
-    if (actor?.isPlayer && sessionId) {
-      runInventoryRegistry.clear(sessionId);
-      eventBus.emit('MESSAGE_EMITTED', { text: 'Neural feedback destroyed all unsynced software.', type: 'error' });
+    const scrap = world.getComponent(entityId, Scrap);
+    if (actor?.isPlayer) {
+      if (scrap) {
+        const pityAmount = Math.floor(scrap.amount * 0.25);
+        scrap.amount = pityAmount;
+        eventBus.emit('MESSAGE_EMITTED', { text: `SCRAP_PITY_PAYOUT: ${pityAmount}`, type: 'info' });
+      }
+
+      // Clear run inventory
+      if (sessionId) {
+        runInventoryRegistry.clear(sessionId);
+        eventBus.emit('MESSAGE_EMITTED', { text: 'Neural feedback destroyed all unsynced software.', type: 'error' });
+      }
     }
 
     // Note: The ShellRecord in ShellRegistry persists outside ECS
   });
 
-  // Extraction handler (Phase 10)
+  // Extraction handler (Phase 10, Phase 12)
   eventBus.on('EXTRACTION_TRIGGERED', (payload) => {
     const { sessionId: sid } = payload;
     if (sid) {
+      const entities = world.query(Actor);
+      let playerId = -1;
+      for (const id of entities) {
+        const actor = world.getComponent(id, Actor);
+        if (actor?.isPlayer) {
+          playerId = id;
+          break;
+        }
+      }
+
+      let scrapAmount = 0;
+      if (playerId !== -1) {
+        const scrap = world.getComponent(playerId, Scrap);
+        if (scrap) scrapAmount = scrap.amount;
+      }
+
       runInventoryRegistry.transferToStash(sid);
-      eventBus.emit('MESSAGE_EMITTED', { text: 'Software successfully extracted to stash.', type: 'info' });
+      
+      eventBus.emit('MESSAGE_EMITTED', { 
+        text: `EXTRACTION_SUCCESSFUL: Scrap amount ${scrapAmount} secured.`, 
+        type: 'info' 
+      });
+
+      const floorState = playerId !== -1 ? world.getComponent(playerId, FloorState) : null;
+      eventBus.emit('RUN_ENDED', { 
+        reason: 'extraction', 
+        floorNumber: floorState?.currentFloor ?? 1,
+        stats: {} 
+      });
     }
   });
 }

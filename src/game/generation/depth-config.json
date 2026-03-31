@@ -1,0 +1,65 @@
+{
+  "depthBands": [
+    {
+      "range": { "min": 1, "max": 5 },
+      "label": "CORRUPTED_DATA",
+      "bspConfig": {
+        "minRoomSize": 7,
+        "maxRoomSize": 14,
+        "minRooms": 6,
+        "corridorWidth": 2
+      },
+      "palette": {
+        "floor": "0x003344",
+        "wall": "0x001122",
+        "tint": "0x00DDFF"
+      },
+      "specialRoomProbability": {
+        "treasure": 0.1,
+        "challenge": 0.05,
+        "hazard": 0.0
+      }
+    },
+    {
+      "range": { "min": 6, "max": 10 },
+      "label": "STATIC_HORRORS",
+      "bspConfig": {
+        "minRoomSize": 5,
+        "maxRoomSize": 10,
+        "minRooms": 8,
+        "corridorWidth": 1
+      },
+      "palette": {
+        "floor": "0x442200",
+        "wall": "0x221100",
+        "tint": "0xFFAA00"
+      },
+      "specialRoomProbability": {
+        "treasure": 0.15,
+        "challenge": 0.1,
+        "hazard": 0.1
+      }
+    },
+    {
+      "range": { "min": 11, "max": 15 },
+      "label": "LOGIC_BREAKERS",
+      "bspConfig": {
+        "minRoomSize": 10,
+        "maxRoomSize": 18,
+        "minRooms": 4,
+        "corridorWidth": 3
+      },
+      "palette": {
+        "floor": "0x440000",
+        "wall": "0x220000",
+        "tint": "0xFF0055"
+      },
+      "specialRoomProbability": {
+        "treasure": 0.2,
+        "challenge": 0.15,
+        "hazard": 0.2
+      }
+    }
+  ],
+  "maxFloor": 15
+}

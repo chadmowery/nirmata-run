@@ -72,6 +72,16 @@ export const MoveAndUseFirmwareActionSchema = z.object({
   targetY: z.number().int(),
 });
 
+export const AnchorDescendActionSchema = z.object({
+  type: z.literal('ANCHOR_DESCEND'),
+  anchorId: z.number(),
+  cost: z.number(),
+});
+
+export const AnchorExtractActionSchema = z.object({
+  type: z.literal('ANCHOR_EXTRACT'),
+});
+
 export const ActionIntentSchema = z.discriminatedUnion('type', [
   MoveActionSchema,
   AttackActionSchema,
@@ -85,6 +95,8 @@ export const ActionIntentSchema = z.discriminatedUnion('type', [
   VentActionSchema,
   BurnSoftwareActionSchema,
   MoveAndUseFirmwareActionSchema,
+  AnchorDescendActionSchema,
+  AnchorExtractActionSchema,
 ]);
 
 export type ActionIntent = z.infer<typeof ActionIntentSchema>;

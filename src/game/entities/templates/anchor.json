@@ -1,0 +1,7 @@
+{
+  "name": "anchor",
+  "mixins": ["physical"],
+  "overrides": {
+    "sprite": { "key": "anchor" }
+  }
+}

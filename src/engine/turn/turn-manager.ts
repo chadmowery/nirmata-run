@@ -18,6 +18,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
   private turnNumber: number = 0;
   private playerActionHandler: PlayerActionHandler | null = null;
   private enemyActionHandler: EnemyActionHandler | null = null;
+  private _paused = false;
 
   constructor(
     private world: World<TEvents>,
@@ -29,7 +30,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
    * Submit a player action. Only allowed during AWAIT_INPUT.
    */
   submitAction(action: string): void {
-    if (this.phase !== TurnPhase.AWAIT_INPUT) return;
+    if (this._paused || this.phase !== TurnPhase.AWAIT_INPUT) return;
 
     this.phase = TurnPhase.PLAYER_ACTION;
     const playerEntity = this.getPlayerEntity();
@@ -54,23 +55,29 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
    * Run the full turn cycle: pre-turn -> enemy turns -> post-turn -> energy tick.
    */
   private executeTurnCycle(): void {
+    if (this._paused) return;
+
     this.turnNumber++;
     this.eventBus.emit('TURN_START', { turnNumber: this.turnNumber });
 
     // 1. Pre-turn phase
     this.phase = TurnPhase.PRE_TURN;
     this.world.executeSystems(Phase.PRE_TURN);
+    if (this._paused) return;
 
     // 2. Enemy turns (for those already ready)
     this.phase = TurnPhase.ENEMY_TURNS;
     this.processEnemyTurns();
+    if (this._paused) return;
 
     // 3. Post-turn phase
     this.phase = TurnPhase.POST_TURN;
     this.world.executeSystems(Phase.POST_TURN);
+    if (this._paused) return;
 
     // 4. Advance energy until player is ready
     this.advanceUntilPlayerReady();
+    if (this._paused) return;
 
     this.phase = TurnPhase.AWAIT_INPUT;
     this.eventBus.emit('TURN_END', { turnNumber: this.turnNumber });
@@ -83,6 +90,8 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
    * Process actions for all enemies that have reached the energy threshold.
    */
   private processEnemyTurns(): void {
+    if (this._paused) return;
+
     const enemies = this.world.query(Actor, Energy)
       .filter(id => {
         const actor = this.world.getComponent(id, Actor);
@@ -115,6 +124,8 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     const MAX_SUB_TICKS = 1000;
 
     while (subTickCount < MAX_SUB_TICKS) {
+      if (this._paused) break;
+
       const playerEnergy = this.world.getComponent(playerEntity, Energy);
       if (playerEnergy && playerEnergy.current >= this.config.energyThreshold) {
         break;
@@ -201,8 +212,12 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
   }
   setEnemyActionHandler(handler: EnemyActionHandler): void { this.enemyActionHandler = handler; }
 
-  // Getters
+  // Getters & Controls
   getPhase(): TurnPhase { return this.phase; }
-  canAcceptInput(): boolean { return this.phase === TurnPhase.AWAIT_INPUT; }
+  canAcceptInput(): boolean { return !this._paused && this.phase === TurnPhase.AWAIT_INPUT; }
   getTurnNumber(): number { return this.turnNumber; }
+
+  pause(): void { this._paused = true; }
+  resume(): void { this._paused = false; }
+  get isPaused(): boolean { return this._paused; }
 }

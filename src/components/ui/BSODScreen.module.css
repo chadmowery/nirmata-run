@@ -1,0 +1,38 @@
+.bsod {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: var(--safety-orange, #FF9500);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-body, "Arial Narrow", sans-serif);
+}
+
+.title {
+  font-size: var(--font-size-display, 48px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--black, #000000);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 0;
+}
+
+.reason {
+  font-size: var(--font-size-heading, 24px);
+  color: var(--black, #000000);
+  margin-top: var(--space-lg, 24px);
+  opacity: 0.8;
+  text-transform: uppercase;
+  font-weight: var(--font-weight-regular, 400);
+}
+
+@keyframes bsodFade {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.fadeOut {
+  animation: bsodFade 300ms ease-in forwards;
+}

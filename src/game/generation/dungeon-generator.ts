@@ -2,13 +2,15 @@ import { Grid } from '../../engine/grid/grid';
 import { GeneratorConfig, Room } from '../../engine/generation/types';
 import { generateBSP } from '../../engine/generation/bsp';
 import { validateConnectivity } from '../../engine/generation/flood-fill';
+import depthConfig from './depth-config.json';
 
 /**
  * Configuration for game-layer dungeon generation.
- * Extends engine GeneratorConfig with no additional fields.
+ * Extends engine GeneratorConfig with optional depth field.
  */
 export interface DungeonConfig extends GeneratorConfig {
-  // Inherits width, height, seed, room params
+  /** Current floor depth for depth-specific parameters. */
+  depth?: number;
 }
 
 /**
@@ -28,6 +30,15 @@ export interface DungeonResult {
 const MAX_ATTEMPTS = 10;
 
 /**
+ * Get the depth band configuration for a given floor depth.
+ */
+export function getDepthBand(depth: number) {
+  return depthConfig.depthBands.find(
+    band => depth >= band.range.min && depth <= band.range.max
+  );
+}
+
+/**
  * Generate a dungeon: create a Grid, run BSP, carve terrain, validate connectivity.
  * Retries with modified seeds if connectivity check fails (max 10 attempts).
  *
@@ -36,9 +47,17 @@ const MAX_ATTEMPTS = 10;
  * @throws Error if a connected dungeon cannot be generated after max attempts
  */
 export function generateDungeon(config: DungeonConfig): DungeonResult {
+  const depthBand = config.depth !== undefined ? getDepthBand(config.depth) : undefined;
+  
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const attemptSeed = attempt === 0 ? config.seed : `${config.seed}_${attempt}`;
-    const attemptConfig = { ...config, seed: attemptSeed };
+    
+    // Merge BSP parameters from depth band if available
+    const attemptConfig = { 
+      ...config, 
+      seed: attemptSeed,
+      ...(depthBand ? depthBand.bspConfig : {})
+    };
 
     // Run BSP algorithm
     const { rooms, corridors, doors } = generateBSP(attemptConfig);

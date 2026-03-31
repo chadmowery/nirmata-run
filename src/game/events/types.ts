@@ -30,4 +30,13 @@ export interface GameEvents extends GameplayEvents {
 
   /** Queued when the player confirms a target in targeting mode. */
   TARGETING_CONFIRMED: { targetX: number; targetY: number };
+
+  /** Queued when a world-space filter should be applied (e.g., Anchor desaturation). */
+  APPLY_WORLD_FILTER: { filterType: 'grayscale' | 'desaturation'; amount?: number };
+
+  /** Queued when a world-space filter should be removed. */
+  REMOVE_WORLD_FILTER: { filterType: 'grayscale' | 'desaturation' };
+
+  /** Queued when the player makes a decision at an anchor (Extract or Descend). */
+  ANCHOR_DECISION_MADE: { decision: 'extract' | 'descend' };
 }

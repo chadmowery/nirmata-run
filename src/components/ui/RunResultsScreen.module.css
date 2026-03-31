@@ -1,0 +1,133 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  background: var(--overlay-bg, rgba(0, 0, 0, 0.9));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-body, "Arial Narrow", sans-serif);
+  pointer-events: auto;
+}
+
+.container {
+  max-width: 500px;
+  width: 90%;
+  padding: var(--space-2xl, 48px);
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.headingExtract {
+  color: var(--vibrant-cyan, #00F0FF);
+  font-size: var(--font-size-heading, 24px);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-lg, 24px);
+}
+
+.headingDeath {
+  color: var(--vibrant-pink, #FF0055);
+  font-size: var(--font-size-heading, 24px);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-lg, 24px);
+}
+
+.deathReason {
+  color: var(--vibrant-pink, #FF0055);
+  font-size: var(--font-size-label, 12px);
+  margin-top: calc(-1 * var(--space-lg, 24px));
+  margin-bottom: var(--space-lg, 24px);
+  opacity: 0.8;
+  letter-spacing: 0.05em;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md, 16px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: var(--space-md, 16px);
+  margin: var(--space-lg, 24px) 0;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.statLabel {
+  font-size: var(--font-size-label, 12px);
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  margin-bottom: var(--space-xs, 4px);
+}
+
+.statValue {
+  font-size: var(--font-size-body, 14px);
+  color: var(--white, #FFFFFF);
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+.sectionHeading {
+  font-size: var(--font-size-label, 12px);
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-sm, 8px);
+}
+
+.manifestGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm, 8px);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.8);
+  text-transform: uppercase;
+}
+
+.manifestItem {
+  padding: var(--space-xs, 4px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.score {
+  font-size: var(--font-size-heading, 24px);
+  color: var(--white, #FFFFFF);
+  margin: var(--space-xl, 32px) 0;
+  letter-spacing: 0.1em;
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+.reinitButton {
+  padding: var(--space-md, 16px) var(--space-xl, 32px);
+  background: transparent;
+  border: 1px solid var(--vibrant-cyan, #00F0FF);
+  color: var(--vibrant-cyan, #00F0FF);
+  cursor: pointer;
+  text-transform: uppercase;
+  font-family: var(--font-body, inherit);
+  font-size: var(--font-size-body, 14px);
+  transition: all 200ms ease-out;
+  letter-spacing: 0.1em;
+}
+
+.reinitButton:hover {
+  background: var(--vibrant-cyan, #00F0FF);
+  color: var(--black, #000000);
+  box-shadow: 0 0 15px var(--vibrant-cyan, #00F0FF);
+}
+
+.reinitButtonDeath {
+  border-color: var(--vibrant-pink, #FF0055);
+  color: var(--vibrant-pink, #FF0055);
+}
+
+.reinitButtonDeath:hover {
+  background: var(--vibrant-pink, #FF0055);
+  color: var(--white, #FFFFFF);
+  box-shadow: 0 0 15px var(--vibrant-pink, #FF0055);
+}

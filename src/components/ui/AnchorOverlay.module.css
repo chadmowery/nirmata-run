@@ -1,0 +1,178 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--overlay-bg, rgba(0, 0, 0, 0.9));
+  animation: fadeIn 200ms ease-out;
+  pointer-events: auto;
+}
+
+.modal {
+  max-width: 600px;
+  width: 90%;
+  padding: var(--space-2xl, 48px);
+  font-family: var(--font-body, "Arial Narrow", sans-serif);
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+}
+
+.title {
+  font-size: var(--font-size-display, 48px);
+  font-weight: var(--font-weight-semibold, 600);
+  line-height: var(--line-height-display, 1.0);
+  color: var(--white, #FFFFFF);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 0;
+}
+
+.subtitle {
+  font-size: var(--font-size-heading, 24px);
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: var(--space-sm, 8px);
+  margin-bottom: var(--space-lg, 24px);
+  font-weight: var(--font-weight-regular, 400);
+}
+
+.statusBar {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-md, 16px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  margin: var(--space-lg, 24px) 0;
+  color: var(--white, #FFFFFF);
+  font-size: var(--font-size-body, 14px);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sectionHeading {
+  font-size: var(--font-size-label, 12px);
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-sm, 8px);
+}
+
+.inventorySection {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: var(--space-md, 16px);
+  margin-bottom: var(--space-lg, 24px);
+}
+
+.emptyState {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: var(--font-size-body, 14px);
+  text-align: center;
+  padding: var(--space-lg, 24px) 0;
+}
+
+.manifest details {
+  margin-bottom: var(--space-sm, 8px);
+}
+
+.categoryHeader {
+  cursor: pointer;
+  padding: var(--space-xs, 4px) 0;
+  color: var(--vibrant-cyan, #00F0FF);
+  font-size: var(--font-size-body, 14px);
+  text-transform: uppercase;
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+.itemRow {
+  padding: var(--space-xs, 4px) 0 var(--space-xs, 4px) var(--space-md, 16px);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: var(--font-size-body, 14px);
+}
+
+.buttonRow {
+  display: flex;
+  gap: var(--space-xl, 32px);
+  margin-top: var(--space-lg, 24px);
+}
+
+.extractButton, .descendButton {
+  flex: 1;
+  padding: var(--space-md, 16px);
+  font-family: var(--font-body, inherit);
+  font-size: var(--font-size-body, 14px);
+  font-weight: var(--font-weight-semibold, 600);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: none;
+  cursor: pointer;
+  transition: all 200ms ease-out;
+}
+
+.extractButton {
+  background: var(--vibrant-cyan, #00F0FF);
+  color: var(--black, #000000);
+}
+
+.extractButton:hover {
+  box-shadow: 0 0 20px var(--vibrant-cyan, #00F0FF);
+  transform: translateY(-2px);
+}
+
+.descendButton {
+  background: var(--vibrant-pink, #FF0055);
+  color: var(--white, #FFFFFF);
+}
+
+.descendButton:hover:not(:disabled) {
+  box-shadow: 0 0 20px var(--vibrant-pink, #FF0055);
+  transform: translateY(-2px);
+}
+
+.descendButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.descendContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.riskInfo {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: var(--space-xs, 4px);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.errorText {
+  font-size: 10px;
+  color: var(--vibrant-pink, #FF0055);
+  margin-top: var(--space-xs, 4px);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.extractButton:focus-visible, .descendButton:focus-visible {
+  outline: 2px solid var(--white, #FFFFFF);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay {
+    animation: none;
+  }
+  .extractButton:hover, .descendButton:hover {
+    transform: none;
+  }
+}

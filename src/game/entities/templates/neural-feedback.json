@@ -1,5 +1,5 @@
 {
-  "name": "neural_feedback",
+  "name": "neural-feedback",
   "components": {
     "augmentData": {
       "name": "Neural_Feedback.arc",

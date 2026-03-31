@@ -1,5 +1,5 @@
 {
-  "name": "static_siphon",
+  "name": "static-siphon",
   "components": {
     "augmentData": {
       "name": "Static_Siphon.arc",

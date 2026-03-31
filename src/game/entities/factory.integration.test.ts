@@ -82,7 +82,7 @@ describe('EntityFactory', () => {
     });
 
     it('creates a health potion without health component', () => {
-      const id = factory.create(world, 'health_potion', componentRegistry);
+      const id = factory.create(world, 'health-potion', componentRegistry);
       expect(world.hasComponent(id, Position)).toBe(true);
       expect(world.hasComponent(id, Health)).toBe(false);
     });

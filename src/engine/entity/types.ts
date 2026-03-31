@@ -12,7 +12,7 @@ export interface RawTemplate {
   /**
    * Component data map: { componentKey: data }.
    */
-  components: Record<string, unknown>;
+  components?: Record<string, unknown>;
 
   /**
    * Optional mixin names to inherit components from.

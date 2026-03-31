@@ -10,6 +10,43 @@
   --info-color: #ffffff;
   --xp-color: #00ffff;
   --hp-color: #ff0044;
+
+  /* Phase 12: Vibrant Decay palette */
+  --vibrant-cyan: #00F0FF;
+  --vibrant-pink: #FF0055;
+  --safety-orange: #FF9500;
+  --white: #FFFFFF;
+  --black: #000000;
+
+  /* Semantic tokens */
+  --color-extract: var(--vibrant-cyan);
+  --color-descend: var(--vibrant-pink);
+  --color-danger: var(--vibrant-pink);
+  --color-success: var(--vibrant-cyan);
+  --color-bsod: var(--safety-orange);
+
+  /* Overlay background */
+  --overlay-bg: rgba(0, 0, 0, 0.90);
+
+  /* Typography */
+  --font-body: "Arial Narrow", "Helvetica Condensed", sans-serif;
+  --font-size-display: 48px;
+  --font-size-heading: 24px;
+  --font-size-body: 14px;
+  --font-size-label: 12px;
+  --font-weight-regular: 400;
+  --font-weight-semibold: 600;
+  --line-height-display: 1.0;
+  --line-height-heading: 1.2;
+  --line-height-body: 1.5;
+
+  /* Spacing tokens */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
 }
 
 html, body {

@@ -1,5 +1,5 @@
 {
-  "name": "health_potion",
+  "name": "health-potion",
   "mixins": ["physical"],
   "components": {
     "item": { "name": "Health Potion", "description": "Restores 5 HP" },

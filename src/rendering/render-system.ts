@@ -17,6 +17,12 @@ import { tickAnimations, queueMoveTween, queueAttackAnimationWithDefender, queue
 import { applyPersistentGlitch, applyDamageDistortion } from './filters/glitch-effects';
 import { queueTypedDeathAnimation } from './filters/death-effects';
 import { AIState } from '@shared/components/ai-state';
+import { 
+  applyGrayscaleToContainer, 
+  removeFiltersFromContainer, 
+  applyStabilityDesaturation, 
+  disposeScreenEffects 
+} from './filters/screen-effects';
 
 export interface RenderSystemConfig {
   app: Application;
@@ -81,6 +87,22 @@ export function createRenderSystem(config: RenderSystemConfig) {
     }
   };
 
+  const handleApplyWorldFilter = (payload: { filterType: string }) => {
+    if (payload.filterType === 'grayscale') {
+      applyGrayscaleToContainer(layers.worldContainer);
+    }
+  };
+
+  const handleRemoveWorldFilter = (payload: { filterType: string }) => {
+    if (payload.filterType === 'grayscale') {
+      removeFiltersFromContainer(layers.worldContainer);
+    }
+  };
+
+  const handleStabilityChanged = (payload: { newValue: number }) => {
+    applyStabilityDesaturation(layers.worldContainer, payload.newValue);
+  };
+
   const updateCameraFrame = (ticker: Ticker) => {
     const deltaMs = ticker.deltaMS;
     const newPos = lerpCamera(layers.worldContainer.x, layers.worldContainer.y, cameraTarget.x, cameraTarget.y, deltaMs);
@@ -98,6 +120,9 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.on('ENTITY_MOVED', handleEntityMoved);
       eventBus.on('BUMP_ATTACK', handleBumpAttack);
       eventBus.on('DAMAGE_DEALT', handleDamageDealt);
+      eventBus.on('APPLY_WORLD_FILTER', handleApplyWorldFilter);
+      eventBus.on('REMOVE_WORLD_FILTER', handleRemoveWorldFilter);
+      eventBus.on('STABILITY_CHANGED', handleStabilityChanged);
       eventBus.on('DUNGEON_GENERATED', () => this.onDungeonGenerated());
       
       app.ticker.add(updateCameraFrame);
@@ -204,10 +229,14 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.off('ENTITY_MOVED', handleEntityMoved);
       eventBus.off('BUMP_ATTACK', handleBumpAttack);
       eventBus.off('DAMAGE_DEALT', handleDamageDealt);
+      eventBus.off('APPLY_WORLD_FILTER', handleApplyWorldFilter);
+      eventBus.off('REMOVE_WORLD_FILTER', handleRemoveWorldFilter);
+      eventBus.off('STABILITY_CHANGED', handleStabilityChanged);
       
       app.ticker.remove(updateCameraFrame);
       clearAllSprites();
       clearAnimations();
+      disposeScreenEffects();
     }
   };
 }

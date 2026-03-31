@@ -1,0 +1,37 @@
+{
+  "depthBands": [
+    {
+      "depthRange": { "min": 1, "max": 4 },
+      "loot": [
+        { "template": "bleed-v0", "weight": 30 },
+        { "template": "auto-loader-v0", "weight": 30 },
+        { "template": "vampire-v0", "weight": 30 }
+      ]
+    },
+    {
+      "depthRange": { "min": 5, "max": 9 },
+      "loot": [
+        { "template": "bleed-v1", "weight": 20 },
+        { "template": "auto-loader-v1", "weight": 20 },
+        { "template": "vampire-v1", "weight": 20 },
+        { "template": "bleed-v2", "weight": 10 },
+        { "template": "auto-loader-v2", "weight": 10 },
+        { "template": "vampire-v2", "weight": 10 },
+        { "template": "firmware-drop", "weight": 10, "note": "Firmware drops start at floor 5 per FLOOR-05" }
+      ]
+    },
+    {
+      "depthRange": { "min": 10, "max": 15 },
+      "loot": [
+        { "template": "bleed-v2", "weight": 15 },
+        { "template": "auto-loader-v2", "weight": 15 },
+        { "template": "vampire-v2", "weight": 15 },
+        { "template": "bleed-v3", "weight": 10 },
+        { "template": "auto-loader-v3", "weight": 10 },
+        { "template": "vampire-v3", "weight": 10 },
+        { "template": "firmware-drop", "weight": 15 },
+        { "template": "augment-drop", "weight": 10, "note": "Rare Augments start at floor 10 per FLOOR-05" }
+      ]
+    }
+  ]
+}

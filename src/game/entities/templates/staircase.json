@@ -1,0 +1,7 @@
+{
+  "name": "staircase",
+  "mixins": ["physical"],
+  "overrides": {
+    "sprite": { "key": "staircase" }
+  }
+}
