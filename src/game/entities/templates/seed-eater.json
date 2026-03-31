@@ -1,0 +1,27 @@
+{
+  "name": "seed-eater",
+  "mixins": ["physical", "combatant"],
+  "components": {
+    "actor": { "isPlayer": false },
+    "energy": { "current": 0, "speed": 70, "threshold": 1000 },
+    "sprite": { "key": "enemy_seed_eater" },
+    "hostile": {},
+    "aiState": { "behavior": "idle", "sightRadius": 6, "behaviorType": "seed_eater" },
+    "fovAwareness": { "canSeePlayer": false },
+    "blocksMovement": {},
+    "corruptionState": { "corruptionWave": 1, "corruptedTileKeys": [], "tilesPerTurn": 2, "spawnFrequency": 3, "turnsSinceLastSpawn": 0 },
+    "statusEffects": { "effects": [] },
+    "lootTable": {
+      "drops": [
+        { "template": "bleed-v2", "chance": 0.4 },
+        { "template": "vampire-v2", "chance": 0.3 },
+        { "template": "auto-loader-v2", "chance": 0.3 }
+      ]
+    }
+  },
+  "overrides": {
+    "health": { "current": 40, "max": 40 },
+    "attack": { "power": 7 },
+    "defense": { "armor": 3 }
+  }
+}

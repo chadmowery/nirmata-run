@@ -42,7 +42,7 @@ describe('AISystem', () => {
       processMove: vi.fn(),
     };
 
-    aiSystem = createAISystem(world, grid, movementSystem);
+    aiSystem = createAISystem(world, grid, eventBus, movementSystem);
   });
 
   const setupEntities = (playerPos: { x: number, y: number }, enemyPos: { x: number, y: number }) => {

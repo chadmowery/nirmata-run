@@ -26,6 +26,9 @@ import { AugmentState } from './augment-state';
 import { SoftwareDef } from './software-def';
 import { BurnedSoftware } from './burned-software';
 import { RarityTier } from './rarity-tier';
+import { PackMember } from './pack-member';
+import { DeadZone } from './dead-zone';
+import { CorruptionState } from './corruption-state';
 
 export const COMPONENTS_REGISTRY = [
   Position,
@@ -56,6 +59,9 @@ export const COMPONENTS_REGISTRY = [
   SoftwareDef,
   BurnedSoftware,
   RarityTier,
+  PackMember,
+  DeadZone,
+  CorruptionState,
 ] as const;
 
 export * from './position';
@@ -86,3 +92,6 @@ export * from './augment-state';
 export * from './software-def';
 export * from './burned-software';
 export * from './rarity-tier';
+export * from './pack-member';
+export * from './dead-zone';
+export * from './corruption-state';

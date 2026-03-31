@@ -1,0 +1,25 @@
+{
+  "name": "null-pointer",
+  "mixins": ["physical", "combatant"],
+  "components": {
+    "actor": { "isPlayer": false },
+    "energy": { "current": 0, "speed": 120, "threshold": 1000 },
+    "sprite": { "key": "enemy_null_pointer" },
+    "hostile": {},
+    "aiState": { "behavior": "idle", "sightRadius": 8, "behaviorType": "null_pointer" },
+    "fovAwareness": { "canSeePlayer": false },
+    "blocksMovement": {},
+    "statusEffects": { "effects": [] },
+    "lootTable": {
+      "drops": [
+        { "template": "health_potion", "chance": 0.25 },
+        { "template": "bleed-v0", "chance": 0.15 }
+      ]
+    }
+  },
+  "overrides": {
+    "health": { "current": 6, "max": 6 },
+    "attack": { "power": 4 },
+    "defense": { "armor": 0 }
+  }
+}

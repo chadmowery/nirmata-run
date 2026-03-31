@@ -1,0 +1,26 @@
+{
+  "name": "buffer-overflow",
+  "mixins": ["physical", "combatant"],
+  "components": {
+    "actor": { "isPlayer": false },
+    "energy": { "current": 0, "speed": 80, "threshold": 1000 },
+    "sprite": { "key": "enemy_buffer_overflow" },
+    "hostile": {},
+    "aiState": { "behavior": "idle", "sightRadius": 6, "behaviorType": "buffer_overflow" },
+    "fovAwareness": { "canSeePlayer": false },
+    "blocksMovement": {},
+    "packMember": { "packId": "", "isLeader": false },
+    "statusEffects": { "effects": [] },
+    "lootTable": {
+      "drops": [
+        { "template": "health_potion", "chance": 0.1 },
+        { "template": "auto-loader-v0", "chance": 0.08 }
+      ]
+    }
+  },
+  "overrides": {
+    "health": { "current": 3, "max": 3 },
+    "attack": { "power": 2 },
+    "defense": { "armor": 0 }
+  }
+}

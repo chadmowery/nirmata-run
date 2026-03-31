@@ -14,6 +14,9 @@ import { computeCameraTarget, lerpCamera, getVisibleTileRange } from './camera';
 import { buildTilemap, clearTilemap } from './tilemap';
 import { createEntitySprite, destroyEntitySprite, getEntitySprite, clearAllSprites } from './sprite-map';
 import { tickAnimations, queueMoveTween, queueAttackAnimationWithDefender, queueDeathAnimation, clearAnimations, hasActiveAnimation } from './animations';
+import { applyPersistentGlitch, applyDamageDistortion } from './filters/glitch-effects';
+import { queueTypedDeathAnimation } from './filters/death-effects';
+import { AIState } from '@shared/components/ai-state';
 
 export interface RenderSystemConfig {
   app: Application;
@@ -33,16 +36,36 @@ export function createRenderSystem(config: RenderSystemConfig) {
   const handleEntityCreated = (payload: { entityId: EntityId }) => {
     const spriteComp = world.getComponent(payload.entityId, SpriteComponent);
     if (spriteComp) {
-      createEntitySprite(payload.entityId, spriteComp.key, layers.entityLayer);
+      const sprite = createEntitySprite(payload.entityId, spriteComp.key, layers.entityLayer);
+      
+      // Apply persistent glitch for enemies
+      const aiState = world.getComponent(payload.entityId, AIState);
+      if (aiState) {
+        applyPersistentGlitch(sprite, aiState.behaviorType);
+      }
     }
   };
 
   const handleEntityDestroyed = (payload: { entityId: EntityId }) => {
-    // Check if it has a sprite before queuing death animation
-    if (getEntitySprite(payload.entityId)) {
-      queueDeathAnimation(payload.entityId, () => {
-        destroyEntitySprite(payload.entityId);
-      });
+    const sprite = getEntitySprite(payload.entityId);
+    if (sprite) {
+      const aiState = world.getComponent(payload.entityId, AIState);
+      if (aiState) {
+        queueTypedDeathAnimation(payload.entityId, aiState.behaviorType, sprite, () => {
+          destroyEntitySprite(payload.entityId);
+        });
+      } else {
+        queueDeathAnimation(payload.entityId, () => {
+          destroyEntitySprite(payload.entityId);
+        });
+      }
+    }
+  };
+
+  const handleDamageDealt = (payload: { defenderId: EntityId }) => {
+    const sprite = getEntitySprite(payload.defenderId);
+    if (sprite) {
+      applyDamageDistortion(sprite);
     }
   };
 
@@ -74,6 +97,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.on('ENTITY_DESTROYED', handleEntityDestroyed);
       eventBus.on('ENTITY_MOVED', handleEntityMoved);
       eventBus.on('BUMP_ATTACK', handleBumpAttack);
+      eventBus.on('DAMAGE_DEALT', handleDamageDealt);
       eventBus.on('DUNGEON_GENERATED', () => this.onDungeonGenerated());
       
       app.ticker.add(updateCameraFrame);
@@ -179,6 +203,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.off('ENTITY_DESTROYED', handleEntityDestroyed);
       eventBus.off('ENTITY_MOVED', handleEntityMoved);
       eventBus.off('BUMP_ATTACK', handleBumpAttack);
+      eventBus.off('DAMAGE_DEALT', handleDamageDealt);
       
       app.ticker.remove(updateCameraFrame);
       clearAllSprites();

@@ -1,0 +1,26 @@
+{
+  "name": "fragmenter",
+  "mixins": ["physical", "combatant"],
+  "components": {
+    "actor": { "isPlayer": false },
+    "energy": { "current": 0, "speed": 60, "threshold": 1000 },
+    "sprite": { "key": "enemy_fragmenter" },
+    "hostile": {},
+    "aiState": { "behavior": "idle", "sightRadius": 5, "behaviorType": "fragmenter" },
+    "fovAwareness": { "canSeePlayer": false },
+    "blocksMovement": {},
+    "statusEffects": { "effects": [] },
+    "lootTable": {
+      "drops": [
+        { "template": "bleed-v1", "chance": 0.2 },
+        { "template": "vampire-v1", "chance": 0.15 },
+        { "template": "auto-loader-v1", "chance": 0.15 }
+      ]
+    }
+  },
+  "overrides": {
+    "health": { "current": 18, "max": 18 },
+    "attack": { "power": 6 },
+    "defense": { "armor": 2 }
+  }
+}

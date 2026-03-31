@@ -1,0 +1,25 @@
+{
+  "name": "logic-leaker",
+  "mixins": ["physical", "combatant"],
+  "components": {
+    "actor": { "isPlayer": false },
+    "energy": { "current": 0, "speed": 90, "threshold": 1000 },
+    "sprite": { "key": "enemy_logic_leaker" },
+    "hostile": {},
+    "aiState": { "behavior": "idle", "sightRadius": 7, "behaviorType": "logic_leaker" },
+    "fovAwareness": { "canSeePlayer": false },
+    "blocksMovement": {},
+    "statusEffects": { "effects": [] },
+    "lootTable": {
+      "drops": [
+        { "template": "auto-loader-v1", "chance": 0.2 },
+        { "template": "vampire-v1", "chance": 0.1 }
+      ]
+    }
+  },
+  "overrides": {
+    "health": { "current": 12, "max": 12 },
+    "attack": { "power": 5 },
+    "defense": { "armor": 1 }
+  }
+}

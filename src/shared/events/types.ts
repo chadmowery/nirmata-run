@@ -109,4 +109,49 @@ export interface GameplayEvents extends EngineEvents {
   EXTRACTION_TRIGGERED: {
     sessionId: string;
   };
+
+  /** Queued when a Buffer-Overflow pack member detonates. */
+  PACK_DETONATION: {
+    entityId: EntityId;
+    x: number;
+    y: number;
+    packId: string;
+    damage: number;
+  };
+
+  /** Queued when an enemy teleports (e.g., Null-Pointer). */
+  ENEMY_TELEPORTED: {
+    entityId: EntityId;
+    fromX: number;
+    fromY: number;
+    toX: number;
+    toY: number;
+  };
+
+  /** Queued when the run ends (e.g., via System_Admin). */
+  RUN_ENDED: {
+    reason: string;
+    entityId: EntityId;
+  };
+
+  /** Queued when a Dead Zone tile is created. */
+  DEAD_ZONE_CREATED: { x: number; y: number; duration: number; creatorId: EntityId };
+  
+  /** Queued when a Dead Zone tile expires. */
+  DEAD_ZONE_EXPIRED: { x: number; y: number };
+  
+  /** Queued when an entity performs a ranged attack. */
+  RANGED_ATTACK: { attackerId: EntityId; defenderId: EntityId; damage: number; projectileType: string };
+
+  /** Queued when a tile is corrupted. */
+  TILE_CORRUPTED: { x: number; y: number; newType: 'wall' | 'floor'; corruptorId: EntityId };
+
+  /** Queued when an entity is displaced due to corruption. */
+  ENTITY_DISPLACED: { entityId: EntityId; fromX: number; fromY: number; toX: number; toY: number };
+
+  /** Queued when a Seed_Eater spawns a subprocess. */
+  SUB_PROCESS_SPAWNED: { parentId: EntityId; childId: EntityId; templateName: string };
+
+  /** Queued when a System_Admin is first detected. */
+  ADMIN_DETECTED: { floorId?: number };
 }

@@ -1,0 +1,14 @@
+{
+  "name": "system-admin",
+  "mixins": ["physical"],
+  "components": {
+    "actor": { "isPlayer": false },
+    "energy": { "current": 0, "speed": 35, "threshold": 1000 },
+    "sprite": { "key": "enemy_system_admin" },
+    "hostile": {},
+    "aiState": { "behavior": "idle", "sightRadius": 20, "behaviorType": "system_admin" },
+    "fovAwareness": { "canSeePlayer": false },
+    "blocksMovement": {},
+    "statusEffects": { "effects": [] }
+  }
+}

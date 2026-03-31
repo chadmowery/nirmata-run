@@ -4,6 +4,7 @@ import { EntityFactory } from '../../engine/entity/factory';
 import { EntityId } from '../../engine/ecs/types';
 import { ComponentRegistry } from '../../engine/entity/types';
 import { Room } from '../../engine/generation/types';
+import depthDistribution from '../entities/templates/spawn-tables/depth-distribution.json';
 
 /**
  * Configuration for entity placement in generated dungeons.
@@ -19,6 +20,23 @@ export interface PlacementConfig {
   itemTemplates: string[];
   /** Optional overrides for the player entity. */
   playerOverrides?: Record<string, Record<string, unknown>>;
+  /** Current floor depth for depth-based spawning. */
+  depth?: number;
+}
+
+interface SpawnTableEntry {
+  name: string;
+  weight: number;
+  isPack?: boolean;
+  packSize?: { min: number; max: number };
+  maxPerFloor?: number;
+  minDistanceFromPlayer?: number;
+}
+
+interface DepthTable {
+  depthRange: { min: number; max: number };
+  enemiesPerRoom: { min: number; max: number };
+  templates: SpawnTableEntry[];
 }
 
 const DEFAULT_PLACEMENT: PlacementConfig = {
@@ -39,6 +57,24 @@ export interface PlacementResult {
 }
 
 import { EngineEvents } from '../../engine/events/types';
+
+function getTableForDepth(depth: number): DepthTable | undefined {
+  return (depthDistribution.tables as unknown as DepthTable[]).find(
+    (table) => depth >= table.depthRange.min && depth <= table.depthRange.max
+  );
+}
+
+function selectWeightedTemplate(templates: SpawnTableEntry[], rng: { random(): number }): SpawnTableEntry | undefined {
+  const totalWeight = templates.reduce((sum, t) => sum + t.weight, 0);
+  let random = rng.random() * totalWeight;
+  for (const template of templates) {
+    if (random < template.weight) {
+      return template;
+    }
+    random -= template.weight;
+  }
+  return undefined;
+}
 
 /**
  * Place player, enemies, and items in a generated dungeon.
@@ -67,6 +103,10 @@ export function placeEntities<T extends EngineEvents>(
   const enemyIds: EntityId[] = [];
   const itemIds: EntityId[] = [];
 
+  const depthTable = cfg.depth !== undefined ? getTableForDepth(cfg.depth) : undefined;
+  const enemiesPerRoom = depthTable ? depthTable.enemiesPerRoom : cfg.enemiesPerRoom;
+  const spawnedCountPerTemplate: Record<string, number> = {};
+
   // Place player at spawn room center
   const playerOverrides = {
     ...cfg.playerOverrides,
@@ -84,17 +124,55 @@ export function placeEntities<T extends EngineEvents>(
     const walkablePositions = getWalkablePositions(grid, room);
 
     // Spawn enemies
-    const enemyCount = randomIntRange(rng, cfg.enemiesPerRoom.min, cfg.enemiesPerRoom.max);
+    const enemyCount = randomIntRange(rng, enemiesPerRoom.min, enemiesPerRoom.max);
     for (let i = 0; i < enemyCount && walkablePositions.length > 0; i++) {
-      const posIdx = Math.floor(rng.random() * walkablePositions.length);
-      const pos = walkablePositions.splice(posIdx, 1)[0];
-      const templateName = cfg.enemyTemplates[Math.floor(rng.random() * cfg.enemyTemplates.length)];
+      const entry = depthTable
+        ? selectWeightedTemplate(depthTable.templates, rng)
+        : { name: cfg.enemyTemplates[Math.floor(rng.random() * cfg.enemyTemplates.length)], weight: 1 };
 
-      const enemyId = factory.create(world, templateName, componentRegistry, {
-        position: { x: pos.x, y: pos.y },
-      });
-      grid.addEntity(enemyId, pos.x, pos.y);
-      enemyIds.push(enemyId);
+      if (!entry) continue;
+
+      // Check maxPerFloor constraint
+      if (entry.maxPerFloor !== undefined) {
+        const currentCount = spawnedCountPerTemplate[entry.name] || 0;
+        if (currentCount >= entry.maxPerFloor) continue;
+      }
+
+      // Check minDistanceFromPlayer constraint
+      if (entry.minDistanceFromPlayer !== undefined) {
+        const dx = Math.abs(room.centerX - spawnRoom.centerX);
+        const dy = Math.abs(room.centerY - spawnRoom.centerY);
+        const dist = dx + dy; // Manhattan distance
+        if (dist < entry.minDistanceFromPlayer) continue;
+      }
+
+      if (entry.isPack) {
+        const packSize = randomIntRange(rng, entry.packSize?.min || 1, entry.packSize?.max || 1);
+        const packId = `pack-${room.x}-${room.y}`;
+
+        for (let p = 0; p < packSize && walkablePositions.length > 0; p++) {
+          const posIdx = Math.floor(rng.random() * walkablePositions.length);
+          const pos = walkablePositions.splice(posIdx, 1)[0];
+
+          const enemyId = factory.create(world, entry.name, componentRegistry, {
+            position: { x: pos.x, y: pos.y },
+            packMember: { packId, isLeader: p === 0 },
+          });
+          grid.addEntity(enemyId, pos.x, pos.y);
+          enemyIds.push(enemyId);
+          spawnedCountPerTemplate[entry.name] = (spawnedCountPerTemplate[entry.name] || 0) + 1;
+        }
+      } else {
+        const posIdx = Math.floor(rng.random() * walkablePositions.length);
+        const pos = walkablePositions.splice(posIdx, 1)[0];
+
+        const enemyId = factory.create(world, entry.name, componentRegistry, {
+          position: { x: pos.x, y: pos.y },
+        });
+        grid.addEntity(enemyId, pos.x, pos.y);
+        enemyIds.push(enemyId);
+        spawnedCountPerTemplate[entry.name] = (spawnedCountPerTemplate[entry.name] || 0) + 1;
+      }
     }
 
     // Spawn items

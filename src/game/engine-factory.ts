@@ -11,17 +11,22 @@ import { registerGameTemplates } from './entities';
 import { createMovementSystem } from './systems/movement';
 import { createCombatSystem } from './systems/combat';
 import { createAISystem } from './systems/ai';
+import { createDeadZoneSystem, DeadZoneSystem } from './systems/dead-zone';
 import { ItemPickupSystem, createItemPickupSystem } from './systems/item-pickup';
 import { createHeatSystem, HeatSystem } from './systems/heat';
 import { createStatusEffectSystem, StatusEffectSystem } from './systems/status-effects';
 import { createFirmwareSystem, FirmwareSystem } from './systems/firmware';
 import { createKernelPanicSystem, KernelPanicSystem } from './systems/kernel-panic';
 import { createAugmentSystem, AugmentSystem } from './systems/augment';
+import { createPackCoordinatorSystem, PackCoordinatorSystem } from './systems/pack-coordinator';
+import { createTileCorruptionSystem } from './systems/tile-corruption';
+import { createRunEnderSystem } from './systems/run-ender';
 import { generateDungeon } from './generation/dungeon-generator';
 import { placeEntities } from './generation/entity-placement';
 import RNG from 'rot-js/lib/rng';
 import { GameAction, DIRECTIONS, isFirmwareAction, getFirmwareSlotIndex } from './input/actions';
 import { GameEvents } from './events/types';
+import { Phase } from '../engine/ecs/types';
 
 import { ShellRecord } from './shells/types';
 
@@ -44,14 +49,18 @@ export interface EngineInstance {
     movement: ReturnType<typeof createMovementSystem<GameEvents>>;
     combat: ReturnType<typeof createCombatSystem<GameEvents>>;
     ai: ReturnType<typeof createAISystem<GameEvents>>;
+    deadZone: DeadZoneSystem;
     itemPickup: ItemPickupSystem;
     heat: HeatSystem;
     statusEffect: StatusEffectSystem;
     firmware: FirmwareSystem;
     kernelPanic: KernelPanicSystem;
     augment: AugmentSystem;
-  };
-}
+    packCoordinator: PackCoordinatorSystem;
+    tileCorruption: ReturnType<typeof createTileCorruptionSystem<GameEvents>>;
+    runEnder: ReturnType<typeof createRunEnderSystem<GameEvents>>;
+    };
+    }
 
 /**
  * Creates and initializes a pure game engine instance.
@@ -88,20 +97,34 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   const combatSystem = createCombatSystem(world, grid, eventBus, entityFactory, componentRegistry, {
     skipLoot: config.isClient
   });
-  const aiSystem = createAISystem(world, grid, movementSystem);
+  const deadZoneSystem = createDeadZoneSystem(world, grid, eventBus);
+  const aiSystem = createAISystem(world, grid, eventBus, movementSystem, deadZoneSystem);
   const itemPickupSystem = createItemPickupSystem(world, grid, eventBus);
   const heatSystem = createHeatSystem(world, eventBus);
   const statusEffectSystem = createStatusEffectSystem(world, eventBus);
   const firmwareSystem = createFirmwareSystem(world, grid, eventBus, movementSystem, heatSystem);
   const kernelPanicSystem = createKernelPanicSystem(world, eventBus, statusEffectSystem);
   const augmentSystem = createAugmentSystem(world, eventBus, statusEffectSystem, heatSystem);
+  const packCoordinatorSystem = createPackCoordinatorSystem(world, grid, eventBus);
+  const tileCorruptionSystem = createTileCorruptionSystem(world, grid, eventBus, entityFactory, componentRegistry);
+  const runEnderSystem = createRunEnderSystem(world, grid, eventBus);
 
   combatSystem.init();
+  deadZoneSystem.init();
   itemPickupSystem.init();
   heatSystem.init();
   statusEffectSystem.init();
   kernelPanicSystem.init();
   augmentSystem.init();
+  packCoordinatorSystem.init();
+  tileCorruptionSystem.init();
+  runEnderSystem.init();
+
+  // Register ticks to POST_TURN phase
+  world.registerSystem(Phase.POST_TURN, () => {
+    deadZoneSystem.tickDeadZones();
+    tileCorruptionSystem.tick();
+  });
 
   const turnManager = new TurnManager<GameEvents>(world, eventBus, {
     energyThreshold: 1000,
@@ -156,6 +179,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   turnManager.setEnemyActionHandler((entityId) => {
     statusEffectSystem.tickDown(entityId);
     augmentSystem.resetTurnState(entityId);
+    packCoordinatorSystem.resetTurnState();
     aiSystem.processEnemyTurn(entityId);
   });
 
@@ -164,6 +188,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
     // but we provide a default one that uses the systems we just created.
     statusEffectSystem.tickDown(entityId);
     augmentSystem.resetTurnState(entityId);
+    packCoordinatorSystem.resetTurnState();
     if (DIRECTIONS[action]) {
       const { dx, dy } = DIRECTIONS[action];
       if (dx !== 0 || dy !== 0) {
@@ -196,12 +221,16 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
       movement: movementSystem,
       combat: combatSystem,
       ai: aiSystem,
+      deadZone: deadZoneSystem,
       itemPickup: itemPickupSystem,
       heat: heatSystem,
       statusEffect: statusEffectSystem,
       firmware: firmwareSystem,
       kernelPanic: kernelPanicSystem,
       augment: augmentSystem,
+      packCoordinator: packCoordinatorSystem,
+      tileCorruption: tileCorruptionSystem,
+      runEnder: runEnderSystem,
     }
   };
 }

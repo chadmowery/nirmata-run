@@ -17,6 +17,9 @@ import { StatusEffectSystem } from './systems/status-effects';
 import { FirmwareSystem } from './systems/firmware';
 import { KernelPanicSystem } from './systems/kernel-panic';
 import { AugmentSystem } from './systems/augment';
+import { PackCoordinatorSystem } from './systems/pack-coordinator';
+import { TileCorruptionSystem } from './systems/tile-corruption';
+import { RunEnderSystem } from './systems/run-ender';
 import { EntityFactory } from '@engine/entity/factory';
 
 export interface GameSystem {
@@ -43,6 +46,9 @@ export interface GameContext {
   firmwareSystem: FirmwareSystem;
   kernelPanicSystem: KernelPanicSystem;
   augmentSystem: AugmentSystem;
+  packCoordinatorSystem: PackCoordinatorSystem;
+  tileCorruptionSystem: TileCorruptionSystem;
+  runEnderSystem: RunEnderSystem;
   entityFactory: EntityFactory;
   playerId?: EntityId;
   currentSeed?: string;
