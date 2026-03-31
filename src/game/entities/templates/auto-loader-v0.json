@@ -1,5 +1,6 @@
 {
   "name": "auto-loader-v0",
+  "sprite": { "key": "item_auto_loader" },
   "components": {
     "softwareDef": {
       "name": "Auto-Loader.msi",

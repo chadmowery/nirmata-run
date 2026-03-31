@@ -1,5 +1,6 @@
 {
   "name": "static-siphon",
+  "sprite": { "key": "item_static_siphon" },
   "components": {
     "augmentData": {
       "name": "Static_Siphon.arc",

@@ -1,5 +1,6 @@
 {
   "name": "displacement-venting",
+  "sprite": { "key": "item_displacement_venting" },
   "components": {
     "augmentData": {
       "name": "Displacement_Venting.arc",

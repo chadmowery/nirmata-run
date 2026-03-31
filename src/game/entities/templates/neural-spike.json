@@ -1,5 +1,6 @@
 {
   "name": "neural-spike",
+  "sprite": { "key": "item_neural_spike" },
   "components": {
     "abilityDef": {
       "name": "Neural_Spike.exe",

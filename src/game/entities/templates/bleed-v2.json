@@ -1,5 +1,6 @@
 {
   "name": "bleed-v2",
+  "sprite": { "key": "item_bleed" },
   "components": {
     "softwareDef": {
       "name": "Bleed.exe",

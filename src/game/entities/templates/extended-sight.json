@@ -1,5 +1,6 @@
 {
   "name": "extended-sight",
+  "sprite": { "key": "item_extended_sight" },
   "components": {
     "abilityDef": {
       "name": "Extended_Sight.sys",

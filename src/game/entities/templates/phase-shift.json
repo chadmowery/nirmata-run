@@ -1,5 +1,6 @@
 {
   "name": "phase-shift",
+  "sprite": { "key": "item_phase_shift" },
   "components": {
     "abilityDef": {
       "name": "Phase_Shift.sh",

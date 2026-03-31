@@ -1,5 +1,6 @@
 {
   "name": "vampire-v3",
+  "sprite": { "key": "item_vampire" },
   "components": {
     "softwareDef": {
       "name": "Vampire.exe",

@@ -293,8 +293,8 @@
     "image": "tileset.png",
     "format": "RGBA8888",
     "size": {
-      "w": 128,
-      "h": 128
+      "w": 256,
+      "h": 256
     },
     "scale": 1
   }
