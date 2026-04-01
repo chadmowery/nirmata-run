@@ -86,32 +86,89 @@ export function applyPersistentGlitch(sprite: Sprite, behaviorType: AIBehaviorTy
 }
 
 /**
+ * Tracking for active damage filters to avoid race conditions and leaks.
+ */
+const activeDamageFilters = new WeakMap<Sprite, { filter: GlitchFilter; timeoutId: ReturnType<typeof setTimeout> }>();
+
+/**
  * Applies a temporary heavy glitch distortion when an entity takes damage.
+ * Now safe from overlapping damage events.
  */
 export function applyDamageDistortion(sprite: Sprite, duration: number = 200): void {
   if (!sprite || sprite.destroyed) return;
 
-  const originalFilters = sprite.filters || [];
+  const existing = activeDamageFilters.get(sprite);
+  if (existing) {
+    // If a damage glitch is already active, just reset its timer
+    clearTimeout(existing.timeoutId);
+    existing.timeoutId = setTimeout(() => {
+      cleanupDamageFilter(sprite);
+    }, duration);
+    return;
+  }
+
   const damageGlitch = new GlitchFilter({
     slices: 10,
     offset: 30,
-    direction: 0
+    direction: 0,
   });
 
-  sprite.filters = [...(Array.isArray(originalFilters) ? originalFilters : [originalFilters]), damageGlitch];
+  // Specifically add our new filter to the existing set
+  const currentFilters = Array.isArray(sprite.filters)
+    ? [...sprite.filters]
+    : sprite.filters
+      ? [sprite.filters]
+      : [];
+  
+  sprite.filters = [...currentFilters, damageGlitch];
 
-  setTimeout(() => {
-    if (!sprite.destroyed) {
-      sprite.filters = originalFilters as Filter | Filter[] | null;
-    }
+  const timeoutId = setTimeout(() => {
+    cleanupDamageFilter(sprite);
   }, duration);
+
+  activeDamageFilters.set(sprite, { filter: damageGlitch, timeoutId });
 }
 
 /**
- * Cleans up filters from a sprite.
+ * Specifically removes the damage glitch instance from the sprite's filter list.
+ */
+function cleanupDamageFilter(sprite: Sprite): void {
+  const state = activeDamageFilters.get(sprite);
+  if (!state || sprite.destroyed) {
+    activeDamageFilters.delete(sprite);
+    return;
+  }
+
+  const filters = sprite.filters;
+  if (!filters) {
+    activeDamageFilters.delete(sprite);
+    return;
+  }
+
+  // Treat as array for PixiJS 8 compatibility
+  const filtersArray = Array.isArray(filters) ? filters : [filters];
+  
+  // Use unknown cast to bypass the "no overlap" error between different Filter versions/types
+  const targetFilter = state.filter as unknown as Filter;
+  const newFilters = (filtersArray as Filter[]).filter((f) => f !== targetFilter);
+  
+  sprite.filters = newFilters.length > 0 ? newFilters : null;
+
+  activeDamageFilters.delete(sprite);
+}
+
+/**
+ * Cleans up all filters from a sprite and clears any active damage tracking.
  */
 export function removePersistentGlitch(sprite: Sprite): void {
-  if (sprite) {
-    sprite.filters = null;
+  if (!sprite) return;
+  
+  // Clear any pending damage cleanup timeouts
+  const state = activeDamageFilters.get(sprite);
+  if (state) {
+    clearTimeout(state.timeoutId);
+    activeDamageFilters.delete(sprite);
   }
+  
+  sprite.filters = null;
 }

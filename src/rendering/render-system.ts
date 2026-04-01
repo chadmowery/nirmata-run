@@ -164,8 +164,13 @@ export function createRenderSystem(config: RenderSystemConfig) {
       // 4. Entity Sprites Sync & Visibility
       const renderables = world.query(SpriteComponent, Position);
       for (const entityId of renderables) {
-        const sprite = getEntitySprite(entityId);
-        if (!sprite) continue;
+        let sprite = getEntitySprite(entityId);
+        
+        // Lazy sprite creation for entities that missed their ENTITY_CREATED event (e.g. via factory)
+        if (!sprite) {
+          const spriteComp = world.getComponent(entityId, SpriteComponent)!;
+          sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
+        }
 
         const pos = world.getComponent(entityId, Position)!;
         const actor = world.getComponent(entityId, Actor);

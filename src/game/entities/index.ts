@@ -4,7 +4,6 @@ import { RawTemplate } from '../../engine/entity/types';
 import physical from './templates/mixins/physical.json';
 import combatant from './templates/mixins/combatant.json';
 import player from './templates/player.json';
-import goblin from './templates/goblin.json';
 import health_potion from './templates/health-potion.json';
 import phase_shift from './templates/phase-shift.json';
 import neural_spike from './templates/neural-spike.json';
@@ -43,7 +42,6 @@ export function registerGameTemplates(registry: EntityRegistry): void {
 
   // Register templates
   registry.register(player as unknown as RawTemplate);
-  registry.register(goblin as unknown as RawTemplate);
   registry.register(health_potion as unknown as RawTemplate);
   registry.register(phase_shift as unknown as RawTemplate);
   registry.register(neural_spike as unknown as RawTemplate);

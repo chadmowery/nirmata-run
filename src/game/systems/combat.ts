@@ -27,14 +27,14 @@ export function resolveDamage(
   defense: number
 ): number {
   let damage = baseAttack;
-  
+
   // Apply all pre-defense modifiers (Software + Augments per D-11)
   for (const mod of modifiers) {
     if (mod.phase === 'pre_defense' && mod.type === 'additive') {
       damage += mod.value;
     }
   }
-  
+
   // Apply defense
   damage = Math.max(1, damage - defense);
   return Math.floor(damage);
@@ -96,7 +96,7 @@ export function createCombatSystem<T extends GameplayEvents>(
     const armor = defenderDefense?.armor ?? 0;
     const defenderHeat = world.getComponent(defenderId, Heat);
     const effectiveArmor = defenderHeat?.isVenting ? 0 : armor;
-    
+
     const damage = resolveDamage(attackerAttack.power, modifiers, effectiveArmor);
 
     defenderHealth.current = Math.max(0, defenderHealth.current - damage);
@@ -115,7 +115,7 @@ export function createCombatSystem<T extends GameplayEvents>(
     const defenderActor = world.getComponent(defenderId, Actor);
     const attackerName = attackerActor?.isPlayer ? 'You' : 'The enemy';
     const defenderName = defenderActor?.isPlayer ? 'you' : 'the enemy';
-    
+
     eventBus.emit('MESSAGE_EMITTED', {
       text: `${attackerName} hit ${defenderName} for ${damage} damage.`,
       type: 'combat'

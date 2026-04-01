@@ -19,7 +19,8 @@
   },
   "overrides": {
     "health": { "current": 6, "max": 6 },
-    "attack": { "power": 4 },
+    "attack": { "power": 3 },
     "defense": { "armor": 0 }
   }
 }
+  
