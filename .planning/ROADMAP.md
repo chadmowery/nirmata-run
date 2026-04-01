@@ -16,7 +16,7 @@ Build the Nirmata Runner game systems on top of the validated v1.0 engine founda
 - [x] **Phase 9: Status Effects & Augment Synergy** — Generic status effect system, Augment "Trigger & Payload" engine, 3 trigger types, 3 starter Augments, visual trigger feedback, stacking rules
 - [x] **Phase 10: Software System & Enhanced Combat** — Software consumable modifiers, Burn mechanic, rarity tiers, stacking rules, integration with combat damage pipeline, 3+ Software types
 - [ ] **Phase 11: Enemy Hierarchy** — 3-tier enemy system (6 enemy types), unique AI behaviors per type, enemy-specific death effects, depth-based distribution, JSON entity templates
-- [ ] **Phase 12: Multi-Floor Generation & Stability/Extraction** — Multi-floor dungeon descent, floor transitions, Stability bar, Stability Anchors, Extract/Descend decision, item loss/keep logic, System Handshake UI
+- [x] **Phase 12: Multi-Floor Generation & Stability/Extraction** — Multi-floor dungeon descent, floor transitions, Stability bar, Stability Anchors, Extract/Descend decision, item loss/keep logic, System Handshake UI (completed 2026-04-01)
 - [ ] **Phase 13: Currency, Economy & Blueprint System** — 3-tier currency, wallet/transaction system, Blueprint discovery/compilation/installation, weekly reset with Legacy Code, server-validated economy
 - [ ] **Phase 14: Stash, Vault & Run Modes** — Persistent Stash/Vault storage, 3 run modes (Simulation/Daily/Weekly), run-specific rules, seeded generation per mode, leaderboard, pre-run Ritual
 - [ ] **Phase 15: Neural Deck Hub UI** — Between-run management interface, Shell inspection/selection, equipment management, Blueprint workshop, Stash/Vault UI, run mode launcher
@@ -131,10 +131,10 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 12-01-PLAN.md — Multi-floor generation (floor components, depth config, loot tables, dungeon generator extension, floor manager system, staircase/anchor placement)
-- [ ] 12-02-PLAN.md — Stability system & Scrap currency (StabilityComponent, ScrapComponent, dual-drain system, death/extraction pipeline, UI state extensions)
-- [ ] 12-03-PLAN.md — Anchor interaction & extraction logic (screen effects, turn manager pause, anchor interaction system, run ender extension, staircase input)
-- [ ] 12-04-PLAN.md — System Handshake UI & HUD (CSS tokens, StabilityBar, FloorIndicator, AnchorOverlay, BSODScreen, RunResultsScreen, page integration)
+- [x] 12-01-PLAN.md — Multi-floor generation (floor components, depth config, loot tables, dungeon generator extension, floor manager system, staircase/anchor placement)
+- [x] 12-02-PLAN.md — Stability system & Scrap currency (StabilityComponent, ScrapComponent, dual-drain system, death/extraction pipeline, UI state extensions)
+- [x] 12-03-PLAN.md — Anchor interaction & extraction logic (screen effects, turn manager pause, anchor interaction system, run ender extension, staircase input)
+- [x] 12-04-PLAN.md — System Handshake UI & HUD (CSS tokens, StabilityBar, FloorIndicator, AnchorOverlay, BSODScreen, RunResultsScreen, page integration)
 
 ### Phase 13: Currency, Economy & Blueprint System
 **Goal**: Three-tier currency system with Blueprint discovery, compilation, and weekly reset creates the between-run progression loop
@@ -224,7 +224,7 @@ Phases execute in numeric order: 7 → 8 → 9 → 10 → 11 → 12 → 13 → 1
 | 9. Status Effects & Augment Synergy | 0/4 | Not started | - |
 | 10. Software System & Enhanced Combat | 0/4 | Not started | - |
 | 11. Enemy Hierarchy | 0/4 | Not started | - |
-| 12. Multi-Floor Generation & Stability/Extraction | 0/4 | Not started | - |
+| 12. Multi-Floor Generation & Stability/Extraction | 5/5 | Complete   | 2026-04-01 |
 | 13. Currency, Economy & Blueprint System | 0/4 | Not started | - |
 | 14. Stash, Vault & Run Modes | 0/4 | Not started | - |
 | 15. Neural Deck Hub UI | 0/4 | Not started | - |

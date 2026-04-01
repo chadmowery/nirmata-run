@@ -4,13 +4,14 @@ import React from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import styles from './styles.module.css';
-import { Heart, Trophy, Zap } from 'lucide-react';
+import { Heart, Trophy, Zap, Coins } from 'lucide-react';
 import { dispatchUIAction } from '@/game/input/input-bridge';
 import { GameAction } from '@/game/input/actions';
 import { StabilityBar } from './StabilityBar';
 
 export const PlayerHUD: React.FC = () => {
   const player = useStore(gameStore, (s) => s.player);
+  const scrap = useStore(gameStore, (s) => s.scrap);
 
   const hpPercent = (player.maxHp > 0 ? (player.hp / player.maxHp) * 100 : 0) || 0;
   const xpNextLevel = (player.level || 1) * 100; // Simple XP curve for now
@@ -19,7 +20,7 @@ export const PlayerHUD: React.FC = () => {
   return (
     <div className={`${styles.terminalPanel} ${styles.statsPanel}`}>
       <div className={styles.panelHeader}>Character Status</div>
-      
+
       {/* HP Bar */}
       <div className={styles.statRow}>
         <span className={styles.statLabel}>
@@ -52,6 +53,14 @@ export const PlayerHUD: React.FC = () => {
           className={`${styles.barFill} ${styles.xpBar}`} 
           style={{ width: `${xpPercent}%` }} 
         />
+      </div>
+
+      {/* Scrap */}
+      <div className={styles.statRow}>
+        <span className={styles.statLabel}>
+          <Coins size={14} className="inline mr-1" /> SCRAP
+        </span>
+        <span className={styles.statValue}>{scrap}</span>
       </div>
 
       {/* Stability Bar */}

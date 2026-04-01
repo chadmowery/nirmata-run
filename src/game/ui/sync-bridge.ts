@@ -191,15 +191,23 @@ export function syncEngineToStore(context: GameContext) {
 
   // Run End handler
   eventBus.on('RUN_ENDED', (event) => {
-    gameStore.getState().showRunResults({
+    const results = {
       reason: event.reason,
       floorNumber: event.floorNumber,
       enemiesKilled: gameStore.getState().stats.kills,
       turnsElapsed: gameStore.getState().stats.turns,
       peakHeat: 0, // TODO: track peak heat
-      itemsSecured: { firmware: 0, augments: 0, software: 0, scrap: 0 },
-      score: 0 // TODO: calculate score
-    });
+      itemsSecured: { firmware: 0, augments: 0, software: 0, scrap: gameStore.getState().scrap },
+      score: (event.floorNumber * 100) + (gameStore.getState().stats.kills * 10) + gameStore.getState().scrap
+    };
+
+    if (event.reason === 'EXTRACTION') {
+      gameStore.getState().showRunResults(results);
+    } else {
+      gameStore.getState().showBSOD(event.reason);
+      // BSOD screen itself handles showing results after its animation
+      gameStore.getState().showRunResults(results);
+    }
   });
 
   // Entity Death

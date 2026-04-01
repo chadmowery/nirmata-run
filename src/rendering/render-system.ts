@@ -9,7 +9,7 @@ import { SpriteComponent } from '@shared/components/sprite';
 import { Actor } from '@shared/components/actor';
 import { WorldLayers } from './layers';
 import { TILE_SIZE, FOV_RADIUS } from './constants';
-import { computeFov, createExploredSet, isEntityVisible, getEntityVisibilityType } from './fov';
+import { computeFov, createExploredSet, isEntityVisible, getEntityVisibilityType, clearExplored } from './fov';
 import { computeCameraTarget, lerpCamera, getVisibleTileRange } from './camera';
 import { buildTilemap, clearTilemap } from './tilemap';
 import { createEntitySprite, destroyEntitySprite, getEntitySprite, clearAllSprites } from './sprite-map';
@@ -17,11 +17,11 @@ import { tickAnimations, queueMoveTween, queueAttackAnimationWithDefender, queue
 import { applyPersistentGlitch, applyDamageDistortion } from './filters/glitch-effects';
 import { queueTypedDeathAnimation } from './filters/death-effects';
 import { AIState } from '@shared/components/ai-state';
-import { 
-  applyGrayscaleToContainer, 
-  removeFiltersFromContainer, 
-  applyStabilityDesaturation, 
-  disposeScreenEffects 
+import {
+  applyGrayscaleToContainer,
+  removeFiltersFromContainer,
+  applyStabilityDesaturation,
+  disposeScreenEffects
 } from './filters/screen-effects';
 
 export interface RenderSystemConfig {
@@ -43,7 +43,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
     const spriteComp = world.getComponent(payload.entityId, SpriteComponent);
     if (spriteComp) {
       const sprite = createEntitySprite(payload.entityId, spriteComp.key, layers.entityLayer);
-      
+
       // Apply persistent glitch for enemies
       const aiState = world.getComponent(payload.entityId, AIState);
       if (aiState) {
@@ -108,7 +108,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
     const newPos = lerpCamera(layers.worldContainer.x, layers.worldContainer.y, cameraTarget.x, cameraTarget.y, deltaMs);
     layers.worldContainer.x = newPos.x;
     layers.worldContainer.y = newPos.y;
-    
+
     // Smooth animation tick
     tickAnimations(deltaMs, getEntitySprite);
   };
@@ -124,7 +124,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.on('REMOVE_WORLD_FILTER', handleRemoveWorldFilter);
       eventBus.on('STABILITY_CHANGED', handleStabilityChanged);
       eventBus.on('DUNGEON_GENERATED', () => this.onDungeonGenerated());
-      
+
       app.ticker.add(updateCameraFrame);
 
       // Initial sprite sync for existing entities
@@ -165,7 +165,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       const renderables = world.query(SpriteComponent, Position);
       for (const entityId of renderables) {
         let sprite = getEntitySprite(entityId);
-        
+
         // Lazy sprite creation for entities that missed their ENTITY_CREATED event (e.g. via factory)
         if (!sprite) {
           const spriteComp = world.getComponent(entityId, SpriteComponent)!;
@@ -174,7 +174,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
         const pos = world.getComponent(entityId, Position)!;
         const actor = world.getComponent(entityId, Actor);
-        
+
         // Update position if not animating
         if (!hasActiveAnimation(entityId)) {
           sprite.x = pos.x * TILE_SIZE;
@@ -184,7 +184,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
         // Visibility gating
         const entityType = getEntityVisibilityType(actor?.isPlayer, !!actor);
         let { visible, alpha } = isEntityVisible(pos, entityType, fovSet, exploredSet);
-        
+
         // FORCE PLAYER VISIBLE FOR DEBUGGING
         if (entityType === 'player') {
           visible = true;
@@ -193,7 +193,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
         sprite.visible = visible;
         sprite.alpha = alpha;
-        
+
         // Ensure sprite is on top within its container
         if (visible && sprite.parent) {
           sprite.parent.addChild(sprite);
@@ -206,7 +206,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       clearTilemap(layers.terrainLayer);
       clearAnimations();
       clearAllSprites();
-      
+
       // Snap camera to player on new dungeon
       const playerEntity = getPlayerEntity();
       const playerPos = world.getComponent(playerEntity, Position);
@@ -238,7 +238,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.off('APPLY_WORLD_FILTER', handleApplyWorldFilter);
       eventBus.off('REMOVE_WORLD_FILTER', handleRemoveWorldFilter);
       eventBus.off('STABILITY_CHANGED', handleStabilityChanged);
-      
+
       app.ticker.remove(updateCameraFrame);
       clearAllSprites();
       clearAnimations();

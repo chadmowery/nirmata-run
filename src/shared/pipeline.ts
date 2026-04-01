@@ -274,6 +274,15 @@ function handlePickup(world: World<GameplayEvents>, grid: Grid, eventBus: EventB
     }
   }
 
+  // Handle Scrap pickup
+  const itemScrap = world.getComponent(itemId, Scrap);
+  if (itemScrap) {
+    const playerScrap = world.getComponent(entityId, Scrap);
+    if (playerScrap) {
+      playerScrap.amount += itemScrap.amount;
+    }
+  }
+
   const pos = world.getComponent(entityId, Position);
   if (pos) {
     grid.removeItem(itemId, pos.x, pos.y);
@@ -393,17 +402,17 @@ export function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, 
       }
 
       runInventoryRegistry.transferToStash(sid);
-      
-      eventBus.emit('MESSAGE_EMITTED', { 
-        text: `EXTRACTION_SUCCESSFUL: Scrap amount ${scrapAmount} secured.`, 
-        type: 'info' 
+
+      eventBus.emit('MESSAGE_EMITTED', {
+        text: `EXTRACTION_SUCCESSFUL: Scrap amount ${scrapAmount} secured.`,
+        type: 'info'
       });
 
       const floorState = playerId !== -1 ? world.getComponent(playerId, FloorState) : null;
-      eventBus.emit('RUN_ENDED', { 
-        reason: 'extraction', 
+      eventBus.emit('RUN_ENDED', {
+        reason: 'extraction',
         floorNumber: floorState?.currentFloor ?? 1,
-        stats: {} 
+        stats: {}
       });
     }
   });

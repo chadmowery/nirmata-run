@@ -1,0 +1,9 @@
+{
+  "name": "firmware-drop",
+  "mixins": ["physical"],
+  "components": {
+    "item": { "name": "Firmware Cache", "description": "Contains a random firmware ability" },
+    "pickupEffect": { "type": "heal", "value": 0 },
+    "sprite": { "key": "item_auto_loader" }
+  }
+}

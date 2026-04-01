@@ -31,6 +31,9 @@ import vampire_v0 from './templates/vampire-v0.json';
 import vampire_v1 from './templates/vampire-v1.json';
 import vampire_v2 from './templates/vampire-v2.json';
 import vampire_v3 from './templates/vampire-v3.json';
+import firmware_drop from './templates/firmware-drop.json';
+import augment_drop from './templates/augment-drop.json';
+import scrap from './templates/scrap.json';
 
 /**
  * Registers all game entity templates and mixins.
@@ -69,4 +72,7 @@ export function registerGameTemplates(registry: EntityRegistry): void {
   registry.register(vampire_v1 as unknown as RawTemplate);
   registry.register(vampire_v2 as unknown as RawTemplate);
   registry.register(vampire_v3 as unknown as RawTemplate);
+  registry.register(firmware_drop as unknown as RawTemplate);
+  registry.register(augment_drop as unknown as RawTemplate);
+  registry.register(scrap as unknown as RawTemplate);
 }

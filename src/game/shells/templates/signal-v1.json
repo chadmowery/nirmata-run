@@ -5,7 +5,7 @@
     "speed": 100,
     "stability": 8,
     "armor": 1,
-    "maxHealth": 18
+    "maxHealth": 180
   },
   "basePorts": {
     "maxFirmware": 2,

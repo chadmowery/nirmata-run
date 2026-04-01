@@ -13,7 +13,8 @@
     "lootTable": {
       "drops": [
         { "template": "health-potion", "chance": 0.25 },
-        { "template": "bleed-v0", "chance": 0.15 }
+        { "template": "bleed-v0", "chance": 0.15 },
+        { "template": "scrap", "chance": 0.4 }
       ]
     }
   },

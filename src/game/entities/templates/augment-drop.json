@@ -1,0 +1,9 @@
+{
+  "name": "augment-drop",
+  "mixins": ["physical"],
+  "components": {
+    "item": { "name": "Augment Core", "description": "Contains a rare neural augment" },
+    "pickupEffect": { "type": "heal", "value": 0 },
+    "sprite": { "key": "item_neural_spike" }
+  }
+}

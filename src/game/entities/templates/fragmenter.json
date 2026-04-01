@@ -14,7 +14,8 @@
       "drops": [
         { "template": "bleed-v1", "chance": 0.2 },
         { "template": "vampire-v1", "chance": 0.15 },
-        { "template": "auto-loader-v1", "chance": 0.15 }
+        { "template": "auto-loader-v1", "chance": 0.15 },
+        { "template": "scrap", "chance": 0.6 }
       ]
     }
   },
