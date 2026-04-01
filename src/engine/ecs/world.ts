@@ -57,6 +57,8 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
       throw new Error(`Cannot add component to non-existent entity: ${entityId}`);
     }
 
+    const isNew = !this.hasComponent(entityId, def);
+
     let store = this.stores.get(def.key);
     if (!store) {
       store = new Map();
@@ -64,7 +66,10 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
     }
 
     store.set(entityId, data);
-    this.eventBus.emit('COMPONENT_ADDED', { entityId, componentKey: def.key });
+    
+    if (isNew) {
+      this.eventBus.emit('COMPONENT_ADDED', { entityId, componentKey: def.key });
+    }
   }
 
   /**
