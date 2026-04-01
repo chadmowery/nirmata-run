@@ -12,7 +12,8 @@ const EventTimelinePanel: React.FC = () => {
     excludedEventTypes, 
     toggleEventType, 
     isGroupingEnabled, 
-    setGroupingEnabled 
+    setGroupingEnabled,
+    exportTimeline
   } = useDebugStore();
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -46,7 +47,16 @@ const EventTimelinePanel: React.FC = () => {
             />
             Group
           </label>
-          <button className={styles.clearButton} onClick={clearTimeline}>Clear</button>
+          <div className={styles.headerButtons}>
+            <button 
+              className={styles.saveButton} 
+              onClick={exportTimeline}
+              disabled={timelineEvents.length === 0}
+            >
+              Save Log
+            </button>
+            <button className={styles.clearButton} onClick={clearTimeline}>Clear</button>
+          </div>
         </div>
       </div>
       

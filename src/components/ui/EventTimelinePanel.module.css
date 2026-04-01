@@ -29,6 +29,51 @@
   gap: 1.5rem;
 }
 
+.headerButtons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.saveButton,
+.clearButton {
+  background: transparent;
+  border: 1px solid var(--text-dim);
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.saveButton:hover:not(:disabled),
+.clearButton:hover:not(:disabled) {
+  border-color: var(--text-bright);
+  color: var(--text-bright);
+}
+
+.saveButton:disabled,
+.clearButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.saveButton {
+  border-color: rgba(0, 240, 255, 0.3);
+  color: #00f0ff;
+}
+
+.saveButton:hover:not(:disabled) {
+  box-shadow: 0 0 5px rgba(0, 240, 255, 0.5);
+}
+
+.title {
+  color: var(--text-bright);
+  font-weight: bold;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
 .checkboxLabel {
   color: var(--text-dim);
   font-size: 0.75rem;
@@ -41,29 +86,6 @@
 
 .checkboxLabel input {
   cursor: pointer;
-}
-
-.title {
-  color: var(--text-bright);
-  font-weight: bold;
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-}
-
-.clearButton {
-  background: transparent;
-  border: 1px solid var(--text-dim);
-  color: var(--text-dim);
-  font-size: 0.7rem;
-  padding: 0.2rem 0.5rem;
-  cursor: pointer;
-  text-transform: uppercase;
-}
-
-.clearButton:hover {
-  border-color: var(--text-bright);
-  color: var(--text-bright);
 }
 
 .eventList {

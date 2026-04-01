@@ -21,6 +21,7 @@ interface DebugState {
   clearTimeline: () => void;
   toggleEventType: (type: string) => void;
   setGroupingEnabled: (enabled: boolean) => void;
+  exportTimeline: () => Promise<void>;
 }
 
 const MAX_TIMELINE_EVENTS = 200;
@@ -79,4 +80,25 @@ export const useDebugStore = create<DebugState>((set) => ({
   }),
 
   setGroupingEnabled: (enabled) => set({ isGroupingEnabled: enabled }),
+
+  exportTimeline: async () => {
+    const { timelineEvents } = useDebugStore.getState();
+    if (timelineEvents.length === 0) return;
+
+    try {
+      const response = await fetch('/api/debug/log', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(timelineEvents),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to export timeline');
+      }
+      
+      console.log('[DEBUG] Timeline exported to debug/session_events.json');
+    } catch (error) {
+      console.error('Export Error:', error);
+    }
+  },
 }));
