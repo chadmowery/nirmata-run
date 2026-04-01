@@ -202,6 +202,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
     },
 
     onDungeonGenerated() {
+      clearExplored(exploredSet);
       clearTilemap(layers.terrainLayer);
       clearAnimations();
       clearAllSprites();
