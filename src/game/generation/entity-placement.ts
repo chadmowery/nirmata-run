@@ -8,6 +8,7 @@ import depthDistribution from '../entities/templates/spawn-tables/depth-distribu
 import lootDistribution from './loot-distribution.json';
 import depthConfig from './depth-config.json';
 import { getDepthBand } from './dungeon-generator';
+import { Actor } from '@shared/components/actor';
 
 /**
  * Configuration for entity placement in generated dungeons.
@@ -25,6 +26,8 @@ export interface PlacementConfig {
   playerOverrides?: Record<string, Record<string, unknown>>;
   /** Current floor depth for depth-based spawning. */
   depth?: number;
+  /** Whether to skip spawning the player entity. */
+  skipPlayer?: boolean;
 }
 
 interface SpawnTableEntry {
@@ -131,14 +134,27 @@ export function placeEntities<T extends EngineEvents>(
   const enemiesPerRoom = depthTable ? depthTable.enemiesPerRoom : cfg.enemiesPerRoom;
   const spawnedCountPerTemplate: Record<string, number> = {};
 
-  // Place player at spawn room center
-  const playerOverrides = {
-    ...cfg.playerOverrides,
-    position: { x: spawnRoom.centerX, y: spawnRoom.centerY } as unknown as Record<string, unknown>,
-  };
+  let playerId: EntityId = -1;
 
-  const playerId = factory.create(world, 'player', componentRegistry, playerOverrides);
-  grid.addEntity(playerId, spawnRoom.centerX, spawnRoom.centerY);
+  if (!cfg.skipPlayer) {
+    // Place player at spawn room center
+    const playerOverrides = {
+      ...cfg.playerOverrides,
+      position: { x: spawnRoom.centerX, y: spawnRoom.centerY } as unknown as Record<string, unknown>,
+    };
+
+    playerId = factory.create(world, 'player', componentRegistry, playerOverrides);
+    grid.addEntity(playerId, spawnRoom.centerX, spawnRoom.centerY);
+  } else {
+    // Find player ID if skipped
+    const actors = world.query(Actor);
+    for (const id of actors) {
+      if (world.getComponent(id, Actor)?.isPlayer) {
+        playerId = id;
+        break;
+      }
+    }
+  }
 
   // Find furthest room for staircase (D-03)
   let furthestRoom = rooms[0];

@@ -38,5 +38,19 @@ export interface GameEvents extends GameplayEvents {
   REMOVE_WORLD_FILTER: { filterType: 'grayscale' | 'desaturation' };
 
   /** Queued when the player makes a decision at an anchor (Extract or Descend). */
-  ANCHOR_DECISION_MADE: { decision: 'extract' | 'descend' };
+  ANCHOR_DECISION_MADE: { 
+    decision: 'extract' | 'descend';
+    anchorId?: number;
+    descendCost?: number;
+    floorNumber?: number;
+  };
+
+  /** Queued when the player makes a decision at a staircase. */
+  STAIRCASE_DECISION_MADE: { confirmed: boolean; targetFloor: number; staircaseId: number };
+
+  /** Queued when a system requests the game to pause (e.g., UI dialog). */
+  GAME_PAUSE_REQUESTED: Record<string, never>;
+
+  /** Queued when a system requests the game to resume. */
+  GAME_RESUME_REQUESTED: Record<string, never>;
 }

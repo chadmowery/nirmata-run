@@ -41,9 +41,14 @@ export interface AnchorOverlayData {
   anchorId: number;
 }
 
+export interface StaircaseOverlayData {
+  targetFloor: number;
+  staircaseId: number;
+}
+
 export interface RunResultsData {
   reason: string;
-  floorsCleared: number;
+  floorNumber: number;
   enemiesKilled: number;
   turnsElapsed: number;
   peakHeat: number;
@@ -69,6 +74,8 @@ export interface UIState {
   // Overlays
   anchorOverlayVisible: boolean;
   anchorData: AnchorOverlayData | null;
+  staircaseOverlayVisible: boolean;
+  staircaseData: StaircaseOverlayData | null;
   runResultsVisible: boolean;
   runResults: RunResultsData | null;
   bsodVisible: boolean;
@@ -88,6 +95,9 @@ export interface UIState {
   showAnchorOverlay: (data: AnchorOverlayData) => void;
   hideAnchorOverlay: () => void;
   makeAnchorDecision: (decision: 'extract' | 'descend') => void;
+  showStaircaseOverlay: (data: StaircaseOverlayData) => void;
+  hideStaircaseOverlay: () => void;
+  makeStaircaseDecision: (confirmed: boolean) => void;
   showRunResults: (results: RunResultsData) => void;
   showBSOD: (reason: string) => void;
   hideBSOD: () => void;
@@ -119,6 +129,8 @@ export const gameStore = createStore<UIState>((set) => ({
   scrap: 0,
   anchorOverlayVisible: false,
   anchorData: null,
+  staircaseOverlayVisible: false,
+  staircaseData: null,
   runResultsVisible: false,
   runResults: null,
   bsodVisible: false,
@@ -176,12 +188,36 @@ export const gameStore = createStore<UIState>((set) => ({
   hideAnchorOverlay: () => set({ anchorOverlayVisible: false, anchorData: null }),
   makeAnchorDecision: (decision: 'extract' | 'descend') => {
     // In a real environment, we'd use a better bridge, but for now we use the global context
-    const context = (window as unknown as { gameContext: { eventBus: { emit: (event: string, payload: unknown) => void } } }).gameContext;
-    if (context) {
-      context.eventBus.emit('ANCHOR_DECISION_MADE', { decision });
+    const context = (window as unknown as { gameContext: { eventBus: { emit: (event: string, payload: unknown) => void, flush: () => void } } }).gameContext;
+    const state = gameStore.getState();
+    if (context && state.anchorData) {
+      context.eventBus.emit('ANCHOR_DECISION_MADE', { 
+        decision,
+        anchorId: state.anchorData.anchorId,
+        descendCost: state.anchorData.descendCost,
+        floorNumber: state.anchorData.floorNumber
+      });
+      context.eventBus.flush();
     }
     set({ anchorOverlayVisible: false, anchorData: null });
   },
+
+  showStaircaseOverlay: (data) => set({ staircaseOverlayVisible: true, staircaseData: data }),
+  hideStaircaseOverlay: () => set({ staircaseOverlayVisible: false, staircaseData: null }),
+  makeStaircaseDecision: (confirmed) => {
+    const context = (window as unknown as { gameContext: { eventBus: { emit: (event: string, payload: unknown) => void, flush: () => void }, playerId: number } }).gameContext;
+    const state = gameStore.getState();
+    if (context) {
+      context.eventBus.emit('STAIRCASE_DECISION_MADE', { 
+        confirmed,
+        targetFloor: state.staircaseData?.targetFloor ?? 0,
+        staircaseId: state.staircaseData?.staircaseId ?? 0
+      });
+      context.eventBus.flush();
+    }
+    set({ staircaseOverlayVisible: false, staircaseData: null });
+  },
+
   showRunResults: (results) => set({ runResultsVisible: true, runResults: results }),
   showBSOD: (reason) => set({ bsodVisible: true, bsodReason: reason }),
   hideBSOD: () => set({ bsodVisible: false, bsodReason: '' }),

@@ -138,6 +138,19 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
   registerInputBridge((action) => handlePlayerInput(action as GameAction));
 
+  // Game pause/resume requests (from systems like AnchorInteraction)
+  eventBus.on('GAME_PAUSE_REQUESTED', () => {
+    if (fsm.getCurrentState() === GameState.Playing) {
+      fsm.transition(GameState.Paused);
+    }
+  });
+
+  eventBus.on('GAME_RESUME_REQUESTED', () => {
+    if (fsm.getCurrentState() === GameState.Paused) {
+      fsm.transition(GameState.Playing);
+    }
+  });
+
   async function handleConfirmedTarget(slotIndex: number, targetX: number, targetY: number) {
     if (fsm.getCurrentState() === GameState.Playing && turnManager.canAcceptInput() && playerId) {
       inputManager.setRequestPending(true);

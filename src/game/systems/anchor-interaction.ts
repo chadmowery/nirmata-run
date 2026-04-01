@@ -50,7 +50,7 @@ export function createAnchorInteractionSystem(
   };
 
   const triggerAnchorInteraction = (anchorId: EntityId) => {
-    turnManager.pause();
+    eventBus.emit('GAME_PAUSE_REQUESTED', {});
     eventBus.emit('APPLY_WORLD_FILTER', { filterType: 'grayscale' });
 
     const floorState = world.getComponent(playerId, FloorState);
@@ -97,49 +97,60 @@ export function createAnchorInteractionSystem(
     const currentFloor = floorState?.currentFloor ?? 1;
     const targetFloor = currentFloor + 1;
 
-    // In a real implementation, this might show a confirmation dialog in React.
-    // For now, we'll emit the event if the user confirms.
-    eventBus.emit('STAIRCASE_INTERACTION', {
-      entityId: playerId,
-      staircaseId,
-      targetFloor
+    eventBus.emit('GAME_PAUSE_REQUESTED', {});
+    gameStore.getState().showStaircaseOverlay({
+      targetFloor,
+      staircaseId
     });
   };
 
   const handleAnchorDecisionMade = (payload: GameEvents['ANCHOR_DECISION_MADE']) => {
     eventBus.emit('REMOVE_WORLD_FILTER', { filterType: 'grayscale' });
-    turnManager.resume();
-
-    const anchorData = gameStore.getState().anchorData;
-    if (!anchorData) return;
+    eventBus.emit('GAME_RESUME_REQUESTED', {});
 
     if (payload.decision === 'extract') {
       eventBus.emit('ANCHOR_EXTRACT', {});
-    } else if (payload.decision === 'descend') {
+    } else if (payload.decision === 'descend' && payload.anchorId !== undefined) {
       eventBus.emit('ANCHOR_DESCEND', {
-        anchorId: anchorData.anchorId,
-        cost: anchorData.descendCost
+        anchorId: payload.anchorId,
+        cost: payload.descendCost ?? 0
       });
 
-      // Also trigger staircase interaction logic to actually descend
-      const currentFloor = anchorData.floorNumber;
+      // After anchor refill, we also trigger the actual descent logic
+      const currentFloor = payload.floorNumber ?? 1;
       const targetFloor = currentFloor + 1;
       eventBus.emit('STAIRCASE_INTERACTION', {
         entityId: playerId,
-        staircaseId: anchorData.anchorId,
+        staircaseId: payload.anchorId,
         targetFloor
       });
     }
+    eventBus.flush();
+  };
+
+  const handleStaircaseDecisionMade = (payload: GameEvents['STAIRCASE_DECISION_MADE']) => {
+    eventBus.emit('GAME_RESUME_REQUESTED', {});
+
+    if (payload.confirmed) {
+      eventBus.emit('STAIRCASE_INTERACTION', {
+        entityId: playerId,
+        staircaseId: payload.staircaseId,
+        targetFloor: payload.targetFloor
+      });
+    }
+    eventBus.flush();
   };
 
   return {
     init() {
       eventBus.on('ENTITY_MOVED', handleEntityMoved);
       eventBus.on('ANCHOR_DECISION_MADE', handleAnchorDecisionMade);
+      eventBus.on('STAIRCASE_DECISION_MADE', handleStaircaseDecisionMade);
     },
     dispose() {
       eventBus.off('ENTITY_MOVED', handleEntityMoved);
       eventBus.off('ANCHOR_DECISION_MADE', handleAnchorDecisionMade);
+      eventBus.off('STAIRCASE_DECISION_MADE', handleStaircaseDecisionMade);
     }
   };
 }

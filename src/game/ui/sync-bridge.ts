@@ -193,7 +193,7 @@ export function syncEngineToStore(context: GameContext) {
   eventBus.on('RUN_ENDED', (event) => {
     gameStore.getState().showRunResults({
       reason: event.reason,
-      floorsCleared: event.floorNumber,
+      floorNumber: event.floorNumber,
       enemiesKilled: gameStore.getState().stats.kills,
       turnsElapsed: gameStore.getState().stats.turns,
       peakHeat: 0, // TODO: track peak heat

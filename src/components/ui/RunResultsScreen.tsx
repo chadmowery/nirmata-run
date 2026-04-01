@@ -15,7 +15,7 @@ export const RunResultsScreen: React.FC = () => {
   
   // Calculate score if not provided or to ensure accuracy
   // Score formula: (floorsCleared * 100) + (enemiesKilled * 10) + (scrap * 1)
-  const calculatedScore = (runResults.floorsCleared * 100) + 
+  const calculatedScore = (runResults.floorNumber * 100) + 
                           (runResults.enemiesKilled * 10) + 
                           (runResults.itemsSecured.scrap * 1);
 
@@ -37,7 +37,7 @@ export const RunResultsScreen: React.FC = () => {
         <div className={styles.statsGrid}>
           <div className={styles.statItem}>
             <span className={styles.statLabel}>FLOORS_CLEARED</span>
-            <span className={styles.statValue}>{runResults.floorsCleared}</span>
+            <span className={styles.statValue}>{runResults.floorNumber}</span>
           </div>
           <div className={styles.statItem}>
             <span className={styles.statLabel}>THREATS_NEUTRALIZED</span>

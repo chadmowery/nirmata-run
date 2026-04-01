@@ -17,9 +17,6 @@ export class Grid {
     this.tiles = Array.from({ length: width * height }, () => createDefaultTile());
   }
 
-  /**
-   * Resets all tiles in the grid to their default state.
-   */
   public clear(): void {
     for (let i = 0; i < this.tiles.length; i++) {
       this.tiles[i] = createDefaultTile();

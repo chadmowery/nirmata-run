@@ -6,7 +6,7 @@ import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
 import { FloorState, FloorStateData } from '@shared/components/floor-state';
 import { Position, PositionData } from '@shared/components/position';
-import { GameplayEvents } from '@shared/events/types';
+import { GameEvents } from '../events/types';
 import { generateDungeon, getDepthBand } from '../generation/dungeon-generator';
 import { placeEntities } from '../generation/entity-placement';
 import { hashSeedForPlacement } from '../engine-factory';
@@ -16,10 +16,10 @@ import RNG from 'rot-js/lib/rng';
  * The FloorManagerSystem orchestrates transitions between floors.
  * It handles destroying entities, regenerating the grid, and re-placing the player.
  */
-export function createFloorManagerSystem<T extends GameplayEvents>(
-  world: World<T>,
+export function createFloorManagerSystem(
+  world: World<GameEvents>,
   grid: Grid,
-  eventBus: EventBus<T>,
+  eventBus: EventBus<GameEvents>,
   entityFactory: EntityFactory,
   componentRegistry: ComponentRegistry,
   playerId: EntityId
@@ -52,13 +52,15 @@ export function createFloorManagerSystem<T extends GameplayEvents>(
     });
 
     // 6. Replace grid terrain
-    // Assuming grid has a way to copy from another grid or we just update the existing one.
-    // Based on engine/grid/grid.ts, we usually modify the grid in-place.
     for (let y = 0; y < grid.height; y++) {
       for (let x = 0; x < grid.width; x++) {
         const tile = dungeonResult.grid.getTile(x, y);
         if (tile) {
-          grid.setTile(x, y, { terrain: tile.terrain });
+          grid.setTile(x, y, { 
+            terrain: tile.terrain,
+            walkable: tile.walkable,
+            transparent: tile.transparent
+          });
         }
       }
     }
@@ -83,7 +85,7 @@ export function createFloorManagerSystem<T extends GameplayEvents>(
       dungeonResult.rooms,
       dungeonResult.playerSpawnRoom,
       rng,
-      { depth: newFloor }
+      { depth: newFloor, skipPlayer: true }
     );
 
     // 9. Update player FloorState
@@ -97,7 +99,13 @@ export function createFloorManagerSystem<T extends GameplayEvents>(
     eventBus.emit('FLOOR_TRANSITION', {
       floorNumber: newFloor,
       depthBand: band ? band.label : 'Unknown'
-    } as unknown as T['FLOOR_TRANSITION']);
+    });
+
+    // 11. Emit dungeon generated event for renderer/UI refresh
+    eventBus.emit('DUNGEON_GENERATED', { seed: floorSeed });
+
+    // 12. Flush event bus to ensure everything is processed (especially while turn manager might be paused)
+    eventBus.flush();
   };
 
   /** Initialize listeners. */
