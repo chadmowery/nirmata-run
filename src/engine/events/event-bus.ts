@@ -10,6 +10,7 @@ type EventHandler<T = unknown> = (event: T) => void;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export class EventBus<TEventMap extends Record<string, any>> {
   private handlers: Map<keyof TEventMap, Set<EventHandler>> = new Map();
+  private anyHandlers: Set<(type: string, event: unknown) => void> = new Set();
   private queue: Array<{ type: keyof TEventMap; event: unknown }> = [];
   private isFlushing = false;
   private readonly MAX_FLUSH_DEPTH = 10;
@@ -22,6 +23,20 @@ export class EventBus<TEventMap extends Record<string, any>> {
       this.handlers.set(type, new Set());
     }
     this.handlers.get(type)!.add(handler as EventHandler);
+  }
+
+  /**
+   * Subscribe a handler to all events.
+   */
+  onAny(handler: (type: string, event: unknown) => void): void {
+    this.anyHandlers.add(handler);
+  }
+
+  /**
+   * Unsubscribe a handler from all events.
+   */
+  offAny(handler: (type: string, event: unknown) => void): void {
+    this.anyHandlers.delete(handler);
   }
 
   /**
@@ -38,6 +53,10 @@ export class EventBus<TEventMap extends Record<string, any>> {
    * Queue an event to be processed on the next flush.
    */
   emit<K extends keyof TEventMap>(type: K, event: TEventMap[K]): void {
+    // Notify wildcard handlers immediately
+    for (const handler of this.anyHandlers) {
+      handler(type as string, event);
+    }
     this.queue.push({ type, event });
   }
 

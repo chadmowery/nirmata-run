@@ -19,6 +19,7 @@ export enum GameAction {
   ANCHOR_DESCEND = 'ANCHOR_DESCEND',
   ANCHOR_EXTRACT = 'ANCHOR_EXTRACT',
   DEBUG_PATHFIND_ANCHOR = 'DEBUG_PATHFIND_ANCHOR',
+  DEBUG_TOGGLE_TIMELINE = 'DEBUG_TOGGLE_TIMELINE',
 }
 
 /**
@@ -50,6 +51,7 @@ export const DEFAULT_BINDINGS: Record<string, GameAction> = {
   Digit3: GameAction.USE_FIRMWARE_2,
   KeyV: GameAction.VENT,
   KeyP: GameAction.DEBUG_PATHFIND_ANCHOR,
+  Backquote: GameAction.DEBUG_TOGGLE_TIMELINE,
 };
 
 /**

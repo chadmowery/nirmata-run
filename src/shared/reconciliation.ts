@@ -6,6 +6,7 @@ import { GameplayEvents } from './events/types';
 import { serializeWorld } from './serialization';
 import { StateDelta, SerializedWorld } from './types';
 import { Position } from './components/position';
+import { EventOriginContext } from './utils/event-context';
 
 /**
  * Applies a StateDelta to a World and Grid instance and emits relevant events.
@@ -22,6 +23,10 @@ export function applyStateDelta<T extends GameplayEvents>(
 
   // 2. Capture the PREDICTED state (what the client has right now)
   const predictedWorldState = serializeWorld(world);
+
+  // Set context to server for incoming truth events
+  const previousOrigin = EventOriginContext.current;
+  EventOriginContext.current = 'server';
 
   // 3. Patch snapshots with server delta to get the TRUTH
   const patchedWorld = applyChangeset(currentWorldState, delta.world);
@@ -157,4 +162,7 @@ export function applyStateDelta<T extends GameplayEvents>(
 
   // 7. Flush event bus to process all emitted events (ENTITY_CREATED, DUNGEON_GENERATED, etc.)
   eventBus.flush();
+
+  // Reset context
+  EventOriginContext.current = previousOrigin;
 }

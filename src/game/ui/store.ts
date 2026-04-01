@@ -1,5 +1,6 @@
 import { createStore } from 'zustand/vanilla';
 import { GameState } from '../states/types';
+import { EventOriginContext } from '../../shared/utils/event-context';
 
 export type GameStatus = GameState;
 export type MessageType = 'info' | 'combat' | 'error';
@@ -191,6 +192,9 @@ export const gameStore = createStore<UIState>((set) => ({
     const context = (window as unknown as { gameContext: { eventBus: { emit: (event: string, payload: unknown) => void, flush: () => void } } }).gameContext;
     const state = gameStore.getState();
     if (context && state.anchorData) {
+      const previousOrigin = EventOriginContext.current;
+      EventOriginContext.current = 'ui';
+
       context.eventBus.emit('ANCHOR_DECISION_MADE', { 
         decision,
         anchorId: state.anchorData.anchorId,
@@ -198,6 +202,8 @@ export const gameStore = createStore<UIState>((set) => ({
         floorNumber: state.anchorData.floorNumber
       });
       context.eventBus.flush();
+
+      EventOriginContext.current = previousOrigin;
     }
     set({ anchorOverlayVisible: false, anchorData: null });
   },
@@ -208,12 +214,17 @@ export const gameStore = createStore<UIState>((set) => ({
     const context = (window as unknown as { gameContext: { eventBus: { emit: (event: string, payload: unknown) => void, flush: () => void }, playerId: number } }).gameContext;
     const state = gameStore.getState();
     if (context) {
+      const previousOrigin = EventOriginContext.current;
+      EventOriginContext.current = 'ui';
+
       context.eventBus.emit('STAIRCASE_DECISION_MADE', { 
         confirmed,
         targetFloor: state.staircaseData?.targetFloor ?? 0,
         staircaseId: state.staircaseData?.staircaseId ?? 0
       });
       context.eventBus.flush();
+
+      EventOriginContext.current = previousOrigin;
     }
     set({ staircaseOverlayVisible: false, staircaseData: null });
   },

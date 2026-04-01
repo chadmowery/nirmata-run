@@ -14,6 +14,8 @@ import { AbilityDef, FirmwareSlots, Position } from '@shared/components';
 import { ActionIntent } from '@shared/types';
 import { logger } from '@shared/utils/logger';
 import { AutoPathfinder } from './debug/auto-pathfind';
+import { useDebugStore } from './debug/debug-store';
+import { EventOriginContext } from '@shared/utils/event-context';
 
 export interface GameConfig {
   gridWidth: number;
@@ -150,8 +152,12 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
   fsm.setContext(context);
 
-  // Initialize UI Bridge
   syncEngineToStore(context);
+
+  // Hook EventBus to Debug Timeline
+  eventBus.onAny((type, payload) => {
+    useDebugStore.getState().addTimelineEvent(type, payload, EventOriginContext.current);
+  });
 
   const targetingManager = createTargetingManager(eventBus, (slotIndex, targetX, targetY) => {
     handleConfirmedTarget(slotIndex, targetX, targetY);
@@ -208,6 +214,11 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
     if (action === GameAction.DEBUG_PATHFIND_ANCHOR) {
       autoPathfinder.toggle();
+      return;
+    }
+
+    if (action === GameAction.DEBUG_TOGGLE_TIMELINE) {
+      useDebugStore.getState().toggleTimeline();
       return;
     }
 
