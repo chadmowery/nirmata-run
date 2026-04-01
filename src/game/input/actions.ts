@@ -18,6 +18,7 @@ export enum GameAction {
   INTERACT_ANCHOR = 'INTERACT_ANCHOR',
   ANCHOR_DESCEND = 'ANCHOR_DESCEND',
   ANCHOR_EXTRACT = 'ANCHOR_EXTRACT',
+  DEBUG_PATHFIND_ANCHOR = 'DEBUG_PATHFIND_ANCHOR',
 }
 
 /**
@@ -48,6 +49,7 @@ export const DEFAULT_BINDINGS: Record<string, GameAction> = {
   Digit2: GameAction.USE_FIRMWARE_1,
   Digit3: GameAction.USE_FIRMWARE_2,
   KeyV: GameAction.VENT,
+  KeyP: GameAction.DEBUG_PATHFIND_ANCHOR,
 };
 
 /**

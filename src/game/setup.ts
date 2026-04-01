@@ -13,6 +13,7 @@ import { createTargetingManager } from './input/targeting';
 import { AbilityDef, FirmwareSlots, Position } from '@shared/components';
 import { ActionIntent } from '@shared/types';
 import { logger } from '@shared/utils/logger';
+import { AutoPathfinder } from './debug/auto-pathfind';
 
 export interface GameConfig {
   gridWidth: number;
@@ -121,9 +122,30 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     GAME_TRANSITIONS
   );
 
+  const autoPathfinder = new AutoPathfinder(
+    async (intent) => {
+      inputManager.setRequestPending(true);
+      await sendActionToServer(intent);
+      inputManager.setRequestPending(false);
+    },
+    (action) => {
+      if (DIRECTIONS[action]) {
+        return { type: 'MOVE', dx: DIRECTIONS[action].dx, dy: DIRECTIONS[action].dy };
+      }
+      if (action === GameAction.WAIT) {
+        return { type: 'WAIT' };
+      }
+      if (action === GameAction.VENT) {
+        return { type: 'VENT' };
+      }
+      return null;
+    }
+  );
+
   const context: GameContext = {
     ...contextBase,
     fsm,
+    autoPathfinder,
   };
 
   fsm.setContext(context);
@@ -183,6 +205,13 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
       }
       return;
     }
+
+    if (action === GameAction.DEBUG_PATHFIND_ANCHOR) {
+      autoPathfinder.toggle();
+      return;
+    }
+
+    autoPathfinder.cancel();
 
     if (fsm.getCurrentState() === GameState.Playing && turnManager.canAcceptInput() && playerId) {
       // Handle Firmware Actions with Targeting
@@ -246,8 +275,9 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     }
   }
 
-  // Wire input ActionHandler for keyboard
   inputManager.setActionHandler(handlePlayerInput);
+
+  autoPathfinder.setContext(context);
 
   function getActionIntent(action: GameAction): ActionIntent | null {
     if (DIRECTIONS[action]) {
@@ -314,6 +344,7 @@ export function destroyGame(context: GameContext) {
     sys.dispose?.();
   }
 
+  context.autoPathfinder?.cancel();
   context.inputManager.disable();
   context.eventBus.clear();
 }

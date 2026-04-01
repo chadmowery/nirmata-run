@@ -21,6 +21,7 @@ import { PackCoordinatorSystem } from './systems/pack-coordinator';
 import { TileCorruptionSystem } from './systems/tile-corruption';
 import { RunEnderSystem } from './systems/run-ender';
 import { EntityFactory } from '@engine/entity/factory';
+import { AutoPathfinder } from './debug/auto-pathfind';
 
 export interface GameSystem {
   init?(): void;
@@ -50,6 +51,7 @@ export interface GameContext {
   tileCorruptionSystem: TileCorruptionSystem;
   runEnderSystem: RunEnderSystem;
   entityFactory: EntityFactory;
+  autoPathfinder?: AutoPathfinder;
   playerId?: EntityId;
   currentSeed?: string;
   sessionId?: string;
