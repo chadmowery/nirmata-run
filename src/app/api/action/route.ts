@@ -23,13 +23,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    const { world, grid, turnManager } = session;
+    const { world, grid, turnManager, eventBus } = session;
 
     // 1. Snapshot initial state
     const oldWorldState = serializeWorld(world);
     const oldGridState = serializeGrid(grid);
 
-    // 2. Process Action
+    // 2. Capture all events emitted during this tick
+    const capturedEvents: Array<{ type: string; payload: unknown }> = [];
+    const eventCaptureHandler = (type: string, payload: unknown) => {
+      capturedEvents.push({ type, payload });
+    };
+    eventBus.onAny(eventCaptureHandler);
+
+    // 3. Process Action
     // Map ActionIntent to GameAction string for TurnManager
     let actionKey: string | null = null;
 
@@ -56,10 +63,15 @@ export async function POST(req: Request) {
 
     if (actionKey && turnManager.canAcceptInput()) {
       turnManager.submitAction(actionKey);
+      // Synchronously flush server events if they aren't auto-flushed by systems
+      eventBus.flush();
     } else {
       // If we can't map it or input is not accepted, we still return the current state/empty delta
       // or we could return an error. For now, just process if valid.
     }
+
+    // Stop capturing
+    eventBus.offAny(eventCaptureHandler);
 
     // 3. Snapshot final state
     const newWorldState = serializeWorld(world);
@@ -69,6 +81,7 @@ export async function POST(req: Request) {
     const delta = {
       world: diff(oldWorldState, newWorldState),
       grid: diff(oldGridState, newGridState),
+      events: capturedEvents,
     };
 
     return NextResponse.json({

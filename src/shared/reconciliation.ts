@@ -163,6 +163,16 @@ export function applyStateDelta<T extends GameplayEvents>(
   // 7. Flush event bus to process all emitted events (ENTITY_CREATED, DUNGEON_GENERATED, etc.)
   eventBus.flush();
 
+  // 8. Re-emit captured server events for the debug timeline
+  if (delta.events) {
+    for (const event of delta.events) {
+      // We cast to any here because we are dynamically forwarding events from the server
+      // that are known to be valid GameplayEvents.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      eventBus.emit(event.type as any, event.payload as any);
+    }
+  }
+
   // Reset context
   EventOriginContext.current = previousOrigin;
 }

@@ -148,4 +148,5 @@ import { Changeset } from 'json-diff-ts';
 export type StateDelta = {
   world: Changeset;
   grid: Changeset;
+  events?: Array<{ type: string; payload: unknown }>;
 };
