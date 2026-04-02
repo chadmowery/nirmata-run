@@ -24,6 +24,7 @@ import { createRunEnderSystem } from './systems/run-ender';
 import { createStabilitySystem, StabilitySystem } from './systems/stability';
 import { createFloorManagerSystem, FloorManagerSystem } from './systems/floor-manager';
 import { createAnchorInteractionSystem, AnchorInteractionSystem } from './systems/anchor-interaction';
+import { createCurrencyDropSystem } from './systems/currency-drop';
 import { generateDungeon } from './generation/dungeon-generator';
 import { placeEntities } from './generation/entity-placement';
 import RNG from 'rot-js/lib/rng';
@@ -39,6 +40,7 @@ export interface EngineInitConfig {
   seed: string;
   isClient?: boolean;
   shellRecord?: ShellRecord;
+  sessionId?: string;
 }
 
 export interface EngineInstance {
@@ -48,6 +50,7 @@ export interface EngineInstance {
   turnManager: TurnManager<GameEvents>;
   entityFactory: EntityFactory;
   playerId: number;
+  sessionId?: string;
   systems: {
     movement: ReturnType<typeof createMovementSystem<GameEvents>>;
     combat: ReturnType<typeof createCombatSystem<GameEvents>>;
@@ -65,6 +68,7 @@ export interface EngineInstance {
     stability: StabilitySystem;
     floorManager: FloorManagerSystem;
     anchorInteraction: AnchorInteractionSystem;
+    currencyDrop: ReturnType<typeof createCurrencyDropSystem>;
   };
 }
 
@@ -106,7 +110,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   });
   const deadZoneSystem = createDeadZoneSystem(world, grid, eventBus);
   const aiSystem = createAISystem(world, grid, eventBus, movementSystem, deadZoneSystem);
-  const itemPickupSystem = createItemPickupSystem(world, grid, eventBus);
+  const itemPickupSystem = createItemPickupSystem(world, grid, eventBus, config.sessionId);
   const heatSystem = createHeatSystem(world, eventBus);
   const statusEffectSystem = createStatusEffectSystem(world, eventBus);
   const firmwareSystem = createFirmwareSystem(world, grid, eventBus, movementSystem, heatSystem);
@@ -116,6 +120,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   const tileCorruptionSystem = createTileCorruptionSystem(world, grid, eventBus, entityFactory, componentRegistry);
   const runEnderSystem = createRunEnderSystem(world, grid, eventBus);
   const stabilitySystem = createStabilitySystem(world, eventBus);
+  const currencyDropSystem = createCurrencyDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
 
   combatSystem.init();
   deadZoneSystem.init();
@@ -128,6 +133,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   tileCorruptionSystem.init();
   runEnderSystem.init();
   stabilitySystem.init();
+  currencyDropSystem.init();
 
   // Register ticks to POST_TURN phase
   world.registerSystem(Phase.POST_TURN, () => {
@@ -194,7 +200,8 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
     grid,
     eventBus,
     turnManager,
-    placement.playerId
+    placement.playerId,
+    config.sessionId
   );
   anchorInteractionSystem.init();
 
@@ -236,6 +243,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
     turnManager,
     entityFactory,
     playerId: placement.playerId,
+    sessionId: config.sessionId,
     systems: {
       movement: movementSystem,
       combat: combatSystem,
@@ -252,7 +260,8 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
       runEnder: runEnderSystem,
       stability: stabilitySystem,
       floorManager: floorManagerSystem,
-      anchorInteraction: anchorInteractionSystem
+      anchorInteraction: anchorInteractionSystem,
+      currencyDrop: currencyDropSystem
     }
   };
 }

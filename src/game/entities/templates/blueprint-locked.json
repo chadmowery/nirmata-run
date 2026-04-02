@@ -1,0 +1,9 @@
+{
+  "name": "blueprint-locked",
+  "mixins": ["physical"],
+  "components": {
+    "item": { "name": "Locked File", "description": "encrypted blueprint data" },
+    "currencyItem": { "currencyType": "blueprint", "amount": 1 },
+    "sprite": { "key": "item_blueprint" }
+  }
+}

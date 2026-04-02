@@ -31,6 +31,8 @@ import { DeadZone } from './dead-zone';
 import { CorruptionState } from './corruption-state';
 import { Stability } from './stability';
 import { Scrap } from './scrap';
+import { Wallet } from './wallet';
+import { CurrencyItem } from './currency-item';
 import { FloorState } from './floor-state';
 import { StaircaseMarker } from './staircase-marker';
 import { AnchorMarker } from './anchor-marker';
@@ -69,6 +71,8 @@ export const COMPONENTS_REGISTRY = [
   CorruptionState,
   Stability,
   Scrap,
+  Wallet,
+  CurrencyItem,
   FloorState,
   StaircaseMarker,
   AnchorMarker,
@@ -107,6 +111,8 @@ export * from './dead-zone';
 export * from './corruption-state';
 export * from './stability';
 export * from './scrap';
+export * from './wallet';
+export * from './currency-item';
 export * from './floor-state';
 export * from './staircase-marker';
 export * from './anchor-marker';

@@ -30,6 +30,7 @@ export const AugmentData = defineComponent('augmentData', z.object({
   payloads: z.array(PayloadSchema),
   maxTriggersPerTurn: z.number().int().min(1).default(99),
   cooldownTurns: z.number().int().min(0).default(0),
+  isLegacy: z.boolean().default(false),
 }));
 
 export type AugmentDataType = z.infer<typeof AugmentData.schema>;

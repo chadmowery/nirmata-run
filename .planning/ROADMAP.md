@@ -139,7 +139,7 @@ Plans:
 ### Phase 13: Currency, Economy & Blueprint System
 **Goal**: Three-tier currency system with Blueprint discovery, compilation, and weekly reset creates the between-run progression loop
 **Depends on**: Phase 12 (extraction produces currency/items), Phase 8 (Firmware as Blueprint targets)
-**Requirements**: ECON-01, ECON-02, ECON-03, ECON-04, ECON-05, ECON-06, BP-01, BP-02, BP-03, BP-04, BP-05, BP-06, BP-07
+**Requirements**: ECON-01, ECON-02, ECON-03, ECON-04, ECON-05, ECON-06, BP-01, BP-02, BP-03, BP-04, BP-05, BP-07
 **Success Criteria** (what must be TRUE):
   1. WalletComponent tracks Scrap, Neural Blueprints, and Flux; all transactions are server-validated through the action pipeline
   2. Enemies drop currency per tier: Tier 1 = Scrap, Tier 2/3 = Blueprints + Flux; extraction multipliers apply; death pays 25% Scrap pity
@@ -150,10 +150,10 @@ Plans:
 **UI hint**: no
 
 Plans:
-- [ ] 13-01: Currency Components & Wallet (WalletComponent, 3-tier currency, earn/spend/transfer APIs, server validation)
-- [ ] 13-02: Economy Pipeline & Drop Tables (enemy currency drops by tier, extraction multipliers, pity payout, faucet/sink balance)
-- [ ] 13-03: Blueprint System (BlueprintLibrary, discovery as Locked File, Flux compilation, installation on Shell, Zod schemas)
-- [ ] 13-04: Weekly Reset & Legacy Code (Format C: reset logic, Legacy Code Heat doubling, Version Patch system, Winner's Item stub, temporal scheduling)
+- [ ] 13-01-PLAN.md — Economy foundation (economy.json config, WalletComponent, CurrencyItem, RunInventory currency extension, profile persistence, entity templates)
+- [ ] 13-02-PLAN.md — Currency drop pipeline & ScrapComponent migration (currency drop system, pickup extension, pipeline migration, death pity, extraction caps)
+- [ ] 13-03-PLAN.md — Blueprint lifecycle & economy APIs (compile/install/uninstall/purchase/upgrade endpoints, shop rotation, admin CRUD)
+- [ ] 13-04-PLAN.md — Weekly reset & Legacy Code (Format C: reset logic, Legacy Code Heat doubling, Legacy Augment halving, Winner's Item rotation, admin endpoint)
 
 ### Phase 14: Stash, Vault & Run Modes
 **Goal**: Persistent inventory and three distinct run modes create the weekly gameplay loop from practice through preparation to competition
@@ -225,11 +225,11 @@ Phases execute in numeric order: 7 → 8 → 9 → 10 → 11 → 12 → 13 → 1
 | 10. Software System & Enhanced Combat | 0/4 | Not started | - |
 | 11. Enemy Hierarchy | 0/4 | Not started | - |
 | 12. Multi-Floor Generation & Stability/Extraction | 5/5 | Complete   | 2026-04-01 |
-| 13. Currency, Economy & Blueprint System | 0/4 | Not started | - |
+| 13. Currency, Economy & Blueprint System | 0/4 | Planned | - |
 | 14. Stash, Vault & Run Modes | 0/4 | Not started | - |
 | 15. Neural Deck Hub UI | 0/4 | Not started | - |
 | 16. Visual Identity & Starter Loadouts | 0/4 | Not started | - |
 
 ---
 *Roadmap created: 2026-03-29*
-*Last updated: 2026-03-31*
+*Last updated: 2026-04-02*

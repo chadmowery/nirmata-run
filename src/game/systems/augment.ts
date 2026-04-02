@@ -13,6 +13,7 @@ import {
 import { GameplayEvents } from '@shared/events/types';
 import { StatusEffectSystem } from './status-effects';
 import { HeatSystem } from './heat';
+import { getLegacyMagnitude } from './legacy-code';
 
 interface TriggerContext {
   firmwareActivated: boolean;
@@ -59,13 +60,15 @@ export function createAugmentSystem<T extends GameplayEvents>(
     }
   };
 
-  const resolvePayloads = (entityId: EntityId, payloads: PayloadType[]) => {
+  const resolvePayloads = (entityId: EntityId, payloads: PayloadType[], isLegacy: boolean = false) => {
     for (const payload of payloads) {
+      const magnitude = getLegacyMagnitude(payload.magnitude ?? 0, isLegacy);
+      
       switch (payload.type) {
         case 'HEAL': {
           const health = world.getComponent(entityId, Health);
           if (health) {
-            health.current = Math.min(health.max, health.current + (payload.magnitude ?? 0));
+            health.current = Math.min(health.max, health.current + magnitude);
           }
           break;
         }
@@ -73,7 +76,7 @@ export function createAugmentSystem<T extends GameplayEvents>(
           statusEffectSystem.applyEffect(entityId, { 
             name: 'SHIELD', 
             duration: 1, 
-            magnitude: payload.magnitude 
+            magnitude: magnitude 
           });
           break;
         case 'APPLY_STATUS':
@@ -81,18 +84,18 @@ export function createAugmentSystem<T extends GameplayEvents>(
             statusEffectSystem.applyEffect(entityId, { 
               name: payload.statusEffectName, 
               duration: payload.statusEffectDuration ?? 1, 
-              magnitude: payload.magnitude 
+              magnitude: magnitude 
             });
           }
           break;
         case 'VENT_HEAT':
-          heatSystem.addHeat(entityId, -(payload.magnitude ?? 0));
+          heatSystem.addHeat(entityId, -magnitude);
           break;
         case 'DAMAGE_BONUS':
           statusEffectSystem.applyEffect(entityId, { 
             name: 'DAMAGE_BOOST', 
             duration: payload.statusEffectDuration ?? 1, 
-            magnitude: payload.magnitude 
+            magnitude: magnitude 
           });
           break;
       }
@@ -121,7 +124,7 @@ export function createAugmentSystem<T extends GameplayEvents>(
 
       if (activations < augmentData.maxTriggersPerTurn && cooldown <= 0) {
         if (evaluateCondition(augmentData.trigger, ctx)) {
-          resolvePayloads(entityId, augmentData.payloads);
+          resolvePayloads(entityId, augmentData.payloads, augmentData.isLegacy);
           
           state.activationsThisTurn[augmentKey] = activations + 1;
           if (augmentData.cooldownTurns > 0) {

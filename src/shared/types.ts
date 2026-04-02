@@ -88,6 +88,13 @@ export const StaircaseDescendActionSchema = z.object({
   targetFloor: z.number(),
 });
 
+export const PickupCurrencyActionSchema = z.object({
+  type: z.literal('PICKUP_CURRENCY'),
+  itemId: z.number(),
+  currencyType: z.enum(['scrap', 'blueprint', 'flux']),
+  amount: z.number().int().min(1),
+});
+
 export const ActionIntentSchema = z.discriminatedUnion('type', [
   MoveActionSchema,
   AttackActionSchema,
@@ -104,6 +111,7 @@ export const ActionIntentSchema = z.discriminatedUnion('type', [
   AnchorDescendActionSchema,
   AnchorExtractActionSchema,
   StaircaseDescendActionSchema,
+  PickupCurrencyActionSchema,
 ]);
 
 export type ActionIntent = z.infer<typeof ActionIntentSchema>;

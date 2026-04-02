@@ -124,6 +124,24 @@ export interface GameplayEvents extends EngineEvents {
     sessionId: string;
   };
 
+  /** Queued when an item drops as currency. */
+  CURRENCY_DROPPED: {
+    entityId: EntityId;
+    currencyType: 'scrap' | 'blueprint' | 'flux';
+    amount: number;
+    x: number;
+    y: number;
+    blueprintId?: string;
+  };
+
+  /** Queued when a currency item is picked up. */
+  CURRENCY_PICKED_UP: {
+    entityId: EntityId;
+    currencyType: 'scrap' | 'blueprint' | 'flux';
+    amount: number;
+    blueprintId?: string;
+  };
+
   /** Queued when a Buffer-Overflow pack member detonates. */
   PACK_DETONATION: {
     entityId: EntityId;

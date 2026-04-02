@@ -6,10 +6,18 @@ export interface RunInventoryItem {
   pickedUpAtTimestamp: number;
 }
 
+export interface CurrencyStack {
+  currencyType: 'scrap' | 'blueprint' | 'flux';
+  amount: number;
+  blueprintId?: string;
+  blueprintType?: 'firmware' | 'augment';
+}
+
 export interface RunInventory {
   sessionId: string;
   maxSlots: number;
   software: RunInventoryItem[];
+  currency: CurrencyStack[];
 }
 
 /**
@@ -31,6 +39,7 @@ export class RunInventoryRegistry {
         sessionId,
         maxSlots: this.MAX_SLOTS,
         software: [],
+        currency: [],
       };
       this.inventories.set(sessionId, inventory);
     }
@@ -58,6 +67,15 @@ export class RunInventoryRegistry {
     
     stash.push(...inventory.software);
     inventory.software = [];
+    inventory.currency = [];
+  }
+
+  /**
+   * Returns total slots used by both software and currency stacks.
+   */
+  getTotalSlots(sessionId: string): number {
+    const inventory = this.getOrCreate(sessionId);
+    return inventory.software.length + inventory.currency.length;
   }
 
   /**
@@ -66,11 +84,109 @@ export class RunInventoryRegistry {
    */
   addSoftware(sessionId: string, item: RunInventoryItem): boolean {
     const inventory = this.getOrCreate(sessionId);
-    if (inventory.software.length >= inventory.maxSlots) {
+    if (this.getTotalSlots(sessionId) >= inventory.maxSlots) {
       return false;
     }
     inventory.software.push(item);
     return true;
+  }
+
+  /**
+   * Adds currency to the session's inventory.
+   * Stacks if matching currency type exists (or matching blueprintId).
+   * Returns false if inventory is full and no matching stack exists.
+   */
+  addCurrency(
+    sessionId: string, 
+    currencyType: 'scrap' | 'blueprint' | 'flux', 
+    amount: number,
+    meta?: { blueprintId?: string, blueprintType?: 'firmware' | 'augment' }
+  ): boolean {
+    const inventory = this.getOrCreate(sessionId);
+    
+    // Find existing stack
+    let existingStack = inventory.currency.find(s => {
+      if (s.currencyType !== currencyType) return false;
+      if (currencyType === 'blueprint') {
+        return s.blueprintId === meta?.blueprintId;
+      }
+      return true;
+    });
+
+    if (existingStack) {
+      existingStack.amount += amount;
+      return true;
+    }
+
+    // No stack found, check for room
+    if (this.getTotalSlots(sessionId) >= inventory.maxSlots) {
+      return false;
+    }
+
+    inventory.currency.push({
+      currencyType,
+      amount,
+      blueprintId: meta?.blueprintId,
+      blueprintType: meta?.blueprintType
+    });
+    return true;
+  }
+
+  /**
+   * Returns total amount of a specific currency type.
+   */
+  getCurrencyAmount(sessionId: string, currencyType: 'scrap' | 'blueprint' | 'flux'): number {
+    const inventory = this.getOrCreate(sessionId);
+    return inventory.currency
+      .filter(s => s.currencyType === currencyType)
+      .reduce((sum, s) => sum + s.amount, 0);
+  }
+
+  /**
+   * Returns all currency stacks in the inventory.
+   */
+  getCurrencyStacks(sessionId: string): CurrencyStack[] {
+    const inventory = this.getOrCreate(sessionId);
+    return [...inventory.currency];
+  }
+
+  /**
+   * Removes currency from the session's inventory.
+   * Returns false if not enough currency exists.
+   */
+  removeCurrency(sessionId: string, currencyType: 'scrap' | 'blueprint' | 'flux', amount: number): boolean {
+    const inventory = this.getOrCreate(sessionId);
+    const currentAmount = this.getCurrencyAmount(sessionId, currencyType);
+    
+    if (currentAmount < amount) {
+      return false;
+    }
+
+    let remainingToRemove = amount;
+    // Remove from stacks until exhausted
+    for (let i = inventory.currency.length - 1; i >= 0; i--) {
+      const stack = inventory.currency[i];
+      if (stack.currencyType === currencyType) {
+        const toTake = Math.min(stack.amount, remainingToRemove);
+        stack.amount -= toTake;
+        remainingToRemove -= toTake;
+        
+        if (stack.amount <= 0) {
+          inventory.currency.splice(i, 1);
+        }
+      }
+      if (remainingToRemove <= 0) break;
+    }
+
+    return true;
+  }
+
+  /**
+   * Clears all currency stacks from the inventory.
+   */
+  clearCurrency(sessionId: string): void {
+    const inventory = this.getOrCreate(sessionId);
+    inventory.currency = [];
   }
 
   /**
@@ -87,12 +203,21 @@ export class RunInventoryRegistry {
   }
 
   /**
+   * Clears all software items from the inventory.
+   */
+  clearSoftware(sessionId: string): void {
+    const inventory = this.getOrCreate(sessionId);
+    inventory.software = [];
+  }
+
+  /**
    * Clears the entire inventory for a session.
    */
   clear(sessionId: string): void {
     const inventory = this.inventories.get(sessionId);
     if (inventory) {
       inventory.software = [];
+      inventory.currency = [];
     }
   }
 }

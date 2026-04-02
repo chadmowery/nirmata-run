@@ -16,6 +16,7 @@ import {
   AbilityDef,
   SoftwareDef
 } from '@shared/components';
+import { runInventoryRegistry } from './run-inventory';
 import { gameStore } from '../ui/store';
 import depthConfig from '../generation/depth-config.json';
 
@@ -24,7 +25,8 @@ export function createAnchorInteractionSystem(
   grid: Grid,
   eventBus: EventBus<GameEvents>,
   turnManager: TurnManager<GameEvents>,
-  playerId: EntityId
+  playerId: EntityId,
+  sessionId?: string
 ) {
   const handleEntityMoved = (payload: GameEvents['ENTITY_MOVED']) => {
     if (payload.entityId !== playerId) return;
@@ -55,7 +57,6 @@ export function createAnchorInteractionSystem(
 
     const floorState = world.getComponent(playerId, FloorState);
     const stability = world.getComponent(playerId, Stability);
-    const scrap = world.getComponent(playerId, Scrap);
     const firmware = world.getComponent(playerId, FirmwareSlots);
     const augments = world.getComponent(playerId, AugmentSlots);
     const software = world.getComponent(playerId, SoftwareSlots);
@@ -63,12 +64,17 @@ export function createAnchorInteractionSystem(
     const floorNumber = floorState?.currentFloor ?? 1;
     const stabilityPercent = stability?.current ?? 100;
 
+    // Use runInventoryRegistry for scrap amount if sessionId is available
+    const scrapAmount = sessionId 
+      ? runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap') 
+      : world.getComponent(playerId, Scrap)?.amount ?? 0;
+
     // Categorized inventory data
     const inventory = {
       firmware: firmware?.equipped.map(id => world.getComponent(id, AbilityDef)?.name ?? 'Unknown') ?? [],
       augments: augments?.equipped.map(id => world.getComponent(id, AbilityDef)?.name ?? 'Unknown') ?? [],
       software: software?.equipped.map(id => world.getComponent(id, SoftwareDef)?.name ?? 'Unknown') ?? [],
-      scrap: scrap?.amount ?? 0
+      scrap: scrapAmount
     };
 
     const descendCost = 50 + (floorNumber * 10);

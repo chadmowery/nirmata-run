@@ -17,6 +17,7 @@ import { handleEquip, handleUnequip } from './systems/equipment';
 import { runInventoryRegistry } from '../game/systems/run-inventory';
 import { resolveDamage, collectDamageModifiers } from '../game/systems/combat';
 import { checkAutoLoader, applyBleedOnHit, applyVampireOnKill } from '../game/systems/software-effects';
+import economy from '../game/entities/templates/economy.json';
 
 /**
  * Runs a game action against a world/grid state and returns the new state and delta.
@@ -183,15 +184,19 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
       });
       break;
     case 'ANCHOR_DESCEND': {
-      const scrap = world.getComponent(entityId, Scrap);
-      if (!scrap || scrap.amount < action.cost) {
+      if (!sessionId) {
+        eventBus.emit('MESSAGE_EMITTED', { text: 'Session ID required for anchor descend.', type: 'error' });
+        return;
+      }
+      const currentScrap = runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap');
+      if (currentScrap < action.cost) {
         eventBus.emit('MESSAGE_EMITTED', {
           text: `INSUFFICIENT_SCRAP: ${action.cost} REQUIRED`,
           type: 'error'
         });
         return;
       }
-      scrap.amount -= action.cost;
+      runInventoryRegistry.removeCurrency(sessionId, 'scrap', action.cost);
       const stability = world.getComponent(entityId, Stability);
       if (stability) {
         const oldValue = stability.current;
@@ -216,6 +221,21 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
     case 'ANCHOR_EXTRACT':
       if (sessionId) {
         eventBus.emit('EXTRACTION_TRIGGERED', { sessionId });
+      }
+      break;
+    case 'PICKUP_CURRENCY':
+      // Explicit pickup for prediction/authoritative sync
+      if (sessionId) {
+        const success = runInventoryRegistry.addCurrency(sessionId, action.currencyType, action.amount);
+        if (success) {
+          grid.removeItem(action.itemId, 0, 0); // Simplified, item-pickup handles actual grid removal
+          world.destroyEntity(action.itemId);
+          eventBus.emit('CURRENCY_PICKED_UP', {
+            entityId,
+            currencyType: action.currencyType,
+            amount: action.amount
+          } as any);
+        }
       }
       break;
   }
@@ -361,27 +381,31 @@ export function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, 
       burned.armor = null;
     }
 
-    // If player died, handle Scrap pity payout (Phase 12)
+    // If player died, handle currency pity payout (Phase 13)
     const actor = world.getComponent(entityId, Actor);
-    const scrap = world.getComponent(entityId, Scrap);
-    if (actor?.isPlayer) {
-      if (scrap) {
-        const pityAmount = Math.floor(scrap.amount * 0.25);
-        scrap.amount = pityAmount;
-        eventBus.emit('MESSAGE_EMITTED', { text: `SCRAP_PITY_PAYOUT: ${pityAmount}`, type: 'info' });
+    if (actor?.isPlayer && sessionId) {
+      const totalScrap = runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap');
+      const pityAmount = Math.floor(totalScrap * 0.25);
+
+      // Clear all currency from inventory
+      runInventoryRegistry.clearCurrency(sessionId);
+
+      // Re-add pity Scrap
+      if (pityAmount > 0) {
+        runInventoryRegistry.addCurrency(sessionId, 'scrap', pityAmount);
       }
 
-      // Clear run inventory
-      if (sessionId) {
-        runInventoryRegistry.clear(sessionId);
-        eventBus.emit('MESSAGE_EMITTED', { text: 'Neural feedback destroyed all unsynced software.', type: 'error' });
-      }
+      eventBus.emit('MESSAGE_EMITTED', { text: `SCRAP_PITY_PAYOUT: ${pityAmount}`, type: 'info' });
+
+      // Clear software inventory
+      runInventoryRegistry.clearSoftware(sessionId);
+      eventBus.emit('MESSAGE_EMITTED', { text: 'Neural feedback destroyed all unsynced data.', type: 'error' });
     }
 
     // Note: The ShellRecord in ShellRegistry persists outside ECS
   });
 
-  // Extraction handler (Phase 10, Phase 12)
+  // Extraction handler (Phase 10, Phase 12, Phase 13)
   eventBus.on('EXTRACTION_TRIGGERED', (payload) => {
     const { sessionId: sid } = payload;
     if (sid) {
@@ -395,24 +419,33 @@ export function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, 
         }
       }
 
-      let scrapAmount = 0;
-      if (playerId !== -1) {
-        const scrap = world.getComponent(playerId, Scrap);
-        if (scrap) scrapAmount = scrap.amount;
-      }
+      const floorState = playerId !== -1 ? world.getComponent(playerId, FloorState) : null;
+      const floorNumber = floorState?.currentFloor ?? 1;
+
+      // Get inventory currency totals
+      const inventoryScrap = runInventoryRegistry.getCurrencyAmount(sid, 'scrap');
+      const inventoryFlux = runInventoryRegistry.getCurrencyAmount(sid, 'flux');
+
+      // Calculate extraction Flux bonus (per D-06)
+      const fluxBonus = economy.currencyDrops.flux.extractionBonus.baseAmount +
+        (economy.currencyDrops.flux.extractionBonus.perFloorMultiplier * floorNumber);
+      const totalFlux = inventoryFlux + fluxBonus;
 
       runInventoryRegistry.transferToStash(sid);
 
       eventBus.emit('MESSAGE_EMITTED', {
-        text: `EXTRACTION_SUCCESSFUL: Scrap amount ${scrapAmount} secured.`,
+        text: `EXTRACTION_SUCCESSFUL: ${inventoryScrap} Scrap, ${totalFlux} Flux secured.`,
         type: 'info'
       });
 
-      const floorState = playerId !== -1 ? world.getComponent(playerId, FloorState) : null;
       eventBus.emit('RUN_ENDED', {
         reason: 'extraction',
-        floorNumber: floorState?.currentFloor ?? 1,
-        stats: {}
+        floorNumber,
+        stats: {
+          scrapExtracted: inventoryScrap,
+          fluxExtracted: totalFlux,
+          softwareExtracted: runInventoryRegistry.getStash(sid).length
+        }
       });
     }
   });

@@ -2,10 +2,10 @@
   "name": "scrap",
   "mixins": ["physical"],
   "components": {
-    "item": { "name": "Raw Scrap", "description": " salvaged circuit parts and data-junk" },
-    "pickupEffect": { "type": "heal", "value": 0 },
+    "item": { "name": "Raw Scrap", "description": "salvaged circuit parts and data-junk" },
+    "currencyItem": { "currencyType": "scrap", "amount": 10 },
     "sprite": { "key": "item_vampire" }
-    },
+  },
   "overrides": {
     "scrap": { "amount": 10 }
   }

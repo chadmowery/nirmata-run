@@ -14,12 +14,10 @@ import {
 import { GameplayEvents } from '@shared/events/types';
 import { MovementSystem } from './movement';
 import { HeatSystem } from './heat';
+import { getLegacyHeatCost } from './legacy-code';
 
 /**
  * Firmware system that handles activation of firmware abilities.
- * 
- * TODO(Phase 13): Firmware drops should require Flux compilation before equipping.
- * Currently, dropped firmware entities are immediately usable (stubbed Locked File mechanic).
  */
 export function createFirmwareSystem<T extends GameplayEvents>(
   world: World<T>,
@@ -65,10 +63,7 @@ export function createFirmwareSystem<T extends GameplayEvents>(
       }
 
       // 2. Heat cost
-      let effectiveHeatCost = abilityDef.heatCost;
-      if (abilityDef.isLegacy) {
-        effectiveHeatCost *= 2;
-      }
+      const effectiveHeatCost = getLegacyHeatCost(abilityDef.heatCost, abilityDef.isLegacy);
       heatSystem.addHeat(entityId, effectiveHeatCost);
 
       // 3. Resolve effect

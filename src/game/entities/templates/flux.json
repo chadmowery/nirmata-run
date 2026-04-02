@@ -1,0 +1,9 @@
+{
+  "name": "flux",
+  "mixins": ["physical"],
+  "components": {
+    "item": { "name": "Raw Flux", "description": "concentrated neural energy" },
+    "currencyItem": { "currencyType": "flux", "amount": 1 },
+    "sprite": { "key": "item_flux" }
+  }
+}
