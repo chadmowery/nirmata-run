@@ -122,7 +122,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   const augmentSystem = createAugmentSystem(world, eventBus, statusEffectSystem, heatSystem);
   const packCoordinatorSystem = createPackCoordinatorSystem(world, grid, eventBus);
   const tileCorruptionSystem = createTileCorruptionSystem(world, grid, eventBus, entityFactory, componentRegistry);
-  const runEnderSystem = createRunEnderSystem(world, grid, eventBus);
+  const runEnderSystem = createRunEnderSystem(world, grid, eventBus, config.sessionId);
   const stabilitySystem = createStabilitySystem(world, eventBus);
   const currencyDropSystem = createCurrencyDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
 
@@ -246,8 +246,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   setupInternalHandlers(
     world as unknown as World<GameplayEvents>, 
     grid, 
-    eventBus as unknown as EventBus<GameplayEvents>, 
-    config.sessionId
+    eventBus as unknown as EventBus<GameplayEvents>
   );
 
   return {

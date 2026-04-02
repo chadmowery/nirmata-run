@@ -101,13 +101,6 @@ describe('Profile Persistence Integration', () => {
         systems: {}
       });
 
-      // Mock runInventoryRegistry to return some rewards
-      vi.spyOn(runInventoryRegistry, 'getCurrencyAmount').mockImplementation((sid, type) => {
-        if (type === 'scrap') return 200;
-        if (type === 'flux') return 50;
-        return 0;
-      });
-
       const req = new Request('http://localhost/api/action', {
         method: 'POST',
         body: JSON.stringify({
@@ -116,11 +109,17 @@ describe('Profile Persistence Integration', () => {
         })
       });
 
-      // Manually emit the RUN_ENDED event during processing
-      // In the real app, this happens via handleAnchorExtract in RunEnderSystem
+      // Simulate the RUN_ENDED event being emitted during the turn
       const originalFlush = eventBus.flush.bind(eventBus);
       eventBus.flush = () => {
-        eventBus.emit('RUN_ENDED', { reason: 'extraction', floorNumber: 5, stats: {} });
+        eventBus.emit('RUN_ENDED', { 
+          reason: 'extraction', 
+          floorNumber: 5, 
+          stats: {
+            scrapExtracted: 200,
+            fluxExtracted: 50
+          } 
+        });
         originalFlush();
       };
 

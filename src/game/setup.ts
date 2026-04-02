@@ -49,7 +49,8 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     height: config.gridHeight,
     seed,
     isClient: true,
-    shellRecord
+    shellRecord,
+    sessionId: config.sessionId
   });
 
   const { world, grid, eventBus, turnManager, entityFactory, systems, playerId } = instance;

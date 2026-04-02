@@ -9,7 +9,6 @@ import { Health } from '@shared/components/health';
 import { Scrap } from '@shared/components/scrap';
 import { CurrencyItem } from '@shared/components/currency-item';
 import { runInventoryRegistry } from './run-inventory';
-import economy from '../entities/templates/economy.json';
 
 export interface ItemPickupSystem {
   init(): void;
@@ -48,10 +47,10 @@ export function createItemPickupSystem<T extends GameplayEvents>(
 
       // 4. Handle CurrencyItem (New System)
       const currencyItem = world.getComponent(itemId, CurrencyItem);
-      if (currencyItem && sessionId) {
-        let type = currencyItem.currencyType;
-        let amount = currencyItem.amount;
-        let meta: { blueprintId?: string, blueprintType?: 'firmware' | 'augment' } = {
+      if (currencyItem) {
+        const type = currencyItem.currencyType;
+        const amount = currencyItem.amount;
+        const meta: { blueprintId?: string, blueprintType?: 'firmware' | 'augment' } = {
           blueprintId: currencyItem.blueprintId,
           blueprintType: currencyItem.blueprintType
         };
@@ -65,7 +64,11 @@ export function createItemPickupSystem<T extends GameplayEvents>(
           // but implement the logic structure.
         }
 
-        const success = runInventoryRegistry.addCurrency(sessionId, type, amount, meta);
+        if (!sessionId) {
+          console.warn(`[ItemPickupSystem] No sessionId provided! Cannot add ${amount} ${type} to registry.`);
+        }
+
+        const success = sessionId ? runInventoryRegistry.addCurrency(sessionId, type, amount, meta) : false;
         
         if (success) {
           const message = type === 'blueprint' 
@@ -78,7 +81,7 @@ export function createItemPickupSystem<T extends GameplayEvents>(
             currencyType: type,
             amount,
             blueprintId: meta.blueprintId
-          } as any);
+          });
 
           // Cleanup and continue to next item
           grid.removeItem(itemId, toX, toY);

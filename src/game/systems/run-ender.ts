@@ -7,6 +7,8 @@ import { Actor } from '@shared/components/actor';
 import { AIState, AIBehaviorType } from '@shared/components/ai-state';
 import { FloorState } from '@shared/components/floor-state';
 import { GameplayEvents } from '@shared/events/types';
+import { runInventoryRegistry } from './run-inventory';
+import economy from '../entities/templates/economy.json';
 
 /**
  * System that monitors for System_Admin adjacency to the player to end the run.
@@ -14,7 +16,8 @@ import { GameplayEvents } from '@shared/events/types';
 export function createRunEnderSystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
-  eventBus: EventBus<T>
+  eventBus: EventBus<T>,
+  sessionId?: string
 ) {
   function getPlayerEntity(): { id: EntityId; x: number; y: number } | null {
     const actors = world.query(Actor, Position);
@@ -34,22 +37,73 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     return dx <= 1 && dy <= 1;
   }
 
+  function executeRunEnd(playerId: EntityId, reason: string, isSuccess: boolean) {
+    const floorState = world.getComponent(playerId, FloorState);
+    const floorNumber = floorState?.currentFloor ?? 1;
+
+    let finalScrap = 0;
+    let finalFlux = 0;
+    let swCount = 0;
+    let pityAwarded = false;
+
+    if (!sessionId) {
+      console.warn(`[RunEnderSystem] executeRunEnd called without sessionId! Reason: ${reason}. Final stats will be 0.`);
+    }
+
+    if (sessionId) {
+      if (isSuccess) {
+        // Authoritative extraction calculation (per D-06)
+        finalScrap = runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap');
+        const inventoryFlux = runInventoryRegistry.getCurrencyAmount(sessionId, 'flux');
+        
+        const fluxBonus = economy.currencyDrops.flux.extractionBonus.baseAmount +
+          (economy.currencyDrops.flux.extractionBonus.perFloorMultiplier * floorNumber);
+        finalFlux = inventoryFlux + fluxBonus;
+
+        swCount = runInventoryRegistry.getOrCreate(sessionId).software.length;
+        
+        // Finalize inventory to stash
+        runInventoryRegistry.transferToStash(sessionId);
+      } else {
+        // Handle Pity on Failure (Death, Admin Contact, Instability)
+        const totalScrap = runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap');
+        finalScrap = Math.floor(totalScrap * economy.pity.deathScrapPercent);
+        pityAwarded = true;
+
+        runInventoryRegistry.clearCurrency(sessionId);
+        if (finalScrap > 0) runInventoryRegistry.addCurrency(sessionId, 'scrap', finalScrap);
+        runInventoryRegistry.clearSoftware(sessionId);
+      }
+    }
+
+    eventBus.emit('RUN_ENDED', {
+      reason,
+      entityId: playerId,
+      floorNumber,
+      stats: {
+        scrapExtracted: finalScrap,
+        fluxExtracted: finalFlux,
+        softwareExtracted: swCount,
+        pityAwarded
+      }
+    } as unknown as T['RUN_ENDED']);
+
+    const message = isSuccess
+      ? `SUCCESS: Extraction protocol complete. ${finalScrap} Scrap, ${finalFlux} Flux secured.`
+      : `FATAL: ${reason}. Pity Scrap: ${finalScrap}`;
+    
+    eventBus.emit('MESSAGE_EMITTED', {
+      text: message,
+      type: isSuccess ? 'info' : 'error'
+    });
+  }
+
   function checkAdminAdjacency(entityId: EntityId, x: number, y: number) {
     const player = getPlayerEntity();
     if (!player) return;
 
     if (isAdjacentOrSame(x, y, player.x, player.y)) {
-      const floorState = world.getComponent(player.id, FloorState);
-      eventBus.emit('RUN_ENDED', { 
-        reason: 'FATAL: ADMIN_CONTACT', 
-        entityId: player.id,
-        floorNumber: floorState?.currentFloor ?? 1,
-        stats: {} 
-      } as unknown as T['RUN_ENDED']);
-      eventBus.emit('MESSAGE_EMITTED', { 
-        text: 'FATAL: System_Admin made contact. Run terminated.', 
-        type: 'error' 
-      });
+      executeRunEnd(player.id, 'FATAL: ADMIN_CONTACT', false);
     }
   }
 
@@ -72,17 +126,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
         if (adminAI?.behaviorType === AIBehaviorType.SYSTEM_ADMIN) {
           const adminPos = world.getComponent(adminId, Position)!;
           if (isAdjacentOrSame(toX, toY, adminPos.x, adminPos.y)) {
-            const floorState = world.getComponent(entityId, FloorState);
-            eventBus.emit('RUN_ENDED', { 
-              reason: 'FATAL: ADMIN_CONTACT', 
-              entityId: entityId,
-              floorNumber: floorState?.currentFloor ?? 1,
-              stats: {}
-            } as unknown as T['RUN_ENDED']);
-            eventBus.emit('MESSAGE_EMITTED', { 
-              text: 'FATAL: System_Admin made contact. Run terminated.', 
-              type: 'error' 
-            });
+            executeRunEnd(entityId, 'FATAL: ADMIN_CONTACT', false);
             break;
           }
         }
@@ -93,34 +137,21 @@ export function createRunEnderSystem<T extends GameplayEvents>(
   const handleStabilityZero = (payload: T['STABILITY_ZERO']) => {
     const actor = world.getComponent(payload.entityId, Actor);
     if (actor?.isPlayer) {
-      const floorState = world.getComponent(payload.entityId, FloorState);
-      eventBus.emit('RUN_ENDED', {
-        reason: 'CRITICAL_INSTABILITY',
-        entityId: payload.entityId,
-        floorNumber: floorState?.currentFloor ?? 1,
-        stats: {}
-      } as unknown as T['RUN_ENDED']);
-      eventBus.emit('MESSAGE_EMITTED', {
-        text: 'FATAL: Reality anchor collapsed. Neural link lost.',
-        type: 'error'
-      });
+      executeRunEnd(payload.entityId, 'FATAL: REALITY_ANCHOR_COLLAPSED', false);
     }
   };
 
   const handleAnchorExtract = () => {
     const player = getPlayerEntity();
     if (player) {
-      const floorState = world.getComponent(player.id, FloorState);
-      eventBus.emit('RUN_ENDED', {
-        reason: 'extraction',
-        entityId: player.id,
-        floorNumber: floorState?.currentFloor ?? 1,
-        stats: {}
-      } as unknown as T['RUN_ENDED']);
-      eventBus.emit('MESSAGE_EMITTED', {
-        text: 'SUCCESS: Extraction protocol complete. Neural link severed safely.',
-        type: 'info'
-      });
+      executeRunEnd(player.id, 'extraction', true);
+    }
+  };
+
+  const handleEntityDied = (payload: T['ENTITY_DIED']) => {
+    const actor = world.getComponent(payload.entityId, Actor);
+    if (actor?.isPlayer) {
+      executeRunEnd(payload.entityId, 'death', false);
     }
   };
 
@@ -129,11 +160,13 @@ export function createRunEnderSystem<T extends GameplayEvents>(
       eventBus.on('ENTITY_MOVED', handleEntityMoved);
       eventBus.on('STABILITY_ZERO', handleStabilityZero);
       eventBus.on('ANCHOR_EXTRACT', handleAnchorExtract);
+      eventBus.on('ENTITY_DIED', handleEntityDied);
     },
     dispose() {
       eventBus.off('ENTITY_MOVED', handleEntityMoved);
       eventBus.off('STABILITY_ZERO', handleStabilityZero);
       eventBus.off('ANCHOR_EXTRACT', handleAnchorExtract);
+      eventBus.off('ENTITY_DIED', handleEntityDied);
     }
   };
 }

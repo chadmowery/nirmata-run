@@ -20,7 +20,7 @@ export async function POST(req: Request) {
       profile = createDefaultProfile(sessionId);
     }
 
-    const instance = createEngineInstance({ seed, width, height, profile });
+    const instance = createEngineInstance({ seed, width, height, profile, sessionId });
 
     instance.turnManager.start();
 

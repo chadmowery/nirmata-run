@@ -6,12 +6,12 @@ import { Progression } from '@shared/components/progression';
 import { Position, PositionData } from '@shared/components/position';
 import { SpriteComponent } from '@shared/components/sprite';
 import { Stability } from '@shared/components/stability';
-import { Scrap } from '@shared/components/scrap';
 import { FloorState } from '@shared/components/floor-state';
 import { FirmwareSlots } from '@shared/components/firmware-slots';
 import { AugmentSlots } from '@shared/components/augment-slots';
 import { SoftwareSlots } from '@shared/components/software-slots';
 import { getDepthBand } from '../generation/dungeon-generator';
+import { runInventoryRegistry } from '../systems/run-inventory';
 
 export function syncEngineToStore(context: GameContext) {
   const { eventBus, world } = context;
@@ -24,10 +24,14 @@ export function syncEngineToStore(context: GameContext) {
     const health = world.getComponent(context.playerId, Health);
     const progression = world.getComponent(context.playerId, Progression);
     const stability = world.getComponent(context.playerId, Stability);
-    const scrap = world.getComponent(context.playerId, Scrap);
     const floorState = world.getComponent(context.playerId, FloorState);
 
-    console.log('[SYNC] Found health:', health, 'progression:', progression);
+    // New authoritative source for run currency
+    const scrapAmount = context.sessionId 
+      ? runInventoryRegistry.getCurrencyAmount(context.sessionId, 'scrap') 
+      : 0;
+
+    console.log('[SYNC] Found health:', health, 'progression:', progression, 'scrap:', scrapAmount);
 
     const store = gameStore.getState();
     store.updatePlayerStats({
@@ -41,9 +45,8 @@ export function syncEngineToStore(context: GameContext) {
       store.updateStability(stability.current, stability.max);
     }
 
-    if (scrap) {
-      store.updateScrap(scrap.amount);
-    }
+    // Update with registry scrap (D-06/D-11 migration complete)
+    store.updateScrap(scrapAmount);
 
     if (floorState) {
       const band = getDepthBand(floorState.currentFloor);
@@ -114,6 +117,10 @@ export function syncEngineToStore(context: GameContext) {
     if (event.entityId === context.playerId) {
       refreshPlayerStats();
     }
+  });
+
+  eventBus.on('CURRENCY_PICKED_UP', () => {
+    refreshPlayerStats();
   });
 
   // Game Status

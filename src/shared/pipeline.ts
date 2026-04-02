@@ -10,14 +10,13 @@ import { Actor } from './components/actor';
 
 import {
   Position, Hostile, BlocksMovement, Attack, Health, Defense, Item, PickupEffect, EffectType,
-  FirmwareSlots, AugmentSlots, SoftwareSlots, SoftwareDef, BurnedSoftware, Heat,
-  Stability, Scrap, FloorState, AnchorMarker
+  SoftwareDef, BurnedSoftware, Heat,
+  Stability, Scrap, AnchorMarker
 } from './components';
 import { handleEquip, handleUnequip } from './systems/equipment';
 import { runInventoryRegistry } from '../game/systems/run-inventory';
 import { resolveDamage, collectDamageModifiers } from '../game/systems/combat';
 import { checkAutoLoader, applyBleedOnHit, applyVampireOnKill } from '../game/systems/software-effects';
-import economy from '../game/entities/templates/economy.json';
 
 /**
  * Runs a game action against a world/grid state and returns the new state and delta.
@@ -45,7 +44,7 @@ export function runActionPipeline(
 
   // 4. Flush internal events (e.g., BUMP_ATTACK -> DAMAGE_DEALT)
   // We need to register local handlers for things that link systems
-  setupInternalHandlers(newWorld, newGrid, localEventBus, sessionId);
+  setupInternalHandlers(newWorld, newGrid, localEventBus);
   localEventBus.flush();
 
   // 5. Serialize final state
@@ -234,7 +233,7 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
             entityId,
             currencyType: action.currencyType,
             amount: action.amount
-          } as any);
+          });
         }
       }
       break;
@@ -311,7 +310,7 @@ function handlePickup(world: World<GameplayEvents>, grid: Grid, eventBus: EventB
   eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
 }
 
-export function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>, sessionId?: string) {
+export function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>) {
   // BUMP_ATTACK handler (Combat Logic)
   eventBus.on('BUMP_ATTACK', (payload) => {
     const { attackerId, defenderId } = payload;
@@ -360,95 +359,7 @@ export function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, 
     }
   });
 
-  // ENTITY_DIED handler (Phase 7 - Plan 03, Phase 10 - Plan 01, Phase 12 - Plan 02)
-  eventBus.on('ENTITY_DIED', (payload) => {
-    const { entityId } = payload;
-
-    // Clear equipment slots on death
-    const fw = world.getComponent(entityId, FirmwareSlots);
-    if (fw) fw.equipped = [];
-
-    const aug = world.getComponent(entityId, AugmentSlots);
-    if (aug) aug.equipped = [];
-
-    const sw = world.getComponent(entityId, SoftwareSlots);
-    if (sw) sw.equipped = [];
-
-    // Clear burned software (Phase 10)
-    const burned = world.getComponent(entityId, BurnedSoftware);
-    if (burned) {
-      burned.weapon = null;
-      burned.armor = null;
-    }
-
-    // If player died, handle currency pity payout (Phase 13)
-    const actor = world.getComponent(entityId, Actor);
-    if (actor?.isPlayer && sessionId) {
-      const totalScrap = runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap');
-      const pityAmount = Math.floor(totalScrap * 0.25);
-
-      // Clear all currency from inventory
-      runInventoryRegistry.clearCurrency(sessionId);
-
-      // Re-add pity Scrap
-      if (pityAmount > 0) {
-        runInventoryRegistry.addCurrency(sessionId, 'scrap', pityAmount);
-      }
-
-      eventBus.emit('MESSAGE_EMITTED', { text: `SCRAP_PITY_PAYOUT: ${pityAmount}`, type: 'info' });
-
-      // Clear software inventory
-      runInventoryRegistry.clearSoftware(sessionId);
-      eventBus.emit('MESSAGE_EMITTED', { text: 'Neural feedback destroyed all unsynced data.', type: 'error' });
-    }
-
-    // Note: The ShellRecord in ShellRegistry persists outside ECS
-  });
-
-  // Extraction handler (Phase 10, Phase 12, Phase 13)
-  eventBus.on('EXTRACTION_TRIGGERED', (payload) => {
-    const { sessionId: sid } = payload;
-    if (sid) {
-      const entities = world.query(Actor);
-      let playerId = -1;
-      for (const id of entities) {
-        const actor = world.getComponent(id, Actor);
-        if (actor?.isPlayer) {
-          playerId = id;
-          break;
-        }
-      }
-
-      const floorState = playerId !== -1 ? world.getComponent(playerId, FloorState) : null;
-      const floorNumber = floorState?.currentFloor ?? 1;
-
-      // Get inventory currency totals
-      const inventoryScrap = runInventoryRegistry.getCurrencyAmount(sid, 'scrap');
-      const inventoryFlux = runInventoryRegistry.getCurrencyAmount(sid, 'flux');
-
-      // Calculate extraction Flux bonus (per D-06)
-      const fluxBonus = economy.currencyDrops.flux.extractionBonus.baseAmount +
-        (economy.currencyDrops.flux.extractionBonus.perFloorMultiplier * floorNumber);
-      const totalFlux = inventoryFlux + fluxBonus;
-
-      runInventoryRegistry.transferToStash(sid);
-
-      eventBus.emit('MESSAGE_EMITTED', {
-        text: `EXTRACTION_SUCCESSFUL: ${inventoryScrap} Scrap, ${totalFlux} Flux secured.`,
-        type: 'info'
-      });
-
-      eventBus.emit('RUN_ENDED', {
-        reason: 'extraction',
-        floorNumber,
-        stats: {
-          scrapExtracted: inventoryScrap,
-          fluxExtracted: totalFlux,
-          softwareExtracted: runInventoryRegistry.getStash(sid).length
-        }
-      });
-    }
-  });
+  // Note: Extraction and Player Death are now handled by RunEnderSystem
 }
 
 function handleDeath(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>, entityId: number, killerId: number) {

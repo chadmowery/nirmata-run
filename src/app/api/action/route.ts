@@ -9,7 +9,6 @@ import { GameplayEvents } from '@shared/events/types';
 import { EngineInstance } from '@game/engine-factory';
 import { FloorState } from '@shared/components/floor-state';
 import { loadProfile, saveProfile, createDefaultProfile } from '@game/systems/profile-persistence';
-import { runInventoryRegistry } from '@game/systems/run-inventory';
 import economy from '@game/entities/templates/economy.json';
 
 export async function POST(req: Request) {
@@ -123,9 +122,8 @@ export async function POST(req: Request) {
         profile = createDefaultProfile(sessionId);
       }
 
-      // Add scrap and flux from run results
-      const finalScrap = runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap');
-      const finalFlux = runInventoryRegistry.getCurrencyAmount(sessionId, 'flux');
+      const finalScrap = (payload.stats.scrapExtracted as number) || 0;
+      const finalFlux = (payload.stats.fluxExtracted as number) || 0;
       
       profile.wallet.scrap = Math.min(economy.caps.scrap, profile.wallet.scrap + finalScrap);
       profile.wallet.flux = Math.min(economy.caps.flux, profile.wallet.flux + finalFlux);
