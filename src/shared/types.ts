@@ -82,6 +82,12 @@ export const AnchorExtractActionSchema = z.object({
   type: z.literal('ANCHOR_EXTRACT'),
 });
 
+export const StaircaseDescendActionSchema = z.object({
+  type: z.literal('STAIRCASE_DESCEND'),
+  staircaseId: z.number(),
+  targetFloor: z.number(),
+});
+
 export const ActionIntentSchema = z.discriminatedUnion('type', [
   MoveActionSchema,
   AttackActionSchema,
@@ -97,6 +103,7 @@ export const ActionIntentSchema = z.discriminatedUnion('type', [
   MoveAndUseFirmwareActionSchema,
   AnchorDescendActionSchema,
   AnchorExtractActionSchema,
+  StaircaseDescendActionSchema,
 ]);
 
 export type ActionIntent = z.infer<typeof ActionIntentSchema>;
@@ -141,6 +148,7 @@ export const SerializedGridSchema = z.object({
 export type SerializedGrid = z.infer<typeof SerializedGridSchema>;
 
 import { Changeset } from 'json-diff-ts';
+import { TurnPhase } from '@engine/turn/types';
 
 /**
  * State Delta type representing the difference between two world/grid states.
@@ -150,3 +158,27 @@ export type StateDelta = {
   grid: Changeset;
   events?: Array<{ type: string; payload: unknown }>;
 };
+
+/**
+ * Polymorphic payload for state synchronization.
+ * DELTA: Incremental changes using json-diff-ts. Best for small performance-critical updates.
+ * FULL: Complete state snapshot. Best for massive structural changes (e.g., floor transitions).
+ */
+export type DeltaPayload = {
+  type: 'DELTA';
+  world: SerializedWorld;
+  grid: Changeset;
+  events?: Array<{ type: string; payload: unknown }>;
+  turnNumber: number;
+};
+
+export type FullSyncPayload = {
+  type: 'FULL';
+  world: SerializedWorld;
+  grid: SerializedGrid;
+  events?: Array<{ type: string; payload: unknown }>;
+  turnNumber: number;
+  phase: TurnPhase;
+};
+
+export type SyncPayload = DeltaPayload | FullSyncPayload;

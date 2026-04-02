@@ -206,6 +206,14 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     }
   }
 
+  /**
+   * Loads the turn manager state from external data.
+   */
+  loadState(turnNumber: number, phase: TurnPhase): void {
+    this.turnNumber = turnNumber;
+    this.phase = phase;
+  }
+
   // Setters for handlers
   setPlayerActionHandler(handler: PlayerActionHandler): void { 
     this.playerActionHandler = handler; 

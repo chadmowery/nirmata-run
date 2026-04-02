@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { ActionRequestSchema } from '@shared/types';
+import { ActionRequestSchema, SyncPayload } from '@shared/types';
 import { sessionManager } from '@engine/session/SessionManager';
 import { serializeWorld, serializeGrid } from '@shared/serialization';
 import { diff } from 'json-diff-ts';
@@ -7,6 +7,7 @@ import { DIRECTIONS, GameAction } from '@game/input/actions';
 import { logger } from '@shared/utils/logger';
 import { GameplayEvents } from '@shared/events/types';
 import { EngineInstance } from '@game/engine-factory';
+import { FloorState } from '@shared/components/floor-state';
 
 export async function POST(req: Request) {
   try {
@@ -26,7 +27,6 @@ export async function POST(req: Request) {
     const { world, grid, turnManager, eventBus } = session;
 
     // 1. Snapshot initial state
-    const oldWorldState = serializeWorld(world);
     const oldGridState = serializeGrid(grid);
 
     // 2. Capture all events emitted during this tick
@@ -36,29 +36,63 @@ export async function POST(req: Request) {
     };
     eventBus.onAny(eventCaptureHandler);
 
-    // 3. Process Action
-    // Map ActionIntent to GameAction string for TurnManager
+    // 3. Process Action Intent
     let actionKey: string | null = null;
 
-    if (action.type === 'MOVE') {
-      for (const [key, dir] of Object.entries(DIRECTIONS)) {
-        if (dir.dx === action.dx && dir.dy === action.dy) {
-          actionKey = key;
-          break;
+    switch (action.type) {
+      case 'MOVE':
+        for (const [key, dir] of Object.entries(DIRECTIONS)) {
+          if (dir.dx === action.dx && dir.dy === action.dy) {
+            actionKey = key;
+            break;
+          }
         }
+        break;
+
+      case 'WAIT':
+        actionKey = GameAction.WAIT;
+        break;
+
+      case 'USE_FIRMWARE':
+        if (session.systems?.firmware) {
+          session.systems.firmware.activateAbility(session.playerId, action.slotIndex, action.targetX, action.targetY);
+          actionKey = `USE_FIRMWARE_${action.slotIndex}`;
+        }
+        break;
+
+      case 'VENT':
+        if (session.systems?.heat) {
+          session.systems.heat.vent(session.playerId);
+          actionKey = GameAction.VENT;
+        }
+        break;
+
+      case 'STAIRCASE_DESCEND':
+        eventBus.emit('STAIRCASE_INTERACTION', {
+          entityId: session.playerId,
+          staircaseId: action.staircaseId,
+          targetFloor: action.targetFloor,
+        });
+        break;
+
+      case 'ANCHOR_DESCEND': {
+        eventBus.emit('ANCHOR_DESCEND', {
+          anchorId: action.anchorId,
+          cost: action.cost,
+        });
+        // Anchors also trigger the staircase interaction logic for actual descent
+        const currentFloor = world.getComponent(session.playerId, FloorState)?.currentFloor ?? 1;
+        eventBus.emit('STAIRCASE_INTERACTION', {
+          entityId: session.playerId,
+          staircaseId: action.anchorId,
+          targetFloor: currentFloor + 1,
+        });
+        break;
       }
-    } else if (action.type === 'WAIT') {
-      actionKey = GameAction.WAIT;
-    } else if (action.type === 'USE_FIRMWARE') {
-      if (session.systems?.firmware) {
-        session.systems.firmware.activateAbility(session.playerId, action.slotIndex, action.targetX, action.targetY);
-        actionKey = `USE_FIRMWARE_${action.slotIndex}`;
-      }
-    } else if (action.type === 'VENT') {
-      if (session.systems?.heat) {
-        session.systems.heat.vent(session.playerId);
-        actionKey = GameAction.VENT;
-      }
+
+      case 'ANCHOR_EXTRACT':
+        eventBus.emit('ANCHOR_EXTRACT', {});
+        break;
     }
 
     if (actionKey && turnManager.canAcceptInput()) {
@@ -77,17 +111,35 @@ export async function POST(req: Request) {
     const newWorldState = serializeWorld(world);
     const newGridState = serializeGrid(grid);
 
-    // 4. Calculate Delta
-    const delta = {
-      world: diff(oldWorldState, newWorldState),
-      grid: diff(oldGridState, newGridState),
-      events: capturedEvents,
-    };
+    // 4. Determine Sync Strategy
+    const isMassiveChange = capturedEvents.some(e => 
+      e.type === 'FLOOR_TRANSITION' || e.type === 'DUNGEON_GENERATED'
+    );
 
+    let payload: SyncPayload;
+    if (isMassiveChange) {
+      logger.info(`[API] Massive change detected, sending FULL state sync.`);
+      payload = {
+        type: 'FULL',
+        world: newWorldState,
+        grid: newGridState,
+        events: capturedEvents,
+        turnNumber: turnManager.getTurnNumber(),
+        phase: turnManager.getPhase(),
+      };
+    } else {
+      payload = {
+        type: 'DELTA',
+        world: newWorldState,
+        grid: diff(oldGridState, newGridState),
+        events: capturedEvents,
+        turnNumber: turnManager.getTurnNumber(),
+      };
+    }
+ 
     return NextResponse.json({
       sessionId,
-      delta,
-      turnNumber: turnManager.getTurnNumber()
+      payload,
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {

@@ -1,5 +1,4 @@
 import { createEngineInstance } from './engine-factory';
-import { serializeWorld } from '@shared/serialization';
 import { GameContext, GameSystem } from './types';
 import { syncEngineToStore } from './ui/sync-bridge';
 import { registerInputBridge } from './input/input-bridge';
@@ -179,10 +178,39 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     }
   });
 
+  // UI Decision Listeners (Forward to server)
+  eventBus.on('STAIRCASE_DECISION_MADE', async (payload) => {
+    if (payload.confirmed) {
+      inputManager.setRequestPending(true);
+      await sendActionToServer({
+        type: 'STAIRCASE_DESCEND',
+        staircaseId: payload.staircaseId,
+        targetFloor: payload.targetFloor,
+      });
+      inputManager.setRequestPending(false);
+    }
+  });
+
+  eventBus.on('ANCHOR_DECISION_MADE', async (payload) => {
+    if (payload.decision === 'descend') {
+      inputManager.setRequestPending(true);
+      await sendActionToServer({
+        type: 'ANCHOR_DESCEND',
+        anchorId: payload.anchorId!,
+        cost: payload.descendCost ?? 0,
+      });
+      inputManager.setRequestPending(false);
+    } else if (payload.decision === 'extract') {
+      inputManager.setRequestPending(true);
+      await sendActionToServer({
+        type: 'ANCHOR_EXTRACT',
+      });
+      inputManager.setRequestPending(false);
+    }
+  });
+
   async function handleConfirmedTarget(slotIndex: number, targetX: number, targetY: number) {
     if (fsm.getCurrentState() === GameState.Playing && turnManager.canAcceptInput() && playerId) {
-      inputManager.setRequestPending(true);
-
       // Submit action to engine
       // We encode targeting data into the action key for the TurnManager's playerActionHandler
       // though the prediction here calls firmwareSystem directly.
@@ -276,9 +304,10 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
       if (response.ok) {
         const result = await response.json();
-        if (result.delta) {
+        const serverState = result.payload;
+        if (serverState) {
           const { applyStateDelta } = await import('@shared/reconciliation');
-          applyStateDelta(world, grid, eventBus, result.delta, serializeWorld(world));
+          applyStateDelta(world, grid, turnManager, eventBus, serverState);
         }
       }
     } catch (error) {
