@@ -22,7 +22,8 @@ export function createFloorManagerSystem(
   eventBus: EventBus<GameEvents>,
   entityFactory: EntityFactory,
   componentRegistry: ComponentRegistry,
-  playerId: EntityId
+  playerId: EntityId,
+  isClient: boolean = false
 ) {
   /**
    * Transitions the game to a new floor.
@@ -110,12 +111,13 @@ export function createFloorManagerSystem(
 
   /** Initialize listeners. */
   const init = () => {
-    eventBus.on('STAIRCASE_INTERACTION', (payload) => {
-      const floorState = world.getComponent<FloorStateData>(payload.entityId, FloorState);
-      if (floorState) {
-        descendToFloor(payload.targetFloor, floorState.runSeed);
-      }
-    });
+    // Only listen for descent triggers on the server
+    // On the client, this is handled by receiving the full sync payload
+    if (!isClient) {
+      eventBus.on('STAIRCASE_DESCEND_TRIGGERED', (payload) => {
+        descendToFloor(payload.targetFloor, payload.runSeed);
+      });
+    }
   };
 
   return {

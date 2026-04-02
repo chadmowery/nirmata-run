@@ -70,25 +70,28 @@ export async function POST(req: Request) {
         }
         break;
 
-      case 'STAIRCASE_DESCEND':
-        eventBus.emit('STAIRCASE_INTERACTION', {
+      case 'STAIRCASE_DESCEND': {
+        const floorState = world.getComponent(session.playerId, FloorState);
+        eventBus.emit('STAIRCASE_DESCEND_TRIGGERED', {
           entityId: session.playerId,
-          staircaseId: action.staircaseId,
           targetFloor: action.targetFloor,
+          runSeed: floorState?.runSeed ?? 'default',
         });
         break;
+      }
 
       case 'ANCHOR_DESCEND': {
         eventBus.emit('ANCHOR_DESCEND', {
           anchorId: action.anchorId,
           cost: action.cost,
         });
-        // Anchors also trigger the staircase interaction logic for actual descent
-        const currentFloor = world.getComponent(session.playerId, FloorState)?.currentFloor ?? 1;
-        eventBus.emit('STAIRCASE_INTERACTION', {
+
+        // Use new descent trigger event
+        const floorState = world.getComponent(session.playerId, FloorState);
+        eventBus.emit('STAIRCASE_DESCEND_TRIGGERED', {
           entityId: session.playerId,
-          staircaseId: action.anchorId,
-          targetFloor: currentFloor + 1,
+          targetFloor: (floorState?.currentFloor ?? 1) + 1,
+          runSeed: floorState?.runSeed ?? 'default',
         });
         break;
       }

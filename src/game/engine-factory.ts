@@ -196,7 +196,8 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
     eventBus,
     entityFactory,
     componentRegistry,
-    placement.playerId
+    placement.playerId,
+    config.isClient
   );
   floorManagerSystem.init();
 

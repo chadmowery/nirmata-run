@@ -157,8 +157,25 @@ export interface GameplayEvents extends EngineEvents {
   /** Queued when player steps on staircase. */
   STAIRCASE_INTERACTION: { entityId: EntityId; staircaseId: EntityId; targetFloor: number };
 
+  /** Queued when floor transition is confirmed. */
+  STAIRCASE_DESCEND_TRIGGERED: { entityId: EntityId; targetFloor: number; runSeed: string };
+
   /** Queued when player steps on anchor. */
-  ANCHOR_INTERACTION: { entityId: EntityId; anchorId: EntityId; floorNumber: number };
+  ANCHOR_INTERACTION: { 
+    entityId: EntityId; 
+    anchorId: EntityId; 
+    floorNumber: number;
+    stabilityPercent: number;
+    inventory: {
+      firmware: string[];
+      augments: string[];
+      software: string[];
+      scrap: number;
+    };
+    descendCost: number;
+    nextFloorEnemyTier: string;
+    estimatedStabilityAfterDescent: number;
+  };
 
   /** Queued when player chooses to extract at an anchor. */
   ANCHOR_EXTRACT: Record<string, never>;

@@ -17,7 +17,6 @@ import {
   SoftwareDef
 } from '@shared/components';
 import { runInventoryRegistry } from './run-inventory';
-import { gameStore } from '../ui/store';
 import depthConfig from '../generation/depth-config.json';
 
 export function createAnchorInteractionSystem(
@@ -87,14 +86,15 @@ export function createAnchorInteractionSystem(
     // Estimated stability refill (50% of max)
     const estimatedStabilityAfterDescent = Math.min(100, stabilityPercent + 50);
 
-    gameStore.getState().showAnchorOverlay({
+    eventBus.emit('ANCHOR_INTERACTION', {
+      entityId: playerId,
+      anchorId,
       floorNumber,
       stabilityPercent,
       inventory,
       descendCost,
       nextFloorEnemyTier,
-      estimatedStabilityAfterDescent,
-      anchorId // Pass through for decision
+      estimatedStabilityAfterDescent
     });
   };
 
@@ -104,9 +104,10 @@ export function createAnchorInteractionSystem(
     const targetFloor = currentFloor + 1;
 
     eventBus.emit('GAME_PAUSE_REQUESTED', {});
-    gameStore.getState().showStaircaseOverlay({
-      targetFloor,
-      staircaseId
+    eventBus.emit('STAIRCASE_INTERACTION', {
+      entityId: playerId,
+      staircaseId,
+      targetFloor
     });
   };
 
@@ -125,10 +126,12 @@ export function createAnchorInteractionSystem(
       // After anchor refill, we also trigger the actual descent logic
       const currentFloor = payload.floorNumber ?? 1;
       const targetFloor = currentFloor + 1;
-      eventBus.emit('STAIRCASE_INTERACTION', {
+      const floorState = world.getComponent(playerId, FloorState);
+      
+      eventBus.emit('STAIRCASE_DESCEND_TRIGGERED', {
         entityId: playerId,
-        staircaseId: payload.anchorId,
-        targetFloor
+        targetFloor,
+        runSeed: floorState?.runSeed ?? 'default'
       });
     }
     eventBus.flush();
@@ -138,10 +141,11 @@ export function createAnchorInteractionSystem(
     eventBus.emit('GAME_RESUME_REQUESTED', {});
 
     if (payload.confirmed) {
-      eventBus.emit('STAIRCASE_INTERACTION', {
+      const floorState = world.getComponent(playerId, FloorState);
+      eventBus.emit('STAIRCASE_DESCEND_TRIGGERED', {
         entityId: playerId,
-        staircaseId: payload.staircaseId,
-        targetFloor: payload.targetFloor
+        targetFloor: payload.targetFloor,
+        runSeed: floorState?.runSeed ?? 'default'
       });
     }
     eventBus.flush();

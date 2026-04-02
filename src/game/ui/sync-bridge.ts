@@ -188,19 +188,24 @@ export function syncEngineToStore(context: GameContext) {
   // Anchor interaction - show overlay
   eventBus.on('ANCHOR_INTERACTION', (event) => {
     if (event.entityId === context.playerId) {
-      // For now, we'll just populate some placeholder data for the overlay.
-      // A more robust implementation would read all these values from context.
-      const stability = world.getComponent(context.playerId, Stability);
-      const scrap = world.getComponent(context.playerId, Scrap);
-
       gameStore.getState().showAnchorOverlay({
         floorNumber: event.floorNumber,
-        stabilityPercent: stability?.current ?? 0,
-        inventory: { firmware: [], augments: [], software: [], scrap: scrap?.amount ?? 0 },
-        descendCost: event.floorNumber * 10,
-        nextFloorEnemyTier: 'ELITE',
-        estimatedStabilityAfterDescent: (stability?.current ?? 0) + 50,
+        stabilityPercent: event.stabilityPercent,
+        inventory: event.inventory,
+        descendCost: event.descendCost,
+        nextFloorEnemyTier: event.nextFloorEnemyTier,
+        estimatedStabilityAfterDescent: event.estimatedStabilityAfterDescent,
         anchorId: event.anchorId
+      });
+    }
+  });
+
+  // Staircase interaction - show overlay
+  eventBus.on('STAIRCASE_INTERACTION', (event) => {
+    if (event.entityId === context.playerId) {
+      gameStore.getState().showStaircaseOverlay({
+        targetFloor: event.targetFloor,
+        staircaseId: event.staircaseId
       });
     }
   });
