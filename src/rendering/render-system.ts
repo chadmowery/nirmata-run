@@ -76,7 +76,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
   };
 
   const handleEntityMoved = (payload: { entityId: EntityId; fromX: number; fromY: number; toX: number; toY: number }) => {
-    queueMoveTween(payload.entityId, payload.fromX, payload.fromY, payload.toX, payload.toY);
+    queueMoveTween(payload.entityId, payload.fromX, payload.fromY, payload.toX, payload.toY, getEntitySprite);
   };
 
   const handleBumpAttack = (payload: { attackerId: EntityId; defenderId: EntityId }) => {

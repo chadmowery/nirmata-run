@@ -115,14 +115,52 @@ export function tickAnimations(deltaMs: number, getSprite: (id: EntityId) => Spr
 /**
  * Queues a movement tween for an entity.
  */
-export function queueMoveTween(entityId: EntityId, fromX: number, fromY: number, toX: number, toY: number): void {
+export function queueMoveTween(
+  entityId: EntityId,
+  fromX: number,
+  fromY: number,
+  toX: number,
+  toY: number,
+  getSprite?: (id: EntityId) => Sprite | undefined
+): void {
+  const targetX = toX * TILE_SIZE;
+  const targetY = toY * TILE_SIZE;
+
+  // 1. Check for existing movement-related animation
+  const existing = activeAnimations.find(
+    (a) =>
+      a.entityId === entityId &&
+      (a.type === 'move' || a.type === 'attack-lunge' || a.type === 'attack-return'),
+  );
+
+  if (existing) {
+    // If the target is the same, ignore the redundant command (preserves prediction)
+    if (Math.abs(existing.targetX - targetX) < 1 && Math.abs(existing.targetY - targetY) < 1) {
+      return;
+    }
+    // If target is different, it's a misprediction: clear the old one
+    activeAnimations = activeAnimations.filter((a) => a !== existing);
+  }
+
+  // 2. Determine start position (Visual-first if sprite exists, otherwise logical)
+  let startX = fromX * TILE_SIZE;
+  let startY = fromY * TILE_SIZE;
+
+  if (getSprite) {
+    const sprite = getSprite(entityId);
+    if (sprite) {
+      startX = sprite.x;
+      startY = sprite.y;
+    }
+  }
+
   activeAnimations.push({
     entityId,
     type: 'move',
-    startX: fromX * TILE_SIZE,
-    startY: fromY * TILE_SIZE,
-    targetX: toX * TILE_SIZE,
-    targetY: toY * TILE_SIZE,
+    startX,
+    startY,
+    targetX,
+    targetY,
     elapsed: 0,
     duration: 100,
   });
@@ -136,10 +174,22 @@ export function queueAttackAnimationWithDefender(
   attackerPos: { x: number; y: number },
   defenderId: EntityId,
   defenderPos: { x: number; y: number },
-  getSprite: (id: EntityId) => Sprite | undefined
+  getSprite: (id: EntityId) => Sprite | undefined,
 ): void {
-  const startX = attackerPos.x * TILE_SIZE;
-  const startY = attackerPos.y * TILE_SIZE;
+  // Clear only if target changed or if specifically a conflict.
+  // Generally, we clear moves/attacks to ensure the lunge starts clean.
+  // But we use visual position for lunge start if possible.
+  activeAnimations = activeAnimations.filter(
+    (a) =>
+      !(
+        a.entityId === attackerId &&
+        (a.type === 'move' || a.type === 'attack-lunge' || a.type === 'attack-return')
+      ),
+  );
+
+  const sprite = getSprite(attackerId);
+  const startX = sprite ? sprite.x : attackerPos.x * TILE_SIZE;
+  const startY = sprite ? sprite.y : attackerPos.y * TILE_SIZE;
 
   const diffX = (defenderPos.x - attackerPos.x) * TILE_SIZE;
   const diffY = (defenderPos.y - attackerPos.y) * TILE_SIZE;
