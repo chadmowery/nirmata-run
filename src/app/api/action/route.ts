@@ -8,6 +8,9 @@ import { logger } from '@shared/utils/logger';
 import { GameplayEvents } from '@shared/events/types';
 import { EngineInstance } from '@game/engine-factory';
 import { FloorState } from '@shared/components/floor-state';
+import { loadProfile, saveProfile, createDefaultProfile } from '@game/systems/profile-persistence';
+import { runInventoryRegistry } from '@game/systems/run-inventory';
+import economy from '@game/entities/templates/economy.json';
 
 export async function POST(req: Request) {
   try {
@@ -97,17 +100,45 @@ export async function POST(req: Request) {
 
     if (actionKey && turnManager.canAcceptInput()) {
       turnManager.submitAction(actionKey);
-      // Synchronously flush server events if they aren't auto-flushed by systems
-      eventBus.flush();
-    } else {
-      // If we can't map it or input is not accepted, we still return the current state/empty delta
-      // or we could return an error. For now, just process if valid.
-    }
+    } 
+    
+    // Always flush server events to process any immediate consequences
+    eventBus.flush();
+
 
     // Stop capturing
     eventBus.offAny(eventCaptureHandler);
 
-    // 3. Snapshot final state
+    // 4. Handle Run Persistence
+    const runEndedEvent = capturedEvents.find(e => e.type === 'RUN_ENDED');
+    if (runEndedEvent) {
+      const payload = runEndedEvent.payload as GameplayEvents['RUN_ENDED'];
+      logger.info(`[API] Run ended: ${payload.reason}. Updating profile for ${sessionId}`);
+      
+      let profile = await loadProfile(sessionId);
+      if (!profile) {
+        profile = createDefaultProfile(sessionId);
+      }
+
+      // Add scrap and flux from run results
+      const finalScrap = runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap');
+      const finalFlux = runInventoryRegistry.getCurrencyAmount(sessionId, 'flux');
+      
+      profile.wallet.scrap = Math.min(economy.caps.scrap, profile.wallet.scrap + finalScrap);
+      profile.wallet.flux = Math.min(economy.caps.flux, profile.wallet.flux + finalFlux);
+
+      // TODO: Handle Blueprint library updates from inventory if needed
+      // const stacks = runInventoryRegistry.getCurrencyStacks(sessionId);
+      // ...
+
+      await saveProfile(profile);
+      logger.info(`[API] Profile saved: ${profile.wallet.scrap} Scrap, ${profile.wallet.flux} Flux`);
+      
+      // Cleanup session if run ended? 
+      // For now we keep it so the last state can be queried, but technically it's over.
+    }
+
+    // 5. Snapshot final state
     const newWorldState = serializeWorld(world);
     const newGridState = serializeGrid(grid);
 

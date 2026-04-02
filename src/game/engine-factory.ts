@@ -30,9 +30,12 @@ import { placeEntities } from './generation/entity-placement';
 import RNG from 'rot-js/lib/rng';
 import { GameAction, DIRECTIONS, isFirmwareAction, getFirmwareSlotIndex } from './input/actions';
 import { GameEvents } from './events/types';
+import { GameplayEvents } from '@shared/events/types';
 import { Phase } from '../engine/ecs/types';
 
 import { ShellRecord } from './shells/types';
+import { PlayerProfile } from './systems/profile-persistence';
+import { setupInternalHandlers } from '@shared/pipeline';
 
 export interface EngineInitConfig {
   width: number;
@@ -41,6 +44,7 @@ export interface EngineInitConfig {
   isClient?: boolean;
   shellRecord?: ShellRecord;
   sessionId?: string;
+  profile?: PlayerProfile;
 }
 
 export interface EngineInstance {
@@ -157,7 +161,8 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
     'augmentState': { activationsThisTurn: {}, cooldownsRemaining: {} },
     'heat': { current: 0, maxSafe: 100, baseDissipation: 5, ventPercentage: 0.5, isVenting: false },
     'stability': { current: 100, max: 100 },
-    'scrap': { amount: 0 },
+    'scrap': { amount: config.profile?.wallet.scrap ?? 0 },
+    'wallet': { scrap: config.profile?.wallet.scrap ?? 0, flux: config.profile?.wallet.flux ?? 0 },
     'floorState': { currentFloor: 1, maxFloor: 15, runSeed: config.seed }
   };
 
@@ -235,6 +240,14 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
     
     eventBus.emit('PLAYER_ACTION', { action, entityId });
   });
+
+  // Common shared handlers (pity, extraction bonus, etc.)
+  setupInternalHandlers(
+    world as unknown as World<GameplayEvents>, 
+    grid, 
+    eventBus as unknown as EventBus<GameplayEvents>, 
+    config.sessionId
+  );
 
   return {
     world,
