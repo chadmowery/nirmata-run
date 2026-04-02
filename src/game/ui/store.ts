@@ -71,6 +71,7 @@ export interface UIState {
   currentFloor: number;    // 1-15
   depthBand: string;       // "CORRUPTED_DATA" | "STATIC_HORRORS" | "LOGIC_BREAKERS"
   scrap: number;           // Current Scrap amount
+  walletScrap: number;     // Session-level persistent Scrap
   
   // Overlays
   anchorOverlayVisible: boolean;
@@ -100,8 +101,11 @@ export interface UIState {
   hideStaircaseOverlay: () => void;
   makeStaircaseDecision: (confirmed: boolean) => void;
   showRunResults: (results: RunResultsData) => void;
+  setRunResultsData: (results: RunResultsData) => void;
   showBSOD: (reason: string) => void;
   hideBSOD: () => void;
+  addScrapToWallet: (amount: number) => void;
+  resetRunStats: () => void;
 }
 
 const MAX_MESSAGES = 50;
@@ -128,6 +132,7 @@ export const gameStore = createStore<UIState>((set) => ({
   currentFloor: 1,
   depthBand: 'CORRUPTED_DATA',
   scrap: 0,
+  walletScrap: 0,
   anchorOverlayVisible: false,
   anchorData: null,
   staircaseOverlayVisible: false,
@@ -230,6 +235,25 @@ export const gameStore = createStore<UIState>((set) => ({
   },
 
   showRunResults: (results) => set({ runResultsVisible: true, runResults: results }),
+  setRunResultsData: (results) => set({ runResults: results }),
   showBSOD: (reason) => set({ bsodVisible: true, bsodReason: reason }),
   hideBSOD: () => set({ bsodVisible: false, bsodReason: '' }),
+  addScrapToWallet: (amount) => set((state) => ({ walletScrap: state.walletScrap + amount })),
+  resetRunStats: () => set({
+    scrap: 0,
+    stats: { turns: 0, kills: 0 },
+    player: {
+      hp: 0,
+      maxHp: 0,
+      xp: 0,
+      level: 1,
+      statuses: [],
+    },
+    stability: 100,
+    currentFloor: 1,
+    runResults: null,
+    runResultsVisible: false,
+    bsodVisible: false,
+    bsodReason: '',
+  }),
 }));

@@ -11,7 +11,7 @@ export const RunResultsScreen: React.FC = () => {
 
   if (!runResults) return null;
 
-  const isExtraction = runResults.reason === 'extraction';
+  const isExtraction = runResults.reason.toLowerCase() === 'extraction';
   
   // Calculate score if not provided or to ensure accuracy
   // Score formula: (floorsCleared * 100) + (enemiesKilled * 10) + (scrap * 1)

@@ -7,7 +7,7 @@
     "sprite": { "key": "player" }
   },
   "overrides": {
-    "health": { "current": 180, "max": 180 },
+    "health": { "current": 18, "max": 18 },
     "attack": { "power": 50 },
     "defense": { "armor": 2 }
   }

@@ -8,6 +8,7 @@ import styles from './styles.module.css';
 
 export const MainMenu: React.FC = () => {
   const setGameStatus = useStore(gameStore, (s) => s.setGameStatus);
+  const walletScrap = useStore(gameStore, (s) => s.walletScrap);
 
   const handleStart = () => {
     // Transition to Playing triggers engine initialization in page.tsx
@@ -19,6 +20,9 @@ export const MainMenu: React.FC = () => {
       <div className={styles.titleContainer}>
         <h1 className={styles.mainTitle}>FLASH_RUNNER</h1>
         <p className={styles.subTitle}>v0.1.0 // ENGINE_READY</p>
+        <div className={styles.walletDisplay}>
+          SCRAP_RESERVES: {walletScrap.toLocaleString()}
+        </div>
       </div>
 
       <div className={styles.menuActions}>

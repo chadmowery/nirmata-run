@@ -8,6 +8,9 @@ import { SpriteComponent } from '@shared/components/sprite';
 import { Stability } from '@shared/components/stability';
 import { Scrap } from '@shared/components/scrap';
 import { FloorState } from '@shared/components/floor-state';
+import { FirmwareSlots } from '@shared/components/firmware-slots';
+import { AugmentSlots } from '@shared/components/augment-slots';
+import { SoftwareSlots } from '@shared/components/software-slots';
 import { getDepthBand } from '../generation/dungeon-generator';
 
 export function syncEngineToStore(context: GameContext) {
@@ -72,7 +75,10 @@ export function syncEngineToStore(context: GameContext) {
   // This was causing a race condition in React by triggering a cleanup/init cycle.
   // The engine emits its own STATE_TRANSITION once it's actually ready.
 
-  // 2. Register Listeners
+  // Local tracking for run stats
+  let peakHeat = 0;
+  
+  // Register Listeners
 
   // Health updates
   eventBus.on('DAMAGE_DEALT', (event) => {
@@ -156,6 +162,16 @@ export function syncEngineToStore(context: GameContext) {
     refreshPlayerStats(); // Refresh everything each turn
   });
 
+  // Heat updates
+  eventBus.on('HEAT_CHANGED', (event) => {
+    if (event.entityId === context.playerId) {
+      if (event.newHeat > peakHeat) {
+        peakHeat = event.newHeat;
+      }
+      refreshPlayerStats();
+    }
+  });
+
   // Stability updates
   eventBus.on('STABILITY_CHANGED', (event) => {
     if (event.entityId === context.playerId) {
@@ -189,31 +205,67 @@ export function syncEngineToStore(context: GameContext) {
     }
   });
 
-  // Run End handler
-  eventBus.on('RUN_ENDED', (event) => {
+  // Helper to process run ending (Shared by extraction and death)
+  const handleRunEnd = (reason: string, floorNumber: number) => {
+    const player = context.playerId;
+    let firmwareCount = 0;
+    let augmentCount = 0;
+    let softwareCount = 0;
+
+    if (player) {
+      const fSlots = world.getComponent(player, FirmwareSlots);
+      const aSlots = world.getComponent(player, AugmentSlots);
+      const sSlots = world.getComponent(player, SoftwareSlots);
+      
+      firmwareCount = fSlots?.equipped.length ?? 0;
+      augmentCount = aSlots?.equipped.length ?? 0;
+      softwareCount = sSlots?.equipped.length ?? 0;
+    }
+
+    const runScrap = gameStore.getState().scrap;
+    const isExtraction = reason.toLowerCase() === 'extraction';
+    
+    // Add scrap to wallet ON EXTRACTION
+    if (isExtraction) {
+      gameStore.getState().addScrapToWallet(runScrap);
+    }
+
     const results = {
-      reason: event.reason,
-      floorNumber: event.floorNumber,
+      reason,
+      floorNumber,
       enemiesKilled: gameStore.getState().stats.kills,
       turnsElapsed: gameStore.getState().stats.turns,
-      peakHeat: 0, // TODO: track peak heat
-      itemsSecured: { firmware: 0, augments: 0, software: 0, scrap: gameStore.getState().scrap },
-      score: (event.floorNumber * 100) + (gameStore.getState().stats.kills * 10) + gameStore.getState().scrap
+      peakHeat: Math.round(peakHeat),
+      itemsSecured: { 
+        firmware: firmwareCount, 
+        augments: augmentCount, 
+        software: softwareCount, 
+        scrap: runScrap 
+      },
+      score: (floorNumber * 100) + (gameStore.getState().stats.kills * 10) + runScrap
     };
 
-    if (event.reason === 'EXTRACTION') {
+    if (isExtraction) {
       gameStore.getState().showRunResults(results);
     } else {
-      gameStore.getState().showBSOD(event.reason);
-      // BSOD screen itself handles showing results after its animation
-      gameStore.getState().showRunResults(results);
+      gameStore.getState().showBSOD(reason);
+      gameStore.getState().setRunResultsData(results);
     }
+
+    // Always transition to GameOver status to stop engine input
+    gameStore.getState().setGameStatus(GameState.GameOver);
+  };
+
+  // Run End handler
+  eventBus.on('RUN_ENDED', (event) => {
+    handleRunEnd(event.reason, event.floorNumber);
   });
 
   // Entity Death
   eventBus.on('ENTITY_DIED', (event) => {
     if (event.entityId === context.playerId) {
-      gameStore.getState().setGameStatus(GameState.GameOver);
+      const floorState = world.getComponent(context.playerId, FloorState);
+      handleRunEnd('CRITICAL_SYSTEM_FAILURE', floorState?.currentFloor ?? 1);
     } else {
       // It was an enemy death (likely)
       const state = gameStore.getState();

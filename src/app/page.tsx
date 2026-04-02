@@ -11,7 +11,6 @@ import { gameStore } from '@/game/ui/store';
 import { GameState } from '@/game/states/types';
 import { HUDOverlay } from '@/components/ui/HUDOverlay';
 import { MainMenu } from '@/components/ui/MainMenu';
-import { GameOver } from '@/components/ui/GameOver';
 import { AnchorOverlay } from '@/components/ui/AnchorOverlay';
 import { StaircaseOverlay } from '@/components/ui/StaircaseOverlay';
 import { BSODScreen } from '@/components/ui/BSODScreen';
@@ -115,11 +114,22 @@ export default function GamePage() {
     }
   }, [status]);
 
-  // Effect 2: Cleanup only on component unmount
+  // Effect 2: Destroy engine when returning to MainMenu to ensure a fresh session next time
+  useEffect(() => {
+    if (status === GameState.MainMenu && contextRef.current) {
+      console.log('--- DESTROYING ENGINE (RETURN TO MENU) ---');
+      destroyGame(contextRef.current);
+      contextRef.current = null;
+      // Reset run-specific stats but keep walletScrap
+      gameStore.getState().resetRunStats();
+    }
+  }, [status]);
+
+  // Effect 3: Full cleanup on component unmount
   useEffect(() => {
     return () => {
       if (contextRef.current) {
-        console.log('--- DESTROYING ENGINE ---');
+        console.log('--- DESTROYING ENGINE (UNMOUNT) ---');
         destroyGame(contextRef.current);
         contextRef.current = null;
       }
@@ -136,17 +146,15 @@ export default function GamePage() {
       <div id="ui-root">
         {status === GameState.MainMenu && <MainMenu />}
 
-        {(status === GameState.Playing || status === GameState.Paused) && (
+        {(status === GameState.Playing || status === GameState.Paused || status === GameState.GameOver) && (
           <>
-            <HUDOverlay />
+            {(status === GameState.Playing || status === GameState.Paused) && <HUDOverlay />}
             {anchorOverlayVisible && <AnchorOverlay />}
             {staircaseOverlayVisible && <StaircaseOverlay />}
             {bsodVisible && <BSODScreen />}
             {runResultsVisible && <RunResultsScreen />}
           </>
         )}
-
-        {status === GameState.GameOver && <GameOver />}
       </div>
     </main>
   );

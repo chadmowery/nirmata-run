@@ -23,7 +23,7 @@ export const DEFAULT_STABILITY_CONFIG: StabilityConfig = {
   initialStability: 100,
   perFloorChunkBase: 5,
   perFloorChunkScale: 0.5,
-  perTurnBleedBase: 0.0,
+  perTurnBleedBase: 0.01,
   perTurnBleedScale: 0.1,
   degradedDamagePerTurn: 2,
 };

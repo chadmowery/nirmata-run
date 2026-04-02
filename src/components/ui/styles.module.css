@@ -271,6 +271,17 @@
   letter-spacing: 0.2rem;
 }
 
+.walletDisplay {
+  font-size: 1rem;
+  color: var(--vibrant-cyan, #00F0FF);
+  margin-top: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1rem;
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  padding: 0.5rem 1rem;
+  background: rgba(0, 240, 255, 0.05);
+}
+
 .menuActions {
   display: flex;
   flex-direction: column;
