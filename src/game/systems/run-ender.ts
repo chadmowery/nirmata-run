@@ -107,14 +107,33 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     }
   };
 
+  const handleAnchorExtract = () => {
+    const player = getPlayerEntity();
+    if (player) {
+      const floorState = world.getComponent(player.id, FloorState);
+      eventBus.emit('RUN_ENDED', {
+        reason: 'extraction',
+        entityId: player.id,
+        floorNumber: floorState?.currentFloor ?? 1,
+        stats: {}
+      } as unknown as T['RUN_ENDED']);
+      eventBus.emit('MESSAGE_EMITTED', {
+        text: 'SUCCESS: Extraction protocol complete. Neural link severed safely.',
+        type: 'info'
+      });
+    }
+  };
+
   return {
     init() {
       eventBus.on('ENTITY_MOVED', handleEntityMoved);
       eventBus.on('STABILITY_ZERO', handleStabilityZero);
+      eventBus.on('ANCHOR_EXTRACT', handleAnchorExtract);
     },
     dispose() {
       eventBus.off('ENTITY_MOVED', handleEntityMoved);
       eventBus.off('STABILITY_ZERO', handleStabilityZero);
+      eventBus.off('ANCHOR_EXTRACT', handleAnchorExtract);
     }
   };
 }
