@@ -192,6 +192,11 @@ export function syncEngineToStore(context: GameContext) {
     refreshPlayerStats();
   });
 
+  // Sync listener to refresh HUD when registry updates (D-15)
+  eventBus.on('RUN_INVENTORY_SYNCED', () => {
+    refreshPlayerStats();
+  });
+
   // Anchor interaction - show overlay
   eventBus.on('ANCHOR_INTERACTION', (event) => {
     if (event.entityId === context.playerId) {
@@ -276,8 +281,10 @@ export function syncEngineToStore(context: GameContext) {
   // Entity Death
   eventBus.on('ENTITY_DIED', (event) => {
     if (event.entityId === context.playerId) {
-      const floorState = world.getComponent(context.playerId, FloorState);
-      handleRunEnd('CRITICAL_SYSTEM_FAILURE', floorState?.currentFloor ?? 1);
+      // NOTE: We no longer trigger handleRunEnd here from local prediction.
+      // Game-over is now server-authoritative via the RUN_ENDED event.
+      // This prevents the client from ending the run while the server still thinks the player is alive.
+      console.log('[SYNC] Player died (predicted/local). Waiting for server RUN_ENDED confirmation.');
     } else {
       // It was an enemy death (likely)
       const state = gameStore.getState();

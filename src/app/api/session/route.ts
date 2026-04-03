@@ -3,6 +3,7 @@ import { createEngineInstance } from '@game/engine-factory';
 import { sessionManager } from '@engine/session/SessionManager';
 import { createDefaultProfile } from '@shared/profile';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
+import { runInventoryRegistry } from '@game/systems/run-inventory';
 
 export async function POST(req: Request) {
   try {
@@ -14,6 +15,10 @@ export async function POST(req: Request) {
     }
 
     const sessionId = providedSessionId || 'default-player-session';
+
+    // Ensure authoritative registry is clean for new run (D-05/D-06)
+    console.log(`[API] Clearing run inventory registry for session: ${sessionId}`);
+    runInventoryRegistry.clear(sessionId);
 
     // Load or create profile
     let profile = await profileRepository.load(sessionId);
@@ -31,7 +36,7 @@ export async function POST(req: Request) {
       playerId: instance.playerId,
       turnManager: instance.turnManager,
       eventBus: instance.eventBus,
-      //@ts-ignore - EngineInstance.systems matches WorldState.systems expectation
+      //@ts-expect-error - EngineInstance.systems matches WorldState.systems expectation
       systems: instance.systems,
     });
 

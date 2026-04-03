@@ -158,14 +158,27 @@ export type SerializedGrid = z.infer<typeof SerializedGridSchema>;
 import { Changeset } from 'json-diff-ts';
 import { TurnPhase } from '@engine/turn/types';
 
-/**
- * State Delta type representing the difference between two world/grid states.
- */
-export type StateDelta = {
-  world: Changeset;
-  grid: Changeset;
-  events?: Array<{ type: string; payload: unknown }>;
-};
+export interface RunInventoryItem {
+  entityId: number;
+  templateId: string;
+  rarityTier: string;
+  pickedUpAtFloor: number;
+  pickedUpAtTimestamp: number;
+}
+
+export interface CurrencyStack {
+  currencyType: 'scrap' | 'blueprint' | 'flux';
+  amount: number;
+  blueprintId?: string;
+  blueprintType?: 'firmware' | 'augment';
+}
+
+export interface RunInventory {
+  sessionId: string;
+  maxSlots: number;
+  software: RunInventoryItem[];
+  currency: CurrencyStack[];
+}
 
 /**
  * Polymorphic payload for state synchronization.
@@ -178,6 +191,7 @@ export type DeltaPayload = {
   grid: Changeset;
   events?: Array<{ type: string; payload: unknown }>;
   turnNumber: number;
+  runInventory?: RunInventory; // Serialized RunInventory state
 };
 
 export type FullSyncPayload = {
@@ -187,6 +201,7 @@ export type FullSyncPayload = {
   events?: Array<{ type: string; payload: unknown }>;
   turnNumber: number;
   phase: TurnPhase;
+  runInventory?: RunInventory; // Serialized RunInventory state
 };
 
 export type SyncPayload = DeltaPayload | FullSyncPayload;

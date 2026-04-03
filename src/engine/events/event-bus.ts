@@ -53,6 +53,11 @@ export class EventBus<TEventMap extends Record<string, any>> {
    * Queue an event to be processed on the next flush.
    */
   emit<K extends keyof TEventMap>(type: K, event: TEventMap[K]): void {
+    // Audit emission on server terminal
+    if (typeof window === 'undefined') {
+      console.log(`[EventBus] emit: ${type as string}`);
+    }
+
     // Notify wildcard handlers immediately
     for (const handler of this.anyHandlers) {
       handler(type as string, event);

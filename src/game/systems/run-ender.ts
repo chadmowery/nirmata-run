@@ -26,6 +26,8 @@ export function createRunEnderSystem<T extends GameplayEvents>(
   sessionId?: string,
   runMode: RunMode = RunMode.SIMULATION
 ) {
+  let isEnding = false;
+
   function getPlayerEntity(): { id: EntityId; x: number; y: number } | null {
     const actors = world.query(Actor, Position);
     for (const id of actors) {
@@ -45,6 +47,11 @@ export function createRunEnderSystem<T extends GameplayEvents>(
   }
 
   function executeRunEnd(playerId: EntityId, reason: string, isSuccess: boolean) {
+    if (isEnding) return;
+    isEnding = true;
+
+    console.log(`[RunEnderSystem] executeRunEnd STARTED. Reason: ${reason}, sessionId: ${sessionId}`);
+    
     const floorState = world.getComponent(playerId, FloorState);
     const floorNumber = floorState?.currentFloor ?? 1;
 
@@ -59,6 +66,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     }
 
     if (sessionId) {
+      console.log(`[RunEnderSystem] executeRunEnd: SessionId found (${sessionId}), isSuccess: ${isSuccess}`);
       const inventory = runInventoryRegistry.getOrCreate(sessionId);
       if (isSuccess) {
         // Authoritative extraction calculation (per D-06)
@@ -77,6 +85,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
         // Handle Pity on Failure (Death, Admin Contact, Instability)
         const totalScrap = runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap');
         finalScrap = calculatePityScrap(totalScrap);
+        console.log(`[RunEnderSystem] executeRunEnd (FAIL): totalScrap: ${totalScrap}, pityScrap: ${finalScrap}`);
         pityAwarded = true;
 
         runInventoryRegistry.clearCurrency(sessionId);
@@ -146,6 +155,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
   }
 
   const handleStabilityZero = (payload: T['STABILITY_ZERO']) => {
+    if (typeof window !== 'undefined') return; // Server only
     const actor = world.getComponent(payload.entityId, Actor);
     if (actor?.isPlayer) {
       executeRunEnd(payload.entityId, 'FATAL: REALITY_ANCHOR_COLLAPSED', false);
@@ -160,8 +170,8 @@ export function createRunEnderSystem<T extends GameplayEvents>(
   };
 
   const handleEntityDied = (payload: T['ENTITY_DIED']) => {
-    const actor = world.getComponent(payload.entityId, Actor);
-    if (actor?.isPlayer) {
+    if (typeof window !== 'undefined') return; // Server only
+    if (payload.isPlayer) {
       executeRunEnd(payload.entityId, 'death', false);
     }
   };

@@ -10,7 +10,7 @@ export interface GameplayEvents extends EngineEvents {
   DAMAGE_DEALT: { attackerId: EntityId; defenderId: EntityId; amount: number };
   
   /** Queued when an entity's health reaches zero. */
-  ENTITY_DIED: { entityId: EntityId; killerId: EntityId };
+  ENTITY_DIED: { entityId: EntityId; killerId: EntityId; isPlayer: boolean };
   
   /** Queued when an entity picks up an item. */
   ITEM_PICKED_UP: { entityId: EntityId; itemId: EntityId };
@@ -215,4 +215,7 @@ export interface GameplayEvents extends EngineEvents {
 
   /** Queued when a System_Admin is first detected. */
   ADMIN_DETECTED: { floorId?: number };
+
+  /** Queued when the run inventory is synchronized from the server. */
+  RUN_INVENTORY_SYNCED: { sessionId: string };
 }

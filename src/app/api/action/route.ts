@@ -8,11 +8,13 @@ import { logger } from '@shared/utils/logger';
 import { GameplayEvents } from '@shared/events/types';
 import { EngineInstance } from '@game/engine-factory';
 import { FloorState } from '@shared/components/floor-state';
-import { createDefaultProfile } from '@shared/profile';
+import { createDefaultProfile, VaultItem } from '@shared/profile';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
+import { runInventoryRegistry } from '@game/systems/run-inventory';
 import economy from '@game/entities/templates/economy.json';
 
 export async function POST(req: Request) {
+  console.log(`[API] /api/action POST received`);
   try {
     const body = await req.json();
     const result = ActionRequestSchema.safeParse(body);
@@ -111,8 +113,12 @@ export async function POST(req: Request) {
 
     // Stop capturing
     eventBus.offAny(eventCaptureHandler);
-
+    
     // 4. Handle Run Persistence
+    if (capturedEvents.length > 0) {
+      console.log(`[API] Captured ${capturedEvents.length} events: ${capturedEvents.map(e => e.type).join(', ')}`);
+    }
+
     const runEndedEvent = capturedEvents.find(e => e.type === 'RUN_ENDED');
     if (runEndedEvent) {
       const payload = runEndedEvent.payload as GameplayEvents['RUN_ENDED'];
@@ -125,10 +131,18 @@ export async function POST(req: Request) {
 
       const finalScrap = (payload.stats.scrapExtracted as number) || 0;
       const finalFlux = (payload.stats.fluxExtracted as number) || 0;
-      const itemsExtracted = (payload.stats.itemsExtracted as any[]) || [];
+      const itemsExtracted = (payload.stats.itemsExtracted as VaultItem[]) || [];
       
+      console.log('--- PERSISTENCE TRACE START ---');
+      console.log(`[API] Session ID: ${sessionId}`);
+      console.log(`[API] Event Stats: scrap=${payload.stats.scrapExtracted}, flux=${payload.stats.fluxExtracted}, items=${itemsExtracted.length}`);
+      console.log(`[API] Persistence: finalScrap=${finalScrap}, finalFlux=${finalFlux}`);
+      
+      const oldScrap = profile.wallet.scrap;
       profile.wallet.scrap = Math.min(economy.caps.scrap, profile.wallet.scrap + finalScrap);
       profile.wallet.flux = Math.min(economy.caps.flux, profile.wallet.flux + finalFlux);
+      
+      console.log(`[API] Wallet update: scrap ${oldScrap} -> ${profile.wallet.scrap}`);
 
       // Store extracted items in overflow
       if (itemsExtracted.length > 0) {
@@ -137,7 +151,8 @@ export async function POST(req: Request) {
       }
 
       await profileRepository.save(profile);
-      logger.info(`[API] Profile saved: ${profile.wallet.scrap} Scrap, ${profile.wallet.flux} Flux, ${profile.overflow.length} Items in Overflow`);
+      console.log(`[API] Profile successfully saved to disk for ${sessionId}.`);
+      console.log('--- PERSISTENCE TRACE END ---');
     }
 
     // 5. Snapshot final state
@@ -159,6 +174,7 @@ export async function POST(req: Request) {
         events: capturedEvents,
         turnNumber: turnManager.getTurnNumber(),
         phase: turnManager.getPhase(),
+        runInventory: runInventoryRegistry.getOrCreate(sessionId),
       };
     } else {
       logger.info(`[API] sending DELTA state sync.`);
@@ -168,6 +184,7 @@ export async function POST(req: Request) {
         grid: diff(oldGridState, newGridState),
         events: capturedEvents,
         turnNumber: turnManager.getTurnNumber(),
+        runInventory: runInventoryRegistry.getOrCreate(sessionId),
       };
     }
  
@@ -175,8 +192,9 @@ export async function POST(req: Request) {
       sessionId,
       payload: syncPayload,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     logger.error('API Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error', message: errorMessage }, { status: 500 });
   }
 }
