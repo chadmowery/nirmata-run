@@ -3,6 +3,7 @@ import { EventBus } from '@engine/events/event-bus';
 import { EntityId } from '@engine/ecs/types';
 import { Stability, StabilityData } from '@shared/components/stability';
 import { Health, HealthData } from '@shared/components/health';
+import { Actor } from '@shared/components/actor';
 import { GameplayEvents } from '@shared/events/types';
 import { EventOriginContext } from '@shared/utils/event-context';
 
@@ -106,10 +107,12 @@ export function createStabilitySystem<T extends GameplayEvents>(
     } as unknown as T['DEGRADED_DAMAGE']);
 
     if (health.current === 0) {
+      const actor = world.getComponent(entityId, Actor);
       eventBus.emit('ENTITY_DIED', {
         entityId,
-        killerId: entityId // Self-inflicted due to instability
-      } as unknown as T['ENTITY_DIED']);
+        killerId: entityId,
+        isPlayer: !!actor?.isPlayer
+      });
     }
   };
 

@@ -36,8 +36,7 @@ export async function POST(req: Request) {
       playerId: instance.playerId,
       turnManager: instance.turnManager,
       eventBus: instance.eventBus,
-      //@ts-expect-error - EngineInstance.systems matches WorldState.systems expectation
-      systems: instance.systems,
+      systems: instance.systems
     });
 
     console.log(`[API] Session created: ${sessionId} (seed: ${seed})`);

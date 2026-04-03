@@ -119,12 +119,13 @@ export function createFirmwareSystem<T extends GameplayEvents>(
                 grid.removeEntity(targetId, targetPos.x, targetPos.y);
               }
 
+              const actor = world.getComponent(targetId as EntityId, Actor);
               eventBus.emit('ENTITY_DIED', {
-                entityId: targetId,
-                killerId: entityId
-              } as T['ENTITY_DIED']);
+                entityId: targetId as EntityId,
+                killerId: entityId,
+                isPlayer: !!actor?.isPlayer
+              });
 
-              const actor = world.getComponent(targetId, Actor);
               const name = actor?.isPlayer ? 'You' : 'The enemy';
               eventBus.emit('MESSAGE_EMITTED', {
                 text: `${name} died!`,

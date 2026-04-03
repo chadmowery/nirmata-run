@@ -447,12 +447,12 @@ function handleDeath(world: World<GameplayEvents>, grid: Grid, eventBus: EventBu
   // For now, we skip loot in the pure pipeline, or we pass it in if needed.
   // ARCH deviation: If loot is critical for prediction, we need a pure version of EntityFactory.
 
-  eventBus.emit('ENTITY_DIED', { entityId, killerId });
+  const actor = world.getComponent(entityId, Actor);
+  eventBus.emit('ENTITY_DIED', { entityId, killerId, isPlayer: !!actor?.isPlayer });
 
   // Apply software effects like Vampire (heal on kill)
   applyVampireOnKill(world, eventBus, killerId);
 
-  const actor = world.getComponent(entityId, Actor);
   const name = actor?.isPlayer ? 'You' : 'The enemy';
   eventBus.emit('MESSAGE_EMITTED', {
     text: `${name} died!`,

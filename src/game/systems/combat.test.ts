@@ -75,7 +75,7 @@ describe('CombatSystem', () => {
     const defender = world.createEntity();
     world.addComponent(defender, Health, { current: 10, max: 10 });
     world.addComponent(defender, Defense, { armor: 10 });
-    world.addComponent(defender, Heat, { current: 50, maxSafe: 100, isVenting: true });
+    world.addComponent(defender, Heat, { current: 50, maxSafe: 100, isVenting: true, baseDissipation: 1, ventPercentage: 0.5 });
 
     eventBus.emit('BUMP_ATTACK', { attackerId: attacker, defenderId: defender });
     eventBus.flush();
@@ -116,6 +116,7 @@ describe('CombatSystem', () => {
     expect(diedSpy).toHaveBeenCalledWith({
       entityId: defender,
       killerId: attacker,
+      isPlayer: false,
     });
   });
 
@@ -127,6 +128,7 @@ describe('CombatSystem', () => {
     world.addComponent(defender, Position, { x: 2, y: 2 });
     world.addComponent(defender, Health, { current: 5, max: 5 });
     world.addComponent(defender, LootTable, {
+      tier: 1,
       drops: [{ template: 'gold', chance: 1.0 }] // Always drop
     });
     grid.addEntity(defender, 2, 2);
@@ -153,6 +155,7 @@ describe('CombatSystem', () => {
     world.addComponent(defender, Position, { x: 2, y: 2 });
     world.addComponent(defender, Health, { current: 5, max: 5 });
     world.addComponent(defender, LootTable, {
+      tier: 1,
       drops: [{ template: 'gold', chance: 0.1 }] // Low chance
     });
 

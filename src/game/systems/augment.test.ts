@@ -39,7 +39,7 @@ describe('AugmentSystem', () => {
     augmentSystem.init();
 
     playerId = world.createEntity();
-    world.addComponent(playerId, Actor, { isPlayer: true, name: 'Player' });
+    world.addComponent(playerId, Actor, { isPlayer: true });
     world.addComponent(playerId, Health, { current: 10, max: 20 });
     world.addComponent(playerId, Heat, { current: 0, maxSafe: 50, baseDissipation: 1, ventPercentage: 0.5 });
     world.addComponent(playerId, AugmentSlots, { equipped: [] });

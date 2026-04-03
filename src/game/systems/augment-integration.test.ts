@@ -108,9 +108,8 @@ describe('Augment Integration', () => {
     
     // Case 2: Activation AND kill
     eventBus.emit('FIRMWARE_ACTIVATED', { entityId: playerId, slotIndex: 0, abilityName: 'Test' });
-    eventBus.emit('ENTITY_DIED', { entityId: 999, killerId: playerId });
+    eventBus.emit('ENTITY_DIED', { entityId: 999, killerId: playerId, isPlayer: false });
     engine.turnManager.submitAction(GameAction.WAIT);
     expect(engine.systems.statusEffect.hasEffect(playerId, 'SHIELD')).toBe(true);
   });
 });
-

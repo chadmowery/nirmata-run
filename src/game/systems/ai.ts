@@ -405,7 +405,7 @@ export function createAISystem<T extends GameplayEvents>(
             });
 
             if (playerHealth.current <= 0) {
-               eventBus.emit('ENTITY_DIED', { entityId: player.id, killerId: entityId });
+               eventBus.emit('ENTITY_DIED', { entityId: player.id, killerId: entityId, isPlayer: true });
                
                const playerPos = world.getComponent(player.id, Position);
                if (playerPos) {

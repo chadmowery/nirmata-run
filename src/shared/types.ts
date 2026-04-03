@@ -204,4 +204,9 @@ export type FullSyncPayload = {
   runInventory?: RunInventory; // Serialized RunInventory state
 };
 
+export type StateDelta = {
+  world: Changeset;
+  grid: Changeset;
+};
+
 export type SyncPayload = DeltaPayload | FullSyncPayload;
