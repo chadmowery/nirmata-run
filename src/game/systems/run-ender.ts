@@ -8,7 +8,7 @@ import { AIState, AIBehaviorType } from '@shared/components/ai-state';
 import { FloorState } from '@shared/components/floor-state';
 import { GameplayEvents } from '@shared/events/types';
 import { runInventoryRegistry } from './run-inventory';
-import { inferItemType } from './vault-manager';
+import { inferItemType, RunMode } from './vault-manager';
 import { VaultItem } from './profile-persistence';
 import economy from '../entities/templates/economy.json';
 
@@ -19,7 +19,8 @@ export function createRunEnderSystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
   eventBus: EventBus<T>,
-  sessionId?: string
+  sessionId?: string,
+  runMode: RunMode = RunMode.SIMULATION
 ) {
   function getPlayerEntity(): { id: EntityId; x: number; y: number } | null {
     const actors = world.query(Actor, Position);
@@ -95,6 +96,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
       entityId: playerId,
       floorNumber,
       stats: {
+        runMode,
         scrapExtracted: finalScrap,
         fluxExtracted: finalFlux,
         softwareExtracted: swCount,

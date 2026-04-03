@@ -1,4 +1,5 @@
 import { getCurrentDailySeed, getCurrentWeeklySeed } from './seed-rotation';
+import economy from '../entities/templates/economy.json';
 
 export enum RunMode {
   SIMULATION = 'simulation',
@@ -82,4 +83,23 @@ export async function getRunModeConfig(mode: RunMode): Promise<RunModeConfig> {
     default:
       throw new Error(`Invalid RunMode: ${mode}`);
   }
+}
+
+/**
+ * Calculates server-side score based on run stats.
+ * D-21: Scores never client-submitted.
+ */
+export function calculateScore(stats: {
+  floorNumber: number;
+  scrapExtracted: number;
+  softwareExtracted: number;
+  fluxExtracted: number;
+}): number {
+  const { scoring } = (economy as any);
+  return (
+    (stats.floorNumber * scoring.floorReached) +
+    (stats.scrapExtracted * scoring.scrapCollected) +
+    (stats.softwareExtracted * scoring.softwareExtracted) +
+    (stats.fluxExtracted * scoring.fluxExtracted)
+  );
 }

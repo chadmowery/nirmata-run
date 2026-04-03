@@ -35,6 +35,7 @@ import { Phase } from '../engine/ecs/types';
 
 import { ShellRecord } from './shells/types';
 import { PlayerProfile } from './systems/profile-persistence';
+import { RunMode } from './systems/run-mode-config';
 import { setupInternalHandlers } from '@shared/pipeline';
 
 export interface EngineInitConfig {
@@ -45,6 +46,7 @@ export interface EngineInitConfig {
   shellRecord?: ShellRecord;
   sessionId?: string;
   profile?: PlayerProfile;
+  runMode?: RunMode;
 }
 
 export interface EngineInstance {
@@ -122,7 +124,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   const augmentSystem = createAugmentSystem(world, eventBus, statusEffectSystem, heatSystem);
   const packCoordinatorSystem = createPackCoordinatorSystem(world, grid, eventBus);
   const tileCorruptionSystem = createTileCorruptionSystem(world, grid, eventBus, entityFactory, componentRegistry);
-  const runEnderSystem = createRunEnderSystem(world, grid, eventBus, config.sessionId);
+  const runEnderSystem = createRunEnderSystem(world, grid, eventBus, config.sessionId, config.runMode);
   const stabilitySystem = createStabilitySystem(world, eventBus);
   const currencyDropSystem = createCurrencyDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
 
