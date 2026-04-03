@@ -41,6 +41,10 @@ The Shell/Firmware/Augment/Software customization hierarchy combined with the Ne
 - ✓ Clean separation: engine logic vs. game logic, data, UI, utilities — v1.0
 - ✓ Lightweight UI state management reflecting game state — v1.0
 - ✓ Tech demo: 60-second playable dungeon — v1.0
+- ✓ 3-tier currency system (Raw Scrap, Neural Blueprints, Flux) — Phase 13/14
+- ✓ Vault system (protected inventory for Weekly Challenge) — Phase 14
+- ✓ Run Types (Neural Simulation, Daily Challenge, Weekly One-Shot) — Phase 14
+- ✓ Leaderboard system with server-side scoring — Phase 14
 
 ### Active
 
@@ -55,14 +59,9 @@ The Shell/Firmware/Augment/Software customization hierarchy combined with the Ne
 - [ ] Reality Stability bar (drops as player goes deeper)
 - [ ] Stability Anchor interaction and decision UX (Extract vs Descend)
 - [ ] Multi-floor dungeon with increasing depth/difficulty
-- [ ] Neural Simulation runs (unlimited, low-stakes, Virtual Shells)
-- [ ] Daily Challenge runs (cumulative leaderboard scoring)
-- [ ] Weekly One-Shot run (the "real" run with full stakes)
 - [ ] Neural Deck hub (between-run management interface)
-- [ ] 3-tier currency system (Raw Scrap, Neural Blueprints, Flux)
 - [ ] Blueprint discovery, compilation, and installation cycle
 - [ ] Weekly blueprint reset with Legacy Code degradation
-- [ ] Vault system (protected inventory for Weekly Challenge)
 - [ ] "Vibrant Decay" visual identity (neon cyan/electric pink palette, glitch effects)
 - [ ] System Handshake UI transitions at Stability Anchors
 - [ ] Kernel Panic visual escalation (HUD jitter, color inversion, screen-tearing)
@@ -132,4 +131,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-29 after milestone v2.0 initialization*
+*Last updated: 2026-04-03 after Phase 14 completion*
