@@ -124,16 +124,19 @@ export async function POST(req: Request) {
 
       const finalScrap = (payload.stats.scrapExtracted as number) || 0;
       const finalFlux = (payload.stats.fluxExtracted as number) || 0;
+      const itemsExtracted = (payload.stats.itemsExtracted as any[]) || [];
       
       profile.wallet.scrap = Math.min(economy.caps.scrap, profile.wallet.scrap + finalScrap);
       profile.wallet.flux = Math.min(economy.caps.flux, profile.wallet.flux + finalFlux);
 
-      // TODO: Handle Blueprint library updates from inventory if needed
-      // const stacks = runInventoryRegistry.getCurrencyStacks(sessionId);
-      // ...
+      // Store extracted items in overflow
+      if (itemsExtracted.length > 0) {
+        profile.overflow.push(...itemsExtracted);
+        logger.info(`[API] Added ${itemsExtracted.length} items to overflow for ${sessionId}`);
+      }
 
       await saveProfile(profile);
-      logger.info(`[API] Profile saved: ${profile.wallet.scrap} Scrap, ${profile.wallet.flux} Flux`);
+      logger.info(`[API] Profile saved: ${profile.wallet.scrap} Scrap, ${profile.wallet.flux} Flux, ${profile.overflow.length} Items in Overflow`);
       
       // Cleanup session if run ended? 
       // For now we keep it so the last state can be queried, but technically it's over.

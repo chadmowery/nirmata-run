@@ -8,6 +8,8 @@ import { AIState, AIBehaviorType } from '@shared/components/ai-state';
 import { FloorState } from '@shared/components/floor-state';
 import { GameplayEvents } from '@shared/events/types';
 import { runInventoryRegistry } from './run-inventory';
+import { inferItemType } from './vault-manager';
+import { VaultItem } from './profile-persistence';
 import economy from '../entities/templates/economy.json';
 
 /**
@@ -45,6 +47,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     let finalFlux = 0;
     let swCount = 0;
     let pityAwarded = false;
+    let itemsExtracted: VaultItem[] = [];
 
     if (!sessionId) {
       console.warn(`[RunEnderSystem] executeRunEnd called without sessionId! Reason: ${reason}. Final stats will be 0.`);
@@ -60,8 +63,19 @@ export function createRunEnderSystem<T extends GameplayEvents>(
           (economy.currencyDrops.flux.extractionBonus.perFloorMultiplier * floorNumber);
         finalFlux = inventoryFlux + fluxBonus;
 
-        swCount = runInventoryRegistry.getOrCreate(sessionId).software.length;
+        const inventory = runInventoryRegistry.getOrCreate(sessionId);
+        swCount = inventory.software.length;
         
+        // Map software to VaultItems
+        itemsExtracted = inventory.software.map(item => ({
+          entityId: item.entityId,
+          templateId: item.templateId,
+          rarityTier: item.rarityTier,
+          itemType: inferItemType(item.templateId),
+          extractedAtFloor: floorNumber,
+          extractedAtTimestamp: Date.now(),
+        }));
+
         // Finalize inventory to stash
         runInventoryRegistry.transferToStash(sessionId);
       } else {
@@ -84,7 +98,8 @@ export function createRunEnderSystem<T extends GameplayEvents>(
         scrapExtracted: finalScrap,
         fluxExtracted: finalFlux,
         softwareExtracted: swCount,
-        pityAwarded
+        pityAwarded,
+        itemsExtracted,
       }
     } as unknown as T['RUN_ENDED']);
 
