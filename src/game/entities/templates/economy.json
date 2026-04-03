@@ -30,5 +30,12 @@
   "pity": { "deathScrapPercent": 0.25 },
   "shop": { "stockSize": 6, "maxRarity": "rare" },
   "conversion": { "duplicateBlueprintToFlux": 20 },
+  "scoring": {
+    "floorReached": 100,
+    "scrapCollected": 1,
+    "enemiesDefeated": 50,
+    "softwareExtracted": 500,
+    "fluxExtracted": 10
+  },
   "winnersItems": ["PHASED_OVERDRIVE", "NEURAL_RECURSION", "STATIC_COLLAPSE", "VOID_ECHO"]
 }
