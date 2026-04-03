@@ -69,9 +69,6 @@ export function resolveMixins(
   if (template.overrides) {
     for (const [key, overrideData] of Object.entries(template.overrides)) {
       if (resolvedComponents[key]) {
-        if (typeof window === 'undefined') {
-          console.log(`[Engine] Overriding ${template.name}.${key} with:`, JSON.stringify(overrideData));
-        }
         // Deep merge for overrideData onto resolvedComponents[key]
         resolvedComponents[key] = {
           ...(resolvedComponents[key] as object),
@@ -113,6 +110,9 @@ export function buildEntity<T extends EngineEvents>(
     // Deep clone the data to prevent state pollution across entities 
     // sharing the same template/mixin object references.
     const deepClonedData = JSON.parse(JSON.stringify(result.data));
+    if (templateName === 'player' && typeof window === 'undefined') {
+      console.log(`[Builder] Component ${key} for player built with:`, JSON.stringify(deepClonedData));
+    }
     world.addComponent(entityId, def, deepClonedData);
   }
 

@@ -47,7 +47,8 @@ export async function POST(req: Request) {
     switch (action.type) {
       case 'MOVE':
         for (const [key, dir] of Object.entries(DIRECTIONS)) {
-          if ((dir as any).dx === action.dx && (dir as any).dy === action.dy) {
+          const d = dir as { dx: number; dy: number };
+          if (d.dx === action.dx && d.dy === action.dy) {
             actionKey = key;
             break;
           }
@@ -162,7 +163,7 @@ export async function POST(req: Request) {
     // 6. Determine Sync Strategy
     const isMassiveChange = capturedEvents.some(e => 
       e.type === 'FLOOR_TRANSITION' || e.type === 'DUNGEON_GENERATED'
-    );
+    ) || turnManager.getTurnNumber() <= 1;
 
     let syncPayload: SyncPayload;
     if (isMassiveChange) {

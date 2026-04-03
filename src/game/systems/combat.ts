@@ -8,6 +8,7 @@ import { Attack, Defense, LootTable, Health, Position, Actor, Heat, BurnedSoftwa
 import { GameplayEvents } from '@shared/events/types';
 
 import { ComponentRegistry } from '@engine/entity/types';
+import { EventOriginContext } from '@shared/utils/event-context';
 import { applyBleedOnHit, applyVampireOnKill } from './software-effects';
 
 export interface DamageModifier {
@@ -88,7 +89,8 @@ export function createCombatSystem<T extends GameplayEvents>(
   componentRegistry: ComponentRegistry,
   options: { skipLoot?: boolean } = {}
 ) {
-  const resolveBumpAttack = (payload: T['BUMP_ATTACK']) => {
+  function resolveBumpAttack(payload: T['BUMP_ATTACK']) {
+    if (EventOriginContext.current === 'server') return;
     const { attackerId, defenderId } = payload;
 
     const attackerAttack = world.getComponent(attackerId, Attack);
