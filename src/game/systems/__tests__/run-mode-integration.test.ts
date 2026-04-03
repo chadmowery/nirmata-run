@@ -5,23 +5,44 @@ import { loadProfile, saveProfile, createDefaultProfile } from '../profile-persi
 import { NextRequest } from 'next/server';
 import fs from 'fs/promises';
 
+vi.mock('@/game/systems/profile-persistence');
 vi.mock('../profile-persistence');
 vi.mock('fs/promises');
-vi.mock('@/engine/session/SessionManager');
+vi.mock('@/engine/session/SessionManager', () => ({
+  sessionManager: {
+    registerSession: vi.fn()
+  }
+}));
+vi.mock('@/game/engine-factory', () => ({
+  createEngineInstance: vi.fn(() => ({
+    world: {},
+    grid: {},
+    turnManager: {},
+    eventBus: {},
+    systems: {},
+    playerId: 1
+  }))
+}));
 
 describe('Run Lifecycle Integration', () => {
   const sessionId = 'test-session';
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(fs.mkdir).mockResolvedValue(undefined);
-    vi.mocked(fs.writeFile).mockResolvedValue(undefined);
+    vi.spyOn(fs, 'mkdir').mockResolvedValue(undefined);
+    vi.spyOn(fs, 'writeFile').mockResolvedValue(undefined);
   });
 
   it('should go through launch -> extract (overflow) -> clear -> relaunch cycle', async () => {
     // 1. Initial State: Clean profile
     let profile = createDefaultProfile(sessionId);
-    vi.mocked(loadProfile).mockResolvedValue(profile);
+    vi.mocked(loadProfile).mockImplementation(async (id) => {
+      if (id === sessionId) return profile;
+      return null;
+    });
+    vi.mocked(saveProfile).mockImplementation(async (p) => {
+      profile = p;
+    });
 
     // 2. Launch Run
     const launchReq = new NextRequest('http://localhost/api/run-mode/launch', {

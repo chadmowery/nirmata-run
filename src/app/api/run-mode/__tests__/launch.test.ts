@@ -1,12 +1,26 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { POST as launchRoute } from '../launch/route';
-import { GET as availableRoute } from '../available/route';
 import { loadProfile, saveProfile } from '@/game/systems/profile-persistence';
+import { createEngineInstance } from '@/game/engine-factory';
+import { sessionManager } from '@/engine/session/SessionManager';
 import { NextRequest } from 'next/server';
 
 vi.mock('@/game/systems/profile-persistence');
-vi.mock('@/engine/session/SessionManager');
-vi.mock('@/game/engine-factory');
+vi.mock('@/engine/session/SessionManager', () => ({
+  sessionManager: {
+    registerSession: vi.fn()
+  }
+}));
+vi.mock('@/game/engine-factory', () => ({
+  createEngineInstance: vi.fn(() => ({
+    world: {},
+    grid: {},
+    turnManager: {},
+    eventBus: {},
+    systems: {},
+    playerId: 1
+  }))
+}));
 
 describe('Run Launch API', () => {
   const sessionId = 'test-session';

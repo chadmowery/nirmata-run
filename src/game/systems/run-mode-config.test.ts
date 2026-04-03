@@ -1,9 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { RunMode, getRunModeConfig } from './run-mode-config';
-import { loadSeedRotation, saveSeedRotation, getCurrentDailySeed, getCurrentWeeklySeed } from './seed-rotation';
+import { getCurrentDailySeed, getCurrentWeeklySeed } from './seed-rotation';
 import fs from 'fs/promises';
-
-vi.mock('fs/promises');
 
 describe('RunModeConfig', () => {
   it('should return simulation config with random seed', async () => {
@@ -14,7 +12,7 @@ describe('RunModeConfig', () => {
   });
 
   it('should return daily config with shared seed', async () => {
-    vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify({
+    vi.spyOn(fs, 'readFile').mockResolvedValue(JSON.stringify({
       currentDailySeed: 'daily123',
       currentWeeklySeed: 'weekly123',
       lastDailyUpdate: Date.now(),
@@ -35,12 +33,14 @@ describe('SeedRotation', () => {
 
   it('should rotate daily seed after 24 hours', async () => {
     const oldTime = Date.now() - (25 * 60 * 60 * 1000);
-    vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify({
+    vi.spyOn(fs, 'readFile').mockResolvedValue(JSON.stringify({
       currentDailySeed: 'old_daily',
       currentWeeklySeed: 'weekly',
       lastDailyUpdate: oldTime,
       lastWeeklyUpdate: Date.now()
     }));
+    vi.spyOn(fs, 'writeFile').mockResolvedValue(undefined);
+    vi.spyOn(fs, 'mkdir').mockResolvedValue(undefined);
 
     const seed = await getCurrentDailySeed();
     expect(seed).not.toBe('old_daily');
