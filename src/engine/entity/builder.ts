@@ -110,9 +110,6 @@ export function buildEntity<T extends EngineEvents>(
     // Deep clone the data to prevent state pollution across entities 
     // sharing the same template/mixin object references.
     const deepClonedData = JSON.parse(JSON.stringify(result.data));
-    if (templateName === 'player' && typeof window === 'undefined') {
-      console.log(`[Builder] Component ${key} for player built with:`, JSON.stringify(deepClonedData));
-    }
     world.addComponent(entityId, def, deepClonedData);
   }
 

@@ -30,20 +30,16 @@ export function resolveDamage(
   let damage = baseAttack;
 
   // Apply all pre-defense modifiers (Software + Augments per D-11)
-  let modsSum = 0;
   for (const mod of modifiers) {
     if (mod.phase === 'pre_defense' && mod.type === 'additive') {
       damage += mod.value;
-      modsSum += mod.value;
     }
   }
 
   // Apply defense
   const finalDamage = Math.max(1, damage - defense);
 
-  if (typeof window === 'undefined') {
-    console.log(`[CombatSystem] resolveCalc: base=${baseAttack}, mods=${modsSum}, defense=${defense}, final=${finalDamage}`);
-  }
+
 
   return Math.floor(finalDamage);
 }
@@ -113,9 +109,7 @@ export function createCombatSystem<T extends GameplayEvents>(
     // Authoritative update: save back to world store (D-15)
     world.addComponent(defenderId, Health, { ...defenderHealth, current: newHealth });
 
-    if (typeof window === 'undefined') {
-      console.log(`[CombatSystem] Entity ${defenderId} health: ${oldHealth} -> ${newHealth} (damage: ${damage})`);
-    }
+
 
     eventBus.emit('DAMAGE_DEALT', {
       attackerId,

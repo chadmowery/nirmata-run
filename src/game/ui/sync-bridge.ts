@@ -18,7 +18,7 @@ export function syncEngineToStore(context: GameContext) {
 
   // Helper to update player stats from world state
   const refreshPlayerStats = () => {
-    console.log('[SYNC] Refreshing player stats. context.playerId:', context.playerId);
+
     if (!context.playerId) return;
 
     const health = world.getComponent(context.playerId, Health);
@@ -31,7 +31,7 @@ export function syncEngineToStore(context: GameContext) {
       ? runInventoryRegistry.getCurrencyAmount(context.sessionId, 'scrap') 
       : 0;
 
-    console.log('[SYNC] Found health:', health, 'progression:', progression, 'scrap:', scrapAmount);
+
 
     const store = gameStore.getState();
     store.updatePlayerStats({
@@ -125,7 +125,7 @@ export function syncEngineToStore(context: GameContext) {
 
   // Game Status
   eventBus.on('STATE_TRANSITION', (event) => {
-    console.log('[SYNC] STATE_TRANSITION:', event.newState);
+
     gameStore.getState().setGameStatus(event.newState as GameStatus);
     if (event.newState === GameState.Playing) {
       refreshPlayerStats();
@@ -134,7 +134,7 @@ export function syncEngineToStore(context: GameContext) {
 
   // Dungeon generation
   eventBus.on('DUNGEON_GENERATED', () => {
-    console.log('[SYNC] DUNGEON_GENERATED');
+
     refreshPlayerStats();
   });
 
@@ -284,7 +284,7 @@ export function syncEngineToStore(context: GameContext) {
       // NOTE: We no longer trigger handleRunEnd here from local prediction.
       // Game-over is now server-authoritative via the RUN_ENDED event.
       // This prevents the client from ending the run while the server still thinks the player is alive.
-      console.log('[SYNC] Player died (predicted/local). Waiting for server RUN_ENDED confirmation.');
+
     } else {
       // It was an enemy death (likely)
       const state = gameStore.getState();

@@ -35,9 +35,7 @@ export function createItemPickupSystem<T extends GameplayEvents>(
 
     // 2. Get items at destination
     const itemsAtPos = grid.getItemsAt(toX, toY);
-    if (itemsAtPos.size > 0) {
-      console.log(`[ItemPickupSystem] Found ${itemsAtPos.size} items at (${toX}, ${toY})`);
-    } else {
+    if (itemsAtPos.size === 0) {
       return;
     }
 
@@ -72,7 +70,7 @@ export function createItemPickupSystem<T extends GameplayEvents>(
           console.warn(`[ItemPickupSystem] No sessionId provided! Cannot add ${amount} ${type} to registry.`);
         }
 
-        console.log(`[ItemPickupSystem] Attempting to add ${amount} ${type} to registry for session ${sessionId}`);
+
         const success = sessionId ? runInventoryRegistry.addCurrency(sessionId, type, amount, meta) : false;
         
         if (success) {

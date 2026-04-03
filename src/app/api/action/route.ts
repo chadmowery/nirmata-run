@@ -14,7 +14,7 @@ import { runInventoryRegistry } from '@game/systems/run-inventory';
 import economy from '@game/entities/templates/economy.json';
 
 export async function POST(req: Request) {
-  console.log(`[API] /api/action POST received`);
+
   try {
     const body = await req.json();
     const result = ActionRequestSchema.safeParse(body);
@@ -116,14 +116,11 @@ export async function POST(req: Request) {
     eventBus.offAny(eventCaptureHandler);
     
     // 4. Handle Run Persistence
-    if (capturedEvents.length > 0) {
-      console.log(`[API] Captured ${capturedEvents.length} events: ${capturedEvents.map(e => e.type).join(', ')}`);
-    }
+
 
     const runEndedEvent = capturedEvents.find(e => e.type === 'RUN_ENDED');
     if (runEndedEvent) {
       const payload = runEndedEvent.payload as GameplayEvents['RUN_ENDED'];
-      logger.info(`[API] Run ended: ${payload.reason}. Updating profile for ${sessionId}`);
       
       let profile = await profileRepository.load(sessionId);
       if (!profile) {
@@ -134,26 +131,20 @@ export async function POST(req: Request) {
       const finalFlux = (payload.stats.fluxExtracted as number) || 0;
       const itemsExtracted = (payload.stats.itemsExtracted as VaultItem[]) || [];
       
-      console.log('--- PERSISTENCE TRACE START ---');
-      console.log(`[API] Session ID: ${sessionId}`);
-      console.log(`[API] Event Stats: scrap=${payload.stats.scrapExtracted}, flux=${payload.stats.fluxExtracted}, items=${itemsExtracted.length}`);
-      console.log(`[API] Persistence: finalScrap=${finalScrap}, finalFlux=${finalFlux}`);
+
       
-      const oldScrap = profile.wallet.scrap;
       profile.wallet.scrap = Math.min(economy.caps.scrap, profile.wallet.scrap + finalScrap);
       profile.wallet.flux = Math.min(economy.caps.flux, profile.wallet.flux + finalFlux);
       
-      console.log(`[API] Wallet update: scrap ${oldScrap} -> ${profile.wallet.scrap}`);
+
 
       // Store extracted items in overflow
       if (itemsExtracted.length > 0) {
         profile.overflow.push(...itemsExtracted);
-        logger.info(`[API] Added ${itemsExtracted.length} items to overflow for ${sessionId}`);
       }
 
       await profileRepository.save(profile);
-      console.log(`[API] Profile successfully saved to disk for ${sessionId}.`);
-      console.log('--- PERSISTENCE TRACE END ---');
+
     }
 
     // 5. Snapshot final state
@@ -167,7 +158,6 @@ export async function POST(req: Request) {
 
     let syncPayload: SyncPayload;
     if (isMassiveChange) {
-      logger.info(`[API] Massive change detected, sending FULL state sync.`);
       syncPayload = {
         type: 'FULL',
         world: newWorldState,
