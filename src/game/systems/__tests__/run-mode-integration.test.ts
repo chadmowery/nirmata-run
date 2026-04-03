@@ -1,16 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { POST as launchRoute } from '../../../app/api/run-mode/launch/route';
 import { POST as moveVaultRoute } from '../../../app/api/vault/move-to-vault/route';
-import { loadProfile, saveProfile, createDefaultProfile } from '../profile-persistence';
+import { createDefaultProfile } from '@shared/profile';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { NextRequest } from 'next/server';
-import fs from 'fs/promises';
 
-vi.mock('@/game/systems/profile-persistence');
-vi.mock('../profile-persistence');
-vi.mock('fs/promises');
+vi.mock('@/app/persistence/fs-profile-repository');
 vi.mock('@/engine/session/SessionManager', () => ({
   sessionManager: {
-    registerSession: vi.fn()
+    createSession: vi.fn()
   }
 }));
 vi.mock('@/game/engine-factory', () => ({
@@ -29,18 +27,16 @@ describe('Run Lifecycle Integration', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(fs, 'mkdir').mockResolvedValue(undefined);
-    vi.spyOn(fs, 'writeFile').mockResolvedValue(undefined);
   });
 
   it('should go through launch -> extract (overflow) -> clear -> relaunch cycle', async () => {
     // 1. Initial State: Clean profile
     let profile = createDefaultProfile(sessionId);
-    vi.mocked(loadProfile).mockImplementation(async (id) => {
+    vi.mocked(profileRepository.load).mockImplementation(async (id) => {
       if (id === sessionId) return profile;
       return null;
     });
-    vi.mocked(saveProfile).mockImplementation(async (p) => {
+    vi.mocked(profileRepository.save).mockImplementation(async (p) => {
       profile = p;
     });
 

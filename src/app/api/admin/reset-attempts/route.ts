@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadProfile, saveProfile } from '@/game/systems/profile-persistence';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 
 /**
  * POST /api/admin/reset-attempts
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing sessionId or type' }, { status: 400 });
     }
 
-    const profile = await loadProfile(sessionId);
+    const profile = await profileRepository.load(sessionId);
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid reset type' }, { status: 400 });
     }
 
-    await saveProfile(profile);
+    await profileRepository.save(profile);
 
     return NextResponse.json({ success: true, message: `Attempts reset for ${type}` });
   } catch (error) {

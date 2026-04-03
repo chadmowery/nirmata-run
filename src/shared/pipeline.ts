@@ -11,12 +11,17 @@ import { Actor } from './components/actor';
 import {
   Position, Hostile, BlocksMovement, Attack, Health, Defense, Item, PickupEffect, EffectType,
   SoftwareDef, BurnedSoftware, Heat,
-  Stability, Scrap, AnchorMarker
+  Stability, Scrap, AnchorMarker, FloorState
 } from './components';
 import { handleEquip, handleUnequip } from './systems/equipment';
 import { runInventoryRegistry } from '../game/systems/run-inventory';
 import { resolveDamage, collectDamageModifiers } from '../game/systems/combat';
 import { checkAutoLoader, applyBleedOnHit, applyVampireOnKill } from '../game/systems/software-effects';
+import {
+  calculatePityScrap,
+  calculateExtractionFluxBonus,
+  mapInventoryToVaultItems
+} from './utils/economy-util';
 
 /**
  * Runs a game action against a world/grid state and returns the new state and delta.
@@ -44,7 +49,7 @@ export function runActionPipeline(
 
   // 4. Flush internal events (e.g., BUMP_ATTACK -> DAMAGE_DEALT)
   // We need to register local handlers for things that link systems
-  setupInternalHandlers(newWorld, newGrid, localEventBus);
+  setupInternalHandlers(newWorld, newGrid, localEventBus, sessionId);
   localEventBus.flush();
 
   // 5. Serialize final state
@@ -218,9 +223,7 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
       break;
     }
     case 'ANCHOR_EXTRACT':
-      if (sessionId) {
-        eventBus.emit('EXTRACTION_TRIGGERED', { sessionId });
-      }
+      eventBus.emit('ANCHOR_EXTRACT', {});
       break;
     case 'PICKUP_CURRENCY':
       // Explicit pickup for prediction/authoritative sync
@@ -310,7 +313,7 @@ function handlePickup(world: World<GameplayEvents>, grid: Grid, eventBus: EventB
   eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
 }
 
-export function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>) {
+export function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>, sessionId?: string) {
   // BUMP_ATTACK handler (Combat Logic)
   eventBus.on('BUMP_ATTACK', (payload) => {
     const { attackerId, defenderId } = payload;
@@ -359,7 +362,79 @@ export function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, 
     }
   });
 
-  // Note: Extraction and Player Death are now handled by RunEnderSystem
+  // ENTITY_DIED handler (Cleanup and Rewards)
+  eventBus.on('ENTITY_DIED', (payload) => {
+    const { entityId } = payload;
+    
+    // Clear burned software component
+    const burned = world.getComponent(entityId, BurnedSoftware);
+    if (burned) {
+      burned.weapon = null;
+      burned.armor = null;
+    }
+
+    const actor = world.getComponent(entityId, Actor);
+    if (actor?.isPlayer && sessionId) {
+      // Handle Pity on Failure
+      const totalScrap = runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap');
+      const pityScrap = calculatePityScrap(totalScrap);
+
+      runInventoryRegistry.clearCurrency(sessionId);
+      if (pityScrap > 0) runInventoryRegistry.addCurrency(sessionId, 'scrap', pityScrap);
+      runInventoryRegistry.clearSoftware(sessionId);
+
+      eventBus.emit('MESSAGE_EMITTED', {
+        text: `FATAL ERROR: SHELL_LOSS. Pity Scrap: ${pityScrap}`,
+        type: 'error'
+      });
+    }
+  });
+
+  // ANCHOR_EXTRACT handler (Rewards)
+  eventBus.on('ANCHOR_EXTRACT', () => {
+    if (!sessionId) return;
+
+    // This is the authoritative place where the pipeline applies rewards
+    // so they are reflected in the DELTA.
+    const playerActors = world.query(Actor);
+    let playerId = -1;
+    for (const pid of playerActors) {
+      if (world.getComponent(pid, Actor)?.isPlayer) {
+        playerId = pid;
+        break;
+      }
+    }
+
+    if (playerId !== -1) {
+      const floorState = world.getComponent(playerId, FloorState);
+      const floorNumber = floorState?.currentFloor ?? 1;
+
+      const currentScrap = runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap');
+      const currentFlux = runInventoryRegistry.getCurrencyAmount(sessionId, 'flux');
+      
+      const fluxBonus = calculateExtractionFluxBonus(floorNumber);
+      
+      const inventory = runInventoryRegistry.getOrCreate(sessionId);
+      const itemsExtracted = mapInventoryToVaultItems(inventory.software, floorNumber);
+
+      // CLEAR inventory so it shows 0 in the UI/Delta
+      runInventoryRegistry.clearCurrency(sessionId);
+      runInventoryRegistry.clearSoftware(sessionId);
+
+      eventBus.emit('RUN_ENDED', {
+        reason: 'extraction',
+        entityId: playerId,
+        floorNumber,
+        stats: {
+          scrapExtracted: currentScrap,
+          fluxExtracted: currentFlux + fluxBonus,
+          softwareExtracted: itemsExtracted.length,
+          pityAwarded: false,
+          itemsExtracted,
+        }
+      } as any);
+    }
+  });
 }
 
 function handleDeath(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>, entityId: number, killerId: number) {

@@ -1,4 +1,4 @@
-import { loadProfile, saveProfile, PlayerProfile } from './profile-persistence';
+import { PlayerProfile, ProfileRepository } from '@shared/profile';
 import { applyLegacyToProfile } from './legacy-code';
 import economyConfig from '../entities/templates/economy.json';
 
@@ -34,10 +34,11 @@ export function getWinnersItem(weekIndex: number): string {
  * 6. Return Winner's Item (D-22, BP-07)
  */
 export async function executeWeeklyReset(
+  repo: ProfileRepository,
   sessionId: string,
   newWeekSeed: number
 ): Promise<ResetResult> {
-  const profile = await loadProfile(sessionId);
+  const profile = await repo.load(sessionId);
   if (!profile) {
     throw new Error(`Profile not found: ${sessionId}`);
   }
@@ -95,7 +96,7 @@ export async function executeWeeklyReset(
   // 6. Determine Winner's Item (D-22, BP-07)
   const winnersItem = getWinnersItem(newWeekSeed);
 
-  await saveProfile(profile);
+  await repo.save(profile);
 
   return {
     sessionId,

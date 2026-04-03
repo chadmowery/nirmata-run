@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { discardOverflowItem } from '@/game/systems/vault-manager';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 
 /**
  * POST /api/vault/discard
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing sessionId or entityId' }, { status: 400 });
     }
 
-    const success = await discardOverflowItem(sessionId, entityId);
+    const success = await discardOverflowItem(profileRepository, sessionId, entityId);
     if (!success) {
       return NextResponse.json({ error: 'Item not found in overflow' }, { status: 404 });
     }

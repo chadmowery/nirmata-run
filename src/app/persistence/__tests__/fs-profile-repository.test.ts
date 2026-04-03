@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { loadProfile, saveProfile, createDefaultProfile } from '../profile-persistence';
+import { profileRepository } from '../fs-profile-repository';
+import { createDefaultProfile } from '@shared/profile';
 import fs from 'fs/promises';
 import path from 'path';
 
-describe('Profile Persistence', () => {
+describe('FSProfileRepository', () => {
   const sessionId = 'test-persistence-session';
   const profilesDir = path.join(process.cwd(), 'data', 'profiles');
   const filePath = path.join(profilesDir, `${sessionId}.json`);
@@ -24,16 +25,16 @@ describe('Profile Persistence', () => {
     const profile = createDefaultProfile(sessionId);
     profile.wallet.scrap = 500;
     
-    await saveProfile(profile);
+    await profileRepository.save(profile);
     
-    const loaded = await loadProfile(sessionId);
+    const loaded = await profileRepository.load(sessionId);
     expect(loaded).not.toBeNull();
     expect(loaded?.wallet.scrap).toBe(500);
     expect(loaded?.sessionId).toBe(sessionId);
   });
 
   it('returns null if profile does not exist', async () => {
-    const loaded = await loadProfile('non-existent');
+    const loaded = await profileRepository.load('non-existent');
     expect(loaded).toBeNull();
   });
 });

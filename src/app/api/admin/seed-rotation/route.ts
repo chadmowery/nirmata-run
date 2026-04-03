@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadSeedRotation, rotateSeed } from '@/game/systems/seed-rotation';
+import { loadSeedRotation, rotateSeed } from '@/app/persistence/seed-rotation';
 
 /**
  * GET /api/admin/seed-rotation

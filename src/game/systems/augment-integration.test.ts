@@ -41,7 +41,7 @@ describe('Augment Integration', () => {
     const { world, systems, eventBus } = engine;
     
     // 1. Create an augment entity
-    const augmentId = engine.entityFactory.create(world, 'displacement_venting', componentRegistry);
+    const augmentId = engine.entityFactory.create(world, 'displacement-venting', componentRegistry);
     
     // 2. Equip it
     const slots = world.getComponent(playerId, AugmentSlots);
@@ -74,8 +74,8 @@ describe('Augment Integration', () => {
     const { world, eventBus } = engine;
     
     // 1. Create and equip two augments
-    const aug1 = engine.entityFactory.create(world, 'displacement_venting', componentRegistry);
-    const aug2 = engine.entityFactory.create(world, 'displacement_venting', componentRegistry);
+    const aug1 = engine.entityFactory.create(world, 'displacement-venting', componentRegistry);
+    const aug2 = engine.entityFactory.create(world, 'displacement-venting', componentRegistry);
     
     const slots = world.getComponent(playerId, AugmentSlots);
     slots.equipped.push(aug1, aug2);
@@ -97,7 +97,7 @@ describe('Augment Integration', () => {
   it('handles compound triggers (Static Siphon: ON_ACTIVATION + ON_KILL)', () => {
     const { world, eventBus } = engine;
     
-    const augId = engine.entityFactory.create(world, 'static_siphon', componentRegistry);
+    const augId = engine.entityFactory.create(world, 'static-siphon', componentRegistry);
     const slots = world.getComponent(playerId, AugmentSlots);
     slots.equipped.push(augId);
     

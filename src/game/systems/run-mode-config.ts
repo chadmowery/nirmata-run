@@ -1,27 +1,9 @@
-import { getCurrentDailySeed, getCurrentWeeklySeed } from './seed-rotation';
+import { RunMode, RunModeConfig } from '@shared/run-mode';
+import { getCurrentDailySeed, getCurrentWeeklySeed } from '@/app/persistence/seed-rotation';
 import economy from '../entities/templates/economy.json';
 
-export enum RunMode {
-  SIMULATION = 'simulation',
-  DAILY = 'daily',
-  WEEKLY = 'weekly',
-}
-
-export interface RunModeConfig {
-  mode: RunMode;
-  name: string;
-  description: string;
-  attemptsPerPeriod: number | null; // null = unlimited
-  deathPenalty: {
-    loseInventory: boolean;
-    loseInstalledItems: boolean;
-    resetShellUpgrades: boolean;
-    scrapPityPercent: number;
-  };
-  seed: string;
-  isCompetitive: boolean;
-  hasLeaderboard: boolean;
-}
+export { RunMode };
+export type { RunModeConfig };
 
 /**
  * Gets the configuration for a specific run mode.

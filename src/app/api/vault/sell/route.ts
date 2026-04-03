@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sellOverflowItem } from '@/game/systems/vault-manager';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 
 /**
  * POST /api/vault/sell
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing sessionId or entityId' }, { status: 400 });
     }
 
-    const result = await sellOverflowItem(sessionId, entityId);
+    const result = await sellOverflowItem(profileRepository, sessionId, entityId);
     if (!result.success) {
       return NextResponse.json({ error: 'Item not found in overflow' }, { status: 404 });
     }

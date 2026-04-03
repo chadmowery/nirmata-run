@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadProfile, saveProfile } from '@/game/systems/profile-persistence';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { RunMode, getRunModeConfig } from '@/game/systems/run-mode-config';
 import { sessionManager } from '@/engine/session/SessionManager';
 import { createEngineInstance } from '@/game/engine-factory';
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing sessionId or mode' }, { status: 400 });
     }
 
-    const profile = await loadProfile(sessionId);
+    const profile = await profileRepository.load(sessionId);
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       profile.attemptTracking.dailyAttemptUsed = true;
     }
 
-    await saveProfile(profile);
+    await profileRepository.save(profile);
 
     // 4. Engine Initialization
     const engineConfig = {
@@ -60,7 +60,16 @@ export async function POST(req: NextRequest) {
     };
 
     const engine = createEngineInstance(engineConfig);
-    sessionManager.registerSession(sessionId, engine.world, engine.grid, engine.turnManager, engine.eventBus, engine.systems, engine.playerId);
+    
+    sessionManager.createSession(sessionId, {
+      world: engine.world,
+      grid: engine.grid,
+      turnManager: engine.turnManager,
+      eventBus: engine.eventBus,
+      playerId: engine.playerId,
+      //@ts-ignore - EngineInstance.systems matches WorldState.systems expectation
+      systems: engine.systems,
+    });
 
     return NextResponse.json({
       success: true,

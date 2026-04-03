@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { executeWeeklyReset } from '../../../../game/systems/weekly-reset';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 
 const ResetRequestSchema = z.object({
   sessionId: z.string(),
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
     }
 
     const { sessionId, newWeekSeed } = result.data;
-    const resetResult = await executeWeeklyReset(sessionId, newWeekSeed);
+    const resetResult = await executeWeeklyReset(profileRepository, sessionId, newWeekSeed);
 
     if (!resetResult.wasReset) {
       return NextResponse.json({

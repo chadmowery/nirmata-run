@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createEngineInstance } from '@game/engine-factory';
 import { sessionManager } from '@engine/session/SessionManager';
-import { loadProfile, createDefaultProfile } from '@game/systems/profile-persistence';
+import { createDefaultProfile } from '@shared/profile';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 
 export async function POST(req: Request) {
   try {
@@ -13,9 +14,9 @@ export async function POST(req: Request) {
     }
 
     const sessionId = providedSessionId || 'default-player-session';
-    
+
     // Load or create profile
-    let profile = await loadProfile(sessionId);
+    let profile = await profileRepository.load(sessionId);
     if (!profile) {
       profile = createDefaultProfile(sessionId);
     }
@@ -30,6 +31,7 @@ export async function POST(req: Request) {
       playerId: instance.playerId,
       turnManager: instance.turnManager,
       eventBus: instance.eventBus,
+      //@ts-ignore - EngineInstance.systems matches WorldState.systems expectation
       systems: instance.systems,
     });
 

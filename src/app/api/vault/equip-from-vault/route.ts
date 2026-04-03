@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadProfile, saveProfile } from '@/game/systems/profile-persistence';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 
 /**
  * POST /api/vault/equip-from-vault
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const profile = await loadProfile(sessionId);
+    const profile = await profileRepository.load(sessionId);
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
@@ -38,9 +38,9 @@ export async function POST(req: NextRequest) {
     });
 
     // 3. Remove from Vault
-    profile.vault.splice(vaultIndex, 1);
+    profile.vault.splice(vaultIndex, 1).length;
 
-    await saveProfile(profile);
+    await profileRepository.save(profile);
 
     return NextResponse.json({
       success: true,

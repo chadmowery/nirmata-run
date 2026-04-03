@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { POST as launchRoute } from '../launch/route';
-import { loadProfile, saveProfile } from '@/game/systems/profile-persistence';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { createEngineInstance } from '@/game/engine-factory';
 import { sessionManager } from '@/engine/session/SessionManager';
 import { NextRequest } from 'next/server';
 
-vi.mock('@/game/systems/profile-persistence');
+vi.mock('@/app/persistence/fs-profile-repository');
 vi.mock('@/engine/session/SessionManager', () => ({
   sessionManager: {
-    registerSession: vi.fn()
+    createSession: vi.fn()
   }
 }));
 vi.mock('@/game/engine-factory', () => ({
@@ -30,11 +30,11 @@ describe('Run Launch API', () => {
   });
 
   it('should block launch if overflow is not empty', async () => {
-    vi.mocked(loadProfile).mockResolvedValue({
+    vi.mocked(profileRepository.load).mockResolvedValue({
       sessionId,
       overflow: [{ entityId: 1 } as any],
       vault: [],
-      attemptTracking: {},
+      attemptTracking: { dayNumber: 0, weekNumber: 0, dailyAttemptUsed: false, weeklyAttemptUsed: false },
       wallet: { scrap: 0, flux: 0 },
     } as any);
 
@@ -54,10 +54,10 @@ describe('Run Launch API', () => {
       sessionId,
       overflow: [],
       vault: [],
-      attemptTracking: { weekNumber: 0, weeklyAttemptUsed: false },
+      attemptTracking: { dayNumber: 0, weekNumber: 0, dailyAttemptUsed: false, weeklyAttemptUsed: false },
       wallet: { scrap: 0, flux: 0 },
     };
-    vi.mocked(loadProfile).mockResolvedValue(profile as any);
+    vi.mocked(profileRepository.load).mockResolvedValue(profile as any);
 
     const req = new NextRequest('http://localhost/api/run-mode/launch', {
       method: 'POST',
@@ -66,7 +66,7 @@ describe('Run Launch API', () => {
 
     const res = await launchRoute(req);
     expect(res.status).toBe(200);
-    expect(vi.mocked(saveProfile)).toHaveBeenCalledWith(expect.objectContaining({
+    expect(vi.mocked(profileRepository.save)).toHaveBeenCalledWith(expect.objectContaining({
       attemptTracking: expect.objectContaining({ weeklyAttemptUsed: true })
     }));
   });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadProfile } from '@/game/systems/profile-persistence';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { RunMode, getRunModeConfig } from '@/game/systems/run-mode-config';
 
 /**
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const profile = await loadProfile(sessionId);
+    const profile = await profileRepository.load(sessionId);
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }

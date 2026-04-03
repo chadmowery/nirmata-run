@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadProfile } from '@/game/systems/profile-persistence';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
+import { VAULT_MAX_SLOTS } from '@shared/vault';
 
 /**
  * GET /api/vault/overflow
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const profile = await loadProfile(sessionId);
+    const profile = await profileRepository.load(sessionId);
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       overflow: profile.overflow,
       vaultSize: profile.vault.length,
-      maxVaultSize: 30, // VAULT_MAX_SLOTS
+      maxVaultSize: VAULT_MAX_SLOTS,
     });
   } catch (error) {
     console.error('[VaultOverflow] Error loading profile:', error);

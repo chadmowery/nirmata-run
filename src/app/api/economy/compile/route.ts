@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { loadProfile, saveProfile } from '../../../../game/systems/profile-persistence';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import economy from '../../../../game/entities/templates/economy.json';
 
 const CompileRequestSchema = z.object({
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     }
 
     const { sessionId, blueprintId, type, rarity } = result.data;
-    const profile = await loadProfile(sessionId);
+    const profile = await profileRepository.load(sessionId);
 
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
@@ -51,7 +51,7 @@ export async function POST(req: Request) {
       compiledAt: Date.now()
     });
 
-    await saveProfile(profile);
+    await profileRepository.save(profile);
 
     return NextResponse.json({ 
       success: true, 

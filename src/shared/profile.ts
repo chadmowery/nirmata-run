@@ -1,28 +1,26 @@
-import fs from 'fs/promises';
-import path from 'path';
 import { z } from 'zod';
 
-const BlueprintEntrySchema = z.object({
+export const BlueprintEntrySchema = z.object({
   blueprintId: z.string(),
   type: z.enum(['firmware', 'augment']),
   compiledAt: z.number(),
 });
 
-const ShellUpgradesSchema = z.object({
+export const ShellUpgradesSchema = z.object({
   speed: z.number().int().min(0).default(0),
   armor: z.number().int().min(0).default(0),
   stability: z.number().int().min(0).default(0),
   additionalPorts: z.number().int().min(0).default(0),
 });
 
-const InstalledItemSchema = z.object({
+export const InstalledItemSchema = z.object({
   blueprintId: z.string(),
   type: z.enum(['firmware', 'augment']),
   shellId: z.string(),
   isLegacy: z.boolean().default(false),
 });
 
-const VaultItemSchema = z.object({
+export const VaultItemSchema = z.object({
   entityId: z.number(),
   templateId: z.string(),
   rarityTier: z.string(),
@@ -31,12 +29,17 @@ const VaultItemSchema = z.object({
   extractedAtTimestamp: z.number(),
 });
 
-const AttemptTrackingSchema = z.object({
+export const AttemptTrackingSchema = z.object({
   weekNumber: z.number().default(0),
   weeklyAttemptUsed: z.boolean().default(false),
   dayNumber: z.number().default(0),
   dailyAttemptUsed: z.boolean().default(false),
-}).default({});
+}).default({
+  weekNumber: 0,
+  weeklyAttemptUsed: false,
+  dayNumber: 0,
+  dailyAttemptUsed: false
+});
 
 export const PlayerProfileSchema = z.object({
   sessionId: z.string(),
@@ -60,27 +63,17 @@ export type InstalledItem = z.infer<typeof InstalledItemSchema>;
 export type VaultItem = z.infer<typeof VaultItemSchema>;
 export type AttemptTracking = z.infer<typeof AttemptTrackingSchema>;
 
-const PROFILES_DIR = path.join(process.cwd(), 'data', 'profiles');
+/**
+ * Data Abstraction Layer for player profiles.
+ */
+export interface ProfileRepository {
+  load(sessionId: string): Promise<PlayerProfile | null>;
+  save(profile: PlayerProfile): Promise<void>;
+}
 
+/**
+ * Pure factory for creating a default profile.
+ */
 export function createDefaultProfile(sessionId: string): PlayerProfile {
   return PlayerProfileSchema.parse({ sessionId });
-}
-
-export async function loadProfile(sessionId: string): Promise<PlayerProfile | null> {
-  const filePath = path.join(PROFILES_DIR, `${sessionId}.json`);
-  try {
-    const raw = await fs.readFile(filePath, 'utf-8');
-    return PlayerProfileSchema.parse(JSON.parse(raw));
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
-    throw error;
-  }
-}
-
-export async function saveProfile(profile: PlayerProfile): Promise<void> {
-  await fs.mkdir(PROFILES_DIR, { recursive: true });
-  const filePath = path.join(PROFILES_DIR, `${profile.sessionId}.json`);
-  const tempPath = `${filePath}.tmp`;
-  await fs.writeFile(tempPath, JSON.stringify(profile, null, 2), 'utf-8');
-  await fs.rename(tempPath, filePath);
 }

@@ -119,11 +119,6 @@ export interface GameplayEvents extends EngineEvents {
     slotCount: number;
   };
 
-  /** Queued when an extraction is triggered. */
-  EXTRACTION_TRIGGERED: {
-    sessionId: string;
-  };
-
   /** Queued when an item drops as currency. */
   CURRENCY_DROPPED: {
     entityId: EntityId;

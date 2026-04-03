@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { loadProfile, saveProfile } from '../../../../game/systems/profile-persistence';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 
 const UninstallRequestSchema = z.object({
   sessionId: z.string(),
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     }
 
     const { sessionId, blueprintId, shellId } = result.data;
-    const profile = await loadProfile(sessionId);
+    const profile = await profileRepository.load(sessionId);
 
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     // Remove from installed list
     profile.installedItems.splice(index, 1);
 
-    await saveProfile(profile);
+    await profileRepository.save(profile);
 
     return NextResponse.json({ success: true });
 

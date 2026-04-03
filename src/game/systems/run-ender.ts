@@ -8,9 +8,13 @@ import { AIState, AIBehaviorType } from '@shared/components/ai-state';
 import { FloorState } from '@shared/components/floor-state';
 import { GameplayEvents } from '@shared/events/types';
 import { runInventoryRegistry } from './run-inventory';
-import { inferItemType, RunMode } from './vault-manager';
-import { VaultItem } from './profile-persistence';
-import economy from '../entities/templates/economy.json';
+import { RunMode } from '@shared/run-mode';
+import { VaultItem } from '@shared/profile';
+import {
+  calculatePityScrap,
+  calculateExtractionFluxBonus,
+  mapInventoryToVaultItems
+} from '@shared/utils/economy-util';
 
 /**
  * System that monitors for System_Admin adjacency to the player to end the run.
@@ -55,34 +59,24 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     }
 
     if (sessionId) {
+      const inventory = runInventoryRegistry.getOrCreate(sessionId);
       if (isSuccess) {
         // Authoritative extraction calculation (per D-06)
         finalScrap = runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap');
         const inventoryFlux = runInventoryRegistry.getCurrencyAmount(sessionId, 'flux');
         
-        const fluxBonus = economy.currencyDrops.flux.extractionBonus.baseAmount +
-          (economy.currencyDrops.flux.extractionBonus.perFloorMultiplier * floorNumber);
-        finalFlux = inventoryFlux + fluxBonus;
-
-        const inventory = runInventoryRegistry.getOrCreate(sessionId);
+        finalFlux = inventoryFlux + calculateExtractionFluxBonus(floorNumber);
         swCount = inventory.software.length;
         
-        // Map software to VaultItems
-        itemsExtracted = inventory.software.map(item => ({
-          entityId: item.entityId,
-          templateId: item.templateId,
-          rarityTier: item.rarityTier,
-          itemType: inferItemType(item.templateId),
-          extractedAtFloor: floorNumber,
-          extractedAtTimestamp: Date.now(),
-        }));
+        // Map software to VaultItems using unified utility
+        itemsExtracted = mapInventoryToVaultItems(inventory.software, floorNumber);
 
         // Finalize inventory to stash
         runInventoryRegistry.transferToStash(sessionId);
       } else {
         // Handle Pity on Failure (Death, Admin Contact, Instability)
         const totalScrap = runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap');
-        finalScrap = Math.floor(totalScrap * economy.pity.deathScrapPercent);
+        finalScrap = calculatePityScrap(totalScrap);
         pityAwarded = true;
 
         runInventoryRegistry.clearCurrency(sessionId);

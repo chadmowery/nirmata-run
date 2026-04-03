@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { loadProfile, saveProfile } from '../../../../game/systems/profile-persistence';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { generateShopStock } from '../../../../game/systems/shop-rotation';
 
 const PurchaseRequestSchema = z.object({
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     }
 
     const { sessionId, itemIndex, weekSeed } = result.data;
-    const profile = await loadProfile(sessionId);
+    const profile = await profileRepository.load(sessionId);
 
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     // We don't have a "software stash" in profile yet, but Plan 04 might add it.
     // For now, we just deduct and return success.
 
-    await saveProfile(profile);
+    await profileRepository.save(profile);
 
     return NextResponse.json({ 
       success: true, 

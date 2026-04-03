@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { moveOverflowToVault } from '@/game/systems/vault-manager';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 
 /**
  * POST /api/vault/move-to-vault
@@ -13,7 +14,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
     }
 
-    const result = await moveOverflowToVault(sessionId);
+    const result = await moveOverflowToVault(profileRepository, sessionId);
 
     return NextResponse.json({
       success: true,

@@ -42,7 +42,7 @@ describe('Death Pity and Extraction', () => {
     expect(runInventoryRegistry.getCurrencyAmount(sessionId, 'flux')).toBe(0);
   });
 
-  it('EXTRACTION_TRIGGERED transfers scrap and calculates flux bonus', async () => {
+  it('ANCHOR_EXTRACT transfers scrap and calculates flux bonus', async () => {
     runInventoryRegistry.addCurrency(sessionId, 'scrap', 200);
     runInventoryRegistry.addCurrency(sessionId, 'flux', 10);
 
@@ -52,7 +52,7 @@ describe('Death Pity and Extraction', () => {
     const endSpy = vi.fn();
     eventBus.on('RUN_ENDED', endSpy);
 
-    eventBus.emit('EXTRACTION_TRIGGERED', { sessionId });
+    eventBus.emit('ANCHOR_EXTRACT', {});
     eventBus.flush();
 
     expect(runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap')).toBe(0);

@@ -1,49 +1,32 @@
-import { loadProfile, saveProfile, VaultItem } from './profile-persistence';
+import { VaultItem, ProfileRepository } from '@shared/profile';
+import { VAULT_MAX_SLOTS, SELL_VALUES } from '@shared/vault';
 import economy from '../entities/templates/economy.json';
-
-export const VAULT_MAX_SLOTS = 30;
-
-export const SELL_VALUES: Record<string, number> = {
-  common: 15,
-  uncommon: 30,
-  rare: 60,
-  legendary: 150,
-};
-
-/**
- * Infers item type from templateId.
- * Firmware: ends with .sh, .exe, .sys
- * Augment: ends with .arc
- * Software: anything else
- */
-export function inferItemType(templateId: string): 'firmware' | 'augment' | 'software' {
-  const lower = templateId.toLowerCase();
-  if (lower.endsWith('.sh') || lower.endsWith('.exe') || lower.endsWith('.sys')) {
-    return 'firmware';
-  }
-  if (lower.endsWith('.arc')) {
-    return 'augment';
-  }
-  return 'software';
-}
 
 /**
  * Deposits items into the session's profile overflow.
  */
-export async function depositToOverflow(sessionId: string, items: VaultItem[]): Promise<void> {
-  const profile = await loadProfile(sessionId);
+export async function depositToOverflow(
+  repo: ProfileRepository,
+  sessionId: string, 
+  items: VaultItem[]
+): Promise<void> {
+  const profile = await repo.load(sessionId);
   if (!profile) return;
 
   profile.overflow.push(...items);
-  await saveProfile(profile);
+  await repo.save(profile);
 }
 
 /**
  * Removes an item from overflow by entityId.
  * Returns true if item was found and removed.
  */
-export async function discardOverflowItem(sessionId: string, entityId: number): Promise<boolean> {
-  const profile = await loadProfile(sessionId);
+export async function discardOverflowItem(
+  repo: ProfileRepository,
+  sessionId: string, 
+  entityId: number
+): Promise<boolean> {
+  const profile = await repo.load(sessionId);
   if (!profile) return false;
 
   const initialLength = profile.overflow.length;
@@ -51,7 +34,7 @@ export async function discardOverflowItem(sessionId: string, entityId: number): 
   
   const success = profile.overflow.length < initialLength;
   if (success) {
-    await saveProfile(profile);
+    await repo.save(profile);
   }
   return success;
 }
@@ -61,10 +44,11 @@ export async function discardOverflowItem(sessionId: string, entityId: number): 
  * Respects economy scrap cap.
  */
 export async function sellOverflowItem(
+  repo: ProfileRepository,
   sessionId: string, 
   entityId: number
 ): Promise<{ success: boolean; scrapGained: number }> {
-  const profile = await loadProfile(sessionId);
+  const profile = await repo.load(sessionId);
   if (!profile) return { success: false, scrapGained: 0 };
 
   const itemIndex = profile.overflow.findIndex(item => item.entityId === entityId);
@@ -80,7 +64,7 @@ export async function sellOverflowItem(
   const maxScrap = economy.caps.scrap;
   profile.wallet.scrap = Math.min(profile.wallet.scrap + scrapGained, maxScrap);
 
-  await saveProfile(profile);
+  await repo.save(profile);
   return { success: true, scrapGained };
 }
 
@@ -88,9 +72,10 @@ export async function sellOverflowItem(
  * Moves items from overflow to vault up to VAULT_MAX_SLOTS.
  */
 export async function moveOverflowToVault(
+  repo: ProfileRepository,
   sessionId: string
 ): Promise<{ moved: number; remaining: number }> {
-  const profile = await loadProfile(sessionId);
+  const profile = await repo.load(sessionId);
   if (!profile) return { moved: 0, remaining: 0 };
 
   const slotsAvailable = VAULT_MAX_SLOTS - profile.vault.length;
@@ -101,14 +86,14 @@ export async function moveOverflowToVault(
   const itemsToMove = profile.overflow.splice(0, slotsAvailable);
   profile.vault.push(...itemsToMove);
 
-  await saveProfile(profile);
+  await repo.save(profile);
   return { moved: itemsToMove.length, remaining: profile.overflow.length };
 }
 
 /**
  * Returns true if the session has items in overflow.
  */
-export async function hasOverflow(sessionId: string): Promise<boolean> {
-  const profile = await loadProfile(sessionId);
+export async function hasOverflow(repo: ProfileRepository, sessionId: string): Promise<boolean> {
+  const profile = await repo.load(sessionId);
   return (profile?.overflow.length ?? 0) > 0;
 }

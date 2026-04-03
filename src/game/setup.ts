@@ -32,16 +32,12 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   const seed = config.seed ?? `run-${Date.now()}`;
 
   // Fetch shell record for the player
-  let shellRecord;
-  if (config.shellId) {
-    shellRecord = globalShellRegistry.get(config.shellId);
-    if (!shellRecord) {
-      // Create a persistent record if it doesn't exist (simplification for Phase 7)
-      shellRecord = globalShellRegistry.createRecord(config.shellId, 'striker-v1');
-    }
-  } else {
-    // Default to signal for testing if none provided
-    shellRecord = globalShellRegistry.createRecord('player-shell-default', 'signal-v1');
+  const shellId = config.shellId || 'player-shell-default';
+  const archetypeId = config.shellId ? 'striker-v1' : 'signal-v1';
+  
+  let shellRecord = globalShellRegistry.get(shellId);
+  if (!shellRecord) {
+    shellRecord = globalShellRegistry.createRecord(shellId, archetypeId);
   }
 
   const instance = createEngineInstance({

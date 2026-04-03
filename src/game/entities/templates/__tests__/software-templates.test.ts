@@ -92,9 +92,8 @@ describe('Software Templates', () => {
       for (const type of SOFTWARE_TYPES) {
         for (const rarity of RARITY_TIERS) {
           const template = loadTemplate(`${type}-${rarity}`);
-          // The template "name" field is used by EntityRegistry
-          // The file name (without .json) is used by LootTable.drops[].template
-          expect(template.name).toBe(`${type.replace('-', '_')}_${rarity}`);
+          // The template "name" property in the JSON should match the filename (kebab-case)
+          expect(template.name).toBe(`${type}-${rarity}`);
         }
       }
     });

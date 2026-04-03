@@ -3,20 +3,27 @@ import { Sprite, Container } from 'pixi.js';
 
 // Mock PixiJS
 vi.mock('pixi.js', () => {
+  const Sprite = vi.fn().mockImplementation(function() {
+    return {
+      width: 0,
+      height: 0,
+      removeFromParent: vi.fn(),
+      destroy: vi.fn(),
+    };
+  });
+  const Container = vi.fn().mockImplementation(function() {
+    return {
+      addChild: vi.fn(),
+      removeChild: vi.fn(),
+    };
+  });
+  const Texture = {
+    from: vi.fn().mockReturnValue({ width: 16, height: 16 }),
+  };
   return {
-    Sprite: vi.fn().mockImplementation(function() {
-      return {
-        width: 0,
-        height: 0,
-        removeFromParent: vi.fn(),
-        destroy: vi.fn(),
-      };
-    }),
-    Container: vi.fn().mockImplementation(function() {
-      return {
-        addChild: vi.fn(),
-      };
-    }),
+    Sprite,
+    Container,
+    Texture,
     Assets: {
       get: vi.fn().mockReturnValue({}), // Mock texture
     },

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { getLegacyHeatCost, getLegacyMagnitude, applyLegacyToProfile } from '../legacy-code';
-import { PlayerProfile } from '../profile-persistence';
+import { PlayerProfile } from '@shared/profile';
 
 describe('Legacy Code System', () => {
   it('getLegacyHeatCost doubles cost if legacy', () => {
@@ -23,7 +23,10 @@ describe('Legacy Code System', () => {
         { blueprintId: 'b1', type: 'firmware', shellId: 's1', isLegacy: false },
         { blueprintId: 'b2', type: 'augment', shellId: 's1', isLegacy: false }
       ],
+      overflow: [],
+      vault: [],
       shellUpgrades: {},
+      attemptTracking: { dayNumber: 0, weekNumber: 0, dailyAttemptUsed: false, weeklyAttemptUsed: false },
       weekSeed: 0,
       createdAt: Date.now()
     };

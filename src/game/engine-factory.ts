@@ -34,8 +34,8 @@ import { GameplayEvents } from '@shared/events/types';
 import { Phase } from '../engine/ecs/types';
 
 import { ShellRecord } from './shells/types';
-import { PlayerProfile } from './systems/profile-persistence';
-import { RunMode } from './systems/run-mode-config';
+import { PlayerProfile } from '@shared/profile';
+import { RunMode } from '@shared/run-mode';
 import { setupInternalHandlers } from '@shared/pipeline';
 
 export interface EngineInitConfig {
@@ -85,12 +85,12 @@ export interface EngineInstance {
 export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   const eventBus = new EventBus<GameEvents>();
   const world = new World<GameEvents>(eventBus);
-  
+
   // Entity pipeline
   const entityRegistry = new EntityRegistry();
   registerGameTemplates(entityRegistry);
   const entityFactory = new EntityFactory(entityRegistry);
-  
+
   const componentsMap: Record<string, ComponentDef<unknown>> = Object.fromEntries(
     COMPONENTS_REGISTRY.map((component) => [component.key, component])
   );
@@ -173,7 +173,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
     playerOverrides['health'] = { max: currentStats.maxHealth, current: currentStats.maxHealth } as unknown as Record<string, unknown>;
     playerOverrides['defense'] = { armor: currentStats.armor } as unknown as Record<string, unknown>;
     playerOverrides['energy'] = { speed: currentStats.speed } as unknown as Record<string, unknown>;
-    
+
     // Core Shell Components
     playerOverrides['shell'] = currentStats as unknown as Record<string, unknown>;
     playerOverrides['portConfig'] = portConfig as unknown as Record<string, unknown>;
@@ -240,16 +240,16 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
     } else if (action === GameAction.VENT) {
       heatSystem.vent(entityId);
     }
-    
+
     eventBus.emit('PLAYER_ACTION', { action, entityId });
   });
 
   // Common shared handlers (pity, extraction bonus, etc.)
-  setupInternalHandlers(
-    world as unknown as World<GameplayEvents>, 
-    grid, 
-    eventBus as unknown as EventBus<GameplayEvents>
-  );
+  // setupInternalHandlers(
+  //   world as unknown as World<GameplayEvents>, 
+  //   grid, 
+  //   eventBus as unknown as EventBus<GameplayEvents>
+  // );
 
   return {
     world,

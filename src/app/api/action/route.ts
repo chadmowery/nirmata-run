@@ -8,7 +8,8 @@ import { logger } from '@shared/utils/logger';
 import { GameplayEvents } from '@shared/events/types';
 import { EngineInstance } from '@game/engine-factory';
 import { FloorState } from '@shared/components/floor-state';
-import { loadProfile, saveProfile, createDefaultProfile } from '@game/systems/profile-persistence';
+import { createDefaultProfile } from '@shared/profile';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import economy from '@game/entities/templates/economy.json';
 
 export async function POST(req: Request) {
@@ -44,7 +45,7 @@ export async function POST(req: Request) {
     switch (action.type) {
       case 'MOVE':
         for (const [key, dir] of Object.entries(DIRECTIONS)) {
-          if (dir.dx === action.dx && dir.dy === action.dy) {
+          if ((dir as any).dx === action.dx && (dir as any).dy === action.dy) {
             actionKey = key;
             break;
           }
@@ -117,7 +118,7 @@ export async function POST(req: Request) {
       const payload = runEndedEvent.payload as GameplayEvents['RUN_ENDED'];
       logger.info(`[API] Run ended: ${payload.reason}. Updating profile for ${sessionId}`);
       
-      let profile = await loadProfile(sessionId);
+      let profile = await profileRepository.load(sessionId);
       if (!profile) {
         profile = createDefaultProfile(sessionId);
       }
@@ -135,26 +136,23 @@ export async function POST(req: Request) {
         logger.info(`[API] Added ${itemsExtracted.length} items to overflow for ${sessionId}`);
       }
 
-      await saveProfile(profile);
+      await profileRepository.save(profile);
       logger.info(`[API] Profile saved: ${profile.wallet.scrap} Scrap, ${profile.wallet.flux} Flux, ${profile.overflow.length} Items in Overflow`);
-      
-      // Cleanup session if run ended? 
-      // For now we keep it so the last state can be queried, but technically it's over.
     }
 
     // 5. Snapshot final state
     const newWorldState = serializeWorld(world);
     const newGridState = serializeGrid(grid);
 
-    // 4. Determine Sync Strategy
+    // 6. Determine Sync Strategy
     const isMassiveChange = capturedEvents.some(e => 
       e.type === 'FLOOR_TRANSITION' || e.type === 'DUNGEON_GENERATED'
     );
 
-    let payload: SyncPayload;
+    let syncPayload: SyncPayload;
     if (isMassiveChange) {
       logger.info(`[API] Massive change detected, sending FULL state sync.`);
-      payload = {
+      syncPayload = {
         type: 'FULL',
         world: newWorldState,
         grid: newGridState,
@@ -163,7 +161,8 @@ export async function POST(req: Request) {
         phase: turnManager.getPhase(),
       };
     } else {
-      payload = {
+      logger.info(`[API] sending DELTA state sync.`);
+      syncPayload = {
         type: 'DELTA',
         world: newWorldState,
         grid: diff(oldGridState, newGridState),
@@ -174,9 +173,8 @@ export async function POST(req: Request) {
  
     return NextResponse.json({
       sessionId,
-      payload,
+      payload: syncPayload,
     });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     logger.error('API Error:', error);
     return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });

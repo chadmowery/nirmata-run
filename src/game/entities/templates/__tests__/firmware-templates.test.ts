@@ -72,22 +72,22 @@ describe('Firmware Templates', () => {
   });
 
   describe('Entity Creation', () => {
-    it('creates a valid phase_shift entity', () => {
-      const entityId = entityFactory.create(world, 'phase_shift', componentRegistry);
+    it('creates a valid phase-shift entity', () => {
+      const entityId = entityFactory.create(world, 'phase-shift', componentRegistry);
       const ability = world.getComponent(entityId, AbilityDef);
       expect(ability).toBeDefined();
       expect(ability?.name).toBe('Phase_Shift.sh');
     });
 
-    it('creates a valid neural_spike entity', () => {
-      const entityId = entityFactory.create(world, 'neural_spike', componentRegistry);
+    it('creates a valid neural-spike entity', () => {
+      const entityId = entityFactory.create(world, 'neural-spike', componentRegistry);
       const ability = world.getComponent(entityId, AbilityDef);
       expect(ability).toBeDefined();
       expect(ability?.name).toBe('Neural_Spike.exe');
     });
 
-    it('creates a valid extended_sight entity', () => {
-      const entityId = entityFactory.create(world, 'extended_sight', componentRegistry);
+    it('creates a valid extended-sight entity', () => {
+      const entityId = entityFactory.create(world, 'extended-sight', componentRegistry);
       const ability = world.getComponent(entityId, AbilityDef);
       expect(ability).toBeDefined();
       expect(ability?.name).toBe('Extended_Sight.sys');
