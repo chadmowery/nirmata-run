@@ -85,7 +85,11 @@ export async function executeWeeklyReset(
   profile.wallet.scrap = Math.min(profile.wallet.scrap, economyConfig.caps.scrap);
   profile.wallet.flux = Math.min(profile.wallet.flux, economyConfig.caps.flux);
 
-  // 5. Update weekSeed
+  // 5. Reset attempt tracking (D-15)
+  profile.attemptTracking.weeklyAttemptUsed = false;
+  profile.attemptTracking.weekNumber = newWeekSeed;
+
+  // 6. Update weekSeed
   profile.weekSeed = newWeekSeed;
 
   // 6. Determine Winner's Item (D-22, BP-07)
