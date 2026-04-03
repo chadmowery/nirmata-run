@@ -22,6 +22,22 @@ const InstalledItemSchema = z.object({
   isLegacy: z.boolean().default(false),
 });
 
+const VaultItemSchema = z.object({
+  entityId: z.number(),
+  templateId: z.string(),
+  rarityTier: z.string(),
+  itemType: z.enum(['firmware', 'augment', 'software']),
+  extractedAtFloor: z.number(),
+  extractedAtTimestamp: z.number(),
+});
+
+const AttemptTrackingSchema = z.object({
+  weekNumber: z.number().default(0),
+  weeklyAttemptUsed: z.boolean().default(false),
+  dayNumber: z.number().default(0),
+  dailyAttemptUsed: z.boolean().default(false),
+}).default({});
+
 export const PlayerProfileSchema = z.object({
   sessionId: z.string(),
   wallet: z.object({
@@ -31,6 +47,9 @@ export const PlayerProfileSchema = z.object({
   blueprintLibrary: z.array(BlueprintEntrySchema).default([]),
   installedItems: z.array(InstalledItemSchema).default([]),
   shellUpgrades: z.record(z.string(), ShellUpgradesSchema).default({}),
+  vault: z.array(VaultItemSchema).default([]),
+  overflow: z.array(VaultItemSchema).default([]),
+  attemptTracking: AttemptTrackingSchema,
   weekSeed: z.number().default(0),
   createdAt: z.number().default(() => Date.now()),
 });
@@ -38,6 +57,8 @@ export const PlayerProfileSchema = z.object({
 export type PlayerProfile = z.infer<typeof PlayerProfileSchema>;
 export type BlueprintEntry = z.infer<typeof BlueprintEntrySchema>;
 export type InstalledItem = z.infer<typeof InstalledItemSchema>;
+export type VaultItem = z.infer<typeof VaultItemSchema>;
+export type AttemptTracking = z.infer<typeof AttemptTrackingSchema>;
 
 const PROFILES_DIR = path.join(process.cwd(), 'data', 'profiles');
 
