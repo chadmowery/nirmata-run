@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
-import economy from '../../../../game/entities/templates/economy.json';
+import economyRaw from '../../../../game/entities/templates/economy.json';
+import { EconomyConfig } from '@/shared/economy-types';
+
+const economy = economyRaw as unknown as EconomyConfig;
 
 const CompileRequestSchema = z.object({
   sessionId: z.string(),
@@ -14,11 +17,11 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const result = CompileRequestSchema.safeParse(body);
-    
+
     if (!result.success) {
-      return NextResponse.json({ 
-        error: 'Invalid request', 
-        details: result.error 
+      return NextResponse.json({
+        error: 'Invalid request',
+        details: result.error
       }, { status: 400 });
     }
 
@@ -34,12 +37,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Blueprint already compiled' }, { status: 400 });
     }
 
-    const cost = (economy.costs.compilation as any)[rarity];
+    const cost = economy.costs.compilation[rarity];
     if (profile.wallet.flux < cost) {
-      return NextResponse.json({ 
-        error: 'Insufficient Flux', 
-        required: cost, 
-        current: profile.wallet.flux 
+      return NextResponse.json({
+        error: 'Insufficient Flux',
+        required: cost,
+        current: profile.wallet.flux
       }, { status: 400 });
     }
 
@@ -53,12 +56,13 @@ export async function POST(req: Request) {
 
     await profileRepository.save(profile);
 
-    return NextResponse.json({ 
-      success: true, 
-      remainingFlux: profile.wallet.flux, 
-      librarySize: profile.blueprintLibrary.length 
+    return NextResponse.json({
+      success: true,
+      remainingFlux: profile.wallet.flux,
+      librarySize: profile.blueprintLibrary.length
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
   }

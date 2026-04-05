@@ -12,11 +12,11 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const result = ResetRequestSchema.safeParse(body);
-    
+
     if (!result.success) {
-      return NextResponse.json({ 
-        error: 'Invalid request', 
-        details: result.error 
+      return NextResponse.json({
+        error: 'Invalid request',
+        details: result.error
       }, { status: 400 });
     }
 
@@ -36,6 +36,7 @@ export async function POST(req: Request) {
       ...resetResult,
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     const message = error.message || 'Internal Server Error';
     const status = message.includes('not found') ? 404 : 500;

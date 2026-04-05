@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     // 2. Determine Period File
     const now = new Date();
-    const periodId = mode === RunMode.DAILY 
+    const periodId = mode === RunMode.DAILY
       ? `daily-${Math.floor(now.getTime() / (24 * 60 * 60 * 1000))}`
       : `weekly-${Math.floor(now.getTime() / (7 * 24 * 60 * 60 * 1000))}`;
 
@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
     try {
       const raw = await fs.readFile(filePath, 'utf-8');
       entries = JSON.parse(raw);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       // New period
     }

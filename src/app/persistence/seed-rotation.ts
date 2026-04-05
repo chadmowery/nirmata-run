@@ -18,6 +18,7 @@ export async function loadSeedRotation(): Promise<SeedRotation> {
   try {
     const raw = await fs.readFile(ROTATION_FILE, 'utf-8');
     return JSON.parse(raw);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
     // If folder doesn't exist, it will be created on save
     return {

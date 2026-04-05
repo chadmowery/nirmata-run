@@ -13,11 +13,11 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const result = PurchaseRequestSchema.safeParse(body);
-    
+
     if (!result.success) {
-      return NextResponse.json({ 
-        error: 'Invalid request', 
-        details: result.error 
+      return NextResponse.json({
+        error: 'Invalid request',
+        details: result.error
       }, { status: 400 });
     }
 
@@ -36,16 +36,16 @@ export async function POST(req: Request) {
     }
 
     if (profile.wallet.scrap < item.price) {
-      return NextResponse.json({ 
-        error: 'Insufficient Scrap', 
-        required: item.price, 
-        current: profile.wallet.scrap 
+      return NextResponse.json({
+        error: 'Insufficient Scrap',
+        required: item.price,
+        current: profile.wallet.scrap
       }, { status: 400 });
     }
 
     // Deduct
     profile.wallet.scrap -= item.price;
-    
+
     // Note: Purchase adds to profile-owned software or special list if needed.
     // Per D-29, purchase returns Software item. 
     // Usually this means it's available for the next run.
@@ -54,12 +54,13 @@ export async function POST(req: Request) {
 
     await profileRepository.save(profile);
 
-    return NextResponse.json({ 
-      success: true, 
-      purchased: item, 
-      remainingScrap: profile.wallet.scrap 
+    return NextResponse.json({
+      success: true,
+      purchased: item,
+      remainingScrap: profile.wallet.scrap
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
   }

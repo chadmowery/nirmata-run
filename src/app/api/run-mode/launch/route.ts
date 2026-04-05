@@ -60,14 +60,13 @@ export async function POST(req: NextRequest) {
     };
 
     const engine = createEngineInstance(engineConfig);
-    
+
     sessionManager.createSession(sessionId, {
       world: engine.world,
       grid: engine.grid,
       turnManager: engine.turnManager,
       eventBus: engine.eventBus,
       playerId: engine.playerId,
-      //@ts-ignore - EngineInstance.systems matches WorldState.systems expectation
       systems: engine.systems,
     });
 

@@ -1,6 +1,9 @@
 import { RunMode, RunModeConfig } from '@shared/run-mode';
 import { getCurrentDailySeed, getCurrentWeeklySeed } from '@/app/persistence/seed-rotation';
-import economy from '../entities/templates/economy.json';
+import economyRaw from '../entities/templates/economy.json';
+import { EconomyConfig } from '@shared/economy-types';
+
+const economy = economyRaw as unknown as EconomyConfig;
 
 export { RunMode };
 export type { RunModeConfig };
@@ -77,7 +80,7 @@ export function calculateScore(stats: {
   softwareExtracted: number;
   fluxExtracted: number;
 }): number {
-  const { scoring } = (economy as any);
+  const { scoring } = economy;
   return (
     (stats.floorNumber * scoring.floorReached) +
     (stats.scrapExtracted * scoring.scrapCollected) +

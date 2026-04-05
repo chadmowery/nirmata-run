@@ -25,6 +25,7 @@ export async function GET(req: Request) {
       timestamp: Date.now()
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
   }

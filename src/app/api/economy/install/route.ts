@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
-import economy from '../../../../game/entities/templates/economy.json';
+import economyRaw from '../../../../game/entities/templates/economy.json';
+import { EconomyConfig } from '@/shared/economy-types';
+
+const economy = economyRaw as unknown as EconomyConfig;
 
 const InstallRequestSchema = z.object({
   sessionId: z.string(),
@@ -14,11 +17,11 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const result = InstallRequestSchema.safeParse(body);
-    
+
     if (!result.success) {
-      return NextResponse.json({ 
-        error: 'Invalid request', 
-        details: result.error 
+      return NextResponse.json({
+        error: 'Invalid request',
+        details: result.error
       }, { status: 400 });
     }
 
@@ -34,12 +37,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Blueprint not compiled' }, { status: 400 });
     }
 
-    const cost = (economy.costs.installation as any)[type];
+    const cost = economy.costs.installation[type];
     if (profile.wallet.scrap < cost) {
-      return NextResponse.json({ 
-        error: 'Insufficient Scrap', 
-        required: cost, 
-        current: profile.wallet.scrap 
+      return NextResponse.json({
+        error: 'Insufficient Scrap',
+        required: cost,
+        current: profile.wallet.scrap
       }, { status: 400 });
     }
 
@@ -54,11 +57,12 @@ export async function POST(req: Request) {
 
     await profileRepository.save(profile);
 
-    return NextResponse.json({ 
-      success: true, 
-      remainingScrap: profile.wallet.scrap 
+    return NextResponse.json({
+      success: true,
+      remainingScrap: profile.wallet.scrap
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
   }

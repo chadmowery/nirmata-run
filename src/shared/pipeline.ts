@@ -432,7 +432,7 @@ export function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, 
           pityAwarded: false,
           itemsExtracted,
         }
-      } as any);
+      });
     }
   });
 }

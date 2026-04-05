@@ -1,5 +1,6 @@
 import { EntityId } from '@engine/ecs/types';
 import { EngineEvents } from '@engine/events/types';
+import { VaultItem } from '../profile';
 
 /**
  * Gameplay-meaningful events that the authoritative pipeline and reconciliation 
@@ -187,11 +188,11 @@ export interface GameplayEvents extends EngineEvents {
     toY: number;
   };
 
-  /** Queued when the run ends (e.g., via System_Admin). */
+  /** Stats payload for the RUN_ENDED event. */
   RUN_ENDED: {
     reason: string;
     floorNumber: number;
-    stats: Record<string, unknown>;
+    stats: RunEndedStats;
     entityId?: EntityId;
   };
 
@@ -218,4 +219,12 @@ export interface GameplayEvents extends EngineEvents {
 
   /** Queued when the run inventory is synchronized from the server. */
   RUN_INVENTORY_SYNCED: { sessionId: string };
+}
+
+export interface RunEndedStats {
+  scrapExtracted: number;
+  fluxExtracted: number;
+  softwareExtracted: number;
+  pityAwarded: boolean;
+  itemsExtracted: VaultItem[];
 }

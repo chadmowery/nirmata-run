@@ -1,4 +1,4 @@
-import { PlayerProfile, ProfileRepository } from '@shared/profile';
+import { ProfileRepository } from '@shared/profile';
 import { applyLegacyToProfile } from './legacy-code';
 import economyConfig from '../entities/templates/economy.json';
 
@@ -67,9 +67,9 @@ export async function executeWeeklyReset(
   const installedBlueprintIds = new Set(
     profile.installedItems.map(i => i.blueprintId)
   );
-  
+
   const originalLibrarySize = profile.blueprintLibrary.length;
-  profile.blueprintLibrary = profile.blueprintLibrary.filter(b => 
+  profile.blueprintLibrary = profile.blueprintLibrary.filter(b =>
     installedBlueprintIds.has(b.blueprintId)
   );
   const blueprintsDeleted = originalLibrarySize - profile.blueprintLibrary.length;

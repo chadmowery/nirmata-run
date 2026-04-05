@@ -4,6 +4,7 @@ import path from 'path';
 
 const LEADERBOARD_DIR = path.join(process.cwd(), 'data', 'leaderboards');
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function GET(req: NextRequest) {
   try {
     const now = new Date();
@@ -14,6 +15,7 @@ export async function GET(req: NextRequest) {
       const raw = await fs.readFile(filePath, 'utf-8');
       const entries = JSON.parse(raw);
       return NextResponse.json({ entries: entries.slice(0, 50) });
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (e) {
       return NextResponse.json({ entries: [] });
     }

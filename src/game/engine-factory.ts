@@ -30,13 +30,11 @@ import { placeEntities } from './generation/entity-placement';
 import RNG from 'rot-js/lib/rng';
 import { GameAction, DIRECTIONS, isFirmwareAction, getFirmwareSlotIndex } from './input/actions';
 import { GameEvents } from './events/types';
-import { GameplayEvents } from '@shared/events/types';
 import { Phase } from '../engine/ecs/types';
 
 import { ShellRecord } from './shells/types';
 import { PlayerProfile } from '@shared/profile';
 import { RunMode } from '@shared/run-mode';
-import { setupInternalHandlers } from '@shared/pipeline';
 
 export interface EngineInitConfig {
   width: number;

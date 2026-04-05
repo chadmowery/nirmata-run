@@ -9,6 +9,7 @@ export async function GET() {
   try {
     const rotation = await loadSeedRotation();
     return NextResponse.json({ rotation });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

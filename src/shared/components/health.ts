@@ -7,6 +7,7 @@ import { defineComponent } from '@engine/ecs/types';
 export const Health = defineComponent('health', z.object({
   current: z.number().int().min(0),
   max: z.number().int().positive(),
+  isAlive: z.boolean().default(true),
 }));
 
 /**

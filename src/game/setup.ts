@@ -40,7 +40,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   // Fetch shell record for the player
   const shellId = config.shellId || 'player-shell-default';
   const archetypeId = config.shellId ? 'striker-v1' : 'signal-v1';
-  
+
   let shellRecord = globalShellRegistry.get(shellId);
   if (!shellRecord) {
     shellRecord = globalShellRegistry.createRecord(shellId, archetypeId);
@@ -316,16 +316,17 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
           // Synchronize run inventory registry (D-05/D-06)
           if (serverState.runInventory && context.sessionId) {
             runInventoryRegistry.load(context.sessionId, serverState.runInventory);
-            
+
+            // TODO: This is a HACK and needs to be cleaned up!
             // Emit currency event to trigger UI refresh
             if (context.playerId !== undefined) {
-              eventBus.emit('CURRENCY_PICKED_UP', { 
-                entityId: context.playerId, 
-                currencyType: 'scrap', 
-                amount: 0 
+              eventBus.emit('CURRENCY_PICKED_UP', {
+                entityId: context.playerId,
+                currencyType: 'scrap',
+                amount: 0
               }); // Amount 0 as we're syncing state
             }
-            
+
             // Explicitly notify UI to refresh from registry
             eventBus.emit('RUN_INVENTORY_SYNCED', { sessionId: context.sessionId });
           }

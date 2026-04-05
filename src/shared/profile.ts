@@ -57,6 +57,7 @@ export const PlayerProfileSchema = z.object({
   createdAt: z.number().default(() => Date.now()),
 });
 
+export type ShellUpgrades = z.infer<typeof ShellUpgradesSchema>;
 export type PlayerProfile = z.infer<typeof PlayerProfileSchema>;
 export type BlueprintEntry = z.infer<typeof BlueprintEntrySchema>;
 export type InstalledItem = z.infer<typeof InstalledItemSchema>;

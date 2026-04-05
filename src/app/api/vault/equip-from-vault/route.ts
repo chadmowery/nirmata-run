@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     });
 
     // 3. Remove from Vault
-    profile.vault.splice(vaultIndex, 1).length;
+    profile.vault.splice(vaultIndex, 1);
 
     await profileRepository.save(profile);
 
