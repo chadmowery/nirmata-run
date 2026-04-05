@@ -12,6 +12,11 @@ describe('Game Setup Integration', () => {
   beforeEach(() => {
     // Basic config for tests
     context = createGame({ gridWidth: 10, gridHeight: 10 });
+    // Mock fetch for action calls
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ payload: { type: 'DELTA', world: {}, grid: {}, events: [], turnNumber: 1 } })
+    }));
   });
 
   it('should initialize with all required modules', () => {
@@ -56,15 +61,25 @@ describe('Game Setup Integration', () => {
   it('should process movement through input -> turn manager -> movement system', () => {
     const { world, grid, fsm, turnManager, inputManager } = context;
 
-    // 1. Create player entity
-    const player = world.createEntity();
-    world.addComponent(player, Position, { x: 1, y: 1 });
-    world.addComponent(player, Actor, { isPlayer: true });
-    world.addComponent(player, Energy, { current: 1000, speed: 100, threshold: 1000 });
+    // 1. Get player from context
+    const player = context.playerId;
+    if (player === undefined) throw new Error('Player not found');
+    
+    // Ensure floor is walkable
+    grid.setTile(1, 1, { terrain: 'floor', walkable: true, transparent: true });
+    grid.setTile(2, 1, { terrain: 'floor', walkable: true, transparent: true });
+    
+    const posComp = world.getComponent(player, Position)!;
+    posComp.x = 1;
+    posComp.y = 1;
+    const energyComp = world.getComponent(player, Energy)!;
+    energyComp.current = 1000;
+    energyComp.speed = 100;
+    energyComp.threshold = 1000;
+    grid.removeEntity(player, 5, 4); // Remove from default spawn if any
     grid.addEntity(player, 1, 1);
 
     // 2. Transition to Playing
-    context.playerId = player;
     fsm.transition(GameState.MainMenu);
     fsm.transition(GameState.Playing);
 
@@ -90,11 +105,22 @@ describe('Game Setup Integration', () => {
     const { world, grid, fsm, inputManager, eventBus } = context;
     const emitSpy = vi.spyOn(eventBus, 'emit');
 
-    // 1. Create player
-    const player = world.createEntity();
-    world.addComponent(player, Position, { x: 1, y: 1 });
-    world.addComponent(player, Actor, { isPlayer: true });
-    world.addComponent(player, Energy, { current: 1000, speed: 100, threshold: 1000 });
+    // 1. Get player from context
+    const player = context.playerId;
+    if (player === undefined) throw new Error('Player not found');
+
+    // Ensure floor is walkable
+    grid.setTile(1, 1, { terrain: 'floor', walkable: true, transparent: true });
+    grid.setTile(2, 1, { terrain: 'floor', walkable: true, transparent: true });
+
+    const posComp = world.getComponent(player, Position)!;
+    posComp.x = 1;
+    posComp.y = 1;
+    const energyComp = world.getComponent(player, Energy)!;
+    energyComp.current = 1000;
+    energyComp.speed = 100;
+    energyComp.threshold = 1000;
+    grid.removeEntity(player, 5, 4); // Remove from default spawn
     grid.addEntity(player, 1, 1);
 
     // 2. Create hostile enemy
@@ -104,7 +130,6 @@ describe('Game Setup Integration', () => {
     grid.addEntity(enemy, 2, 1);
 
     // 3. Transition to Playing
-    context.playerId = player;
     fsm.transition(GameState.MainMenu);
     fsm.transition(GameState.Playing);
 

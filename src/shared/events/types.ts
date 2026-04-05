@@ -1,5 +1,6 @@
 import { EntityId } from '@engine/ecs/types';
 import { EngineEvents } from '@engine/events/types';
+import { VaultItem } from '../profile';
 
 /**
  * Gameplay-meaningful events that the authoritative pipeline and reconciliation 
@@ -10,7 +11,7 @@ export interface GameplayEvents extends EngineEvents {
   DAMAGE_DEALT: { attackerId: EntityId; defenderId: EntityId; amount: number };
   
   /** Queued when an entity's health reaches zero. */
-  ENTITY_DIED: { entityId: EntityId; killerId: EntityId };
+  ENTITY_DIED: { entityId: EntityId; killerId: EntityId; isPlayer: boolean };
   
   /** Queued when an entity picks up an item. */
   ITEM_PICKED_UP: { entityId: EntityId; itemId: EntityId };
@@ -119,11 +120,6 @@ export interface GameplayEvents extends EngineEvents {
     slotCount: number;
   };
 
-  /** Queued when an extraction is triggered. */
-  EXTRACTION_TRIGGERED: {
-    sessionId: string;
-  };
-
   /** Queued when an item drops as currency. */
   CURRENCY_DROPPED: {
     entityId: EntityId;
@@ -192,11 +188,11 @@ export interface GameplayEvents extends EngineEvents {
     toY: number;
   };
 
-  /** Queued when the run ends (e.g., via System_Admin). */
+  /** Stats payload for the RUN_ENDED event. */
   RUN_ENDED: {
     reason: string;
     floorNumber: number;
-    stats: Record<string, unknown>;
+    stats: RunEndedStats;
     entityId?: EntityId;
   };
 
@@ -220,4 +216,15 @@ export interface GameplayEvents extends EngineEvents {
 
   /** Queued when a System_Admin is first detected. */
   ADMIN_DETECTED: { floorId?: number };
+
+  /** Queued when the run inventory is synchronized from the server. */
+  RUN_INVENTORY_SYNCED: { sessionId: string };
+}
+
+export interface RunEndedStats {
+  scrapExtracted: number;
+  fluxExtracted: number;
+  softwareExtracted: number;
+  pityAwarded: boolean;
+  itemsExtracted: VaultItem[];
 }

@@ -14,6 +14,9 @@ export class EntityRegistry {
     if (this.templates.has(template.name)) {
       throw new Error(`Template '${template.name}' is already registered`);
     }
+    if (template.overrides && typeof window === 'undefined') {
+      console.log(`[Registry] Registered ${template.name} with overrides:`, Object.keys(template.overrides).join(', '));
+    }
     this.templates.set(template.name, template);
   }
 

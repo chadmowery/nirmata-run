@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { loadProfile } from '../../../../game/systems/profile-persistence';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { generateShopStock } from '../../../../game/systems/shop-rotation';
 
 export async function GET(req: Request) {
@@ -11,7 +11,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'sessionId required' }, { status: 400 });
     }
 
-    const profile = await loadProfile(sessionId);
+    const profile = await profileRepository.load(sessionId);
 
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
@@ -25,6 +25,7 @@ export async function GET(req: Request) {
       timestamp: Date.now()
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
   }

@@ -30,12 +30,11 @@ import { placeEntities } from './generation/entity-placement';
 import RNG from 'rot-js/lib/rng';
 import { GameAction, DIRECTIONS, isFirmwareAction, getFirmwareSlotIndex } from './input/actions';
 import { GameEvents } from './events/types';
-import { GameplayEvents } from '@shared/events/types';
 import { Phase } from '../engine/ecs/types';
 
 import { ShellRecord } from './shells/types';
-import { PlayerProfile } from './systems/profile-persistence';
-import { setupInternalHandlers } from '@shared/pipeline';
+import { PlayerProfile } from '@shared/profile';
+import { RunMode } from '@shared/run-mode';
 
 export interface EngineInitConfig {
   width: number;
@@ -45,6 +44,7 @@ export interface EngineInitConfig {
   shellRecord?: ShellRecord;
   sessionId?: string;
   profile?: PlayerProfile;
+  runMode?: RunMode;
 }
 
 export interface EngineInstance {
@@ -83,12 +83,12 @@ export interface EngineInstance {
 export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   const eventBus = new EventBus<GameEvents>();
   const world = new World<GameEvents>(eventBus);
-  
+
   // Entity pipeline
   const entityRegistry = new EntityRegistry();
   registerGameTemplates(entityRegistry);
   const entityFactory = new EntityFactory(entityRegistry);
-  
+
   const componentsMap: Record<string, ComponentDef<unknown>> = Object.fromEntries(
     COMPONENTS_REGISTRY.map((component) => [component.key, component])
   );
@@ -122,7 +122,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
   const augmentSystem = createAugmentSystem(world, eventBus, statusEffectSystem, heatSystem);
   const packCoordinatorSystem = createPackCoordinatorSystem(world, grid, eventBus);
   const tileCorruptionSystem = createTileCorruptionSystem(world, grid, eventBus, entityFactory, componentRegistry);
-  const runEnderSystem = createRunEnderSystem(world, grid, eventBus, config.sessionId);
+  const runEnderSystem = createRunEnderSystem(world, grid, eventBus, config.sessionId, config.runMode);
   const stabilitySystem = createStabilitySystem(world, eventBus);
   const currencyDropSystem = createCurrencyDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
 
@@ -171,7 +171,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
     playerOverrides['health'] = { max: currentStats.maxHealth, current: currentStats.maxHealth } as unknown as Record<string, unknown>;
     playerOverrides['defense'] = { armor: currentStats.armor } as unknown as Record<string, unknown>;
     playerOverrides['energy'] = { speed: currentStats.speed } as unknown as Record<string, unknown>;
-    
+
     // Core Shell Components
     playerOverrides['shell'] = currentStats as unknown as Record<string, unknown>;
     playerOverrides['portConfig'] = portConfig as unknown as Record<string, unknown>;
@@ -238,16 +238,16 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
     } else if (action === GameAction.VENT) {
       heatSystem.vent(entityId);
     }
-    
+
     eventBus.emit('PLAYER_ACTION', { action, entityId });
   });
 
   // Common shared handlers (pity, extraction bonus, etc.)
-  setupInternalHandlers(
-    world as unknown as World<GameplayEvents>, 
-    grid, 
-    eventBus as unknown as EventBus<GameplayEvents>
-  );
+  // setupInternalHandlers(
+  //   world as unknown as World<GameplayEvents>, 
+  //   grid, 
+  //   eventBus as unknown as EventBus<GameplayEvents>
+  // );
 
   return {
     world,

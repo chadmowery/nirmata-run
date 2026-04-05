@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { loadProfile, saveProfile } from '../../../../game/systems/profile-persistence';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 
 const GrantRequestSchema = z.object({
   sessionId: z.string(),
@@ -12,16 +12,16 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const result = GrantRequestSchema.safeParse(body);
-    
+
     if (!result.success) {
-      return NextResponse.json({ 
-        error: 'Invalid request', 
-        details: result.error 
+      return NextResponse.json({
+        error: 'Invalid request',
+        details: result.error
       }, { status: 400 });
     }
 
     const { sessionId, currency, amount } = result.data;
-    const profile = await loadProfile(sessionId);
+    const profile = await profileRepository.load(sessionId);
 
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
@@ -30,13 +30,14 @@ export async function POST(req: Request) {
     // Grant amount (supports negative for revocation)
     profile.wallet[currency] = Math.max(0, profile.wallet[currency] + amount);
 
-    await saveProfile(profile);
+    await profileRepository.save(profile);
 
-    return NextResponse.json({ 
-      success: true, 
-      wallet: profile.wallet 
+    return NextResponse.json({
+      success: true,
+      wallet: profile.wallet
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
   }

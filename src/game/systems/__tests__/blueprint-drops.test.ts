@@ -71,7 +71,7 @@ describe('Currency Drop System', () => {
     const droppedSpy = vi.fn();
     eventBus.on('CURRENCY_DROPPED', droppedSpy);
 
-    eventBus.emit('ENTITY_DIED', { entityId: enemyId, killerId: 123 });
+    eventBus.emit('ENTITY_DIED', { entityId: enemyId, killerId: 123, isPlayer: false });
     eventBus.flush();
 
     // Tier 1 scrap chance is 1.0
@@ -103,7 +103,7 @@ describe('Currency Drop System', () => {
       const droppedSpy = vi.fn();
       eventBus.on('CURRENCY_DROPPED', droppedSpy);
 
-      eventBus.emit('ENTITY_DIED', { entityId: enemyId, killerId: 123 });
+      eventBus.emit('ENTITY_DIED', { entityId: enemyId, killerId: 123, isPlayer: false });
       eventBus.flush();
 
       const droppedTypes = droppedSpy.mock.calls.map(call => call[0].currencyType);

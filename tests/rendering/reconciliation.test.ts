@@ -62,7 +62,14 @@ describe('Reconciliation', () => {
 
     (global.fetch as any).mockResolvedValue({
       ok: true,
-      json: async () => ({ delta }),
+      json: async () => ({ 
+        payload: {
+          type: 'DELTA',
+          world: newWorldState,
+          grid: diff(oldGridState, newGridState),
+          turnNumber: 1
+        }
+      }),
     });
 
     // 2. Trigger action on client
@@ -123,9 +130,11 @@ describe('Reconciliation', () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({
-        delta: {
-          world: worldDelta,
+        payload: {
+          type: 'DELTA',
+          world: oldWorldState, // Server truth: stayed at initial
           grid: gridDelta,
+          turnNumber: 1
         }
       })
     });

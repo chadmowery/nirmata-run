@@ -148,7 +148,7 @@ export function createAISystem<T extends GameplayEvents>(
       if (ai.behavior === AIBehavior.CHASING) {
         const targetX = awareness.lastKnownPlayerX ?? player.x;
         const targetY = awareness.lastKnownPlayerY ?? player.y;
-        
+
         const step = pathfindToward(pos.x, pos.y, targetX, targetY);
         if (step) {
           movementSystem.processMove(entityId, step.dx, step.dy);
@@ -198,9 +198,9 @@ export function createAISystem<T extends GameplayEvents>(
       if (statusEffects) {
         const isDisrupted = statusEffects.effects.some(e => e.name === 'DISRUPT');
         if (isDisrupted) {
-          eventBus.emit('MESSAGE_EMITTED', { 
-            text: 'System_Admin is disrupted and cannot move!', 
-            type: 'info' 
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: 'System_Admin is disrupted and cannot move!',
+            type: 'info'
           });
           return;
         }
@@ -300,9 +300,9 @@ export function createAISystem<T extends GameplayEvents>(
               }
             }
           }
-          eventBus.emit('MESSAGE_EMITTED', { 
-            text: 'Fragmenter slams the ground! Dead Zones appear!', 
-            type: 'combat' 
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: 'Fragmenter slams the ground! Dead Zones appear!',
+            type: 'combat'
           });
         } else {
           // Chase player
@@ -345,22 +345,22 @@ export function createAISystem<T extends GameplayEvents>(
           // Kite: move AWAY from player
           const vdx = pos.x - player.x;
           const vdy = pos.y - player.y;
-          
+
           const targetX = pos.x + Math.sign(vdx) * 2;
           const targetY = pos.y + Math.sign(vdy) * 2;
-          
+
           const step = pathfindToward(pos.x, pos.y, targetX, targetY);
           if (step) {
-             movementSystem.processMove(entityId, step.dx, step.dy);
-             eventBus.emit('MESSAGE_EMITTED', { text: 'Logic-Leaker retreats!', type: 'combat' });
+            movementSystem.processMove(entityId, step.dx, step.dy);
+            eventBus.emit('MESSAGE_EMITTED', { text: 'Logic-Leaker retreats!', type: 'combat' });
           } else {
-             this.processBasicTurn(entityId);
+            this.processBasicTurn(entityId);
           }
         } else if (dist <= ATTACK_RANGE) {
           // Ranged attack
           const damage = 5;
           const projectileType = 'corrupted_packet';
-          
+
           eventBus.emit('RANGED_ATTACK', {
             attackerId: entityId,
             defenderId: player.id,
@@ -374,7 +374,7 @@ export function createAISystem<T extends GameplayEvents>(
             const armor = playerDefense?.armor ?? 0;
             const finalDamage = Math.max(1, damage - armor);
             playerHealth.current = Math.max(0, playerHealth.current - finalDamage);
-            
+
             eventBus.emit('DAMAGE_DEALT', {
               attackerId: entityId,
               defenderId: player.id,
@@ -399,19 +399,20 @@ export function createAISystem<T extends GameplayEvents>(
               });
             }
 
-            eventBus.emit('MESSAGE_EMITTED', { 
-              text: 'Logic-Leaker fires a Corrupted Packet! Firmware locked!', 
-              type: 'combat' 
+            eventBus.emit('MESSAGE_EMITTED', {
+              text: 'Logic-Leaker fires a Corrupted Packet! Firmware locked!',
+              type: 'combat'
             });
 
             if (playerHealth.current <= 0) {
-               eventBus.emit('ENTITY_DIED', { entityId: player.id, killerId: entityId });
-               
-               const playerPos = world.getComponent(player.id, Position);
-               if (playerPos) {
-                 grid.removeEntity(player.id, playerPos.x, playerPos.y);
-               }
-               world.destroyEntity(player.id);
+              playerHealth.isAlive = true;
+              eventBus.emit('ENTITY_DIED', { entityId: player.id, killerId: entityId, isPlayer: true });
+
+              const playerPos = world.getComponent(player.id, Position);
+              if (playerPos) {
+                grid.removeEntity(player.id, playerPos.x, playerPos.y);
+              }
+              world.destroyEntity(player.id);
             }
           }
         } else {
@@ -451,7 +452,7 @@ export function createAISystem<T extends GameplayEvents>(
       if (canSeePlayer && dist > 1 && dist <= 8) {
         const dx = Math.sign(player.x - pos.x);
         const dy = Math.sign(player.y - pos.y);
-        
+
         // Target is "behind" the player relative to current position
         const targetX = player.x + dx;
         const targetY = player.y + dy;
@@ -493,7 +494,7 @@ export function createAISystem<T extends GameplayEvents>(
         const adx = player.x - pos.x;
         const ady = player.y - pos.y;
         const result = movementSystem.processMove(entityId, adx, ady);
-        
+
         if (result === 'bump-attack') {
           const statusEffects = world.getComponent(player.id, StatusEffects);
           if (statusEffects) {
@@ -542,9 +543,9 @@ export function createAISystem<T extends GameplayEvents>(
         { x: player.x - 1, y: player.y },
         { x: player.x, y: player.y + 1 },
         { x: player.x, y: player.y - 1 },
-      ].filter(t => 
-        grid.inBounds(t.x, t.y) && 
-        grid.isWalkable(t.x, t.y) && 
+      ].filter(t =>
+        grid.inBounds(t.x, t.y) &&
+        grid.isWalkable(t.x, t.y) &&
         (grid.getEntitiesAt(t.x, t.y).size === 0 || (t.x === pos.x && t.y === pos.y))
       );
 
@@ -560,7 +561,7 @@ export function createAISystem<T extends GameplayEvents>(
       });
 
       const bestTarget = targets[0];
-      
+
       // If already at best target, do nothing (wait for detonation)
       if (bestTarget.x === pos.x && bestTarget.y === pos.y) {
         return;
@@ -572,7 +573,7 @@ export function createAISystem<T extends GameplayEvents>(
       }
     },
 
-    dispose() {}
+    dispose() { }
   };
 }
 

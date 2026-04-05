@@ -2,11 +2,11 @@ import { World } from '../ecs/world';
 import { EventBus } from '../events/event-bus';
 import { EngineEvents } from '../events/types';
 import { EntityId, Phase } from '../ecs/types';
-import { 
-  TurnPhase, 
-  TurnManagerConfig, 
-  PlayerActionHandler, 
-  EnemyActionHandler 
+import {
+  TurnPhase,
+  TurnManagerConfig,
+  PlayerActionHandler,
+  EnemyActionHandler
 } from './types';
 import { Actor, Energy, Health } from '@shared/components';
 
@@ -24,7 +24,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     private world: World<TEvents>,
     private eventBus: EventBus<TEvents>,
     private config: TurnManagerConfig
-  ) {}
+  ) { }
 
   /**
    * Submit a player action. Only allowed during AWAIT_INPUT.
@@ -42,7 +42,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     // Process player action
     const cost = action === 'WAIT' ? this.config.waitActionCost : this.config.defaultActionCost;
     this.deductEnergy(playerEntity, cost);
-    
+
     if (this.playerActionHandler) {
       this.playerActionHandler(action, playerEntity);
     }
@@ -81,7 +81,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
 
     this.phase = TurnPhase.AWAIT_INPUT;
     this.eventBus.emit('TURN_END', { turnNumber: this.turnNumber });
-    
+
     // Flush events at the very end of the cycle
     this.eventBus.flush();
   }
@@ -132,7 +132,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
       }
 
       this.tickEnergy();
-      
+
       // IMPORTANT: Only process enemies if the player is NOT yet ready
       // This prevents double-dipping when player and enemy reach threshold in same tick
       const updatedPlayerEnergy = this.world.getComponent(playerEntity, Energy);
@@ -180,7 +180,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
    */
   private isAlive(id: EntityId): boolean {
     const health = this.world.getComponent(id, Health);
-    return !health || health.current > 0;
+    return !health || health.isAlive;
   }
 
   /**
@@ -215,8 +215,8 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
   }
 
   // Setters for handlers
-  setPlayerActionHandler(handler: PlayerActionHandler): void { 
-    this.playerActionHandler = handler; 
+  setPlayerActionHandler(handler: PlayerActionHandler): void {
+    this.playerActionHandler = handler;
   }
   setEnemyActionHandler(handler: EnemyActionHandler): void { this.enemyActionHandler = handler; }
 

@@ -70,23 +70,15 @@ export function resolveMixins(
     for (const [key, overrideData] of Object.entries(template.overrides)) {
       if (resolvedComponents[key]) {
         // Deep merge for overrideData onto resolvedComponents[key]
-        // For simplicity in this implementation, we assume objects.
         resolvedComponents[key] = {
           ...(resolvedComponents[key] as object),
           ...overrideData
         };
       } else {
-        // If it doesn't exist, we can still set it? 
-        // Plan says: "Apply overrides block via deep merge per-component"
-        // If the component isn't there, it might be an error or just setting it.
-        // Usually, an override implies something to override.
-        // However, it's safer to just set it if it doesn't exist yet, 
-        // or we could throw. The plan isn't explicit on "override non-existent".
         resolvedComponents[key] = overrideData;
       }
     }
   }
-
   return resolvedComponents;
 }
 
@@ -115,8 +107,10 @@ export function buildEntity<T extends EngineEvents>(
       const errorMsg = result.error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
       throw new Error(`Template '${templateName}', component '${key}': ${errorMsg}`);
     }
-
-    world.addComponent(entityId, def, result.data);
+    // Deep clone the data to prevent state pollution across entities 
+    // sharing the same template/mixin object references.
+    const deepClonedData = JSON.parse(JSON.stringify(result.data));
+    world.addComponent(entityId, def, deepClonedData);
   }
 
   return entityId;

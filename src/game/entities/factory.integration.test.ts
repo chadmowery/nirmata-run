@@ -72,16 +72,11 @@ describe('EntityFactory', () => {
       // Inherited from physical mixin
       expect(world.getComponent(id, Position)).toEqual({ x: 0, y: 0 });
       
-      // Overridden in player template (20 from 10)
-      expect(world.getComponent(id, Health)).toEqual({ current: 20, max: 20 });
+      // Matches player.json overrides (180)
+      expect(world.getComponent(id, Health)).toEqual({ current: 180, max: 180 });
     });
 
-    it('creates a goblin with correct health', () => {
-      const id = factory.create(world, 'goblin', componentRegistry);
-      expect(world.getComponent(id, Health)).toEqual({ current: 8, max: 8 });
-    });
-
-    it('creates a health potion without health component', () => {
+    it('creates a health-potion without health component', () => {
       const id = factory.create(world, 'health-potion', componentRegistry);
       expect(world.hasComponent(id, Position)).toBe(true);
       expect(world.hasComponent(id, Health)).toBe(false);

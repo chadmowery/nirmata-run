@@ -1,4 +1,7 @@
-import economyConfig from '../entities/templates/economy.json';
+import economyRaw from '../entities/templates/economy.json';
+import { EconomyConfig } from '@shared/economy-types';
+
+const economyConfig = economyRaw as unknown as EconomyConfig;
 
 export interface ShopItem {
   templateId: string;
@@ -32,7 +35,7 @@ function seededRandom(seed: number): () => number {
 
 export function generateShopStock(weekSeed: number): ShopItem[] {
   const rng = seededRandom(weekSeed);
-  const stockSize = (economyConfig as any).shop.stockSize;
+  const stockSize = economyConfig.shop.stockSize;
   const pool = [...SHOP_SOFTWARE_POOL];
   const stock: ShopItem[] = [];
 

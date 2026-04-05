@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { POST } from '../reset/route';
-import * as persistence from '../../../../game/systems/profile-persistence';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 
-vi.mock('../../../../game/systems/profile-persistence', () => ({
-  loadProfile: vi.fn(),
-  saveProfile: vi.fn(),
+vi.mock('@/app/persistence/fs-profile-repository', () => ({
+  profileRepository: {
+    load: vi.fn(),
+    save: vi.fn(),
+  },
 }));
 
 describe('POST /api/admin/reset', () => {
@@ -21,12 +23,15 @@ describe('POST /api/admin/reset', () => {
       wallet: { scrap: 50000, flux: 5000 },
       blueprintLibrary: [{ blueprintId: 'uninstalled', type: 'firmware', compiledAt: 1 }],
       installedItems: [{ blueprintId: 'installed', type: 'augment', shellId: 's1', isLegacy: false }],
+      overflow: [],
+      vault: [],
       shellUpgrades: { 's1': { speed: 5 } },
+      attemptTracking: { dayNumber: 0, weekNumber: 0, dailyAttemptUsed: false, weeklyAttemptUsed: false },
       weekSeed: 11111,
       createdAt: Date.now()
     };
     
-    (persistence.loadProfile as any).mockResolvedValue(mockProfile);
+    (profileRepository.load as any).mockResolvedValue(mockProfile);
     
     const req = new Request('http://localhost/api/admin/reset', {
       method: 'POST',
@@ -47,7 +52,7 @@ describe('POST /api/admin/reset', () => {
     expect(data.walletAfterCap.scrap).toBe(10000); // Capped
     expect(data.walletAfterCap.flux).toBe(1000); // Capped
     
-    expect(persistence.saveProfile).toHaveBeenCalledWith(expect.objectContaining({
+    expect(profileRepository.save).toHaveBeenCalledWith(expect.objectContaining({
       weekSeed: newWeekSeed,
       shellUpgrades: {},
       installedItems: [expect.objectContaining({ blueprintId: 'installed', isLegacy: true })]
@@ -60,12 +65,15 @@ describe('POST /api/admin/reset', () => {
       wallet: { scrap: 100, flux: 100 },
       blueprintLibrary: [],
       installedItems: [],
+      overflow: [],
+      vault: [],
       shellUpgrades: {},
+      attemptTracking: { dayNumber: 0, weekNumber: 0, dailyAttemptUsed: false, weeklyAttemptUsed: false },
       weekSeed: newWeekSeed,
       createdAt: Date.now()
     };
     
-    (persistence.loadProfile as any).mockResolvedValue(mockProfile);
+    (profileRepository.load as any).mockResolvedValue(mockProfile);
     
     const req = new Request('http://localhost/api/admin/reset', {
       method: 'POST',
@@ -81,6 +89,6 @@ describe('POST /api/admin/reset', () => {
     expect(response.status).toBe(200);
     expect(data.success).toBe(true);
     expect(data.message).toBe('Already reset for this week seed');
-    expect(persistence.saveProfile).not.toHaveBeenCalled();
+    expect(profileRepository.save).not.toHaveBeenCalled();
   });
 });

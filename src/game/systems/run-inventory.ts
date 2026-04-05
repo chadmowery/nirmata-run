@@ -1,24 +1,4 @@
-export interface RunInventoryItem {
-  entityId: number;
-  templateId: string;
-  rarityTier: string;
-  pickedUpAtFloor: number;
-  pickedUpAtTimestamp: number;
-}
-
-export interface CurrencyStack {
-  currencyType: 'scrap' | 'blueprint' | 'flux';
-  amount: number;
-  blueprintId?: string;
-  blueprintType?: 'firmware' | 'augment';
-}
-
-export interface RunInventory {
-  sessionId: string;
-  maxSlots: number;
-  software: RunInventoryItem[];
-  currency: CurrencyStack[];
-}
+import { RunInventory, RunInventoryItem, CurrencyStack } from '@shared/types';
 
 /**
  * Registry for run-scoped software items.
@@ -105,7 +85,7 @@ export class RunInventoryRegistry {
     const inventory = this.getOrCreate(sessionId);
     
     // Find existing stack
-    let existingStack = inventory.currency.find(s => {
+    const existingStack = inventory.currency.find(s => {
       if (s.currencyType !== currencyType) return false;
       if (currencyType === 'blueprint') {
         return s.blueprintId === meta?.blueprintId;
@@ -220,7 +200,24 @@ export class RunInventoryRegistry {
       inventory.currency = [];
     }
   }
+
+  /**
+   * Loads a serialized inventory state for a session.
+   * Used for client-server state synchronization.
+   */
+  load(sessionId: string, data: Partial<RunInventory>): void {
+    const inventory = this.getOrCreate(sessionId);
+    if (data.maxSlots !== undefined) inventory.maxSlots = data.maxSlots;
+    if (data.software !== undefined) inventory.software = [...data.software];
+    if (data.currency !== undefined) inventory.currency = [...data.currency];
+  }
 }
 
 // Export a singleton instance for shared use
-export const runInventoryRegistry = new RunInventoryRegistry();
+const globalForInventory = global as unknown as { runInventoryRegistry: RunInventoryRegistry };
+
+export const runInventoryRegistry = globalForInventory.runInventoryRegistry || new RunInventoryRegistry();
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForInventory.runInventoryRegistry = runInventoryRegistry;
+}

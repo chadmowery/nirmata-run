@@ -3,7 +3,9 @@ import { EventBus } from '@engine/events/event-bus';
 import { EntityId } from '@engine/ecs/types';
 import { Stability, StabilityData } from '@shared/components/stability';
 import { Health, HealthData } from '@shared/components/health';
+import { Actor } from '@shared/components/actor';
 import { GameplayEvents } from '@shared/events/types';
+import { EventOriginContext } from '@shared/utils/event-context';
 
 /**
  * Configuration for the Reality Stability system.
@@ -105,10 +107,12 @@ export function createStabilitySystem<T extends GameplayEvents>(
     } as unknown as T['DEGRADED_DAMAGE']);
 
     if (health.current === 0) {
+      const actor = world.getComponent(entityId, Actor);
       eventBus.emit('ENTITY_DIED', {
         entityId,
-        killerId: entityId // Self-inflicted due to instability
-      } as unknown as T['ENTITY_DIED']);
+        killerId: entityId,
+        isPlayer: !!actor?.isPlayer
+      });
     }
   };
 
@@ -116,6 +120,7 @@ export function createStabilitySystem<T extends GameplayEvents>(
   const init = () => {
     // Listen for floor transitions
     eventBus.on('FLOOR_TRANSITION', (payload) => {
+      if (EventOriginContext.current === 'server') return;
       // Find the player entity
       const players = world.query(Stability);
       for (const playerId of players) {
@@ -125,6 +130,7 @@ export function createStabilitySystem<T extends GameplayEvents>(
 
     // Listen for player actions/turns
     eventBus.on('PLAYER_ACTION', (payload) => {
+      if (EventOriginContext.current === 'server') return;
       // We'll need a way to get the current floor number.
       // For now, we might need to store it or get it from somewhere.
       // Assuming we can find an entity with FloorState or something similar.

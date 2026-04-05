@@ -1,25 +1,29 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { POST as initSession } from '../route';
 import { POST as processAction } from '../../action/route';
-import * as persistence from '@game/systems/profile-persistence';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { sessionManager } from '@engine/session/SessionManager';
-import { runInventoryRegistry } from '@game/systems/run-inventory';
 import { EventBus } from '@engine/events/event-bus';
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 
-vi.mock('@game/systems/profile-persistence', () => ({
-  loadProfile: vi.fn(),
-  saveProfile: vi.fn(),
-  createDefaultProfile: (sid: string) => ({
-    sessionId: sid,
-    wallet: { scrap: 0, flux: 0 },
-    blueprintLibrary: [],
-    installedItems: [],
-    shellUpgrades: {},
-    weekSeed: 0,
-    createdAt: Date.now()
-  }),
+vi.mock('@/app/persistence/fs-profile-repository', () => ({
+  profileRepository: {
+    load: vi.fn(),
+    save: vi.fn(),
+    createDefault: (sid: string) => ({
+      sessionId: sid,
+      wallet: { scrap: 0, flux: 0 },
+      blueprintLibrary: [],
+      installedItems: [],
+      overflow: [],
+      vault: [],
+      shellUpgrades: {},
+      attemptTracking: { dayNumber: 0, weekNumber: 0, dailyAttemptUsed: false, weeklyAttemptUsed: false },
+      weekSeed: 0,
+      createdAt: Date.now()
+    }),
+  }
 }));
 
 vi.mock('@engine/session/SessionManager', () => ({
@@ -44,7 +48,7 @@ describe('Profile Persistence Integration', () => {
   describe('POST /api/session', () => {
     it('uses provided sessionId and loads profile', async () => {
       const mockProfile = { sessionId, wallet: { scrap: 100, flux: 10 } };
-      (persistence.loadProfile as any).mockResolvedValue(mockProfile);
+      (profileRepository.load as any).mockResolvedValue(mockProfile);
 
       const req = new Request('http://localhost/api/session', {
         method: 'POST',
@@ -55,11 +59,11 @@ describe('Profile Persistence Integration', () => {
       const data = await res.json();
 
       expect(data.sessionId).toBe(sessionId);
-      expect(persistence.loadProfile).toHaveBeenCalledWith(sessionId);
+      expect(profileRepository.load).toHaveBeenCalledWith(sessionId);
     });
 
     it('uses default-player-session if none provided', async () => {
-      (persistence.loadProfile as any).mockResolvedValue(null);
+      (profileRepository.load as any).mockResolvedValue(null);
 
       const req = new Request('http://localhost/api/session', {
         method: 'POST',
@@ -70,7 +74,7 @@ describe('Profile Persistence Integration', () => {
       const data = await res.json();
 
       expect(data.sessionId).toBe('default-player-session');
-      expect(persistence.loadProfile).toHaveBeenCalledWith('default-player-session');
+      expect(profileRepository.load).toHaveBeenCalledWith('default-player-session');
     });
   });
 
@@ -81,11 +85,14 @@ describe('Profile Persistence Integration', () => {
         wallet: { scrap: 50, flux: 10 },
         blueprintLibrary: [],
         installedItems: [],
+        overflow: [],
+        vault: [],
         shellUpgrades: {},
+        attemptTracking: { dayNumber: 0, weekNumber: 0, dailyAttemptUsed: false, weeklyAttemptUsed: false },
         weekSeed: 0,
         createdAt: Date.now()
       };
-      (persistence.loadProfile as any).mockResolvedValue(mockProfile);
+      (profileRepository.load as any).mockResolvedValue(mockProfile);
       
       const eventBus = new EventBus<any>();
       const world = new World<any>(eventBus);
@@ -126,7 +133,7 @@ describe('Profile Persistence Integration', () => {
       const res = await processAction(req);
       expect(res.status).toBe(200);
 
-      expect(persistence.saveProfile).toHaveBeenCalledWith(expect.objectContaining({
+      expect(profileRepository.save).toHaveBeenCalledWith(expect.objectContaining({
         wallet: {
           scrap: 250, // 50 + 200
           flux: 60    // 10 + 50

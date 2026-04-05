@@ -2,7 +2,7 @@ import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityId } from '@engine/ecs/types';
-import { DeadZone, Position, Health } from '@shared/components';
+import { DeadZone, Position, Health, Actor } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 
 /**
@@ -43,9 +43,11 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
 
           // Basic death check - if health system is added later, this can be moved
           if (health.current <= 0) {
+            const actor = world.getComponent(targetId as EntityId, Actor);
             eventBus.emit('ENTITY_DIED', { 
               entityId: targetId as EntityId, 
-              killerId: (deadZone.creatorId as EntityId) ?? (entityId as EntityId) 
+              killerId: (deadZone.creatorId as EntityId) ?? (entityId as EntityId),
+              isPlayer: !!actor?.isPlayer 
             });
             
             const targetPos = world.getComponent(targetId, Position);

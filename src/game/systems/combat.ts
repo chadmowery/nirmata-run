@@ -8,6 +8,7 @@ import { Attack, Defense, LootTable, Health, Position, Actor, Heat, BurnedSoftwa
 import { GameplayEvents } from '@shared/events/types';
 
 import { ComponentRegistry } from '@engine/entity/types';
+import { EventOriginContext } from '@shared/utils/event-context';
 import { applyBleedOnHit, applyVampireOnKill } from './software-effects';
 
 export interface DamageModifier {
@@ -36,8 +37,11 @@ export function resolveDamage(
   }
 
   // Apply defense
-  damage = Math.max(1, damage - defense);
-  return Math.floor(damage);
+  const finalDamage = Math.max(1, damage - defense);
+
+
+
+  return Math.floor(finalDamage);
 }
 
 /**
@@ -81,7 +85,8 @@ export function createCombatSystem<T extends GameplayEvents>(
   componentRegistry: ComponentRegistry,
   options: { skipLoot?: boolean } = {}
 ) {
-  const resolveBumpAttack = (payload: T['BUMP_ATTACK']) => {
+  function resolveBumpAttack(payload: T['BUMP_ATTACK']) {
+    if (EventOriginContext.current === 'server') return;
     const { attackerId, defenderId } = payload;
 
     const attackerAttack = world.getComponent(attackerId, Attack);
@@ -98,8 +103,13 @@ export function createCombatSystem<T extends GameplayEvents>(
     const effectiveArmor = defenderHeat?.isVenting ? 0 : armor;
 
     const damage = resolveDamage(attackerAttack.power, modifiers, effectiveArmor);
+    const oldHealth = defenderHealth.current;
+    const newHealth = Math.max(0, oldHealth - damage);
+    
+    // Authoritative update: save back to world store (D-15)
+    world.addComponent(defenderId, Health, { ...defenderHealth, current: newHealth });
 
-    defenderHealth.current = Math.max(0, defenderHealth.current - damage);
+
 
     eventBus.emit('DAMAGE_DEALT', {
       attackerId,
@@ -121,7 +131,7 @@ export function createCombatSystem<T extends GameplayEvents>(
       type: 'combat'
     });
 
-    if (defenderHealth.current <= 0) {
+    if (newHealth <= 0) {
       handleDeath(defenderId, attackerId);
     }
   };
@@ -152,14 +162,16 @@ export function createCombatSystem<T extends GameplayEvents>(
       }
     }
 
+    const actor = world.getComponent(entityId, Actor);
+    const isPlayer = !!actor?.isPlayer;
+
     // 3. Emit death event
-    eventBus.emit('ENTITY_DIED', { entityId, killerId });
+    eventBus.emit('ENTITY_DIED', { entityId, killerId, isPlayer });
 
     // Apply software effects like Vampire (heal on kill)
     applyVampireOnKill(world, eventBus, killerId);
 
-    const actor = world.getComponent(entityId, Actor);
-    const name = actor?.isPlayer ? 'You' : 'The enemy';
+    const name = isPlayer ? 'You' : 'The enemy';
     eventBus.emit('MESSAGE_EMITTED', {
       text: `${name} died!`,
       type: 'combat'

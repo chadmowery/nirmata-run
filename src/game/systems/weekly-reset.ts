@@ -1,4 +1,4 @@
-import { loadProfile, saveProfile, PlayerProfile } from './profile-persistence';
+import { ProfileRepository } from '@shared/profile';
 import { applyLegacyToProfile } from './legacy-code';
 import economyConfig from '../entities/templates/economy.json';
 
@@ -34,10 +34,11 @@ export function getWinnersItem(weekIndex: number): string {
  * 6. Return Winner's Item (D-22, BP-07)
  */
 export async function executeWeeklyReset(
+  repo: ProfileRepository,
   sessionId: string,
   newWeekSeed: number
 ): Promise<ResetResult> {
-  const profile = await loadProfile(sessionId);
+  const profile = await repo.load(sessionId);
   if (!profile) {
     throw new Error(`Profile not found: ${sessionId}`);
   }
@@ -66,9 +67,9 @@ export async function executeWeeklyReset(
   const installedBlueprintIds = new Set(
     profile.installedItems.map(i => i.blueprintId)
   );
-  
+
   const originalLibrarySize = profile.blueprintLibrary.length;
-  profile.blueprintLibrary = profile.blueprintLibrary.filter(b => 
+  profile.blueprintLibrary = profile.blueprintLibrary.filter(b =>
     installedBlueprintIds.has(b.blueprintId)
   );
   const blueprintsDeleted = originalLibrarySize - profile.blueprintLibrary.length;
@@ -85,13 +86,17 @@ export async function executeWeeklyReset(
   profile.wallet.scrap = Math.min(profile.wallet.scrap, economyConfig.caps.scrap);
   profile.wallet.flux = Math.min(profile.wallet.flux, economyConfig.caps.flux);
 
-  // 5. Update weekSeed
+  // 5. Reset attempt tracking (D-15)
+  profile.attemptTracking.weeklyAttemptUsed = false;
+  profile.attemptTracking.weekNumber = newWeekSeed;
+
+  // 6. Update weekSeed
   profile.weekSeed = newWeekSeed;
 
   // 6. Determine Winner's Item (D-22, BP-07)
   const winnersItem = getWinnersItem(newWeekSeed);
 
-  await saveProfile(profile);
+  await repo.save(profile);
 
   return {
     sessionId,

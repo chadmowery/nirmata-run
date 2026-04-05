@@ -1,7 +1,7 @@
 {
   "name": "combatant",
   "components": {
-    "health": { "current": 10, "max": 10 },
+    "health": { "current": 10, "max": 10, "isAlive": true },
     "attack": { "power": 3 },
     "defense": { "armor": 1 }
   }

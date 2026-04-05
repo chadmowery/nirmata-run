@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createEngineInstance } from '@game/engine-factory';
 import { sessionManager } from '@engine/session/SessionManager';
-import { loadProfile, createDefaultProfile } from '@game/systems/profile-persistence';
+import { createDefaultProfile } from '@shared/profile';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
+import { runInventoryRegistry } from '@game/systems/run-inventory';
 
 export async function POST(req: Request) {
   try {
@@ -13,9 +15,13 @@ export async function POST(req: Request) {
     }
 
     const sessionId = providedSessionId || 'default-player-session';
-    
+
+    // Ensure authoritative registry is clean for new run (D-05/D-06)
+    console.log(`[API] Clearing run inventory registry for session: ${sessionId}`);
+    runInventoryRegistry.clear(sessionId);
+
     // Load or create profile
-    let profile = await loadProfile(sessionId);
+    let profile = await profileRepository.load(sessionId);
     if (!profile) {
       profile = createDefaultProfile(sessionId);
     }
@@ -30,7 +36,7 @@ export async function POST(req: Request) {
       playerId: instance.playerId,
       turnManager: instance.turnManager,
       eventBus: instance.eventBus,
-      systems: instance.systems,
+      systems: instance.systems
     });
 
     console.log(`[API] Session created: ${sessionId} (seed: ${seed})`);

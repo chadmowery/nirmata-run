@@ -75,22 +75,22 @@ describe('Augment Templates', () => {
   });
 
   describe('Entity Creation', () => {
-    it('creates a valid displacement_venting entity', () => {
-      const entityId = entityFactory.create(world, 'displacement_venting', componentRegistry);
+    it('creates a valid displacement-venting entity', () => {
+      const entityId = entityFactory.create(world, 'displacement-venting', componentRegistry);
       const data = world.getComponent(entityId, AugmentData);
       expect(data).toBeDefined();
       expect(data?.name).toBe('Displacement_Venting.arc');
     });
 
-    it('creates a valid static_siphon entity', () => {
-      const entityId = entityFactory.create(world, 'static_siphon', componentRegistry);
+    it('creates a valid static-siphon entity', () => {
+      const entityId = entityFactory.create(world, 'static-siphon', componentRegistry);
       const data = world.getComponent(entityId, AugmentData);
       expect(data).toBeDefined();
       expect(data?.name).toBe('Static_Siphon.arc');
     });
 
-    it('creates a valid neural_feedback entity', () => {
-      const entityId = entityFactory.create(world, 'neural_feedback', componentRegistry);
+    it('creates a valid neural-feedback entity', () => {
+      const entityId = entityFactory.create(world, 'neural-feedback', componentRegistry);
       const data = world.getComponent(entityId, AugmentData);
       expect(data).toBeDefined();
       expect(data?.name).toBe('Neural_Feedback.arc');

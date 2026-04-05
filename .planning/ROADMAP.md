@@ -18,7 +18,7 @@ Build the Nirmata Runner game systems on top of the validated v1.0 engine founda
 - [ ] **Phase 11: Enemy Hierarchy** — 3-tier enemy system (6 enemy types), unique AI behaviors per type, enemy-specific death effects, depth-based distribution, JSON entity templates
 - [x] **Phase 12: Multi-Floor Generation & Stability/Extraction** — Multi-floor dungeon descent, floor transitions, Stability bar, Stability Anchors, Extract/Descend decision, item loss/keep logic, System Handshake UI (completed 2026-04-01)
 - [ ] **Phase 13: Currency, Economy & Blueprint System** — 3-tier currency, wallet/transaction system, Blueprint discovery/compilation/installation, weekly reset with Legacy Code, server-validated economy
-- [ ] **Phase 14: Stash, Vault & Run Modes** — Persistent Stash/Vault storage, 3 run modes (Simulation/Daily/Weekly), run-specific rules, seeded generation per mode, leaderboard, pre-run Ritual
+- [x] **Phase 14: Stash, Vault & Run Modes** — Persistent Stash/Vault storage, 3 run modes (Simulation/Daily/Weekly), run-specific rules, seeded generation per mode, leaderboard, pre-run Ritual (completed 2026-04-03)
 - [ ] **Phase 15: Neural Deck Hub UI** — Between-run management interface, Shell inspection/selection, equipment management, Blueprint workshop, Stash/Vault UI, run mode launcher
 - [ ] **Phase 16: Visual Identity & Starter Loadouts** — "Vibrant Decay" theme (palette, typography), Heat visualization tiers, Kernel Panic visual escalation, glitch effects pipeline, enemy visual identity, death screen BSOD, 3 starter loadout bundles, end-to-end integration polish
 
@@ -156,23 +156,23 @@ Plans:
 - [ ] 13-04-PLAN.md — Weekly reset & Legacy Code (Format C: reset logic, Legacy Code Heat doubling, Legacy Augment halving, Winner's Item rotation, admin endpoint)
 
 ### Phase 14: Stash, Vault & Run Modes
-**Goal**: Persistent inventory and three distinct run modes create the weekly gameplay loop from practice through preparation to competition
-**Depends on**: Phase 13 (economy feeds into Stash), Phase 12 (extraction populates Stash)
+**Goal**: Persistent Vault inventory and three distinct run modes create the weekly gameplay loop from practice through preparation to competition
+**Depends on**: Phase 13 (economy feeds into Vault), Phase 12 (extraction populates Vault)
 **Requirements**: STASH-01, STASH-02, STASH-03, STASH-04, RUN-01, RUN-02, RUN-03, RUN-04, RUN-05, RUN-06, RUN-07
 **Success Criteria** (what must be TRUE):
-  1. Stash persists between runs and sessions via server-side storage; extraction deposits items into Stash
-  2. Vault (30 slots) protects items from Neural Simulation use; items move between Stash and Vault
-  3. Three run modes selectable from Neural Deck, each with correct rules: Simulation (Virtual Shell, low stakes), Daily (shared seed, leaderboard), Weekly (one shot, full stakes, Shell Factory Reset on failure)
-  4. Leaderboard stores and displays Daily/Weekly scores; scores factor in depth, kills, and loot extracted
-  5. Weekly One-Shot includes pre-run Ritual where player moves best items from Stash/Vault into Active Shell
+  1. Vault persists between runs and sessions via PlayerProfile JSON; extraction deposits items into overflow limbo
+  2. Vault (30 slots) stores all persistent items; overflow management clears excess before next run launch
+  3. Three run modes with correct rules: Simulation (real gear, unlimited, no leaderboard), Daily (shared seed, 1/day, leaderboard), Weekly (shared seed, 1/week, Shell Factory Reset on death)
+  4. Leaderboard stores and displays Daily/Weekly scores; scores server-calculated from depth, kills, loot, speed
+  5. Universal pre-run Ritual (all modes) equips items from Vault onto Shell via API
 **Plans**: 4
 **UI hint**: yes
 
 Plans:
-- [ ] 14-01: Stash & Vault Persistence (StashComponent, VaultComponent, server-side storage API, session persistence)
-- [ ] 14-02: Run Mode Manager (RunModeManager, mode-specific rules, Virtual vs Physical Shell, risk/loss configs)
-- [ ] 14-03: Seeded Runs & Leaderboard (weekly/daily seed derivation, leaderboard API, scoring formula, score submission)
-- [ ] 14-04: Weekly Ritual & Run Launch (pre-run loadout ceremony, item transfer from Vault to Shell, run initialization per mode)
+- [ ] 14-01-PLAN.md — Vault persistence & overflow management (PlayerProfile schema extension, VaultManager, extraction-to-Vault pipeline, overflow API endpoints)
+- [ ] 14-02-PLAN.md — Run mode config & seed rotation (RunModeConfig, scoring formula, seed rotation storage, daily/weekly seed retrieval)
+- [ ] 14-03-PLAN.md — Run launch, mode-aware death & leaderboard (engine factory extension, mode-aware run-ender, launch/available endpoints, leaderboard submit/read)
+- [ ] 14-04-PLAN.md — Vault Ritual, admin tools & integration (move-to-vault, equip-from-vault Ritual, admin seed/attempt endpoints, weekly reset extension, integration tests)
 
 ### Phase 15: Neural Deck Hub UI
 **Goal**: Between-run management interface lets the player prepare, customize, and launch runs with full visibility into their equipment, economy, and options
@@ -226,7 +226,7 @@ Phases execute in numeric order: 7 → 8 → 9 → 10 → 11 → 12 → 13 → 1
 | 11. Enemy Hierarchy | 0/4 | Not started | - |
 | 12. Multi-Floor Generation & Stability/Extraction | 5/5 | Complete   | 2026-04-01 |
 | 13. Currency, Economy & Blueprint System | 0/4 | Planned | - |
-| 14. Stash, Vault & Run Modes | 0/4 | Not started | - |
+| 14. Stash, Vault & Run Modes | 0/4 | Complete    | 2026-04-03 |
 | 15. Neural Deck Hub UI | 0/4 | Not started | - |
 | 16. Visual Identity & Starter Loadouts | 0/4 | Not started | - |
 

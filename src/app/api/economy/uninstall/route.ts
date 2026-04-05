@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { loadProfile, saveProfile } from '../../../../game/systems/profile-persistence';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 
 const UninstallRequestSchema = z.object({
   sessionId: z.string(),
@@ -12,23 +12,23 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const result = UninstallRequestSchema.safeParse(body);
-    
+
     if (!result.success) {
-      return NextResponse.json({ 
-        error: 'Invalid request', 
-        details: result.error 
+      return NextResponse.json({
+        error: 'Invalid request',
+        details: result.error
       }, { status: 400 });
     }
 
     const { sessionId, blueprintId, shellId } = result.data;
-    const profile = await loadProfile(sessionId);
+    const profile = await profileRepository.load(sessionId);
 
     if (!profile) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
     const index = profile.installedItems.findIndex(i => i.blueprintId === blueprintId && i.shellId === shellId);
-    
+
     if (index === -1) {
       return NextResponse.json({ error: 'Item not installed on this Shell' }, { status: 400 });
     }
@@ -36,10 +36,11 @@ export async function POST(req: Request) {
     // Remove from installed list
     profile.installedItems.splice(index, 1);
 
-    await saveProfile(profile);
+    await profileRepository.save(profile);
 
     return NextResponse.json({ success: true });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
   }

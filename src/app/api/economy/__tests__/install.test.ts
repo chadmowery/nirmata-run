@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { POST } from '../install/route';
-import * as persistence from '../../../../game/systems/profile-persistence';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 
-vi.mock('../../../../game/systems/profile-persistence', () => ({
-  loadProfile: vi.fn(),
-  saveProfile: vi.fn(),
+vi.mock('@/app/persistence/fs-profile-repository', () => ({
+  profileRepository: {
+    load: vi.fn(),
+    save: vi.fn(),
+  },
 }));
 
 describe('POST /api/economy/install', () => {
@@ -16,18 +18,27 @@ describe('POST /api/economy/install', () => {
     vi.clearAllMocks();
   });
 
+  const createBaseProfile = (overrides = {}) => ({
+    sessionId,
+    wallet: { scrap: 100, flux: 0 },
+    blueprintLibrary: [],
+    installedItems: [],
+    overflow: [],
+    vault: [],
+    shellUpgrades: {},
+    attemptTracking: { dayNumber: 0, weekNumber: 0, dailyAttemptUsed: false, weeklyAttemptUsed: false },
+    weekSeed: 0,
+    createdAt: Date.now(),
+    ...overrides
+  });
+
   it('deducts Scrap and adds to installedItems on success', async () => {
-    const mockProfile = {
-      sessionId,
+    const mockProfile = createBaseProfile({
       wallet: { scrap: 100, flux: 0 },
       blueprintLibrary: [{ blueprintId, type: 'firmware', compiledAt: 123 }],
-      installedItems: [],
-      shellUpgrades: {},
-      weekSeed: 0,
-      createdAt: Date.now()
-    };
+    });
     
-    (persistence.loadProfile as any).mockResolvedValue(mockProfile);
+    (profileRepository.load as any).mockResolvedValue(mockProfile);
     
     const req = new Request('http://localhost/api/economy/install', {
       method: 'POST',
@@ -45,7 +56,7 @@ describe('POST /api/economy/install', () => {
     expect(response.status).toBe(200);
     expect(data.success).toBe(true);
     expect(data.remainingScrap).toBe(75); // Firmware cost is 25
-    expect(persistence.saveProfile).toHaveBeenCalledWith(expect.objectContaining({
+    expect(profileRepository.save).toHaveBeenCalledWith(expect.objectContaining({
       wallet: { scrap: 75, flux: 0 },
       installedItems: expect.arrayContaining([
         expect.objectContaining({ blueprintId, shellId, type: 'firmware' })
@@ -54,17 +65,12 @@ describe('POST /api/economy/install', () => {
   });
 
   it('returns 400 if blueprint not compiled', async () => {
-    const mockProfile = {
-      sessionId,
+    const mockProfile = createBaseProfile({
       wallet: { scrap: 100, flux: 0 },
       blueprintLibrary: [],
-      installedItems: [],
-      shellUpgrades: {},
-      weekSeed: 0,
-      createdAt: Date.now()
-    };
+    });
     
-    (persistence.loadProfile as any).mockResolvedValue(mockProfile);
+    (profileRepository.load as any).mockResolvedValue(mockProfile);
     
     const req = new Request('http://localhost/api/economy/install', {
       method: 'POST',

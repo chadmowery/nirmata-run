@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { POST } from '../compile/route';
-import * as persistence from '../../../../game/systems/profile-persistence';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
 
-vi.mock('../../../../game/systems/profile-persistence', () => ({
-  loadProfile: vi.fn(),
-  saveProfile: vi.fn(),
+vi.mock('@/app/persistence/fs-profile-repository', () => ({
+  profileRepository: {
+    load: vi.fn(),
+    save: vi.fn(),
+  },
 }));
 
 describe('POST /api/economy/compile', () => {
@@ -15,18 +17,23 @@ describe('POST /api/economy/compile', () => {
     vi.clearAllMocks();
   });
 
+  const createBaseProfile = (overrides = {}) => ({
+    sessionId,
+    wallet: { scrap: 0, flux: 100 },
+    blueprintLibrary: [],
+    installedItems: [],
+    overflow: [],
+    vault: [],
+    shellUpgrades: {},
+    attemptTracking: { dayNumber: 0, weekNumber: 0, dailyAttemptUsed: false, weeklyAttemptUsed: false },
+    weekSeed: 0,
+    createdAt: Date.now(),
+    ...overrides
+  });
+
   it('deducts Flux and adds blueprint to library on success', async () => {
-    const mockProfile = {
-      sessionId,
-      wallet: { scrap: 0, flux: 100 },
-      blueprintLibrary: [],
-      installedItems: [],
-      shellUpgrades: {},
-      weekSeed: 0,
-      createdAt: Date.now()
-    };
-    
-    (persistence.loadProfile as any).mockResolvedValue(mockProfile);
+    const mockProfile = createBaseProfile({ wallet: { scrap: 0, flux: 100 } });
+    (profileRepository.load as any).mockResolvedValue(mockProfile);
     
     const req = new Request('http://localhost/api/economy/compile', {
       method: 'POST',
@@ -44,7 +51,7 @@ describe('POST /api/economy/compile', () => {
     expect(response.status).toBe(200);
     expect(data.success).toBe(true);
     expect(data.remainingFlux).toBe(50); // Common cost is 50
-    expect(persistence.saveProfile).toHaveBeenCalledWith(expect.objectContaining({
+    expect(profileRepository.save).toHaveBeenCalledWith(expect.objectContaining({
       wallet: { scrap: 0, flux: 50 },
       blueprintLibrary: expect.arrayContaining([
         expect.objectContaining({ blueprintId, type: 'firmware' })
@@ -53,17 +60,8 @@ describe('POST /api/economy/compile', () => {
   });
 
   it('returns 400 for insufficient Flux', async () => {
-    const mockProfile = {
-      sessionId,
-      wallet: { scrap: 0, flux: 20 },
-      blueprintLibrary: [],
-      installedItems: [],
-      shellUpgrades: {},
-      weekSeed: 0,
-      createdAt: Date.now()
-    };
-    
-    (persistence.loadProfile as any).mockResolvedValue(mockProfile);
+    const mockProfile = createBaseProfile({ wallet: { scrap: 0, flux: 20 } });
+    (profileRepository.load as any).mockResolvedValue(mockProfile);
     
     const req = new Request('http://localhost/api/economy/compile', {
       method: 'POST',
@@ -83,17 +81,11 @@ describe('POST /api/economy/compile', () => {
   });
 
   it('returns 400 if already compiled', async () => {
-    const mockProfile = {
-      sessionId,
+    const mockProfile = createBaseProfile({
       wallet: { scrap: 0, flux: 100 },
-      blueprintLibrary: [{ blueprintId, type: 'firmware', compiledAt: 123 }],
-      installedItems: [],
-      shellUpgrades: {},
-      weekSeed: 0,
-      createdAt: Date.now()
-    };
-    
-    (persistence.loadProfile as any).mockResolvedValue(mockProfile);
+      blueprintLibrary: [{ blueprintId, type: 'firmware', compiledAt: 123 }]
+    });
+    (profileRepository.load as any).mockResolvedValue(mockProfile);
     
     const req = new Request('http://localhost/api/economy/compile', {
       method: 'POST',

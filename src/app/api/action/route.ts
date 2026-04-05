@@ -8,10 +8,13 @@ import { logger } from '@shared/utils/logger';
 import { GameplayEvents } from '@shared/events/types';
 import { EngineInstance } from '@game/engine-factory';
 import { FloorState } from '@shared/components/floor-state';
-import { loadProfile, saveProfile, createDefaultProfile } from '@game/systems/profile-persistence';
+import { createDefaultProfile, VaultItem } from '@shared/profile';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
+import { runInventoryRegistry } from '@game/systems/run-inventory';
 import economy from '@game/entities/templates/economy.json';
 
 export async function POST(req: Request) {
+
   try {
     const body = await req.json();
     const result = ActionRequestSchema.safeParse(body);
@@ -44,7 +47,8 @@ export async function POST(req: Request) {
     switch (action.type) {
       case 'MOVE':
         for (const [key, dir] of Object.entries(DIRECTIONS)) {
-          if (dir.dx === action.dx && dir.dy === action.dy) {
+          const d = dir as { dx: number; dy: number };
+          if (d.dx === action.dx && d.dy === action.dy) {
             actionKey = key;
             break;
           }
@@ -110,72 +114,78 @@ export async function POST(req: Request) {
 
     // Stop capturing
     eventBus.offAny(eventCaptureHandler);
-
+    
     // 4. Handle Run Persistence
+
+
     const runEndedEvent = capturedEvents.find(e => e.type === 'RUN_ENDED');
     if (runEndedEvent) {
       const payload = runEndedEvent.payload as GameplayEvents['RUN_ENDED'];
-      logger.info(`[API] Run ended: ${payload.reason}. Updating profile for ${sessionId}`);
       
-      let profile = await loadProfile(sessionId);
+      let profile = await profileRepository.load(sessionId);
       if (!profile) {
         profile = createDefaultProfile(sessionId);
       }
 
       const finalScrap = (payload.stats.scrapExtracted as number) || 0;
       const finalFlux = (payload.stats.fluxExtracted as number) || 0;
+      const itemsExtracted = (payload.stats.itemsExtracted as VaultItem[]) || [];
+      
+
       
       profile.wallet.scrap = Math.min(economy.caps.scrap, profile.wallet.scrap + finalScrap);
       profile.wallet.flux = Math.min(economy.caps.flux, profile.wallet.flux + finalFlux);
-
-      // TODO: Handle Blueprint library updates from inventory if needed
-      // const stacks = runInventoryRegistry.getCurrencyStacks(sessionId);
-      // ...
-
-      await saveProfile(profile);
-      logger.info(`[API] Profile saved: ${profile.wallet.scrap} Scrap, ${profile.wallet.flux} Flux`);
       
-      // Cleanup session if run ended? 
-      // For now we keep it so the last state can be queried, but technically it's over.
+
+
+      // Store extracted items in overflow
+      if (itemsExtracted.length > 0) {
+        profile.overflow.push(...itemsExtracted);
+      }
+
+      await profileRepository.save(profile);
+
     }
 
     // 5. Snapshot final state
     const newWorldState = serializeWorld(world);
     const newGridState = serializeGrid(grid);
 
-    // 4. Determine Sync Strategy
+    // 6. Determine Sync Strategy
     const isMassiveChange = capturedEvents.some(e => 
       e.type === 'FLOOR_TRANSITION' || e.type === 'DUNGEON_GENERATED'
-    );
+    ) || turnManager.getTurnNumber() <= 1;
 
-    let payload: SyncPayload;
+    let syncPayload: SyncPayload;
     if (isMassiveChange) {
-      logger.info(`[API] Massive change detected, sending FULL state sync.`);
-      payload = {
+      syncPayload = {
         type: 'FULL',
         world: newWorldState,
         grid: newGridState,
         events: capturedEvents,
         turnNumber: turnManager.getTurnNumber(),
         phase: turnManager.getPhase(),
+        runInventory: runInventoryRegistry.getOrCreate(sessionId),
       };
     } else {
-      payload = {
+      logger.info(`[API] sending DELTA state sync.`);
+      syncPayload = {
         type: 'DELTA',
         world: newWorldState,
         grid: diff(oldGridState, newGridState),
         events: capturedEvents,
         turnNumber: turnManager.getTurnNumber(),
+        runInventory: runInventoryRegistry.getOrCreate(sessionId),
       };
     }
  
     return NextResponse.json({
       sessionId,
-      payload,
+      payload: syncPayload,
     });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     logger.error('API Error:', error);
-    return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error', message: errorMessage }, { status: 500 });
   }
 }

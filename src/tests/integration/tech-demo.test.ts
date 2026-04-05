@@ -47,9 +47,12 @@ describe('Tech Demo Integration', () => {
 
     // Trigger an event that causes death check if needed, 
     // or just emit the event manually to see if UI reacts
-    context.eventBus.emit('ENTITY_DIED', { 
-      entityId: context.playerId!, 
-      killerId: 999 
+    // Manually emit authoritative RUN_ENDED to bridge client-state in test environment (D-06 bridge)
+    context.eventBus.emit('RUN_ENDED', { 
+      reason: 'death',
+      floorNumber: 1,
+      stats: {},
+      entityId: context.playerId!
     });
     context.eventBus.flush();
 

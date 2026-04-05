@@ -25,6 +25,7 @@ describe('Action API Route', () => {
   let grid: Grid;
   let eventBus: EventBus<GameplayEvents>;
   let turnManager: TurnManager<GameplayEvents>;
+  let playerId: number;
   const sessionId = 'test-session';
 
   beforeEach(() => {
@@ -39,7 +40,7 @@ describe('Action API Route', () => {
     });
 
     // Setup player
-    const playerId = world.createEntity();
+    playerId = world.createEntity();
     world.addComponent(playerId, Actor, { isPlayer: true });
     world.addComponent(playerId, Position, { x: 5, y: 5 });
     world.addComponent(playerId, Energy, { current: 100, speed: 10, threshold: 1000 });
@@ -61,6 +62,7 @@ describe('Action API Route', () => {
       playerId,
       turnManager,
       eventBus,
+      systems: {} as any
     });
 
     // Mock turn manager start
@@ -77,14 +79,15 @@ describe('Action API Route', () => {
     });
 
     const response = await POST(req);
-    const data = await response.json();
+    const data = await response.json() as any;
 
     expect(response.status).toBe(200);
-    expect(data.delta).toBeDefined();
-    expect(data.turnNumber).toBeGreaterThan(0);
+    expect(data.payload).toBeDefined();
+    expect(data.payload.world).toBeDefined();
+    expect(data.payload.turnNumber).toBeGreaterThan(0);
 
     // Verify player position changed in world
-    const pos = world.getComponent(1, Position);
+    const pos = world.getComponent(playerId, Position);
     expect(pos?.x).toBe(6);
     expect(pos?.y).toBe(5);
   });
@@ -99,13 +102,13 @@ describe('Action API Route', () => {
     });
 
     const response = await POST(req);
-    const data = await response.json();
+    const data = await response.json() as any;
 
     expect(response.status).toBe(200);
-    expect(data.turnNumber).toBeGreaterThan(0);
+    expect(data.payload.turnNumber).toBeGreaterThan(0);
     
     // Position should remain same
-    const pos = world.getComponent(1, Position);
+    const pos = world.getComponent(playerId, Position);
     expect(pos?.x).toBe(5);
     expect(pos?.y).toBe(5);
   });

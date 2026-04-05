@@ -86,6 +86,7 @@ describe('Software System', () => {
         baseMagnitude: 2,
         effectType: 'dot',
         description: '...',
+        purchaseCost: 0,
       });
       world.addComponent(bleedSw, RarityTier, { tier: 'v0.x', scaleFactor: 1, minFloor: 0 });
 
@@ -251,7 +252,7 @@ describe('Software System', () => {
       world = new World<GameplayEvents>(new EventBus<GameplayEvents>());
       grid = new Grid(10, 10);
       playerId = world.createEntity();
-      world.addComponent(playerId, Actor, { isPlayer: true, name: 'Player' });
+      world.addComponent(playerId, Actor, { isPlayer: true });
       world.addComponent(playerId, Position, { x: 0, y: 0 });
       world.addComponent(playerId, Health, { current: 10, max: 10 });
       world.addComponent(playerId, SoftwareSlots, { equipped: [] });
@@ -299,6 +300,7 @@ describe('Software System', () => {
         baseMagnitude: 2,
         effectType: 'dot',
         description: '...',
+        purchaseCost: 0,
       });
 
       runInventoryRegistry.addSoftware(sessionId, {
@@ -329,6 +331,7 @@ describe('Software System', () => {
         baseMagnitude: 2,
         effectType: 'dot',
         description: '...',
+        purchaseCost: 0,
       });
 
       world.addComponent(playerId, BurnedSoftware, { weapon: sw1, armor: null });
@@ -341,6 +344,7 @@ describe('Software System', () => {
         baseMagnitude: 2,
         effectType: 'dot',
         description: '...',
+        purchaseCost: 0,
       });
 
       runInventoryRegistry.addSoftware(sessionId, {
@@ -372,6 +376,7 @@ describe('Software System', () => {
         baseMagnitude: 1,
         effectType: 'dot',
         description: '...',
+        purchaseCost: 0,
       });
 
       world.addComponent(playerId, BurnedSoftware, { weapon: swOld, armor: null });
@@ -384,6 +389,7 @@ describe('Software System', () => {
         baseMagnitude: 5,
         effectType: 'dot',
         description: '...',
+        purchaseCost: 0,
       });
 
       runInventoryRegistry.addSoftware(sessionId, {
@@ -418,7 +424,7 @@ describe('Software System', () => {
       world = new World<GameplayEvents>(eventBus);
       grid = new Grid(10, 10);
       playerId = world.createEntity();
-      world.addComponent(playerId, Actor, { isPlayer: true, name: 'Player' });
+      world.addComponent(playerId, Actor, { isPlayer: true });
       world.addComponent(playerId, Position, { x: 0, y: 0 });
       world.addComponent(playerId, BurnedSoftware, { weapon: 101, armor: 102 });
       
@@ -429,7 +435,7 @@ describe('Software System', () => {
     });
 
     it('ENTITY_DIED clears BurnedSoftware weapon and armor to null', () => {
-      eventBus.emit('ENTITY_DIED', { entityId: playerId, killerId: 0 });
+      eventBus.emit('ENTITY_DIED', { entityId: playerId, killerId: 0, isPlayer: true });
       eventBus.flush();
       
       const burned = world.getComponent(playerId, BurnedSoftware);
@@ -448,7 +454,7 @@ describe('Software System', () => {
       world = new World<GameplayEvents>(new EventBus<GameplayEvents>());
       grid = new Grid(10, 10);
       playerId = world.createEntity();
-      world.addComponent(playerId, Actor, { isPlayer: true, name: 'Player' });
+      world.addComponent(playerId, Actor, { isPlayer: true });
       world.addComponent(playerId, Position, { x: 0, y: 0 });
       world.addComponent(playerId, Health, { current: 10, max: 10 });
     });
@@ -462,6 +468,7 @@ describe('Software System', () => {
         baseMagnitude: 0,
         effectType: 'action_economy',
         description: '...',
+        purchaseCost: 0,
       });
       world.addComponent(playerId, BurnedSoftware, { weapon: swEntity, armor: null });
 
@@ -524,6 +531,7 @@ describe('Software System', () => {
         baseMagnitude: 2,
         effectType: 'dot',
         description: '...',
+        purchaseCost: 0,
       });
       world.addComponent(swEntity, RarityTier, { tier: 'v0.x', scaleFactor: 1, minFloor: 0 });
       world.addComponent(attacker, BurnedSoftware, { weapon: swEntity, armor: null });
@@ -551,6 +559,7 @@ describe('Software System', () => {
         baseMagnitude: 2,
         effectType: 'dot',
         description: '...',
+        purchaseCost: 0,
       });
       world.addComponent(swEntity, RarityTier, { tier: 'v2.x', scaleFactor: 2.0, minFloor: 0 });
       world.addComponent(attacker, BurnedSoftware, { weapon: swEntity, armor: null });
@@ -590,6 +599,7 @@ describe('Software System', () => {
         baseMagnitude: 0,
         effectType: 'action_economy',
         description: '...',
+        purchaseCost: 0,
       });
       world.addComponent(entity, BurnedSoftware, { weapon: swEntity, armor: null });
 
@@ -619,6 +629,7 @@ describe('Software System', () => {
         baseMagnitude: 5,
         effectType: 'heal_on_kill',
         description: '...',
+        purchaseCost: 0,
       });
       world.addComponent(swEntity, RarityTier, { tier: 'v0.x', scaleFactor: 1.0, minFloor: 0 });
       world.addComponent(player, BurnedSoftware, { weapon: null, armor: swEntity });
@@ -643,6 +654,7 @@ describe('Software System', () => {
         baseMagnitude: 5,
         effectType: 'heal_on_kill',
         description: '...',
+        purchaseCost: 0,
       });
       world.addComponent(swEntity, RarityTier, { tier: 'v3.x', scaleFactor: 3.0, minFloor: 0 });
       world.addComponent(player, BurnedSoftware, { weapon: null, armor: swEntity });
@@ -667,6 +679,7 @@ describe('Software System', () => {
         baseMagnitude: 5,
         effectType: 'heal_on_kill',
         description: '...',
+        purchaseCost: 0,
       });
       world.addComponent(swEntity, RarityTier, { tier: 'v0.x', scaleFactor: 1.0, minFloor: 0 });
       world.addComponent(player, BurnedSoftware, { weapon: null, armor: swEntity });
@@ -694,14 +707,14 @@ describe('Software System', () => {
       // Bleed on weapon
       const bleedSw = world.createEntity();
       world.addComponent(bleedSw, SoftwareDef, {
-        name: 'Bleed.exe', type: 'bleed', targetSlot: 'weapon', baseMagnitude: 2, effectType: 'dot', description: '...'
+        name: 'Bleed.exe', type: 'bleed', targetSlot: 'weapon', baseMagnitude: 2, effectType: 'dot', description: '...', purchaseCost: 0
       });
       world.addComponent(bleedSw, RarityTier, { tier: 'v0.x', scaleFactor: 1, minFloor: 0 });
 
       // Vampire on armor
       const vampireSw = world.createEntity();
       world.addComponent(vampireSw, SoftwareDef, {
-        name: 'Vampire.exe', type: 'vampire', targetSlot: 'armor', baseMagnitude: 5, effectType: 'heal_on_kill', description: '...'
+        name: 'Vampire.exe', type: 'vampire', targetSlot: 'armor', baseMagnitude: 5, effectType: 'heal_on_kill', description: '...', purchaseCost: 0
       });
       world.addComponent(vampireSw, RarityTier, { tier: 'v0.x', scaleFactor: 1, minFloor: 0 });
 
@@ -728,7 +741,7 @@ describe('Software System', () => {
       
       const swEntity = world.createEntity();
       world.addComponent(swEntity, SoftwareDef, {
-        name: 'Bleed.exe', type: 'bleed', targetSlot: 'weapon', baseMagnitude: 10, effectType: 'dot', description: '...'
+        name: 'Bleed.exe', type: 'bleed', targetSlot: 'weapon', baseMagnitude: 10, effectType: 'dot', description: '...', purchaseCost: 0
       });
       world.addComponent(swEntity, RarityTier, { tier: 'v1.x', scaleFactor: 1.5, minFloor: 0 });
       world.addComponent(attacker, BurnedSoftware, { weapon: swEntity, armor: null });

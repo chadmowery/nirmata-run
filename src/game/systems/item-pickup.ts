@@ -9,6 +9,7 @@ import { Health } from '@shared/components/health';
 import { Scrap } from '@shared/components/scrap';
 import { CurrencyItem } from '@shared/components/currency-item';
 import { runInventoryRegistry } from './run-inventory';
+import { EventOriginContext } from '@shared/utils/event-context';
 
 export interface ItemPickupSystem {
   init(): void;
@@ -23,6 +24,7 @@ export function createItemPickupSystem<T extends GameplayEvents>(
 ): ItemPickupSystem {
 
   function onEntityMoved(payload: T['ENTITY_MOVED']) {
+    if (EventOriginContext.current === 'server') return;
     const { entityId, toX, toY } = payload;
 
     // 1. Check if mover is the player
@@ -67,6 +69,7 @@ export function createItemPickupSystem<T extends GameplayEvents>(
         if (!sessionId) {
           console.warn(`[ItemPickupSystem] No sessionId provided! Cannot add ${amount} ${type} to registry.`);
         }
+
 
         const success = sessionId ? runInventoryRegistry.addCurrency(sessionId, type, amount, meta) : false;
         

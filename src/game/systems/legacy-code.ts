@@ -1,4 +1,4 @@
-import { PlayerProfile, InstalledItem } from './profile-persistence';
+import { PlayerProfile } from '@shared/profile';
 
 /**
  * Calculate effective Heat cost for a Firmware ability.
