@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 14 UI-SPEC approved
-last_updated: "2026-04-03T12:37:15.464Z"
+stopped_at: Phase 15 context gathered
+last_updated: "2026-04-05T16:18:03.660Z"
 last_activity: 2026-04-03
 progress:
   total_phases: 10
@@ -85,9 +85,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-03T00:41:13.568Z
-Stopped at: Phase 14 UI-SPEC approved
-Resume file: .planning/phases/14-stash-vault-run-modes/14-UI-SPEC.md
+Last session: 2026-04-05T16:18:03.656Z
+Stopped at: Phase 15 context gathered
+Resume file: .planning/phases/15-neural-deck-hub-ui/15-CONTEXT.md
 
 ---
 *State initialized: 2026-03-13*
