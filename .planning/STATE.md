@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 15 planned — 4 plans created, ready for execution
+stopped_at: Branch: `main` (merged Phase 14), ready for execution
 last_updated: "2026-04-05T19:32:00.000Z"
 last_activity: 2026-04-03
 progress:
