@@ -4,6 +4,8 @@ import { RunMode, getRunModeConfig } from '@/game/systems/run-mode-config';
 import { sessionManager } from '@/engine/session/SessionManager';
 import { createEngineInstance } from '@/game/engine-factory';
 
+import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT } from '@/shared/constants';
+
 /**
  * POST /api/run-mode/launch
  * Launches a new run in the specified mode.
@@ -51,8 +53,8 @@ export async function POST(req: NextRequest) {
 
     // 4. Engine Initialization
     const engineConfig = {
-      width: 800,
-      height: 600,
+      width: DEFAULT_GRID_WIDTH,
+      height: DEFAULT_GRID_HEIGHT,
       seed: config.seed,
       profile,
       sessionId,

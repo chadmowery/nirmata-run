@@ -13,14 +13,16 @@ describe('Game States', () => {
     expect(Object.values(GameState)).toEqual([
       'Loading',
       'MainMenu',
+      'Hub',
       'Playing',
       'Paused',
       'GameOver',
     ]);
   });
 
-  it('GAME_TRANSITIONS has exactly 8 entries', () => {
-    expect(GAME_TRANSITIONS.length).toBe(8);
+  it('GAME_TRANSITIONS has expected entries', () => {
+    // We added 5 new transitions for Hub, total should be 13
+    expect(GAME_TRANSITIONS.length).toBe(13);
   });
 
   it('createGameFSM starts at Loading state', () => {

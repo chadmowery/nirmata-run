@@ -1,0 +1,73 @@
+.banner {
+  background: rgba(255, 0, 85, 0.15);
+  border: 1px solid var(--vibrant-pink);
+  padding: var(--space-md);
+  margin-bottom: var(--space-lg);
+  animation: pulsePink 1500ms ease-in-out infinite;
+}
+
+@keyframes pulsePink {
+  0% { box-shadow: 0 0 5px rgba(255, 0, 85, 0.2); border-color: rgba(255, 0, 85, 0.5); }
+  50% { box-shadow: 0 0 15px rgba(255, 0, 85, 0.4); border-color: rgba(255, 0, 85, 1); }
+  100% { box-shadow: 0 0 5px rgba(255, 0, 85, 0.2); border-color: rgba(255, 0, 85, 0.5); }
+}
+
+.heading {
+  font-size: var(--font-size-label);
+  color: var(--vibrant-pink);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: var(--space-md);
+}
+
+.itemList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.itemRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid rgba(255, 0, 85, 0.2);
+}
+
+.itemName {
+  font-size: var(--font-size-body);
+  color: var(--white);
+  font-family: var(--font-mono, monospace);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.discardButton, .sellButton {
+  background: transparent;
+  border: 1px solid var(--vibrant-pink);
+  color: var(--vibrant-pink);
+  padding: 2px 8px;
+  font-size: 10px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: var(--transition-fast);
+}
+
+.discardButton:hover {
+  background: var(--vibrant-pink);
+  color: var(--white);
+}
+
+.sellButton {
+  border-color: var(--vibrant-cyan);
+  color: var(--vibrant-cyan);
+}
+
+.sellButton:hover {
+  background: var(--vibrant-cyan);
+  color: var(--black);
+}

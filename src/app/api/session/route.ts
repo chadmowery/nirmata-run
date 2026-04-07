@@ -4,14 +4,17 @@ import { sessionManager } from '@engine/session/SessionManager';
 import { createDefaultProfile } from '@shared/profile';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { runInventoryRegistry } from '@game/systems/run-inventory';
+import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT } from '@/shared/constants';
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { seed, width, height, sessionId: providedSessionId } = body;
+    const width = body.width || DEFAULT_GRID_WIDTH;
+    const height = body.height || DEFAULT_GRID_HEIGHT;
+    const { seed, sessionId: providedSessionId } = body;
 
-    if (!seed || !width || !height) {
-      return NextResponse.json({ error: 'Missing required parameters: seed, width, height' }, { status: 400 });
+    if (!seed) {
+      return NextResponse.json({ error: 'Missing required parameter: seed' }, { status: 400 });
     }
 
     const sessionId = providedSessionId || 'default-player-session';

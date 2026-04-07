@@ -1,0 +1,63 @@
+.hubRoot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--black);
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-body);
+  color: var(--white);
+}
+
+.tabContent {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-lg);
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: var(--font-size-heading);
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: var(--font-size-body);
+  color: var(--vibrant-cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.errorState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: var(--space-md);
+  color: var(--vibrant-pink);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.errorState button {
+  background: transparent;
+  border: 1px solid var(--vibrant-cyan);
+  color: var(--vibrant-cyan);
+  padding: var(--space-sm) var(--space-lg);
+  cursor: pointer;
+  font-family: var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}

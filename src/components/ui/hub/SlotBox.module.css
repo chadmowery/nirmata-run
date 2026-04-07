@@ -1,0 +1,81 @@
+.slotBox {
+  width: var(--hub-slot-size);
+  height: var(--hub-slot-size);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: var(--transition-fast);
+  cursor: default;
+}
+
+.slotBox.filled {
+  border-color: var(--vibrant-cyan);
+  background: rgba(0, 240, 255, 0.05);
+  cursor: help;
+}
+
+.slotBox.filled:hover {
+  box-shadow: 0 0 10px var(--vibrant-cyan);
+  background: rgba(0, 240, 255, 0.1);
+}
+
+.slotBox.legacy {
+  filter: grayscale(0.8);
+  opacity: 0.7;
+}
+
+.icon {
+  font-family: var(--font-body);
+  font-size: 1.2rem;
+  color: var(--text-dim);
+}
+
+.filled .icon {
+  color: var(--vibrant-cyan);
+}
+
+.initials {
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.emptyIcon {
+  opacity: 0.3;
+}
+
+.legacyTag {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--safety-orange);
+  color: black;
+  font-size: 8px;
+  font-weight: bold;
+  padding: 1px 4px;
+  border-radius: 2px;
+  z-index: 2;
+}
+
+.legacyOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 5px,
+    rgba(255, 149, 0, 0.1) 5px,
+    rgba(255, 149, 0, 0.1) 10px
+  );
+  pointer-events: none;
+}
+
+/* Slot type specific accents if needed */
+.firmware.filled { border-left: 3px solid var(--vibrant-cyan); }
+.augment.filled { border-left: 3px solid var(--vibrant-pink); }
+.software.filled { border-left: 3px solid var(--safety-orange); }

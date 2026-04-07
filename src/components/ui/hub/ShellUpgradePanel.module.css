@@ -1,0 +1,103 @@
+.upgradeRoot {
+  display: flex;
+  flex-direction: column;
+}
+
+.heading {
+  font-size: var(--font-size-label);
+  color: var(--vibrant-cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-md);
+  border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+  padding-bottom: var(--space-sm);
+}
+
+.upgradeList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.upgradeRow {
+  display: flex;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.statInfo {
+  display: flex;
+  gap: var(--space-md);
+  min-width: 200px;
+}
+
+.statLabel {
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--white);
+  min-width: 140px;
+}
+
+.statValue {
+  font-size: var(--font-size-body);
+  color: var(--vibrant-cyan);
+  font-family: var(--font-mono, monospace);
+}
+
+.dots {
+  flex: 1;
+  border-bottom: 1px dotted rgba(255, 255, 255, 0.2);
+  margin: 0 var(--space-md);
+  height: 1px;
+}
+
+.costAction {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.cost {
+  font-size: var(--font-size-label);
+  color: var(--white);
+  font-weight: 600;
+  min-width: 80px;
+  text-align: right;
+}
+
+.costInsufficient {
+  color: var(--vibrant-pink);
+}
+
+.upgradeButton {
+  background: transparent;
+  border: 1px solid var(--vibrant-cyan);
+  color: var(--vibrant-cyan);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--font-size-label);
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: var(--transition-fast);
+  min-width: 120px;
+}
+
+.upgradeButton:hover:not(:disabled) {
+  background: var(--vibrant-cyan);
+  color: var(--black);
+  box-shadow: 0 0 12px var(--vibrant-cyan);
+}
+
+.upgradeButtonDisabled {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
+.loading {
+  padding: var(--space-lg);
+  color: var(--vibrant-cyan);
+  font-size: var(--font-size-label);
+  text-align: center;
+}

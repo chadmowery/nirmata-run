@@ -1,0 +1,85 @@
+.tabRoot {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: var(--space-lg);
+  overflow-y: auto;
+  color: var(--text-color);
+  background: var(--black);
+  position: relative;
+}
+
+.header {
+  margin-bottom: var(--space-xl);
+}
+
+.titleGroup {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: var(--space-sm);
+}
+
+.heading {
+  font-size: var(--font-size-heading);
+  font-weight: 600;
+  color: var(--vibrant-cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 0;
+}
+
+.capacity {
+  font-size: var(--font-size-label);
+  color: var(--text-dim);
+  font-family: var(--font-mono, monospace);
+}
+
+.capacityWarn {
+  color: var(--safety-orange);
+}
+
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  font-size: var(--font-size-body);
+  color: var(--text-dim);
+  border: 1px dashed rgba(255, 255, 255, 0.05);
+  min-height: 200px;
+}
+
+.contextMenu {
+  position: fixed;
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid var(--vibrant-cyan);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.menuItem {
+  background: transparent;
+  border: none;
+  color: var(--white);
+  padding: var(--space-sm) var(--space-md);
+  text-align: left;
+  cursor: pointer;
+  font-size: var(--font-size-label);
+  text-transform: uppercase;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+}
+
+.menuItem:hover {
+  background: var(--vibrant-cyan);
+  color: var(--black);
+}
+
+.menuItem:nth-child(2):hover {
+  background: var(--vibrant-pink);
+  color: var(--white);
+}

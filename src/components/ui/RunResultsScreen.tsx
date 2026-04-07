@@ -19,8 +19,9 @@ export const RunResultsScreen: React.FC = () => {
                           (runResults.enemiesKilled * 10) + 
                           (runResults.itemsSecured.scrap * 1);
 
-  const handleReinitialize = () => {
-    setGameStatus(GameState.MainMenu);
+  const handleReturnToDeck = () => {
+    gameStore.getState().setActiveTab('vault');
+    setGameStatus(GameState.Hub);
   };
 
   return (
@@ -69,9 +70,9 @@ export const RunResultsScreen: React.FC = () => {
 
         <button 
           className={`${styles.reinitButton} ${!isExtraction ? styles.reinitButtonDeath : ''}`}
-          onClick={handleReinitialize}
+          onClick={handleReturnToDeck}
         >
-          REINITIALIZE
+          RETURN_TO_DECK
         </button>
       </div>
     </div>

@@ -1,0 +1,74 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.filterRow {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: var(--space-xs);
+}
+
+.filterTab {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: var(--font-size-label);
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: var(--space-xs) var(--space-sm);
+  letter-spacing: 0.1em;
+  font-family: var(--font-body);
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+  border-bottom: 2px solid transparent;
+}
+
+.filterTab:hover {
+  color: var(--text-color);
+}
+
+.filterTabActive {
+  color: var(--vibrant-cyan);
+  border-bottom-color: var(--vibrant-cyan);
+}
+
+.itemList {
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding-right: var(--space-xs);
+}
+
+/* Custom scrollbar */
+.itemList::-webkit-scrollbar {
+  width: 4px;
+}
+
+.itemList::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.itemList::-webkit-scrollbar-thumb {
+  background: rgba(0, 240, 255, 0.3);
+}
+
+.itemList::-webkit-scrollbar-thumb:hover {
+  background: var(--vibrant-cyan);
+}
+
+.emptyState {
+  color: var(--text-dim);
+  font-size: var(--font-size-body);
+  text-align: center;
+  padding: var(--space-2xl);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.5;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}

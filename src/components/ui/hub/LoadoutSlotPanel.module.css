@@ -1,0 +1,50 @@
+.panelContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.slotGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.slotGroupLabel {
+  font-size: var(--font-size-label);
+  color: var(--vibrant-cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: var(--font-weight-semibold);
+  opacity: 0.8;
+}
+
+.slotRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.slotWrapper {
+  position: relative;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  cursor: pointer;
+}
+
+.dropValid {
+  transform: scale(1.05);
+  box-shadow: 0 0 15px var(--vibrant-cyan);
+  z-index: 10;
+}
+
+.dropInvalid {
+  animation: rejectShake 200ms ease-in-out;
+  box-shadow: 0 0 15px var(--vibrant-pink);
+  z-index: 10;
+}
+
+@keyframes rejectShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}

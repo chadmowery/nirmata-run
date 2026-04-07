@@ -1,9 +1,23 @@
 import { createStore } from 'zustand/vanilla';
 import { GameState } from '../states/types';
 import { EventOriginContext } from '../../shared/utils/event-context';
+import { PlayerProfile, VaultItem } from '@/shared/profile';
+import { RunMode } from '@/shared/run-mode';
+import { ShellTemplate } from '@/game/shells/types';
 
 export type GameStatus = GameState;
 export type MessageType = 'info' | 'combat' | 'error';
+
+export type HubTab = 'shell' | 'loadout' | 'workshop' | 'vault' | 'initialize';
+
+export interface ModeAvailability {
+  mode: RunMode;
+  name: string;
+  description: string;
+  available: boolean;
+  reason: string | null;
+  attemptsRemaining: number | 'unlimited';
+}
 
 export interface MessageEntry {
   id: string;
@@ -83,6 +97,24 @@ export interface UIState {
   bsodVisible: boolean;
   bsodReason: string;
 
+  // Phase 15: Hub state
+  activeTab: HubTab;
+  playerProfile: PlayerProfile | null;
+  shellTemplates: ShellTemplate[];
+  profileLoading: boolean;
+  profileError: string | null;
+  selectedShellIndex: number;
+  draggedItem: VaultItem | null;
+  dragOverSlot: string | null;
+  compilingBlueprintId: string | null;
+  selectedRunMode: RunMode | null;
+  modeAvailability: ModeAvailability[] | null;
+  ritualActive: boolean;
+  bootSequenceActive: boolean;
+  hasOverflow: boolean;
+  overflowCount: number;
+  launchConfig: { mode: RunMode; seed: string; sessionId: string } | null;
+
   // Actions
   updatePlayerStats: (stats: Partial<PlayerStats>) => void;
   addMessage: (text: string, type: MessageType) => void;
@@ -106,6 +138,24 @@ export interface UIState {
   hideBSOD: () => void;
   addScrapToWallet: (amount: number) => void;
   resetRunStats: () => void;
+
+  // Phase 15: Hub actions
+  setActiveTab: (tab: HubTab) => void;
+  setPlayerProfile: (profile: PlayerProfile) => void;
+  setShellTemplates: (templates: ShellTemplate[]) => void;
+  setProfileLoading: (loading: boolean) => void;
+  setProfileError: (error: string | null) => void;
+  setSelectedShellIndex: (index: number) => void;
+  setDraggedItem: (item: VaultItem | null) => void;
+  setDragOverSlot: (slot: string | null) => void;
+  setCompilingBlueprintId: (id: string | null) => void;
+  setSelectedRunMode: (mode: RunMode | null) => void;
+  setModeAvailability: (modes: ModeAvailability[]) => void;
+  setRitualActive: (active: boolean) => void;
+  setBootSequenceActive: (active: boolean) => void;
+  setLaunchConfig: (config: { mode: RunMode; seed: string; sessionId: string } | null) => void;
+  updateProfileOptimistic: (updater: (profile: PlayerProfile) => PlayerProfile) => void;
+  resetHubState: () => void;
 }
 
 const MAX_MESSAGES = 50;
@@ -141,6 +191,24 @@ export const gameStore = createStore<UIState>((set) => ({
   runResults: null,
   bsodVisible: false,
   bsodReason: '',
+
+  // Phase 15: Hub defaults
+  activeTab: 'shell' as HubTab,
+  playerProfile: null,
+  shellTemplates: [],
+  profileLoading: false,
+  profileError: null,
+  selectedShellIndex: 0,
+  draggedItem: null,
+  dragOverSlot: null,
+  compilingBlueprintId: null,
+  selectedRunMode: null,
+  modeAvailability: null,
+  ritualActive: false,
+  bootSequenceActive: false,
+  hasOverflow: false,
+  overflowCount: 0,
+  launchConfig: null,
 
   updatePlayerStats: (stats) => 
     set((state) => ({
@@ -255,5 +323,48 @@ export const gameStore = createStore<UIState>((set) => ({
     runResultsVisible: false,
     bsodVisible: false,
     bsodReason: '',
+  }),
+
+  // Phase 15: Hub actions
+  setActiveTab: (tab) => set({ activeTab: tab }),
+  setPlayerProfile: (profile) => set({
+    playerProfile: profile,
+    hasOverflow: profile.overflow.length > 0,
+    overflowCount: profile.overflow.length,
+  }),
+  setShellTemplates: (templates) => set({ shellTemplates: templates }),
+  setProfileLoading: (loading) => set({ profileLoading: loading }),
+  setProfileError: (error) => set({ profileError: error }),
+  setSelectedShellIndex: (index) => set({ selectedShellIndex: index }),
+  setDraggedItem: (item) => set({ draggedItem: item }),
+  setDragOverSlot: (slot) => set({ dragOverSlot: slot }),
+  setCompilingBlueprintId: (id) => set({ compilingBlueprintId: id }),
+  setSelectedRunMode: (mode) => set({ selectedRunMode: mode }),
+  setModeAvailability: (modes) => set({ modeAvailability: modes }),
+  setRitualActive: (active) => set({ ritualActive: active }),
+  setBootSequenceActive: (active) => set({ bootSequenceActive: active }),
+  setLaunchConfig: (config) => set({ launchConfig: config }),
+  updateProfileOptimistic: (updater) => set((state) => {
+    if (!state.playerProfile) return {};
+    const updated = updater(state.playerProfile);
+    return {
+      playerProfile: updated,
+      hasOverflow: updated.overflow.length > 0,
+      overflowCount: updated.overflow.length,
+    };
+  }),
+  resetHubState: () => set({
+    playerProfile: null,
+    shellTemplates: [],
+    profileLoading: false,
+    profileError: null,
+    selectedShellIndex: 0,
+    draggedItem: null,
+    dragOverSlot: null,
+    compilingBlueprintId: null,
+    selectedRunMode: null,
+    modeAvailability: null,
+    ritualActive: false,
+    bootSequenceActive: false,
   }),
 }));

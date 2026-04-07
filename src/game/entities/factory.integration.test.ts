@@ -73,7 +73,7 @@ describe('EntityFactory', () => {
       expect(world.getComponent(id, Position)).toEqual({ x: 0, y: 0 });
       
       // Matches player.json overrides (180)
-      expect(world.getComponent(id, Health)).toEqual({ current: 180, max: 180 });
+      expect(world.getComponent(id, Health)).toEqual({ current: 180, max: 180, isAlive: true });
     });
 
     it('creates a health-potion without health component', () => {

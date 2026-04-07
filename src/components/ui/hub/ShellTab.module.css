@@ -1,0 +1,39 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  padding-top: var(--space-xl);
+}
+
+.heading {
+  font-size: var(--font-size-heading);
+  color: var(--vibrant-cyan);
+  letter-spacing: 2px;
+  margin-bottom: var(--space-2xl);
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+}
+
+.carouselWrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.footer {
+  margin-top: var(--space-xl);
+  font-size: var(--font-size-label);
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--vibrant-cyan);
+  font-size: var(--font-size-body);
+}

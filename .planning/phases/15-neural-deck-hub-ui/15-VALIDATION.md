@@ -1,9 +1,9 @@
 ---
 phase: 15
 slug: neural-deck-hub-ui
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: completed
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-05
 ---
 
@@ -38,14 +38,14 @@ created: 2026-04-05
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 15-01-01 | 01 | 1 | HUB-01 | integration | `npx tsc --noEmit` | ❌ W0 | ⬜ pending |
-| 15-01-02 | 01 | 1 | HUB-08 | visual | Browser check | N/A | ⬜ pending |
-| 15-02-01 | 02 | 2 | HUB-02 | integration | `npx tsc --noEmit` | ❌ W0 | ⬜ pending |
-| 15-02-02 | 02 | 2 | HUB-03 | manual | Drag-and-drop browser test | N/A | ⬜ pending |
-| 15-03-01 | 03 | 2 | HUB-04 | integration | `npx tsc --noEmit` | ❌ W0 | ⬜ pending |
-| 15-03-02 | 03 | 2 | HUB-05 | integration | `npx tsc --noEmit` | ❌ W0 | ⬜ pending |
-| 15-04-01 | 04 | 3 | HUB-06 | manual | Launch flow browser test | N/A | ⬜ pending |
-| 15-04-02 | 04 | 3 | HUB-07 | grep | `grep -r "Craft\|Shop" src/components/ui/hub/` | ✅ | ⬜ pending |
+| 15-01-01 | 01 | 1 | HUB-01 | integration | `npx tsc --noEmit` | ✅ | ✅ green |
+| 15-01-02 | 01 | 1 | HUB-08 | visual | Browser check | N/A | ✅ green |
+| 15-02-01 | 02 | 2 | HUB-02 | integration | `npx tsc --noEmit` | ✅ | ✅ green |
+| 15-02-02 | 02 | 2 | HUB-03 | manual | Drag-and-drop browser test | N/A | ✅ green |
+| 15-03-01 | 03 | 2 | HUB-04 | integration | `npx tsc --noEmit` | ✅ | ✅ green |
+| 15-03-02 | 03 | 2 | HUB-05 | integration | `npx tsc --noEmit` | ✅ | ✅ green |
+| 15-04-01 | 04 | 3 | HUB-06 | manual | Launch flow browser test | N/A | ✅ green |
+| 15-04-02 | 04 | 3 | HUB-07 | grep | `grep -r "Craft\|Shop" src/components/ui/hub/` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -53,9 +53,9 @@ created: 2026-04-05
 
 ## Wave 0 Requirements
 
-- [ ] TypeScript compilation passes with all new files — `npx tsc --noEmit`
-- [ ] `GameState.Hub` enum value recognized by state machine
-- [ ] Hub CSS tokens render correctly in `:root`
+- [x] TypeScript compilation passes with all new files — `npx tsc --noEmit`
+- [x] `GameState.Hub` enum value recognized by state machine
+- [x] Hub CSS tokens render correctly in `:root`
 
 *Existing vitest infrastructure covers automated requirements. Phase 15 is predominantly UI — verification is mostly visual/browser-based.*
 
@@ -76,11 +76,11 @@ created: 2026-04-05
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** completed

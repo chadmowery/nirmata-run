@@ -97,7 +97,12 @@ describe('Profile Persistence Integration', () => {
       const eventBus = new EventBus<any>();
       const world = new World<any>(eventBus);
       const grid = new Grid(20, 20);
-      const turnManager = { canAcceptInput: () => true, submitAction: vi.fn(), getTurnNumber: () => 1 };
+      const turnManager = { 
+        canAcceptInput: () => true, 
+        submitAction: vi.fn(), 
+        getTurnNumber: () => 1,
+        getPhase: () => 'AWAIT_INPUT'
+      };
       
       (sessionManager.getSession as any).mockReturnValue({
         world,

@@ -1,0 +1,108 @@
+.card {
+  position: relative;
+  min-width: 180px;
+  flex: 1;
+  background: rgba(0, 20, 0, 0.85);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  cursor: pointer;
+  transition: transform var(--transition-standard), box-shadow var(--transition-standard), border-color var(--transition-standard);
+  display: flex;
+  flex-direction: column;
+}
+
+.card:hover:not(.disabled) {
+  transform: scale(1.02);
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+  border-color: rgba(0, 240, 255, 0.4);
+}
+
+.selected {
+  border: 2px solid var(--vibrant-cyan);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+}
+
+.selected.weekly {
+  border-color: var(--vibrant-pink);
+  box-shadow: 0 0 20px rgba(255, 0, 85, 0.3);
+}
+
+.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.badge {
+  height: 4px;
+  width: 100%;
+}
+
+.standard .badge {
+  background: var(--vibrant-cyan);
+}
+
+.weekly .badge {
+  background: var(--vibrant-pink);
+}
+
+.content {
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  flex-grow: 1;
+}
+
+.name {
+  font-size: var(--font-size-heading);
+  font-weight: var(--font-weight-semibold);
+  color: var(--white);
+  text-transform: uppercase;
+  margin: 0;
+  letter-spacing: 0.05em;
+}
+
+.attempts {
+  font-size: var(--font-size-label);
+  color: var(--vibrant-cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.weekly .attempts {
+  color: var(--vibrant-pink);
+}
+
+.exhaustedBadge {
+  background: var(--vibrant-pink);
+  color: var(--white);
+  font-size: 10px;
+  padding: 2px 6px;
+  align-self: flex-start;
+  font-weight: var(--font-weight-semibold);
+  margin-top: var(--space-xs);
+}
+
+.description {
+  margin-top: var(--space-sm);
+  font-size: var(--font-size-body);
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.countdown {
+  font-size: var(--font-size-label);
+  color: var(--safety-orange);
+  margin-top: var(--space-xs);
+}
+
+.reason {
+  font-size: var(--font-size-label);
+  color: var(--vibrant-pink);
+  margin-top: var(--space-xs);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card:hover:not(.disabled) {
+    transform: none;
+  }
+}

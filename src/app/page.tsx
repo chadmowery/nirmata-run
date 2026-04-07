@@ -9,13 +9,16 @@ import { createWorldContainer } from '@/rendering/layers';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import { GameState } from '@/game/states/types';
+import { RunMode } from '@/shared/run-mode';
 import { HUDOverlay } from '@/components/ui/HUDOverlay';
 import { MainMenu } from '@/components/ui/MainMenu';
 import { AnchorOverlay } from '@/components/ui/AnchorOverlay';
 import { StaircaseOverlay } from '@/components/ui/StaircaseOverlay';
 import { BSODScreen } from '@/components/ui/BSODScreen';
 import { RunResultsScreen } from '@/components/ui/RunResultsScreen';
+import { HubLayout } from '@/components/ui/hub/HubLayout';
 import { GameContext } from '@/game/types';
+import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT } from '@/shared/constants';
 
 export default function GamePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -36,37 +39,52 @@ export default function GamePage() {
     isInitializing.current = true;
     try {
       console.log('--- STARTING ENGINE ---');
+      const store = gameStore.getState();
+      const launchConfig = store.launchConfig;
+      
       // 1. Init PixiJS
       const app = await initRenderer(canvasRef.current!);
       await loadAssets();
 
-      // 1.5 Get Session from Server
-      const seed = `run-${Date.now()}`;
-      const sessionResponse = await fetch('/api/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          seed,
-          width: 80,
-          height: 45
-        })
-      });
-
+      let seed: string;
       let sessionId: string | undefined;
-      if (sessionResponse.ok) {
-        const sessionData = await sessionResponse.json();
-        sessionId = sessionData.sessionId;
-        console.log('[CLIENT] Server session initialized:', sessionId);
+      let runMode: RunMode | undefined;
+
+      if (launchConfig) {
+        // Use pre-configured launch data from the Hub (Initialize Ritual)
+        seed = launchConfig.seed;
+        sessionId = launchConfig.sessionId;
+        runMode = launchConfig.mode;
+        console.log('[CLIENT] Using Hub launch configuration:', launchConfig);
       } else {
-        console.warn('[CLIENT] Failed to initialize server session. Falling back to local only.');
+        // Fallback for legacy/direct play
+        seed = `run-${Date.now()}`;
+        const sessionResponse = await fetch('/api/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            seed,
+            width: DEFAULT_GRID_WIDTH,
+            height: DEFAULT_GRID_HEIGHT
+          })
+        });
+
+        if (sessionResponse.ok) {
+          const sessionData = await sessionResponse.json();
+          sessionId = sessionData.sessionId;
+          console.log('[CLIENT] Server session initialized:', sessionId);
+        } else {
+          console.warn('[CLIENT] Failed to initialize server session. Falling back to local only.');
+        }
       }
 
       // 2. Init Game Engine
       const context = createGame({
-        gridWidth: 80,
-        gridHeight: 45,
+        gridWidth: DEFAULT_GRID_WIDTH,
+        gridHeight: DEFAULT_GRID_HEIGHT,
         seed,
-        sessionId
+        sessionId,
+        runMode
       });
       contextRef.current = context;
       // Expose for debugging
@@ -114,10 +132,10 @@ export default function GamePage() {
     }
   }, [status]);
 
-  // Effect 2: Destroy engine when returning to MainMenu to ensure a fresh session next time
+  // Effect 2: Destroy engine when returning to MainMenu or Hub to ensure a fresh session next time
   useEffect(() => {
-    if (status === GameState.MainMenu && contextRef.current) {
-      console.log('--- DESTROYING ENGINE (RETURN TO MENU) ---');
+    if ((status === GameState.MainMenu || status === GameState.Hub) && contextRef.current) {
+      console.log('--- DESTROYING ENGINE (RETURN TO HUB/MENU) ---');
       destroyGame(contextRef.current);
       contextRef.current = null;
       // Reset run-specific stats but keep walletScrap
@@ -145,6 +163,11 @@ export default function GamePage() {
 
       <div id="ui-root">
         {status === GameState.MainMenu && <MainMenu />}
+        {status === GameState.Hub && (
+          <HubLayout
+            onLaunchComplete={() => gameStore.getState().setGameStatus(GameState.Playing)}
+          />
+        )}
 
         {(status === GameState.Playing || status === GameState.Paused || status === GameState.GameOver) && (
           <>

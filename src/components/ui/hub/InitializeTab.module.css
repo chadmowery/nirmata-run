@@ -1,0 +1,114 @@
+.tab {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: var(--space-lg);
+  gap: var(--space-lg);
+}
+
+.heading {
+  font-size: var(--font-size-heading);
+  color: var(--vibrant-cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin: 0;
+}
+
+.modeContainer {
+  display: flex;
+  gap: var(--space-xl);
+  position: relative;
+}
+
+.overflowOverlay {
+  position: absolute;
+  inset: -10px;
+  background: rgba(255, 0, 85, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  backdrop-filter: blur(2px);
+  border: 2px solid var(--vibrant-pink);
+  pointer-events: none;
+}
+
+.overflowMessage {
+  background: var(--vibrant-pink);
+  color: var(--white);
+  padding: var(--space-md) var(--space-xl);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  box-shadow: 0 0 20px rgba(255, 0, 85, 0.5);
+}
+
+.detailsPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  animation: slideUp var(--transition-standard);
+}
+
+.rules {
+  background: rgba(0, 20, 0, 0.5);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.rulesHeading {
+  font-size: var(--font-size-label);
+  color: var(--vibrant-cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.rulesText {
+  font-size: var(--font-size-body);
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+}
+
+.launchButton {
+  width: 100%;
+  height: 48px;
+  border: none;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  margin-top: var(--space-md);
+  font-family: inherit;
+}
+
+.launchStandard {
+  background: var(--vibrant-cyan);
+  color: var(--black);
+}
+
+.launchWeekly {
+  background: var(--vibrant-pink);
+  color: var(--white);
+}
+
+.launchButton:hover {
+  transform: scale(1.01);
+  box-shadow: 0 0 15px currentColor;
+}
+
+.warningIcon {
+  margin-right: var(--space-sm);
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

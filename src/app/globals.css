@@ -47,6 +47,33 @@
   --space-lg: 24px;
   --space-xl: 32px;
   --space-2xl: 48px;
+
+  /* Phase 15: Hub-specific tokens */
+  --hub-tab-height: 48px;
+  --hub-slot-size: 64px;
+  --hub-grid-columns: 6;
+  --hub-grid-gap: var(--space-sm);
+  --hub-card-min-width: 180px;
+
+  /* Phase 15: Semantic mode colors */
+  --color-mode-simulation: var(--vibrant-cyan);
+  --color-mode-daily: var(--vibrant-cyan);
+  --color-mode-weekly: var(--vibrant-pink);
+  --color-overflow-warning: var(--vibrant-pink);
+  --color-legacy-text: var(--safety-orange);
+
+  /* Phase 15: Interaction colors */
+  --color-drop-valid: var(--vibrant-cyan);
+  --color-drop-invalid: var(--vibrant-pink);
+
+  /* Phase 15: Animation tokens */
+  --transition-fast: 150ms ease-out;
+  --transition-standard: 200ms ease-out;
+  --transition-slow: 300ms ease-out;
+  --pulse-duration: 1500ms;
+
+  /* Phase 15: Additional spacing */
+  --space-3xl: 64px;
 }
 
 html, body {

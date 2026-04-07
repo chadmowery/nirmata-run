@@ -1,0 +1,85 @@
+.card {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0 var(--space-sm);
+  gap: var(--space-sm);
+  cursor: grab;
+  user-select: none;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+  position: relative;
+  overflow: hidden;
+}
+
+.card:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.dragging {
+  opacity: 0.3;
+  cursor: grabbing;
+}
+
+.iconContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.itemName {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-color);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+}
+
+.itemMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: var(--font-size-label);
+  opacity: 0.7;
+}
+
+.dot {
+  opacity: 0.5;
+}
+
+.rarityText {
+  letter-spacing: 0.05em;
+}
+
+.legacyTag {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: var(--vibrant-pink);
+  color: white;
+  font-size: 8px;
+  padding: 1px 4px;
+  font-weight: bold;
+}
+
+/* Rarity colors */
+.rarityCommon { border-left: 3px solid #ffffff; }
+.rarityUncommon { border-left: 3px solid var(--vibrant-cyan); }
+.rarityRare { border-left: 3px solid var(--vibrant-pink); }
+.rarityLegendary { border-left: 3px solid var(--safety-orange); }
+
+.rarityUncommon .iconContainer { color: var(--vibrant-cyan); }
+.rarityRare .iconContainer { color: var(--vibrant-pink); }
+.rarityLegendary .iconContainer { color: var(--safety-orange); }

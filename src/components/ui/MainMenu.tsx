@@ -10,36 +10,36 @@ export const MainMenu: React.FC = () => {
   const setGameStatus = useStore(gameStore, (s) => s.setGameStatus);
   const walletScrap = useStore(gameStore, (s) => s.walletScrap);
 
-  const handleStart = () => {
-    // Transition to Playing triggers engine initialization in page.tsx
-    setGameStatus(GameState.Playing);
+  const handleEnterDeck = () => {
+    // Transition to Hub instead of directly to Playing
+    setGameStatus(GameState.Hub);
   };
 
   return (
     <div className={styles.menuOverlay}>
       <div className={styles.titleContainer}>
-        <h1 className={styles.mainTitle}>FLASH_RUNNER</h1>
-        <p className={styles.subTitle}>v0.1.0 // ENGINE_READY</p>
+        <h1 className={styles.mainTitle}>NIRMATA_RUNNER</h1>
+        <p className={styles.subTitle}>v1.0.0 // NEURAL_LINK_ESTABLISHED</p>
         <div className={styles.walletDisplay}>
-          SCRAP_RESERVES: {walletScrap.toLocaleString()}
+          CREDITS: {walletScrap.toLocaleString()}
         </div>
       </div>
 
       <div className={styles.menuActions}>
         <button 
           className={styles.menuButton}
-          onClick={handleStart}
+          onClick={handleEnterDeck}
         >
-          Initialize Session
+          ENTER_NEURAL_DECK
         </button>
         
         <button className={styles.menuButton} disabled>
-          High Scores [OFFLINE]
+          WEEKLY_RESET [STANDBY]
         </button>
       </div>
 
       <div style={{ marginTop: '4rem', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
-        [PRESS ANY KEY TO START]
+        [PRESS ANY KEY TO LINK]
       </div>
     </div>
   );

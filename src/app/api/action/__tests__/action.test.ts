@@ -44,7 +44,7 @@ describe('Action API Route', () => {
     world.addComponent(playerId, Actor, { isPlayer: true });
     world.addComponent(playerId, Position, { x: 5, y: 5 });
     world.addComponent(playerId, Energy, { current: 100, speed: 10, threshold: 1000 });
-    world.addComponent(playerId, Health, { current: 10, max: 10 });
+    world.addComponent(playerId, Health, { current: 10, max: 10, isAlive: true });
     grid.addEntity(playerId, 5, 5);
 
     const movementSystem = createMovementSystem(world, grid, eventBus);
@@ -148,7 +148,7 @@ describe('Action API Route', () => {
     world.addComponent(enemyId, Actor, { isPlayer: false });
     world.addComponent(enemyId, Position, { x: 7, y: 7 });
     world.addComponent(enemyId, Energy, { current: 100, speed: 10, threshold: 1000 });
-    world.addComponent(enemyId, Health, { current: 5, max: 5 });
+    world.addComponent(enemyId, Health, { current: 5, max: 5, isAlive: true });
     grid.addEntity(enemyId, 7, 7);
 
     // Mock AI System

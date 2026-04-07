@@ -1,0 +1,125 @@
+.panelRoot {
+  display: flex;
+  gap: var(--space-xl);
+  min-height: 300px;
+}
+
+.column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.columnHeading {
+  font-size: var(--font-size-label);
+  color: var(--vibrant-cyan);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-md);
+  border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+  padding-bottom: var(--space-sm);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: var(--transition-fast);
+}
+
+.itemInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.itemName {
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--white);
+}
+
+.itemType {
+  font-size: var(--font-size-label);
+  color: var(--text-dim);
+}
+
+.compileButton {
+  background: transparent;
+  border: 1px solid var(--vibrant-cyan);
+  color: var(--vibrant-cyan);
+  padding: var(--space-xs) var(--space-sm);
+  font-size: var(--font-size-label);
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: var(--transition-fast);
+  font-family: inherit;
+}
+
+.compileButton:hover:not(:disabled) {
+  background: var(--vibrant-cyan);
+  color: var(--black);
+  box-shadow: 0 0 12px var(--vibrant-cyan);
+}
+
+.compileButtonDisabled {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-dim);
+  cursor: not-allowed;
+}
+
+.costInsufficient {
+  color: var(--vibrant-pink);
+}
+
+.status {
+  font-size: var(--font-size-label);
+  color: var(--vibrant-cyan);
+  text-transform: uppercase;
+}
+
+.emptyState {
+  padding: var(--space-lg);
+  color: var(--text-dim);
+  font-size: var(--font-size-label);
+  text-align: center;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.sliding {
+  animation: slideRight 300ms ease-out forwards;
+}
+
+@keyframes slideRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+.compileFlash {
+  animation: cyanFlash 300ms ease-out;
+}
+
+@keyframes cyanFlash {
+  0% {
+    background: var(--vibrant-cyan);
+    border-color: var(--vibrant-cyan);
+  }
+  100% {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.05);
+  }
+}

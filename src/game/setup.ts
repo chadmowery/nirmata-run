@@ -12,6 +12,7 @@ import { GameAction, DIRECTIONS, DEFAULT_BINDINGS, isFirmwareAction, getFirmware
 import { createTargetingManager } from './input/targeting';
 import { AbilityDef, FirmwareSlots, Position } from '@shared/components';
 import { ActionIntent } from '@shared/types';
+import { RunMode } from '@shared/run-mode';
 import { logger } from '@shared/utils/logger';
 import { AutoPathfinder } from './debug/auto-pathfind';
 import { useDebugStore } from './debug/debug-store';
@@ -22,6 +23,7 @@ export interface GameConfig {
   gridHeight: number;
   seed?: string;
   shellId?: string;
+  runMode?: RunMode;
 }
 
 import { globalShellRegistry } from './shells';
@@ -52,7 +54,8 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     seed,
     isClient: true,
     shellRecord,
-    sessionId: config.sessionId
+    sessionId: config.sessionId,
+    runMode: config.runMode
   });
 
   const { world, grid, eventBus, turnManager, entityFactory, systems, playerId } = instance;
@@ -88,6 +91,12 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
       onEnter: (ctx) => {
         ctx.inputManager.disable();
         ctx.eventBus.emit('STATE_TRANSITION', { newState: GameState.MainMenu });
+      },
+    },
+    [GameState.Hub]: {
+      onEnter: (ctx) => {
+        ctx.inputManager.disable();
+        ctx.eventBus.emit('STATE_TRANSITION', { newState: GameState.Hub });
       },
     },
     [GameState.Playing]: {

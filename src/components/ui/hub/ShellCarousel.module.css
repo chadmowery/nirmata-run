@@ -1,0 +1,41 @@
+.carousel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2xl);
+  width: 100%;
+  max-width: 800px;
+}
+
+.arrow {
+  background: transparent;
+  border: none;
+  color: var(--vibrant-cyan);
+  font-size: 2rem;
+  cursor: pointer;
+  padding: var(--space-md);
+  transition: var(--transition-fast);
+  text-shadow: 0 0 5px rgba(0, 240, 255, 0.2);
+}
+
+.arrow:hover:not(.disabled) {
+  text-shadow: 0 0 15px var(--vibrant-cyan);
+  transform: scale(1.1);
+}
+
+.arrow.disabled {
+  color: var(--text-dim);
+  opacity: 0.3;
+  cursor: default;
+}
+
+.cardContainer {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  transition: opacity 150ms ease-out;
+}
+
+.fade {
+  opacity: 0;
+}
