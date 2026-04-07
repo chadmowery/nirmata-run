@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { generateShopStock } from '../../../../game/systems/shop-rotation';
+import { VAULT_MAX_SLOTS, inferItemType } from '@/shared/vault';
+import { VaultItem } from '@/shared/profile';
 
 const PurchaseRequestSchema = z.object({
   sessionId: z.string(),
@@ -43,20 +45,36 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
+    // Check vault capacity per user requirement
+    if (profile.vault.length >= VAULT_MAX_SLOTS) {
+      return NextResponse.json({ 
+        error: 'Vault is full', 
+        capacity: VAULT_MAX_SLOTS 
+      }, { status: 400 });
+    }
+
     // Deduct
     profile.wallet.scrap -= item.price;
 
-    // Note: Purchase adds to profile-owned software or special list if needed.
-    // Per D-29, purchase returns Software item. 
-    // Usually this means it's available for the next run.
-    // We don't have a "software stash" in profile yet, but Plan 04 might add it.
-    // For now, we just deduct and return success.
+    // Persist purchased item to Vault
+    const now = Date.now();
+    const vaultItem: VaultItem = {
+      entityId: now,
+      templateId: item.templateId,
+      rarityTier: item.rarity,
+      itemType: inferItemType(item.templateId),
+      extractedAtFloor: 0, // 0 indicates Hub purchase
+      extractedAtTimestamp: now,
+    };
+
+    profile.vault.push(vaultItem);
 
     await profileRepository.save(profile);
 
     return NextResponse.json({
       success: true,
       purchased: item,
+      vaultItem, // Return the official VaultItem with the server-generated ID
       remainingScrap: profile.wallet.scrap
     });
 

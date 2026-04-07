@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 export const BlueprintEntrySchema = z.object({
   blueprintId: z.string(),
-  type: z.enum(['firmware', 'augment']),
+  type: z.enum(['firmware', 'augment', 'software']),
   compiledAt: z.number(),
 });
 
@@ -15,7 +15,7 @@ export const ShellUpgradesSchema = z.object({
 
 export const InstalledItemSchema = z.object({
   blueprintId: z.string(),
-  type: z.enum(['firmware', 'augment']),
+  type: z.enum(['firmware', 'augment', 'software']),
   shellId: z.string(),
   isLegacy: z.boolean().default(false),
 });

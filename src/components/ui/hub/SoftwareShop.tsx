@@ -32,7 +32,7 @@ const SoftwareShop: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
         
-        // Optimistic update
+        // Optimistic update using server data if available
         updateProfileOptimistic((p) => ({
           ...p,
           wallet: {
@@ -41,8 +41,8 @@ const SoftwareShop: React.FC = () => {
           },
           vault: [
             ...p.vault,
-            {
-              entityId: Date.now(), // Temporary ID
+            data.vaultItem || {
+              entityId: Date.now(), // Fallback (shouldn't happen with updated API)
               templateId,
               rarityTier: rarity,
               itemType: 'software',

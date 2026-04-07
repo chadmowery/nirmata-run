@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
+import { VAULT_MAX_SLOTS } from '@/shared/vault';
+import { VaultItem } from '@/shared/profile';
 
 const UninstallRequestSchema = z.object({
   sessionId: z.string(),
@@ -27,14 +29,35 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
-    const index = profile.installedItems.findIndex(i => i.blueprintId === blueprintId && i.shellId === shellId);
+    const index = profile.installedItems.findIndex(
+      i => i.blueprintId === blueprintId && i.shellId === shellId
+    );
 
     if (index === -1) {
       return NextResponse.json({ error: 'Item not installed on this Shell' }, { status: 400 });
     }
 
+    const item = profile.installedItems[index];
+
+    // Create a VaultItem to restore it
+    const restoredItem: VaultItem = {
+      entityId: Date.now(),
+      templateId: item.blueprintId,
+      rarityTier: 'common', // Default for uninstalled items unless we store more metadata
+      itemType: item.type as 'firmware' | 'augment' | 'software',
+      extractedAtFloor: 0, // 0 indicates Hub action
+      extractedAtTimestamp: Date.now(),
+    };
+
     // Remove from installed list
     profile.installedItems.splice(index, 1);
+
+    // Restore to Vault or Overflow
+    if (profile.vault.length < VAULT_MAX_SLOTS) {
+      profile.vault.push(restoredItem);
+    } else {
+      profile.overflow.push(restoredItem);
+    }
 
     await profileRepository.save(profile);
 
