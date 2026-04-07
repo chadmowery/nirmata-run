@@ -10,6 +10,11 @@ import { FloorState } from '@shared/components/floor-state';
 import { FirmwareSlots } from '@shared/components/firmware-slots';
 import { AugmentSlots } from '@shared/components/augment-slots';
 import { SoftwareSlots } from '@shared/components/software-slots';
+import { Heat } from '@shared/components/heat';
+import { Shell } from '@shared/components/shell';
+import { BurnedSoftware } from '@shared/components/burned-software';
+import { AbilityDef } from '@shared/components/ability-def';
+import { SoftwareDef } from '@shared/components/software-def';
 import { getDepthBand } from '../generation/dungeon-generator';
 import { runInventoryRegistry } from '../systems/run-inventory';
 
@@ -25,21 +30,53 @@ export function syncEngineToStore(context: GameContext) {
     const progression = world.getComponent(context.playerId, Progression);
     const stability = world.getComponent(context.playerId, Stability);
     const floorState = world.getComponent(context.playerId, FloorState);
+    const heat = world.getComponent(context.playerId, Heat);
+    const shell = world.getComponent(context.playerId, Shell);
+    const burned = world.getComponent(context.playerId, BurnedSoftware);
+    const fSlots = world.getComponent(context.playerId, FirmwareSlots);
 
     // New authoritative source for run currency
     const scrapAmount = context.sessionId 
       ? runInventoryRegistry.getCurrencyAmount(context.sessionId, 'scrap') 
       : 0;
 
-
-
     const store = gameStore.getState();
+
+    // Map Mods
+    const mods: string[] = [];
+    if (burned?.weapon) {
+      const sw = world.getComponent(burned.weapon, SoftwareDef);
+      if (sw) mods.push(sw.name);
+    }
+    if (burned?.armor) {
+      const sw = world.getComponent(burned.armor, SoftwareDef);
+      if (sw) mods.push(sw.name);
+    }
+
+    // Map Abilities
+    const abilities = (fSlots?.equipped || []).map((id, index) => {
+      const def = world.getComponent(id, AbilityDef);
+      return {
+        name: def?.name || 'Unknown',
+        slotIndex: index,
+        heatCost: def?.heatCost || 0,
+        range: def?.range || 0,
+        effectType: def?.effectType || 'none'
+      };
+    });
+
     store.updatePlayerStats({
       hp: health?.current ?? 0,
       maxHp: health?.max ?? 0,
       xp: progression?.xp ?? 0,
       level: progression?.level ?? 1,
+      heat: heat?.current ?? 0,
+      maxHeat: heat?.maxSafe ?? 100,
+      shellName: shell?.archetypeId || 'Default Shell',
+      mods,
     });
+
+    store.setAbilities(abilities);
 
     if (stability) {
       store.updateStability(stability.current, stability.max);
@@ -211,8 +248,8 @@ export function syncEngineToStore(context: GameContext) {
       });
     }
   });
-
-  // Staircase interaction - show overlay
+  
+  // Staircase interaction - show overlay (D-12)
   eventBus.on('STAIRCASE_INTERACTION', (event) => {
     if (event.entityId === context.playerId) {
       gameStore.getState().showStaircaseOverlay({
@@ -220,6 +257,19 @@ export function syncEngineToStore(context: GameContext) {
         staircaseId: event.staircaseId
       });
     }
+  });
+
+  // Targeting Listeners
+  eventBus.on('TARGETING_STARTED', (event) => {
+    gameStore.getState().setTargeting(true, event.firmwareSlotIndex, event.range);
+  });
+
+  eventBus.on('TARGETING_CONFIRMED', () => {
+    gameStore.getState().setTargeting(false, -1, 0);
+  });
+
+  eventBus.on('TARGETING_CANCELLED', () => {
+    gameStore.getState().setTargeting(false, -1, 0);
   });
 
   // Helper to process run ending (Shared by extraction and death)

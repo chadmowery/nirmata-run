@@ -20,6 +20,9 @@ import { AugmentSystem } from './systems/augment';
 import { PackCoordinatorSystem } from './systems/pack-coordinator';
 import { TileCorruptionSystem } from './systems/tile-corruption';
 import { RunEnderSystem } from './systems/run-ender';
+import { StabilitySystem } from './systems/stability';
+import { FloorManagerSystem } from './systems/floor-manager';
+import { AnchorInteractionSystem } from './systems/anchor-interaction';
 import { EntityFactory } from '@engine/entity/factory';
 import { AutoPathfinder } from './debug/auto-pathfind';
 
@@ -50,6 +53,9 @@ export interface GameContext {
   packCoordinatorSystem: PackCoordinatorSystem;
   tileCorruptionSystem: TileCorruptionSystem;
   runEnderSystem: RunEnderSystem;
+  stabilitySystem: StabilitySystem;
+  floorManagerSystem: FloorManagerSystem;
+  anchorInteractionSystem: AnchorInteractionSystem;
   entityFactory: EntityFactory;
   autoPathfinder?: AutoPathfinder;
   playerId?: EntityId;

@@ -191,6 +191,7 @@ export type DeltaPayload = {
   grid: Changeset;
   events?: Array<{ type: string; payload: unknown }>;
   turnNumber: number;
+  playerId: number;
   runInventory?: RunInventory; // Serialized RunInventory state
 };
 
@@ -200,6 +201,7 @@ export type FullSyncPayload = {
   grid: SerializedGrid;
   events?: Array<{ type: string; payload: unknown }>;
   turnNumber: number;
+  playerId: number;
   phase: TurnPhase;
   runInventory?: RunInventory; // Serialized RunInventory state
 };

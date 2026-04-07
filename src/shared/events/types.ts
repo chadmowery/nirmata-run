@@ -178,6 +178,15 @@ export interface GameplayEvents extends EngineEvents {
 
   /** Queued when player chooses to descend at an anchor. */
   ANCHOR_DESCEND: { anchorId: EntityId; cost: number };
+  
+  /** Queued when targeting mode starts. */
+  TARGETING_STARTED: { firmwareSlotIndex: number; range: number; playerX: number; playerY: number; effectType: string };
+  
+  /** Queued when targeting is confirmed. */
+  TARGETING_CONFIRMED: { targetX: number; targetY: number };
+  
+  /** Queued when targeting is cancelled. */
+  TARGETING_CANCELLED: Record<string, never>;
 
   /** Queued when an enemy teleports (e.g., Null-Pointer). */
   ENEMY_TELEPORTED: {
@@ -219,6 +228,38 @@ export interface GameplayEvents extends EngineEvents {
 
   /** Queued when the run inventory is synchronized from the server. */
   RUN_INVENTORY_SYNCED: { sessionId: string };
+
+  /** Queued when a dungeon is fully generated and populated. */
+  DUNGEON_GENERATED: { seed: string };
+
+  /** Queued when the game state machine transitions. */
+  STATE_TRANSITION: { newState: string };
+
+  /** Queued when the player's FOV is recalculated. */
+  FOV_UPDATED: { visibleSet: Set<string> };
+
+  /** Queued when a world-space filter should be applied (e.g., Anchor desaturation). */
+  APPLY_WORLD_FILTER: { filterType: 'grayscale' | 'desaturation'; amount?: number };
+
+  /** Queued when a world-space filter should be removed. */
+  REMOVE_WORLD_FILTER: { filterType: 'grayscale' | 'desaturation' };
+
+  /** Queued when the player makes a decision at an anchor (Extract or Descend). */
+  ANCHOR_DECISION_MADE: { 
+    decision: 'extract' | 'descend';
+    anchorId?: number;
+    descendCost?: number;
+    floorNumber?: number;
+  };
+
+  /** Queued when the player makes a decision at a staircase. */
+  STAIRCASE_DECISION_MADE: { confirmed: boolean; targetFloor: number; staircaseId: number };
+
+  /** Queued when a system requests the game to pause (e.g., UI dialog). */
+  GAME_PAUSE_REQUESTED: Record<string, never>;
+
+  /** Queued when a system requests the game to resume. */
+  GAME_RESUME_REQUESTED: Record<string, never>;
 }
 
 export interface RunEndedStats {

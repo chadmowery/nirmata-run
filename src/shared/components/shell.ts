@@ -7,6 +7,7 @@ import { defineComponent } from '@engine/ecs/types';
 export const Shell = defineComponent(
   'shell',
   z.object({
+    archetypeId: z.string(), // e.g., "striker-v1"
     speed: z.number().int().positive(),
     stability: z.number().int().min(0),
     armor: z.number().int().min(0),

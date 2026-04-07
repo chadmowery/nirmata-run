@@ -3,6 +3,7 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityId } from '@engine/ecs/types';
 import { TurnManager } from '@engine/turn/turn-manager';
+import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 import {
   AnchorMarker,
@@ -19,15 +20,15 @@ import {
 import { runInventoryRegistry } from './run-inventory';
 import depthConfig from '../generation/depth-config.json';
 
-export function createAnchorInteractionSystem(
-  world: World<GameEvents>,
+export function createAnchorInteractionSystem<T extends GameplayEvents = GameEvents>(
+  world: World<T>,
   grid: Grid,
-  eventBus: EventBus<GameEvents>,
-  turnManager: TurnManager<GameEvents>,
+  eventBus: EventBus<T>,
+  turnManager: TurnManager<T>,
   playerId: EntityId,
   sessionId?: string
 ) {
-  const handleEntityMoved = (payload: GameEvents['ENTITY_MOVED']) => {
+  const handleEntityMoved = (payload: T['ENTITY_MOVED']) => {
     if (payload.entityId !== playerId) return;
 
     const { toX, toY } = payload;
@@ -111,7 +112,7 @@ export function createAnchorInteractionSystem(
     });
   };
 
-  const handleAnchorDecisionMade = (payload: GameEvents['ANCHOR_DECISION_MADE']) => {
+  const handleAnchorDecisionMade = (payload: T['ANCHOR_DECISION_MADE']) => {
     eventBus.emit('REMOVE_WORLD_FILTER', { filterType: 'grayscale' });
     eventBus.emit('GAME_RESUME_REQUESTED', {});
 
@@ -137,7 +138,7 @@ export function createAnchorInteractionSystem(
     eventBus.flush();
   };
 
-  const handleStaircaseDecisionMade = (payload: GameEvents['STAIRCASE_DECISION_MADE']) => {
+  const handleStaircaseDecisionMade = (payload: T['STAIRCASE_DECISION_MADE']) => {
     eventBus.emit('GAME_RESUME_REQUESTED', {});
 
     if (payload.confirmed) {
@@ -165,4 +166,4 @@ export function createAnchorInteractionSystem(
   };
 }
 
-export type AnchorInteractionSystem = ReturnType<typeof createAnchorInteractionSystem>;
+export type AnchorInteractionSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createAnchorInteractionSystem<T>>;

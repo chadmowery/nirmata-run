@@ -129,22 +129,30 @@ export async function POST(req: Request) {
 
       const finalScrap = (payload.stats.scrapExtracted as number) || 0;
       const finalFlux = (payload.stats.fluxExtracted as number) || 0;
-      const itemsExtracted = (payload.stats.itemsExtracted as VaultItem[]) || [];
-      
-
       
       profile.wallet.scrap = Math.min(economy.caps.scrap, profile.wallet.scrap + finalScrap);
       profile.wallet.flux = Math.min(economy.caps.flux, profile.wallet.flux + finalFlux);
-      
 
-
-      // Store extracted items in overflow
-      if (itemsExtracted.length > 0) {
-        profile.overflow.push(...itemsExtracted);
+      if (payload.reason === 'extraction') {
+        // Extraction SUCCESS (D-09/D-13)
+        // Prioritize adding extracted items to the vault, then overflow
+        if (payload.stats.itemsExtracted && (payload.stats.itemsExtracted as VaultItem[]).length > 0) {
+          console.log(`[API] Processing extraction for ${sessionId}: ${(payload.stats.itemsExtracted as VaultItem[]).length} items.`);
+          
+          const VAULT_CAPACITY = 20;
+          const items = payload.stats.itemsExtracted as VaultItem[];
+          
+          for (const item of items) {
+            if (profile.vault.length < VAULT_CAPACITY) {
+              profile.vault.push(item);
+            } else {
+              profile.overflow.push(item);
+            }
+          }
+        }
       }
 
       await profileRepository.save(profile);
-
     }
 
     // 5. Snapshot final state
@@ -164,6 +172,7 @@ export async function POST(req: Request) {
         grid: newGridState,
         events: capturedEvents,
         turnNumber: turnManager.getTurnNumber(),
+        playerId: session.playerId,
         phase: turnManager.getPhase(),
         runInventory: runInventoryRegistry.getOrCreate(sessionId),
       };
@@ -175,6 +184,7 @@ export async function POST(req: Request) {
         grid: diff(oldGridState, newGridState),
         events: capturedEvents,
         turnNumber: turnManager.getTurnNumber(),
+        playerId: session.playerId,
         runInventory: runInventoryRegistry.getOrCreate(sessionId),
       };
     }

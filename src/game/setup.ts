@@ -83,6 +83,9 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     packCoordinatorSystem: systems.packCoordinator,
     tileCorruptionSystem: systems.tileCorruption,
     runEnderSystem: systems.runEnder,
+    stabilitySystem: systems.stability,
+    floorManagerSystem: systems.floorManager,
+    anchorInteractionSystem: systems.anchorInteraction,
   };
 
   const stateConfigs: Record<GameState, StateConfig<GameState, GameContext>> = {
@@ -222,11 +225,11 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   });
 
   async function handleConfirmedTarget(slotIndex: number, targetX: number, targetY: number) {
-    if (fsm.getCurrentState() === GameState.Playing && turnManager.canAcceptInput() && playerId) {
+    if (fsm.getCurrentState() === GameState.Playing && turnManager.canAcceptInput() && context.playerId) {
       // Submit action to engine
       // We encode targeting data into the action key for the TurnManager's playerActionHandler
       // though the prediction here calls firmwareSystem directly.
-      systems.firmware.activateAbility(playerId, slotIndex, targetX, targetY);
+      systems.firmware.activateAbility(context.playerId, slotIndex, targetX, targetY);
       turnManager.submitAction(`USE_FIRMWARE_${slotIndex}`);
 
       await sendActionToServer({
@@ -264,12 +267,13 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
     autoPathfinder.cancel();
 
-    if (fsm.getCurrentState() === GameState.Playing && turnManager.canAcceptInput() && playerId) {
+    const pId = context.playerId;
+    if (fsm.getCurrentState() === GameState.Playing && turnManager.canAcceptInput() && pId) {
       // Handle Firmware Actions with Targeting
       if (isFirmwareAction(action)) {
         const slotIndex = getFirmwareSlotIndex(action);
         if (slotIndex !== null) {
-          const slots = world.getComponent(playerId, FirmwareSlots);
+          const slots = world.getComponent(pId, FirmwareSlots);
           const firmwareId = slots?.equipped[slotIndex];
           if (firmwareId !== undefined) {
             const abilityDef = world.getComponent(firmwareId, AbilityDef);
@@ -277,7 +281,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
               if (abilityDef.effectType === 'toggle_vision') {
                 await handleConfirmedTarget(slotIndex, 0, 0);
               } else {
-                const pos = world.getComponent(playerId, Position);
+                const pos = world.getComponent(pId, Position);
                 if (pos) {
                   targetingManager.startTargeting(
                     slotIndex,
@@ -320,6 +324,8 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
         const serverState = result.payload;
         if (serverState) {
           const { applyStateDelta } = await import('@shared/reconciliation');
+          // Update playerId before applying delta so that events emitted during sync see the correct ID (D-05 regression)
+          context.playerId = serverState.playerId;
           applyStateDelta(world, grid, turnManager, eventBus, serverState);
 
           // Synchronize run inventory registry (D-05/D-06)

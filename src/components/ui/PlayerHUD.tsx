@@ -8,6 +8,8 @@ import { Heart, Trophy, Zap, Coins } from 'lucide-react';
 import { dispatchUIAction } from '@/game/input/input-bridge';
 import { GameAction } from '@/game/input/actions';
 import { StabilityBar } from './StabilityBar';
+import { HeatBar } from './HeatBar';
+import { AbilityBar } from './AbilityBar';
 
 export const PlayerHUD: React.FC = () => {
   const player = useStore(gameStore, (s) => s.player);
@@ -19,7 +21,9 @@ export const PlayerHUD: React.FC = () => {
 
   return (
     <div className={`${styles.terminalPanel} ${styles.statsPanel}`}>
-      <div className={styles.panelHeader}>Character Status</div>
+      <div className={styles.panelHeader}>
+        {player.shellName} // RUNTIME_STATUS
+      </div>
 
       {/* HP Bar */}
       <div className={styles.statRow}>
@@ -55,13 +59,27 @@ export const PlayerHUD: React.FC = () => {
         />
       </div>
 
-      {/* Scrap */}
       <div className={styles.statRow}>
         <span className={styles.statLabel}>
           <Coins size={14} className="inline mr-1" /> SCRAP
         </span>
         <span className={styles.statValue}>{scrap}</span>
       </div>
+
+      {/* Mods / Software Passive Effects */}
+      {player.mods.length > 0 && (
+        <div className={styles.modsContainer}>
+          <div className={styles.modsHeader}>ACTIVE_MODS</div>
+          <div className={styles.modsList}>
+            {player.mods.map((mod, i) => (
+              <span key={i} className={styles.modBadge}>{mod}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Heat Bar */}
+      <HeatBar />
 
       {/* Stability Bar */}
       <StabilityBar />
@@ -76,6 +94,9 @@ export const PlayerHUD: React.FC = () => {
           Wait
         </button>
       </div>
+
+      {/* Ability Bar */}
+      <AbilityBar />
     </div>
   );
 };

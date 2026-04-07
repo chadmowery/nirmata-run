@@ -29,6 +29,7 @@ import { generateDungeon } from './generation/dungeon-generator';
 import { placeEntities } from './generation/entity-placement';
 import RNG from 'rot-js/lib/rng';
 import { GameAction, DIRECTIONS, isFirmwareAction, getFirmwareSlotIndex } from './input/actions';
+import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from './events/types';
 import { Phase } from '../engine/ecs/types';
 
@@ -47,18 +48,18 @@ export interface EngineInitConfig {
   runMode?: RunMode;
 }
 
-export interface EngineInstance {
-  world: World<GameEvents>;
+export interface EngineInstance<T extends GameplayEvents = GameEvents> {
+  world: World<T>;
   grid: Grid;
-  eventBus: EventBus<GameEvents>;
-  turnManager: TurnManager<GameEvents>;
+  eventBus: EventBus<T>;
+  turnManager: TurnManager<T>;
   entityFactory: EntityFactory;
   playerId: number;
   sessionId?: string;
   systems: {
-    movement: ReturnType<typeof createMovementSystem<GameEvents>>;
-    combat: ReturnType<typeof createCombatSystem<GameEvents>>;
-    ai: ReturnType<typeof createAISystem<GameEvents>>;
+    movement: ReturnType<typeof createMovementSystem<T>>;
+    combat: ReturnType<typeof createCombatSystem<T>>;
+    ai: ReturnType<typeof createAISystem<T>>;
     deadZone: DeadZoneSystem;
     itemPickup: ItemPickupSystem;
     heat: HeatSystem;
@@ -67,11 +68,11 @@ export interface EngineInstance {
     kernelPanic: KernelPanicSystem;
     augment: AugmentSystem;
     packCoordinator: PackCoordinatorSystem;
-    tileCorruption: ReturnType<typeof createTileCorruptionSystem<GameEvents>>;
-    runEnder: ReturnType<typeof createRunEnderSystem<GameEvents>>;
-    stability: StabilitySystem;
-    floorManager: FloorManagerSystem;
-    anchorInteraction: AnchorInteractionSystem;
+    tileCorruption: ReturnType<typeof createTileCorruptionSystem<T>>;
+    runEnder: ReturnType<typeof createRunEnderSystem<T>>;
+    stability: StabilitySystem<T>;
+    floorManager: FloorManagerSystem<T>;
+    anchorInteraction: AnchorInteractionSystem<T>;
     currencyDrop: ReturnType<typeof createCurrencyDropSystem>;
   };
 }
@@ -80,7 +81,7 @@ export interface EngineInstance {
  * Creates and initializes a pure game engine instance.
  * Shared between client and server.
  */
-export function createEngineInstance(config: EngineInitConfig): EngineInstance {
+export function createEngineInstance(config: EngineInitConfig): EngineInstance<GameEvents> {
   const eventBus = new EventBus<GameEvents>();
   const world = new World<GameEvents>(eventBus);
 
@@ -166,6 +167,51 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
     'floorState': { currentFloor: 1, maxFloor: 15, runSeed: config.seed }
   };
 
+  // If a profile is provided, populate slots from installed items
+  if (config.profile) {
+    const activeShellId = config.shellRecord ? config.shellRecord.id : null;
+    
+    // Filter installed items for this specific shell
+    const items = config.profile.installedItems.filter(item => 
+      !activeShellId || item.shellId === activeShellId
+    );
+
+    const firmwareIds: number[] = [];
+    const softwareIds: number[] = [];
+    const augmentIds: number[] = [];
+    let weaponSoftwareId: number | null = null;
+    let armorSoftwareId: number | null = null;
+
+    for (const item of items) {
+      // Spawn the item entity (D-15/D-16 Fix)
+      const itemId = entityFactory.create(world, item.blueprintId, componentRegistry);
+
+      if (item.type === 'firmware') {
+        firmwareIds.push(itemId);
+      } else if (item.type === 'software') {
+        softwareIds.push(itemId);
+        // Map burned components for passive resolution
+        if (!item.isLegacy) {
+          weaponSoftwareId = itemId;
+        } else {
+          armorSoftwareId = itemId;
+        }
+      } else if (item.type === 'augment') {
+        augmentIds.push(itemId);
+      }
+    }
+
+    playerOverrides['firmwareSlots'] = { equipped: firmwareIds };
+    playerOverrides['softwareSlots'] = { equipped: softwareIds };
+    playerOverrides['augmentSlots'] = { equipped: augmentIds };
+
+    // Populate "BurnedSoftware" component for passive software effects
+    playerOverrides['burnedSoftware'] = {
+      weapon: weaponSoftwareId,
+      armor: armorSoftwareId,
+    };
+  }
+
   if (config.shellRecord) {
     const { currentStats, portConfig } = config.shellRecord;
     playerOverrides['health'] = { max: currentStats.maxHealth, current: currentStats.maxHealth } as unknown as Record<string, unknown>;
@@ -173,10 +219,17 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
     playerOverrides['energy'] = { speed: currentStats.speed } as unknown as Record<string, unknown>;
 
     // Core Shell Components
-    playerOverrides['shell'] = currentStats as unknown as Record<string, unknown>;
+    playerOverrides['shell'] = { 
+      archetypeId: config.shellRecord.archetypeId,
+      ...currentStats 
+    } as unknown as Record<string, unknown>;
     playerOverrides['portConfig'] = portConfig as unknown as Record<string, unknown>;
-    playerOverrides['firmwareSlots'] = { equipped: [] };
-    playerOverrides['softwareSlots'] = { equipped: [] };
+    
+    // Heat dissipation scales with shell stability
+    playerOverrides['heat'] = { 
+      ...playerOverrides['heat'],
+      baseDissipation: 5 + (currentStats.stability * 0.1) // Every 10 stability adds 1 dissipation
+    };
   }
 
   const placement = placeEntities(
@@ -199,8 +252,6 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
     placement.playerId,
     config.isClient
   );
-  floorManagerSystem.init();
-
   const anchorInteractionSystem = createAnchorInteractionSystem(
     world,
     grid,
@@ -209,6 +260,18 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance {
     placement.playerId,
     config.sessionId
   );
+
+  // Initialize All Systems
+  heatSystem.init();
+  statusEffectSystem.init();
+  firmwareSystem.init();
+  kernelPanicSystem.init();
+  augmentSystem.init();
+  packCoordinatorSystem.init();
+  tileCorruptionSystem.init();
+  runEnderSystem.init();
+  stabilitySystem.init();
+  floorManagerSystem.init();
   anchorInteractionSystem.init();
 
   // Turn Manager Handlers

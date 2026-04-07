@@ -1,5 +1,6 @@
 import { applyChangeset } from 'json-diff-ts';
 import { World } from '../engine/ecs/world';
+import { FloorState } from './components/floor-state';
 import { Grid } from '../engine/grid/grid';
 import { TurnManager } from '../engine/turn/turn-manager';
 import { EventBus } from '../engine/events/event-bus';
@@ -18,7 +19,7 @@ export function applyStateDelta<T extends GameplayEvents>(
   turnManager: TurnManager<T>,
   eventBus: EventBus<T>,
   payload: SyncPayload
-): void {
+): number {
   // Set context to server for incoming truth events
   const previousOrigin = EventOriginContext.current;
   EventOriginContext.current = 'server';
@@ -31,6 +32,11 @@ export function applyStateDelta<T extends GameplayEvents>(
   // 2. Authoritative Grid Update
   if (payload.type === 'FULL') {
     grid.loadSerializableTiles(payload.grid.tiles);
+    
+    // Emit DUNGEON_GENERATED to clear old sprites and reset camera
+    const floorState = world.getComponent(payload.playerId, FloorState);
+    const floorSeed = floorState ? `${floorState.runSeed}_floor_${floorState.currentFloor}` : 'reconciled-seed';
+    eventBus.emit('DUNGEON_GENERATED' as any, { seed: floorSeed } as any);
   } else {
     // Grid still uses incremental diffs as it is a stable 1D array of primitives
     const currentGrid = serializeGrid(grid);
@@ -53,4 +59,6 @@ export function applyStateDelta<T extends GameplayEvents>(
   // 5. Finalize turn reconciliation
   eventBus.flush();
   EventOriginContext.current = previousOrigin;
+
+  return payload.playerId;
 }

@@ -101,7 +101,7 @@ export default function GamePage() {
         world: context.world,
         eventBus: context.eventBus,
         getGrid: () => context.grid,
-        getPlayerEntity: () => context.playerId!,
+        getPlayerEntity: () => contextRef.current?.playerId || 0,
         lightPasses: (x: number, y: number) => context.grid.isTransparent(x, y),
       });
 

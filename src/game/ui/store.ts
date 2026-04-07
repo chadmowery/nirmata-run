@@ -32,6 +32,18 @@ export interface PlayerStats {
   xp: number;
   level: number;
   statuses: string[];
+  heat: number;
+  maxHeat: number;
+  shellName: string;
+  mods: string[];
+}
+
+export interface AbilityData {
+  name: string;
+  slotIndex: number;
+  heatCost: number;
+  range: number;
+  effectType: string;
 }
 
 export interface VisibleEntity {
@@ -115,6 +127,12 @@ export interface UIState {
   overflowCount: number;
   launchConfig: { mode: RunMode; seed: string; sessionId: string } | null;
 
+  // New gameplay feedback fields
+  abilities: AbilityData[];
+  targetingActive: boolean;
+  targetingSlotIndex: number;
+  targetingRange: number;
+
   // Actions
   updatePlayerStats: (stats: Partial<PlayerStats>) => void;
   addMessage: (text: string, type: MessageType) => void;
@@ -156,6 +174,8 @@ export interface UIState {
   setLaunchConfig: (config: { mode: RunMode; seed: string; sessionId: string } | null) => void;
   updateProfileOptimistic: (updater: (profile: PlayerProfile) => PlayerProfile) => void;
   resetHubState: () => void;
+  setAbilities: (abilities: AbilityData[]) => void;
+  setTargeting: (active: boolean, slotIndex: number, range: number) => void;
 }
 
 const MAX_MESSAGES = 50;
@@ -167,6 +187,10 @@ export const gameStore = createStore<UIState>((set) => ({
     xp: 0,
     level: 1,
     statuses: [],
+    heat: 0,
+    maxHeat: 100,
+    shellName: 'None',
+    mods: [],
   },
   messages: [],
   gameStatus: GameState.MainMenu,
@@ -209,6 +233,10 @@ export const gameStore = createStore<UIState>((set) => ({
   hasOverflow: false,
   overflowCount: 0,
   launchConfig: null,
+  abilities: [],
+  targetingActive: false,
+  targetingSlotIndex: -1,
+  targetingRange: 0,
 
   updatePlayerStats: (stats) => 
     set((state) => ({
@@ -316,6 +344,10 @@ export const gameStore = createStore<UIState>((set) => ({
       xp: 0,
       level: 1,
       statuses: [],
+      heat: 0,
+      maxHeat: 100,
+      shellName: 'None',
+      mods: [],
     },
     stability: 100,
     currentFloor: 1,
@@ -367,4 +399,7 @@ export const gameStore = createStore<UIState>((set) => ({
     ritualActive: false,
     bootSequenceActive: false,
   }),
+  setAbilities: (abilities) => set({ abilities }),
+  setTargeting: (active, slotIndex, range) => 
+    set({ targetingActive: active, targetingSlotIndex: slotIndex, targetingRange: range }),
 }));

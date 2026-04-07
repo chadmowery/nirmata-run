@@ -6,6 +6,7 @@ import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
 import { FloorState, FloorStateData } from '@shared/components/floor-state';
 import { Position, PositionData } from '@shared/components/position';
+import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 import { generateDungeon, getDepthBand } from '../generation/dungeon-generator';
 import { placeEntities } from '../generation/entity-placement';
@@ -16,10 +17,10 @@ import RNG from 'rot-js/lib/rng';
  * The FloorManagerSystem orchestrates transitions between floors.
  * It handles destroying entities, regenerating the grid, and re-placing the player.
  */
-export function createFloorManagerSystem(
-  world: World<GameEvents>,
+export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
+  world: World<T>,
   grid: Grid,
-  eventBus: EventBus<GameEvents>,
+  eventBus: EventBus<T>,
   entityFactory: EntityFactory,
   componentRegistry: ComponentRegistry,
   playerId: EntityId,
@@ -126,4 +127,4 @@ export function createFloorManagerSystem(
   };
 }
 
-export type FloorManagerSystem = ReturnType<typeof createFloorManagerSystem>;
+export type FloorManagerSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createFloorManagerSystem<T>>;

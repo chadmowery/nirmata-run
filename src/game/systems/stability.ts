@@ -5,6 +5,7 @@ import { Stability, StabilityData } from '@shared/components/stability';
 import { Health, HealthData } from '@shared/components/health';
 import { Actor } from '@shared/components/actor';
 import { GameplayEvents } from '@shared/events/types';
+import { GameEvents } from '../events/types';
 import { EventOriginContext } from '@shared/utils/event-context';
 
 /**
@@ -97,7 +98,7 @@ export function createStabilitySystem<T extends GameplayEvents>(
     const stability = world.getComponent<StabilityData>(entityId, Stability);
     const health = world.getComponent<HealthData>(entityId, Health);
 
-    if (!stability || !health || stability.current > 0) return;
+    if (!stability || !health || stability.current > 0 || health.current <= 0) return;
 
     health.current = Math.max(0, health.current - config.degradedDamagePerTurn);
 
@@ -149,4 +150,4 @@ export function createStabilitySystem<T extends GameplayEvents>(
   };
 }
 
-export type StabilitySystem = ReturnType<typeof createStabilitySystem>;
+export type StabilitySystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createStabilitySystem<T>>;
