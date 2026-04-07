@@ -14,6 +14,7 @@ export const ShellUpgradesSchema = z.object({
 });
 
 export const InstalledItemSchema = z.object({
+  entityId: z.number(),
   blueprintId: z.string(),
   type: z.enum(['firmware', 'augment', 'software']),
   shellId: z.string(),

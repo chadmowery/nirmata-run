@@ -39,9 +39,9 @@ export async function POST(req: Request) {
 
     const item = profile.installedItems[index];
 
-    // Create a VaultItem to restore it
+    // Create a VaultItem to restore it, preserving the existing entityId
     const restoredItem: VaultItem = {
-      entityId: Date.now(),
+      entityId: item.entityId || Date.now(), // Fallback for legacy items without an ID
       templateId: item.blueprintId,
       rarityTier: 'common', // Default for uninstalled items unless we store more metadata
       itemType: item.type as 'firmware' | 'augment' | 'software',

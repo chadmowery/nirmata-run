@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import { ShellTemplate } from '@/game/shells/types';
-import { VaultItem, InstalledItem, PlayerProfile } from '@/shared/profile';
+import { VaultItem, InstalledItem } from '@/shared/profile';
 import { LoadoutSlotPanel } from './LoadoutSlotPanel';
 import { StashItemList } from './StashItemList';
 import styles from './LoadoutTab.module.css';
@@ -12,8 +12,7 @@ export const LoadoutTab: React.FC = () => {
   const playerProfile = useStore(gameStore, (s) => s.playerProfile);
   const selectedShellIndex = useStore(gameStore, (s) => s.selectedShellIndex);
   const draggedItem = useStore(gameStore, (s) => s.draggedItem);
-  const dragOverSlot = useStore(gameStore, (s) => s.dragOverSlot);
-  
+
   // Store actions
   const setDraggedItem = useStore(gameStore, (s) => s.setDraggedItem);
   const setDragOverSlot = useStore(gameStore, (s) => s.setDragOverSlot);
@@ -60,28 +59,22 @@ export const LoadoutTab: React.FC = () => {
 
   const handleDragStartFromSlot = (item: InstalledItem) => {
     // Treat as "uninstall" drag
-    // We don't have a full VaultItem here, but we can set enough info for the store if needed
-    // or handle it via a specialized state if unequip drag is different.
-    // For now, let's just use a dummy VaultItem or extend the store to handle unequip drag.
-    // The plan says setDraggedItem in store.
-    // Let's create a partial VaultItem for unequip drag if needed, or just track it separately.
-    // Actually, let's just set it to null and use a separate state if needed, 
-    // but the plan says "setDraggedItem in store".
-    // If it's from a slot, it's an InstalledItem.
-    // Let's assume draggedItem can be either? No, store says VaultItem | null.
-    // I'll use a type cast or a dummy for now to indicate something is being dragged.
+    // We now have a real entityId on InstalledItems to preserve identity (D-15)
+    // We use a synthetic VaultItem but marked with a unique timestamp to distinguish from shop items
     setDraggedItem({
-      entityId: -1, // Special ID for unequip drag
+      entityId: item.entityId,
       templateId: item.blueprintId,
-      itemType: item.type as any,
+      itemType: item.type,
       rarityTier: 'common',
       extractedAtFloor: 0,
-      extractedAtTimestamp: 0
+      extractedAtTimestamp: -1 // Special marker for "dragging from slot"
     });
   };
 
   const handleSlotDrop = async (slotType: string, slotIndex: number) => {
-    if (!draggedItem || draggedItem.entityId === -1) return;
+    // Current inventory system is list-based, but we receive slot metadata for future coordinate-based placement.
+    console.debug(`[Loadout] Dropping into ${slotType}:${slotIndex}`);
+    if (!draggedItem || draggedItem.extractedAtTimestamp === -1) return;
 
     const sessionId = playerProfile.sessionId;
     const entityId = draggedItem.entityId;
@@ -91,10 +84,15 @@ export const LoadoutTab: React.FC = () => {
     const previousProfile = { ...playerProfile };
     
     updateProfileOptimistic((prev) => {
+      // Only move if it's currently in the vault
+      const isInVault = prev.vault.some(item => item.entityId === entityId);
+      if (!isInVault) return prev;
+
       const newVault = prev.vault.filter(item => item.entityId !== entityId);
       const newInstalled = [...prev.installedItems, {
+        entityId, // Preserve existing ID
         blueprintId: draggedItem.templateId,
-        type: draggedItem.itemType as 'firmware' | 'augment',
+        type: draggedItem.itemType as 'firmware' | 'augment' | 'software',
         shellId,
         isLegacy: false
       }];
@@ -123,9 +121,10 @@ export const LoadoutTab: React.FC = () => {
 
   const handleStashDrop = async () => {
     // If we're dragging an equipped item to the stash, unequip it
-    if (!draggedItem || draggedItem.entityId !== -1) return;
+    if (!draggedItem || draggedItem.extractedAtTimestamp !== -1) return;
 
     const blueprintId = draggedItem.templateId;
+    const entityId = draggedItem.entityId; // Real persistent ID
     const shellId = activeShellId;
     const sessionId = playerProfile.sessionId;
 
@@ -133,15 +132,13 @@ export const LoadoutTab: React.FC = () => {
     const previousProfile = { ...playerProfile };
     updateProfileOptimistic((prev) => {
       const newInstalled = prev.installedItems.filter(
-        i => !(i.blueprintId === blueprintId && i.shellId === shellId)
+        i => !(i.entityId === entityId && i.shellId === shellId)
       );
-      // For unequip, we might want to move it back to vault.
-      // Since we lost the original VaultItem data, we'll recreate a basic one.
-      // In a real system, we'd probably keep the original entityId.
+      // For unequip, move it back to vault preserving the real entityId
       const restoredItem: VaultItem = {
-        entityId: Date.now(), // Temporary ID
+        entityId: entityId,
         templateId: blueprintId,
-        itemType: draggedItem.itemType as any,
+        itemType: draggedItem.itemType as 'firmware' | 'augment' | 'software',
         rarityTier: 'common',
         extractedAtFloor: 1,
         extractedAtTimestamp: Date.now()
@@ -174,7 +171,7 @@ export const LoadoutTab: React.FC = () => {
   };
 
   return (
-    <div className={styles.loadoutRoot} onMouseUp={() => { if(draggedItem?.entityId === -1) handleStashDrop(); }}>
+    <div className={styles.loadoutRoot} onMouseUp={() => { if(draggedItem?.extractedAtTimestamp === -1) handleStashDrop(); }}>
       <div className={styles.slotPanel}>
         <h2 className={styles.heading}>PORT_CONFIGURATION</h2>
         <LoadoutSlotPanel 
@@ -191,7 +188,7 @@ export const LoadoutTab: React.FC = () => {
         <StashItemList 
           items={vaultItems}
           activeFilter={activeFilter}
-          onFilterChange={(f) => setActiveFilter(f as any)}
+          onFilterChange={(f) => setActiveFilter(f as 'all' | 'firmware' | 'augment' | 'software')}
           onDragStart={handleDragStartFromStash}
         />
       </div>

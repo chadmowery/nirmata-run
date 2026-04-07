@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
     const item = profile.vault[vaultIndex];
     // 2. Add to installedItems
     profile.installedItems.push({
+      entityId: item.entityId, // Preserve the authoritative entityId
       blueprintId: item.templateId, // Using templateId as blueprintId for now
       type: item.itemType as 'firmware' | 'augment' | 'software',
       shellId,

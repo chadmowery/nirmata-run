@@ -49,6 +49,7 @@ export async function POST(req: Request) {
     // Deduct and install
     profile.wallet.scrap -= cost;
     profile.installedItems.push({
+      entityId: Date.now(), // Generate unique ID for the new installation instance
       blueprintId,
       type,
       shellId,
