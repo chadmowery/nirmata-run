@@ -7,6 +7,7 @@ import { GameEvents } from '../events/types';
 import { LootTable, Position, Actor } from '@shared/components';
 import economyRaw from '../entities/templates/economy.json';
 import { EconomyConfig, BlueprintDropConfig, DropRateConfig } from '@shared/economy-types';
+import { logger } from '@/shared/utils/logger';
 
 const economy = economyRaw as unknown as EconomyConfig;
 
@@ -40,6 +41,7 @@ export function createCurrencyDropSystem(
       if (scrapConfig && Math.random() <= scrapConfig.chance) {
         const amount = Math.floor(Math.random() * (scrapConfig.max - scrapConfig.min + 1)) + scrapConfig.min;
         spawnCurrency(world, 'scrap', amount, pos.x, pos.y);
+        logger.info(`[CurrencyDropSystem] Dropped scrap: ${amount}`);
       }
 
       // 2. Roll for Flux
@@ -47,11 +49,12 @@ export function createCurrencyDropSystem(
       if (fluxConfig && Math.random() <= fluxConfig.chance) {
         const amount = Math.floor(Math.random() * (fluxConfig.max - fluxConfig.min + 1)) + fluxConfig.min;
         spawnCurrency(world, 'flux', amount, pos.x, pos.y);
+        logger.info(`[CurrencyDropSystem] Dropped flux: ${amount}`);
       }
 
       // 3. Roll for Blueprint
       const blueprintConfig = economy.currencyDrops.blueprint[tierKey] as BlueprintDropConfig | undefined;
-      if (blueprintConfig && Math.random() <= blueprintConfig.chance) {
+      if (blueprintConfig && Math.random() <= 1.0) { // blueprintConfig.chance) {
         // Select a random blueprint from a pool
         // Using hardcoded pool of existing firmware/augment template names as per plan
         const blueprintPool = [
@@ -66,6 +69,7 @@ export function createCurrencyDropSystem(
         const blueprintType = blueprintId.endsWith('.arc') ? 'augment' : 'firmware';
 
         spawnCurrency(world, 'blueprint', 1, pos.x, pos.y, { blueprintId, blueprintType });
+        logger.info(`[CurrencyDropSystem] Dropped blueprint: ${blueprintId}`);
       }
     });
   };

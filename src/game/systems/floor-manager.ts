@@ -6,6 +6,9 @@ import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
 import { FloorState, FloorStateData } from '@shared/components/floor-state';
 import { Position, PositionData } from '@shared/components/position';
+import { FirmwareSlots } from '@shared/components/firmware-slots';
+import { AugmentSlots } from '@shared/components/augment-slots';
+import { SoftwareSlots } from '@shared/components/software-slots';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 import { generateDungeon, getDepthBand } from '../generation/dungeon-generator';
@@ -33,8 +36,19 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
     // 1. Snapshot all entity IDs to avoid modification-during-iteration issues
     const entities = [...world.query()];
 
-    // 2. Destroy all non-player entities
-    entities.filter(id => id !== playerId).forEach(id => world.destroyEntity(id));
+    // 2. Identify and preserve player equipment entities (D-15 Equipment Persistence)
+    const protectedEntities = new Set<EntityId>([playerId]);
+    
+    const fSlots = world.getComponent(playerId, FirmwareSlots);
+    const aSlots = world.getComponent(playerId, AugmentSlots);
+    const sSlots = world.getComponent(playerId, SoftwareSlots);
+
+    if (fSlots) fSlots.equipped.forEach(id => protectedEntities.add(id));
+    if (aSlots) aSlots.equipped.forEach(id => protectedEntities.add(id));
+    if (sSlots) sSlots.equipped.forEach(id => protectedEntities.add(id));
+
+    // 3. Destroy all non-protected entities
+    entities.filter(id => !protectedEntities.has(id)).forEach(id => world.destroyEntity(id));
 
     // 3. Clear the grid
     grid.clear();

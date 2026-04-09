@@ -41,6 +41,7 @@ export function createFirmwareSystem<T extends GameplayEvents>(
         return false;
       }
 
+      console.log(`[FirmwareSystem] Activating ability in slot ${slotIndex} for entity ${entityId} at (${targetX}, ${targetY})`);
       const firmwareId = slots.equipped[slotIndex];
       const abilityDef = world.getComponent(firmwareId, AbilityDef);
       if (!abilityDef) {

@@ -132,6 +132,8 @@ export interface UIState {
   targetingActive: boolean;
   targetingSlotIndex: number;
   targetingRange: number;
+  targetingX: number;
+  targetingY: number;
 
   // Actions
   updatePlayerStats: (stats: Partial<PlayerStats>) => void;
@@ -175,7 +177,8 @@ export interface UIState {
   updateProfileOptimistic: (updater: (profile: PlayerProfile) => PlayerProfile) => void;
   resetHubState: () => void;
   setAbilities: (abilities: AbilityData[]) => void;
-  setTargeting: (active: boolean, slotIndex: number, range: number) => void;
+  setTargeting: (active: boolean, slotIndex: number, range: number, x?: number, y?: number) => void;
+  updateTargetingCursor: (x: number, y: number) => void;
 }
 
 const MAX_MESSAGES = 50;
@@ -237,6 +240,8 @@ export const gameStore = createStore<UIState>((set) => ({
   targetingActive: false,
   targetingSlotIndex: -1,
   targetingRange: 0,
+  targetingX: 0,
+  targetingY: 0,
 
   updatePlayerStats: (stats) => 
     set((state) => ({
@@ -400,6 +405,13 @@ export const gameStore = createStore<UIState>((set) => ({
     bootSequenceActive: false,
   }),
   setAbilities: (abilities) => set({ abilities }),
-  setTargeting: (active, slotIndex, range) => 
-    set({ targetingActive: active, targetingSlotIndex: slotIndex, targetingRange: range }),
+  setTargeting: (active, slotIndex, range, x = 0, y = 0) => 
+    set({ 
+      targetingActive: active, 
+      targetingSlotIndex: slotIndex, 
+      targetingRange: range,
+      targetingX: x,
+      targetingY: y
+    }),
+  updateTargetingCursor: (x, y) => set({ targetingX: x, targetingY: y }),
 }));

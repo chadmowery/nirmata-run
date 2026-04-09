@@ -53,8 +53,13 @@ export class EventBus<TEventMap extends Record<string, any>> {
    * Queue an event to be processed on the next flush.
    */
   emit<K extends keyof TEventMap>(type: K, event: TEventMap[K]): void {
-    // Audit emission on server terminal
-    if (typeof window === 'undefined') {
+    // 1. Audit emission
+    const isServer = typeof window === 'undefined';
+    const isDebugEnabled = isServer 
+      ? process.env.DEBUG_EVENTS === 'true'
+      : (window as any).DEBUG_EVENTS === true;
+
+    if (isDebugEnabled || isServer) {
       console.log(`[EventBus] emit: ${type as string}`);
     }
 

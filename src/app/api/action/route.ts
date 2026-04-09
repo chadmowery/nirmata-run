@@ -23,6 +23,7 @@ export async function POST(req: Request) {
     }
 
     const { sessionId, action } = result.data;
+    logger.info(`[API] Processing action: ${action.type} for session: ${sessionId}`);
     const session = sessionManager.getSession<GameplayEvents, EngineInstance['systems']>(sessionId);
     if (!session) {
       logger.warn(`[API] Session NOT FOUND: ${sessionId}`);
@@ -176,8 +177,9 @@ export async function POST(req: Request) {
         phase: turnManager.getPhase(),
         runInventory: runInventoryRegistry.getOrCreate(sessionId),
       };
+      logger.info(`[API] Sending FULL state sync (Massive Change: ${isMassiveChange}).`);
     } else {
-      logger.info(`[API] sending DELTA state sync.`);
+      logger.info(`[API] Sending DELTA state sync.`);
       syncPayload = {
         type: 'DELTA',
         world: newWorldState,

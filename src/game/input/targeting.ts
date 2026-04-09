@@ -87,8 +87,8 @@ export function createTargetingManager(
       state.cursorX = newX;
       state.cursorY = newY;
 
-      // Note: Added to types.ts in later phase if needed, using as any for now
-      // Actually let's just emit confirm/cancel as per plan
+      eventBus.emit('TARGETING_CURSOR_MOVED', { x: newX, y: newY });
+      eventBus.flush();
     },
 
     confirm() {

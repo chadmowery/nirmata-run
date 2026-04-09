@@ -188,6 +188,9 @@ export interface GameplayEvents extends EngineEvents {
   /** Queued when targeting is cancelled. */
   TARGETING_CANCELLED: Record<string, never>;
 
+  /** Queued when the targeting cursor moves. */
+  TARGETING_CURSOR_MOVED: { x: number; y: number };
+
   /** Queued when an enemy teleports (e.g., Null-Pointer). */
   ENEMY_TELEPORTED: {
     entityId: EntityId;

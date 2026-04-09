@@ -261,7 +261,17 @@ export function syncEngineToStore(context: GameContext) {
 
   // Targeting Listeners
   eventBus.on('TARGETING_STARTED', (event) => {
-    gameStore.getState().setTargeting(true, event.firmwareSlotIndex, event.range);
+    gameStore.getState().setTargeting(
+      true, 
+      event.firmwareSlotIndex, 
+      event.range, 
+      event.playerX, 
+      event.playerY
+    );
+  });
+
+  eventBus.on('TARGETING_CURSOR_MOVED', (event) => {
+    gameStore.getState().updateTargetingCursor(event.x, event.y);
   });
 
   eventBus.on('TARGETING_CONFIRMED', () => {

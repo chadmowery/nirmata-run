@@ -1,4 +1,4 @@
-import { Application, Ticker } from 'pixi.js';
+import { Application, Ticker, Graphics } from 'pixi.js';
 import { World } from '../engine/ecs/world';
 import { EventBus } from '../engine/events/event-bus';
 import { GameEvents } from '../game/events/types';
@@ -7,6 +7,9 @@ import { EntityId } from '../engine/ecs/types';
 import { Position } from '@shared/components/position';
 import { SpriteComponent } from '@shared/components/sprite';
 import { Actor } from '@shared/components/actor';
+import { AbilityDef } from '@shared/components/ability-def';
+import { FirmwareSlots } from '@shared/components/firmware-slots';
+import { gameStore } from '../game/ui/store';
 import { WorldLayers } from './layers';
 import { TILE_SIZE, FOV_RADIUS } from './constants';
 import { computeFov, createExploredSet, isEntityVisible, getEntityVisibilityType, clearExplored } from './fov';
@@ -38,6 +41,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
   const { app, layers, world, eventBus, getGrid, getPlayerEntity, lightPasses } = config;
   const exploredSet = createExploredSet();
   let cameraTarget = { x: 0, y: 0 };
+  const targetingCursor = new Graphics();
+  layers.effectsLayer.addChild(targetingCursor);
 
   const handleEntityCreated = (payload: { entityId: EntityId }) => {
     const spriteComp = world.getComponent(payload.entityId, SpriteComponent);
@@ -145,9 +150,69 @@ export function createRenderSystem(config: RenderSystemConfig) {
       const playerPos = world.getComponent(playerEntity, Position);
       if (!playerPos) return;
 
-      // 1. FOV
-      const fovSet = computeFov(playerPos.x, playerPos.y, FOV_RADIUS, lightPasses, exploredSet);
+      // 1. Dynamic FOV (D-15 Extended Sight Logic)
+      let effectiveRadius = FOV_RADIUS;
+      const fSlots = world.getComponent(playerEntity, FirmwareSlots);
+      if (fSlots) {
+        for (const firmwareId of fSlots.equipped) {
+          const abilityDef = world.getComponent(firmwareId, AbilityDef);
+          if (abilityDef && abilityDef.effectType === 'toggle_vision' && abilityDef.isActive) {
+            effectiveRadius = Math.max(effectiveRadius, abilityDef.visionRadius);
+          }
+        }
+      }
+
+      const fovSet = computeFov(playerPos.x, playerPos.y, effectiveRadius, lightPasses, exploredSet);
       eventBus.emit('FOV_UPDATED', { visibleSet: fovSet });
+
+      // 1.5. Targeting UI Rendering
+      const storeState = gameStore.getState();
+      targetingCursor.clear();
+      if (storeState.targetingActive) {
+        const tx = storeState.targetingX * TILE_SIZE;
+        const ty = storeState.targetingY * TILE_SIZE;
+        
+        // Render range indicator (pulsing ring)
+        if (storeState.targetingRange > 0) {
+          targetingCursor.lineStyle(2, 0x00ffff, 0.3);
+          targetingCursor.drawCircle(
+            playerPos.x * TILE_SIZE + TILE_SIZE/2, 
+            playerPos.y * TILE_SIZE + TILE_SIZE/2, 
+            storeState.targetingRange * TILE_SIZE
+          );
+        }
+
+        // Render target tile highlight
+        targetingCursor.lineStyle(2, 0x00ffff, 0.8);
+        targetingCursor.beginFill(0x00ffff, 0.2);
+        targetingCursor.drawRect(tx, ty, TILE_SIZE, TILE_SIZE);
+        targetingCursor.endFill();
+
+        // Corner brackets for "hacking" aesthetic
+        const margin = 4;
+        const len = 8;
+        targetingCursor.lineStyle(2, 0x00ffff, 1.0);
+        
+        // Top Left
+        targetingCursor.moveTo(tx + margin, ty + margin + len);
+        targetingCursor.lineTo(tx + margin, ty + margin);
+        targetingCursor.lineTo(tx + margin + len, ty + margin);
+        
+        // Top Right
+        targetingCursor.moveTo(tx + TILE_SIZE - margin - len, ty + margin);
+        targetingCursor.lineTo(tx + TILE_SIZE - margin, ty + margin);
+        targetingCursor.lineTo(tx + TILE_SIZE - margin, ty + margin + len);
+        
+        // Bottom Right
+        targetingCursor.moveTo(tx + TILE_SIZE - margin, ty + TILE_SIZE - margin - len);
+        targetingCursor.lineTo(tx + TILE_SIZE - margin, ty + TILE_SIZE - margin);
+        targetingCursor.lineTo(tx + TILE_SIZE - margin - len, ty + TILE_SIZE - margin);
+        
+        // Bottom Left
+        targetingCursor.moveTo(tx + margin + len, ty + TILE_SIZE - margin);
+        targetingCursor.lineTo(tx + margin, ty + TILE_SIZE - margin);
+        targetingCursor.lineTo(tx + margin, ty + TILE_SIZE - margin - len);
+      }
 
       // 2. Camera
       cameraTarget = computeCameraTarget(playerPos.x, playerPos.y);
