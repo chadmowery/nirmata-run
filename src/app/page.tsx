@@ -17,6 +17,7 @@ import { StaircaseOverlay } from '@/components/ui/StaircaseOverlay';
 import { BSODScreen } from '@/components/ui/BSODScreen';
 import { RunResultsScreen } from '@/components/ui/RunResultsScreen';
 import { HubLayout } from '@/components/ui/hub/HubLayout';
+import { DevTerminal } from '@/components/ui/DevTerminal';
 import { GameContext } from '@/game/types';
 import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT } from '@/shared/constants';
 
@@ -178,6 +179,8 @@ export default function GamePage() {
             {runResultsVisible && <RunResultsScreen />}
           </>
         )}
+        
+        {process.env.NODE_ENV === 'development' && <DevTerminal />}
       </div>
     </main>
   );

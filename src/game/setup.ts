@@ -17,6 +17,13 @@ import { logger } from '@shared/utils/logger';
 import { AutoPathfinder } from './debug/auto-pathfind';
 import { useDebugStore } from './debug/debug-store';
 import { EventOriginContext } from '@shared/utils/event-context';
+import { DebugAPI } from './debug/debug-api';
+
+declare global {
+  interface Window {
+    __DEBUG__?: DebugAPI;
+  }
+}
 
 export interface GameConfig {
   gridWidth: number;
@@ -165,6 +172,10 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   };
 
   fsm.setContext(context);
+
+  if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+    window.__DEBUG__ = new DebugAPI(context, (intent) => sendActionToServer(intent));
+  }
 
   syncEngineToStore(context);
 

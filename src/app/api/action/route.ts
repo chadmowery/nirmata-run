@@ -12,6 +12,7 @@ import { createDefaultProfile, VaultItem } from '@shared/profile';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { runInventoryRegistry } from '@game/systems/run-inventory';
 import economy from '@game/entities/templates/economy.json';
+import { handleServerDebugCommand } from '@game/debug/server-debug-handler';
 
 export async function POST(req: Request) {
 
@@ -29,6 +30,8 @@ export async function POST(req: Request) {
       logger.warn(`[API] Session NOT FOUND: ${sessionId}`);
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
+
+    console.log(`[API] Session Found for ${sessionId}. PlayerId: ${session.playerId}`);
 
     const { world, grid, turnManager, eventBus } = session;
 
@@ -102,6 +105,10 @@ export async function POST(req: Request) {
 
       case 'ANCHOR_EXTRACT':
         eventBus.emit('ANCHOR_EXTRACT', {});
+        break;
+
+      case 'DEBUG_COMMAND':
+        handleServerDebugCommand(world, eventBus, session.playerId, sessionId, action.command, action.args);
         break;
     }
 

@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import crypto from 'crypto';
 import { PlayerProfile, PlayerProfileSchema, ProfileRepository } from '@/shared/profile';
 
 const PROFILES_DIR = path.join(process.cwd(), 'data', 'profiles');
@@ -25,10 +26,20 @@ export class FSProfileRepository implements ProfileRepository {
   async save(profile: PlayerProfile): Promise<void> {
     await fs.mkdir(PROFILES_DIR, { recursive: true });
     const filePath = path.join(PROFILES_DIR, `${profile.sessionId}.json`);
-    const tempPath = `${filePath}.tmp`;
+    const tempPath = `${filePath}.${crypto.randomUUID()}.tmp`;
     
-    await fs.writeFile(tempPath, JSON.stringify(profile, null, 2), 'utf-8');
-    await fs.rename(tempPath, filePath);
+    try {
+      await fs.writeFile(tempPath, JSON.stringify(profile, null, 2), 'utf-8');
+      await fs.rename(tempPath, filePath);
+    } catch (error) {
+      // Cleanup temp file if rename fails
+      try {
+        await fs.unlink(tempPath);
+      } catch (unlinkError) {
+        // Ignore unlink errors
+      }
+      throw error;
+    }
   }
 }
 
