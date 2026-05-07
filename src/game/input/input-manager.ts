@@ -53,9 +53,16 @@ export class InputManager {
       // Ignore if a request is pending
       if (this.isRequestPending) return;
 
+      // Construct the lookup key including modifiers
+      let lookupKey = event.code;
+      if (event.shiftKey) lookupKey = `Shift+${lookupKey}`;
+      if (event.ctrlKey) lookupKey = `Control+${lookupKey}`;
+      if (event.altKey) lookupKey = `Alt+${lookupKey}`;
+      if (event.metaKey) lookupKey = `Meta+${lookupKey}`;
+
       // Handle targeting mode interception
       if (this.targetingManager?.isActive()) {
-        const action = this.bindings.get(event.code);
+        const action = this.bindings.get(event.code); // Target mode still uses raw codes for movement
         
         // Map movement keys to cursor movement
         if (action && isMovementAction(action)) {
@@ -83,7 +90,7 @@ export class InputManager {
         return;
       }
 
-      const action = this.bindings.get(event.code);
+      const action = this.bindings.get(lookupKey) || this.bindings.get(event.code);
       if (action && this.handler) {
         // Prevent default browser behavior for mapped keys (e.g., arrow scrolling)
         event.preventDefault();

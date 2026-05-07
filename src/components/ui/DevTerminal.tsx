@@ -8,8 +8,8 @@ export function DevTerminal() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Toggle on backtick
-      if (e.key === '`') {
+      // Toggle on backtick (without shift)
+      if (e.key === '`' && !e.shiftKey) {
         e.preventDefault();
         setIsVisible(prev => !prev);
         return;

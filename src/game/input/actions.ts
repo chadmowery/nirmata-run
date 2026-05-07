@@ -51,7 +51,7 @@ export const DEFAULT_BINDINGS: Record<string, GameAction> = {
   Digit3: GameAction.USE_FIRMWARE_2,
   KeyV: GameAction.VENT,
   KeyP: GameAction.DEBUG_PATHFIND_ANCHOR,
-  Backquote: GameAction.DEBUG_TOGGLE_TIMELINE,
+  'Shift+Backquote': GameAction.DEBUG_TOGGLE_TIMELINE,
 };
 
 /**
