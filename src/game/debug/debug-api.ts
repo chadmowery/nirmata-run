@@ -112,14 +112,14 @@ export class DebugAPI {
   /**
    * Forces a floor transition descent.
    */
-  async descend() {
+  async descend(count: number = 1) {
     // We already have a STAIRCASE_DESCEND intent, but for debug we might want to force it
     await this.sendAction({
       type: 'DEBUG_COMMAND',
       command: 'DESCEND',
-      args: {},
+      args: { count },
     });
-    console.log(`[DEBUG] Requested forced descend`);
+    console.log(`[DEBUG] Requested forced descend of ${count} floors`);
   }
 
   /**

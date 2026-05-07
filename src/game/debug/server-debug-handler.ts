@@ -1,6 +1,6 @@
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
-import { Health, Heat, Stability, Position, Actor } from '@shared/components';
+import { Health, Heat, Stability, Position, Actor, FloorState } from '@shared/components';
 import { EntityId } from '@engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
 import { runInventoryRegistry } from '../systems/run-inventory';
@@ -170,10 +170,17 @@ export function handleServerDebugCommand(
     }
 
     case 'DESCEND': {
+      const count = Number(args.count) || 1;
+      const floorState = world.getComponent(playerId, FloorState);
+      const nextFloor = (floorState?.currentFloor ?? 1) + count;
+      const seed = floorState?.runSeed ?? 'debug';
+      
+      console.log(`[DEBUG-SERVER] Forcing descent of ${count} floors to floor ${nextFloor} (Seed: ${seed})`);
+      
       eventBus.emit('STAIRCASE_DESCEND_TRIGGERED', {
         entityId: playerId,
-        targetFloor: 2, // Arbitrary
-        runSeed: 'debug',
+        targetFloor: nextFloor,
+        runSeed: seed,
       });
       break;
     }

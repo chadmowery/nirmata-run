@@ -90,7 +90,7 @@ export function DevTerminal() {
           else if (args[1] === 'blueprint') window.__DEBUG__.giveBlueprint(args[2]);
           break;
         case '/descend':
-          window.__DEBUG__.descend();
+          window.__DEBUG__.descend(Number(args[1]) || 1);
           break;
         case '/deadzone':
           window.__DEBUG__.deadzone();
@@ -111,7 +111,7 @@ export function DevTerminal() {
             { text: '  /stability [amount] - Set player stability', type: 'output' },
             { text: '  /status [effect] [duration] - Apply status effect', type: 'output' },
             { text: '  /give [scrap|flux|blueprint] [amount|id] - Grant currency or items', type: 'output' },
-            { text: '  /descend - Force floor transition', type: 'output' },
+            { text: '  /descend [count] - Force floor transition (descends [count] floors)', type: 'output' },
             { text: '  /deadzone - Spawn deadzone at player position', type: 'output' },
             { text: '  /clearsessions - Clear all server sessions', type: 'output' },
             { text: '  /close - Close this terminal', type: 'output' },
