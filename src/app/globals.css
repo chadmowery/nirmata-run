@@ -179,3 +179,125 @@ canvas {
   95% { opacity: 0.1; }
   100% { opacity: 0.1; }
 }
+/* Dev Terminal Modal */
+.dev-terminal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.dev-terminal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
+}
+
+.dev-terminal-modal {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  background: #000;
+  border: 2px solid var(--border-color);
+  box-shadow: 0 0 30px rgba(0, 255, 65, 0.2);
+  display: flex;
+  flex-direction: column;
+  font-family: 'Courier New', Courier, monospace;
+  pointer-events: auto;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.dev-terminal-header {
+  background: var(--border-color);
+  color: #000;
+  padding: 4px 16px;
+  font-size: 10px;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-transform: uppercase;
+}
+
+.dev-terminal-content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dev-terminal-history {
+  height: 200px;
+  overflow-y: auto;
+  border: 1px solid rgba(0, 255, 65, 0.1);
+  background: rgba(0, 20, 0, 0.3);
+  padding: 8px;
+  font-size: 13px;
+}
+
+.dev-terminal-history-item {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.dev-terminal-history-index {
+  color: var(--text-dim);
+  opacity: 0.5;
+}
+
+.dev-terminal-input-container {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 255, 65, 0.05);
+  border: 1px solid rgba(0, 255, 65, 0.3);
+  padding: 8px;
+  transition: all 0.2s ease;
+}
+
+.dev-terminal-input-container:focus-within {
+  border-color: var(--text-bright);
+  background: rgba(0, 255, 65, 0.1);
+}
+
+.dev-terminal-prompt {
+  color: var(--text-color);
+  font-weight: bold;
+  margin-right: 12px;
+}
+
+.dev-terminal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-color);
+  font-size: 16px;
+  width: 100%;
+}
+
+.dev-terminal-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-top: -8px;
+}
+
+/* Custom scrollbar for terminal */
+.dev-terminal-history::-webkit-scrollbar {
+  width: 4px;
+}
+.dev-terminal-history::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+.dev-terminal-history::-webkit-scrollbar-thumb {
+  background: var(--text-dim);
+}

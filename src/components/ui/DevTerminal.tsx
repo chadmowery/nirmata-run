@@ -15,6 +15,13 @@ export function DevTerminal() {
         return;
       }
 
+      // Close on Escape if visible
+      if (e.key === 'Escape' && isVisible) {
+        e.preventDefault();
+        setIsVisible(false);
+        return;
+      }
+
       // If visible, stop propagation so engine doesn't catch it
       if (isVisible) {
         e.stopPropagation();
@@ -97,29 +104,59 @@ export function DevTerminal() {
   if (!isVisible) return null;
 
   return (
-    <div className="absolute top-0 left-0 w-full bg-black/80 text-green-400 p-2 font-mono z-50 border-b border-green-500/50 backdrop-blur-sm shadow-[0_0_15px_rgba(0,255,0,0.2)]">
-      <div className="text-xs text-green-500/70 mb-1 flex justify-between">
-        <span>NIRMATA DEBUG TERMINAL v1.0</span>
-        <span>Press ` to close</span>
+    <div className="dev-terminal-overlay">
+      <div className="dev-terminal-backdrop" onClick={() => setIsVisible(false)} />
+      
+      <div className="dev-terminal-modal">
+        {/* Header */}
+        <div className="dev-terminal-header">
+          <span>NIRMATA_RUN // AUTH_DEBUG_TERMINAL</span>
+          <span>ESC OR ` TO CLOSE</span>
+        </div>
+
+        {/* Content Area */}
+        <div className="dev-terminal-content">
+          {/* History Scrollback */}
+          <div className="dev-terminal-history">
+            {history.length === 0 ? (
+              <div style={{ color: 'rgba(0, 255, 65, 0.3)', fontStyle: 'italic' }}>
+                No command history in current session...
+              </div>
+            ) : (
+              history.map((h, i) => (
+                <div key={i} className="dev-terminal-history-item">
+                  <span className="dev-terminal-history-index">[{i.toString().padStart(3, '0')}]</span>
+                  <span className="dev-terminal-command">&gt; {h}</span>
+                </div>
+              ))
+            )}
+            <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
+          </div>
+
+          {/* Input Area */}
+          <div className="dev-terminal-input-container">
+            <span className="dev-terminal-prompt">&gt;</span>
+            <form onSubmit={handleSubmit} style={{ flex: 1 }}>
+              <input
+                id="dev-console"
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                className="dev-terminal-input"
+                placeholder="ENTER COMMAND (e.g. /heat 100, /hp 50...)"
+                autoComplete="off"
+                spellCheck="false"
+              />
+            </form>
+          </div>
+          
+          <div className="dev-terminal-footer">
+            <span>SESSION_ID: {window.localStorage.getItem('nimrata_sessionId')?.slice(0,8) || 'ANON'}</span>
+            <span>SYSTEM_READY: OK</span>
+          </div>
+        </div>
       </div>
-      <div className="max-h-32 overflow-y-auto mb-2 space-y-1 text-sm">
-        {history.slice(-5).map((h, i) => (
-          <div key={i} className="opacity-70">&gt; {h}</div>
-        ))}
-      </div>
-      <form onSubmit={handleSubmit} className="flex items-center">
-        <span className="mr-2 font-bold">&gt;</span>
-        <input
-          id="dev-console"
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          className="flex-1 bg-transparent border-none outline-none text-green-400 placeholder-green-700/50"
-          placeholder="e.g. /heat 100, /give scrap 50, /panic 2"
-          autoComplete="off"
-        />
-      </form>
     </div>
   );
 }
