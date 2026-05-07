@@ -35,6 +35,7 @@ export class ShellRegistry {
       level: 1,
       currentStats: { ...template.baseStats },
       portConfig: { ...template.basePorts },
+      starterLoadout: template.starterLoadout ? [...template.starterLoadout] : undefined,
     };
 
     this.records.set(id, record);
@@ -93,7 +94,8 @@ export class ShellRegistry {
         archetypeId: t.id,
         level: 1,
         currentStats: { ...t.baseStats },
-        portConfig: { ...t.basePorts }
+        portConfig: { ...t.basePorts },
+        starterLoadout: t.starterLoadout ? [...t.starterLoadout] : undefined
       }));
     }
 
@@ -120,7 +122,8 @@ export class ShellRegistry {
         archetypeId: t.id,
         level: 1,
         currentStats: { ...t.baseStats },
-        portConfig: { ...t.basePorts }
-    }));
+        portConfig: { ...t.basePorts },
+        starterLoadout: t.starterLoadout ? [...t.starterLoadout] : undefined
+      }));
   }
 }

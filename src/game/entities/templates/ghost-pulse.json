@@ -1,0 +1,19 @@
+{
+  "name": "ghost-pulse",
+  "sprite": { "key": "item_ghost_pulse" },
+  "components": {
+    "abilityDef": {
+      "name": "GHOST_PULSE.exe",
+      "heatCost": 30,
+      "range": 5,
+      "effectType": "vision_pulse",
+      "damageAmount": 0,
+      "dashDistance": 0,
+      "visionRadius": 10,
+      "heatPerTurn": 0,
+      "isToggle": false,
+      "isActive": false,
+      "isLegacy": false
+    }
+  }
+}

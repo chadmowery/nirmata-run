@@ -528,3 +528,50 @@
   color: #ffccdd;
   font-weight: bold;
 }
+
+/* Heat Tier Animations (per VIS-03, D-02) */
+@keyframes hudJitter {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-1px, -1px); }
+  20% { transform: translate(1px, 0); }
+  30% { transform: translate(0, 1px); }
+  40% { transform: translate(-1px, 1px); }
+  50% { transform: translate(1px, -1px); }
+  60% { transform: translate(-1px, 0); }
+  70% { transform: translate(0, -1px); }
+  80% { transform: translate(1px, 1px); }
+  90% { transform: translate(-1px, -1px); }
+}
+
+.heatTierClean {}
+
+.heatTierJitter {
+  animation: hudJitter 0.1s infinite;
+}
+
+.heatTierGhosting {
+  animation: hudJitter 0.08s infinite;
+}
+
+.heatTierInversion {
+  animation: hudJitter 0.06s infinite;
+}
+
+.heatTierScreenTear {
+  animation: hudJitter 0.04s infinite;
+}
+
+.heatTierGrayscale {
+  animation: hudJitter 0.03s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heatTierJitter,
+  .heatTierGhosting,
+  .heatTierInversion,
+  .heatTierScreenTear,
+  .heatTierGrayscale {
+    animation: none;
+  }
+}
+

@@ -6,7 +6,7 @@ import { RunMode } from '@/shared/run-mode';
 import { ShellTemplate } from '@/game/shells/types';
 
 export type GameStatus = GameState;
-export type MessageType = 'info' | 'combat' | 'error';
+export type MessageType = 'info' | 'combat' | 'error' | 'warning';
 
 export type HubTab = 'shell' | 'loadout' | 'workshop' | 'vault' | 'initialize';
 
@@ -108,6 +108,11 @@ export interface UIState {
   runResults: RunResultsData | null;
   bsodVisible: boolean;
   bsodReason: string;
+  
+  // Phase 16: Heat tiers
+  heatTier: number;         // 0-5 current visual tier
+  heatValue: number;        // raw Heat value for display
+  heatMaxSafe: number;      // maxSafe threshold
 
   // Phase 15: Hub state
   activeTab: HubTab;
@@ -179,6 +184,7 @@ export interface UIState {
   setAbilities: (abilities: AbilityData[]) => void;
   setTargeting: (active: boolean, slotIndex: number, range: number, x?: number, y?: number) => void;
   updateTargetingCursor: (x: number, y: number) => void;
+  updateHeatTier: (tier: number, value: number, maxSafe: number) => void;
 }
 
 const MAX_MESSAGES = 50;
@@ -242,6 +248,9 @@ export const gameStore = createStore<UIState>((set) => ({
   targetingRange: 0,
   targetingX: 0,
   targetingY: 0,
+  heatTier: 0,
+  heatValue: 0,
+  heatMaxSafe: 100,
 
   updatePlayerStats: (stats) => 
     set((state) => ({
@@ -360,6 +369,9 @@ export const gameStore = createStore<UIState>((set) => ({
     runResultsVisible: false,
     bsodVisible: false,
     bsodReason: '',
+    heatTier: 0,
+    heatValue: 0,
+    heatMaxSafe: 100,
   }),
 
   // Phase 15: Hub actions
@@ -414,4 +426,5 @@ export const gameStore = createStore<UIState>((set) => ({
       targetingY: y
     }),
   updateTargetingCursor: (x, y) => set({ targetingX: x, targetingY: y }),
+  updateHeatTier: (tier, value, maxSafe) => set({ heatTier: tier, heatValue: value, heatMaxSafe: maxSafe }),
 }));

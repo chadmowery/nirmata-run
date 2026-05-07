@@ -6,10 +6,23 @@ describe('UI Store', () => {
   beforeEach(() => {
     // Reset store state before each test
     gameStore.setState({
-      player: { hp: 0, maxHp: 0, xp: 0, level: 1, statuses: [] },
+      player: { 
+        hp: 0, 
+        maxHp: 0, 
+        xp: 0, 
+        level: 1, 
+        statuses: [], 
+        heat: 0, 
+        maxHeat: 100, 
+        shellName: 'None', 
+        mods: [] 
+      },
       messages: [],
       gameStatus: GameState.Loading,
       visibleEntities: [],
+      heatTier: 0,
+      heatValue: 0,
+      heatMaxSafe: 100,
     });
   });
 

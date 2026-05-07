@@ -38,7 +38,7 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
 
   const applyEffect = (
     entityId: EntityId,
-    effect: { name: string; duration: number; magnitude?: number; source?: string },
+    effect: { name: string; duration: number; magnitude?: number; severity?: string; source?: string },
   ) => {
     console.log(`[StatusEffectSystem] Applying ${effect.name} to entity ${entityId} (Duration: ${effect.duration}, Source: ${effect.source ?? 'unknown'})`);
     let statusEffects = world.getComponent(entityId, StatusEffects);
@@ -51,6 +51,7 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
       name: effect.name,
       duration: effect.duration,
       magnitude: effect.magnitude ?? 0,
+      severity: effect.severity,
       source: effect.source,
     };
 
@@ -61,6 +62,7 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
       effectName: newEffect.name,
       duration: newEffect.duration,
       magnitude: newEffect.magnitude,
+      severity: newEffect.severity,
       source: newEffect.source ?? 'unknown',
     });
 

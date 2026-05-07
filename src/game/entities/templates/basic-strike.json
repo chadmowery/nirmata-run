@@ -1,0 +1,19 @@
+{
+  "name": "basic-strike",
+  "sprite": { "key": "item_basic_strike" },
+  "components": {
+    "abilityDef": {
+      "name": "BASIC_STRIKE.exe",
+      "heatCost": 15,
+      "range": 1,
+      "effectType": "melee_attack",
+      "damageAmount": 8,
+      "dashDistance": 0,
+      "visionRadius": 0,
+      "heatPerTurn": 0,
+      "isToggle": false,
+      "isActive": false,
+      "isLegacy": false
+    }
+  }
+}

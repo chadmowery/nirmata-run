@@ -1,7 +1,7 @@
 import { ShellRegistry } from './shell-registry';
-import striker from './templates/striker-v1.json';
+import vanguard from './templates/vanguard-v1.json';
+import ghost from './templates/ghost-v1.json';
 import bastion from './templates/bastion-v1.json';
-import signal from './templates/signal-v1.json';
 
 /**
  * Global registry for Shell archetypes and records.
@@ -9,6 +9,6 @@ import signal from './templates/signal-v1.json';
 export const globalShellRegistry = new ShellRegistry();
 
 // Register starter shells
-globalShellRegistry.register(striker);
-globalShellRegistry.register(bastion);
-globalShellRegistry.register(signal);
+globalShellRegistry.register(vanguard as any);
+globalShellRegistry.register(ghost as any);
+globalShellRegistry.register(bastion as any);

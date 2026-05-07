@@ -1,0 +1,19 @@
+{
+  "name": "kinetic-link",
+  "sprite": { "key": "item_kinetic_link" },
+  "components": {
+    "abilityDef": {
+      "name": "KINETIC_LINK.exe",
+      "heatCost": 25,
+      "range": 4,
+      "effectType": "dash_attack",
+      "damageAmount": 5,
+      "dashDistance": 3,
+      "visionRadius": 0,
+      "heatPerTurn": 0,
+      "isToggle": false,
+      "isActive": false,
+      "isLegacy": false
+    }
+  }
+}

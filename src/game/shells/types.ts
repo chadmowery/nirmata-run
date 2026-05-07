@@ -35,6 +35,7 @@ export interface ShellTemplate {
   baseStats: ShellStats;
   basePorts: PortConfig;
   upgrades: ShellUpgrade[];
+  starterLoadout?: string[];
 }
 
 /**
@@ -46,4 +47,5 @@ export interface ShellRecord {
   level: number;
   currentStats: ShellStats;
   portConfig: PortConfig;
+  starterLoadout?: string[];
 }

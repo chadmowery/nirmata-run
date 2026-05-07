@@ -15,6 +15,8 @@ export const StatusEffects = defineComponent(
         duration: z.number().int().min(0),
         /** Optional numerical value (e.g., strength of slow/debuff). */
         magnitude: z.number().default(0),
+        /** Optional severity level. */
+        severity: z.string().optional(),
         /** Optional source entity ID or name. */
         source: z.string().optional(),
       }),

@@ -1,0 +1,17 @@
+{
+  "id": "vanguard-v1",
+  "name": "VANGUARD-v1",
+  "baseStats": {
+    "speed": 120,
+    "stability": 5,
+    "armor": 2,
+    "maxHealth": 20
+  },
+  "basePorts": {
+    "maxFirmware": 2,
+    "maxAugment": 1,
+    "maxSoftware": 2
+  },
+  "upgrades": [],
+  "starterLoadout": ["basic-strike", "kinetic-link"]
+}

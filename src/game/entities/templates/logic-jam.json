@@ -1,0 +1,19 @@
+{
+  "name": "logic-jam",
+  "sprite": { "key": "item_logic_jam" },
+  "components": {
+    "abilityDef": {
+      "name": "LOGIC_JAM.exe",
+      "heatCost": 20,
+      "range": 3,
+      "effectType": "stun",
+      "damageAmount": 0,
+      "dashDistance": 0,
+      "visionRadius": 0,
+      "heatPerTurn": 0,
+      "isToggle": false,
+      "isActive": false,
+      "isLegacy": false
+    }
+  }
+}

@@ -18,6 +18,7 @@ import { SoftwareDef } from '@shared/components/software-def';
 import { StatusEffects } from '@shared/components/status-effects';
 import { getDepthBand } from '../generation/dungeon-generator';
 import { runInventoryRegistry } from '../systems/run-inventory';
+import { getHeatTier } from '../config/heat-tiers';
 
 export function syncEngineToStore(context: GameContext) {
   const { eventBus, world } = context;
@@ -217,6 +218,11 @@ export function syncEngineToStore(context: GameContext) {
       if (event.newHeat > peakHeat) {
         peakHeat = event.newHeat;
       }
+      
+      // Calculate and sync Heat tier
+      const tier = getHeatTier(event.newHeat);
+      gameStore.getState().updateHeatTier(tier.tier, event.newHeat, event.maxSafe);
+      
       refreshPlayerStats();
     }
   });

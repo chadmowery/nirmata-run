@@ -211,9 +211,29 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     };
   }
 
+  // Phase 16: Starter Loadout fallback (D-02, D-04)
+  const hasEquippedItems = ((playerOverrides['firmwareSlots'] as any)?.equipped?.length || 0) > 0 ||
+                          ((playerOverrides['softwareSlots'] as any)?.equipped?.length || 0) > 0 ||
+                          ((playerOverrides['augmentSlots'] as any)?.equipped?.length || 0) > 0;
+
+  if (!hasEquippedItems && config.shellRecord?.starterLoadout) {
+    const firmwareIds: number[] = [];
+    
+    for (const itemBlueprintId of config.shellRecord.starterLoadout) {
+      // Spawn the starter item
+      const itemId = entityFactory.create(world, itemBlueprintId, componentRegistry);
+      
+      // For now, starter items are assumed to be firmware (per PRD archetypes)
+      // but we could check the template type if needed.
+      firmwareIds.push(itemId);
+    }
+    
+    playerOverrides['firmwareSlots'] = { equipped: firmwareIds };
+  }
+
   if (config.shellRecord) {
     const { currentStats, portConfig } = config.shellRecord;
-    playerOverrides['health'] = { max: currentStats.maxHealth, current: currentStats.maxHealth } as unknown as Record<string, unknown>;
+    playerOverrides['health'] = { max: currentStats.maxHealth, current: currentStats.maxHealth, isAlive: true } as unknown as Record<string, unknown>;
     playerOverrides['defense'] = { armor: currentStats.armor } as unknown as Record<string, unknown>;
     playerOverrides['energy'] = { speed: currentStats.speed } as unknown as Record<string, unknown>;
 

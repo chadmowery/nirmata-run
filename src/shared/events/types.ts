@@ -38,7 +38,7 @@ export interface GameplayEvents extends EngineEvents {
   XP_GAINED: { entityId: EntityId; amount: number };
 
   /** Queued to emit a message (e.g., to the UI log). */
-  MESSAGE_EMITTED: { text: string; type: 'info' | 'combat' | 'error' };
+  MESSAGE_EMITTED: { text: string; type: 'info' | 'combat' | 'error' | 'warning' };
 
   /** Queued when an entity's shell stats are updated. */
   SHELL_STATS_CHANGED: { entityId: EntityId; shellId: string };
@@ -84,6 +84,7 @@ export interface GameplayEvents extends EngineEvents {
     effectName: string;
     duration: number;
     magnitude: number;
+    severity?: string;
     source: string;
   };
 

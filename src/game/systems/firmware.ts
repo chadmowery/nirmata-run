@@ -67,11 +67,13 @@ export function createFirmwareSystem<T extends GameplayEvents>(
       const dy = Math.abs(targetY - pos.y);
       const distance = dx + dy; // Manhattan distance
 
-      if (abilityDef.effectType === 'dash') {
+      if (abilityDef.effectType === 'dash' || abilityDef.effectType === 'dash_attack') {
         if (distance > abilityDef.dashDistance) return false;
         // Dash can target empty space or any tile (ignores collision)
       } else if (abilityDef.effectType === 'ranged_attack') {
         if (distance > abilityDef.range) return false;
+      } else if (abilityDef.effectType === 'melee_attack') {
+        if (distance > 1) return false; // Strict range 1 for melee
       }
 
       // 2. Heat cost
@@ -79,7 +81,7 @@ export function createFirmwareSystem<T extends GameplayEvents>(
       heatSystem.addHeat(entityId, effectiveHeatCost);
 
       // 3. Resolve effect
-      if (abilityDef.effectType === 'dash') {
+      if (abilityDef.effectType === 'dash' || abilityDef.effectType === 'dash_attack') {
         const oldX = pos.x;
         const oldY = pos.y;
 
@@ -103,7 +105,25 @@ export function createFirmwareSystem<T extends GameplayEvents>(
           type: 'info'
         });
 
-      } else if (abilityDef.effectType === 'ranged_attack') {
+        // For dash_attack, also check for targets at destination
+        if (abilityDef.effectType === 'dash_attack') {
+          const targets = grid.getEntitiesAt(targetX, targetY);
+          for (const targetId of targets) {
+            if (targetId === entityId) continue;
+            // Simple damage for now
+            const targetHealth = world.getComponent(targetId, Health);
+            if (targetHealth) {
+              targetHealth.current = Math.max(0, targetHealth.current - (abilityDef.damageAmount || 5));
+              eventBus.emit('DAMAGE_DEALT', {
+                attackerId: entityId,
+                defenderId: targetId,
+                amount: abilityDef.damageAmount || 5,
+              } as T['DAMAGE_DEALT']);
+            }
+          }
+        }
+
+      } else if (abilityDef.effectType === 'ranged_attack' || abilityDef.effectType === 'melee_attack') {
         const targets = grid.getEntitiesAt(targetX, targetY);
 
         for (const targetId of targets) {

@@ -15,7 +15,18 @@ export const AbilityDef = defineComponent(
     /** Maximum range (in tiles). 0 for self-targeted. */
     range: z.number().int().min(0),
     /** The fundamental behavior of this ability. */
-    effectType: z.enum(['dash', 'ranged_attack', 'toggle_vision']),
+    effectType: z.enum([
+      'dash', 
+      'ranged_attack', 
+      'toggle_vision', 
+      'melee_attack', 
+      'dash_attack', 
+      'vision_pulse', 
+      'stun',
+      'dot',
+      'action_economy',
+      'heal_on_kill'
+    ]),
     /** Damage dealt by 'ranged_attack'. */
     damageAmount: z.number().int().min(0).default(0),
     /** Distance moved by 'dash'. */

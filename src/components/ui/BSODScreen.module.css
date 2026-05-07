@@ -2,30 +2,47 @@
   position: fixed;
   inset: 0;
   z-index: 300;
-  background: var(--safety-orange, #FF9500);
+  background: #0000FF; /* Classic BSOD Blue */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-body, "Arial Narrow", sans-serif);
+  font-family: var(--font-mono, "Courier New", monospace);
+  padding: 40px;
+}
+
+.bsod::after {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  z-index: 2;
+  background-size: 100% 2px, 3px 100%;
+  pointer-events: none;
 }
 
 .title {
   font-size: var(--font-size-display, 48px);
-  font-weight: var(--font-weight-semibold, 600);
-  color: var(--black, #000000);
+  font-weight: var(--font-weight-bold, 700);
+  color: #FFFFFF;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin: 0;
+  text-shadow: 2px 2px #000088;
 }
 
 .reason {
   font-size: var(--font-size-heading, 24px);
-  color: var(--black, #000000);
+  color: #FFFFFF;
   margin-top: var(--space-lg, 24px);
-  opacity: 0.8;
+  opacity: 0.9;
   text-transform: uppercase;
   font-weight: var(--font-weight-regular, 400);
+  text-align: center;
 }
 
 @keyframes bsodFade {

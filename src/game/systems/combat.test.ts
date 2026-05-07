@@ -35,7 +35,7 @@ describe('CombatSystem', () => {
     world.addComponent(attacker, Attack, { power: 5 });
 
     const defender = world.createEntity();
-    world.addComponent(defender, Health, { current: 10, max: 10 });
+    world.addComponent(defender, Health, { current: 10, max: 10, isAlive: true });
     world.addComponent(defender, Defense, { armor: 2 });
 
     const damageDealtSpy = vi.fn();
@@ -58,7 +58,7 @@ describe('CombatSystem', () => {
     world.addComponent(attacker, Attack, { power: 1 });
 
     const defender = world.createEntity();
-    world.addComponent(defender, Health, { current: 10, max: 10 });
+    world.addComponent(defender, Health, { current: 10, max: 10, isAlive: true });
     world.addComponent(defender, Defense, { armor: 10 });
 
     eventBus.emit('BUMP_ATTACK', { attackerId: attacker, defenderId: defender });
@@ -73,7 +73,7 @@ describe('CombatSystem', () => {
     world.addComponent(attacker, Attack, { power: 5 });
 
     const defender = world.createEntity();
-    world.addComponent(defender, Health, { current: 10, max: 10 });
+    world.addComponent(defender, Health, { current: 10, max: 10, isAlive: true });
     world.addComponent(defender, Defense, { armor: 10 });
     world.addComponent(defender, Heat, { current: 50, maxSafe: 100, isVenting: true, baseDissipation: 1, ventPercentage: 0.5 });
 
@@ -87,7 +87,7 @@ describe('CombatSystem', () => {
   it('should not deal damage if attacker lacks Attack component', () => {
     const attacker = world.createEntity();
     const defender = world.createEntity();
-    world.addComponent(defender, Health, { current: 10, max: 10 });
+    world.addComponent(defender, Health, { current: 10, max: 10, isAlive: true });
 
     eventBus.emit('BUMP_ATTACK', { attackerId: attacker, defenderId: defender });
     eventBus.flush();
@@ -102,7 +102,7 @@ describe('CombatSystem', () => {
 
     const defender = world.createEntity();
     world.addComponent(defender, Position, { x: 5, y: 5 });
-    world.addComponent(defender, Health, { current: 10, max: 10 });
+    world.addComponent(defender, Health, { current: 10, max: 10, isAlive: true });
     grid.addEntity(defender, 5, 5);
 
     const diedSpy = vi.fn();
@@ -126,7 +126,7 @@ describe('CombatSystem', () => {
 
     const defender = world.createEntity();
     world.addComponent(defender, Position, { x: 2, y: 2 });
-    world.addComponent(defender, Health, { current: 5, max: 5 });
+    world.addComponent(defender, Health, { current: 5, max: 5, isAlive: true });
     world.addComponent(defender, LootTable, {
       tier: 1,
       drops: [{ template: 'gold', chance: 1.0 }] // Always drop
@@ -153,7 +153,7 @@ describe('CombatSystem', () => {
 
     const defender = world.createEntity();
     world.addComponent(defender, Position, { x: 2, y: 2 });
-    world.addComponent(defender, Health, { current: 5, max: 5 });
+    world.addComponent(defender, Health, { current: 5, max: 5, isAlive: true });
     world.addComponent(defender, LootTable, {
       tier: 1,
       drops: [{ template: 'gold', chance: 0.1 }] // Low chance

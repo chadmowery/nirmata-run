@@ -28,7 +28,7 @@ describe('Pipeline - Software Integration', () => {
       world.addComponent(playerId, Actor, { isPlayer: true });
       world.addComponent(playerId, BurnedSoftware, { weapon: 101, armor: 102 });
 
-      eventBus.emit('ENTITY_DIED', { entityId: playerId, killerId: 0 });
+      eventBus.emit('ENTITY_DIED', { entityId: playerId, killerId: 0, isPlayer: true });
       eventBus.flush();
 
       const burned = world.getComponent(playerId, BurnedSoftware);
@@ -44,7 +44,7 @@ describe('Pipeline - Software Integration', () => {
       runInventoryRegistry.addSoftware(sessionId, item);
       expect(runInventoryRegistry.getOrCreate(sessionId).software.length).toBe(1);
 
-      eventBus.emit('ENTITY_DIED', { entityId: playerId, killerId: 0 });
+      eventBus.emit('ENTITY_DIED', { entityId: playerId, killerId: 0, isPlayer: true });
       eventBus.flush();
 
       expect(runInventoryRegistry.getOrCreate(sessionId).software.length).toBe(0);

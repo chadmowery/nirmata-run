@@ -26,6 +26,25 @@ import {
   applyStabilityDesaturation,
   disposeScreenEffects
 } from './filters/screen-effects';
+import { 
+  applyHeatTierFilters, 
+  clearHeatTierFilters, 
+  updateSpriteGhosting, 
+  disposeHeatEffects 
+} from './filters/heat-visual-effects';
+import { getHeatTier } from '../game/config/heat-tiers';
+import { Heat } from '@shared/components/heat';
+import { 
+  attachNeonEmitter, 
+  updateAllEmitters, 
+  cleanupEmitter, 
+  disposeAllEmitters 
+} from './filters/particle-emitters';
+import { 
+  spawnDamageText, 
+  updateDamageTexts, 
+  disposeDamageTexts 
+} from './filters/damage-text';
 
 export interface RenderSystemConfig {
   app: Application;
@@ -53,6 +72,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       const aiState = world.getComponent(payload.entityId, AIState);
       if (aiState) {
         applyPersistentGlitch(sprite, aiState.behaviorType);
+        attachNeonEmitter(sprite, aiState.behaviorType, layers.effectsLayer);
       }
     }
   };
@@ -62,6 +82,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
     if (sprite) {
       const aiState = world.getComponent(payload.entityId, AIState);
       if (aiState) {
+        cleanupEmitter(sprite);
         queueTypedDeathAnimation(payload.entityId, aiState.behaviorType, sprite, () => {
           destroyEntitySprite(payload.entityId);
         });
@@ -77,6 +98,12 @@ export function createRenderSystem(config: RenderSystemConfig) {
     const sprite = getEntitySprite(payload.defenderId);
     if (sprite) {
       applyDamageDistortion(sprite);
+      
+      // Spawn floating code leak for enemies
+      const aiState = world.getComponent(payload.defenderId, AIState);
+      if (aiState) {
+        spawnDamageText(sprite.x + TILE_SIZE/2, sprite.y + TILE_SIZE/2, layers.effectsLayer);
+      }
     }
   };
 
@@ -108,6 +135,18 @@ export function createRenderSystem(config: RenderSystemConfig) {
     applyStabilityDesaturation(layers.worldContainer, payload.newValue);
   };
 
+  const handleHeatChanged = (payload: { entityId: EntityId; newHeat: number; maxSafe: number }) => {
+    if (payload.entityId === getPlayerEntity()) {
+      const tier = getHeatTier(payload.newHeat);
+      applyHeatTierFilters(layers.worldContainer, tier.tier);
+      
+      const sprite = getEntitySprite(payload.entityId);
+      if (sprite) {
+        updateSpriteGhosting(sprite, tier.tier, layers.entityLayer);
+      }
+    }
+  };
+
   const updateCameraFrame = (ticker: Ticker) => {
     const deltaMs = ticker.deltaMS;
     const newPos = lerpCamera(layers.worldContainer.x, layers.worldContainer.y, cameraTarget.x, cameraTarget.y, deltaMs);
@@ -116,6 +155,10 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
     // Smooth animation tick
     tickAnimations(deltaMs, getEntitySprite);
+    
+    // Update visual systems
+    updateAllEmitters(deltaMs);
+    updateDamageTexts(deltaMs);
   };
 
   return {
@@ -128,6 +171,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.on('APPLY_WORLD_FILTER', handleApplyWorldFilter);
       eventBus.on('REMOVE_WORLD_FILTER', handleRemoveWorldFilter);
       eventBus.on('STABILITY_CHANGED', handleStabilityChanged);
+      eventBus.on('HEAT_CHANGED', handleHeatChanged);
       eventBus.on('DUNGEON_GENERATED', () => this.onDungeonGenerated());
 
       app.ticker.add(updateCameraFrame);
@@ -289,6 +333,12 @@ export function createRenderSystem(config: RenderSystemConfig) {
         const sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
         sprite.x = pos.x * TILE_SIZE;
         sprite.y = pos.y * TILE_SIZE;
+
+        // Ensure emitters are attached to enemies on re-init
+        const aiState = world.getComponent(entityId, AIState);
+        if (aiState) {
+          attachNeonEmitter(sprite, aiState.behaviorType, layers.effectsLayer);
+        }
       }
 
       this.renderSystem();
@@ -303,11 +353,15 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.off('APPLY_WORLD_FILTER', handleApplyWorldFilter);
       eventBus.off('REMOVE_WORLD_FILTER', handleRemoveWorldFilter);
       eventBus.off('STABILITY_CHANGED', handleStabilityChanged);
+      eventBus.off('HEAT_CHANGED', handleHeatChanged);
 
       app.ticker.remove(updateCameraFrame);
       clearAllSprites();
       clearAnimations();
       disposeScreenEffects();
+      disposeHeatEffects();
+      disposeAllEmitters();
+      disposeDamageTexts();
     }
   };
 }

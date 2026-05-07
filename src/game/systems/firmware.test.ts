@@ -108,7 +108,7 @@ describe('FirmwareSystem', () => {
     world.addComponent(playerId, Heat, { current: 0, maxSafe: 100 });
 
     world.addComponent(enemyId, Position, { x: 4, y: 4 });
-    world.addComponent(enemyId, Health, { current: 20, max: 20 });
+    world.addComponent(enemyId, Health, { current: 20, max: 20, isAlive: true });
     world.addComponent(enemyId, Defense, { armor: 2 });
     grid.addEntity(enemyId, 4, 4);
 

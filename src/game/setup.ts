@@ -48,7 +48,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
   // Fetch shell record for the player
   const shellId = config.shellId || 'player-shell-default';
-  const archetypeId = config.shellId ? 'striker-v1' : 'signal-v1';
+  const archetypeId = 'vanguard-v1'; // Phase 16: Updated to new starter archetype
 
   let shellRecord = globalShellRegistry.get(shellId);
   if (!shellRecord) {
