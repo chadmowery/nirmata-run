@@ -19,7 +19,7 @@ Build the Nirmata Runner game systems on top of the validated v1.0 engine founda
 - [x] **Phase 12: Multi-Floor Generation & Stability/Extraction** — Multi-floor dungeon descent, floor transitions, Stability bar, Stability Anchors, Extract/Descend decision, item loss/keep logic, System Handshake UI (completed 2026-04-01)
 - [ ] **Phase 13: Currency, Economy & Blueprint System** — 3-tier currency, wallet/transaction system, Blueprint discovery/compilation/installation, weekly reset with Legacy Code, server-validated economy
 - [x] **Phase 14: Stash, Vault & Run Modes** — Persistent Stash/Vault storage, 3 run modes (Simulation/Daily/Weekly), run-specific rules, seeded generation per mode, leaderboard, pre-run Ritual (completed 2026-04-03)
-- [ ] **Phase 15: Neural Deck Hub UI** — Between-run management interface, Shell inspection/selection, equipment management, Blueprint workshop, Stash/Vault UI, run mode launcher
+- [x] **Phase 15: Neural Deck Hub UI** — Between-run management interface, Shell inspection/selection, equipment management, Blueprint workshop, Stash/Vault UI, run mode launcher (completed 2026-05-07)
 - [ ] **Phase 16: Visual Identity & Starter Loadouts** — "Vibrant Decay" theme (palette, typography), Heat visualization tiers, Kernel Panic visual escalation, glitch effects pipeline, enemy visual identity, death screen BSOD, 3 starter loadout bundles, end-to-end integration polish
 
 ## Phase Details
@@ -188,10 +188,10 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 15-01: Hub Layout & Shell View (Neural Deck page structure, Shell maintenance rack, stats display, React components)
-- [ ] 15-02: Equipment Management UI (Firmware/Augment/Software equip/unequip, drag or click, slot limit visualization, Stash browser)
-- [ ] 15-03: Blueprint Workshop & Economy Display (Blueprint list, Flux cost, compile action, wallet display, transaction feedback)
-- [ ] 15-04: Run Launcher & Stash/Vault Management (run mode selector, rule descriptions, Stash/Vault tab, item transfer, launch flow)
+- [x] 15-01: Hub Layout & Shell View (Neural Deck page structure, Shell maintenance rack, stats display, React components)
+- [x] 15-02: Equipment Management UI (Firmware/Augment/Software equip/unequip, drag or click, slot limit visualization, Stash browser)
+- [x] 15-03: Blueprint Workshop & Economy Display (Blueprint list, Flux cost, compile action, wallet display, transaction feedback)
+- [x] 15-04: Run Launcher & Stash/Vault Management (run mode selector, rule descriptions, Stash/Vault tab, item transfer, launch flow)
 
 ### Phase 16: Visual Identity & Starter Loadouts
 **Goal**: "Vibrant Decay" visual theme is applied consistently; all starter loadouts are playable; end-to-end integration is polished
@@ -227,8 +227,8 @@ Phases execute in numeric order: 7 → 8 → 9 → 10 → 11 → 12 → 13 → 1
 | 12. Multi-Floor Generation & Stability/Extraction | 5/5 | Complete   | 2026-04-01 |
 | 13. Currency, Economy & Blueprint System | 0/4 | Planned | - |
 | 14. Stash, Vault & Run Modes | 0/4 | Complete    | 2026-04-03 |
-| 15. Neural Deck Hub UI | 0/4 | Not started | - |
-| 16. Visual Identity & Starter Loadouts | 0/4 | Planned | - |
+| 15. Neural Deck Hub UI | 4/4 | Complete | 2026-05-07 |
+| 16. Visual Identity & Starter Loadouts | 0/4 | In Progress | - |
 
 ---
 *Roadmap created: 2026-03-29*

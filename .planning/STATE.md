@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
-status: Planned — ready for /gsd-execute-phase 15
-stopped_at: Phase 16 UI-SPEC approved
-last_updated: "2026-04-07T22:17:19.934Z"
-last_activity: 2026-04-05
+status: In Progress — feature/phase-16
+stopped_at: Phase 15 completed
+last_updated: "2026-05-07T13:39:00.000Z"
+last_activity: 2026-05-07
 progress:
   total_phases: 10
-  completed_phases: 3
-  total_plans: 36
-  completed_plans: 18
-  percent: 70
+  completed_phases: 8
+  total_plans: 40
+  completed_plans: 31
+  percent: 77.5
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-29)
 
 ## Current Position
 
-Phase: 15
-Plan: 01-04 planned (Wave 1: 01, Wave 2: 02+03, Wave 3: 04)
-Status: Planned — ready for /gsd-execute-phase 15
-Last activity: 2026-04-05
+Phase: 16
+Plan: 01-04 planned
+Status: In Progress — feature/phase-16
+Last activity: 2026-05-07
 
-Progress: [██████████████░░░░░] 70% (23/33 plans)
+Progress: [███████████████░░░░] 77.5% (31/40 plans)
 
 ## Performance Metrics
 
@@ -51,9 +51,9 @@ Progress: [██████████████░░░░░] 70% (23/33
 | 11. Enemy Hierarchy | 0/4 | — | — |
 | 12. Multi-Floor Generation & Stability/Extraction | 4/4 | 4h | 1h |
 | 13. Currency, Economy & Blueprint System | 4/4 | 4h | 1h |
-| 14. Stash, Vault & Run Modes | 0/4 | — | — |
-| 15. Neural Deck Hub UI | 0/4 (planned) | — | — |
-| 16. Visual Identity & Starter Loadouts | 0/4 | — | — |
+| 14. Stash, Vault & Run Modes | 4/4 | 4h | 1h |
+| 15. Neural Deck Hub UI | 4/4 | 4h | 1h |
+| 16. Visual Identity & Starter Loadouts | 0/4 (planned) | — | — |
 
 **Recent Trend:**
 
