@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 
+interface TerminalLine {
+  text: string;
+  type: 'command' | 'output' | 'error';
+}
+
 export function DevTerminal() {
   const [isVisible, setIsVisible] = useState(false);
   const [input, setInput] = useState('');
-  const [history, setHistory] = useState<string[]>([]);
+  const [history, setHistory] = useState<TerminalLine[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -43,7 +48,7 @@ export function DevTerminal() {
     if (!input.trim()) return;
 
     const cmd = input.trim();
-    setHistory(prev => [...prev, cmd]);
+    setHistory(prev => [...prev, { text: cmd, type: 'command' }]);
     setInput('');
     
     parseCommand(cmd);
@@ -90,14 +95,39 @@ export function DevTerminal() {
         case '/deadzone':
           window.__DEBUG__.deadzone();
           break;
+        case '/clearsessions':
+          window.__DEBUG__.clearSessions();
+          break;
         case '/close':
           setIsVisible(false);
           break;
+        case '/list':
+          setHistory(prev => [
+            ...prev,
+            { text: 'AVAILABLE COMMANDS:', type: 'output' },
+            { text: '  /heat [amount] - Set player heat', type: 'output' },
+            { text: '  /panic [tier] [severity] [effect] - Trigger manual kernel panic', type: 'output' },
+            { text: '  /hp [amount] - Set player health', type: 'output' },
+            { text: '  /stability [amount] - Set player stability', type: 'output' },
+            { text: '  /status [effect] [duration] - Apply status effect', type: 'output' },
+            { text: '  /give [scrap|flux|blueprint] [amount|id] - Grant currency or items', type: 'output' },
+            { text: '  /descend - Force floor transition', type: 'output' },
+            { text: '  /deadzone - Spawn deadzone at player position', type: 'output' },
+            { text: '  /clearsessions - Clear all server sessions', type: 'output' },
+            { text: '  /close - Close this terminal', type: 'output' },
+            { text: '  /list - Show this list', type: 'output' },
+          ]);
+          break;
         default:
-          console.warn(`[DevTerminal] Unknown command: ${cmd}`);
+          setHistory(prev => [
+            ...prev,
+            { text: `Unknown command: ${cmd}`, type: 'error' },
+            { text: 'Type /list to see available commands.', type: 'output' }
+          ]);
       }
     } catch (err) {
       console.error('[DevTerminal] Error executing command:', err);
+      setHistory(prev => [...prev, { text: `EXEC_ERROR: ${err instanceof Error ? err.message : String(err)}`, type: 'error' }]);
     }
   };
 
@@ -124,9 +154,12 @@ export function DevTerminal() {
               </div>
             ) : (
               history.map((h, i) => (
-                <div key={i} className="dev-terminal-history-item">
+                <div key={i} className={`dev-terminal-history-item type-${h.type}`}>
                   <span className="dev-terminal-history-index">[{i.toString().padStart(3, '0')}]</span>
-                  <span className="dev-terminal-command">&gt; {h}</span>
+                  <span className="dev-terminal-command">
+                    {h.type === 'command' ? '> ' : ''}
+                    {h.text}
+                  </span>
                 </div>
               ))
             )}
@@ -144,7 +177,7 @@ export function DevTerminal() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 className="dev-terminal-input"
-                placeholder="ENTER COMMAND (e.g. /heat 100, /hp 50...)"
+                placeholder="ENTER COMMAND (e.g. /list, /heat 100, /hp 50...)"
                 autoComplete="off"
                 spellCheck="false"
               />

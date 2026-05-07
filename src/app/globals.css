@@ -201,7 +201,7 @@ canvas {
 .dev-terminal-modal {
   position: relative;
   width: 100%;
-  max-width: 600px;
+  max-width: 1200px;
   background: #000;
   border: 2px solid var(--border-color);
   box-shadow: 0 0 30px rgba(0, 255, 65, 0.2);
@@ -233,7 +233,7 @@ canvas {
 }
 
 .dev-terminal-history {
-  height: 200px;
+  height: 400px;
   overflow-y: auto;
   border: 1px solid rgba(0, 255, 65, 0.1);
   background: rgba(0, 20, 0, 0.3);
@@ -250,6 +250,15 @@ canvas {
 .dev-terminal-history-index {
   color: var(--text-dim);
   opacity: 0.5;
+}
+
+.dev-terminal-history-item.type-output .dev-terminal-command {
+  color: var(--text-dim);
+}
+
+.dev-terminal-history-item.type-error .dev-terminal-command {
+  color: var(--error-color);
+  font-weight: bold;
 }
 
 .dev-terminal-input-container {
