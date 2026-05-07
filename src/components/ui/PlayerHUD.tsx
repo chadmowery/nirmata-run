@@ -19,8 +19,11 @@ export const PlayerHUD: React.FC = () => {
   const xpNextLevel = (player.level || 1) * 100; // Simple XP curve for now
   const xpPercent = (xpNextLevel > 0 ? (player.xp / xpNextLevel) * 100 : 0) || 0;
 
+  const isGlitched = player.statuses.includes('HUD_GLITCH') || player.heat > player.maxHeat;
+  const panelClasses = `${styles.terminalPanel} ${styles.statsPanel} ${isGlitched ? styles.hudGlitch : ''}`;
+
   return (
-    <div className={`${styles.terminalPanel} ${styles.statsPanel}`}>
+    <div className={panelClasses}>
       <div className={styles.panelHeader}>
         {player.shellName} // RUNTIME_STATUS
       </div>
@@ -65,6 +68,18 @@ export const PlayerHUD: React.FC = () => {
         </span>
         <span className={styles.statValue}>{scrap}</span>
       </div>
+
+      {/* Active Status Effects (D-16 Fix) */}
+      {player.statuses.length > 0 && (
+        <div className={styles.modsContainer}>
+          <div className={`${styles.modsHeader} text-red-400`}>ACTIVE_STATUS</div>
+          <div className={styles.modsList}>
+            {player.statuses.map((status, i) => (
+              <span key={i} className={`${styles.modBadge} ${styles.statusBadge}`}>{status}</span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Mods / Software Passive Effects */}
       {player.mods.length > 0 && (

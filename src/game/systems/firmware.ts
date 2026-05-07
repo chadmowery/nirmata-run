@@ -9,7 +9,8 @@ import {
   Health,
   Defense,
   Actor,
-  AbilityDefData
+  AbilityDefData,
+  StatusEffects
 } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { MovementSystem } from './movement';
@@ -38,6 +39,16 @@ export function createFirmwareSystem<T extends GameplayEvents>(
     ): boolean {
       const slots = world.getComponent(entityId, FirmwareSlots);
       if (!slots || slotIndex < 0 || slotIndex >= slots.equipped.length) {
+        return false;
+      }
+
+      // Check for FIRMWARE_LOCK
+      const statusEffects = world.getComponent(entityId, StatusEffects);
+      if (statusEffects?.effects.some(e => e.name === 'FIRMWARE_LOCK')) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'ERROR: Firmware subsystem is locked! Try again later.',
+          type: 'error'
+        });
         return false;
       }
 

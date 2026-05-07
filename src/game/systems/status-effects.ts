@@ -40,6 +40,7 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
     entityId: EntityId,
     effect: { name: string; duration: number; magnitude?: number; source?: string },
   ) => {
+    console.log(`[StatusEffectSystem] Applying ${effect.name} to entity ${entityId} (Duration: ${effect.duration}, Source: ${effect.source ?? 'unknown'})`);
     let statusEffects = world.getComponent(entityId, StatusEffects);
     if (!statusEffects) {
       world.addComponent(entityId, StatusEffects, { effects: [] });

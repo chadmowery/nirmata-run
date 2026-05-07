@@ -132,7 +132,6 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   itemPickupSystem.init();
   heatSystem.init();
   statusEffectSystem.init();
-  kernelPanicSystem.init();
   augmentSystem.init();
   packCoordinatorSystem.init();
   tileCorruptionSystem.init();
@@ -265,7 +264,6 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   heatSystem.init();
   statusEffectSystem.init();
   firmwareSystem.init();
-  kernelPanicSystem.init();
   augmentSystem.init();
   packCoordinatorSystem.init();
   tileCorruptionSystem.init();
@@ -273,6 +271,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   stabilitySystem.init();
   floorManagerSystem.init();
   anchorInteractionSystem.init();
+  kernelPanicSystem.init();
 
   // Turn Manager Handlers
   turnManager.setEnemyActionHandler((entityId) => {
@@ -293,10 +292,15 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
       }
     } else if (action === GameAction.WAIT) {
       // Wait
-    } else if (isFirmwareAction(action as GameAction)) {
-      const slotIndex = getFirmwareSlotIndex(action as GameAction);
+    } else if (isFirmwareAction(action)) {
+      const slotIndex = getFirmwareSlotIndex(action);
       if (slotIndex !== null) {
-        firmwareSystem.activateAbility(entityId, slotIndex, 0, 0);
+        // Parse coordinates if provided (encoded as USE_FIRMWARE_X:targetX:targetY)
+        const parts = action.split(':');
+        const targetX = parts[1] !== undefined ? parseInt(parts[1]) : 0;
+        const targetY = parts[2] !== undefined ? parseInt(parts[2]) : 0;
+        
+        firmwareSystem.activateAbility(entityId, slotIndex, targetX, targetY);
       }
     } else if (action === GameAction.VENT) {
       heatSystem.vent(entityId);

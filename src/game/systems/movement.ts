@@ -6,6 +6,7 @@ import { Position } from '@shared/components/position';
 import { Hostile } from '@shared/components/hostile';
 import { Actor } from '@shared/components/actor';
 import { BlocksMovement } from '@shared/components/blocks-movement';
+import { StatusEffects } from '@shared/components/status-effects';
 
 import { GameplayEvents } from '@shared/events/types';
 
@@ -27,6 +28,30 @@ export function createMovementSystem<T extends GameplayEvents>(
     processMove(entityId: EntityId, dx: number, dy: number): MoveResult {
       const pos = world.getComponent(entityId, Position);
       if (!pos) return 'blocked';
+
+      // Check for status effects that impede movement
+      const statusEffects = world.getComponent(entityId, StatusEffects);
+      if (statusEffects) {
+        // CRITICAL_REBOOT blocks everything
+        if (statusEffects.effects.some(e => e.name === 'CRITICAL_REBOOT')) {
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: 'System is rebooting... Movement disabled!',
+            type: 'error'
+          });
+          return 'blocked';
+        }
+
+        // INPUT_LAG has a chance to ignore input
+        if (statusEffects.effects.some(e => e.name === 'INPUT_LAG')) {
+          if (Math.random() < 0.5) {
+            eventBus.emit('MESSAGE_EMITTED', {
+              text: 'Input lag! Command dropped.',
+              type: 'warning'
+            });
+            return 'blocked';
+          }
+        }
+      }
 
       const targetX = pos.x + dx;
       const targetY = pos.y + dy;

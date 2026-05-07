@@ -15,6 +15,7 @@ import { Shell } from '@shared/components/shell';
 import { BurnedSoftware } from '@shared/components/burned-software';
 import { AbilityDef } from '@shared/components/ability-def';
 import { SoftwareDef } from '@shared/components/software-def';
+import { StatusEffects } from '@shared/components/status-effects';
 import { getDepthBand } from '../generation/dungeon-generator';
 import { runInventoryRegistry } from '../systems/run-inventory';
 
@@ -65,6 +66,9 @@ export function syncEngineToStore(context: GameContext) {
       };
     });
 
+    const statusEffects = world.getComponent(context.playerId, StatusEffects);
+    const statuses = statusEffects?.effects.map(e => e.name) || [];
+
     store.updatePlayerStats({
       hp: health?.current ?? 0,
       maxHp: health?.max ?? 0,
@@ -74,6 +78,7 @@ export function syncEngineToStore(context: GameContext) {
       maxHeat: heat?.maxSafe ?? 100,
       shellName: shell?.archetypeId || 'Default Shell',
       mods,
+      statuses,
     });
 
     store.setAbilities(abilities);
@@ -227,6 +232,18 @@ export function syncEngineToStore(context: GameContext) {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   eventBus.on('FLOOR_TRANSITION', (event) => {
     refreshPlayerStats();
+  });
+  
+  eventBus.on('STATUS_EFFECT_APPLIED', (event) => {
+    if (event.entityId === context.playerId) {
+      refreshPlayerStats();
+    }
+  });
+
+  eventBus.on('STATUS_EFFECT_EXPIRED', (event) => {
+    if (event.entityId === context.playerId) {
+      refreshPlayerStats();
+    }
   });
 
   // Sync listener to refresh HUD when registry updates (D-15)

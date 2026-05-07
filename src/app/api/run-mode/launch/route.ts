@@ -3,7 +3,7 @@ import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { RunMode, getRunModeConfig } from '@/game/systems/run-mode-config';
 import { sessionManager } from '@/engine/session/SessionManager';
 import { createEngineInstance } from '@/game/engine-factory';
-
+import { globalShellRegistry } from '@/game/shells';
 import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT } from '@/shared/constants';
 
 /**
@@ -12,7 +12,7 @@ import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT } from '@/shared/constants';
  */
 export async function POST(req: NextRequest) {
   try {
-    const { sessionId, mode } = await req.json();
+    const { sessionId, mode, shellId } = await req.json();
 
     if (!sessionId || !mode) {
       return NextResponse.json({ error: 'Missing sessionId or mode' }, { status: 400 });
@@ -51,7 +51,17 @@ export async function POST(req: NextRequest) {
 
     await profileRepository.save(profile);
 
-    // 4. Engine Initialization
+    // 4. Shell Selection
+    let shellRecord = null;
+    if (shellId) {
+      shellRecord = globalShellRegistry.get(shellId);
+      if (!shellRecord) {
+        // Fallback: create record if not found (starter shells)
+        shellRecord = globalShellRegistry.createRecord(shellId, shellId);
+      }
+    }
+
+    // 5. Engine Initialization
     const engineConfig = {
       width: DEFAULT_GRID_WIDTH,
       height: DEFAULT_GRID_HEIGHT,
@@ -59,6 +69,7 @@ export async function POST(req: NextRequest) {
       profile,
       sessionId,
       runMode: mode,
+      shellRecord: shellRecord || undefined,
     };
 
     const engine = createEngineInstance(engineConfig);

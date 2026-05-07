@@ -57,6 +57,8 @@ export function createHeatSystem<T extends GameplayEvents>(
     const oldHeat = heat.current;
     heat.current += amount;
 
+    console.log(`[HeatSystem] addHeat: entity ${entityId} +${amount} -> new heat: ${heat.current}`);
+
     eventBus.emit('HEAT_CHANGED', {
       entityId,
       oldHeat,

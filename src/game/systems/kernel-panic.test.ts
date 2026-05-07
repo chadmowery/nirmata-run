@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
-import { Heat, Shell } from '@shared/components';
+import { Heat, Shell, HeatData, ShellData } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { createKernelPanicSystem } from './kernel-panic';
 import { createStatusEffectSystem } from './status-effects';
@@ -17,6 +17,7 @@ describe('KernelPanicSystem', () => {
     world = new World<GameplayEvents>(eventBus);
     statusEffectSystem = createStatusEffectSystem(world, eventBus);
     kernelPanicSystem = createKernelPanicSystem(world, eventBus, statusEffectSystem);
+    kernelPanicSystem.init();
     
     // Spy on eventBus.emit
     vi.spyOn(eventBus, 'emit');
@@ -24,10 +25,28 @@ describe('KernelPanicSystem', () => {
     vi.spyOn(statusEffectSystem, 'applyEffect');
   });
 
+  const createHeatData = (overrides: Partial<HeatData> = {}) => ({
+    current: 0,
+    maxSafe: 100,
+    baseDissipation: 5,
+    ventPercentage: 0.5,
+    isVenting: false,
+    ...overrides,
+  });
+
+  const createShellData = (overrides: Partial<ShellData> = {}) => ({
+    archetypeId: 'test-shell',
+    speed: 100,
+    stability: 10,
+    armor: 1,
+    maxHealth: 100,
+    ...overrides,
+  });
+
   it('checkOverclock returns null when Heat <= maxSafe', () => {
     const entityId = world.createEntity();
-    world.addComponent(entityId, Heat, { current: 80, maxSafe: 100 });
-    world.addComponent(entityId, Shell, { speed: 10, stability: 10, armor: 5, maxHealth: 100 });
+    world.addComponent(entityId, Heat, createHeatData({ current: 80, maxSafe: 100 }));
+    world.addComponent(entityId, Shell, createShellData({ stability: 10 }));
 
     const result = kernelPanicSystem.checkOverclock(entityId);
     expect(result).toBeNull();
@@ -35,8 +54,8 @@ describe('KernelPanicSystem', () => {
 
   it('checkOverclock selects tier 1 (HUD_GLITCH) for Heat 110% of maxSafe', () => {
     const entityId = world.createEntity();
-    world.addComponent(entityId, Heat, { current: 110, maxSafe: 100 });
-    world.addComponent(entityId, Shell, { speed: 10, stability: 0, armor: 5, maxHealth: 100 });
+    world.addComponent(entityId, Heat, createHeatData({ current: 110, maxSafe: 100 }));
+    world.addComponent(entityId, Shell, createShellData({ stability: 0 }));
 
     vi.spyOn(Math, 'random').mockReturnValue(0); // Force success
 
@@ -51,8 +70,8 @@ describe('KernelPanicSystem', () => {
 
   it('checkOverclock selects tier 2 (INPUT_LAG) for Heat 130% of maxSafe', () => {
     const entityId = world.createEntity();
-    world.addComponent(entityId, Heat, { current: 130, maxSafe: 100 });
-    world.addComponent(entityId, Shell, { speed: 10, stability: 0, armor: 5, maxHealth: 100 });
+    world.addComponent(entityId, Heat, createHeatData({ current: 130, maxSafe: 100 }));
+    world.addComponent(entityId, Shell, createShellData({ stability: 0 }));
 
     vi.spyOn(Math, 'random').mockReturnValue(0); // Force success
 
@@ -65,8 +84,8 @@ describe('KernelPanicSystem', () => {
 
   it('checkOverclock selects tier 3 (FIRMWARE_LOCK) for Heat 150% of maxSafe', () => {
     const entityId = world.createEntity();
-    world.addComponent(entityId, Heat, { current: 150, maxSafe: 100 });
-    world.addComponent(entityId, Shell, { speed: 10, stability: 0, armor: 5, maxHealth: 100 });
+    world.addComponent(entityId, Heat, createHeatData({ current: 150, maxSafe: 100 }));
+    world.addComponent(entityId, Shell, createShellData({ stability: 0 }));
 
     vi.spyOn(Math, 'random').mockReturnValue(0); // Force success
 
@@ -79,8 +98,8 @@ describe('KernelPanicSystem', () => {
 
   it('checkOverclock selects tier 4 (CRITICAL_REBOOT) for Heat 170% of maxSafe', () => {
     const entityId = world.createEntity();
-    world.addComponent(entityId, Heat, { current: 170, maxSafe: 100 });
-    world.addComponent(entityId, Shell, { speed: 10, stability: 0, armor: 5, maxHealth: 100 });
+    world.addComponent(entityId, Heat, createHeatData({ current: 170, maxSafe: 100 }));
+    world.addComponent(entityId, Shell, createShellData({ stability: 0 }));
 
     vi.spyOn(Math, 'random').mockReturnValue(0); // Force success
 
@@ -93,8 +112,8 @@ describe('KernelPanicSystem', () => {
 
   it('Stability reduces effective chance', () => {
     const entityId = world.createEntity();
-    world.addComponent(entityId, Heat, { current: 110, maxSafe: 100 }); // Tier 1: 0.15 baseChance
-    world.addComponent(entityId, Shell, { speed: 10, stability: 10, armor: 5, maxHealth: 100 }); // -0.10 chance -> 0.05 effective
+    world.addComponent(entityId, Heat, createHeatData({ current: 110, maxSafe: 100 })); // Tier 1: 0.15 baseChance
+    world.addComponent(entityId, Shell, createShellData({ stability: 10 })); // -0.10 chance -> 0.05 effective
 
     // Mock Math.random to 0.10 (above 0.05 effective chance)
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.10);
@@ -112,8 +131,8 @@ describe('KernelPanicSystem', () => {
 
   it('High stability can reduce chance to 0', () => {
     const entityId = world.createEntity();
-    world.addComponent(entityId, Heat, { current: 110, maxSafe: 100 }); // Tier 1: 0.15 baseChance
-    world.addComponent(entityId, Shell, { speed: 10, stability: 15, armor: 5, maxHealth: 100 }); // -0.15 chance -> 0 effective
+    world.addComponent(entityId, Heat, createHeatData({ current: 110, maxSafe: 100 })); // Tier 1: 0.15 baseChance
+    world.addComponent(entityId, Shell, createShellData({ stability: 15 })); // -0.15 chance -> 0 effective
 
     vi.spyOn(Math, 'random').mockReturnValue(0); // Even at 0, it should fail if effective chance is 0 (or strictly less than)
 
@@ -125,8 +144,8 @@ describe('KernelPanicSystem', () => {
 
   it('CRITICAL_REBOOT forces Heat to 0', () => {
     const entityId = world.createEntity();
-    world.addComponent(entityId, Heat, { current: 170, maxSafe: 100 });
-    world.addComponent(entityId, Shell, { speed: 10, stability: 0, armor: 5, maxHealth: 100 });
+    world.addComponent(entityId, Heat, createHeatData({ current: 170, maxSafe: 100 }));
+    world.addComponent(entityId, Shell, createShellData({ stability: 0 }));
 
     vi.spyOn(Math, 'random').mockReturnValue(0); // Force success
 
@@ -140,8 +159,8 @@ describe('KernelPanicSystem', () => {
 
   it('CRITICAL_REBOOT applies status effect with duration 3', () => {
     const entityId = world.createEntity();
-    world.addComponent(entityId, Heat, { current: 170, maxSafe: 100 });
-    world.addComponent(entityId, Shell, { speed: 10, stability: 0, armor: 5, maxHealth: 100 });
+    world.addComponent(entityId, Heat, createHeatData({ current: 170, maxSafe: 100 }));
+    world.addComponent(entityId, Shell, createShellData({ stability: 0 }));
 
     vi.spyOn(Math, 'random').mockReturnValue(0); // Force success
 
@@ -153,8 +172,8 @@ describe('KernelPanicSystem', () => {
 
   it('checkOverclock emits KERNEL_PANIC_TRIGGERED event when roll succeeds', () => {
     const entityId = world.createEntity();
-    world.addComponent(entityId, Heat, { current: 110, maxSafe: 100 });
-    world.addComponent(entityId, Shell, { speed: 10, stability: 0, armor: 5, maxHealth: 100 });
+    world.addComponent(entityId, Heat, createHeatData({ current: 110, maxSafe: 100 }));
+    world.addComponent(entityId, Shell, createShellData({ stability: 0 }));
 
     vi.spyOn(Math, 'random').mockReturnValue(0); // Force success
 
@@ -166,8 +185,8 @@ describe('KernelPanicSystem', () => {
 
   it('checkOverclock does NOT apply effect when roll fails', () => {
     const entityId = world.createEntity();
-    world.addComponent(entityId, Heat, { current: 110, maxSafe: 100 });
-    world.addComponent(entityId, Shell, { speed: 10, stability: 0, armor: 5, maxHealth: 100 });
+    world.addComponent(entityId, Heat, createHeatData({ current: 110, maxSafe: 100 }));
+    world.addComponent(entityId, Shell, createShellData({ stability: 0 }));
 
     vi.spyOn(Math, 'random').mockReturnValue(0.99); // Force failure
 
@@ -176,5 +195,58 @@ describe('KernelPanicSystem', () => {
     expect(statusEffectSystem.applyEffect).not.toHaveBeenCalled();
 
     vi.spyOn(Math, 'random').mockRestore();
+  });
+
+  it('triggers checkOverclock on HEAT_CHANGED when heat increases', () => {
+    const entityId = world.createEntity();
+    world.addComponent(entityId, Heat, createHeatData({ current: 110, maxSafe: 100 }));
+    world.addComponent(entityId, Shell, createShellData({ stability: 0 }));
+
+    vi.spyOn(Math, 'random').mockReturnValue(0); // Force success
+    
+    eventBus.emit('HEAT_CHANGED', {
+      entityId,
+      oldHeat: 100,
+      newHeat: 110,
+      maxSafe: 100
+    });
+    eventBus.flush();
+
+    expect(eventBus.emit).toHaveBeenCalledWith('KERNEL_PANIC_TRIGGERED', expect.objectContaining({
+      entityId,
+      effectName: 'HUD_GLITCH'
+    }));
+
+    vi.spyOn(Math, 'random').mockRestore();
+  });
+
+  it('does NOT trigger checkOverclock on HEAT_CHANGED when heat decreases', () => {
+    const entityId = world.createEntity();
+    world.addComponent(entityId, Heat, createHeatData({ current: 50, maxSafe: 100 }));
+    world.addComponent(entityId, Shell, createShellData({ stability: 0 }));
+
+    vi.spyOn(Math, 'random').mockReturnValue(0); // Force success if it were called
+    
+    eventBus.emit('HEAT_CHANGED', {
+      entityId,
+      oldHeat: 110,
+      newHeat: 50,
+      maxSafe: 100
+    });
+    eventBus.flush();
+
+    expect(eventBus.emit).not.toHaveBeenCalledWith('KERNEL_PANIC_TRIGGERED', expect.anything());
+
+    vi.spyOn(Math, 'random').mockRestore();
+  });
+
+  it('it correctly selects tier 1 for heat just above 100%', () => {
+    const entityId = world.createEntity();
+    world.addComponent(entityId, Heat, createHeatData({ current: 100.5, maxSafe: 100 }));
+    world.addComponent(entityId, Shell, createShellData({ stability: 0 }));
+
+    const result = kernelPanicSystem.checkOverclock(entityId);
+    expect(result?.tier).toBe(1);
+    expect(result?.effectName).toBe('HUD_GLITCH');
   });
 });

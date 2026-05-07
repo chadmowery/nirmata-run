@@ -77,5 +77,33 @@ export interface ProfileRepository {
  * Pure factory for creating a default profile.
  */
 export function createDefaultProfile(sessionId: string): PlayerProfile {
-  return PlayerProfileSchema.parse({ sessionId });
+  const profile = PlayerProfileSchema.parse({ sessionId });
+
+  const shellIds = ['striker-v1', 'bastion-v1', 'signal-v1'];
+  
+  // Register blueprints so they are available to be "installed"
+  profile.blueprintLibrary = [
+    { blueprintId: 'neural-spike', type: 'firmware', compiledAt: Date.now() },
+    { blueprintId: 'phase-shift', type: 'firmware', compiledAt: Date.now() }
+  ];
+
+  // Pre-install on all starting shells
+  shellIds.forEach((shellId, sIdx) => {
+    profile.installedItems.push({
+      entityId: 20000 + (sIdx * 10),
+      blueprintId: 'neural-spike',
+      type: 'firmware',
+      shellId,
+      isLegacy: false
+    });
+    profile.installedItems.push({
+      entityId: 20001 + (sIdx * 10),
+      blueprintId: 'phase-shift',
+      type: 'firmware',
+      shellId,
+      isLegacy: false
+    });
+  });
+
+  return profile;
 }

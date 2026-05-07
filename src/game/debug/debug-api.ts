@@ -27,7 +27,7 @@ export class DebugAPI {
   /**
    * Immediately forces a kernel panic consequence.
    */
-  async triggerPanic(tier: number = 1, severity: string = 'low', effectName: string = 'System Glitch') {
+  async triggerPanic(tier: number = 1, severity?: string, effectName?: string) {
     await this.sendAction({
       type: 'DEBUG_COMMAND',
       command: 'TRIGGER_PANIC',
@@ -132,5 +132,16 @@ export class DebugAPI {
       args: { duration: 5 },
     });
     console.log(`[DEBUG] Requested deadzone at player position`);
+  }
+  /**
+   * Clears all server sessions.
+   */
+  async clearSessions() {
+    await this.sendAction({
+      type: 'DEBUG_COMMAND',
+      command: 'CLEAR_SESSIONS',
+      args: {},
+    });
+    console.log(`[DEBUG] Requested session clear`);
   }
 }

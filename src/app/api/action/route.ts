@@ -65,8 +65,8 @@ export async function POST(req: Request) {
 
       case 'USE_FIRMWARE':
         if (session.systems?.firmware) {
-          session.systems.firmware.activateAbility(session.playerId, action.slotIndex, action.targetX, action.targetY);
-          actionKey = `USE_FIRMWARE_${action.slotIndex}`;
+          // Encode coordinates into actionKey so the TurnManager handler can use them
+          actionKey = `USE_FIRMWARE_${action.slotIndex}:${action.targetX}:${action.targetY}`;
         }
         break;
 
@@ -108,7 +108,7 @@ export async function POST(req: Request) {
         break;
 
       case 'DEBUG_COMMAND':
-        handleServerDebugCommand(world, eventBus, session.playerId, sessionId, action.command, action.args);
+        handleServerDebugCommand(world, eventBus, session.playerId, sessionId, action.command, action.args, session.systems);
         break;
     }
 

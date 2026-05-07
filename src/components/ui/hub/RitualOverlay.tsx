@@ -44,6 +44,7 @@ export const RitualOverlay: React.FC = () => {
         body: JSON.stringify({
           sessionId: playerProfile.sessionId,
           mode: selectedRunMode,
+          shellId: currentShell.id,
         }),
       });
 

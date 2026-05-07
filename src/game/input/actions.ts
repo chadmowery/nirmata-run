@@ -79,22 +79,16 @@ export function isMovementAction(action: GameAction): boolean {
 /**
  * Type guard to check if an action is a firmware activation action.
  */
-export function isFirmwareAction(action: GameAction): boolean {
-  return [
-    GameAction.USE_FIRMWARE_0,
-    GameAction.USE_FIRMWARE_1,
-    GameAction.USE_FIRMWARE_2,
-  ].includes(action);
+export function isFirmwareAction(action: string): boolean {
+  return action.startsWith('USE_FIRMWARE_');
 }
 
 /**
  * Helper to get the firmware slot index from a GameAction.
  */
-export function getFirmwareSlotIndex(action: GameAction): number | null {
-  switch (action) {
-    case GameAction.USE_FIRMWARE_0: return 0;
-    case GameAction.USE_FIRMWARE_1: return 1;
-    case GameAction.USE_FIRMWARE_2: return 2;
-    default: return null;
-  }
+export function getFirmwareSlotIndex(action: string): number | null {
+  if (!action.startsWith('USE_FIRMWARE_')) return null;
+  const slotPart = action.split(':')[0];
+  const index = parseInt(slotPart.replace('USE_FIRMWARE_', ''));
+  return isNaN(index) ? null : index;
 }
