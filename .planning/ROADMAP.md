@@ -207,10 +207,10 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 16-01: Vibrant Decay Theme System (CSS design tokens, color palette, typography, component theming, dark mode foundation)
-- [ ] 16-02: Heat & Kernel Panic Visual Effects (PixiJS filter chain, HUD jitter CSS, sprite ghosting, color inversion, screen-tear, grayscale)
-- [ ] 16-03: Enemy Visuals & Death Screen (enemy glitch rendering, damage effects, death dissolution, BSOD death screen, Augment flash)
-- [ ] 16-04: Starter Loadouts & End-to-End Polish (3 bundle JSON templates, loadout selection UI, full run integration test, edge case fixes)
+- [ ] 16-01-PLAN.md — Heat tier config & PixiJS filter manager (6-tier threshold config, cumulative filter stacking, HUD jitter CSS, store/bridge integration)
+- [ ] 16-02-PLAN.md — Enemy visuals & combat feedback (neon particle emitters, damage text fragments, BSOD enhancement, Augment trigger flash, render-system integration)
+- [ ] 16-03-PLAN.md — Starter loadout bundles (Vanguard/Operator/Ghost bundle definitions, lookup functions, Shell registry export)
+- [ ] 16-04-PLAN.md — Theme consistency & end-to-end integration (globals.css audit, loadout pre-loading, integration tests, human visual checkpoint)
 
 ## Progress
 
@@ -228,8 +228,8 @@ Phases execute in numeric order: 7 → 8 → 9 → 10 → 11 → 12 → 13 → 1
 | 13. Currency, Economy & Blueprint System | 0/4 | Planned | - |
 | 14. Stash, Vault & Run Modes | 0/4 | Complete    | 2026-04-03 |
 | 15. Neural Deck Hub UI | 0/4 | Not started | - |
-| 16. Visual Identity & Starter Loadouts | 0/4 | Not started | - |
+| 16. Visual Identity & Starter Loadouts | 0/4 | Planned | - |
 
 ---
 *Roadmap created: 2026-03-29*
-*Last updated: 2026-04-02*
+*Last updated: 2026-04-07*
