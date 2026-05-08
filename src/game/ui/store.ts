@@ -163,6 +163,7 @@ export interface UIState {
   hideBSOD: () => void;
   addScrapToWallet: (amount: number) => void;
   resetRunStats: () => void;
+  clearMessages: () => void;
 
   // Phase 15: Hub actions
   setActiveTab: (tab: HubTab) => void;
@@ -372,7 +373,9 @@ export const gameStore = createStore<UIState>((set) => ({
     heatTier: 0,
     heatValue: 0,
     heatMaxSafe: 100,
+    messages: [],
   }),
+  clearMessages: () => set({ messages: [] }),
 
   // Phase 15: Hub actions
   setActiveTab: (tab) => set({ activeTab: tab }),

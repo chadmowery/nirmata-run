@@ -177,7 +177,7 @@ export function syncEngineToStore(context: GameContext) {
 
   // Dungeon generation
   eventBus.on('DUNGEON_GENERATED', () => {
-
+    gameStore.getState().clearMessages();
     refreshPlayerStats();
   });
 
@@ -237,6 +237,7 @@ export function syncEngineToStore(context: GameContext) {
   // Floor updates
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   eventBus.on('FLOOR_TRANSITION', (event) => {
+    gameStore.getState().clearMessages();
     refreshPlayerStats();
   });
   

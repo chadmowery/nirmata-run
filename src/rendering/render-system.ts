@@ -354,6 +354,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.off('HEAT_CHANGED', handleHeatChanged);
 
       app.ticker.remove(updateCameraFrame);
+      clearTilemap(layers.terrainLayer);
+      clearExplored(exploredSet);
       clearAllSprites();
       clearAnimations();
       disposeScreenEffects();

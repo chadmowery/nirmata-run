@@ -3,11 +3,12 @@
 import { useRef, useEffect } from 'react';
 import { createGame, destroyGame } from '@/game/setup';
 import { loadAssets } from '@/rendering/assets';
-import { initRenderer, destroyRenderer } from '@/rendering/renderer';
+import { initRenderer, destroyRenderer, getApp } from '@/rendering/renderer';
 import { createRenderSystem } from '@/rendering/render-system';
 import { createWorldContainer } from '@/rendering/layers';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
+import { useDebugStore } from '@/game/debug/debug-store';
 import { GameState } from '@/game/states/types';
 import { RunMode } from '@/shared/run-mode';
 import { HUDOverlay } from '@/components/ui/HUDOverlay';
@@ -30,6 +31,8 @@ export default function GamePage() {
   const bsodVisible = useStore(gameStore, (s) => s.bsodVisible);
   const runResultsVisible = useStore(gameStore, (s) => s.runResultsVisible);
   const isInitializing = useRef(false);
+  const renderSystemRef = useRef<any>(null);
+  const tickerCallbackRef = useRef<(() => void) | null>(null);
 
   const showCanvas = status === GameState.Playing || status === GameState.Paused || status === GameState.GameOver;
 
@@ -107,11 +110,14 @@ export default function GamePage() {
       });
 
       renderSystem.init();
+      renderSystemRef.current = renderSystem;
 
       // Start rendering loop sync
-      app.ticker.add(() => {
+      const tickerCallback = () => {
         renderSystem.renderSystem();
-      });
+      };
+      app.ticker.add(tickerCallback);
+      tickerCallbackRef.current = tickerCallback;
 
       // 4. Start Game
       context.fsm.transition(GameState.Playing);
@@ -137,18 +143,42 @@ export default function GamePage() {
   useEffect(() => {
     if ((status === GameState.MainMenu || status === GameState.Hub) && contextRef.current) {
       console.log('--- DESTROYING ENGINE (RETURN TO HUB/MENU) ---');
+      
+      // 1. Cleanup Render System
+      if (renderSystemRef.current) {
+        renderSystemRef.current.destroy();
+        renderSystemRef.current = null;
+      }
+
+      // 2. Cleanup Ticker
+      const app = getApp();
+      if (app && tickerCallbackRef.current) {
+        app.ticker.remove(tickerCallbackRef.current);
+        tickerCallbackRef.current = null;
+        
+        // 3. Clear Stage - Important to remove the worldContainer
+        app.stage.removeChildren();
+      }
+
+      // 4. Cleanup Game Engine
       destroyGame(contextRef.current);
       contextRef.current = null;
+      
       // Reset run-specific stats but keep walletScrap
       gameStore.getState().resetRunStats();
+      useDebugStore.getState().clearTimeline();
     }
   }, [status]);
 
   // Effect 3: Full cleanup on component unmount
   useEffect(() => {
     return () => {
+      console.log('--- DESTROYING ENGINE (UNMOUNT) ---');
+      if (renderSystemRef.current) {
+        renderSystemRef.current.destroy();
+        renderSystemRef.current = null;
+      }
       if (contextRef.current) {
-        console.log('--- DESTROYING ENGINE (UNMOUNT) ---');
         destroyGame(contextRef.current);
         contextRef.current = null;
       }
