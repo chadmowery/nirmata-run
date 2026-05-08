@@ -112,7 +112,7 @@ describe('TurnManager', () => {
     const enemy = world.createEntity();
     world.addComponent(enemy, Actor, { isPlayer: false });
     world.addComponent(enemy, Energy, { current: 1000, speed: 100, threshold: config.energyThreshold });
-    world.addComponent(enemy, Health, { current: 0, max: 10 });
+    world.addComponent(enemy, Health, Health.schema.parse({ current: 0, max: 10 }));
 
     const handler = vi.fn();
     turnManager.setEnemyActionHandler(handler);

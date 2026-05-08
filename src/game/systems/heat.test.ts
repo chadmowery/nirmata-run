@@ -19,7 +19,7 @@ describe('Heat System', () => {
     playerId = world.createEntity();
     world.addComponent(playerId, Actor, { isPlayer: true });
     world.addComponent(playerId, Heat, Heat.schema.parse({ current: 0, maxSafe: 100, baseDissipation: 5 }));
-    world.addComponent(playerId, Shell, { speed: 10, stability: 10, armor: 0, maxHealth: 100 });
+    world.addComponent(playerId, Shell, { archetypeId: 'test', speed: 10, stability: 10, armor: 0, maxHealth: 100 });
   });
 
   describe('Heat Component Schema', () => {
@@ -45,61 +45,56 @@ describe('Heat System', () => {
 
   describe('Functional Tests', () => {
     it('dissipate() reduces Heat by baseDissipation + stability * 0.5', () => {
-      const heat = world.getComponent(playerId, Heat)!;
-      heat.current = 50;
+      world.patchComponent(playerId, Heat, { current: 50 });
       
       heatSystem.dissipate(playerId);
       
       // 5 + 10 * 0.5 = 10
-      expect(heat.current).toBe(40);
+      expect(world.getComponent(playerId, Heat)?.current).toBe(40);
     });
 
     it('dissipate() clears isVenting flag', () => {
-      const heat = world.getComponent(playerId, Heat)!;
-      heat.isVenting = true;
+      world.patchComponent(playerId, Heat, { isVenting: true });
       
       heatSystem.dissipate(playerId);
       
-      expect(heat.isVenting).toBe(false);
+      // Note: isVenting was already cleared by dissipate() in previous implementation
+      // but in tests we might need to verify the state in world.
+      expect(world.getComponent(playerId, Heat)?.isVenting).toBe(false);
     });
 
     it('dissipate() does not reduce below 0', () => {
-      const heat = world.getComponent(playerId, Heat)!;
-      heat.current = 5;
+      world.patchComponent(playerId, Heat, { current: 5 });
       
       heatSystem.dissipate(playerId);
       
-      expect(heat.current).toBe(0);
+      expect(world.getComponent(playerId, Heat)?.current).toBe(0);
     });
 
     it('addHeat() increases current Heat accurately', () => {
-      const heat = world.getComponent(playerId, Heat)!;
       
       heatSystem.addHeat(playerId, 20);
       
-      expect(heat.current).toBe(20);
+      expect(world.getComponent(playerId, Heat)?.current).toBe(20);
     });
 
     it('vent() removes 50% of current Heat', () => {
-      const heat = world.getComponent(playerId, Heat)!;
-      heat.current = 60;
+      world.patchComponent(playerId, Heat, { current: 60 });
       
       heatSystem.vent(playerId);
       
-      expect(heat.current).toBe(30);
+      expect(world.getComponent(playerId, Heat)?.current).toBe(30);
     });
 
     it('vent() sets isVenting = true', () => {
-      const heat = world.getComponent(playerId, Heat)!;
       
       heatSystem.vent(playerId);
       
-      expect(heat.isVenting).toBe(true);
+      expect(world.getComponent(playerId, Heat)?.isVenting).toBe(true);
     });
 
     it('isInCorruptionZone returns true when Heat > maxSafe', () => {
-      const heat = world.getComponent(playerId, Heat)!;
-      heat.current = 110;
+      world.patchComponent(playerId, Heat, { current: 110 });
       
       expect(heatSystem.isInCorruptionZone(playerId)).toBe(true);
     });
@@ -107,14 +102,14 @@ describe('Heat System', () => {
     it('Stability modifier creates differentiated dissipation', () => {
       const strikerId = world.createEntity();
       world.addComponent(strikerId, Heat, Heat.schema.parse({ baseDissipation: 5 }));
-      world.addComponent(strikerId, Shell, { speed: 10, stability: 5, armor: 0, maxHealth: 100 });
+      world.addComponent(strikerId, Shell, { archetypeId: 'striker', speed: 10, stability: 5, armor: 0, maxHealth: 100 });
       
       const bastionId = world.createEntity();
       world.addComponent(bastionId, Heat, Heat.schema.parse({ baseDissipation: 5 }));
-      world.addComponent(bastionId, Shell, { speed: 10, stability: 15, armor: 0, maxHealth: 100 });
+      world.addComponent(bastionId, Shell, { archetypeId: 'bastion', speed: 10, stability: 15, armor: 0, maxHealth: 100 });
       
-      world.getComponent(strikerId, Heat)!.current = 50;
-      world.getComponent(bastionId, Heat)!.current = 50;
+      world.patchComponent(strikerId, Heat, { current: 50 });
+      world.patchComponent(bastionId, Heat, { current: 50 });
       
       heatSystem.dissipate(strikerId); // 5 + 5 * 0.5 = 7.5 -> 42.5
       heatSystem.dissipate(bastionId); // 5 + 15 * 0.5 = 12.5 -> 37.5
@@ -125,34 +120,32 @@ describe('Heat System', () => {
 
     it('Handle heatPerTurn for active toggle abilities', () => {
       const firmwareId = world.createEntity();
-      world.addComponent(firmwareId, AbilityDef, { 
+      world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({ 
         name: 'Test', 
         heatCost: 0, 
         range: 0, 
         effectType: 'toggle_vision', 
         isActive: true, 
         heatPerTurn: 10 
-      });
+      }));
       world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
       
-      const heat = world.getComponent(playerId, Heat)!;
-      heat.current = 50;
+      world.patchComponent(playerId, Heat, { current: 50 });
       
       heatSystem.dissipate(playerId);
       
       // 50 - 10 (dissipation) + 10 (heatPerTurn) = 50
-      expect(heat.current).toBe(50);
+      expect(world.getComponent(playerId, Heat)?.current).toBe(50);
     });
 
     it('subscribes to TURN_START', () => {
-      const heat = world.getComponent(playerId, Heat)!;
-      heat.current = 50;
+      world.patchComponent(playerId, Heat, { current: 50 });
       
       heatSystem.init();
       eventBus.emit('TURN_START', { turnNumber: 1 });
       eventBus.flush();
       
-      expect(heat.current).toBe(40);
+      expect(world.getComponent(playerId, Heat)?.current).toBe(40);
     });
   });
 });

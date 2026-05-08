@@ -21,13 +21,7 @@ export function createHeatSystem<T extends GameplayEvents>(
     const stability = shell?.stability ?? 0;
     const effectiveDissipation = heat.baseDissipation + stability * 0.5;
 
-    // Reduce heat by dissipation
-    heat.current = Math.max(0, heat.current - effectiveDissipation);
-
-    // If venting, clear the flag
-    if (heat.isVenting) {
-      heat.isVenting = false;
-    }
+    let nextHeat = Math.max(0, heat.current - effectiveDissipation);
 
     // Handle heatPerTurn for active toggle abilities
     const slots = world.getComponent(entityId, FirmwareSlots);
@@ -35,16 +29,21 @@ export function createHeatSystem<T extends GameplayEvents>(
       for (const firmwareId of slots.equipped) {
         const abilityDef = world.getComponent(firmwareId, AbilityDef);
         if (abilityDef && abilityDef.isActive && abilityDef.heatPerTurn > 0) {
-          heat.current += abilityDef.heatPerTurn;
+          nextHeat += abilityDef.heatPerTurn;
         }
       }
     }
 
-    if (heat.current !== oldHeat) {
+    if (nextHeat !== oldHeat || heat.isVenting) {
+      world.patchComponent(entityId, Heat, {
+        current: nextHeat,
+        isVenting: false
+      });
+
       eventBus.emit('HEAT_CHANGED', {
         entityId,
         oldHeat,
-        newHeat: heat.current,
+        newHeat: nextHeat,
         maxSafe: heat.maxSafe,
       });
     }
@@ -55,14 +54,16 @@ export function createHeatSystem<T extends GameplayEvents>(
     if (!heat) return;
 
     const oldHeat = heat.current;
-    heat.current += amount;
+    const nextHeat = oldHeat + amount;
 
-    console.log(`[HeatSystem] addHeat: entity ${entityId} +${amount} -> new heat: ${heat.current}`);
+    console.log(`[HeatSystem] addHeat: entity ${entityId} +${amount} -> new heat: ${nextHeat}`);
+
+    world.patchComponent(entityId, Heat, { current: nextHeat });
 
     eventBus.emit('HEAT_CHANGED', {
       entityId,
       oldHeat,
-      newHeat: heat.current,
+      newHeat: nextHeat,
       maxSafe: heat.maxSafe,
     });
   };
@@ -72,19 +73,23 @@ export function createHeatSystem<T extends GameplayEvents>(
     if (!heat) return;
 
     const oldHeat = heat.current;
-    heat.current = Math.floor(heat.current * (1 - heat.ventPercentage));
-    heat.isVenting = true;
+    const nextHeat = Math.floor(oldHeat * (1 - heat.ventPercentage));
+
+    world.patchComponent(entityId, Heat, {
+      current: nextHeat,
+      isVenting: true
+    });
 
     eventBus.emit('VENT_COMPLETED', {
       entityId,
       oldHeat,
-      newHeat: heat.current,
+      newHeat: nextHeat,
     });
 
     eventBus.emit('HEAT_CHANGED', {
       entityId,
       oldHeat,
-      newHeat: heat.current,
+      newHeat: nextHeat,
       maxSafe: heat.maxSafe,
     });
 

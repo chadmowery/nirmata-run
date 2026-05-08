@@ -69,13 +69,12 @@ describe('Game Setup Integration', () => {
     grid.setTile(1, 1, { terrain: 'floor', walkable: true, transparent: true });
     grid.setTile(2, 1, { terrain: 'floor', walkable: true, transparent: true });
     
-    const posComp = world.getComponent(player, Position)!;
-    posComp.x = 1;
-    posComp.y = 1;
-    const energyComp = world.getComponent(player, Energy)!;
-    energyComp.current = 1000;
-    energyComp.speed = 100;
-    energyComp.threshold = 1000;
+    if (world.hasComponent(player, Position)) {
+      world.patchComponent(player, Position, { x: 1, y: 1 });
+    }
+    if (world.hasComponent(player, Energy)) {
+      world.patchComponent(player, Energy, { current: 1000, speed: 100, threshold: 1000 });
+    }
     grid.removeEntity(player, 5, 4); // Remove from default spawn if any
     grid.addEntity(player, 1, 1);
 
@@ -113,13 +112,12 @@ describe('Game Setup Integration', () => {
     grid.setTile(1, 1, { terrain: 'floor', walkable: true, transparent: true });
     grid.setTile(2, 1, { terrain: 'floor', walkable: true, transparent: true });
 
-    const posComp = world.getComponent(player, Position)!;
-    posComp.x = 1;
-    posComp.y = 1;
-    const energyComp = world.getComponent(player, Energy)!;
-    energyComp.current = 1000;
-    energyComp.speed = 100;
-    energyComp.threshold = 1000;
+    if (world.hasComponent(player, Position)) {
+      world.patchComponent(player, Position, { x: 1, y: 1 });
+    }
+    if (world.hasComponent(player, Energy)) {
+      world.patchComponent(player, Energy, { current: 1000, speed: 100, threshold: 1000 });
+    }
     grid.removeEntity(player, 5, 4); // Remove from default spawn
     grid.addEntity(player, 1, 1);
 

@@ -4,7 +4,7 @@ import { EventBus } from '@engine/events/event-bus';
 import { Grid } from '@engine/grid/grid';
 import { createFirmwareSystem } from '../firmware';
 import { createAugmentSystem } from '../augment';
-import { AbilityDef, Health, Heat, AugmentSlots, AugmentData, AugmentState, Position } from '@shared/components';
+import { AbilityDef, Health, Heat, AugmentSlots, AugmentData, AugmentState, Position, FirmwareSlots } from '@shared/components';
 import { GameEvents } from '../../events/types';
 
 describe('Legacy System Integration', () => {
@@ -26,7 +26,7 @@ describe('Legacy System Integration', () => {
     world.addComponent(playerId, Position, { x: 0, y: 0 });
     
     const abilityId = world.createEntity();
-    world.addComponent(abilityId, AbilityDef, {
+    world.addComponent(abilityId, AbilityDef, AbilityDef.schema.parse({
       name: 'Test',
       heatCost: 10,
       isLegacy: true,
@@ -35,9 +35,9 @@ describe('Legacy System Integration', () => {
       damageAmount: 0,
       range: 0,
       isActive: false
-    });
+    }));
 
-    world.addComponent(playerId, { key: 'firmwareSlots', schema: {} as any }, { equipped: [abilityId] } as any);
+    world.addComponent(playerId, FirmwareSlots, { equipped: [abilityId] });
 
     fwSystem.activateAbility(playerId, 0, 1, 0);
     
@@ -62,8 +62,8 @@ describe('Legacy System Integration', () => {
 
     world.addComponent(playerId, AugmentSlots, { equipped: [augmentId] });
     world.addComponent(playerId, AugmentState, { activationsThisTurn: {}, cooldownsRemaining: {} });
-    world.addComponent(playerId, Heat, { current: 0, maxSafe: 100, baseDissipation: 5, ventPercentage: 0.5, isVenting: false });
-    world.addComponent(playerId, Health, { current: 100, max: 100 });
+    world.addComponent(playerId, Heat, Heat.schema.parse({ current: 0, maxSafe: 100, baseDissipation: 5, ventPercentage: 0.5, isVenting: false }));
+    world.addComponent(playerId, Health, Health.schema.parse({ current: 100, max: 100 }));
 
     augmentSystem.processTriggersForEntity(playerId, {
       firmwareActivated: true,

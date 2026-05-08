@@ -30,11 +30,15 @@ export function applyBleedOnHit<T extends GameplayEvents>(
   const statusEffects = world.getComponent(defenderId, StatusEffects);
   if (!statusEffects) return;
 
-  statusEffects.effects.push({
+  const effect = {
     name: 'BLEED',
     duration: 3,
     magnitude: scaledDamage,
     source: `software:bleed-${rarity.tier}`,
+  };
+
+  world.patchComponent(defenderId, StatusEffects, {
+    effects: [...statusEffects.effects, effect]
   });
 
   eventBus.emit('STATUS_EFFECT_APPLIED', {
@@ -96,8 +100,9 @@ export function applyVampireOnKill<T extends GameplayEvents>(
   if (!health) return;
 
   const oldHealth = health.current;
-  health.current = Math.min(health.max, health.current + healAmount);
-  const actualHeal = health.current - oldHealth;
+  const nextHealth = Math.min(health.max, health.current + healAmount);
+  world.patchComponent(killerId, Health, { current: nextHealth });
+  const actualHeal = nextHealth - oldHealth;
 
   if (actualHeal > 0) {
     eventBus.emit('HEALED', { entityId: killerId, amount: actualHeal });

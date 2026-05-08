@@ -21,7 +21,7 @@ describe('ActionPipeline', () => {
     // Setup Player
     const pId = world.createEntity(); // Should be 1
     world.addComponent(pId, Position, { x: 5, y: 5 });
-    world.addComponent(pId, Health, { current: 10, max: 10 });
+    world.addComponent(pId, Health, Health.schema.parse({ current: 10, max: 10 }));
     world.addComponent(pId, Attack, { power: 3 });
     world.addComponent(pId, Actor, { isPlayer: true });
     grid.addEntity(pId, 5, 5);
@@ -50,7 +50,7 @@ describe('ActionPipeline', () => {
     // Setup Enemy
     const eId = world.createEntity(); // Should be 2
     world.addComponent(eId, Position, { x: 6, y: 5 });
-    world.addComponent(eId, Health, { current: 10, max: 10 });
+    world.addComponent(eId, Health, Health.schema.parse({ current: 10, max: 10 }));
     world.addComponent(eId, Hostile, {});
     world.addComponent(eId, Defense, { armor: 1 });
     world.addComponent(eId, Actor, { isPlayer: false });

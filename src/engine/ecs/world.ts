@@ -73,6 +73,20 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
   }
 
   /**
+   * Convenience method to apply a partial update to an existing component.
+   * Ensures that the updated component is passed through addComponent for proper lifecycle handling.
+   */
+  patchComponent<T>(entityId: EntityId, def: ComponentDef<T>, patch: Partial<T>): void {
+    const existing = this.getComponent(entityId, def);
+    if (!existing) {
+      throw new Error(`Cannot patch non-existent component ${def.key} on entity ${entityId}`);
+    }
+
+    const updated = { ...existing, ...patch } as T;
+    this.addComponent(entityId, def, updated);
+  }
+
+  /**
    * Remove a component from an entity.
    */
   removeComponent<T>(entityId: EntityId, def: ComponentDef<T>): void {
@@ -86,8 +100,8 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
   /**
    * Get component data for an entity.
    */
-  getComponent<T>(entityId: EntityId, def: ComponentDef<T>): T | undefined {
-    return this.stores.get(def.key)?.get(entityId) as T | undefined;
+  getComponent<T>(entityId: EntityId, def: ComponentDef<T>): Readonly<T> | undefined {
+    return this.stores.get(def.key)?.get(entityId) as Readonly<T> | undefined;
   }
 
   /**

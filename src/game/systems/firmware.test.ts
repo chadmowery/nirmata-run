@@ -46,17 +46,17 @@ describe('FirmwareSystem', () => {
     const playerId = world.createEntity();
     const firmwareId = world.createEntity();
     
-    world.addComponent(firmwareId, AbilityDef, {
+    world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
       name: 'Test Ability',
       heatCost: 10,
       range: 5,
       effectType: 'ranged_attack',
       damageAmount: 5
-    });
+    }));
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
     world.addComponent(playerId, Position, { x: 5, y: 5 });
-    world.addComponent(playerId, Heat, { current: 0, maxSafe: 100 });
+    world.addComponent(playerId, Heat, Heat.schema.parse({ current: 0, maxSafe: 100 }));
 
     firmwareSystem.activateAbility(playerId, 0, 6, 6);
     
@@ -68,16 +68,16 @@ describe('FirmwareSystem', () => {
     const playerId = world.createEntity();
     const firmwareId = world.createEntity();
     
-    world.addComponent(firmwareId, AbilityDef, {
+    world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
       name: 'Dash',
       heatCost: 5,
       dashDistance: 3,
       effectType: 'dash'
-    });
+    }));
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
     world.addComponent(playerId, Position, { x: 5, y: 5 });
-    world.addComponent(playerId, Heat, { current: 0, maxSafe: 100 });
+    world.addComponent(playerId, Heat, Heat.schema.parse({ current: 0, maxSafe: 100 }));
     grid.addEntity(playerId, 5, 5);
 
     const result = firmwareSystem.activateAbility(playerId, 0, 7, 6); // Distance 3
@@ -95,20 +95,20 @@ describe('FirmwareSystem', () => {
     const enemyId = world.createEntity();
     const firmwareId = world.createEntity();
     
-    world.addComponent(firmwareId, AbilityDef, {
+    world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
       name: 'Neural Spike',
       heatCost: 15,
       range: 5,
       effectType: 'ranged_attack',
       damageAmount: 10
-    });
+    }));
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
     world.addComponent(playerId, Position, { x: 2, y: 2 });
-    world.addComponent(playerId, Heat, { current: 0, maxSafe: 100 });
+    world.addComponent(playerId, Heat, Heat.schema.parse({ current: 0, maxSafe: 100 }));
 
     world.addComponent(enemyId, Position, { x: 4, y: 4 });
-    world.addComponent(enemyId, Health, { current: 20, max: 20, isAlive: true });
+    world.addComponent(enemyId, Health, Health.schema.parse({ current: 20, max: 20, isAlive: true }));
     world.addComponent(enemyId, Defense, { armor: 2 });
     grid.addEntity(enemyId, 4, 4);
 
@@ -123,18 +123,18 @@ describe('FirmwareSystem', () => {
     const playerId = world.createEntity();
     const firmwareId = world.createEntity();
     
-    world.addComponent(firmwareId, AbilityDef, {
+    world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
       name: 'Extended Sight',
       heatCost: 0,
       range: 0,
       effectType: 'toggle_vision',
       isToggle: true,
       isActive: false
-    });
+    }));
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
     world.addComponent(playerId, Position, { x: 5, y: 5 });
-    world.addComponent(playerId, Heat, { current: 0, maxSafe: 100 });
+    world.addComponent(playerId, Heat, Heat.schema.parse({ current: 0, maxSafe: 100 }));
 
     firmwareSystem.activateAbility(playerId, 0, 5, 5);
     
@@ -149,18 +149,18 @@ describe('FirmwareSystem', () => {
     const playerId = world.createEntity();
     const firmwareId = world.createEntity();
     
-    world.addComponent(firmwareId, AbilityDef, {
+    world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
       name: 'Legacy Spike',
       heatCost: 10,
       range: 5,
       effectType: 'ranged_attack',
       damageAmount: 5,
       isLegacy: true
-    });
+    }));
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
     world.addComponent(playerId, Position, { x: 5, y: 5 });
-    world.addComponent(playerId, Heat, { current: 0, maxSafe: 100 });
+    world.addComponent(playerId, Heat, Heat.schema.parse({ current: 0, maxSafe: 100 }));
 
     firmwareSystem.activateAbility(playerId, 0, 6, 6);
     
@@ -172,17 +172,17 @@ describe('FirmwareSystem', () => {
     const playerId = world.createEntity();
     const firmwareId = world.createEntity();
     
-    world.addComponent(firmwareId, AbilityDef, {
+    world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
       name: 'Test Ability',
       heatCost: 10,
       range: 5,
       effectType: 'ranged_attack',
       damageAmount: 5
-    });
+    }));
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
     world.addComponent(playerId, Position, { x: 5, y: 5 });
-    world.addComponent(playerId, Heat, { current: 0, maxSafe: 100 });
+    world.addComponent(playerId, Heat, Heat.schema.parse({ current: 0, maxSafe: 100 }));
 
     const spy = vi.fn();
     eventBus.on('FIRMWARE_ACTIVATED' as any, spy);
@@ -203,17 +203,17 @@ describe('FirmwareSystem', () => {
     const playerId = world.createEntity();
     const firmwareId = world.createEntity();
     
-    world.addComponent(firmwareId, AbilityDef, {
+    world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
       name: 'Short Range Spike',
       heatCost: 10,
       range: 2,
       effectType: 'ranged_attack',
       damageAmount: 5
-    });
+    }));
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
     world.addComponent(playerId, Position, { x: 5, y: 5 });
-    world.addComponent(playerId, Heat, { current: 0, maxSafe: 100 });
+    world.addComponent(playerId, Heat, Heat.schema.parse({ current: 0, maxSafe: 100 }));
 
     const result = firmwareSystem.activateAbility(playerId, 0, 8, 8); // Distance 6
     expect(result).toBe(false);

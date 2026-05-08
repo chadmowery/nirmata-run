@@ -15,26 +15,26 @@ export function propagateShellStats(world: World<GameplayEvents>, entityId: Enti
   const health = world.getComponent(entityId, Health);
   if (health) {
     const healthDiff = shell.maxHealth - health.max;
-    health.max = shell.maxHealth;
-    // If upgrading health, also increase current? 
-    // Usually yes, at least by the diff.
+    let nextCurrent = health.current;
     if (healthDiff > 0) {
-      health.current += healthDiff;
+      nextCurrent += healthDiff;
     }
-    // Ensure current doesn't exceed new max
-    health.current = Math.min(health.max, health.current);
+    nextCurrent = Math.min(shell.maxHealth, nextCurrent);
+
+    world.patchComponent(entityId, Health, {
+      max: shell.maxHealth,
+      current: nextCurrent
+    });
   }
 
   // Update Defense
-  const defense = world.getComponent(entityId, Defense);
-  if (defense) {
-    defense.armor = shell.armor;
+  if (world.hasComponent(entityId, Defense)) {
+    world.patchComponent(entityId, Defense, { armor: shell.armor });
   }
 
   // Update Energy/Speed
-  const energy = world.getComponent(entityId, Energy);
-  if (energy) {
-    energy.speed = shell.speed;
+  if (world.hasComponent(entityId, Energy)) {
+    world.patchComponent(entityId, Energy, { speed: shell.speed });
   }
 }
 

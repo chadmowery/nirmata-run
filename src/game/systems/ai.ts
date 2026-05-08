@@ -111,41 +111,45 @@ export function createAISystem<T extends GameplayEvents>(
       const playerKey = `${player.x},${player.y}`;
       const canSeePlayer = visibleTiles.has(playerKey);
 
-      awareness.canSeePlayer = canSeePlayer;
-      if (canSeePlayer) {
-        awareness.lastKnownPlayerX = player.x;
-        awareness.lastKnownPlayerY = player.y;
-      }
+      world.patchComponent(entityId, FovAwareness, {
+        canSeePlayer,
+        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {})
+      });
 
       // 2. State transitions
       const adjacent = isAdjacent(pos.x, pos.y, player.x, player.y);
+      let nextBehavior = ai.behavior;
 
-      if (ai.behavior === AIBehavior.IDLE) {
+      if (nextBehavior === AIBehavior.IDLE) {
         if (canSeePlayer) {
-          ai.behavior = AIBehavior.CHASING;
+          nextBehavior = AIBehavior.CHASING;
         }
       }
 
-      if (ai.behavior === AIBehavior.CHASING) {
+      if (nextBehavior === AIBehavior.CHASING) {
         if (adjacent) {
-          ai.behavior = AIBehavior.ATTACKING;
+          nextBehavior = AIBehavior.ATTACKING;
         } else if (!canSeePlayer && awareness.lastKnownPlayerX === undefined) {
-          ai.behavior = AIBehavior.IDLE;
+          nextBehavior = AIBehavior.IDLE;
         }
       }
 
-      if (ai.behavior === AIBehavior.ATTACKING) {
+      if (nextBehavior === AIBehavior.ATTACKING) {
         if (!adjacent) {
           if (canSeePlayer) {
-            ai.behavior = AIBehavior.CHASING;
+            nextBehavior = AIBehavior.CHASING;
           } else {
-            ai.behavior = AIBehavior.IDLE;
+            nextBehavior = AIBehavior.IDLE;
           }
         }
       }
 
+      if (nextBehavior !== ai.behavior) {
+        world.patchComponent(entityId, AIState, { behavior: nextBehavior });
+      }
+
       // 3. Execute behavior
-      if (ai.behavior === AIBehavior.CHASING) {
+      if (nextBehavior === AIBehavior.CHASING) {
         const targetX = awareness.lastKnownPlayerX ?? player.x;
         const targetY = awareness.lastKnownPlayerY ?? player.y;
 
@@ -153,7 +157,7 @@ export function createAISystem<T extends GameplayEvents>(
         if (step) {
           movementSystem.processMove(entityId, step.dx, step.dy);
         }
-      } else if (ai.behavior === AIBehavior.ATTACKING) {
+      } else if (nextBehavior === AIBehavior.ATTACKING) {
         // Move toward player to trigger bump attack
         const dx = player.x - pos.x;
         const dy = player.y - pos.y;
@@ -235,11 +239,10 @@ export function createAISystem<T extends GameplayEvents>(
       const playerKey = `${player.x},${player.y}`;
       const canSeePlayer = visibleTiles.has(playerKey);
 
-      awareness.canSeePlayer = canSeePlayer;
-      if (canSeePlayer) {
-        awareness.lastKnownPlayerX = player.x;
-        awareness.lastKnownPlayerY = player.y;
-      }
+      world.patchComponent(entityId, FovAwareness, {
+        canSeePlayer,
+        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {})
+      });
 
       // 2. Movement/Attack logic
       if (canSeePlayer) {
@@ -275,11 +278,10 @@ export function createAISystem<T extends GameplayEvents>(
       const playerKey = `${player.x},${player.y}`;
       const canSeePlayer = visibleTiles.has(playerKey);
 
-      awareness.canSeePlayer = canSeePlayer;
-      if (canSeePlayer) {
-        awareness.lastKnownPlayerX = player.x;
-        awareness.lastKnownPlayerY = player.y;
-      }
+      world.patchComponent(entityId, FovAwareness, {
+        canSeePlayer,
+        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {})
+      });
 
       // 2. Fragmenter logic
       if (canSeePlayer) {
@@ -332,11 +334,10 @@ export function createAISystem<T extends GameplayEvents>(
       const playerKey = `${player.x},${player.y}`;
       const canSeePlayer = visibleTiles.has(playerKey);
 
-      awareness.canSeePlayer = canSeePlayer;
-      if (canSeePlayer) {
-        awareness.lastKnownPlayerX = player.x;
-        awareness.lastKnownPlayerY = player.y;
-      }
+      world.patchComponent(entityId, FovAwareness, {
+        canSeePlayer,
+        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {})
+      });
 
       if (canSeePlayer) {
         const dist = Math.abs(pos.x - player.x) + Math.abs(pos.y - player.y);
@@ -373,7 +374,9 @@ export function createAISystem<T extends GameplayEvents>(
           if (playerHealth) {
             const armor = playerDefense?.armor ?? 0;
             const finalDamage = Math.max(1, damage - armor);
-            playerHealth.current = Math.max(0, playerHealth.current - finalDamage);
+            world.patchComponent(player.id, Health, {
+              current: Math.max(0, playerHealth.current - finalDamage)
+            });
 
             eventBus.emit('DAMAGE_DEALT', {
               attackerId: entityId,
@@ -384,11 +387,16 @@ export function createAISystem<T extends GameplayEvents>(
             // Apply FIRMWARE_LOCK
             const statusEffects = world.getComponent(player.id, StatusEffects);
             if (statusEffects) {
-              statusEffects.effects.push({
-                name: 'FIRMWARE_LOCK',
-                duration: 3,
-                magnitude: 1,
-                source: 'logic_leaker'
+              world.patchComponent(player.id, StatusEffects, {
+                effects: [
+                  ...statusEffects.effects,
+                  {
+                    name: 'FIRMWARE_LOCK',
+                    duration: 3,
+                    magnitude: 1,
+                    source: 'logic_leaker'
+                  }
+                ]
               });
               eventBus.emit('STATUS_EFFECT_APPLIED', {
                 entityId: player.id,
@@ -405,7 +413,7 @@ export function createAISystem<T extends GameplayEvents>(
             });
 
             if (playerHealth.current <= 0) {
-              playerHealth.isAlive = true;
+              world.addComponent(player.id, Health, { ...playerHealth, isAlive: false });
               eventBus.emit('ENTITY_DIED', { entityId: player.id, killerId: entityId, isPlayer: true });
 
               const playerPos = world.getComponent(player.id, Position);
@@ -440,11 +448,10 @@ export function createAISystem<T extends GameplayEvents>(
       const playerKey = `${player.x},${player.y}`;
       const canSeePlayer = visibleTiles.has(playerKey);
 
-      awareness.canSeePlayer = canSeePlayer;
-      if (canSeePlayer) {
-        awareness.lastKnownPlayerX = player.x;
-        awareness.lastKnownPlayerY = player.y;
-      }
+      world.patchComponent(entityId, FovAwareness, {
+        canSeePlayer,
+        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {})
+      });
 
       const dist = Math.abs(pos.x - player.x) + Math.abs(pos.y - player.y);
 
@@ -479,8 +486,7 @@ export function createAISystem<T extends GameplayEvents>(
         if (finalX !== -1) {
           const fromX = pos.x;
           const fromY = pos.y;
-          pos.x = finalX;
-          pos.y = finalY;
+          world.patchComponent(entityId, Position, { x: finalX, y: finalY });
           grid.removeEntity(entityId, fromX, fromY);
           grid.addEntity(entityId, finalX, finalY);
           eventBus.emit('ENEMY_TELEPORTED', { entityId, fromX, fromY, toX: finalX, toY: finalY });
@@ -498,11 +504,16 @@ export function createAISystem<T extends GameplayEvents>(
         if (result === 'bump-attack') {
           const statusEffects = world.getComponent(player.id, StatusEffects);
           if (statusEffects) {
-            statusEffects.effects.push({
-              name: 'HUD_GLITCH',
-              duration: 2,
-              magnitude: 1,
-              source: 'null_pointer'
+            world.patchComponent(player.id, StatusEffects, {
+              effects: [
+                ...statusEffects.effects,
+                {
+                  name: 'HUD_GLITCH',
+                  duration: 2,
+                  magnitude: 1,
+                  source: 'null_pointer'
+                }
+              ]
             });
             eventBus.emit('STATUS_EFFECT_APPLIED', {
               entityId: player.id,

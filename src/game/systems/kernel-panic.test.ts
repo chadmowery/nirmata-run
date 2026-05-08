@@ -245,8 +245,12 @@ describe('KernelPanicSystem', () => {
     world.addComponent(entityId, Heat, createHeatData({ current: 100.5, maxSafe: 100 }));
     world.addComponent(entityId, Shell, createShellData({ stability: 0 }));
 
+    vi.spyOn(Math, 'random').mockReturnValue(0); // Force success
+
     const result = kernelPanicSystem.checkOverclock(entityId);
     expect(result?.tier).toBe(1);
     expect(result?.effectName).toBe('HUD_GLITCH');
+
+    vi.spyOn(Math, 'random').mockRestore();
   });
 });

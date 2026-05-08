@@ -13,10 +13,10 @@ export interface KernelPanicResult {
 }
 
 const KERNEL_PANIC_TABLE = [
-  { minPercent: 100, maxPercent: 120, baseChance: 1.0, effectName: 'HUD_GLITCH', duration: 2, magnitude: 1, severity: 'minor' },
-  { minPercent: 121, maxPercent: 140, baseChance: 1.0, effectName: 'INPUT_LAG', duration: 3, magnitude: 1, severity: 'moderate' },
-  { minPercent: 141, maxPercent: 160, baseChance: 0.9, effectName: 'FIRMWARE_LOCK', duration: 2, magnitude: 1, severity: 'severe' },
-  { minPercent: 161, maxPercent: Infinity, baseChance: 1.0, effectName: 'CRITICAL_REBOOT', duration: 3, magnitude: 1, severity: 'critical' },
+  { tier: 1, minPercent: 100, maxPercent: 120, baseChance: 0.15, effectName: 'HUD_GLITCH', duration: 2, magnitude: 1, severity: 'minor' },
+  { tier: 2, minPercent: 121, maxPercent: 140, baseChance: 0.25, effectName: 'INPUT_LAG', duration: 3, magnitude: 1, severity: 'moderate' },
+  { tier: 3, minPercent: 141, maxPercent: 160, baseChance: 0.50, effectName: 'FIRMWARE_LOCK', duration: 2, magnitude: 1, severity: 'severe' },
+  { tier: 4, minPercent: 161, maxPercent: Infinity, baseChance: 1.0, effectName: 'CRITICAL_REBOOT', duration: 3, magnitude: 1, severity: 'critical' },
 ] as const;
 
 /**
@@ -60,7 +60,7 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
 
     if (eligibleTiers.length === 0) return null;
 
-    let triggeredTierMinPercent = 0;
+    let triggeredTier = 0;
     let appliedEffectName = '';
 
     // Evaluate tiers from most severe to least severe (highest minPercent to lowest)
@@ -88,20 +88,21 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
 
         eventBus.emit('KERNEL_PANIC_TRIGGERED', {
           entityId,
+          tier: tier.tier,
           effectName: tier.effectName,
           severity: tier.severity,
         } as unknown as T['KERNEL_PANIC_TRIGGERED']);
 
-        triggeredTierMinPercent = tier.minPercent;
+        triggeredTier = tier.tier;
 
         if (tier.effectName === 'CRITICAL_REBOOT') {
           console.log(`[KernelPanic] >> CRITICAL_REBOOT: Venting heat to 0`);
           const oldHeat = heat.current;
-          heat.current = 0;
+          world.patchComponent(entityId, Heat, { current: 0 });
           eventBus.emit('HEAT_CHANGED', {
             entityId,
             oldHeat,
-            newHeat: heat.current,
+            newHeat: 0,
             maxSafe: heat.maxSafe,
           });
         }
@@ -134,10 +135,10 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
       }
     }
 
-    if (triggeredTierMinPercent > 0) {
+    if (triggeredTier > 0) {
       console.log(`[KernelPanic] Panic triggered: ${appliedEffectName}`);
       return {
-        tier: triggeredTierMinPercent,
+        tier: triggeredTier,
         effectName: appliedEffectName,
         rolled: true,
         effectApplied: true,

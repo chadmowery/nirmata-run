@@ -130,8 +130,9 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
 
     // If ring is empty, increase wave and try again once
     if (ring.length === 0) {
-      state.corruptionWave++;
-      ring = getTilesAtDistance(pos.x, pos.y, state.corruptionWave);
+      const nextWave = state.corruptionWave + 1;
+      world.patchComponent(seedEaterId, CorruptionState, { corruptionWave: nextWave });
+      ring = getTilesAtDistance(pos.x, pos.y, nextWave);
       ring = ring.filter(t => !state.corruptedTileKeys.includes(`${t.x},${t.y}`));
     }
 
@@ -163,7 +164,11 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
         transparent: newTransparent
       });
 
-      state.corruptedTileKeys.push(`${tile.x},${tile.y}`);
+      const key = `${tile.x},${tile.y}`;
+      world.patchComponent(seedEaterId, CorruptionState, {
+        corruptedTileKeys: [...state.corruptedTileKeys, key]
+      });
+
       eventBus.emit('TILE_CORRUPTED', { 
         x: tile.x, 
         y: tile.y, 
@@ -183,8 +188,7 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
             if (ePos) {
               const fromX = ePos.x;
               const fromY = ePos.y;
-              ePos.x = target.x;
-              ePos.y = target.y;
+              world.patchComponent(eid, Position, { x: target.x, y: target.y });
               grid.removeEntity(eid, fromX, fromY);
               grid.addEntity(eid, target.x, target.y);
               eventBus.emit('ENTITY_DISPLACED', { 
@@ -251,10 +255,12 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
         
         spreadCorruption(id);
         
-        state.turnsSinceLastSpawn++;
-        if (state.turnsSinceLastSpawn >= state.spawnFrequency) {
+        const nextSpawnTurns = state.turnsSinceLastSpawn + 1;
+        if (nextSpawnTurns >= state.spawnFrequency) {
           spawnSubProcess(id);
-          state.turnsSinceLastSpawn = 0;
+          world.patchComponent(id, CorruptionState, { turnsSinceLastSpawn: 0 });
+        } else {
+          world.patchComponent(id, CorruptionState, { turnsSinceLastSpawn: nextSpawnTurns });
         }
       }
     }

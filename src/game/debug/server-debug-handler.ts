@@ -28,7 +28,7 @@ export function handleServerDebugCommand(
       const heatComp = world.getComponent(playerId, Heat);
       if (heatComp) {
         const oldHeat = heatComp.current;
-        heatComp.current = amount;
+        world.patchComponent(playerId, Heat, { current: amount });
         console.log(`[DEBUG-SERVER] Updated Heat for entity ${playerId}: ${oldHeat} -> ${amount}`);
         eventBus.emit('HEAT_CHANGED', {
           entityId: playerId,
@@ -75,7 +75,7 @@ export function handleServerDebugCommand(
         const heatComp = world.getComponent(playerId, Heat);
         if (heatComp) {
           const oldHeat = heatComp.current;
-          heatComp.current = 0;
+          world.patchComponent(playerId, Heat, { current: 0 });
           eventBus.emit('HEAT_CHANGED', {
             entityId: playerId,
             oldHeat,
@@ -92,7 +92,7 @@ export function handleServerDebugCommand(
       const healthComp = world.getComponent(playerId, Health);
       if (healthComp) {
         const oldVal = healthComp.current;
-        healthComp.current = amount;
+        world.patchComponent(playerId, Health, { current: amount });
         console.log(`[DEBUG-SERVER] Updated HP for entity ${playerId}: ${oldVal} -> ${amount}`);
         const diff = amount - oldVal;
         if (diff > 0) {
@@ -115,7 +115,7 @@ export function handleServerDebugCommand(
       const stabilityComp = world.getComponent(playerId, Stability);
       if (stabilityComp) {
         const oldVal = stabilityComp.current;
-        stabilityComp.current = amount;
+        world.patchComponent(playerId, Stability, { current: amount });
         console.log(`[DEBUG-SERVER] Updated Stability for entity ${playerId}: ${oldVal} -> ${amount}`);
         eventBus.emit('STABILITY_CHANGED', {
           entityId: playerId,

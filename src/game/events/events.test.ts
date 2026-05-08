@@ -38,6 +38,7 @@ describe('GameEvents Integration', () => {
     const payload = {
       entityId: 2,
       killerId: 1,
+      isPlayer: false,
     };
     bus.emit('ENTITY_DIED', payload);
     bus.flush();

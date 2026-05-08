@@ -47,8 +47,7 @@ describe('Reconciliation', () => {
     const oldGridState = serializeGrid(grid);
     
     // Move player (optimistic)
-    const pos = world.getComponent(playerId, Position)!;
-    pos.x += 1;
+    world.patchComponent(playerId, Position, { x: initialPos.x + 1 });
     
     const newWorldState = serializeWorld(world);
     const newGridState = serializeGrid(grid);
@@ -58,7 +57,7 @@ describe('Reconciliation', () => {
     };
 
     // Reset client pos to initial for the test
-    pos.x = initialPos.x;
+    world.patchComponent(playerId, Position, { x: initialPos.x });
 
     (global.fetch as any).mockResolvedValue({
       ok: true,
@@ -114,12 +113,11 @@ describe('Reconciliation', () => {
     const oldGridState = serializeGrid(grid);
 
     // Simulate client prediction (moving east)
-    const clientPredictedPos = world.getComponent(playerId, Position)!;
-    clientPredictedPos.x += 1;
+    world.patchComponent(playerId, Position, { x: initialPos.x + 1 });
     const newWorldState = serializeWorld(world);
     const newGridState = serializeGrid(grid);
     // Revert client prediction for server delta calculation
-    clientPredictedPos.x -= 1;
+    world.patchComponent(playerId, Position, { x: initialPos.x });
 
     // Server's truth is that the player did not move.
     // So, the delta from the client's predicted state (newWorldState)

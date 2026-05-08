@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { VaultItem } from '@/shared/profile';
 import { Shield, Zap, Code, Terminal } from 'lucide-react';
 import styles from './ItemCard.module.css';
@@ -77,7 +77,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({
   };
 
   return (
-    <div 
+    <div
       ref={cardRef}
       className={`
         ${styles.card} 

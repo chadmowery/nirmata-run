@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import styles from './ShellCarousel.module.css';
 import { ShellStatCard } from './ShellStatCard';
 import { ShellTemplate } from '@/game/shells/types';
@@ -47,7 +47,7 @@ export const ShellCarousel: React.FC<ShellCarouselProps> = ({
 
   return (
     <div className={styles.carousel}>
-      <button 
+      <button
         className={`${styles.arrow} ${selectedIndex === 0 ? styles.disabled : ''}`}
         onClick={handlePrev}
         disabled={selectedIndex === 0 || isTransitioning}
@@ -57,14 +57,14 @@ export const ShellCarousel: React.FC<ShellCarouselProps> = ({
       </button>
 
       <div className={`${styles.cardContainer} ${isTransitioning ? styles.fade : ''}`}>
-        <ShellStatCard 
+        <ShellStatCard
           shell={currentShell}
           upgrades={currentUpgrades}
           installedItems={installedItems}
         />
       </div>
 
-      <button 
+      <button
         className={`${styles.arrow} ${selectedIndex === shells.length - 1 ? styles.disabled : ''}`}
         onClick={handleNext}
         disabled={selectedIndex === shells.length - 1 || isTransitioning}

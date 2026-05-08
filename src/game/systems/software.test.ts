@@ -254,7 +254,7 @@ describe('Software System', () => {
       playerId = world.createEntity();
       world.addComponent(playerId, Actor, { isPlayer: true });
       world.addComponent(playerId, Position, { x: 0, y: 0 });
-      world.addComponent(playerId, Health, { current: 10, max: 10 });
+      world.addComponent(playerId, Health, Health.schema.parse({ current: 10, max: 10 }));
       world.addComponent(playerId, SoftwareSlots, { equipped: [] });
       
       runInventoryRegistry.clear(sessionId);
@@ -456,7 +456,7 @@ describe('Software System', () => {
       playerId = world.createEntity();
       world.addComponent(playerId, Actor, { isPlayer: true });
       world.addComponent(playerId, Position, { x: 0, y: 0 });
-      world.addComponent(playerId, Health, { current: 10, max: 10 });
+      world.addComponent(playerId, Health, Health.schema.parse({ current: 10, max: 10 }));
     });
 
     it('MOVE_AND_USE_FIRMWARE moves the player and emits PLAYER_ACTION', () => {
@@ -633,7 +633,7 @@ describe('Software System', () => {
       });
       world.addComponent(swEntity, RarityTier, { tier: 'v0.x', scaleFactor: 1.0, minFloor: 0 });
       world.addComponent(player, BurnedSoftware, { weapon: null, armor: swEntity });
-      world.addComponent(player, Health, { current: 10, max: 20 });
+      world.addComponent(player, Health, Health.schema.parse({ current: 10, max: 20 }));
 
       applyVampireOnKill(world, eventBus, player);
 
@@ -658,7 +658,7 @@ describe('Software System', () => {
       });
       world.addComponent(swEntity, RarityTier, { tier: 'v3.x', scaleFactor: 3.0, minFloor: 0 });
       world.addComponent(player, BurnedSoftware, { weapon: null, armor: swEntity });
-      world.addComponent(player, Health, { current: 10, max: 30 });
+      world.addComponent(player, Health, Health.schema.parse({ current: 10, max: 30 }));
 
       applyVampireOnKill(world, eventBus, player);
 
@@ -683,7 +683,7 @@ describe('Software System', () => {
       });
       world.addComponent(swEntity, RarityTier, { tier: 'v0.x', scaleFactor: 1.0, minFloor: 0 });
       world.addComponent(player, BurnedSoftware, { weapon: null, armor: swEntity });
-      world.addComponent(player, Health, { current: 18, max: 20 });
+      world.addComponent(player, Health, Health.schema.parse({ current: 18, max: 20 }));
 
       applyVampireOnKill(world, eventBus, player);
 
@@ -719,7 +719,7 @@ describe('Software System', () => {
       world.addComponent(vampireSw, RarityTier, { tier: 'v0.x', scaleFactor: 1, minFloor: 0 });
 
       world.addComponent(player, BurnedSoftware, { weapon: bleedSw, armor: vampireSw });
-      world.addComponent(player, Health, { current: 10, max: 20 });
+      world.addComponent(player, Health, Health.schema.parse({ current: 10, max: 20 }));
       world.addComponent(defender, StatusEffects, { effects: [] });
 
       // Act: Attack that triggers Bleed

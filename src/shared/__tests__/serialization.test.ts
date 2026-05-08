@@ -22,14 +22,14 @@ describe('Serialization', () => {
     it('should perform a lossless round-trip for world state', () => {
       const entityId = world.createEntity();
       world.addComponent(entityId, Position, { x: 5, y: 5 });
-      world.addComponent(entityId, Health, { current: 10, max: 10 });
+      world.addComponent(entityId, Health, Health.schema.parse({ current: 10, max: 10 }));
 
       const serialized = serializeWorld(world);
       const newWorld = deserializeWorld(serialized, eventBus);
 
       expect(newWorld.entityExists(entityId)).toBe(true);
       expect(newWorld.getComponent(entityId, Position)).toEqual({ x: 5, y: 5 });
-      expect(newWorld.getComponent(entityId, Health)).toEqual({ current: 10, max: 10 });
+      expect(newWorld.getComponent(entityId, Health)).toEqual(expect.objectContaining({ current: 10, max: 10, isAlive: true }));
       expect(serializeWorld(newWorld)).toEqual(serialized);
     });
   });

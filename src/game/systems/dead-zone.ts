@@ -33,7 +33,8 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
         const health = world.getComponent(targetId, Health);
         if (health) {
           const damage = deadZone.damagePerTick;
-          health.current = Math.max(0, health.current - damage);
+          const nextHealth = Math.max(0, health.current - damage);
+          world.patchComponent(targetId, Health, { current: nextHealth });
           
           eventBus.emit('DAMAGE_DEALT', {
             attackerId: (deadZone.creatorId as EntityId) ?? (entityId as EntityId),
@@ -42,7 +43,7 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
           });
 
           // Basic death check - if health system is added later, this can be moved
-          if (health.current <= 0) {
+          if (nextHealth <= 0) {
             const actor = world.getComponent(targetId as EntityId, Actor);
             eventBus.emit('ENTITY_DIED', { 
               entityId: targetId as EntityId, 
@@ -60,10 +61,11 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
       }
 
       // 2. Decrement remaining turns
-      deadZone.remainingTurns--;
+      const nextTurns = deadZone.remainingTurns - 1;
+      world.patchComponent(entityId, DeadZone, { remainingTurns: nextTurns });
 
       // 3. Handle expiration
-      if (deadZone.remainingTurns <= 0) {
+      if (nextTurns <= 0) {
         eventBus.emit('DEAD_ZONE_EXPIRED', { x: pos.x, y: pos.y });
         grid.removeEntity(entityId, pos.x, pos.y);
         world.destroyEntity(entityId);

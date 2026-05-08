@@ -20,8 +20,8 @@ describe('Legacy Code System', () => {
       wallet: { scrap: 0, flux: 0 },
       blueprintLibrary: [],
       installedItems: [
-        { blueprintId: 'b1', type: 'firmware', shellId: 's1', isLegacy: false },
-        { blueprintId: 'b2', type: 'augment', shellId: 's1', isLegacy: false }
+        { entityId: 1, blueprintId: 'b1', type: 'firmware', shellId: 's1', isLegacy: false },
+        { entityId: 2, blueprintId: 'b2', type: 'augment', shellId: 's1', isLegacy: false }
       ],
       overflow: [],
       vault: [],

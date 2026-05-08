@@ -24,8 +24,7 @@ describe('Interaction Systems', () => {
     grid.addEntity(staircaseId, 10, 10);
 
     // Position player at (10, 11)
-    playerPos.x = 10;
-    playerPos.y = 11;
+    world.patchComponent(playerId, Position, { x: 10, y: 11 });
     grid.clear(); // Clear initial placement for simplicity
     grid.addEntity(playerId, 10, 11);
     grid.addEntity(staircaseId, 10, 10);
@@ -95,8 +94,7 @@ describe('Interaction Systems', () => {
     grid.setTile(5, 5, { terrain: 'floor', walkable: true, transparent: true });
 
     // Position player at (5, 6)
-    playerPos.x = 5;
-    playerPos.y = 6;
+    world.patchComponent(playerId, Position, { x: 5, y: 6 });
     grid.addEntity(playerId, 5, 6);
 
     const eventSpy = vi.fn();

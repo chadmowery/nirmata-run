@@ -35,7 +35,7 @@ describe('Death Pity and Extraction', () => {
     const { setupInternalHandlers } = await import('../pipeline');
     setupInternalHandlers(world, grid, eventBus, sessionId);
     
-    eventBus.emit('ENTITY_DIED', { entityId: playerId, killerId: 999 });
+    eventBus.emit('ENTITY_DIED', { entityId: playerId, killerId: 999, isPlayer: true });
     eventBus.flush();
     
     expect(runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap')).toBe(25);

@@ -41,11 +41,12 @@ describe('Session API Route', () => {
     expect(session?.playerId).toBeDefined();
   });
 
-  it('should return 400 for missing parameters', async () => {
+  it('should return 400 for missing seed', async () => {
     const req = {
       json: async () => ({
-        seed: 'test-seed',
-        // missing width, height
+        width: 10,
+        height: 10,
+        // missing seed
       }),
     } as Request;
 

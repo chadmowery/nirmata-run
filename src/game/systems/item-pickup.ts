@@ -106,7 +106,9 @@ export function createItemPickupSystem<T extends GameplayEvents>(
       if (itemScrap) {
         const playerScrap = world.getComponent(entityId, Scrap);
         if (playerScrap) {
-          playerScrap.amount += itemScrap.amount;
+          world.patchComponent(entityId, Scrap, {
+            amount: playerScrap.amount + itemScrap.amount
+          });
         }
       }
 
@@ -116,7 +118,9 @@ export function createItemPickupSystem<T extends GameplayEvents>(
         if (effect.type === EffectType.HEAL) {
           const health = world.getComponent(entityId, Health);
           if (health) {
-            health.current = Math.min(health.max, health.current + effect.value);
+            world.patchComponent(entityId, Health, {
+              current: Math.min(health.max, health.current + effect.value)
+            });
           }
         }
       }

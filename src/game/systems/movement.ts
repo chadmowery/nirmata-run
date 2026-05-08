@@ -98,8 +98,7 @@ export function createMovementSystem<T extends GameplayEvents>(
       const oldY = pos.y;
       
       // Update position component
-      pos.x = targetX;
-      pos.y = targetY;
+      world.patchComponent(entityId, Position, { x: targetX, y: targetY });
       
       // Update grid spatial index
       grid.moveEntity(entityId, oldX, oldY, targetX, targetY);

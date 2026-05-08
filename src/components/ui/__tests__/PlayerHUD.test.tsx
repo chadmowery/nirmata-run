@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { PlayerHUD } from '../PlayerHUD';
 import { gameStore } from '@/game/ui/store';
@@ -20,6 +20,10 @@ describe('PlayerHUD', () => {
         xp: 30,
         level: 3,
         statuses: ['Poisoned'],
+        heat: 0,
+        maxHeat: 100,
+        shellName: 'VANGUARD-v1',
+        mods: []
       }
     });
 
@@ -33,14 +37,14 @@ describe('PlayerHUD', () => {
 
   it('updates when store changes', () => {
     gameStore.setState({
-      player: { hp: 5, maxHp: 10, xp: 0, level: 1, statuses: [] }
+      player: { hp: 5, maxHp: 10, xp: 0, level: 1, statuses: [], heat: 0, maxHeat: 100, shellName: 'VANGUARD-v1', mods: [] }
     });
 
     const { rerender } = render(<PlayerHUD />);
     expect(screen.getByText('5 / 10')).toBeDefined();
 
     gameStore.setState({
-      player: { hp: 2, maxHp: 10, xp: 0, level: 1, statuses: [] }
+      player: { hp: 2, maxHp: 10, xp: 0, level: 1, statuses: [], heat: 0, maxHeat: 100, shellName: 'VANGUARD-v1', mods: [] }
     });
 
     // Zustand usually triggers re-render automatically, so we just check again

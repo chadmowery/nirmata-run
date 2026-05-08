@@ -41,7 +41,7 @@ export const LeaderboardPanel: React.FC<LeaderboardPanelProps> = ({ mode, sessio
 
   if (mode === RunMode.SIMULATION) return null;
 
-  const heading = mode === RunMode.DAILY 
+  const heading = mode === RunMode.DAILY
     ? `DAILY_LEADERBOARD // ${new Date().toISOString().split('T')[0]}`
     : `WEEKLY_LEADERBOARD // ${new Date().getFullYear()}-W${getWeekNumber(new Date())}`;
 

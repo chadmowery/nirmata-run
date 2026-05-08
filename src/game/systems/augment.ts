@@ -68,7 +68,9 @@ export function createAugmentSystem<T extends GameplayEvents>(
         case 'HEAL': {
           const health = world.getComponent(entityId, Health);
           if (health) {
-            health.current = Math.min(health.max, health.current + magnitude);
+            world.patchComponent(entityId, Health, {
+              current: Math.min(health.max, health.current + magnitude)
+            });
           }
           break;
         }
@@ -126,10 +128,19 @@ export function createAugmentSystem<T extends GameplayEvents>(
         if (evaluateCondition(augmentData.trigger, ctx)) {
           resolvePayloads(entityId, augmentData.payloads, augmentData.isLegacy);
           
-          state.activationsThisTurn[augmentKey] = activations + 1;
+          const nextActivations = { 
+            ...state.activationsThisTurn, 
+            [augmentKey]: activations + 1 
+          };
+          const nextCooldowns = { ...state.cooldownsRemaining };
           if (augmentData.cooldownTurns > 0) {
-            state.cooldownsRemaining[augmentKey] = augmentData.cooldownTurns;
+            nextCooldowns[augmentKey] = augmentData.cooldownTurns;
           }
+
+          world.patchComponent(entityId, AugmentState, {
+            activationsThisTurn: nextActivations,
+            cooldownsRemaining: nextCooldowns
+          });
 
           for (const p of augmentData.payloads) {
             triggeredAugments.push({ 
@@ -158,12 +169,17 @@ export function createAugmentSystem<T extends GameplayEvents>(
   const resetTurnState = (entityId: EntityId) => {
     const state = world.getComponent(entityId, AugmentState);
     if (state) {
-      state.activationsThisTurn = {};
-      for (const key in state.cooldownsRemaining) {
-        if (state.cooldownsRemaining[key] > 0) {
-          state.cooldownsRemaining[key]--;
+      const nextCooldowns = { ...state.cooldownsRemaining };
+      for (const key in nextCooldowns) {
+        if (nextCooldowns[key] > 0) {
+          nextCooldowns[key]--;
         }
       }
+      
+      world.patchComponent(entityId, AugmentState, {
+        activationsThisTurn: {},
+        cooldownsRemaining: nextCooldowns
+      });
     }
   };
 

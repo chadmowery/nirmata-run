@@ -41,8 +41,7 @@ describe('Tech Demo Integration', () => {
     // 4. Simulate Player Death
     const playerHealth = context.world.getComponent(context.playerId!, Health);
     if (playerHealth) {
-      playerHealth.current = 0;
-      context.world.addComponent(context.playerId!, Health, { ...playerHealth });
+      context.world.patchComponent(context.playerId!, Health, { current: 0 });
     }
 
     // Trigger an event that causes death check if needed, 
@@ -51,7 +50,13 @@ describe('Tech Demo Integration', () => {
     context.eventBus.emit('RUN_ENDED', { 
       reason: 'death',
       floorNumber: 1,
-      stats: {},
+      stats: {
+        scrapExtracted: 0,
+        fluxExtracted: 0,
+        softwareExtracted: 0,
+        pityAwarded: false,
+        itemsExtracted: []
+      },
       entityId: context.playerId!
     });
     context.eventBus.flush();

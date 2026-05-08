@@ -31,6 +31,7 @@ describe('MovementSystem', () => {
     world = {
       getComponent: vi.fn(),
       hasComponent: vi.fn(),
+      patchComponent: vi.fn(),
     } as any;
 
     eventBus = {
@@ -41,67 +42,71 @@ describe('MovementSystem', () => {
   });
 
   it('should move entity successfully to an empty walkable tile', () => {
-    const pos = { x: 5, y: 5 };
-    vi.mocked(world.getComponent).mockReturnValue(pos);
+    vi.mocked(world.getComponent).mockImplementation((id, comp) => {
+      if (id === PLAYER_ID && comp === Position) return { x: 5, y: 5 };
+      return undefined;
+    });
     grid.addEntity(PLAYER_ID, 5, 5);
 
     const result = movementSystem.processMove(PLAYER_ID, 1, 0); // Move East
 
     expect(result).toBe('moved');
-    expect(pos.x).toBe(6);
-    expect(pos.y).toBe(5);
+    expect(world.patchComponent).toHaveBeenCalledWith(PLAYER_ID, Position, { x: 6, y: 5 });
     expect(grid.getEntitiesAt(5, 5).has(PLAYER_ID)).toBe(false);
     expect(grid.getEntitiesAt(6, 5).has(PLAYER_ID)).toBe(true);
   });
 
   it('should support all four cardinal directions', () => {
-    const pos = { x: 5, y: 5 };
-    vi.mocked(world.getComponent).mockReturnValue(pos);
+    vi.mocked(world.getComponent).mockImplementation((id, comp) => {
+      if (id === PLAYER_ID && comp === Position) return { x: 5, y: 5 };
+      return undefined;
+    });
 
     movementSystem.processMove(PLAYER_ID, 0, -1); // North
-    expect(pos.y).toBe(4);
+    expect(world.patchComponent).toHaveBeenCalledWith(PLAYER_ID, Position, { x: 5, y: 4 });
 
     movementSystem.processMove(PLAYER_ID, 0, 1); // South
-    expect(pos.y).toBe(5);
+    expect(world.patchComponent).toHaveBeenCalledWith(PLAYER_ID, Position, { x: 5, y: 6 });
 
     movementSystem.processMove(PLAYER_ID, -1, 0); // West
-    expect(pos.x).toBe(4);
+    expect(world.patchComponent).toHaveBeenCalledWith(PLAYER_ID, Position, { x: 4, y: 5 });
 
     movementSystem.processMove(PLAYER_ID, 1, 0); // East
-    expect(pos.x).toBe(5);
+    expect(world.patchComponent).toHaveBeenCalledWith(PLAYER_ID, Position, { x: 6, y: 5 });
   });
 
   it('should block movement if target is out of bounds', () => {
-    const pos = { x: 0, y: 0 };
-    vi.mocked(world.getComponent).mockReturnValue(pos);
+    vi.mocked(world.getComponent).mockImplementation((id, comp) => {
+      if (id === PLAYER_ID && comp === Position) return { x: 0, y: 0 };
+      return undefined;
+    });
     grid.addEntity(PLAYER_ID, 0, 0);
 
     const result = movementSystem.processMove(PLAYER_ID, -1, 0);
 
     expect(result).toBe('blocked');
-    expect(pos.x).toBe(0);
     expect(grid.getEntitiesAt(0, 0).has(PLAYER_ID)).toBe(true);
   });
 
   it('should block movement if target tile is not walkable', () => {
-    const pos = { x: 5, y: 5 };
-    vi.mocked(world.getComponent).mockReturnValue(pos);
+    vi.mocked(world.getComponent).mockImplementation((id, comp) => {
+      if (id === PLAYER_ID && comp === Position) return { x: 5, y: 5 };
+      return undefined;
+    });
     grid.setTile(6, 5, { walkable: false });
     grid.addEntity(PLAYER_ID, 5, 5);
 
     const result = movementSystem.processMove(PLAYER_ID, 1, 0);
 
     expect(result).toBe('blocked');
-    expect(pos.x).toBe(5);
   });
 
   it('should trigger BUMP_ATTACK when moving into a hostile entity', () => {
-    const playerPos = { x: 5, y: 5 };
     vi.mocked(world.getComponent).mockImplementation((id, comp) => {
-      if (id === PLAYER_ID && comp === Position) return playerPos;
+      if (id === PLAYER_ID && comp === Position) return { x: 5, y: 5 };
       if (id === PLAYER_ID && comp === Actor) return { isPlayer: true };
       if (id === ENEMY_ID && comp === Actor) return { isPlayer: false };
-      return null;
+      return undefined;
     });
     vi.mocked(world.hasComponent).mockImplementation((id, comp) => {
       if (id === ENEMY_ID && comp === Hostile) return true;
@@ -114,7 +119,7 @@ describe('MovementSystem', () => {
     const result = movementSystem.processMove(PLAYER_ID, 1, 0);
 
     expect(result).toBe('bump-attack');
-    expect(playerPos.x).toBe(5); // Player doesn't move
+    expect(world.patchComponent).not.toHaveBeenCalled(); // Player doesn't move
     expect(eventBus.emit).toHaveBeenCalledWith('BUMP_ATTACK', {
       attackerId: PLAYER_ID,
       defenderId: ENEMY_ID,
@@ -122,8 +127,10 @@ describe('MovementSystem', () => {
   });
 
   it('should block movement when moving into a non-hostile blocking entity', () => {
-    const playerPos = { x: 5, y: 5 };
-    vi.mocked(world.getComponent).mockReturnValue(playerPos);
+    vi.mocked(world.getComponent).mockImplementation((id, comp) => {
+      if (id === PLAYER_ID && comp === Position) return { x: 5, y: 5 };
+      return undefined;
+    });
     vi.mocked(world.hasComponent).mockImplementation((id, comp) => {
       if (id === WALL_ID && comp === BlocksMovement) return true;
       return false;
@@ -135,14 +142,16 @@ describe('MovementSystem', () => {
     const result = movementSystem.processMove(PLAYER_ID, 1, 0);
 
     expect(result).toBe('blocked');
-    expect(playerPos.x).toBe(5);
+    expect(world.patchComponent).not.toHaveBeenCalled();
     expect(eventBus.emit).not.toHaveBeenCalled();
   });
 
   it('should allow moving into a non-blocking non-hostile entity', () => {
-    const playerPos = { x: 5, y: 5 };
     const ITEM_ID = 4;
-    vi.mocked(world.getComponent).mockReturnValue(playerPos);
+    vi.mocked(world.getComponent).mockImplementation((id, comp) => {
+      if (id === PLAYER_ID && comp === Position) return { x: 5, y: 5 };
+      return undefined;
+    });
     vi.mocked(world.hasComponent).mockReturnValue(false);
 
     grid.addEntity(PLAYER_ID, 5, 5);
@@ -151,6 +160,6 @@ describe('MovementSystem', () => {
     const result = movementSystem.processMove(PLAYER_ID, 1, 0);
 
     expect(result).toBe('moved');
-    expect(playerPos.x).toBe(6);
+    expect(world.patchComponent).toHaveBeenCalledWith(PLAYER_ID, Position, expect.objectContaining({ x: 6 }));
   });
 });

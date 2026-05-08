@@ -19,8 +19,6 @@ export async function POST(req: Request) {
 
     const sessionId = providedSessionId || 'default-player-session';
 
-    // Ensure authoritative registry is clean for new run (D-05/D-06)
-    console.log(`[API] Clearing run inventory registry for session: ${sessionId}`);
     runInventoryRegistry.clear(sessionId);
 
     // Load or create profile

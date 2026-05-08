@@ -135,12 +135,14 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
       }
 
       // 3. Overwrite/Burn
-      const oldEntityId = burned[action.targetSlot];
-      if (oldEntityId !== null) {
-        world.destroyEntity(oldEntityId);
+      const oldSoftwareId = burned[action.targetSlot];
+      if (oldSoftwareId !== null) {
+        world.destroyEntity(oldSoftwareId);
       }
 
-      burned[action.targetSlot] = swItem.entityId;
+      world.patchComponent(entityId, BurnedSoftware, {
+        [action.targetSlot]: swItem.entityId
+      });
       runInventoryRegistry.removeSoftware(sessionId, action.runInventoryIndex);
 
       eventBus.emit('SOFTWARE_BURNED', {
@@ -204,17 +206,18 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
       const stability = world.getComponent(entityId, Stability);
       if (stability) {
         const oldValue = stability.current;
-        stability.current = Math.min(stability.max, stability.current + stability.max * 0.5);
+        const newValue = Math.min(stability.max, stability.current + stability.max * 0.5);
+        world.patchComponent(entityId, Stability, { current: newValue });
         eventBus.emit('STABILITY_CHANGED', {
           entityId,
           oldValue,
-          newValue: stability.current,
+          newValue,
           reason: 'anchor_refill'
         });
       }
       const anchorMarker = world.getComponent(action.anchorId, AnchorMarker);
       if (anchorMarker) {
-        anchorMarker.used = true;
+        world.patchComponent(action.anchorId, AnchorMarker, { used: true });
       }
       eventBus.emit('MESSAGE_EMITTED', {
         text: `STABILIZE_AND_DESCEND: -${action.cost} Scrap, Stability refilled`,
@@ -279,8 +282,7 @@ function handleMove(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus
   // Perform move
   const oldX = pos.x;
   const oldY = pos.y;
-  pos.x = targetX;
-  pos.y = targetY;
+  world.patchComponent(entityId, Position, { x: targetX, y: targetY });
   grid.moveEntity(entityId, oldX, oldY, targetX, targetY);
   eventBus.emit('ENTITY_MOVED', { entityId, fromX: oldX, fromY: oldY, toX: targetX, toY: targetY });
 }
@@ -292,7 +294,9 @@ function handlePickup(world: World<GameplayEvents>, grid: Grid, eventBus: EventB
   if (effect && effect.type === EffectType.HEAL) {
     const health = world.getComponent(entityId, Health);
     if (health) {
-      health.current = Math.min(health.max, health.current + effect.value);
+      world.patchComponent(entityId, Health, {
+        current: Math.min(health.max, health.current + effect.value)
+      });
     }
   }
 
@@ -301,7 +305,9 @@ function handlePickup(world: World<GameplayEvents>, grid: Grid, eventBus: EventB
   if (itemScrap) {
     const playerScrap = world.getComponent(entityId, Scrap);
     if (playerScrap) {
-      playerScrap.amount += itemScrap.amount;
+      world.patchComponent(entityId, Scrap, {
+        amount: playerScrap.amount + itemScrap.amount
+      });
     }
   }
 
@@ -330,7 +336,9 @@ export function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, 
 
     const damage = resolveDamage(attackerAttack.power, modifiers, effectiveArmor);
 
-    defenderHealth.current = Math.max(0, defenderHealth.current - damage);
+    world.patchComponent(defenderId, Health, {
+      current: Math.max(0, defenderHealth.current - damage)
+    });
 
     eventBus.emit('DAMAGE_DEALT', { attackerId, defenderId, amount: damage });
 
@@ -367,10 +375,11 @@ export function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, 
     const { entityId } = payload;
     
     // Clear burned software component
-    const burned = world.getComponent(entityId, BurnedSoftware);
-    if (burned) {
-      burned.weapon = null;
-      burned.armor = null;
+    if (world.hasComponent(entityId, BurnedSoftware)) {
+      world.patchComponent(entityId, BurnedSoftware, {
+        weapon: null,
+        armor: null
+      });
     }
 
     const actor = world.getComponent(entityId, Actor);

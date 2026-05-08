@@ -85,15 +85,15 @@ describe('World', () => {
       expect(() => world.addComponent(999, Position, { x: 0, y: 0 })).toThrow();
     });
 
-    it('should support mutable references to component data', () => {
+    it('should support patching component data', () => {
       const id = world.createEntity();
       const pos = { x: 10, y: 20 };
       world.addComponent(id, Position, pos);
 
-      const retrievedPos = world.getComponent(id, Position)!;
-      retrievedPos.x = 30;
+      world.patchComponent(id, Position, { x: 30 });
 
       expect(world.getComponent(id, Position)!.x).toBe(30);
+      expect(world.getComponent(id, Position)!.y).toBe(20);
     });
 
     it('should emit COMPONENT_ADDED and COMPONENT_REMOVED events', () => {

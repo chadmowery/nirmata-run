@@ -33,7 +33,7 @@ export const LoadoutSlotPanel: React.FC<LoadoutSlotPanelProps> = ({
       const item = typeEquipped[i];
       const slotId = `${type}-${i}`;
       const isOver = dragOverSlot === slotId;
-      
+
       const isCompatible = draggedItem ? (
         (draggedItem.itemType === 'firmware' && type === 'firmware') ||
         (draggedItem.itemType === 'augment' && type === 'augment') ||
@@ -63,7 +63,7 @@ export const LoadoutSlotPanel: React.FC<LoadoutSlotPanelProps> = ({
       };
 
       slots.push(
-        <div 
+        <div
           key={slotId}
           className={`
             ${styles.slotWrapper} 
@@ -75,7 +75,7 @@ export const LoadoutSlotPanel: React.FC<LoadoutSlotPanelProps> = ({
           onPointerUp={handlePointerUp}
           onPointerDown={item ? handleDragStart : undefined}
         >
-          <SlotBox 
+          <SlotBox
             filled={!!item}
             itemName={item?.blueprintId}
             slotType={type}

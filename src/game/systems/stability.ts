@@ -50,9 +50,9 @@ export function createStabilitySystem<T extends GameplayEvents>(
 
     const oldValue = stability.current;
     const chunk = config.perFloorChunkBase + (floorNumber - 1) * config.perFloorChunkScale;
+    const newValue = Math.max(0, stability.current - chunk);
 
-    stability.current = Math.max(0, stability.current - chunk);
-    const newValue = stability.current;
+    world.patchComponent(entityId, Stability, { current: newValue });
 
     eventBus.emit('STABILITY_CHANGED', {
       entityId,
@@ -75,9 +75,9 @@ export function createStabilitySystem<T extends GameplayEvents>(
 
     const oldValue = stability.current;
     const bleed = config.perTurnBleedBase + (floorNumber - 1) * config.perTurnBleedScale;
+    const newValue = Math.max(0, stability.current - bleed);
 
-    stability.current = Math.max(0, stability.current - bleed);
-    const newValue = stability.current;
+    world.patchComponent(entityId, Stability, { current: newValue });
 
     eventBus.emit('STABILITY_CHANGED', {
       entityId,
@@ -100,14 +100,15 @@ export function createStabilitySystem<T extends GameplayEvents>(
 
     if (!stability || !health || stability.current > 0 || health.current <= 0) return;
 
-    health.current = Math.max(0, health.current - config.degradedDamagePerTurn);
+    const nextHealth = Math.max(0, health.current - config.degradedDamagePerTurn);
+    world.patchComponent(entityId, Health, { current: nextHealth });
 
     eventBus.emit('DEGRADED_DAMAGE', {
       entityId,
       damage: config.degradedDamagePerTurn
     } as unknown as T['DEGRADED_DAMAGE']);
 
-    if (health.current === 0) {
+    if (nextHealth === 0) {
       const actor = world.getComponent(entityId, Actor);
       eventBus.emit('ENTITY_DIED', {
         entityId,

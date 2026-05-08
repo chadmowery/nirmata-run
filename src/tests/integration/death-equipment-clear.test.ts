@@ -15,14 +15,14 @@ describe('Death Equipment Clearing', () => {
     const playerId = world.createEntity();
     world.addComponent(playerId, Actor, { isPlayer: true });
     world.addComponent(playerId, Position, { x: 1, y: 1 });
-    world.addComponent(playerId, Health, { current: 1, max: 10 });
+    world.addComponent(playerId, Health, Health.schema.parse({ current: 1, max: 10 }));
     world.addComponent(playerId, FirmwareSlots, { equipped: [999] });
     grid.addEntity(playerId, 1, 1);
 
     const enemyId = world.createEntity();
     world.addComponent(enemyId, Actor, { isPlayer: false });
     world.addComponent(enemyId, Position, { x: 1, y: 2 });
-    world.addComponent(enemyId, Health, { current: 10, max: 10 });
+    world.addComponent(enemyId, Health, Health.schema.parse({ current: 10, max: 10 }));
     grid.addEntity(enemyId, 1, 2);
 
     // Simulate an attack that kills the player

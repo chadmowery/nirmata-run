@@ -26,24 +26,22 @@ import {
   applyStabilityDesaturation,
   disposeScreenEffects
 } from './filters/screen-effects';
-import { 
-  applyHeatTierFilters, 
-  clearHeatTierFilters, 
-  updateSpriteGhosting, 
-  disposeHeatEffects 
+import {
+  applyHeatTierFilters,
+  updateSpriteGhosting,
+  disposeHeatEffects
 } from './filters/heat-visual-effects';
 import { getHeatTier } from '../game/config/heat-tiers';
-import { Heat } from '@shared/components/heat';
-import { 
-  attachNeonEmitter, 
-  updateAllEmitters, 
-  cleanupEmitter, 
-  disposeAllEmitters 
+import {
+  attachNeonEmitter,
+  updateAllEmitters,
+  cleanupEmitter,
+  disposeAllEmitters
 } from './filters/particle-emitters';
-import { 
-  spawnDamageText, 
-  updateDamageTexts, 
-  disposeDamageTexts 
+import {
+  spawnDamageText,
+  updateDamageTexts,
+  disposeDamageTexts
 } from './filters/damage-text';
 
 export interface RenderSystemConfig {
@@ -98,11 +96,11 @@ export function createRenderSystem(config: RenderSystemConfig) {
     const sprite = getEntitySprite(payload.defenderId);
     if (sprite) {
       applyDamageDistortion(sprite);
-      
+
       // Spawn floating code leak for enemies
       const aiState = world.getComponent(payload.defenderId, AIState);
       if (aiState) {
-        spawnDamageText(sprite.x + TILE_SIZE/2, sprite.y + TILE_SIZE/2, layers.effectsLayer);
+        spawnDamageText(sprite.x + TILE_SIZE / 2, sprite.y + TILE_SIZE / 2, layers.effectsLayer);
       }
     }
   };
@@ -139,7 +137,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
     if (payload.entityId === getPlayerEntity()) {
       const tier = getHeatTier(payload.newHeat);
       applyHeatTierFilters(layers.worldContainer, tier.tier);
-      
+
       const sprite = getEntitySprite(payload.entityId);
       if (sprite) {
         updateSpriteGhosting(sprite, tier.tier, layers.entityLayer);
@@ -155,7 +153,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
     // Smooth animation tick
     tickAnimations(deltaMs, getEntitySprite);
-    
+
     // Update visual systems
     updateAllEmitters(deltaMs);
     updateDamageTexts(deltaMs);
@@ -215,13 +213,13 @@ export function createRenderSystem(config: RenderSystemConfig) {
       if (storeState.targetingActive) {
         const tx = storeState.targetingX * TILE_SIZE;
         const ty = storeState.targetingY * TILE_SIZE;
-        
+
         // Render range indicator (pulsing ring)
         if (storeState.targetingRange > 0) {
           targetingCursor.lineStyle(2, 0x00ffff, 0.3);
           targetingCursor.drawCircle(
-            playerPos.x * TILE_SIZE + TILE_SIZE/2, 
-            playerPos.y * TILE_SIZE + TILE_SIZE/2, 
+            playerPos.x * TILE_SIZE + TILE_SIZE / 2,
+            playerPos.y * TILE_SIZE + TILE_SIZE / 2,
             storeState.targetingRange * TILE_SIZE
           );
         }
@@ -236,22 +234,22 @@ export function createRenderSystem(config: RenderSystemConfig) {
         const margin = 4;
         const len = 8;
         targetingCursor.lineStyle(2, 0x00ffff, 1.0);
-        
+
         // Top Left
         targetingCursor.moveTo(tx + margin, ty + margin + len);
         targetingCursor.lineTo(tx + margin, ty + margin);
         targetingCursor.lineTo(tx + margin + len, ty + margin);
-        
+
         // Top Right
         targetingCursor.moveTo(tx + TILE_SIZE - margin - len, ty + margin);
         targetingCursor.lineTo(tx + TILE_SIZE - margin, ty + margin);
         targetingCursor.lineTo(tx + TILE_SIZE - margin, ty + margin + len);
-        
+
         // Bottom Right
         targetingCursor.moveTo(tx + TILE_SIZE - margin, ty + TILE_SIZE - margin - len);
         targetingCursor.lineTo(tx + TILE_SIZE - margin, ty + TILE_SIZE - margin);
         targetingCursor.lineTo(tx + TILE_SIZE - margin - len, ty + TILE_SIZE - margin);
-        
+
         // Bottom Left
         targetingCursor.moveTo(tx + margin + len, ty + TILE_SIZE - margin);
         targetingCursor.lineTo(tx + margin, ty + TILE_SIZE - margin);

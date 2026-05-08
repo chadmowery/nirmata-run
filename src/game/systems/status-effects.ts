@@ -17,9 +17,9 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
 
     const remainingEffects = [];
     for (const effect of statusEffects.effects) {
-      effect.duration -= 1;
-      if (effect.duration > 0) {
-        remainingEffects.push(effect);
+      const nextDuration = effect.duration - 1;
+      if (nextDuration > 0) {
+        remainingEffects.push({ ...effect, duration: nextDuration });
       } else {
         eventBus.emit('STATUS_EFFECT_EXPIRED', {
           entityId,
@@ -33,7 +33,7 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
       }
     }
 
-    statusEffects.effects = remainingEffects;
+    world.patchComponent(entityId, StatusEffects, { effects: remainingEffects });
   };
 
   const applyEffect = (
@@ -55,7 +55,9 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
       source: effect.source,
     };
 
-    statusEffects.effects.push(newEffect);
+    world.patchComponent(entityId, StatusEffects, {
+      effects: [...statusEffects.effects, newEffect]
+    });
 
     eventBus.emit('STATUS_EFFECT_APPLIED', {
       entityId,

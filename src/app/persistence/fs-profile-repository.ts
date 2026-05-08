@@ -27,7 +27,7 @@ export class FSProfileRepository implements ProfileRepository {
     await fs.mkdir(PROFILES_DIR, { recursive: true });
     const filePath = path.join(PROFILES_DIR, `${profile.sessionId}.json`);
     const tempPath = `${filePath}.${crypto.randomUUID()}.tmp`;
-    
+
     try {
       await fs.writeFile(tempPath, JSON.stringify(profile, null, 2), 'utf-8');
       await fs.rename(tempPath, filePath);
@@ -35,7 +35,7 @@ export class FSProfileRepository implements ProfileRepository {
       // Cleanup temp file if rename fails
       try {
         await fs.unlink(tempPath);
-      } catch (unlinkError) {
+      } catch {
         // Ignore unlink errors
       }
       throw error;

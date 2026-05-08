@@ -32,6 +32,14 @@ describe('AISystem', () => {
       query: vi.fn(),
       getComponent: vi.fn(),
       hasComponent: vi.fn(),
+      patchComponent: vi.fn((id, comp, patch) => {
+        const existing = world.getComponent(id, comp);
+        if (existing) {
+          Object.assign(existing, patch);
+        }
+      }),
+      addComponent: vi.fn(),
+      destroyEntity: vi.fn(),
     } as any;
 
     eventBus = {

@@ -4,8 +4,8 @@ import { EventBus } from '@engine/events/event-bus';
 import { EntityId } from '@engine/ecs/types';
 import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
-import { FloorState, FloorStateData } from '@shared/components/floor-state';
-import { Position, PositionData } from '@shared/components/position';
+import { FloorState } from '@shared/components/floor-state';
+import { Position } from '@shared/components/position';
 import { FirmwareSlots } from '@shared/components/firmware-slots';
 import { AugmentSlots } from '@shared/components/augment-slots';
 import { SoftwareSlots } from '@shared/components/software-slots';
@@ -38,7 +38,7 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
 
     // 2. Identify and preserve player equipment entities (D-15 Equipment Persistence)
     const protectedEntities = new Set<EntityId>([playerId]);
-    
+
     const fSlots = world.getComponent(playerId, FirmwareSlots);
     const aSlots = world.getComponent(playerId, AugmentSlots);
     const sSlots = world.getComponent(playerId, SoftwareSlots);
@@ -72,7 +72,7 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
       for (let x = 0; x < grid.width; x++) {
         const tile = dungeonResult.grid.getTile(x, y);
         if (tile) {
-          grid.setTile(x, y, { 
+          grid.setTile(x, y, {
             terrain: tile.terrain,
             walkable: tile.walkable,
             transparent: tile.transparent
@@ -84,11 +84,9 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
     // 7. Move player to new spawn room
     const spawnX = Math.floor(dungeonResult.playerSpawnRoom.x + dungeonResult.playerSpawnRoom.width / 2);
     const spawnY = Math.floor(dungeonResult.playerSpawnRoom.y + dungeonResult.playerSpawnRoom.height / 2);
-    
-    const pos = world.getComponent<PositionData>(playerId, Position);
-    if (pos) {
-      pos.x = spawnX;
-      pos.y = spawnY;
+
+    if (world.hasComponent(playerId, Position)) {
+      world.patchComponent(playerId, Position, { x: spawnX, y: spawnY });
     }
     grid.addEntity(playerId, spawnX, spawnY);
 
@@ -105,9 +103,8 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
     );
 
     // 9. Update player FloorState
-    const floorState = world.getComponent<FloorStateData>(playerId, FloorState);
-    if (floorState) {
-      floorState.currentFloor = newFloor;
+    if (world.hasComponent(playerId, FloorState)) {
+      world.patchComponent(playerId, FloorState, { currentFloor: newFloor });
     }
 
     // 10. Emit transition event

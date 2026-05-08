@@ -86,8 +86,7 @@ export function createFirmwareSystem<T extends GameplayEvents>(
         const oldY = pos.y;
 
         // Update position
-        pos.x = targetX;
-        pos.y = targetY;
+        world.patchComponent(entityId, Position, { x: targetX, y: targetY });
 
         // Update grid
         grid.moveEntity(entityId, oldX, oldY, targetX, targetY);
@@ -113,7 +112,9 @@ export function createFirmwareSystem<T extends GameplayEvents>(
             // Simple damage for now
             const targetHealth = world.getComponent(targetId, Health);
             if (targetHealth) {
-              targetHealth.current = Math.max(0, targetHealth.current - (abilityDef.damageAmount || 5));
+              world.patchComponent(targetId, Health, {
+                current: Math.max(0, targetHealth.current - (abilityDef.damageAmount || 5))
+              });
               eventBus.emit('DAMAGE_DEALT', {
                 attackerId: entityId,
                 defenderId: targetId,
@@ -132,11 +133,13 @@ export function createFirmwareSystem<T extends GameplayEvents>(
           const targetHealth = world.getComponent(targetId, Health);
           const targetDefense = world.getComponent(targetId, Defense);
 
-          if (targetHealth) {
-            const armor = targetDefense?.armor ?? 0;
-            const damage = Math.max(1, abilityDef.damageAmount - armor);
+            if (targetHealth) {
+              const armor = targetDefense?.armor ?? 0;
+              const damage = Math.max(1, abilityDef.damageAmount - armor);
 
-            targetHealth.current = Math.max(0, targetHealth.current - damage);
+              world.patchComponent(targetId, Health, {
+                current: Math.max(0, targetHealth.current - damage)
+              });
 
             eventBus.emit('DAMAGE_DEALT', {
               attackerId: entityId,
@@ -175,17 +178,18 @@ export function createFirmwareSystem<T extends GameplayEvents>(
         });
 
       } else if (abilityDef.effectType === 'toggle_vision') {
-        abilityDef.isActive = !abilityDef.isActive;
+        const nextActive = !abilityDef.isActive;
+        world.patchComponent(firmwareId, AbilityDef, { isActive: nextActive });
 
         eventBus.emit('FIRMWARE_TOGGLED', {
           entityId,
           firmwareEntityId: firmwareId,
           abilityName: abilityDef.name,
-          active: abilityDef.isActive
+          active: nextActive
         });
 
         eventBus.emit('MESSAGE_EMITTED', {
-          text: `${abilityDef.name} ${abilityDef.isActive ? 'activated' : 'deactivated'}.`,
+          text: `${abilityDef.name} ${nextActive ? 'activated' : 'deactivated'}.`,
           type: 'info'
         });
       }

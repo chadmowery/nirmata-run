@@ -21,9 +21,10 @@ export function getLegacyMagnitude(baseMagnitude: number, isLegacy: boolean): nu
  * Called during weekly reset.
  */
 export function applyLegacyToProfile(profile: PlayerProfile): void {
-  for (const item of profile.installedItems) {
-    item.isLegacy = true;
-  }
+  profile.installedItems = profile.installedItems.map(item => ({
+    ...item,
+    isLegacy: true,
+  }));
 }
 
 /**

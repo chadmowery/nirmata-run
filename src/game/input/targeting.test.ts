@@ -5,7 +5,7 @@ import { createTargetingManager } from './targeting';
 
 describe('Targeting Manager', () => {
   let eventBus: EventBus<GameEvents>;
-  let onConfirm: ReturnType<typeof vi.fn>;
+  let onConfirm: any;
   let targetingManager: ReturnType<typeof createTargetingManager>;
 
   beforeEach(() => {
