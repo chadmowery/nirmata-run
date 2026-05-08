@@ -34,7 +34,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
 
     this.phase = TurnPhase.PLAYER_ACTION;
     const playerEntity = this.getPlayerEntity();
-    if (playerEntity === null) {
+    if (playerEntity === null || !this.isAlive(playerEntity)) {
       this.phase = TurnPhase.AWAIT_INPUT;
       return;
     }
@@ -118,13 +118,13 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
    */
   private advanceUntilPlayerReady(): void {
     const playerEntity = this.getPlayerEntity();
-    if (playerEntity === null) return;
+    if (playerEntity === null || !this.isAlive(playerEntity)) return;
 
     let subTickCount = 0;
-    const MAX_SUB_TICKS = 1000;
+    const MAX_SUB_TICKS = 10000;
 
     while (subTickCount < MAX_SUB_TICKS) {
-      if (this._paused) break;
+      if (this._paused || !this.isAlive(playerEntity)) break;
 
       const playerEnergy = this.world.getComponent(playerEntity, Energy);
       if (playerEnergy && playerEnergy.current >= this.config.energyThreshold) {

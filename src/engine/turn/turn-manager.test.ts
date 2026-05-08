@@ -61,11 +61,9 @@ describe('TurnManager', () => {
   it('deducts energy and calls playerActionHandler on submitAction', () => {
     turnManager.start(); 
     
-    // Set energy AFTER start and set speed to 0 so it doesn't tick back up
-    const energy = world.getComponent(playerEntity, Energy)!;
-    world.addComponent(playerEntity, Energy, { ...energy, current: 1000, speed: 0 });
-    
-    const handler = vi.fn();
+    const handler = vi.fn(() => {
+      turnManager.pause();
+    });
     turnManager.setPlayerActionHandler(handler);
 
     turnManager.submitAction('move');
@@ -79,7 +77,11 @@ describe('TurnManager', () => {
     turnManager.start();
     
     const energy = world.getComponent(playerEntity, Energy)!;
-    world.addComponent(playerEntity, Energy, { ...energy, current: 1000, speed: 0 });
+    world.addComponent(playerEntity, Energy, { ...energy, current: 1000 });
+    
+    turnManager.setPlayerActionHandler(() => {
+      turnManager.pause();
+    });
     
     turnManager.submitAction(GameAction.WAIT);
 
@@ -112,7 +114,7 @@ describe('TurnManager', () => {
     const enemy = world.createEntity();
     world.addComponent(enemy, Actor, { isPlayer: false });
     world.addComponent(enemy, Energy, { current: 1000, speed: 100, threshold: config.energyThreshold });
-    world.addComponent(enemy, Health, Health.schema.parse({ current: 0, max: 10 }));
+    world.addComponent(enemy, Health, Health.schema.parse({ current: 0, max: 10, isAlive: false }));
 
     const handler = vi.fn();
     turnManager.setEnemyActionHandler(handler);

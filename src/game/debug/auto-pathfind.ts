@@ -1,6 +1,6 @@
 import AStar from 'rot-js/lib/path/astar';
 import { GameContext } from '../types';
-import { AnchorMarker, Position, StaircaseMarker } from '@shared/components';
+import { AnchorMarker, Health, Position, StaircaseMarker } from '@shared/components';
 import { GameAction, DIRECTIONS } from '../input/actions';
 import { ActionIntent } from '@shared/types';
 import { logger } from '@shared/utils/logger';
@@ -60,7 +60,8 @@ export class AutoPathfinder {
       }
 
       const playerPos = this.context.world.getComponent(this.context.playerId, Position);
-      if (!playerPos) {
+      const health = this.context.world.getComponent(this.context.playerId, Health);
+      if (!playerPos || (health && !health.isAlive)) {
         this.cancel();
         break;
       }
@@ -69,7 +70,7 @@ export class AutoPathfinder {
       const anchors = this.context.world.query(AnchorMarker, Position);
       const staircases = this.context.world.query(StaircaseMarker, Position);
       let anchorPos: { x: number, y: number } | null = null;
-      
+
       if (anchors.length > 0) {
         anchorPos = this.context.world.getComponent(anchors[0], Position)!;
       } else if (staircases.length > 0) {
