@@ -172,13 +172,26 @@ export async function POST(req: Request) {
       e.type === 'FLOOR_TRANSITION' || e.type === 'DUNGEON_GENERATED'
     ) || turnManager.getTurnNumber() <= 1;
 
+    // Filter out internal request events that should not be replayed on the client
+    const EXCLUDED_SYNC_EVENTS = new Set([
+      'MOVE_REQUESTED',
+      'CREATE_DEAD_ZONE',
+      'VENT_HEAT_REQUESTED',
+      'ADD_HEAT_REQUESTED',
+      'APPLY_STATUS_EFFECT',
+      'PLAYER_ACTION',
+      'GAME_PAUSE_REQUESTED',
+      'GAME_RESUME_REQUESTED'
+    ]);
+    const syncEvents = capturedEvents.filter(e => !EXCLUDED_SYNC_EVENTS.has(e.type));
+
     let syncPayload: SyncPayload;
     if (isMassiveChange) {
       syncPayload = {
         type: 'FULL',
         world: newWorldState,
         grid: newGridState,
-        events: capturedEvents,
+        events: syncEvents,
         turnNumber: turnManager.getTurnNumber(),
         playerId: session.playerId,
         phase: turnManager.getPhase(),
@@ -191,7 +204,7 @@ export async function POST(req: Request) {
         type: 'DELTA',
         world: newWorldState,
         grid: diff(oldGridState, newGridState),
-        events: capturedEvents,
+        events: syncEvents,
         turnNumber: turnManager.getTurnNumber(),
         playerId: session.playerId,
         runInventory: runInventoryRegistry.getOrCreate(sessionId),
