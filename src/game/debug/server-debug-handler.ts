@@ -54,14 +54,15 @@ export function handleServerDebugCommand(
       const severity = args.severity || (tier === 1 ? 'minor' : tier === 2 ? 'moderate' : tier === 3 ? 'severe' : 'critical');
       const duration = tier === 4 ? 3 : 2;
 
-      if (systems?.statusEffect) {
-        systems.statusEffect.applyEffect(playerId, {
+      eventBus.emit('APPLY_STATUS_EFFECT', {
+        entityId: playerId,
+        effect: {
           name: effectName,
           duration,
           magnitude: 1,
           source: 'debug',
-        });
-      }
+        }
+      });
 
       eventBus.emit('KERNEL_PANIC_TRIGGERED', {
         entityId: playerId,
@@ -71,7 +72,7 @@ export function handleServerDebugCommand(
       });
 
       // Special case for Tier 4: critical reboot vents heat
-      if (tier === 4 && systems?.heat) {
+      if (tier === 4) {
         const heatComp = world.getComponent(playerId, Heat);
         if (heatComp) {
           const oldHeat = heatComp.current;
@@ -150,22 +151,15 @@ export function handleServerDebugCommand(
       const effectName = args.effectName || 'burning';
       const duration = Number(args.duration) || 5;
       
-      if (systems?.statusEffect) {
-        systems.statusEffect.applyEffect(playerId, {
+      eventBus.emit('APPLY_STATUS_EFFECT', {
+        entityId: playerId,
+        effect: {
           name: effectName,
           duration,
           magnitude: 1,
           source: 'debug',
-        });
-      } else {
-        eventBus.emit('STATUS_EFFECT_APPLIED', {
-          entityId: playerId,
-          effectName,
-          duration,
-          magnitude: 1,
-          source: 'debug',
-        });
-      }
+        }
+      });
       break;
     }
 

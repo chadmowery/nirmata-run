@@ -30,7 +30,11 @@ describe('FirmwareSystem', () => {
     grid = new Grid(10, 10);
     heatSystem = createHeatSystem(world, eventBus);
     movementSystem = createMovementSystem(world, grid, eventBus);
-    firmwareSystem = createFirmwareSystem(world, grid, eventBus, movementSystem, heatSystem);
+    firmwareSystem = createFirmwareSystem(world, grid, eventBus);
+    
+    heatSystem.init();
+    movementSystem.init();
+    firmwareSystem.init();
   });
 
   it('activateAbility returns false when no firmware equipped at slot', () => {
@@ -39,6 +43,7 @@ describe('FirmwareSystem', () => {
     world.addComponent(playerId, Position, { x: 5, y: 5 });
 
     const result = firmwareSystem.activateAbility(playerId, 0, 5, 5);
+    eventBus.flush();
     expect(result).toBe(false);
   });
 
@@ -51,7 +56,8 @@ describe('FirmwareSystem', () => {
       heatCost: 10,
       range: 5,
       effectType: 'ranged_attack',
-      damageAmount: 5
+      damageAmount: 5,
+      cooldown: 0
     }));
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
@@ -59,6 +65,7 @@ describe('FirmwareSystem', () => {
     world.addComponent(playerId, Heat, Heat.schema.parse({ current: 0, maxSafe: 100 }));
 
     firmwareSystem.activateAbility(playerId, 0, 6, 6);
+    eventBus.flush();
     
     const heat = world.getComponent(playerId, Heat);
     expect(heat?.current).toBe(10);
@@ -72,7 +79,9 @@ describe('FirmwareSystem', () => {
       name: 'Dash',
       heatCost: 5,
       dashDistance: 3,
-      effectType: 'dash'
+      range: 0,
+      effectType: 'dash',
+      cooldown: 0
     }));
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
@@ -81,6 +90,7 @@ describe('FirmwareSystem', () => {
     grid.addEntity(playerId, 5, 5);
 
     const result = firmwareSystem.activateAbility(playerId, 0, 7, 6); // Distance 3
+    eventBus.flush();
     expect(result).toBe(true);
 
     const pos = world.getComponent(playerId, Position);
@@ -100,7 +110,8 @@ describe('FirmwareSystem', () => {
       heatCost: 15,
       range: 5,
       effectType: 'ranged_attack',
-      damageAmount: 10
+      damageAmount: 10,
+      cooldown: 0
     }));
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
@@ -113,6 +124,7 @@ describe('FirmwareSystem', () => {
     grid.addEntity(enemyId, 4, 4);
 
     const result = firmwareSystem.activateAbility(playerId, 0, 4, 4);
+    eventBus.flush();
     expect(result).toBe(true);
 
     const enemyHealth = world.getComponent(enemyId, Health);
@@ -129,7 +141,8 @@ describe('FirmwareSystem', () => {
       range: 0,
       effectType: 'toggle_vision',
       isToggle: true,
-      isActive: false
+      isActive: false,
+      cooldown: 0
     }));
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
@@ -137,12 +150,15 @@ describe('FirmwareSystem', () => {
     world.addComponent(playerId, Heat, Heat.schema.parse({ current: 0, maxSafe: 100 }));
 
     firmwareSystem.activateAbility(playerId, 0, 5, 5);
+    eventBus.flush();
     
     const ability = world.getComponent(firmwareId, AbilityDef);
     expect(ability?.isActive).toBe(true);
 
     firmwareSystem.activateAbility(playerId, 0, 5, 5);
-    expect(ability?.isActive).toBe(false);
+    eventBus.flush();
+    const ability2 = world.getComponent(firmwareId, AbilityDef);
+    expect(ability2?.isActive).toBe(false);
   });
 
   it('activateAbility with isLegacy=true doubles the Heat cost', () => {
@@ -155,7 +171,8 @@ describe('FirmwareSystem', () => {
       range: 5,
       effectType: 'ranged_attack',
       damageAmount: 5,
-      isLegacy: true
+      isLegacy: true,
+      cooldown: 0
     }));
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
@@ -163,6 +180,7 @@ describe('FirmwareSystem', () => {
     world.addComponent(playerId, Heat, Heat.schema.parse({ current: 0, maxSafe: 100 }));
 
     firmwareSystem.activateAbility(playerId, 0, 6, 6);
+    eventBus.flush();
     
     const heat = world.getComponent(playerId, Heat);
     expect(heat?.current).toBe(20); // 10 * 2
@@ -177,7 +195,8 @@ describe('FirmwareSystem', () => {
       heatCost: 10,
       range: 5,
       effectType: 'ranged_attack',
-      damageAmount: 5
+      damageAmount: 5,
+      cooldown: 0
     }));
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
@@ -208,7 +227,8 @@ describe('FirmwareSystem', () => {
       heatCost: 10,
       range: 2,
       effectType: 'ranged_attack',
-      damageAmount: 5
+      damageAmount: 5,
+      cooldown: 0
     }));
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
@@ -216,6 +236,7 @@ describe('FirmwareSystem', () => {
     world.addComponent(playerId, Heat, Heat.schema.parse({ current: 0, maxSafe: 100 }));
 
     const result = firmwareSystem.activateAbility(playerId, 0, 8, 8); // Distance 6
+    eventBus.flush();
     expect(result).toBe(false);
   });
 });

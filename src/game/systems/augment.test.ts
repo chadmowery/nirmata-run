@@ -16,8 +16,6 @@ import { GameplayEvents } from '@shared/events/types';
 describe('AugmentSystem', () => {
   let world: any;
   let eventBus: any;
-  let statusEffectSystem: any;
-  let heatSystem: any;
   let augmentSystem: any;
   let playerId: any;
 
@@ -25,17 +23,7 @@ describe('AugmentSystem', () => {
     eventBus = new EventBus<GameplayEvents>();
     world = new World<GameplayEvents>(eventBus);
     
-    statusEffectSystem = {
-      applyEffect: vi.fn(),
-      hasEffect: vi.fn(),
-    };
-    
-    heatSystem = {
-      addHeat: vi.fn(),
-      getHeatPercentage: vi.fn().mockReturnValue(0),
-    };
-
-    augmentSystem = createAugmentSystem(world, eventBus, statusEffectSystem, heatSystem);
+    augmentSystem = createAugmentSystem(world, eventBus);
     augmentSystem.init();
 
     playerId = world.createEntity();
@@ -202,7 +190,8 @@ describe('AugmentSystem', () => {
       // Next turn
       eventBus.emit('TURN_START', {});
       eventBus.flush();
-      expect(state.cooldownsRemaining[augmentId.toString()]).toBe(1);
+      const updatedState = world.getComponent(playerId, AugmentState);
+      expect(updatedState.cooldownsRemaining[augmentId.toString()]).toBe(1);
 
       // Try to trigger while on cooldown
       eventBus.emit('FIRMWARE_ACTIVATED', { entityId: playerId });
@@ -210,8 +199,8 @@ describe('AugmentSystem', () => {
       eventBus.emit('PLAYER_ACTION', { action: 'ACTION', entityId: playerId });
       eventBus.flush();
 
-      const health = world.getComponent(playerId, Health);
-      expect(health.current).toBe(11); // Still 11
+      const updatedHealth = world.getComponent(playerId, Health);
+      expect(updatedHealth.current).toBe(11); // Still 11
     });
 
     it('resets activationsThisTurn on TURN_START', () => {
@@ -237,7 +226,8 @@ describe('AugmentSystem', () => {
 
       eventBus.emit('TURN_START', {});
       eventBus.flush();
-      expect(state.activationsThisTurn[augmentId.toString()]).toBeUndefined();
+      const updatedState = world.getComponent(playerId, AugmentState);
+      expect(updatedState.activationsThisTurn[augmentId.toString()]).toBeUndefined();
     });
   });
 });

@@ -27,8 +27,6 @@ interface TriggerContext {
 export function createAugmentSystem<T extends GameplayEvents>(
   world: World<T>,
   eventBus: EventBus<T>,
-  statusEffectSystem: StatusEffectSystem,
-  heatSystem: HeatSystem,
 ) {
   let pendingContext: TriggerContext | null = null;
   let isResolving = false;
@@ -75,29 +73,38 @@ export function createAugmentSystem<T extends GameplayEvents>(
           break;
         }
         case 'SHIELD':
-          statusEffectSystem.applyEffect(entityId, { 
-            name: 'SHIELD', 
-            duration: 1, 
-            magnitude: magnitude 
+          eventBus.emit('APPLY_STATUS_EFFECT', {
+            entityId,
+            effect: {
+              name: 'SHIELD',
+              duration: 1,
+              magnitude: magnitude
+            }
           });
           break;
         case 'APPLY_STATUS':
           if (payload.statusEffectName) {
-            statusEffectSystem.applyEffect(entityId, { 
-              name: payload.statusEffectName, 
-              duration: payload.statusEffectDuration ?? 1, 
-              magnitude: magnitude 
+            eventBus.emit('APPLY_STATUS_EFFECT', {
+              entityId,
+              effect: {
+                name: payload.statusEffectName,
+                duration: payload.statusEffectDuration ?? 1,
+                magnitude: magnitude
+              }
             });
           }
           break;
         case 'VENT_HEAT':
-          heatSystem.addHeat(entityId, -magnitude);
+          eventBus.emit('ADD_HEAT_REQUESTED', { entityId, amount: -magnitude });
           break;
         case 'DAMAGE_BONUS':
-          statusEffectSystem.applyEffect(entityId, { 
-            name: 'DAMAGE_BOOST', 
-            duration: payload.statusEffectDuration ?? 1, 
-            magnitude: magnitude 
+          eventBus.emit('APPLY_STATUS_EFFECT', {
+            entityId,
+            effect: {
+              name: 'DAMAGE_BOOST',
+              duration: payload.statusEffectDuration ?? 1,
+              magnitude: magnitude
+            }
           });
           break;
       }

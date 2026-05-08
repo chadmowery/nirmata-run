@@ -20,101 +20,108 @@ export function createMovementSystem<T extends GameplayEvents>(
   grid: Grid, 
   eventBus: EventBus<T>
 ) {
-  return {
-    /**
-     * Processes a movement intent for an entity.
-     * @returns The result of the movement attempt.
-     */
-    processMove(entityId: EntityId, dx: number, dy: number): MoveResult {
-      const pos = world.getComponent(entityId, Position);
-      if (!pos) return 'blocked';
+  const processMove = (entityId: EntityId, dx: number, dy: number): MoveResult => {
+    const pos = world.getComponent(entityId, Position);
+    if (!pos) return 'blocked';
 
-      // Check for status effects that impede movement
-      const statusEffects = world.getComponent(entityId, StatusEffects);
-      if (statusEffects) {
-        // CRITICAL_REBOOT blocks everything
-        if (statusEffects.effects.some(e => e.name === 'CRITICAL_REBOOT')) {
+    // Check for status effects that impede movement
+    const statusEffects = world.getComponent(entityId, StatusEffects);
+    if (statusEffects) {
+      // CRITICAL_REBOOT blocks everything
+      if (statusEffects.effects.some(e => e.name === 'CRITICAL_REBOOT')) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'System is rebooting... Movement disabled!',
+          type: 'error'
+        });
+        return 'blocked';
+      }
+
+      // INPUT_LAG has a chance to ignore input
+      if (statusEffects.effects.some(e => e.name === 'INPUT_LAG')) {
+        if (Math.random() < 0.5) {
           eventBus.emit('MESSAGE_EMITTED', {
-            text: 'System is rebooting... Movement disabled!',
-            type: 'error'
+            text: 'Input lag! Command dropped.',
+            type: 'warning'
           });
           return 'blocked';
         }
+      }
+    }
 
-        // INPUT_LAG has a chance to ignore input
-        if (statusEffects.effects.some(e => e.name === 'INPUT_LAG')) {
-          if (Math.random() < 0.5) {
-            eventBus.emit('MESSAGE_EMITTED', {
-              text: 'Input lag! Command dropped.',
-              type: 'warning'
-            });
-            return 'blocked';
-          }
-        }
+    const targetX = pos.x + dx;
+    const targetY = pos.y + dy;
+
+    // 1. Check bounds
+    if (!grid.inBounds(targetX, targetY)) {
+      return 'blocked';
+    }
+
+    // 2. Check walkability (static terrain)
+    if (!grid.isWalkable(targetX, targetY)) {
+      return 'blocked';
+    }
+
+    // 3. Check entity collisions
+    const occupants = grid.getEntitiesAt(targetX, targetY);
+    const attacker = world.getComponent(entityId, Actor);
+    const isAttackerPlayer = attacker?.isPlayer ?? false;
+
+    for (const occupantId of occupants) {
+      if (occupantId === entityId) continue;
+
+      const defenderHostile = world.hasComponent(occupantId, Hostile);
+      const defenderActor = world.getComponent(occupantId, Actor);
+      const isDefenderPlayer = defenderActor?.isPlayer ?? false;
+
+      // Attack if: Player -> Hostile OR Hostile -> Player
+      if ((isAttackerPlayer && defenderHostile) || (!isAttackerPlayer && isDefenderPlayer)) {
+        eventBus.emit('BUMP_ATTACK', {
+          attackerId: entityId,
+          defenderId: occupantId,
+        });
+        return 'bump-attack';
       }
 
-      const targetX = pos.x + dx;
-      const targetY = pos.y + dy;
-
-      // 1. Check bounds
-      if (!grid.inBounds(targetX, targetY)) {
+      // Check for non-hostile blocking entities
+      if (world.hasComponent(occupantId, BlocksMovement)) {
         return 'blocked';
       }
+    }
 
-      // 2. Check walkability (static terrain)
-      if (!grid.isWalkable(targetX, targetY)) {
-        return 'blocked';
-      }
+    // 4. Perform movement
+    const oldX = pos.x;
+    const oldY = pos.y;
+    
+    // Update position component
+    world.patchComponent(entityId, Position, { x: targetX, y: targetY });
+    
+    // Update grid spatial index
+    grid.moveEntity(entityId, oldX, oldY, targetX, targetY);
 
-      // 3. Check entity collisions
-      const occupants = grid.getEntitiesAt(targetX, targetY);
-      const attacker = world.getComponent(entityId, Actor);
-      const isAttackerPlayer = attacker?.isPlayer ?? false;
+    // Emit movement event
+    eventBus.emit('ENTITY_MOVED', {
+      entityId,
+      fromX: oldX,
+      fromY: oldY,
+      toX: targetX,
+      toY: targetY,
+    });
 
-      for (const occupantId of occupants) {
-        if (occupantId === entityId) continue;
+    return 'moved';
+  };
 
-        const defenderHostile = world.hasComponent(occupantId, Hostile);
-        const defenderActor = world.getComponent(occupantId, Actor);
-        const isDefenderPlayer = defenderActor?.isPlayer ?? false;
+  const onMoveRequested = (payload: T['MOVE_REQUESTED']) => {
+    processMove(payload.entityId, payload.dx, payload.dy);
+  };
 
-        // Attack if: Player -> Hostile OR Hostile -> Player
-        if ((isAttackerPlayer && defenderHostile) || (!isAttackerPlayer && isDefenderPlayer)) {
-          eventBus.emit('BUMP_ATTACK', {
-            attackerId: entityId,
-            defenderId: occupantId,
-          });
-          return 'bump-attack';
-        }
-
-        // Check for non-hostile blocking entities
-        if (world.hasComponent(occupantId, BlocksMovement)) {
-          return 'blocked';
-        }
-      }
-
-      // 4. Perform movement
-      const oldX = pos.x;
-      const oldY = pos.y;
-      
-      // Update position component
-      world.patchComponent(entityId, Position, { x: targetX, y: targetY });
-      
-      // Update grid spatial index
-      grid.moveEntity(entityId, oldX, oldY, targetX, targetY);
-
-      // Emit movement event
-      eventBus.emit('ENTITY_MOVED', {
-        entityId,
-        fromX: oldX,
-        fromY: oldY,
-        toX: targetX,
-        toY: targetY,
-      });
-
-      return 'moved';
+  return {
+    init() {
+      eventBus.on('MOVE_REQUESTED', onMoveRequested);
     },
-    dispose() {}
+    dispose() {
+      eventBus.off('MOVE_REQUESTED', onMoveRequested);
+    },
+    processMove,
   };
 }
 

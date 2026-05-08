@@ -3,7 +3,6 @@ import { EventBus } from '@engine/events/event-bus';
 import { EntityId } from '@engine/ecs/types';
 import { Heat, Shell } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
-import { StatusEffectSystem } from './status-effects';
 
 export interface KernelPanicResult {
   tier: number;
@@ -25,7 +24,6 @@ const KERNEL_PANIC_TABLE = [
 export function createKernelPanicSystem<T extends GameplayEvents>(
   world: World<T>,
   eventBus: EventBus<T>,
-  statusEffectSystem: StatusEffectSystem,
 ) {
   const getTier = (heatPercent: number) => {
     return KERNEL_PANIC_TABLE.find(
@@ -78,12 +76,15 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
         console.log(`[KernelPanic] >> SUCCESS: Applying ${tier.effectName}`);
         appliedEffectName = tier.effectName;
 
-        statusEffectSystem.applyEffect(entityId, {
-          name: tier.effectName,
-          duration: tier.duration,
-          magnitude: tier.magnitude,
-          severity: tier.severity,
-          source: 'kernel_panic'
+        eventBus.emit('APPLY_STATUS_EFFECT', {
+          entityId,
+          effect: {
+            name: tier.effectName,
+            duration: tier.duration,
+            magnitude: tier.magnitude,
+            severity: tier.severity,
+            source: 'kernel_panic'
+          }
         });
 
         eventBus.emit('KERNEL_PANIC_TRIGGERED', {

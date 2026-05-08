@@ -48,8 +48,7 @@ describe('Augment Integration', () => {
     slots.equipped.push(augmentId);
     
     // 3. Add some heat to vent
-    const heat = world.getComponent(playerId, Heat);
-    heat.current = 20;
+    world.patchComponent(playerId, Heat, { current: 20 });
     
     // 4. Set up message spy
     const messageSpy = vi.fn();
@@ -64,7 +63,8 @@ describe('Augment Integration', () => {
     
     // 7. Verify augment triggered
     // Heat math: 20 - 5 (turn-start dissipation) - 15 (augment vent) = 0
-    expect(heat.current).toBe(0);
+    const heat = world.getComponent(playerId, Heat);
+    expect(heat?.current).toBe(0);
     expect(messageSpy).toHaveBeenCalledWith(expect.objectContaining({
       text: 'Displacement_Venting.arc TRIGGERED!'
     }));
@@ -81,8 +81,7 @@ describe('Augment Integration', () => {
     slots.equipped.push(aug1, aug2);
     
     // 2. Add heat
-    const heat = world.getComponent(playerId, Heat);
-    heat.current = 40;
+    world.patchComponent(playerId, Heat, { current: 40 });
     
     // 3. Activate firmware
     eventBus.emit('FIRMWARE_ACTIVATED', { entityId: playerId, slotIndex: 0, abilityName: 'Test' });
@@ -91,7 +90,8 @@ describe('Augment Integration', () => {
     engine.turnManager.submitAction(GameAction.WAIT);
     
     // 5. Verify both triggered: 40 - 5 (dissipation) - 15 - 15 = 5
-    expect(heat.current).toBe(5);
+    const heat = world.getComponent(playerId, Heat);
+    expect(heat?.current).toBe(5);
   });
 
   it('handles compound triggers (Static Siphon: ON_ACTIVATION + ON_KILL)', () => {

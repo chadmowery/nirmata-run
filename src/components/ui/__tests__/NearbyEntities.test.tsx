@@ -20,7 +20,7 @@ describe('NearbyEntities', () => {
     render(<NearbyEntities />);
 
     expect(screen.getByText('Orc')).toBeDefined();
-    expect(screen.getByText('VISIBLE THREATS')).toBeDefined();
+    expect(screen.getByText(/visible threats/i)).toBeDefined();
   });
 
   it('renders nothing if no entities visible', () => {

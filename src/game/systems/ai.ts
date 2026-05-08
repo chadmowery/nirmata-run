@@ -21,9 +21,7 @@ import { MoveResult } from './movement';
 export function createAISystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
-  eventBus: EventBus<T>,
-  movementSystem: { processMove: (eid: EntityId, dx: number, dy: number) => MoveResult },
-  deadZoneSystem: { createDeadZone: (x: number, y: number, duration: number, damagePerTick: number, creatorId: EntityId) => void } | null = null
+  eventBus: EventBus<T>
 ) {
   /**
    * Finds the player entity in the world.
@@ -155,13 +153,13 @@ export function createAISystem<T extends GameplayEvents>(
 
         const step = pathfindToward(pos.x, pos.y, targetX, targetY);
         if (step) {
-          movementSystem.processMove(entityId, step.dx, step.dy);
+          eventBus.emit('MOVE_REQUESTED', { entityId, dx: step.dx, dy: step.dy });
         }
       } else if (nextBehavior === AIBehavior.ATTACKING) {
         // Move toward player to trigger bump attack
         const dx = player.x - pos.x;
         const dy = player.y - pos.y;
-        movementSystem.processMove(entityId, dx, dy);
+        eventBus.emit('MOVE_REQUESTED', { entityId, dx, dy });
       }
     },
 
@@ -220,7 +218,7 @@ export function createAISystem<T extends GameplayEvents>(
       // 3. Always pathfind toward player (System_Admin has global knowledge)
       const step = pathfindToward(pos.x, pos.y, player.x, player.y);
       if (step) {
-        movementSystem.processMove(entityId, step.dx, step.dy);
+        eventBus.emit('MOVE_REQUESTED', { entityId, dx: step.dx, dy: step.dy });
       }
     },
 
@@ -250,12 +248,12 @@ export function createAISystem<T extends GameplayEvents>(
           // Bump attack
           const dx = player.x - pos.x;
           const dy = player.y - pos.y;
-          movementSystem.processMove(entityId, dx, dy);
+          eventBus.emit('MOVE_REQUESTED', { entityId, dx, dy });
         } else {
           // Pathfind toward player
           const step = pathfindToward(pos.x, pos.y, player.x, player.y);
           if (step) {
-            movementSystem.processMove(entityId, step.dx, step.dy);
+            eventBus.emit('MOVE_REQUESTED', { entityId, dx: step.dx, dy: step.dy });
           }
         }
       } else {
@@ -289,17 +287,21 @@ export function createAISystem<T extends GameplayEvents>(
           // Ground slam!
           const dx = player.x - pos.x;
           const dy = player.y - pos.y;
-          movementSystem.processMove(entityId, dx, dy);
+          eventBus.emit('MOVE_REQUESTED', { entityId, dx, dy });
 
           // Create Dead Zones on 4 cardinal adjacent tiles
-          if (deadZoneSystem) {
-            const directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];
-            for (const [ddx, ddy] of directions) {
-              const tx = pos.x + ddx;
-              const ty = pos.y + ddy;
-              if (grid.inBounds(tx, ty) && grid.isWalkable(tx, ty)) {
-                deadZoneSystem.createDeadZone(tx, ty, 6, 2, entityId);
-              }
+          const directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+          for (const [ddx, ddy] of directions) {
+            const tx = pos.x + ddx;
+            const ty = pos.y + ddy;
+            if (grid.inBounds(tx, ty) && grid.isWalkable(tx, ty)) {
+              eventBus.emit('CREATE_DEAD_ZONE', {
+                x: tx,
+                y: ty,
+                duration: 6,
+                damagePerTick: 2,
+                creatorId: entityId
+              });
             }
           }
           eventBus.emit('MESSAGE_EMITTED', {
@@ -310,7 +312,7 @@ export function createAISystem<T extends GameplayEvents>(
           // Chase player
           const step = pathfindToward(pos.x, pos.y, player.x, player.y);
           if (step) {
-            movementSystem.processMove(entityId, step.dx, step.dy);
+            eventBus.emit('MOVE_REQUESTED', { entityId, dx: step.dx, dy: step.dy });
           }
         }
       }
@@ -352,7 +354,7 @@ export function createAISystem<T extends GameplayEvents>(
 
           const step = pathfindToward(pos.x, pos.y, targetX, targetY);
           if (step) {
-            movementSystem.processMove(entityId, step.dx, step.dy);
+            eventBus.emit('MOVE_REQUESTED', { entityId, dx: step.dx, dy: step.dy });
             eventBus.emit('MESSAGE_EMITTED', { text: 'Logic-Leaker retreats!', type: 'combat' });
           } else {
             this.processBasicTurn(entityId);
@@ -427,7 +429,7 @@ export function createAISystem<T extends GameplayEvents>(
           // Chase player (close the gap)
           const step = pathfindToward(pos.x, pos.y, player.x, player.y);
           if (step) {
-            movementSystem.processMove(entityId, step.dx, step.dy);
+            eventBus.emit('MOVE_REQUESTED', { entityId, dx: step.dx, dy: step.dy });
           }
         }
       }
@@ -499,31 +501,10 @@ export function createAISystem<T extends GameplayEvents>(
       if (isAdjacent(pos.x, pos.y, player.x, player.y)) {
         const adx = player.x - pos.x;
         const ady = player.y - pos.y;
-        const result = movementSystem.processMove(entityId, adx, ady);
-
-        if (result === 'bump-attack') {
-          const statusEffects = world.getComponent(player.id, StatusEffects);
-          if (statusEffects) {
-            world.patchComponent(player.id, StatusEffects, {
-              effects: [
-                ...statusEffects.effects,
-                {
-                  name: 'HUD_GLITCH',
-                  duration: 2,
-                  magnitude: 1,
-                  source: 'null_pointer'
-                }
-              ]
-            });
-            eventBus.emit('STATUS_EFFECT_APPLIED', {
-              entityId: player.id,
-              effectName: 'HUD_GLITCH',
-              duration: 2,
-              magnitude: 1,
-              source: 'null_pointer'
-            });
-          }
-        }
+        eventBus.emit('MOVE_REQUESTED', { entityId, dx: adx, dy: ady });
+        
+        // Note: Special bump attack effect (HUD_GLITCH) should now be handled 
+        // by a system listening for BUMP_ATTACK from a Null-Pointer.
         return;
       }
 
@@ -580,10 +561,11 @@ export function createAISystem<T extends GameplayEvents>(
 
       const step = pathfindToward(pos.x, pos.y, bestTarget.x, bestTarget.y);
       if (step) {
-        movementSystem.processMove(entityId, step.dx, step.dy);
+        eventBus.emit('MOVE_REQUESTED', { entityId, dx: step.dx, dy: step.dy });
       }
     },
 
+    init() { },
     dispose() { }
   };
 }

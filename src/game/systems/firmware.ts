@@ -23,9 +23,7 @@ import { getLegacyHeatCost } from './legacy-code';
 export function createFirmwareSystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
-  eventBus: EventBus<T>,
-  _movementSystem: MovementSystem, // Kept for consistency with plan, though dash bypasses it
-  heatSystem: HeatSystem
+  eventBus: EventBus<T>
 ) {
   return {
     /**
@@ -78,7 +76,7 @@ export function createFirmwareSystem<T extends GameplayEvents>(
 
       // 2. Heat cost
       const effectiveHeatCost = getLegacyHeatCost(abilityDef.heatCost, abilityDef.isLegacy);
-      heatSystem.addHeat(entityId, effectiveHeatCost);
+      eventBus.emit('ADD_HEAT_REQUESTED', { entityId, amount: effectiveHeatCost });
 
       // 3. Resolve effect
       if (abilityDef.effectType === 'dash' || abilityDef.effectType === 'dash_attack') {

@@ -388,9 +388,9 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     context.packCoordinatorSystem.resetTurnState();
     if (DIRECTIONS[gameAction]) {
       const { dx, dy } = DIRECTIONS[gameAction];
-      context.movementSystem.processMove(entityId, dx, dy);
+      eventBus.emit('MOVE_REQUESTED', { entityId, dx: dx, dy: dy });
     } else if (action === GameAction.VENT) {
-      context.heatSystem.vent(entityId);
+      eventBus.emit('VENT_HEAT_REQUESTED', { entityId });
     }
     // Note: USE_FIRMWARE is handled via prediction/targeting bridge above
     // but the engine-factory default handler also catches it for safety.

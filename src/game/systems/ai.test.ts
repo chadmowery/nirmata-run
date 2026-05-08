@@ -13,7 +13,6 @@ describe('AISystem', () => {
   let world: World<GameplayEvents>;
   let grid: Grid;
   let eventBus: EventBus<GameplayEvents>;
-  let movementSystem: any;
   let aiSystem: any;
 
   const PLAYER_ID = 1;
@@ -44,13 +43,11 @@ describe('AISystem', () => {
 
     eventBus = {
       emit: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
     } as any;
 
-    movementSystem = {
-      processMove: vi.fn(),
-    };
-
-    aiSystem = createAISystem(world, grid, eventBus, movementSystem);
+    aiSystem = createAISystem(world, grid, eventBus);
   });
 
   const setupEntities = (playerPos: { x: number, y: number }, enemyPos: { x: number, y: number }) => {
@@ -154,7 +151,7 @@ describe('AISystem', () => {
 
       aiSystem.processEnemyTurn(ENEMY_ID);
 
-      expect(movementSystem.processMove).toHaveBeenCalledWith(ENEMY_ID, 1, 0);
+      expect(eventBus.emit).toHaveBeenCalledWith('MOVE_REQUESTED', { entityId: ENEMY_ID, dx: 1, dy: 0 });
     });
 
     it('should trigger bump attack when ATTACKING', () => {
@@ -164,7 +161,7 @@ describe('AISystem', () => {
 
       aiSystem.processEnemyTurn(ENEMY_ID);
 
-      expect(movementSystem.processMove).toHaveBeenCalledWith(ENEMY_ID, 1, 0);
+      expect(eventBus.emit).toHaveBeenCalledWith('MOVE_REQUESTED', { entityId: ENEMY_ID, dx: 1, dy: 0 });
     });
 
     it('should do nothing when IDLE and player not visible', () => {
@@ -175,7 +172,7 @@ describe('AISystem', () => {
 
       aiSystem.processEnemyTurn(ENEMY_ID);
 
-      expect(movementSystem.processMove).not.toHaveBeenCalled();
+      expect(eventBus.emit).not.toHaveBeenCalledWith('MOVE_REQUESTED', expect.anything());
     });
   });
 
@@ -195,9 +192,11 @@ describe('AISystem', () => {
 
       // Path should go around, likely North or South
       // (3,5) -> (3,4) or (3,6)
-      const call = vi.mocked(movementSystem.processMove).mock.calls[0];
-      const dx = call[1];
-      const dy = call[2];
+      const call = vi.mocked(eventBus.emit).mock.calls.find(c => c[0] === 'MOVE_REQUESTED');
+      expect(call).toBeDefined();
+      const payload = call![1] as any;
+      const dx = payload.dx;
+      const dy = payload.dy;
       
       // It should NOT move East into the wall
       expect(dx).not.toBe(1);

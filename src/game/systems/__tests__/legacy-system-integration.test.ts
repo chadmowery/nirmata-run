@@ -19,8 +19,8 @@ describe('Legacy System Integration', () => {
   });
 
   it('doubles heat cost for legacy firmware', () => {
-    const heatSystem = { addHeat: vi.fn() } as any;
-    const fwSystem = createFirmwareSystem(world, grid, eventBus, {} as any, heatSystem);
+    const fwSystem = createFirmwareSystem(world, grid, eventBus);
+    const emitSpy = vi.spyOn(eventBus, 'emit');
     
     const playerId = world.createEntity();
     world.addComponent(playerId, Position, { x: 0, y: 0 });
@@ -41,12 +41,15 @@ describe('Legacy System Integration', () => {
 
     fwSystem.activateAbility(playerId, 0, 1, 0);
     
-    expect(heatSystem.addHeat).toHaveBeenCalledWith(playerId, 20); // 10 * 2
+    expect(emitSpy).toHaveBeenCalledWith('ADD_HEAT_REQUESTED', expect.objectContaining({
+      entityId: playerId,
+      amount: 20 // 10 * 2
+    }));
   });
 
   it('halves payload magnitude for legacy augments', () => {
-    const statusEffectSystem = { applyEffect: vi.fn() } as any;
-    const augmentSystem = createAugmentSystem(world, eventBus, statusEffectSystem, {} as any);
+    const augmentSystem = createAugmentSystem(world, eventBus);
+    const emitSpy = vi.spyOn(eventBus, 'emit');
     
     const playerId = world.createEntity();
     const augmentId = world.createEntity();
@@ -74,9 +77,12 @@ describe('Legacy System Integration', () => {
       hpPercent: 100
     });
 
-    expect(statusEffectSystem.applyEffect).toHaveBeenCalledWith(playerId, expect.objectContaining({
-      name: 'SHIELD',
-      magnitude: 5 // 10 * 0.5
+    expect(emitSpy).toHaveBeenCalledWith('APPLY_STATUS_EFFECT', expect.objectContaining({
+      entityId: playerId,
+      effect: expect.objectContaining({
+        name: 'SHIELD',
+        magnitude: 5 // 10 * 0.5
+      })
     }));
   });
 });

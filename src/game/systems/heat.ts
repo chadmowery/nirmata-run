@@ -119,10 +119,14 @@ export function createHeatSystem<T extends GameplayEvents>(
   return {
     init() {
       eventBus.on('TURN_START', onTurnStart);
+      eventBus.on('VENT_HEAT_REQUESTED', onVentRequested);
+      eventBus.on('ADD_HEAT_REQUESTED', onAddHeatRequested);
     },
 
     dispose() {
       eventBus.off('TURN_START', onTurnStart);
+      eventBus.off('VENT_HEAT_REQUESTED', onVentRequested);
+      eventBus.off('ADD_HEAT_REQUESTED', onAddHeatRequested);
     },
 
     dissipate,
@@ -131,6 +135,14 @@ export function createHeatSystem<T extends GameplayEvents>(
     isInCorruptionZone,
     getHeatPercentage,
   };
+
+  function onVentRequested(payload: T['VENT_HEAT_REQUESTED']) {
+    vent(payload.entityId);
+  }
+
+  function onAddHeatRequested(payload: T['ADD_HEAT_REQUESTED']) {
+    addHeat(payload.entityId, payload.amount);
+  }
 }
 
 export type HeatSystem = ReturnType<typeof createHeatSystem>;

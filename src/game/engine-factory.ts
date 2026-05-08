@@ -114,24 +114,28 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     skipLoot: config.isClient
   });
   const deadZoneSystem = createDeadZoneSystem(world, grid, eventBus);
-  const aiSystem = createAISystem(world, grid, eventBus, movementSystem, deadZoneSystem);
+  const aiSystem = createAISystem(world, grid, eventBus);
   const itemPickupSystem = createItemPickupSystem(world, grid, eventBus, config.sessionId);
   const heatSystem = createHeatSystem(world, eventBus);
   const statusEffectSystem = createStatusEffectSystem(world, eventBus);
-  const firmwareSystem = createFirmwareSystem(world, grid, eventBus, movementSystem, heatSystem);
-  const kernelPanicSystem = createKernelPanicSystem(world, eventBus, statusEffectSystem);
-  const augmentSystem = createAugmentSystem(world, eventBus, statusEffectSystem, heatSystem);
+  const firmwareSystem = createFirmwareSystem(world, grid, eventBus);
+  const kernelPanicSystem = createKernelPanicSystem(world, eventBus);
+  const augmentSystem = createAugmentSystem(world, eventBus);
   const packCoordinatorSystem = createPackCoordinatorSystem(world, grid, eventBus);
   const tileCorruptionSystem = createTileCorruptionSystem(world, grid, eventBus, entityFactory, componentRegistry);
   const runEnderSystem = createRunEnderSystem(world, grid, eventBus, config.sessionId, config.runMode);
   const stabilitySystem = createStabilitySystem(world, eventBus);
   const currencyDropSystem = createCurrencyDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
 
+  movementSystem.init();
   combatSystem.init();
+  aiSystem.init();
   deadZoneSystem.init();
   itemPickupSystem.init();
   heatSystem.init();
   statusEffectSystem.init();
+  firmwareSystem.init();
+  kernelPanicSystem.init();
   augmentSystem.init();
   packCoordinatorSystem.init();
   tileCorruptionSystem.init();
@@ -281,17 +285,8 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   );
 
   // Initialize All Systems
-  heatSystem.init();
-  statusEffectSystem.init();
-  firmwareSystem.init();
-  augmentSystem.init();
-  packCoordinatorSystem.init();
-  tileCorruptionSystem.init();
-  runEnderSystem.init();
-  stabilitySystem.init();
   floorManagerSystem.init();
   anchorInteractionSystem.init();
-  kernelPanicSystem.init();
 
   // Turn Manager Handlers
   turnManager.setEnemyActionHandler((entityId) => {
@@ -308,7 +303,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     if (DIRECTIONS[action]) {
       const { dx, dy } = DIRECTIONS[action];
       if (dx !== 0 || dy !== 0) {
-        movementSystem.processMove(entityId, dx, dy);
+        eventBus.emit('MOVE_REQUESTED', { entityId, dx, dy });
       }
     } else if (action === GameAction.WAIT) {
       // Wait
@@ -323,7 +318,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
         firmwareSystem.activateAbility(entityId, slotIndex, targetX, targetY);
       }
     } else if (action === GameAction.VENT) {
-      heatSystem.vent(entityId);
+      eventBus.emit('VENT_HEAT_REQUESTED', { entityId });
     }
 
     eventBus.emit('PLAYER_ACTION', { action, entityId });

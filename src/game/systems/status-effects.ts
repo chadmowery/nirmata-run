@@ -108,11 +108,11 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
 
   return {
     init() {
-      // System is now externally driven by engine-factory turn handlers
+      eventBus.on('APPLY_STATUS_EFFECT', onApplyEffectRequested);
     },
 
     dispose() {
-      // No cleanup needed as we no longer subscribe to events
+      eventBus.off('APPLY_STATUS_EFFECT', onApplyEffectRequested);
     },
 
     tickDown,
@@ -123,6 +123,10 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
     getEffectiveCount,
     getTotalMagnitude,
   };
+
+  function onApplyEffectRequested(payload: T['APPLY_STATUS_EFFECT']) {
+    applyEffect(payload.entityId, payload.effect);
+  }
 }
 
 export type StatusEffectSystem = ReturnType<typeof createStatusEffectSystem>;

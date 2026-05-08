@@ -16,13 +16,13 @@ describe('KernelPanicSystem', () => {
     eventBus = new EventBus<GameplayEvents>();
     world = new World<GameplayEvents>(eventBus);
     statusEffectSystem = createStatusEffectSystem(world, eventBus);
-    kernelPanicSystem = createKernelPanicSystem(world, eventBus, statusEffectSystem);
+    kernelPanicSystem = createKernelPanicSystem(world, eventBus);
+    
+    statusEffectSystem.init();
     kernelPanicSystem.init();
     
     // Spy on eventBus.emit
     vi.spyOn(eventBus, 'emit');
-    // Spy on statusEffectSystem.applyEffect
-    vi.spyOn(statusEffectSystem, 'applyEffect');
   });
 
   const createHeatData = (overrides: Partial<HeatData> = {}) => ({
@@ -63,7 +63,7 @@ describe('KernelPanicSystem', () => {
     expect(result?.tier).toBe(1);
     expect(result?.effectName).toBe('HUD_GLITCH');
     expect(result?.effectApplied).toBe(true);
-    expect(statusEffectSystem.applyEffect).toHaveBeenCalledWith(entityId, expect.objectContaining({ name: 'HUD_GLITCH' }));
+    expect(eventBus.emit).toHaveBeenCalledWith('APPLY_STATUS_EFFECT', expect.objectContaining({ entityId, effect: expect.objectContaining({ name: 'HUD_GLITCH' }) }));
     
     vi.spyOn(Math, 'random').mockRestore();
   });
@@ -165,7 +165,7 @@ describe('KernelPanicSystem', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0); // Force success
 
     kernelPanicSystem.checkOverclock(entityId);
-    expect(statusEffectSystem.applyEffect).toHaveBeenCalledWith(entityId, expect.objectContaining({ name: 'CRITICAL_REBOOT', duration: 3 }));
+    expect(eventBus.emit).toHaveBeenCalledWith('APPLY_STATUS_EFFECT', expect.objectContaining({ entityId, effect: expect.objectContaining({ name: 'CRITICAL_REBOOT', duration: 3 }) }));
 
     vi.spyOn(Math, 'random').mockRestore();
   });
@@ -192,7 +192,7 @@ describe('KernelPanicSystem', () => {
 
     const result = kernelPanicSystem.checkOverclock(entityId);
     expect(result?.effectApplied).toBe(false);
-    expect(statusEffectSystem.applyEffect).not.toHaveBeenCalled();
+    expect(eventBus.emit).not.toHaveBeenCalledWith('APPLY_STATUS_EFFECT', expect.anything());
 
     vi.spyOn(Math, 'random').mockRestore();
   });

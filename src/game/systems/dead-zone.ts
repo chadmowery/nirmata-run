@@ -98,14 +98,24 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
 
   return {
     init() {
-      // No initial setup required
+      eventBus.on('CREATE_DEAD_ZONE', onCreateDeadZoneRequested);
     },
     dispose() {
-      // No cleanup required
+      eventBus.off('CREATE_DEAD_ZONE', onCreateDeadZoneRequested);
     },
     tickDeadZones,
     createDeadZone,
   };
+
+  function onCreateDeadZoneRequested(payload: T['CREATE_DEAD_ZONE']) {
+    createDeadZone(
+      payload.x,
+      payload.y,
+      payload.duration,
+      payload.damagePerTick,
+      payload.creatorId
+    );
+  }
 }
 
 export type DeadZoneSystem = ReturnType<typeof createDeadZoneSystem>;
