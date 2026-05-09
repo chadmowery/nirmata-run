@@ -7,6 +7,8 @@ import { Actor } from '@shared/components/actor';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 import { Dying } from '@shared/components/dying';
+import { FloorTransitioned } from '@shared/components/floor-transitioned';
+import { FloorState } from '@shared/components/floor-state';
 
 /**
  * Configuration for the Reality Stability system.
@@ -107,7 +109,7 @@ export function createStabilitySystem<T extends GameplayEvents>(
         killerId: entityId,
         isPlayer: !!actor?.isPlayer
       });
-      // Mark as dying for Phase 6.5
+      // Mark as dying
       world.addComponent(entityId, Dying, { killerId: entityId });
     }
   };
@@ -115,25 +117,22 @@ export function createStabilitySystem<T extends GameplayEvents>(
   const updatePreTurn = (w: World<T>) => {
     const entities = w.query(Stability);
     for (const entityId of entities) {
-      // For now, we use a default floor number. In a full implementation, 
-      // this could be queried from a FloorState component.
-      const floorNumber = 1; 
+      const floorState = w.getComponent(entityId, FloorState);
+      const floorNumber = floorState?.currentFloor || 1;
+
+      // Check for floor transition
+      if (w.hasComponent(entityId, FloorTransitioned)) {
+        applyFloorDrain(entityId, floorNumber);
+      }
+
       applyTurnBleed(entityId, floorNumber);
       applyDegradedDamage(entityId);
     }
   };
 
-  /** Initialize system listeners. */
+  /** Initialize system. */
   const init = () => {
     world.registerSystem(Phase.PRE_TURN, updatePreTurn);
-
-    // Listen for floor transitions (natural reactive event)
-    eventBus.on('FLOOR_TRANSITION', (payload) => {
-      const players = world.query(Stability);
-      for (const playerId of players) {
-        applyFloorDrain(playerId, payload.floorNumber);
-      }
-    });
   };
 
   return {

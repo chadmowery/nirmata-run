@@ -45,7 +45,7 @@ export function registerCoreSystems<T extends GameplayEvents>(
   currencyDrop.init();
   runEnder.init();
   
-  // Phase 6.5: Gravedigger MUST be last in Phase.CLEANUP
+  // Gravedigger MUST be last in Phase.CLEANUP
   gravedigger.init();
   
   const tagCleanup = createTagCleanupSystem(world);

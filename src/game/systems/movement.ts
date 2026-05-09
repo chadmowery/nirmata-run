@@ -106,7 +106,7 @@ export function createMovementSystem<T extends GameplayEvents>(
       w.patchComponent(entityId, Position, { x: targetX, y: targetY });
       grid.moveEntity(entityId, oldX, oldY, targetX, targetY);
 
-      // Attach tag for reactive systems (Phase 6.4)
+      // Attach tag for reactive systems
       w.addComponent(entityId, MovedThisTurn, {
         fromX: oldX,
         fromY: oldY,
@@ -135,7 +135,7 @@ export function createMovementSystem<T extends GameplayEvents>(
     dispose() {
       world.unregisterSystem(Phase.ACTION, update);
     },
-    // We keep update exposed for manual execution in pipeline.ts (Phase 6.3)
+    // We keep update exposed for manual execution in pipeline.ts
     update,
   };
 }

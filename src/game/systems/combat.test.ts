@@ -106,7 +106,7 @@ describe('CombatSystem', () => {
     expect(grid.getEntitiesAt(5, 5).has(defender)).toBe(false);
     expect(world.hasComponent(defender, Dying)).toBe(true);
     
-    // In Phase 6.5, actual destruction is deferred to Phase.CLEANUP via GravediggerSystem
+    // Actual destruction is deferred to Phase.CLEANUP via GravediggerSystem.
     // Since we don't initialize Gravedigger here, we just verify the Dying tag.
     expect(diedSpy).toHaveBeenCalledWith(expect.objectContaining({
       entityId: defender,

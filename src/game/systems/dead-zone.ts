@@ -55,7 +55,7 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
               isPlayer: !!actor?.isPlayer 
             });
             
-            // Mark as dying for Phase 6.5
+            // Mark as dying
             world.addComponent(targetId, Dying, { killerId });
           }
         }

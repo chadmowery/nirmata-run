@@ -69,7 +69,7 @@ export function collectDamageModifiers<T extends GameplayEvents>(
     }
   }
 
-  // 2. Collect Augment modifiers (Phase 6.7)
+  // 2. Collect Augment modifiers
   const augmentSlots = world.getComponent(attackerId, AugmentSlots);
   if (augmentSlots) {
     const ctx = createTriggerContext(world, attackerId);
@@ -160,7 +160,7 @@ export function createCombatSystem<T extends GameplayEvents>(
       type: 'combat'
     });
 
-    // 4. Mark entity as dying (Phase 6.5)
+    // 4. Mark entity as dying
     // We no longer destroy it immediately so other systems can process it in Phase.CLEANUP
     world.addComponent(entityId, Dying, { killerId });
   };
@@ -199,7 +199,7 @@ export function createCombatSystem<T extends GameplayEvents>(
         amount: damage,
       });
 
-      // Track damage dealt this turn for augment triggers (Phase 6.7)
+      // Track damage dealt this turn for augment triggers
       const dealtDamage = w.getComponent(attackerId, DealtDamageThisTurn);
       if (dealtDamage) {
         w.patchComponent(attackerId, DealtDamageThisTurn, { amount: dealtDamage.amount + damage });

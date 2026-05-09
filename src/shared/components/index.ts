@@ -43,6 +43,8 @@ import { Dying } from './dying';
 import { FirmwareActivatedThisTurn } from './firmware-activated-this-turn';
 import { DealtDamageThisTurn } from './dealt-damage-this-turn';
 
+import { FloorTransitioned } from './floor-transitioned';
+
 export const COMPONENTS_REGISTRY = [
   Position,
   Health,
@@ -91,6 +93,7 @@ export const COMPONENTS_REGISTRY = [
   Dying,
   FirmwareActivatedThisTurn,
   DealtDamageThisTurn,
+  FloorTransitioned,
 ] as const;
 
 export * from './position';
@@ -137,3 +140,4 @@ export * from './moved-this-turn';
 export * from './dying';
 export * from './firmware-activated-this-turn';
 export * from './dealt-damage-this-turn';
+export * from './floor-transitioned';

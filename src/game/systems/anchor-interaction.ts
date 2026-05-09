@@ -29,7 +29,7 @@ export function createAnchorInteractionSystem<T extends GameplayEvents = GameEve
   playerId: EntityId
 ): AnchorInteractionSystem<T> {
   const update = (w: World<T>) => {
-    // Phase 6.4: Check if player moved
+    // Check if player moved
     const playerMoved = w.getComponent(playerId, MovedThisTurn);
     if (!playerMoved) return;
 

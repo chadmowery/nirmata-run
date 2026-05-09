@@ -64,7 +64,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
 
 
     if (playerId) {
-      // Clear equipment slots explicitly (Phase 6.5 requirement)
+      // Clear equipment slots explicitly
       if (world.hasComponent(playerId, FirmwareSlots)) {
         world.patchComponent(playerId, FirmwareSlots, { equipped: [] });
       }
@@ -143,7 +143,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
   }
 
   const update = (w: World<T>) => {
-    // Phase 6.4: Only check adjacency if something moved
+    // Only check adjacency if something moved
     const movers = w.query(MovedThisTurn);
     if (movers.length === 0) return;
 
@@ -193,7 +193,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
       }
     }
 
-    // Check for collapsed stability (Phase 6.6)
+    // Check for collapsed stability
     const actorsWithStability = w.query(Actor, Stability);
     for (const entityId of actorsWithStability) {
       const actor = w.getComponent(entityId, Actor);

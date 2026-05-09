@@ -50,7 +50,7 @@ describe('Death Equipment Clearing', () => {
       targetId: playerId
     });
 
-    // In Phase 6.5, the entity is destroyed in CLEANUP.
+    // The entity is destroyed in CLEANUP.
     // The delta will show the entity and its components being REMOVED.
     // We can verify that the player is no longer in the world.
     expect(newWorld.entityExists(playerId)).toBe(false);

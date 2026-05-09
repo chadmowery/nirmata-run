@@ -70,7 +70,7 @@ describe('ItemPickupSystem', () => {
     grid.addEntity(PLAYER_ID, 5, 5);
     grid.addItem(ITEM_ID, 6, 5);
 
-    // Trigger ENTITY_MOVED (Phase 6.4 logic)
+    // Trigger ENTITY_MOVED
     vi.mocked(world.query).mockReturnValue([PLAYER_ID]);
     vi.mocked(world.getComponent).mockImplementation((id, def) => {
       if (id === PLAYER_ID && def === Actor) return { isPlayer: true };

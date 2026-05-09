@@ -104,7 +104,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       }
     }
 
-    // Trigger melee bump animation if attacker is adjacent (Phase 6.8 replacing BUMP_ATTACK)
+    // Trigger melee bump animation if attacker is adjacent
     if (payload.attackerId) {
       const attackerPos = world.getComponent(payload.attackerId, Position);
       const defenderPos = world.getComponent(payload.defenderId, Position);

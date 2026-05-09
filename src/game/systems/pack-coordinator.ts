@@ -109,7 +109,7 @@ export function createPackCoordinatorSystem<T extends GameplayEvents>(
   };
 
   const update = (w: World<T>) => {
-    // Phase 6.4: Only check detonation if something moved that matters
+    // Only check detonation if something moved that matters
     const movers = w.query(MovedThisTurn);
     if (movers.length === 0) return;
 
@@ -133,11 +133,9 @@ export function createPackCoordinatorSystem<T extends GameplayEvents>(
   return {
     init() {
       world.registerSystem(Phase.REACTION, update);
-      eventBus.on('TURN_START', onTurnStart);
     },
     dispose() {
       world.unregisterSystem(Phase.REACTION, update);
-      eventBus.off('TURN_START', onTurnStart);
     },
     resetTurnState() {
       detonatedPacksThisTurn.clear();

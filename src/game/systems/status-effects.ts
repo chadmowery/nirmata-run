@@ -7,7 +7,6 @@ import { GameEvents } from '../events/types';
 
 /**
  * Pure function to apply a status effect to an entity.
- * Per Phase 6.8: Replaces the APPLY_STATUS_EFFECT event command.
  */
 export function applyStatusEffect<T extends GameplayEvents>(
   world: World<T>,
@@ -119,12 +118,11 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
 
   return {
     init() {
-      // Per Phase 6.8: Event listener for APPLY_STATUS_EFFECT removed.
-      // Use direct calls to applyStatusEffect() instead.
+      // Internal system state initialization
     },
 
     dispose() {
-      // Per Phase 6.8: Event listener for APPLY_STATUS_EFFECT removed.
+      // Cleanup
     },
 
     tickDown,

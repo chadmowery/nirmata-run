@@ -52,7 +52,7 @@ describe('Augment Integration', () => {
     const messageSpy = vi.fn();
     eventBus.on('MESSAGE_EMITTED', messageSpy);
     
-    // 5. Simulate firmware activation via tag (Phase 6.7)
+    // 5. Simulate firmware activation via tag
     world.addComponent(playerId, FirmwareActivatedThisTurn, { slotIndex: 0 });
     
     // 6. Submit the action to the turn manager to trigger phase resolution

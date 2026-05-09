@@ -5,6 +5,7 @@ import { EntityId } from '@engine/ecs/types';
 import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
 import { FloorState } from '@shared/components/floor-state';
+import { FloorTransitioned } from '@shared/components/floor-transitioned';
 import { Position } from '@shared/components/position';
 import { FirmwareSlots } from '@shared/components/firmware-slots';
 import { AugmentSlots } from '@shared/components/augment-slots';
@@ -102,9 +103,10 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
       { depth: newFloor, skipPlayer: true }
     );
 
-    // 9. Update player FloorState
+    // 9. Update player FloorState and add FloorTransitioned tag
     if (world.hasComponent(playerId, FloorState)) {
       world.patchComponent(playerId, FloorState, { currentFloor: newFloor });
+      world.addComponent(playerId, FloorTransitioned, { floorNumber: newFloor });
     }
 
     // 10. Emit transition event

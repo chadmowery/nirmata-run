@@ -31,7 +31,7 @@ export function createItemPickupSystem<T extends GameplayEvents>(
 ): ItemPickupSystem<T> {
 
   function update(w: World<T>) {
-    // Phase 6.4: Query movers and filter for player
+    // Query movers and filter for player
     const movers = w.query(Actor, MovedThisTurn, Position);
 
     for (const entityId of movers) {

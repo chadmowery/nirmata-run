@@ -63,9 +63,8 @@ export function createAugmentSystem<T extends GameplayEvents>(
           break;
         }
         case 'DAMAGE_BONUS':
-          // Phase 6.7: Now handled directly in combat.ts collectDamageModifiers
+          // Handled directly in combat.ts for immediate resolution.
           // But we still apply the status effect for duration-based bonuses if needed.
-          // Per plan: "integrate directly into resolveDamage... applies bonus instantly".
           // If the payload has statusEffectDuration > 0, it means it should persist.
           if (payload.statusEffectDuration && payload.statusEffectDuration > 0) {
             applyStatusEffect(world, eventBus, entityId, {

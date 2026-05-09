@@ -4,7 +4,7 @@ import { Dying } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 
 /**
- * System that removes entities marked with the Dying component at the end of the turn (Phase 6.5).
+ * System that removes entities marked with the Dying component at the end of the turn.
  */
 export function createGravediggerSystem<T extends GameplayEvents>(world: World<T>) {
   const update = (w: World<T>) => {
