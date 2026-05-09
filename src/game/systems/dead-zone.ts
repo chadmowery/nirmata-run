@@ -68,8 +68,8 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
       // 3. Handle expiration
       if (nextTurns <= 0) {
         eventBus.emit('DEAD_ZONE_EXPIRED', { x: pos.x, y: pos.y });
-        grid.removeEntity(entityId, pos.x, pos.y);
-        world.destroyEntity(entityId);
+        // Per the Death Protocol, we mark it as dying and let Gravedigger purge it
+        world.addComponent(entityId, Dying, { reason: 'expiration' });
       }
     }
   };

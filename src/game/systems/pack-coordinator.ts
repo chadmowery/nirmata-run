@@ -2,7 +2,7 @@ import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityId, Phase } from '@engine/ecs/types';
-import { Position, PackMember, Actor, StatusEffects, MovedThisTurn } from '@shared/components';
+import { Position, PackMember, Actor, StatusEffects, MovedThisTurn, Dying } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 
@@ -64,12 +64,19 @@ export function createPackCoordinatorSystem<T extends GameplayEvents>(
         // Apply MOVEMENT_SLOW to player once per pack detonation
         const statusEffects = world.getComponent(player.id, StatusEffects);
         if (statusEffects) {
-          statusEffects.effects.push({
-            name: 'MOVEMENT_SLOW',
-            duration: 2,
-            magnitude: 50,
-            source: 'buffer_overflow'
+          // Objective 5: Fix direct mutation
+          world.patchComponent(player.id, StatusEffects, {
+            effects: [
+              ...statusEffects.effects,
+              {
+                name: 'MOVEMENT_SLOW',
+                duration: 2,
+                magnitude: 50,
+                source: 'buffer_overflow'
+              }
+            ]
           });
+
           eventBus.emit('STATUS_EFFECT_APPLIED', {
             entityId: player.id,
             effectName: 'MOVEMENT_SLOW',
@@ -100,9 +107,9 @@ export function createPackCoordinatorSystem<T extends GameplayEvents>(
           // but the event might be enough for a separate damage system to pick up.
           // For now, we follow the plan and emit events.
           
-          // Destroy the detonating member
-          world.destroyEntity(memberId);
-          grid.removeEntity(memberId, pos.x, pos.y);
+          // Mark the detonating member as dying
+          // Per the Death Protocol, we no longer destroy entities directly
+          world.addComponent(memberId, Dying, { killerId: player.id });
         }
       }
     }

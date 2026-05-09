@@ -26,7 +26,7 @@ import { createRunEnderSystem } from './systems/run-ender';
 import { createStabilitySystem, StabilitySystem } from './systems/stability';
 import { createFloorManagerSystem, FloorManagerSystem } from './systems/floor-manager';
 import { createAnchorInteractionSystem, AnchorInteractionSystem } from './systems/anchor-interaction';
-import { CurrencyDropSystem } from './systems/currency-drop';
+import { RewardDropSystem } from './systems/reward-drop';
 import { createTagCleanupSystem } from './systems/tag-cleanup';
 import { createGravediggerSystem } from './systems/gravedigger';
 import { generateDungeon } from './generation/dungeon-generator';
@@ -77,7 +77,7 @@ export interface EngineInstance<T extends GameplayEvents = GameEvents> {
     stability: StabilitySystem<T>;
     floorManager: FloorManagerSystem<T>;
     anchorInteraction: AnchorInteractionSystem<T>;
-    currencyDrop: CurrencyDropSystem<T>;
+    rewardDrop: RewardDropSystem<T>;
     tagCleanup: ReturnType<typeof createTagCleanupSystem<T>>;
     gravedigger: ReturnType<typeof createGravediggerSystem<T>>;
   };
@@ -132,7 +132,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     augment: augmentSystem,
     tagCleanup: tagCleanupSystem,
     gravedigger: gravediggerSystem,
-    currencyDrop: currencyDropSystem,
+    rewardDrop: rewardDropSystem,
     runEnder: runEnderSystem
   } = coreSystems;
 
@@ -367,7 +367,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
       stability: stabilitySystem,
       floorManager: floorManagerSystem,
       anchorInteraction: anchorInteractionSystem,
-      currencyDrop: currencyDropSystem,
+      rewardDrop: rewardDropSystem,
       tagCleanup: tagCleanupSystem,
       gravedigger: gravediggerSystem
     }

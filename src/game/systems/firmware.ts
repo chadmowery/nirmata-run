@@ -6,14 +6,12 @@ import {
   AbilityDef,
   FirmwareSlots,
   Position,
-  Health,
-  Defense,
-  Actor,
   AbilityDefData,
   StatusEffects,
   Heat,
   FirmwareActivatedThisTurn
 } from '@shared/components';
+import { DamageIntent } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 import { getLegacyHeatCost } from './legacy-code';
@@ -119,18 +117,12 @@ export function createFirmwareSystem<T extends GameplayEvents>(
           const targets = grid.getEntitiesAt(targetX, targetY);
           for (const targetId of targets) {
             if (targetId === entityId) continue;
-            // Simple damage for now
-            const targetHealth = world.getComponent(targetId, Health);
-            if (targetHealth) {
-              world.patchComponent(targetId, Health, {
-                current: Math.max(0, targetHealth.current - (abilityDef.damageAmount || 5))
-              });
-              eventBus.emit('DAMAGE_DEALT', {
-                attackerId: entityId,
-                defenderId: targetId,
-                amount: abilityDef.damageAmount || 5,
-              } as T['DAMAGE_DEALT']);
-            }
+
+            // Per the Death Protocol, we delegate damage resolution to the CombatSystem
+            world.addComponent(entityId, DamageIntent, {
+              targetId: targetId as EntityId,
+              amount: abilityDef.damageAmount || 5
+            });
           }
         }
 
@@ -140,46 +132,11 @@ export function createFirmwareSystem<T extends GameplayEvents>(
         for (const targetId of targets) {
           if (targetId === entityId) continue;
 
-          const targetHealth = world.getComponent(targetId, Health);
-          const targetDefense = world.getComponent(targetId, Defense);
-
-          if (targetHealth) {
-            const armor = targetDefense?.armor ?? 0;
-            const damage = Math.max(1, abilityDef.damageAmount - armor);
-
-            world.patchComponent(targetId, Health, {
-              current: Math.max(0, targetHealth.current - damage)
-            });
-
-            eventBus.emit('DAMAGE_DEALT', {
-              attackerId: entityId,
-              defenderId: targetId,
-              amount: damage,
-            } as T['DAMAGE_DEALT']);
-
-            if (targetHealth.current <= 0) {
-              // Handle death (similar to combat system)
-              const targetPos = world.getComponent(targetId, Position);
-              if (targetPos) {
-                grid.removeEntity(targetId, targetPos.x, targetPos.y);
-              }
-
-              const actor = world.getComponent(targetId as EntityId, Actor);
-              eventBus.emit('ENTITY_DIED', {
-                entityId: targetId as EntityId,
-                killerId: entityId,
-                isPlayer: !!actor?.isPlayer
-              });
-
-              const name = actor?.isPlayer ? 'You' : 'The enemy';
-              eventBus.emit('MESSAGE_EMITTED', {
-                text: `${name} died!`,
-                type: 'combat'
-              });
-
-              world.destroyEntity(targetId);
-            }
-          }
+          // Per the Death Protocol, we delegate damage resolution to the CombatSystem
+          world.addComponent(entityId, DamageIntent, {
+            targetId: targetId as EntityId,
+            amount: abilityDef.damageAmount || 0
+          });
         }
 
         eventBus.emit('MESSAGE_EMITTED', {

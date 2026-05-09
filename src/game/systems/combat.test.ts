@@ -4,7 +4,7 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { createCombatSystem } from './combat';
-import { Attack, Defense, LootTable, Health, Position, Heat, AttackIntent, Dying } from '@shared/components';
+import { Attack, Defense, Health, Position, Heat, AttackIntent, Dying, DamageIntent } from '@shared/components';
 import { Phase } from '@engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
 import { ComponentRegistry } from '@engine/entity/types';
@@ -25,7 +25,7 @@ describe('CombatSystem', () => {
     const mockRegistry = { get: vi.fn() } as any;
     entityFactory = new EntityFactory(mockRegistry);
     vi.spyOn(entityFactory, 'create').mockReturnValue(999 as any);
-    
+
     componentRegistry = {} as any;
     combatSystem = createCombatSystem(world, grid, eventBus, entityFactory, componentRegistry);
     combatSystem.init();
@@ -54,6 +54,31 @@ describe('CombatSystem', () => {
       amount: 3,
     }));
     expect(world.hasComponent(attacker, AttackIntent)).toBe(false); // Should be cleared
+  });
+
+  it('should resolve damage based on DamageIntent during REACTION phase', () => {
+    const requester = world.createEntity();
+
+    const defender = world.createEntity();
+    world.addComponent(defender, Health, { current: 10, max: 10, isAlive: true });
+    world.addComponent(defender, Defense, { armor: 2 });
+
+    const damageDealtSpy = vi.fn();
+    eventBus.on('DAMAGE_DEALT', damageDealtSpy);
+
+    // DamageIntent is direct damage (e.g. from Firmware)
+    world.addComponent(requester, DamageIntent, { targetId: defender, amount: 5 });
+    world.executeSystems(Phase.REACTION);
+    eventBus.flush();
+
+    const health = world.getComponent(defender, Health);
+    expect(health?.current).toBe(7); // 10 - (5 - 2)
+    expect(damageDealtSpy).toHaveBeenCalledWith(expect.objectContaining({
+      attackerId: requester,
+      defenderId: defender,
+      amount: 3,
+    }));
+    expect(world.hasComponent(requester, DamageIntent)).toBe(false); // Should be cleared
   });
 
   it('should deal at least 1 damage even if defense is high', () => {
@@ -87,7 +112,7 @@ describe('CombatSystem', () => {
     expect(health?.current).toBe(5); // 10 - 5 (armor ignored)
   });
 
-  it('should handle entity death and clear from grid', () => {
+  it('should handle entity death by adding Dying component', () => {
     const attacker = world.createEntity();
     world.addComponent(attacker, Attack, { power: 20 });
 
@@ -103,40 +128,15 @@ describe('CombatSystem', () => {
     world.executeSystems(Phase.REACTION);
     eventBus.flush();
 
-    expect(grid.getEntitiesAt(5, 5).has(defender)).toBe(false);
+    // Per the Death Protocol, CombatSystem only adds the tag.
+    // Grid removal is deferred to Gravedigger in Phase.CLEANUP.
+    expect(grid.getEntitiesAt(5, 5).has(defender)).toBe(true);
     expect(world.hasComponent(defender, Dying)).toBe(true);
-    
-    // Actual destruction is deferred to Phase.CLEANUP via GravediggerSystem.
-    // Since we don't initialize Gravedigger here, we just verify the Dying tag.
+    expect(world.getComponent(defender, Dying)?.killerId).toBe(attacker);
+
     expect(diedSpy).toHaveBeenCalledWith(expect.objectContaining({
       entityId: defender,
       killerId: attacker,
     }));
-  });
-
-  it('should spawn loot on death based on loot table', () => {
-    const attacker = world.createEntity();
-    world.addComponent(attacker, Attack, { power: 20 });
-
-    const defender = world.createEntity();
-    world.addComponent(defender, Position, { x: 2, y: 2 });
-    world.addComponent(defender, Health, { current: 5, max: 5, isAlive: true });
-    world.addComponent(defender, LootTable, {
-      tier: 1,
-      drops: [{ template: 'gold', chance: 1.0 }] // Always drop
-    });
-    grid.addEntity(defender, 2, 2);
-
-    world.addComponent(attacker, AttackIntent, { targetId: defender });
-    world.executeSystems(Phase.REACTION);
-    eventBus.flush();
-
-    expect(entityFactory.create).toHaveBeenCalledWith(
-      world,
-      'gold',
-      componentRegistry,
-      expect.objectContaining({ position: { x: 2, y: 2 } })
-    );
-    expect(grid.getItemsAt(2, 2).has(999 as any)).toBe(true);
   });
 });

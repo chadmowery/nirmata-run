@@ -13,10 +13,13 @@ import { logger } from '@/shared/utils/logger';
 
 const economy = economyRaw as unknown as EconomyConfig;
 
+import { applyVampireOnKill } from './software-effects';
+
 /**
- * System that handles currency drops when entities die.
+ * System that handles currency and equipment drops when entities die.
+ * Also handles authoritative "On Kill" software effects.
  */
-export function createCurrencyDropSystem<T extends GameplayEvents>(
+export function createRewardDropSystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
   eventBus: EventBus<T>,
@@ -29,35 +32,57 @@ export function createCurrencyDropSystem<T extends GameplayEvents>(
       const actor = w.getComponent(entityId, Actor);
       const pos = w.getComponent(entityId, Position);
       const lootTable = w.getComponent(entityId, LootTable);
+      const dying = w.getComponent(entityId, Dying)!;
 
-      // Skip if no position or if it's the player
+      // Reaction logic: Software effects like Vampire (heal on kill)
+      if (dying.killerId !== undefined) {
+        applyVampireOnKill(w, eventBus, dying.killerId);
+      }
+
+      // Drop logic: Skip if no position or if it's the player
       if (!pos || (actor && actor.isPlayer)) {
         continue;
       }
 
+      // 1. Roll for Equipment (LootTable)
+      if (lootTable) {
+        for (const drop of lootTable.drops) {
+          if (Math.random() < drop.chance) {
+            const itemId = entityFactory.create(
+              w,
+              drop.template,
+              componentRegistry,
+              { position: { x: pos.x, y: pos.y } }
+            );
+            grid.addItem(itemId, pos.x, pos.y);
+            // Equipment is added as an item on the grid
+          }
+        }
+      }
+
+      // 2. Roll for Currency (Economy based)
       const tier = lootTable?.tier ?? 1;
       const tierKey = `tier${tier}` as keyof typeof economy.currencyDrops.scrap;
 
-      // 1. Roll for Scrap
+      // Roll for Scrap
       const scrapConfig = economy.currencyDrops.scrap[tierKey];
       if (scrapConfig && Math.random() <= scrapConfig.chance) {
         const amount = Math.floor(Math.random() * (scrapConfig.max - scrapConfig.min + 1)) + scrapConfig.min;
         spawnCurrency(w, 'scrap', amount, pos.x, pos.y);
-        logger.info(`[CurrencyDropSystem] Dropped scrap: ${amount}`);
+        logger.info(`[RewardDropSystem] Dropped scrap: ${amount}`);
       }
 
-      // 2. Roll for Flux
+      // Roll for Flux
       const fluxConfig = economy.currencyDrops.flux[tierKey] as DropRateConfig | undefined;
       if (fluxConfig && Math.random() <= fluxConfig.chance) {
         const amount = Math.floor(Math.random() * (fluxConfig.max - fluxConfig.min + 1)) + fluxConfig.min;
         spawnCurrency(w, 'flux', amount, pos.x, pos.y);
-        logger.info(`[CurrencyDropSystem] Dropped flux: ${amount}`);
+        logger.info(`[RewardDropSystem] Dropped flux: ${amount}`);
       }
 
-      // 3. Roll for Blueprint
+      // Roll for Blueprint
       const blueprintConfig = economy.currencyDrops.blueprint[tierKey] as BlueprintDropConfig | undefined;
       if (blueprintConfig && Math.random() <= 1.0) { // blueprintConfig.chance) {
-        // Select a random blueprint from a pool
         const blueprintPool = [
           'Phase_Shift.sh',
           'Neural_Spike.exe',
@@ -70,7 +95,7 @@ export function createCurrencyDropSystem<T extends GameplayEvents>(
         const blueprintType = blueprintId.endsWith('.arc') ? 'augment' : 'firmware';
 
         spawnCurrency(w, 'blueprint', 1, pos.x, pos.y, { blueprintId, blueprintType });
-        logger.info(`[CurrencyDropSystem] Dropped blueprint: ${blueprintId}`);
+        logger.info(`[RewardDropSystem] Dropped blueprint: ${blueprintId}`);
       }
     }
   };
@@ -122,4 +147,4 @@ export function createCurrencyDropSystem<T extends GameplayEvents>(
   };
 }
 
-export type CurrencyDropSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createCurrencyDropSystem<T>>;
+export type RewardDropSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createRewardDropSystem<T>>;

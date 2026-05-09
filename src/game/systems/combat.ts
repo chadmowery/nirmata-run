@@ -3,14 +3,14 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { EntityId, Phase } from '@engine/ecs/types';
-import { Attack, Defense, LootTable, Health, Position, Actor, Heat, BurnedSoftware, SoftwareDef, RarityTier, Dying, StatusEffects, AugmentSlots, AugmentData, DealtDamageThisTurn } from '@shared/components';
-import { AttackIntent } from '@shared/components/intents';
+import { Attack, Defense, Health, Actor, Heat, BurnedSoftware, SoftwareDef, RarityTier, Dying, StatusEffects, AugmentSlots, AugmentData, DealtDamageThisTurn } from '@shared/components';
+import { AttackIntent, DamageIntent } from '@shared/components/intents';
 import { createTriggerContext, evaluateCondition } from './augment-util';
 
 import { GameplayEvents } from '@shared/events/types';
 
 import { ComponentRegistry } from '@engine/entity/types';
-import { applyBleedOnHit, applyVampireOnKill } from './software-effects';
+import { applyBleedOnHit } from './software-effects';
 
 export interface DamageModifier {
   source: string;       // e.g., 'software:bleed', 'augment:static-siphon'
@@ -120,39 +120,11 @@ export function createCombatSystem<T extends GameplayEvents>(
   options: { skipLoot?: boolean } = {}
 ) {
   const handleDeath = (entityId: EntityId, killerId: EntityId) => {
-    const pos = world.getComponent(entityId, Position);
-    const lootTable = world.getComponent(entityId, LootTable);
-
-    // 1. Grid removal
-    if (pos) {
-      grid.removeEntity(entityId, pos.x, pos.y);
-    }
-
-    // 2. Roll loot table
-    if (!options.skipLoot && lootTable && pos) {
-      for (const drop of lootTable.drops) {
-        if (Math.random() < drop.chance) {
-          const itemId = entityFactory.create(
-            world,
-            drop.template,
-            componentRegistry,
-            {
-              position: { x: pos.x, y: pos.y }
-            }
-          );
-          grid.addItem(itemId, pos.x, pos.y);
-        }
-      }
-    }
-
     const actor = world.getComponent(entityId, Actor);
     const isPlayer = !!actor?.isPlayer;
 
-    // 3. Emit death event
+    // 1. Emit death event for external observers (UI, SFX)
     eventBus.emit('ENTITY_DIED', { entityId, killerId, isPlayer });
-
-    // Apply software effects like Vampire (heal on kill)
-    applyVampireOnKill(world, eventBus, killerId);
 
     const name = isPlayer ? 'You' : 'The enemy';
     eventBus.emit('MESSAGE_EMITTED', {
@@ -160,15 +132,15 @@ export function createCombatSystem<T extends GameplayEvents>(
       type: 'combat'
     });
 
-    // 4. Mark entity as dying
-    // We no longer destroy it immediately so other systems can process it in Phase.CLEANUP
+    // 2. Mark entity as dying
+    // Per the Death Protocol, RewardDropSystem and GravediggerSystem will handle the rest in Phase.CLEANUP
     world.addComponent(entityId, Dying, { killerId });
   };
 
   const update = (w: World<T>) => {
-    const entities = w.query(AttackIntent);
-
-    for (const attackerId of entities) {
+    // 1. Process AttackIntents (Melee/Ranged weapon attacks)
+    const attackEntities = w.query(AttackIntent);
+    for (const attackerId of attackEntities) {
       const intent = w.getComponent(attackerId, AttackIntent)!;
       const defenderId = intent.targetId;
 
@@ -227,6 +199,43 @@ export function createCombatSystem<T extends GameplayEvents>(
 
       // Cleanup intent
       w.removeComponent(attackerId, AttackIntent);
+    }
+
+    // 2. Process DamageIntents (Fixed damage from Firmware/Abilities)
+    const damageEntities = w.query(DamageIntent);
+    for (const requesterId of damageEntities) {
+      const intent = w.getComponent(requesterId, DamageIntent)!;
+      const targetId = intent.targetId;
+      const targetHealth = w.getComponent(targetId, Health);
+      const targetDefense = w.getComponent(targetId, Defense);
+
+      if (!targetHealth) {
+        w.removeComponent(requesterId, DamageIntent);
+        continue;
+      }
+
+      const armor = targetDefense?.armor ?? 0;
+      const targetHeat = w.getComponent(targetId, Heat);
+      const effectiveArmor = targetHeat?.isVenting ? 0 : armor;
+
+      // Abilities use raw amount minus armor
+      const finalDamage = Math.max(1, intent.amount - effectiveArmor);
+      const oldHealth = targetHealth.current;
+      const newHealth = Math.max(0, oldHealth - finalDamage);
+
+      w.patchComponent(targetId, Health, { current: newHealth });
+
+      eventBus.emit('DAMAGE_DEALT', {
+        attackerId: requesterId,
+        defenderId: targetId,
+        amount: finalDamage,
+      });
+
+      if (newHealth <= 0) {
+        handleDeath(targetId, requesterId);
+      }
+
+      w.removeComponent(requesterId, DamageIntent);
     }
   };
 

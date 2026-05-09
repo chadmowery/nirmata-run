@@ -29,3 +29,14 @@ export const VentIntent = defineComponent(
   'ventIntent',
   z.object({})
 );
+
+/**
+ * Intent to deal direct damage to a target.
+ */
+export const DamageIntent = defineComponent(
+  'damageIntent',
+  z.object({
+    targetId: z.number(),
+    amount: z.number(), // Raw damage before defense
+  })
+);

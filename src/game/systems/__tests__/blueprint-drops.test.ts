@@ -5,7 +5,7 @@ import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { EntityRegistry } from '@engine/entity/registry';
 import { COMPONENTS_REGISTRY, Actor, Position, LootTable, CurrencyItem, Item, Dying } from '@shared/components';
-import { createCurrencyDropSystem } from '../currency-drop';
+import { createRewardDropSystem } from '../reward-drop';
 import { GameEvents } from '../../events/types';
 import { ComponentRegistry } from '@engine/entity/types';
 import { Phase } from '@engine/ecs/types';
@@ -61,8 +61,8 @@ describe('Currency Drop System', () => {
   });
 
   it('spawns scrap on Tier 1 enemy death', () => {
-    const dropSystem = createCurrencyDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
-    dropSystem.init();
+    const rewardDropSystem = createRewardDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
+    rewardDropSystem.init();
 
     const enemyId = world.createEntity();
     world.addComponent(enemyId, Actor, { isPlayer: false });
@@ -94,7 +94,7 @@ describe('Currency Drop System', () => {
     Math.random = () => 0.1; // Force high success for all checks
 
     try {
-      const dropSystem = createCurrencyDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
+      const dropSystem = createRewardDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
       dropSystem.init();
 
       const enemyId = world.createEntity();

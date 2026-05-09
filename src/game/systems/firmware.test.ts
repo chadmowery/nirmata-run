@@ -2,15 +2,15 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
-import { 
-  AbilityDef, 
-  FirmwareSlots, 
-  Position, 
-  Health, 
-  Defense, 
-  Heat,
-  Actor
+import {
+  AbilityDef,
+  FirmwareSlots,
+  Position,
+  Health,
+  Defense,
+  Heat
 } from '@shared/components';
+import { DamageIntent } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
 import { createFirmwareSystem } from './firmware';
 import { createHeatSystem } from './heat';
@@ -31,7 +31,7 @@ describe('FirmwareSystem', () => {
     heatSystem = createHeatSystem(world, eventBus);
     movementSystem = createMovementSystem(world, grid, eventBus);
     firmwareSystem = createFirmwareSystem(world, grid, eventBus);
-    
+
     heatSystem.init();
     movementSystem.init();
     firmwareSystem.init();
@@ -50,7 +50,7 @@ describe('FirmwareSystem', () => {
   it('activateAbility adds heatCost to players Heat', () => {
     const playerId = world.createEntity();
     const firmwareId = world.createEntity();
-    
+
     world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
       name: 'Test Ability',
       heatCost: 10,
@@ -66,7 +66,7 @@ describe('FirmwareSystem', () => {
 
     firmwareSystem.activateAbility(playerId, 0, 6, 6);
     eventBus.flush();
-    
+
     const heat = world.getComponent(playerId, Heat);
     expect(heat?.current).toBe(10);
   });
@@ -74,7 +74,7 @@ describe('FirmwareSystem', () => {
   it('activateAbility with dash effectType moves player to target position', () => {
     const playerId = world.createEntity();
     const firmwareId = world.createEntity();
-    
+
     world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
       name: 'Dash',
       heatCost: 5,
@@ -100,11 +100,11 @@ describe('FirmwareSystem', () => {
     expect(grid.getEntitiesAt(5, 5)).not.toContain(playerId);
   });
 
-  it('activateAbility with ranged_attack effectType deals damage to target entity', () => {
+  it('activateAbility with ranged_attack effectType adds DamageIntent to attacker', () => {
     const playerId = world.createEntity();
     const enemyId = world.createEntity();
     const firmwareId = world.createEntity();
-    
+
     world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
       name: 'Neural Spike',
       heatCost: 15,
@@ -127,14 +127,17 @@ describe('FirmwareSystem', () => {
     eventBus.flush();
     expect(result).toBe(true);
 
-    const enemyHealth = world.getComponent(enemyId, Health);
-    expect(enemyHealth?.current).toBe(12); // 20 - (10 - 2) = 12
+    // Per the Death Protocol, the Firmware system only adds the intent
+    const intent = world.getComponent(playerId, DamageIntent);
+    expect(intent).toBeDefined();
+    expect(intent?.targetId).toBe(enemyId);
+    expect(intent?.amount).toBe(10);
   });
 
   it('activateAbility with toggle_vision toggles isActive on ability entity', () => {
     const playerId = world.createEntity();
     const firmwareId = world.createEntity();
-    
+
     world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
       name: 'Extended Sight',
       heatCost: 0,
@@ -151,7 +154,7 @@ describe('FirmwareSystem', () => {
 
     firmwareSystem.activateAbility(playerId, 0, 5, 5);
     eventBus.flush();
-    
+
     const ability = world.getComponent(firmwareId, AbilityDef);
     expect(ability?.isActive).toBe(true);
 
@@ -164,7 +167,7 @@ describe('FirmwareSystem', () => {
   it('activateAbility with isLegacy=true doubles the Heat cost', () => {
     const playerId = world.createEntity();
     const firmwareId = world.createEntity();
-    
+
     world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
       name: 'Legacy Spike',
       heatCost: 10,
@@ -181,7 +184,7 @@ describe('FirmwareSystem', () => {
 
     firmwareSystem.activateAbility(playerId, 0, 6, 6);
     eventBus.flush();
-    
+
     const heat = world.getComponent(playerId, Heat);
     expect(heat?.current).toBe(20); // 10 * 2
   });
@@ -189,7 +192,7 @@ describe('FirmwareSystem', () => {
   it('activateAbility emits FIRMWARE_ACTIVATED event', () => {
     const playerId = world.createEntity();
     const firmwareId = world.createEntity();
-    
+
     world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
       name: 'Test Ability',
       heatCost: 10,
@@ -208,7 +211,7 @@ describe('FirmwareSystem', () => {
 
     firmwareSystem.activateAbility(playerId, 0, 6, 6);
     eventBus.flush();
-    
+
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({
       entityId: playerId,
       slotIndex: 0,
@@ -221,7 +224,7 @@ describe('FirmwareSystem', () => {
   it('activateAbility rejects target out of range', () => {
     const playerId = world.createEntity();
     const firmwareId = world.createEntity();
-    
+
     world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
       name: 'Short Range Spike',
       heatCost: 10,

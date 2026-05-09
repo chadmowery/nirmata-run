@@ -8,7 +8,7 @@ import { createMovementSystem } from './movement';
 import { createCombatSystem } from './combat';
 import { createItemPickupSystem } from './item-pickup';
 import { createGravediggerSystem } from './gravedigger';
-import { createCurrencyDropSystem } from './currency-drop';
+import { createRewardDropSystem } from './reward-drop';
 import { createRunEnderSystem } from './run-ender';
 import { createAugmentSystem } from './augment';
 import { createTagCleanupSystem } from './tag-cleanup';
@@ -38,11 +38,11 @@ export function registerCoreSystems<T extends GameplayEvents>(
   augment.init();
 
   // Cleanup & Death Processing
-  const gravedigger = createGravediggerSystem(world);
-  const currencyDrop = createCurrencyDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
+  const gravedigger = createGravediggerSystem(world, grid);
+  const rewardDrop = createRewardDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
   const runEnder = createRunEnderSystem(world, grid, eventBus, options.runMode);
 
-  currencyDrop.init();
+  rewardDrop.init();
   runEnder.init();
   
   // Gravedigger MUST be last in Phase.CLEANUP
@@ -51,5 +51,5 @@ export function registerCoreSystems<T extends GameplayEvents>(
   const tagCleanup = createTagCleanupSystem(world);
   tagCleanup.init();
 
-  return { movement, combat, itemPickup, gravedigger, currencyDrop, runEnder, augment, tagCleanup };
+  return { movement, combat, itemPickup, gravedigger, rewardDrop, runEnder, augment, tagCleanup };
 }
