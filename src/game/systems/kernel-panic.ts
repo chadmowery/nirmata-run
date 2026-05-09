@@ -4,6 +4,7 @@ import { EntityId, Phase } from '@engine/ecs/types';
 import { Heat, Shell } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
+import { applyStatusEffect } from './status-effects';
 
 export interface KernelPanicResult {
   tier: number;
@@ -65,16 +66,12 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
 
       if (roll < effChance) {
         appliedEffectName = tier.effectName;
-
-        eventBus.emit('APPLY_STATUS_EFFECT', {
-          entityId,
-          effect: {
-            name: tier.effectName,
-            duration: tier.duration,
-            magnitude: tier.magnitude,
-            severity: tier.severity,
-            source: 'kernel_panic'
-          }
+        applyStatusEffect(world, eventBus, entityId, {
+          name: tier.effectName,
+          duration: tier.duration,
+          magnitude: tier.magnitude,
+          severity: tier.severity,
+          source: 'kernel_panic',
         });
 
         eventBus.emit('KERNEL_PANIC_TRIGGERED', {

@@ -92,7 +92,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
     }
   };
 
-  const handleDamageDealt = (payload: { defenderId: EntityId }) => {
+  const handleDamageDealt = (payload: { attackerId?: EntityId; defenderId: EntityId }) => {
     const sprite = getEntitySprite(payload.defenderId);
     if (sprite) {
       applyDamageDistortion(sprite);
@@ -103,19 +103,32 @@ export function createRenderSystem(config: RenderSystemConfig) {
         spawnDamageText(sprite.x + TILE_SIZE / 2, sprite.y + TILE_SIZE / 2, layers.effectsLayer);
       }
     }
+
+    // Trigger melee bump animation if attacker is adjacent (Phase 6.8 replacing BUMP_ATTACK)
+    if (payload.attackerId) {
+      const attackerPos = world.getComponent(payload.attackerId, Position);
+      const defenderPos = world.getComponent(payload.defenderId, Position);
+      if (attackerPos && defenderPos) {
+        const dx = Math.abs(attackerPos.x - defenderPos.x);
+        const dy = Math.abs(attackerPos.y - defenderPos.y);
+        const distance = dx + dy; // Manhattan distance
+        if (distance === 1) {
+          queueAttackAnimationWithDefender(
+            payload.attackerId,
+            attackerPos,
+            payload.defenderId,
+            defenderPos,
+            getEntitySprite,
+          );
+        }
+      }
+    }
   };
 
   const handleEntityMoved = (payload: { entityId: EntityId; fromX: number; fromY: number; toX: number; toY: number }) => {
     queueMoveTween(payload.entityId, payload.fromX, payload.fromY, payload.toX, payload.toY, getEntitySprite);
   };
 
-  const handleBumpAttack = (payload: { attackerId: EntityId; defenderId: EntityId }) => {
-    const attackerPos = world.getComponent(payload.attackerId, Position);
-    const defenderPos = world.getComponent(payload.defenderId, Position);
-    if (attackerPos && defenderPos) {
-      queueAttackAnimationWithDefender(payload.attackerId, attackerPos, payload.defenderId, defenderPos, getEntitySprite);
-    }
-  };
 
   const handleApplyWorldFilter = (payload: { filterType: string }) => {
     if (payload.filterType === 'grayscale') {
@@ -164,7 +177,6 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.on('ENTITY_CREATED', handleEntityCreated);
       eventBus.on('ENTITY_DESTROYED', handleEntityDestroyed);
       eventBus.on('ENTITY_MOVED', handleEntityMoved);
-      eventBus.on('BUMP_ATTACK', handleBumpAttack);
       eventBus.on('DAMAGE_DEALT', handleDamageDealt);
       eventBus.on('APPLY_WORLD_FILTER', handleApplyWorldFilter);
       eventBus.on('REMOVE_WORLD_FILTER', handleRemoveWorldFilter);
@@ -346,7 +358,6 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.off('ENTITY_CREATED', handleEntityCreated);
       eventBus.off('ENTITY_DESTROYED', handleEntityDestroyed);
       eventBus.off('ENTITY_MOVED', handleEntityMoved);
-      eventBus.off('BUMP_ATTACK', handleBumpAttack);
       eventBus.off('DAMAGE_DEALT', handleDamageDealt);
       eventBus.off('APPLY_WORLD_FILTER', handleApplyWorldFilter);
       eventBus.off('REMOVE_WORLD_FILTER', handleRemoveWorldFilter);

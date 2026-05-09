@@ -11,6 +11,7 @@ import {
 import { GameplayEvents } from '@shared/events/types';
 import { getLegacyMagnitude } from './legacy-code';
 import { createTriggerContext, evaluateCondition } from './augment-util';
+import { applyStatusEffect } from './status-effects';
 
 export function createAugmentSystem<T extends GameplayEvents>(
   world: World<T>,
@@ -31,24 +32,18 @@ export function createAugmentSystem<T extends GameplayEvents>(
           break;
         }
         case 'SHIELD':
-          eventBus.emit('APPLY_STATUS_EFFECT', {
-            entityId,
-            effect: {
-              name: 'SHIELD',
-              duration: 1,
-              magnitude: magnitude
-            }
+          applyStatusEffect(world, eventBus, entityId, {
+            name: 'SHIELD',
+            duration: 1,
+            magnitude: magnitude,
           });
           break;
         case 'APPLY_STATUS':
           if (payload.statusEffectName) {
-            eventBus.emit('APPLY_STATUS_EFFECT', {
-              entityId,
-              effect: {
-                name: payload.statusEffectName,
-                duration: payload.statusEffectDuration ?? 1,
-                magnitude: magnitude
-              }
+            applyStatusEffect(world, eventBus, entityId, {
+              name: payload.statusEffectName,
+              duration: payload.statusEffectDuration ?? 1,
+              magnitude: magnitude,
             });
           }
           break;
@@ -73,13 +68,10 @@ export function createAugmentSystem<T extends GameplayEvents>(
           // Per plan: "integrate directly into resolveDamage... applies bonus instantly".
           // If the payload has statusEffectDuration > 0, it means it should persist.
           if (payload.statusEffectDuration && payload.statusEffectDuration > 0) {
-            eventBus.emit('APPLY_STATUS_EFFECT', {
-              entityId,
-              effect: {
-                name: 'DAMAGE_BOOST',
-                duration: payload.statusEffectDuration,
-                magnitude: magnitude
-              }
+            applyStatusEffect(world, eventBus, entityId, {
+              name: 'DAMAGE_BOOST',
+              duration: payload.statusEffectDuration,
+              magnitude: magnitude,
             });
           }
           break;

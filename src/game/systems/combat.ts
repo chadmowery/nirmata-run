@@ -193,12 +193,6 @@ export function createCombatSystem<T extends GameplayEvents>(
       // Authoritative update
       w.patchComponent(defenderId, Health, { current: newHealth });
 
-      // Signal visual bump for rendering/animations
-      eventBus.emit('BUMP_ATTACK', {
-        attackerId,
-        defenderId,
-      });
-
       eventBus.emit('DAMAGE_DEALT', {
         attackerId,
         defenderId,

@@ -143,11 +143,11 @@ describe('Game Setup Integration', () => {
     const actionHandler = (inputManager as any).handler;
     actionHandler(GameAction.MOVE_EAST);
 
-    // 5. Verify BUMP_ATTACK event emitted
-    expect(emitSpy).toHaveBeenCalledWith('BUMP_ATTACK', {
+    // 5. Verify DAMAGE_DEALT event emitted
+    expect(emitSpy).toHaveBeenCalledWith('DAMAGE_DEALT', expect.objectContaining({
       attackerId: player,
       defenderId: enemy,
-    });
+    }));
 
     // 6. Verify player stayed in place
     const pos = world.getComponent(player, Position);

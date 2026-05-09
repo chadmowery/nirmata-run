@@ -64,7 +64,7 @@ describe('KernelPanicSystem', () => {
     expect(result?.tier).toBe(1);
     expect(result?.effectName).toBe('HUD_GLITCH');
     expect(result?.effectApplied).toBe(true);
-    expect(eventBus.emit).toHaveBeenCalledWith('APPLY_STATUS_EFFECT', expect.objectContaining({ entityId, effect: expect.objectContaining({ name: 'HUD_GLITCH' }) }));
+    expect(eventBus.emit).toHaveBeenCalledWith('STATUS_EFFECT_APPLIED', expect.objectContaining({ entityId, effectName: 'HUD_GLITCH' }));
     
     vi.spyOn(Math, 'random').mockRestore();
   });
@@ -166,7 +166,7 @@ describe('KernelPanicSystem', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0); // Force success
 
     kernelPanicSystem.checkOverclock(entityId);
-    expect(eventBus.emit).toHaveBeenCalledWith('APPLY_STATUS_EFFECT', expect.objectContaining({ entityId, effect: expect.objectContaining({ name: 'CRITICAL_REBOOT', duration: 3 }) }));
+    expect(eventBus.emit).toHaveBeenCalledWith('STATUS_EFFECT_APPLIED', expect.objectContaining({ entityId, effectName: 'CRITICAL_REBOOT', duration: 3 }));
 
     vi.spyOn(Math, 'random').mockRestore();
   });
@@ -193,7 +193,7 @@ describe('KernelPanicSystem', () => {
 
     const result = kernelPanicSystem.checkOverclock(entityId);
     expect(result?.effectApplied).toBe(false);
-    expect(eventBus.emit).not.toHaveBeenCalledWith('APPLY_STATUS_EFFECT', expect.anything());
+    expect(eventBus.emit).not.toHaveBeenCalledWith('STATUS_EFFECT_APPLIED', expect.anything());
 
     vi.spyOn(Math, 'random').mockRestore();
   });

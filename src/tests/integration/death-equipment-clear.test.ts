@@ -31,7 +31,7 @@ describe('Death Equipment Clearing', () => {
     // But runActionPipeline doesn't have a 'KILL_ME' action.
     // I'll emit DAMAGE_DEALT directly in a custom action or just use a dummy move into trap
 
-    // Let's use BUMP_ATTACK which leads to death if health is 1
+    // Let's use ATTACK intent which leads to death if health is 1
     const { world: newWorld } = runActionPipeline(world, grid, enemyId, {
       type: 'ATTACK',
       targetId: playerId

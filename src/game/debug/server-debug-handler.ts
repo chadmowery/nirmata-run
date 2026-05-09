@@ -5,6 +5,7 @@ import { EntityId } from '@engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { sessionManager } from '@engine/session/SessionManager';
+import { applyStatusEffect } from '../systems/status-effects';
 
 export function handleServerDebugCommand(
   world: World<any>,
@@ -54,14 +55,11 @@ export function handleServerDebugCommand(
       const severity = args.severity || (tier === 1 ? 'minor' : tier === 2 ? 'moderate' : tier === 3 ? 'severe' : 'critical');
       const duration = tier === 4 ? 3 : 2;
 
-      eventBus.emit('APPLY_STATUS_EFFECT', {
-        entityId: playerId,
-        effect: {
-          name: effectName,
-          duration,
-          magnitude: 1,
-          source: 'debug',
-        }
+      applyStatusEffect(world, eventBus, playerId, {
+        name: effectName,
+        duration,
+        magnitude: 1,
+        source: 'debug',
       });
 
       eventBus.emit('KERNEL_PANIC_TRIGGERED', {
@@ -151,14 +149,11 @@ export function handleServerDebugCommand(
       const effectName = args.effectName || 'burning';
       const duration = Number(args.duration) || 5;
       
-      eventBus.emit('APPLY_STATUS_EFFECT', {
-        entityId: playerId,
-        effect: {
-          name: effectName,
-          duration,
-          magnitude: 1,
-          source: 'debug',
-        }
+      applyStatusEffect(world, eventBus, playerId, {
+        name: effectName,
+        duration,
+        magnitude: 1,
+        source: 'debug',
       });
       break;
     }

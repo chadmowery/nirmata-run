@@ -16,8 +16,6 @@ export interface GameplayEvents extends EngineEvents {
   /** Queued when an entity picks up an item. */
   ITEM_PICKED_UP: { entityId: EntityId; itemId: EntityId };
 
-  /** Queued when an entity attempts to move into a hostile entity. */
-  BUMP_ATTACK: { attackerId: EntityId; defenderId: EntityId };
 
   /** Queued when the player performs an action. */
   PLAYER_ACTION: { action: string; entityId: EntityId };
@@ -263,20 +261,6 @@ export interface GameplayEvents extends EngineEvents {
   /** Queued when a system requests the game to resume. */
   GAME_RESUME_REQUESTED: Record<string, never>;
 
-  /** 
-   * Queued when an entity requests to apply a status effect. 
-   * @deprecated Use direct system call in future phases.
-   */
-  APPLY_STATUS_EFFECT: {
-    entityId: EntityId;
-    effect: {
-      name: string;
-      duration: number;
-      magnitude?: number;
-      severity?: string;
-      source?: string;
-    };
-  };
 }
 
 export interface RunEndedStats {

@@ -72,12 +72,10 @@ describe('Legacy System Integration', () => {
     world.addComponent(playerId, FirmwareActivatedThisTurn, { slotIndex: 0 });
     augmentSystem.processTriggersForEntity(playerId);
 
-    expect(emitSpy).toHaveBeenCalledWith('APPLY_STATUS_EFFECT', expect.objectContaining({
+    expect(emitSpy).toHaveBeenCalledWith('STATUS_EFFECT_APPLIED', expect.objectContaining({
       entityId: playerId,
-      effect: expect.objectContaining({
-        name: 'SHIELD',
-        magnitude: 5 // 10 * 0.5
-      })
+      effectName: 'SHIELD',
+      magnitude: 5 // 10 * 0.5
     }));
   });
 });
