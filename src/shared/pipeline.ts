@@ -22,6 +22,7 @@ import { EntityRegistry } from '../engine/entity/registry';
 import { EntityFactory } from '../engine/entity/factory';
 import { ComponentRegistry } from '../engine/entity/types';
 import { registerCoreSystems } from '../game/systems/registration';
+import { RunMode } from './run-mode';
 
 /**
  * Runs a game action against a world/grid state and returns the new state and delta.
@@ -61,7 +62,7 @@ export function runActionPipeline(
     localEventBus,
     dummyEntityFactory,
     dummyComponentRegistry,
-    { skipLoot: true }
+    { skipLoot: true, runMode: RunMode.SIMULATION }
   );
 
   // 5. Execute Core Phases

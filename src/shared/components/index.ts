@@ -40,6 +40,8 @@ import { TemplateId } from './template-id';
 import { MoveIntent, AttackIntent, VentIntent } from './intents';
 import { MovedThisTurn } from './moved-this-turn';
 import { Dying } from './dying';
+import { FirmwareActivatedThisTurn } from './firmware-activated-this-turn';
+import { DealtDamageThisTurn } from './dealt-damage-this-turn';
 
 export const COMPONENTS_REGISTRY = [
   Position,
@@ -87,6 +89,8 @@ export const COMPONENTS_REGISTRY = [
   VentIntent,
   MovedThisTurn,
   Dying,
+  FirmwareActivatedThisTurn,
+  DealtDamageThisTurn,
 ] as const;
 
 export * from './position';
@@ -131,3 +135,5 @@ export * from './template-id';
 export * from './intents';
 export * from './moved-this-turn';
 export * from './dying';
+export * from './firmware-activated-this-turn';
+export * from './dealt-damage-this-turn';

@@ -1,63 +1,22 @@
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
-import { EntityId } from '@engine/ecs/types';
+import { EntityId, Phase } from '@engine/ecs/types';
 import {
   AugmentData,
   AugmentState,
   AugmentSlots,
   Health,
-  Heat,
-  ConditionNode,
-  PayloadType
+  Heat
 } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
-import { GameEvents } from '../events/types';
 import { getLegacyMagnitude } from './legacy-code';
-
-interface TriggerContext {
-  firmwareActivated: boolean;
-  damageDealt: number;
-  killCount: number;
-  heatAboveMax: boolean;
-  currentHeat: number;
-  hpPercent: number;
-}
+import { createTriggerContext, evaluateCondition } from './augment-util';
 
 export function createAugmentSystem<T extends GameplayEvents>(
   world: World<T>,
   eventBus: EventBus<T>,
 ) {
-  let pendingContext: TriggerContext | null = null;
-  let isResolving = false;
-
-  const evaluateCondition = (node: ConditionNode, ctx: TriggerContext, depth: number = 0): boolean => {
-    if (depth > 10) return false;
-
-    switch (node.type) {
-      case 'AND':
-        return node.conditions?.every(c => evaluateCondition(c, ctx, depth + 1)) ?? true;
-      case 'OR':
-        return node.conditions?.some(c => evaluateCondition(c, ctx, depth + 1)) ?? false;
-      case 'NOT':
-        return node.conditions?.[0] ? !evaluateCondition(node.conditions[0], ctx, depth + 1) : true;
-      case 'ON_ACTIVATION':
-        return ctx.firmwareActivated;
-      case 'ON_TARGET_HIT':
-        return ctx.damageDealt > 0;
-      case 'ON_OVERCLOCK':
-        return ctx.heatAboveMax;
-      case 'ON_KILL':
-        return ctx.killCount > 0;
-      case 'HEAT_ABOVE':
-        return ctx.currentHeat >= (node.value ?? 0);
-      case 'HP_BELOW_PERCENT':
-        return ctx.hpPercent <= (node.value ?? 0);
-      default:
-        return false;
-    }
-  };
-
-  const resolvePayloads = (entityId: EntityId, payloads: PayloadType[], isLegacy: boolean = false) => {
+  const resolvePayloads = (entityId: EntityId, payloads: any[], isLegacy: boolean = false) => {
     for (const payload of payloads) {
       const magnitude = getLegacyMagnitude(payload.magnitude ?? 0, isLegacy);
 
@@ -109,20 +68,26 @@ export function createAugmentSystem<T extends GameplayEvents>(
           break;
         }
         case 'DAMAGE_BONUS':
-          eventBus.emit('APPLY_STATUS_EFFECT', {
-            entityId,
-            effect: {
-              name: 'DAMAGE_BOOST',
-              duration: payload.statusEffectDuration ?? 1,
-              magnitude: magnitude
-            }
-          });
+          // Phase 6.7: Now handled directly in combat.ts collectDamageModifiers
+          // But we still apply the status effect for duration-based bonuses if needed.
+          // Per plan: "integrate directly into resolveDamage... applies bonus instantly".
+          // If the payload has statusEffectDuration > 0, it means it should persist.
+          if (payload.statusEffectDuration && payload.statusEffectDuration > 0) {
+            eventBus.emit('APPLY_STATUS_EFFECT', {
+              entityId,
+              effect: {
+                name: 'DAMAGE_BOOST',
+                duration: payload.statusEffectDuration,
+                magnitude: magnitude
+              }
+            });
+          }
           break;
       }
     }
   };
 
-  const processTriggersForEntity = (entityId: EntityId, ctx: TriggerContext) => {
+  const processTriggersForEntity = (entityId: EntityId) => {
     const slots = world.getComponent(entityId, AugmentSlots);
     if (!slots) return;
 
@@ -132,6 +97,7 @@ export function createAugmentSystem<T extends GameplayEvents>(
       state = world.getComponent(entityId, AugmentState)!;
     }
 
+    const ctx = createTriggerContext(world, entityId);
     const triggeredAugments: Array<{ name: string; payloadType: string; magnitude: number }> = [];
 
     for (const augmentId of slots.equipped) {
@@ -184,6 +150,14 @@ export function createAugmentSystem<T extends GameplayEvents>(
     }
   };
 
+  const update = (w: World<T>) => {
+    // Process all entities with AugmentSlots
+    const entities = w.query(AugmentSlots);
+    for (const entityId of entities) {
+      processTriggersForEntity(entityId);
+    }
+  };
+
   const resetTurnState = (entityId: EntityId) => {
     const state = world.getComponent(entityId, AugmentState);
     if (state) {
@@ -201,79 +175,21 @@ export function createAugmentSystem<T extends GameplayEvents>(
     }
   };
 
-  const ensurePendingContext = (entityId: EntityId) => {
-    if (!pendingContext) {
-      const heat = world.getComponent(entityId, Heat);
-      const health = world.getComponent(entityId, Health);
-      pendingContext = {
-        firmwareActivated: false,
-        damageDealt: 0,
-        killCount: 0,
-        heatAboveMax: heat ? heat.current > heat.maxSafe : false,
-        currentHeat: heat?.current ?? 0,
-        hpPercent: health ? (health.current / health.max) * 100 : 100,
-      };
-    }
-    return pendingContext;
-  };
-
-  const onFirmwareActivated = (event: GameplayEvents['FIRMWARE_ACTIVATED']) => {
-    if (isResolving) return;
-    const ctx = ensurePendingContext(event.entityId);
-    ctx.firmwareActivated = true;
-  };
-
-  const onDamageDealt = (event: GameplayEvents['DAMAGE_DEALT']) => {
-    if (isResolving) return;
-    const ctx = ensurePendingContext(event.attackerId);
-    ctx.damageDealt += event.amount;
-  };
-
-  const onEntityDied = (event: GameplayEvents['ENTITY_DIED']) => {
-    if (isResolving) return;
-    const ctx = ensurePendingContext(event.killerId);
-    ctx.killCount++;
-  };
-
-  const onPlayerAction = (event: GameplayEvents['PLAYER_ACTION']) => {
-    if (isResolving || !pendingContext) return;
-
-    isResolving = true;
-    processTriggersForEntity(event.entityId, pendingContext);
-    pendingContext = null;
-    isResolving = false;
-  };
-
-  const onTurnStart = () => {
-    const entitiesWithState = world.query(AugmentState);
-    for (const entityId of entitiesWithState) {
-      resetTurnState(entityId);
-    }
-    pendingContext = null;
-  };
-
   return {
     init() {
-      eventBus.on('FIRMWARE_ACTIVATED', onFirmwareActivated);
-      eventBus.on('DAMAGE_DEALT', onDamageDealt);
-      eventBus.on('ENTITY_DIED', onEntityDied);
-      eventBus.on('PLAYER_ACTION', onPlayerAction);
-      eventBus.on('TURN_START', onTurnStart);
+      world.registerSystem(Phase.REACTION, update);
     },
 
     dispose() {
-      eventBus.off('FIRMWARE_ACTIVATED', onFirmwareActivated);
-      eventBus.off('DAMAGE_DEALT', onDamageDealt);
-      eventBus.off('ENTITY_DIED', onEntityDied);
-      eventBus.off('PLAYER_ACTION', onPlayerAction);
-      eventBus.off('TURN_START', onTurnStart);
+      world.unregisterSystem(Phase.REACTION, update);
     },
 
+    update,
     resetTurnState,
-    evaluateCondition,
+    evaluateCondition, // Keep for backward compat or tests
     resolvePayloads,
     processTriggersForEntity,
   };
 }
 
-export type AugmentSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createAugmentSystem<T>>;
+export type AugmentSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<typeof createAugmentSystem<T>>;

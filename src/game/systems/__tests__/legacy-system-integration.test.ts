@@ -4,7 +4,7 @@ import { EventBus } from '@engine/events/event-bus';
 import { Grid } from '@engine/grid/grid';
 import { createFirmwareSystem } from '../firmware';
 import { createAugmentSystem } from '../augment';
-import { AbilityDef, Health, Heat, AugmentSlots, AugmentData, AugmentState, Position, FirmwareSlots } from '@shared/components';
+import { AbilityDef, Health, Heat, AugmentSlots, AugmentData, AugmentState, Position, FirmwareSlots, FirmwareActivatedThisTurn } from '@shared/components';
 import { GameEvents } from '../../events/types';
 
 describe('Legacy System Integration', () => {
@@ -69,14 +69,8 @@ describe('Legacy System Integration', () => {
     world.addComponent(playerId, Heat, Heat.schema.parse({ current: 0, maxSafe: 100, baseDissipation: 5, ventPercentage: 0.5, isVenting: false }));
     world.addComponent(playerId, Health, Health.schema.parse({ current: 100, max: 100 }));
 
-    augmentSystem.processTriggersForEntity(playerId, {
-      firmwareActivated: true,
-      damageDealt: 0,
-      killCount: 0,
-      heatAboveMax: false,
-      currentHeat: 0,
-      hpPercent: 100
-    });
+    world.addComponent(playerId, FirmwareActivatedThisTurn, { slotIndex: 0 });
+    augmentSystem.processTriggersForEntity(playerId);
 
     expect(emitSpy).toHaveBeenCalledWith('APPLY_STATUS_EFFECT', expect.objectContaining({
       entityId: playerId,

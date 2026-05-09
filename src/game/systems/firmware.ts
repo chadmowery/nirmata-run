@@ -11,7 +11,8 @@ import {
   Actor,
   AbilityDefData,
   StatusEffects,
-  Heat
+  Heat,
+  FirmwareActivatedThisTurn
 } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
@@ -212,6 +213,8 @@ export function createFirmwareSystem<T extends GameplayEvents>(
         targetX,
         targetY,
       });
+
+      world.addComponent(entityId, FirmwareActivatedThisTurn, { slotIndex });
 
       return true;
     },

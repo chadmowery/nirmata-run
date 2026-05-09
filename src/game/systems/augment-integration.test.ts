@@ -3,12 +3,10 @@ import { createEngineInstance } from '../engine-factory';
 import { GameAction } from '../input/actions';
 import { 
   AugmentData, 
-  AugmentState, 
   AugmentSlots, 
   Heat, 
-  Health, 
-  Actor, 
-  Position,
+  Dying,
+  FirmwareActivatedThisTurn,
   COMPONENTS_REGISTRY 
 } from '@shared/components';
 import { EntityId } from '@engine/ecs/types';
@@ -38,7 +36,7 @@ describe('Augment Integration', () => {
   });
 
   it('triggers an augment when a firmware ability is activated (ON_ACTIVATION)', () => {
-    const { world, systems, eventBus } = engine;
+    const { world, eventBus } = engine;
     
     // 1. Create an augment entity
     const augmentId = engine.entityFactory.create(world, 'displacement-venting', componentRegistry);
@@ -54,11 +52,10 @@ describe('Augment Integration', () => {
     const messageSpy = vi.fn();
     eventBus.on('MESSAGE_EMITTED', messageSpy);
     
-    // 5. Submit a firmware action
-    // We'll simulate FIRMWARE_ACTIVATED event since we don't have real firmware equipped here
-    eventBus.emit('FIRMWARE_ACTIVATED', { entityId: playerId, slotIndex: 0, abilityName: 'Test' });
+    // 5. Simulate firmware activation via tag (Phase 6.7)
+    world.addComponent(playerId, FirmwareActivatedThisTurn, { slotIndex: 0 });
     
-    // 6. Submit the action to the turn manager to trigger resolution
+    // 6. Submit the action to the turn manager to trigger phase resolution
     engine.turnManager.submitAction(GameAction.WAIT);
     
     // 7. Verify augment triggered
@@ -71,7 +68,7 @@ describe('Augment Integration', () => {
   });
 
   it('triggers multiple augments in a single turn (Stacking)', () => {
-    const { world, eventBus } = engine;
+    const { world } = engine;
     
     // 1. Create and equip two augments
     const aug1 = engine.entityFactory.create(world, 'displacement-venting', componentRegistry);
@@ -83,8 +80,8 @@ describe('Augment Integration', () => {
     // 2. Add heat
     world.patchComponent(playerId, Heat, { current: 40 });
     
-    // 3. Activate firmware
-    eventBus.emit('FIRMWARE_ACTIVATED', { entityId: playerId, slotIndex: 0, abilityName: 'Test' });
+    // 3. Activate firmware via tag
+    world.addComponent(playerId, FirmwareActivatedThisTurn, { slotIndex: 0 });
     
     // 4. Submit action
     engine.turnManager.submitAction(GameAction.WAIT);
@@ -95,20 +92,22 @@ describe('Augment Integration', () => {
   });
 
   it('handles compound triggers (Static Siphon: ON_ACTIVATION + ON_KILL)', () => {
-    const { world, eventBus } = engine;
+    const { world } = engine;
     
     const augId = engine.entityFactory.create(world, 'static-siphon', componentRegistry);
     const slots = world.getComponent(playerId, AugmentSlots);
     slots.equipped.push(augId);
     
     // Case 1: Activation but no kill
-    eventBus.emit('FIRMWARE_ACTIVATED', { entityId: playerId, slotIndex: 0, abilityName: 'Test' });
+    world.addComponent(playerId, FirmwareActivatedThisTurn, { slotIndex: 0 });
     engine.turnManager.submitAction(GameAction.WAIT);
     expect(engine.systems.statusEffect.hasEffect(playerId, 'SHIELD')).toBe(false);
     
     // Case 2: Activation AND kill
-    eventBus.emit('FIRMWARE_ACTIVATED', { entityId: playerId, slotIndex: 0, abilityName: 'Test' });
-    eventBus.emit('ENTITY_DIED', { entityId: 999, killerId: playerId, isPlayer: false });
+    world.addComponent(playerId, FirmwareActivatedThisTurn, { slotIndex: 0 });
+    const targetId = world.createEntity();
+    world.addComponent(targetId, Dying, { killerId: playerId, reason: 'test' });
+    
     engine.turnManager.submitAction(GameAction.WAIT);
     expect(engine.systems.statusEffect.hasEffect(playerId, 'SHIELD')).toBe(true);
   });

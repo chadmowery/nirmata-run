@@ -3,8 +3,9 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { EntityId, Phase } from '@engine/ecs/types';
-import { Attack, Defense, LootTable, Health, Position, Actor, Heat, BurnedSoftware, SoftwareDef, RarityTier, Dying } from '@shared/components';
+import { Attack, Defense, LootTable, Health, Position, Actor, Heat, BurnedSoftware, SoftwareDef, RarityTier, Dying, StatusEffects, AugmentSlots, AugmentData, DealtDamageThisTurn } from '@shared/components';
 import { AttackIntent } from '@shared/components/intents';
+import { createTriggerContext, evaluateCondition } from './augment-util';
 
 import { GameplayEvents } from '@shared/events/types';
 
@@ -65,6 +66,42 @@ export function collectDamageModifiers<T extends GameplayEvents>(
         value: softwareDef.baseMagnitude * rarity.scaleFactor,
         phase: 'pre_defense',
       });
+    }
+  }
+
+  // 2. Collect Augment modifiers (Phase 6.7)
+  const augmentSlots = world.getComponent(attackerId, AugmentSlots);
+  if (augmentSlots) {
+    const ctx = createTriggerContext(world, attackerId);
+    for (const augmentId of augmentSlots.equipped) {
+      const augmentData = world.getComponent(augmentId, AugmentData);
+      if (augmentData && evaluateCondition(augmentData.trigger, ctx)) {
+        for (const payload of augmentData.payloads) {
+          if (payload.type === 'DAMAGE_BONUS') {
+            modifiers.push({
+              source: `augment:${augmentData.name}`,
+              type: 'additive',
+              value: payload.magnitude ?? 0,
+              phase: 'pre_defense',
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // 3. Collect Status Effect modifiers (e.g., DAMAGE_BOOST)
+  const statusEffects = world.getComponent(attackerId, StatusEffects);
+  if (statusEffects) {
+    for (const effect of statusEffects.effects) {
+      if (effect.name === 'DAMAGE_BOOST') {
+        modifiers.push({
+          source: 'status:damage_boost',
+          type: 'additive',
+          value: effect.magnitude ?? 0,
+          phase: 'pre_defense',
+        });
+      }
     }
   }
 
@@ -167,6 +204,14 @@ export function createCombatSystem<T extends GameplayEvents>(
         defenderId,
         amount: damage,
       });
+
+      // Track damage dealt this turn for augment triggers (Phase 6.7)
+      const dealtDamage = w.getComponent(attackerId, DealtDamageThisTurn);
+      if (dealtDamage) {
+        w.patchComponent(attackerId, DealtDamageThisTurn, { amount: dealtDamage.amount + damage });
+      } else {
+        w.addComponent(attackerId, DealtDamageThisTurn, { amount: damage });
+      }
 
       // Apply software effects like Bleed
       applyBleedOnHit(w, eventBus, attackerId, defenderId);

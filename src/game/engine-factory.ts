@@ -19,14 +19,14 @@ import { createHeatSystem, HeatSystem } from './systems/heat';
 import { createStatusEffectSystem, StatusEffectSystem } from './systems/status-effects';
 import { createFirmwareSystem, FirmwareSystem } from './systems/firmware';
 import { createKernelPanicSystem, KernelPanicSystem } from './systems/kernel-panic';
-import { createAugmentSystem, AugmentSystem } from './systems/augment';
+import { AugmentSystem } from './systems/augment';
 import { createPackCoordinatorSystem, PackCoordinatorSystem } from './systems/pack-coordinator';
 import { createTileCorruptionSystem } from './systems/tile-corruption';
 import { createRunEnderSystem } from './systems/run-ender';
 import { createStabilitySystem, StabilitySystem } from './systems/stability';
 import { createFloorManagerSystem, FloorManagerSystem } from './systems/floor-manager';
 import { createAnchorInteractionSystem, AnchorInteractionSystem } from './systems/anchor-interaction';
-import { createCurrencyDropSystem, CurrencyDropSystem } from './systems/currency-drop';
+import { CurrencyDropSystem } from './systems/currency-drop';
 import { createTagCleanupSystem } from './systems/tag-cleanup';
 import { createGravediggerSystem } from './systems/gravedigger';
 import { generateDungeon } from './generation/dungeon-generator';
@@ -116,13 +116,25 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
 
   // Systems
   // Core Systems (Shared with Pipeline)
-  const { movement: movementSystem, combat: combatSystem, itemPickup: itemPickupSystem } = registerCoreSystems(
+  const coreSystems = registerCoreSystems(
     world,
     grid,
     eventBus,
     entityFactory,
-    componentRegistry
+    componentRegistry,
+    { runMode: config.runMode }
   );
+
+  const {
+    movement: movementSystem,
+    combat: combatSystem,
+    itemPickup: itemPickupSystem,
+    augment: augmentSystem,
+    tagCleanup: tagCleanupSystem,
+    gravedigger: gravediggerSystem,
+    currencyDrop: currencyDropSystem,
+    runEnder: runEnderSystem
+  } = coreSystems;
 
   const deadZoneSystem = createDeadZoneSystem(world, grid, eventBus);
   const aiSystem = createAISystem(world, grid, eventBus, entityFactory, componentRegistry);
@@ -130,14 +142,9 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   const statusEffectSystem = createStatusEffectSystem(world, eventBus);
   const firmwareSystem = createFirmwareSystem(world, grid, eventBus);
   const kernelPanicSystem = createKernelPanicSystem(world, eventBus);
-  const augmentSystem = createAugmentSystem(world, eventBus);
   const packCoordinatorSystem = createPackCoordinatorSystem(world, grid, eventBus);
   const tileCorruptionSystem = createTileCorruptionSystem(world, grid, eventBus, entityFactory, componentRegistry);
-  const runEnderSystem = createRunEnderSystem(world, grid, eventBus, config.runMode);
   const stabilitySystem = createStabilitySystem(world, eventBus);
-  const currencyDropSystem = createCurrencyDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
-  const tagCleanupSystem = createTagCleanupSystem(world);
-  const gravediggerSystem = createGravediggerSystem(world);
 
   // Initialize remaining systems
   aiSystem.init();
@@ -146,16 +153,9 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   statusEffectSystem.init();
   firmwareSystem.init();
   kernelPanicSystem.init();
-  augmentSystem.init();
   packCoordinatorSystem.init();
   tileCorruptionSystem.init();
-  runEnderSystem.init();
   stabilitySystem.init();
-  currencyDropSystem.init();
-  tagCleanupSystem.init();
-  // Phase 6.5: Gravedigger MUST be last in Phase.CLEANUP to ensure all other systems 
-  // can process the Dying component before destruction.
-  gravediggerSystem.init();
 
   // Register ticks to POST_TURN phase
   world.registerSystem(Phase.POST_TURN, () => {

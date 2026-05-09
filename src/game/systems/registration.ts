@@ -10,6 +10,9 @@ import { createItemPickupSystem } from './item-pickup';
 import { createGravediggerSystem } from './gravedigger';
 import { createCurrencyDropSystem } from './currency-drop';
 import { createRunEnderSystem } from './run-ender';
+import { createAugmentSystem } from './augment';
+import { createTagCleanupSystem } from './tag-cleanup';
+import { RunMode } from '@shared/run-mode';
 
 /**
  * Registers core gameplay systems that must run in both client/server and pipeline simulations.
@@ -21,7 +24,7 @@ export function registerCoreSystems<T extends GameplayEvents>(
   eventBus: EventBus<T>,
   entityFactory: EntityFactory,
   componentRegistry: ComponentRegistry,
-  options: { skipLoot?: boolean } = {}
+  options: { skipLoot?: boolean; runMode?: RunMode } = {}
 ) {
   const movement = createMovementSystem(world, grid, eventBus);
   const combat = createCombatSystem(world, grid, eventBus, entityFactory, componentRegistry, options);
@@ -30,17 +33,23 @@ export function registerCoreSystems<T extends GameplayEvents>(
   movement.init();
   combat.init();
   itemPickup.init();
+  
+  const augment = createAugmentSystem(world, eventBus);
+  augment.init();
 
   // Cleanup & Death Processing
   const gravedigger = createGravediggerSystem(world);
   const currencyDrop = createCurrencyDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
-  const runEnder = createRunEnderSystem(world, grid, eventBus);
+  const runEnder = createRunEnderSystem(world, grid, eventBus, options.runMode);
 
   currencyDrop.init();
   runEnder.init();
   
   // Phase 6.5: Gravedigger MUST be last in Phase.CLEANUP
   gravedigger.init();
+  
+  const tagCleanup = createTagCleanupSystem(world);
+  tagCleanup.init();
 
-  return { movement, combat, itemPickup, gravedigger, currencyDrop, runEnder };
+  return { movement, combat, itemPickup, gravedigger, currencyDrop, runEnder, augment, tagCleanup };
 }
