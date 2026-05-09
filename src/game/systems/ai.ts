@@ -13,7 +13,6 @@ import { StatusEffects } from '@shared/components/status-effects';
 import { Health } from '@shared/components/health';
 import { Defense } from '@shared/components/defense';
 import { GameplayEvents } from '@shared/events/types';
-import { MoveResult } from './movement';
 
 /**
  * AI System handles enemy decision making and behavior state transitions.
@@ -502,7 +501,7 @@ export function createAISystem<T extends GameplayEvents>(
         const adx = player.x - pos.x;
         const ady = player.y - pos.y;
         eventBus.emit('MOVE_REQUESTED', { entityId, dx: adx, dy: ady });
-        
+
         // Note: Special bump attack effect (HUD_GLITCH) should now be handled 
         // by a system listening for BUMP_ATTACK from a Null-Pointer.
         return;

@@ -11,18 +11,13 @@ import { Actor } from './components/actor';
 import {
   Position, Hostile, BlocksMovement, Attack, Health, Defense, Item, PickupEffect, EffectType,
   SoftwareDef, BurnedSoftware, Heat,
-  Stability, Scrap, AnchorMarker, FloorState,
-  RunInventory, RunCurrency, CurrencyItem, TemplateId,
+  Stability, AnchorMarker, FloorState, RarityTier,
+  RunInventory, CurrencyItem, TemplateId,
 } from './components';
 import { handleEquip, handleUnequip } from './systems/equipment';
 import * as InventoryUtil from './utils/inventory-util';
 import { resolveDamage, collectDamageModifiers } from '../game/systems/combat';
 import { checkAutoLoader, applyBleedOnHit, applyVampireOnKill } from '../game/systems/software-effects';
-import {
-  calculatePityScrap,
-  calculateExtractionFluxBonus,
-  mapInventoryToVaultItems
-} from './utils/economy-util';
 
 /**
  * Runs a game action against a world/grid state and returns the new state and delta.

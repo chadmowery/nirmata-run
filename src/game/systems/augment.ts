@@ -1,18 +1,16 @@
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityId } from '@engine/ecs/types';
-import { 
-  AugmentData, 
-  AugmentState, 
-  AugmentSlots, 
-  Health, 
-  Heat, 
+import {
+  AugmentData,
+  AugmentState,
+  AugmentSlots,
+  Health,
+  Heat,
   ConditionNode,
-  PayloadType 
+  PayloadType
 } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
-import { StatusEffectSystem } from './status-effects';
-import { HeatSystem } from './heat';
 import { getLegacyMagnitude } from './legacy-code';
 
 interface TriggerContext {
@@ -61,7 +59,7 @@ export function createAugmentSystem<T extends GameplayEvents>(
   const resolvePayloads = (entityId: EntityId, payloads: PayloadType[], isLegacy: boolean = false) => {
     for (const payload of payloads) {
       const magnitude = getLegacyMagnitude(payload.magnitude ?? 0, isLegacy);
-      
+
       switch (payload.type) {
         case 'HEAL': {
           const health = world.getComponent(entityId, Health);
@@ -134,10 +132,10 @@ export function createAugmentSystem<T extends GameplayEvents>(
       if (activations < augmentData.maxTriggersPerTurn && cooldown <= 0) {
         if (evaluateCondition(augmentData.trigger, ctx)) {
           resolvePayloads(entityId, augmentData.payloads, augmentData.isLegacy);
-          
-          const nextActivations = { 
-            ...state.activationsThisTurn, 
-            [augmentKey]: activations + 1 
+
+          const nextActivations = {
+            ...state.activationsThisTurn,
+            [augmentKey]: activations + 1
           };
           const nextCooldowns = { ...state.cooldownsRemaining };
           if (augmentData.cooldownTurns > 0) {
@@ -150,10 +148,10 @@ export function createAugmentSystem<T extends GameplayEvents>(
           });
 
           for (const p of augmentData.payloads) {
-            triggeredAugments.push({ 
-              name: augmentData.name, 
-              payloadType: p.type, 
-              magnitude: p.magnitude ?? 0 
+            triggeredAugments.push({
+              name: augmentData.name,
+              payloadType: p.type,
+              magnitude: p.magnitude ?? 0
             });
           }
 
@@ -182,7 +180,7 @@ export function createAugmentSystem<T extends GameplayEvents>(
           nextCooldowns[key]--;
         }
       }
-      
+
       world.patchComponent(entityId, AugmentState, {
         activationsThisTurn: {},
         cooldownsRemaining: nextCooldowns
@@ -226,7 +224,7 @@ export function createAugmentSystem<T extends GameplayEvents>(
 
   const onPlayerAction = (event: GameplayEvents['PLAYER_ACTION']) => {
     if (isResolving || !pendingContext) return;
-    
+
     isResolving = true;
     processTriggersForEntity(event.entityId, pendingContext);
     pendingContext = null;

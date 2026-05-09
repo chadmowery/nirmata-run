@@ -6,15 +6,12 @@ import { Actor } from '@shared/components/actor';
 import { Item } from '@shared/components/item';
 import { PickupEffect, EffectType } from '@shared/components/pickup-effect';
 import { Health } from '@shared/components/health';
-import { Scrap } from '@shared/components/scrap';
 import { CurrencyItem } from '@shared/components/currency-item';
-import { RunInventory, RunCurrency, TemplateId } from '@shared/components';
+import { TemplateId } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
-import { EventOriginContext } from '@shared/utils/event-context';
 import { RarityTier } from '@shared/components/rarity-tier';
 import { SoftwareDef } from '@shared/components/software-def';
 import { FloorState } from '@shared/components/floor-state';
-import { Position } from '@shared/components/position';
 
 export interface ItemPickupSystem {
   init(): void;
@@ -70,12 +67,12 @@ export function createItemPickupSystem<T extends GameplayEvents>(
         }
 
         const success = InventoryUtil.addCurrency(world, entityId, type, amount, meta);
-        
+
         if (success) {
-          const message = type === 'blueprint' 
+          const message = type === 'blueprint'
             ? `+1 Locked File: ${meta.blueprintId}`
             : `+${amount} ${type.charAt(0).toUpperCase() + type.slice(1)}`;
-          
+
           eventBus.emit('MESSAGE_EMITTED', { text: message, type: 'info' });
           eventBus.emit('CURRENCY_PICKED_UP', {
             entityId,
@@ -89,15 +86,15 @@ export function createItemPickupSystem<T extends GameplayEvents>(
           world.destroyEntity(itemId);
           continue;
         } else {
-          eventBus.emit('MESSAGE_EMITTED', { 
-            text: `Inventory full — cannot pick up ${type}`, 
-            type: 'error' 
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: `Inventory full — cannot pick up ${type}`,
+            type: 'error'
           });
           // Do not destroy, leave on ground
           continue;
         }
       }
-      
+
       // 4.1 Handle Software item pickup
       const swDef = world.getComponent(itemId, SoftwareDef);
       if (swDef) {
@@ -131,18 +128,6 @@ export function createItemPickupSystem<T extends GameplayEvents>(
             });
             continue;
           }
-        }
-      }
-
-      // 4.5 Handle Legacy Scrap (Fallback during migration)
-      // DEPRECATED: Phase 12 legacy, remove after Plan 02 Task 2 completes migration
-      const itemScrap = world.getComponent(itemId, Scrap);
-      if (itemScrap) {
-        const playerScrap = world.getComponent(entityId, Scrap);
-        if (playerScrap) {
-          world.patchComponent(entityId, Scrap, {
-            amount: playerScrap.amount + itemScrap.amount
-          });
         }
       }
 

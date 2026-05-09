@@ -6,7 +6,7 @@ import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
 import { AIState, AIBehaviorType } from '@shared/components/ai-state';
 import { FloorState } from '@shared/components/floor-state';
-import { RunInventory, RunCurrency } from '@shared/components/run-inventory';
+import { RunInventory } from '@shared/components/run-inventory';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { GameplayEvents } from '@shared/events/types';
 import { RunMode } from '@shared/run-mode';
@@ -51,7 +51,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     isEnding = true;
 
     console.log(`[RunEnderSystem] executeRunEnd STARTED. Reason: ${reason}`);
-    
+
     const floorState = world.getComponent(playerId, FloorState);
     const floorNumber = floorState?.currentFloor ?? 1;
 
@@ -68,12 +68,12 @@ export function createRunEnderSystem<T extends GameplayEvents>(
         // Authoritative extraction calculation (per D-06)
         finalScrap = InventoryUtil.getCurrencyAmount(world, playerId, 'scrap');
         const inventoryFlux = InventoryUtil.getCurrencyAmount(world, playerId, 'flux');
-        
+
         finalFlux = inventoryFlux + calculateExtractionFluxBonus(floorNumber);
-        
+
         const inventory = world.getComponent(playerId, RunInventory);
         swCount = inventory?.software.length || 0;
-        
+
         // Map software to VaultItems using unified utility
         itemsExtracted = mapInventoryToVaultItems(inventory?.software || [], floorNumber);
 
@@ -108,7 +108,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     const message = isSuccess
       ? `SUCCESS: Extraction protocol complete. ${finalScrap} Scrap, ${finalFlux} Flux secured.`
       : `FATAL: ${reason}. Pity Scrap: ${finalScrap}`;
-    
+
     eventBus.emit('MESSAGE_EMITTED', {
       text: message,
       type: isSuccess ? 'info' : 'error'
@@ -126,14 +126,14 @@ export function createRunEnderSystem<T extends GameplayEvents>(
 
   function handleEntityMoved(payload: T['ENTITY_MOVED']) {
     const { entityId, toX, toY } = payload;
-    
+
     const actor = world.getComponent(entityId, Actor);
     const aiState = world.getComponent(entityId, AIState);
 
     // If System_Admin moved
     if (aiState?.behaviorType === AIBehaviorType.SYSTEM_ADMIN) {
       checkAdminAdjacency(entityId, toX, toY);
-    } 
+    }
     // If player moved
     else if (actor?.isPlayer) {
       // Check all System_Admins

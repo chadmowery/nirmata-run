@@ -114,8 +114,8 @@ export function buildEntity<T extends EngineEvents>(
   }
 
   // Stamp the template ID for tracking and persistence
-  if (componentRegistry.has('templateId')) {
-    const templateIdDef = componentRegistry.get('templateId');
+  const templateIdDef = componentRegistry.get('templateId');
+  if (templateIdDef) {
     world.addComponent(entityId, templateIdDef, { id: templateName });
   }
 

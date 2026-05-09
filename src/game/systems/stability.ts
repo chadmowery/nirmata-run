@@ -6,7 +6,6 @@ import { Health, HealthData } from '@shared/components/health';
 import { Actor } from '@shared/components/actor';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
-import { EventOriginContext } from '@shared/utils/event-context';
 
 /**
  * Configuration for the Reality Stability system.

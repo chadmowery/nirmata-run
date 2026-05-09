@@ -8,7 +8,6 @@ import { Attack, Defense, LootTable, Health, Position, Actor, Heat, BurnedSoftwa
 import { GameplayEvents } from '@shared/events/types';
 
 import { ComponentRegistry } from '@engine/entity/types';
-import { EventOriginContext } from '@shared/utils/event-context';
 import { applyBleedOnHit, applyVampireOnKill } from './software-effects';
 
 export interface DamageModifier {
@@ -104,7 +103,7 @@ export function createCombatSystem<T extends GameplayEvents>(
     const damage = resolveDamage(attackerAttack.power, modifiers, effectiveArmor);
     const oldHealth = defenderHealth.current;
     const newHealth = Math.max(0, oldHealth - damage);
-    
+
     // Authoritative update: save back to world store (D-15)
     world.addComponent(defenderId, Health, { ...defenderHealth, current: newHealth });
 

@@ -1,5 +1,5 @@
 import { World } from '@engine/ecs/world';
-import { RunInventory, RunCurrency, RunInventoryItem, CurrencyStack } from '../components/run-inventory';
+import { RunInventory, RunCurrency, RunInventoryItem } from '../components/run-inventory';
 
 /**
  * Pure utility functions for interacting with ECS-based Run Inventory components.
@@ -25,7 +25,7 @@ export function addCurrency(
   if (!runCurrency || !runInventory) return false;
 
   const stacks = [...runCurrency.stacks];
-  
+
   // Find existing stack
   const existingIndex = stacks.findIndex(s => {
     if (s.currencyType !== currencyType) return false;
@@ -74,14 +74,14 @@ export function removeCurrency(
 
   let remainingToRemove = amount;
   const stacks = [...runCurrency.stacks];
-  
+
   for (let i = stacks.length - 1; i >= 0; i--) {
     const stack = stacks[i];
     if (stack.currencyType === currencyType) {
       const toTake = Math.min(stack.amount, remainingToRemove);
       const newAmount = stack.amount - toTake;
       remainingToRemove -= toTake;
-      
+
       if (newAmount <= 0) {
         stacks.splice(i, 1);
       } else {
@@ -126,7 +126,7 @@ export function removeSoftware(
 
   const software = [...runInventory.software];
   const [removed] = software.splice(index, 1);
-  
+
   world.patchComponent(playerId, RunInventory, { software });
   return removed;
 }

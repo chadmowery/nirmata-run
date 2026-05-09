@@ -13,8 +13,6 @@ import {
   StatusEffects
 } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
-import { MovementSystem } from './movement';
-import { HeatSystem } from './heat';
 import { getLegacyHeatCost } from './legacy-code';
 
 /**
@@ -131,13 +129,13 @@ export function createFirmwareSystem<T extends GameplayEvents>(
           const targetHealth = world.getComponent(targetId, Health);
           const targetDefense = world.getComponent(targetId, Defense);
 
-            if (targetHealth) {
-              const armor = targetDefense?.armor ?? 0;
-              const damage = Math.max(1, abilityDef.damageAmount - armor);
+          if (targetHealth) {
+            const armor = targetDefense?.armor ?? 0;
+            const damage = Math.max(1, abilityDef.damageAmount - armor);
 
-              world.patchComponent(targetId, Health, {
-                current: Math.max(0, targetHealth.current - damage)
-              });
+            world.patchComponent(targetId, Health, {
+              current: Math.max(0, targetHealth.current - damage)
+            });
 
             eventBus.emit('DAMAGE_DEALT', {
               attackerId: entityId,

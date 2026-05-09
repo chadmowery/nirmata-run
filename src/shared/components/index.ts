@@ -30,7 +30,6 @@ import { PackMember } from './pack-member';
 import { DeadZone } from './dead-zone';
 import { CorruptionState } from './corruption-state';
 import { Stability } from './stability';
-import { Scrap } from './scrap';
 import { Wallet } from './wallet';
 import { CurrencyItem } from './currency-item';
 import { FloorState } from './floor-state';
@@ -72,7 +71,6 @@ export const COMPONENTS_REGISTRY = [
   DeadZone,
   CorruptionState,
   Stability,
-  Scrap,
   Wallet,
   CurrencyItem,
   FloorState,
@@ -115,7 +113,6 @@ export * from './pack-member';
 export * from './dead-zone';
 export * from './corruption-state';
 export * from './stability';
-export * from './scrap';
 export * from './wallet';
 export * from './currency-item';
 export * from './floor-state';

@@ -16,7 +16,6 @@ import { BurnedSoftware } from '@shared/components/burned-software';
 import { AbilityDef } from '@shared/components/ability-def';
 import { SoftwareDef } from '@shared/components/software-def';
 import { StatusEffects } from '@shared/components/status-effects';
-import { RunCurrency } from '@shared/components/run-inventory';
 import { getDepthBand } from '../generation/dungeon-generator';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { getHeatTier } from '../config/heat-tiers';
@@ -122,7 +121,7 @@ export function syncEngineToStore(context: GameContext) {
 
   // Local tracking for run stats
   let peakHeat = 0;
-  
+
   // Register Listeners
 
   // Health updates
@@ -217,11 +216,11 @@ export function syncEngineToStore(context: GameContext) {
       if (event.newHeat > peakHeat) {
         peakHeat = event.newHeat;
       }
-      
+
       // Calculate and sync Heat tier
       const tier = getHeatTier(event.newHeat);
       gameStore.getState().updateHeatTier(tier.tier, event.newHeat, event.maxSafe);
-      
+
       refreshPlayerStats();
     }
   });
@@ -239,7 +238,7 @@ export function syncEngineToStore(context: GameContext) {
     gameStore.getState().clearMessages();
     refreshPlayerStats();
   });
-  
+
   eventBus.on('STATUS_EFFECT_APPLIED', (event) => {
     if (event.entityId === context.playerId) {
       refreshPlayerStats();
@@ -271,7 +270,7 @@ export function syncEngineToStore(context: GameContext) {
       });
     }
   });
-  
+
   // Staircase interaction - show overlay (D-12)
   eventBus.on('STAIRCASE_INTERACTION', (event) => {
     if (event.entityId === context.playerId) {
@@ -285,10 +284,10 @@ export function syncEngineToStore(context: GameContext) {
   // Targeting Listeners
   eventBus.on('TARGETING_STARTED', (event) => {
     gameStore.getState().setTargeting(
-      true, 
-      event.firmwareSlotIndex, 
-      event.range, 
-      event.playerX, 
+      true,
+      event.firmwareSlotIndex,
+      event.range,
+      event.playerX,
       event.playerY
     );
   });
@@ -316,7 +315,7 @@ export function syncEngineToStore(context: GameContext) {
       const fSlots = world.getComponent(player, FirmwareSlots);
       const aSlots = world.getComponent(player, AugmentSlots);
       const sSlots = world.getComponent(player, SoftwareSlots);
-      
+
       firmwareCount = fSlots?.equipped.length ?? 0;
       augmentCount = aSlots?.equipped.length ?? 0;
       softwareCount = sSlots?.equipped.length ?? 0;
@@ -324,7 +323,7 @@ export function syncEngineToStore(context: GameContext) {
 
     const runScrap = gameStore.getState().scrap;
     const isExtraction = reason.toLowerCase() === 'extraction';
-    
+
     // Add scrap to wallet ON EXTRACTION
     if (isExtraction) {
       gameStore.getState().addScrapToWallet(runScrap);
@@ -336,11 +335,11 @@ export function syncEngineToStore(context: GameContext) {
       enemiesKilled: gameStore.getState().stats.kills,
       turnsElapsed: gameStore.getState().stats.turns,
       peakHeat: Math.round(peakHeat),
-      itemsSecured: { 
-        firmware: firmwareCount, 
-        augments: augmentCount, 
-        software: softwareCount, 
-        scrap: runScrap 
+      itemsSecured: {
+        firmware: firmwareCount,
+        augments: augmentCount,
+        software: softwareCount,
+        scrap: runScrap
       },
       score: (floorNumber * 100) + (gameStore.getState().stats.kills * 10) + runScrap
     };

@@ -39,7 +39,6 @@ import { globalShellRegistry } from './shells';
  */
 export function createGame(config: GameConfig & { sessionId?: string }): GameContext {
   const seed = config.seed ?? `run-${Date.now()}`;
-  const sessionId = config.sessionId || 'default-player-session';
 
   // Fetch shell record for the player
   const shellId = config.shellId || 'player-shell-default';

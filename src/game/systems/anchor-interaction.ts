@@ -9,7 +9,6 @@ import {
   AnchorMarker,
   FloorState,
   Stability,
-  Scrap,
   FirmwareSlots,
   AugmentSlots,
   SoftwareSlots,
