@@ -212,10 +212,24 @@ Plans:
 - [ ] 16-03-PLAN.md — Starter loadout bundles (Vanguard/Operator/Ghost bundle definitions, lookup functions, Shell registry export)
 - [ ] 16-04-PLAN.md — Theme consistency & end-to-end integration (globals.css audit, loadout pre-loading, integration tests, human visual checkpoint)
 
+### Phase 17: Add design tool for authoring and viewing entities, component templates, and gamedata
+
+**Goal:** Developer-facing web tool at /dev/gamedata for authoring and viewing ECS gamedata — entity templates, mixin definitions, spawn tables, component schemas, and Shell registry with full CRUD and inline validation
+**Requirements**: D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-10
+**Depends on:** Phase 16
+**Plans:** 5 plans
+
+Plans:
+- [ ] 17-01-PLAN.md — Data layer foundation (dynamic shell loading, ECS consistency rules, SpawnTable schema, Zod introspection utility)
+- [ ] 17-02-PLAN.md — API routes for all 5 data types (entities, mixins, spawn-tables, shells CRUD + components read-only)
+- [ ] 17-03-PLAN.md — Page shell, sidebar, Zustand store, layout CSS (VS Code-style navigation with Vibrant Decay theme)
+- [ ] 17-04-PLAN.md — Editor components (Entity, Mixin, SpawnTable, Shell editors + ComponentSchema viewer)
+- [ ] 17-05-PLAN.md — Integration wiring + human verification (editor routing, barrel export, end-to-end checkpoint)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16
+Phases execute in numeric order: 7 → 8 → 9 → 10 → 11 → 12 → 13 → 14 → 15 → 16 → 17
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -229,7 +243,8 @@ Phases execute in numeric order: 7 → 8 → 9 → 10 → 11 → 12 → 13 → 1
 | 14. Stash, Vault & Run Modes | 0/4 | Complete    | 2026-04-03 |
 | 15. Neural Deck Hub UI | 4/4 | Complete | 2026-05-07 |
 | 16. Visual Identity & Starter Loadouts | 0/4 | In Progress | - |
+| 17. Design Tool | 0/5 | Planned | - |
 
 ---
 *Roadmap created: 2026-03-29*
-*Last updated: 2026-04-07*
+*Last updated: 2026-05-07*

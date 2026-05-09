@@ -75,6 +75,10 @@ Recent decisions affecting current work:
 - [v2.0]: Legacy Code system implemented: installed items degrade with doubled Heat or halved magnitude instead of deletion.
 - [v2.0]: Server-authoritative economy endpoints implemented for compile, install, uninstall, purchase, and upgrade.
 
+### Roadmap Evolution
+
+- Phase 17 added: Add design tool for authoring and viewing entities, component templates, and gamedata
+
 ### Pending Todos
 
 None yet.
@@ -85,9 +89,9 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-07T22:17:19.929Z
-Stopped at: Phase 16 UI-SPEC approved
-Resume file: .planning/phases/16-visual-identity-starter-loadouts/16-UI-SPEC.md
+Last session: 2026-05-07T18:00:23.189Z
+Stopped at: Phase 17 UI-SPEC approved
+Resume file: .planning/phases/17-add-design-tool-for-authoring-and-viewing-entities-component-templates-and-gamedata/17-UI-SPEC.md
 
 ---
 *State initialized: 2026-03-13*
