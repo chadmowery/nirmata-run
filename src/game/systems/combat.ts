@@ -3,11 +3,10 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { EntityId, Phase } from '@engine/ecs/types';
-import { Attack, Defense, LootTable, Health, Position, Actor, Heat, BurnedSoftware, SoftwareDef, RarityTier } from '@shared/components';
+import { Attack, Defense, LootTable, Health, Position, Actor, Heat, BurnedSoftware, SoftwareDef, RarityTier, Dying } from '@shared/components';
 import { AttackIntent } from '@shared/components/intents';
 
 import { GameplayEvents } from '@shared/events/types';
-import { GameEvents } from '../events/types';
 
 import { ComponentRegistry } from '@engine/entity/types';
 import { applyBleedOnHit, applyVampireOnKill } from './software-effects';
@@ -124,15 +123,14 @@ export function createCombatSystem<T extends GameplayEvents>(
       type: 'combat'
     });
 
-    // 4. Destroy entity (if not player, to preserve components for RunEnderSystem)
-    if (!isPlayer) {
-      world.destroyEntity(entityId);
-    }
+    // 4. Mark entity as dying (Phase 6.5)
+    // We no longer destroy it immediately so other systems can process it in Phase.CLEANUP
+    world.addComponent(entityId, Dying, { killerId });
   };
 
   const update = (w: World<T>) => {
     const entities = w.query(AttackIntent);
-    
+
     for (const attackerId of entities) {
       const intent = w.getComponent(attackerId, AttackIntent)!;
       const defenderId = intent.targetId;

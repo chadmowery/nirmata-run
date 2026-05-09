@@ -67,6 +67,7 @@ export function runActionPipeline(
   // 5. Execute Core Phases
   newWorld.executeSystems(Phase.ACTION);
   newWorld.executeSystems(Phase.REACTION);
+  newWorld.executeSystems(Phase.CLEANUP);
 
   localEventBus.flush();
 

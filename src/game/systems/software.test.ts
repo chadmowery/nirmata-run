@@ -6,8 +6,10 @@ import { RunInventory, RunCurrency } from '../../shared/components/run-inventory
 import * as InventoryUtil from '../../shared/utils/inventory-util';
 import { World } from '../../engine/ecs/world';
 import { Grid } from '../../engine/grid/grid';
-import { runActionPipeline, setupInternalHandlers } from '../../shared/pipeline';
-import { Actor, Position, Health, SoftwareSlots, Attack, Heat, StatusEffects } from '../../shared/components';
+import { runActionPipeline } from '../../shared/pipeline';
+import { Actor, Position, Health, SoftwareSlots, Attack, Heat, StatusEffects, Dying } from '../../shared/components';
+import { Phase } from '../../engine/ecs/types';
+import { createRunEnderSystem } from './run-ender';
 import { GameplayEvents } from '../../shared/events/types';
 import { EventBus } from '../../engine/events/event-bus';
 import { resolveDamage, collectDamageModifiers, DamageModifier } from './combat';
@@ -48,7 +50,7 @@ describe('Software System', () => {
       const world = new World<GameplayEvents>(new EventBus<GameplayEvents>());
       const attacker = world.createEntity();
       const swEntity = world.createEntity();
-      
+
       world.addComponent(swEntity, SoftwareDef, {
         name: 'Power.exe',
         type: 'power',
@@ -78,7 +80,7 @@ describe('Software System', () => {
     it('collectDamageModifiers ignores DoT, action_economy, and heal_on_kill software', () => {
       const world = new World<GameplayEvents>(new EventBus<GameplayEvents>());
       const attacker = world.createEntity();
-      
+
       const bleedSw = world.createEntity();
       world.addComponent(bleedSw, SoftwareDef, {
         name: 'Bleed.exe',
@@ -92,7 +94,7 @@ describe('Software System', () => {
       world.addComponent(bleedSw, RarityTier, { tier: 'v0.x', scaleFactor: 1, minFloor: 0 });
 
       world.addComponent(attacker, BurnedSoftware, { weapon: bleedSw, armor: null });
-      
+
       expect(collectDamageModifiers(world, attacker)).toEqual([]);
     });
 
@@ -228,10 +230,10 @@ describe('Software System', () => {
       }));
 
       items.forEach(item => InventoryUtil.addSoftware(world, playerId, item));
-      
+
       const removed = InventoryUtil.removeSoftware(world, playerId, 1);
       expect(removed?.entityId).toBe(1);
-      
+
       const inventory = world.getComponent(playerId, RunInventory);
       expect(inventory?.software.length).toBe(2);
       expect(inventory?.software[0].entityId).toBe(0);
@@ -426,14 +428,15 @@ describe('Software System', () => {
       world.addComponent(playerId, BurnedSoftware, { weapon: 101, armor: 102 });
       world.addComponent(playerId, RunInventory, { software: [], maxSlots: 5 });
       world.addComponent(playerId, RunCurrency, { stacks: [] });
-      
-      setupInternalHandlers(world, grid, eventBus);
     });
 
-    it('ENTITY_DIED clears BurnedSoftware weapon and armor to null', () => {
-      eventBus.emit('ENTITY_DIED', { entityId: playerId, killerId: 0, isPlayer: true });
-      eventBus.flush();
-      
+    it('Dying component and CLEANUP clears BurnedSoftware weapon and armor to null', () => {
+      const runEnder = createRunEnderSystem(world, grid, eventBus);
+      runEnder.init();
+
+      world.addComponent(playerId, Dying, { killerId: 0 });
+      world.executeSystems(Phase.CLEANUP);
+
       const burned = world.getComponent(playerId, BurnedSoftware);
       expect(burned?.weapon).toBe(null);
       expect(burned?.armor).toBe(null);
@@ -490,7 +493,7 @@ describe('Software System', () => {
       // unless they result in state changes or we intercept them.
       // Since USE_FIRMWARE only emits an event for now, and runActionPipeline returns a new world,
       // we can't easily check the local event bus of the pipeline.
-      
+
       // However, we can verify that the move happened.
     });
 
@@ -518,7 +521,7 @@ describe('Software System', () => {
       const world = new World<GameplayEvents>(eventBus);
       const attacker = world.createEntity();
       const defender = world.createEntity();
-      
+
       const swEntity = world.createEntity();
       world.addComponent(swEntity, SoftwareDef, {
         name: 'Bleed.exe',
@@ -546,7 +549,7 @@ describe('Software System', () => {
       const world = new World<GameplayEvents>(eventBus);
       const attacker = world.createEntity();
       const defender = world.createEntity();
-      
+
       const swEntity = world.createEntity();
       world.addComponent(swEntity, SoftwareDef, {
         name: 'Bleed.exe',
@@ -572,7 +575,7 @@ describe('Software System', () => {
       const world = new World<GameplayEvents>(eventBus);
       const attacker = world.createEntity();
       const defender = world.createEntity();
-      
+
       world.addComponent(attacker, BurnedSoftware, { weapon: null, armor: null });
       world.addComponent(defender, StatusEffects, { effects: [] });
 
@@ -616,7 +619,7 @@ describe('Software System', () => {
       const eventBus = new EventBus<GameplayEvents>();
       const world = new World<GameplayEvents>(eventBus);
       const player = world.createEntity();
-      
+
       const swEntity = world.createEntity();
       world.addComponent(swEntity, SoftwareDef, {
         name: 'Vampire.exe',
@@ -641,7 +644,7 @@ describe('Software System', () => {
       const eventBus = new EventBus<GameplayEvents>();
       const world = new World<GameplayEvents>(eventBus);
       const player = world.createEntity();
-      
+
       const swEntity = world.createEntity();
       world.addComponent(swEntity, SoftwareDef, {
         name: 'Vampire.exe',
@@ -666,7 +669,7 @@ describe('Software System', () => {
       const eventBus = new EventBus<GameplayEvents>();
       const world = new World<GameplayEvents>(eventBus);
       const player = world.createEntity();
-      
+
       const swEntity = world.createEntity();
       world.addComponent(swEntity, SoftwareDef, {
         name: 'Vampire.exe',
@@ -734,7 +737,7 @@ describe('Software System', () => {
       const world = new World<GameplayEvents>(eventBus);
       const attacker = world.createEntity();
       const defender = world.createEntity();
-      
+
       const swEntity = world.createEntity();
       world.addComponent(swEntity, SoftwareDef, {
         name: 'Bleed.exe', type: 'bleed', targetSlot: 'weapon', baseMagnitude: 10, effectType: 'dot', description: '...', purchaseCost: 0

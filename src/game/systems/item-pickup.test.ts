@@ -15,7 +15,7 @@ describe('ItemPickupSystem', () => {
   let world: World<GameplayEvents>;
   let grid: Grid;
   let eventBus: EventBus<GameplayEvents>;
-  let itemPickupSystem: ItemPickupSystem;
+  let itemPickupSystem: ItemPickupSystem<GameplayEvents>;
   let eventHandlers: Record<string, (payload: unknown) => void> = {};
 
   const PLAYER_ID = 1;

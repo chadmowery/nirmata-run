@@ -28,6 +28,7 @@ import { createFloorManagerSystem, FloorManagerSystem } from './systems/floor-ma
 import { createAnchorInteractionSystem, AnchorInteractionSystem } from './systems/anchor-interaction';
 import { createCurrencyDropSystem, CurrencyDropSystem } from './systems/currency-drop';
 import { createTagCleanupSystem } from './systems/tag-cleanup';
+import { createGravediggerSystem } from './systems/gravedigger';
 import { generateDungeon } from './generation/dungeon-generator';
 import { placeEntities } from './generation/entity-placement';
 import RNG from 'rot-js/lib/rng';
@@ -78,6 +79,7 @@ export interface EngineInstance<T extends GameplayEvents = GameEvents> {
     anchorInteraction: AnchorInteractionSystem<T>;
     currencyDrop: CurrencyDropSystem<T>;
     tagCleanup: ReturnType<typeof createTagCleanupSystem<T>>;
+    gravedigger: ReturnType<typeof createGravediggerSystem<T>>;
   };
 }
 
@@ -135,6 +137,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   const stabilitySystem = createStabilitySystem(world, eventBus);
   const currencyDropSystem = createCurrencyDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
   const tagCleanupSystem = createTagCleanupSystem(world);
+  const gravediggerSystem = createGravediggerSystem(world);
 
   // Initialize remaining systems
   aiSystem.init();
@@ -150,6 +153,9 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   stabilitySystem.init();
   currencyDropSystem.init();
   tagCleanupSystem.init();
+  // Phase 6.5: Gravedigger MUST be last in Phase.CLEANUP to ensure all other systems 
+  // can process the Dying component before destruction.
+  gravediggerSystem.init();
 
   // Register ticks to POST_TURN phase
   world.registerSystem(Phase.POST_TURN, () => {
@@ -362,7 +368,8 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
       floorManager: floorManagerSystem,
       anchorInteraction: anchorInteractionSystem,
       currencyDrop: currencyDropSystem,
-      tagCleanup: tagCleanupSystem
+      tagCleanup: tagCleanupSystem,
+      gravedigger: gravediggerSystem
     }
   };
 }

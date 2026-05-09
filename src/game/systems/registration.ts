@@ -7,6 +7,9 @@ import { GameplayEvents } from '@shared/events/types';
 import { createMovementSystem } from './movement';
 import { createCombatSystem } from './combat';
 import { createItemPickupSystem } from './item-pickup';
+import { createGravediggerSystem } from './gravedigger';
+import { createCurrencyDropSystem } from './currency-drop';
+import { createRunEnderSystem } from './run-ender';
 
 /**
  * Registers core gameplay systems that must run in both client/server and pipeline simulations.
@@ -28,5 +31,16 @@ export function registerCoreSystems<T extends GameplayEvents>(
   combat.init();
   itemPickup.init();
 
-  return { movement, combat, itemPickup };
+  // Cleanup & Death Processing
+  const gravedigger = createGravediggerSystem(world);
+  const currencyDrop = createCurrencyDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
+  const runEnder = createRunEnderSystem(world, grid, eventBus);
+
+  currencyDrop.init();
+  runEnder.init();
+  
+  // Phase 6.5: Gravedigger MUST be last in Phase.CLEANUP
+  gravedigger.init();
+
+  return { movement, combat, itemPickup, gravedigger, currencyDrop, runEnder };
 }

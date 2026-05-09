@@ -4,10 +4,11 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { EntityRegistry } from '@engine/entity/registry';
-import { COMPONENTS_REGISTRY, Actor, Position, LootTable, CurrencyItem, Item } from '@shared/components';
+import { COMPONENTS_REGISTRY, Actor, Position, LootTable, CurrencyItem, Item, Dying } from '@shared/components';
 import { createCurrencyDropSystem } from '../currency-drop';
 import { GameEvents } from '../../events/types';
 import { ComponentRegistry } from '@engine/entity/types';
+import { Phase } from '@engine/ecs/types';
 
 describe('Currency Drop System', () => {
   let world: World<GameEvents>;
@@ -71,7 +72,8 @@ describe('Currency Drop System', () => {
     const droppedSpy = vi.fn();
     eventBus.on('CURRENCY_DROPPED', droppedSpy);
 
-    eventBus.emit('ENTITY_DIED', { entityId: enemyId, killerId: 123, isPlayer: false });
+    world.addComponent(enemyId, Dying, { killerId: 123 });
+    world.executeSystems(Phase.CLEANUP);
     eventBus.flush();
 
     // Tier 1 scrap chance is 1.0
@@ -103,7 +105,8 @@ describe('Currency Drop System', () => {
       const droppedSpy = vi.fn();
       eventBus.on('CURRENCY_DROPPED', droppedSpy);
 
-      eventBus.emit('ENTITY_DIED', { entityId: enemyId, killerId: 123, isPlayer: false });
+      world.addComponent(enemyId, Dying, { killerId: 123 });
+      world.executeSystems(Phase.CLEANUP);
       eventBus.flush();
 
       const droppedTypes = droppedSpy.mock.calls.map(call => call[0].currencyType);

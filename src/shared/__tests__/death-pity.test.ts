@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
-import { Actor, Position, FloorState, RunInventory, RunCurrency } from '../components';
+import { Actor, Position, FloorState, RunInventory, RunCurrency, Dying } from '../components';
+import { Phase } from '@engine/ecs/types';
 import * as InventoryUtil from '../utils/inventory-util';
 import { GameplayEvents } from '../events/types';
 import { createRunEnderSystem } from '../../game/systems/run-ender';
@@ -37,7 +38,9 @@ describe('Death Pity and Extraction (RunEnderSystem)', () => {
     InventoryUtil.addCurrency(world, playerId, 'flux', 50);
 
     // Emit event that triggers run end
-    eventBus.emit('ENTITY_DIED', { entityId: playerId, killerId: 999, isPlayer: true });
+    // Mark as dying and execute cleanup
+    world.addComponent(playerId, Dying, { killerId: 999 });
+    world.executeSystems(Phase.CLEANUP);
     eventBus.flush();
     
     // Check that pity was awarded (100 * 0.25 = 25)
@@ -76,13 +79,9 @@ describe('Death Pity and Extraction (RunEnderSystem)', () => {
     InventoryUtil.addCurrency(world, playerId, 'scrap', 1000);
 
     // We manually simulate the pipeline's behavior: emit then destroy
-    eventBus.emit('ENTITY_DIED', { entityId: playerId, killerId: 999, isPlayer: true });
-    
-    // BUT wait, in the real pipeline, the destruction happens BEFORE flush.
-    // If we destroy here, world.getComponent will fail later.
-    // However, our FIX in pipeline.ts prevents destroying the player.
-    // So even if we called world.destroyEntity(playerId) here, it would be bad.
-    // Let's verify that IF we don't destroy, it works.
+    // We manually simulate the pipeline's behavior: mark as dying then execute cleanup
+    world.addComponent(playerId, Dying, { killerId: 999 });
+    world.executeSystems(Phase.CLEANUP);
     
     eventBus.flush();
     

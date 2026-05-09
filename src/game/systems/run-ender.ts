@@ -6,7 +6,7 @@ import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
 import { AIState, AIBehaviorType } from '@shared/components/ai-state';
 import { FloorState } from '@shared/components/floor-state';
-import { RunInventory, BurnedSoftware, MovedThisTurn } from '@shared/components';
+import { RunInventory, BurnedSoftware, MovedThisTurn, Dying, FirmwareSlots, SoftwareSlots, AugmentSlots } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
@@ -64,6 +64,17 @@ export function createRunEnderSystem<T extends GameplayEvents>(
 
 
     if (playerId) {
+      // Clear equipment slots explicitly (Phase 6.5 requirement)
+      if (world.hasComponent(playerId, FirmwareSlots)) {
+        world.patchComponent(playerId, FirmwareSlots, { equipped: [] });
+      }
+      if (world.hasComponent(playerId, SoftwareSlots)) {
+        world.patchComponent(playerId, SoftwareSlots, { equipped: [] });
+      }
+      if (world.hasComponent(playerId, AugmentSlots)) {
+        world.patchComponent(playerId, AugmentSlots, { equipped: [] });
+      }
+
       console.log(`[RunEnderSystem] executeRunEnd: Player found (${playerId}), isSuccess: ${isSuccess}`);
       if (isSuccess) {
         // Authoritative extraction calculation (per D-06)
@@ -181,26 +192,28 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     }
   };
 
-  const handleEntityDied = (payload: T['ENTITY_DIED']) => {
-    const isServer = typeof window === 'undefined' || (typeof process !== 'undefined' && process.env.NODE_ENV === 'test');
-    if (!isServer) return;
-    if (payload.isPlayer) {
-      executeRunEnd(payload.entityId, 'death', false);
+  const updateCleanup = (w: World<T>) => {
+    const dyingEntities = w.query(Dying);
+    for (const entityId of dyingEntities) {
+      const actor = w.getComponent(entityId, Actor);
+      if (actor?.isPlayer) {
+        executeRunEnd(entityId, 'death', false);
+      }
     }
   };
 
   return {
     init() {
       world.registerSystem(Phase.REACTION, update);
+      world.registerSystem(Phase.CLEANUP, updateCleanup);
       eventBus.on('STABILITY_ZERO', handleStabilityZero);
       eventBus.on('ANCHOR_EXTRACT', handleAnchorExtract);
-      eventBus.on('ENTITY_DIED', handleEntityDied);
     },
     dispose() {
       world.unregisterSystem(Phase.REACTION, update);
+      world.unregisterSystem(Phase.CLEANUP, updateCleanup);
       eventBus.off('STABILITY_ZERO', handleStabilityZero);
       eventBus.off('ANCHOR_EXTRACT', handleAnchorExtract);
-      eventBus.off('ENTITY_DIED', handleEntityDied);
     },
     update,
   };

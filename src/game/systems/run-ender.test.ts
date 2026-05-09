@@ -3,7 +3,8 @@ import { World } from '../../engine/ecs/world';
 import { Grid } from '../../engine/grid/grid';
 import { EventBus } from '../../engine/events/event-bus';
 import { createRunEnderSystem } from './run-ender';
-import { Actor, Position, FloorState, RunInventory, BurnedSoftware, MovedThisTurn, AIState, AIBehaviorType } from '@shared/components';
+import { Actor, Position, FloorState, RunInventory, BurnedSoftware, MovedThisTurn, AIState, AIBehaviorType, AIBehavior, Dying } from '@shared/components';
+import { Phase } from '../../engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
 
 describe('RunEnderSystem', () => {
@@ -45,9 +46,9 @@ describe('RunEnderSystem', () => {
     world.addComponent(playerId, RunInventory, { software: [], maxSlots: 5 });
     world.addComponent(playerId, BurnedSoftware, { weapon: 101, armor: 102 });
 
-    // Emit death event
-    eventBus.emit('ENTITY_DIED', { entityId: playerId, killerId: 0, isPlayer: true });
-    eventBus.flush();
+    // Mark as dying and execute cleanup
+    world.addComponent(playerId, Dying, { killerId: 0 });
+    world.executeSystems(Phase.CLEANUP);
 
     const burned = world.getComponent(playerId, BurnedSoftware);
     expect(burned?.weapon).toBe(null);
@@ -67,7 +68,11 @@ describe('RunEnderSystem', () => {
     world.addComponent(playerId, Position, { x: 5, y: 5 });
 
     const adminId = world.createEntity();
-    world.addComponent(adminId, AIState, { behaviorType: AIBehaviorType.SYSTEM_ADMIN });
+    world.addComponent(adminId, AIState, { 
+      behavior: AIBehavior.IDLE,
+      behaviorType: AIBehaviorType.SYSTEM_ADMIN,
+      sightRadius: 6
+    });
     world.addComponent(adminId, Position, { x: 6, y: 5 });
 
     const runEndedSpy = vi.fn();

@@ -38,6 +38,8 @@ import vampire_v3 from './templates/vampire-v3.json';
 import firmware_drop from './templates/firmware-drop.json';
 import augment_drop from './templates/augment-drop.json';
 import scrap from './templates/scrap.json';
+import flux from './templates/flux.json';
+import blueprint_locked from './templates/blueprint-locked.json';
 
 /**
  * Registers all game entity templates and mixins.
@@ -83,4 +85,6 @@ export function registerGameTemplates(registry: EntityRegistry): void {
   registry.register(firmware_drop as unknown as RawTemplate);
   registry.register(augment_drop as unknown as RawTemplate);
   registry.register(scrap as unknown as RawTemplate);
+  registry.register(flux as unknown as RawTemplate);
+  registry.register(blueprint_locked as unknown as RawTemplate);
 }

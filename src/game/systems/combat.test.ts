@@ -4,7 +4,7 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { createCombatSystem } from './combat';
-import { Attack, Defense, LootTable, Health, Position, Heat, AttackIntent } from '@shared/components';
+import { Attack, Defense, LootTable, Health, Position, Heat, AttackIntent, Dying } from '@shared/components';
 import { Phase } from '@engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
 import { ComponentRegistry } from '@engine/entity/types';
@@ -104,7 +104,10 @@ describe('CombatSystem', () => {
     eventBus.flush();
 
     expect(grid.getEntitiesAt(5, 5).has(defender)).toBe(false);
-    expect(world.entityExists(defender)).toBe(false);
+    expect(world.hasComponent(defender, Dying)).toBe(true);
+    
+    // In Phase 6.5, actual destruction is deferred to Phase.CLEANUP via GravediggerSystem
+    // Since we don't initialize Gravedigger here, we just verify the Dying tag.
     expect(diedSpy).toHaveBeenCalledWith(expect.objectContaining({
       entityId: defender,
       killerId: attacker,

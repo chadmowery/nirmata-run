@@ -3,9 +3,10 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
+import { Phase } from '@engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
-import { LootTable, Position, Actor } from '@shared/components';
+import { LootTable, Position, Actor, Dying } from '@shared/components';
 import economyRaw from '../entities/templates/economy.json';
 import { EconomyConfig, BlueprintDropConfig, DropRateConfig } from '@shared/economy-types';
 import { logger } from '@/shared/utils/logger';
@@ -22,16 +23,16 @@ export function createCurrencyDropSystem<T extends GameplayEvents>(
   entityFactory: EntityFactory,
   componentRegistry: ComponentRegistry
 ) {
-  const init = () => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    eventBus.on('ENTITY_DIED', ({ entityId, killerId }) => {
-      const actor = world.getComponent(entityId, Actor);
-      const pos = world.getComponent(entityId, Position);
-      const lootTable = world.getComponent(entityId, LootTable);
+  const update = (w: World<T>) => {
+    const dyingEntities = w.query(Dying);
+    for (const entityId of dyingEntities) {
+      const actor = w.getComponent(entityId, Actor);
+      const pos = w.getComponent(entityId, Position);
+      const lootTable = w.getComponent(entityId, LootTable);
 
       // Skip if no position or if it's the player
       if (!pos || (actor && actor.isPlayer)) {
-        return;
+        continue;
       }
 
       const tier = lootTable?.tier ?? 1;
@@ -41,7 +42,7 @@ export function createCurrencyDropSystem<T extends GameplayEvents>(
       const scrapConfig = economy.currencyDrops.scrap[tierKey];
       if (scrapConfig && Math.random() <= scrapConfig.chance) {
         const amount = Math.floor(Math.random() * (scrapConfig.max - scrapConfig.min + 1)) + scrapConfig.min;
-        spawnCurrency(world, 'scrap', amount, pos.x, pos.y);
+        spawnCurrency(w, 'scrap', amount, pos.x, pos.y);
         logger.info(`[CurrencyDropSystem] Dropped scrap: ${amount}`);
       }
 
@@ -49,7 +50,7 @@ export function createCurrencyDropSystem<T extends GameplayEvents>(
       const fluxConfig = economy.currencyDrops.flux[tierKey] as DropRateConfig | undefined;
       if (fluxConfig && Math.random() <= fluxConfig.chance) {
         const amount = Math.floor(Math.random() * (fluxConfig.max - fluxConfig.min + 1)) + fluxConfig.min;
-        spawnCurrency(world, 'flux', amount, pos.x, pos.y);
+        spawnCurrency(w, 'flux', amount, pos.x, pos.y);
         logger.info(`[CurrencyDropSystem] Dropped flux: ${amount}`);
       }
 
@@ -57,7 +58,6 @@ export function createCurrencyDropSystem<T extends GameplayEvents>(
       const blueprintConfig = economy.currencyDrops.blueprint[tierKey] as BlueprintDropConfig | undefined;
       if (blueprintConfig && Math.random() <= 1.0) { // blueprintConfig.chance) {
         // Select a random blueprint from a pool
-        // Using hardcoded pool of existing firmware/augment template names as per plan
         const blueprintPool = [
           'Phase_Shift.sh',
           'Neural_Spike.exe',
@@ -69,10 +69,18 @@ export function createCurrencyDropSystem<T extends GameplayEvents>(
         const blueprintId = blueprintPool[Math.floor(Math.random() * blueprintPool.length)];
         const blueprintType = blueprintId.endsWith('.arc') ? 'augment' : 'firmware';
 
-        spawnCurrency(world, 'blueprint', 1, pos.x, pos.y, { blueprintId, blueprintType });
+        spawnCurrency(w, 'blueprint', 1, pos.x, pos.y, { blueprintId, blueprintType });
         logger.info(`[CurrencyDropSystem] Dropped blueprint: ${blueprintId}`);
       }
-    });
+    }
+  };
+
+  const init = () => {
+    world.registerSystem(Phase.CLEANUP, update);
+  };
+
+  const dispose = () => {
+    world.unregisterSystem(Phase.CLEANUP, update);
   };
 
   const spawnCurrency = (

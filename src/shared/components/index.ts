@@ -39,6 +39,7 @@ import { RunInventory, RunCurrency } from './run-inventory';
 import { TemplateId } from './template-id';
 import { MoveIntent, AttackIntent } from './intents';
 import { MovedThisTurn } from './moved-this-turn';
+import { Dying } from './dying';
 
 export const COMPONENTS_REGISTRY = [
   Position,
@@ -84,6 +85,7 @@ export const COMPONENTS_REGISTRY = [
   MoveIntent,
   AttackIntent,
   MovedThisTurn,
+  Dying,
 ] as const;
 
 export * from './position';
@@ -127,3 +129,4 @@ export * from './run-inventory';
 export * from './template-id';
 export * from './intents';
 export * from './moved-this-turn';
+export * from './dying';
