@@ -6,18 +6,22 @@ import { GameplayEvents } from './events/types';
 import { ActionIntent, StateDelta } from './types';
 import { serializeWorld, serializeGrid, deserializeWorld, deserializeGrid } from './serialization';
 import { logger } from './utils/logger';
-import { Actor } from './components/actor';
 
 import {
-  Position, Hostile, BlocksMovement, Attack, Health, Defense, Item, PickupEffect, EffectType,
-  SoftwareDef, BurnedSoftware, Heat,
+  Position, Health, Item, PickupEffect, EffectType,
+  SoftwareDef, BurnedSoftware,
   Stability, AnchorMarker, FloorState, RarityTier,
   RunInventory, CurrencyItem, TemplateId,
+  MoveIntent, AttackIntent, COMPONENTS_REGISTRY,
 } from './components';
 import { handleEquip, handleUnequip } from './systems/equipment';
 import * as InventoryUtil from './utils/inventory-util';
-import { resolveDamage, collectDamageModifiers } from '../game/systems/combat';
-import { checkAutoLoader, applyBleedOnHit, applyVampireOnKill } from '../game/systems/software-effects';
+import { checkAutoLoader } from '../game/systems/software-effects';
+import { Phase } from '../engine/ecs/types';
+import { EntityRegistry } from '../engine/entity/registry';
+import { EntityFactory } from '../engine/entity/factory';
+import { ComponentRegistry } from '../engine/entity/types';
+import { registerCoreSystems } from '../game/systems/registration';
 
 /**
  * Runs a game action against a world/grid state and returns the new state and delta.
@@ -40,12 +44,30 @@ export function runActionPipeline(
   const newWorld = deserializeWorld(oldWorldState, localEventBus);
   const newGrid = deserializeGrid(oldGridState);
 
-  // 3. Process Action
+  // 3. Process Action (Attaches Intents)
   processAction(newWorld, newGrid, localEventBus, playerId, action, sessionId);
 
-  // 4. Flush internal events (e.g., BUMP_ATTACK -> DAMAGE_DEALT)
-  // We need to register local handlers for things that link systems
-  setupInternalHandlers(newWorld, newGrid, localEventBus, sessionId);
+  // 4. Initialize Core Systems for simulation
+  const dummyEntityRegistry = new EntityRegistry();
+  const dummyEntityFactory = new EntityFactory(dummyEntityRegistry);
+  const dummyComponentRegistry: ComponentRegistry = {
+    get: (key: string) => COMPONENTS_REGISTRY.find(c => c.key === key) as any,
+    has: (key: string) => COMPONENTS_REGISTRY.some(c => c.key === key),
+  };
+
+  registerCoreSystems(
+    newWorld,
+    newGrid,
+    localEventBus,
+    dummyEntityFactory,
+    dummyComponentRegistry,
+    { skipLoot: true }
+  );
+
+  // 5. Execute Core Phases
+  newWorld.executeSystems(Phase.ACTION);
+  newWorld.executeSystems(Phase.REACTION);
+
   localEventBus.flush();
 
   // 5. Serialize final state
@@ -64,7 +86,7 @@ export function runActionPipeline(
 function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>, entityId: number, action: ActionIntent, sessionId?: string) {
   switch (action.type) {
     case 'MOVE':
-      handleMove(world, grid, eventBus, entityId, action.dx, action.dy);
+      world.addComponent(entityId, MoveIntent, { dx: action.dx, dy: action.dy });
       break;
     case 'WAIT':
       // Do nothing
@@ -75,7 +97,7 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
       break;
     case 'ATTACK':
       // Explicit attack intent
-      eventBus.emit('BUMP_ATTACK', { attackerId: entityId, defenderId: action.targetId });
+      world.addComponent(entityId, AttackIntent, { targetId: action.targetId });
       break;
     case 'EQUIP':
       handleEquip(world, eventBus, entityId, action.slotType, action.itemEntityId);
@@ -176,7 +198,7 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
         eventBus.emit('MESSAGE_EMITTED', { text: 'Auto-Loader.msi required', type: 'error' });
         break;
       }
-      handleMove(world, grid, eventBus, entityId, action.dx, action.dy);
+      world.addComponent(entityId, MoveIntent, { dx: action.dx, dy: action.dy });
       // Delegate to USE_FIRMWARE handling
       processAction(world, grid, eventBus, entityId, {
         type: 'USE_FIRMWARE',
@@ -235,47 +257,6 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
       break;
     }
   }
-}
-
-function handleMove(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>, entityId: number, dx: number, dy: number) {
-  const pos = world.getComponent(entityId, Position);
-  if (!pos) return;
-
-  const targetX = pos.x + dx;
-  const targetY = pos.y + dy;
-
-  if (!grid.inBounds(targetX, targetY) || !grid.isWalkable(targetX, targetY)) {
-    return;
-  }
-
-  const occupants = grid.getEntitiesAt(targetX, targetY);
-  const attacker = world.getComponent(entityId, Actor);
-  const isAttackerPlayer = attacker?.isPlayer ?? false;
-
-  for (const occupantId of occupants) {
-    if (occupantId === entityId) continue;
-
-    const defenderHostile = world.hasComponent(occupantId, Hostile);
-    const defenderActor = world.getComponent(occupantId, Actor);
-    const isDefenderPlayer = defenderActor?.isPlayer ?? false;
-
-    // Attack if: Player -> Hostile OR Hostile -> Player
-    if ((isAttackerPlayer && defenderHostile) || (!isAttackerPlayer && isDefenderPlayer)) {
-      eventBus.emit('BUMP_ATTACK', { attackerId: entityId, defenderId: occupantId });
-      return;
-    }
-
-    if (world.hasComponent(occupantId, BlocksMovement)) {
-      return;
-    }
-  }
-
-  // Perform move
-  const oldX = pos.x;
-  const oldY = pos.y;
-  world.patchComponent(entityId, Position, { x: targetX, y: targetY });
-  grid.moveEntity(entityId, oldX, oldY, targetX, targetY);
-  eventBus.emit('ENTITY_MOVED', { entityId, fromX: oldX, fromY: oldY, toX: targetX, toY: targetY });
 }
 
 function handlePickup(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>, entityId: number, itemId: number) {
@@ -347,97 +328,5 @@ function handlePickup(world: World<GameplayEvents>, grid: Grid, eventBus: EventB
   eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
 }
 
-export function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>, sessionId?: string) {
-  // BUMP_ATTACK handler (Combat Logic)
-  eventBus.on('BUMP_ATTACK', (payload) => {
-    const { attackerId, defenderId } = payload;
-    const attackerAttack = world.getComponent(attackerId, Attack);
-    const defenderHealth = world.getComponent(defenderId, Health);
-    const defenderDefense = world.getComponent(defenderId, Defense);
-
-    if (!attackerAttack || !defenderHealth) return;
-
-    const modifiers = collectDamageModifiers(world, attackerId);
-    const armor = defenderDefense?.armor ?? 0;
-    const defenderHeat = world.getComponent(defenderId, Heat);
-    const effectiveArmor = defenderHeat?.isVenting ? 0 : armor;
-
-    const damage = resolveDamage(attackerAttack.power, modifiers, effectiveArmor);
-
-    world.patchComponent(defenderId, Health, {
-      current: Math.max(0, defenderHealth.current - damage)
-    });
-
-    eventBus.emit('DAMAGE_DEALT', { attackerId, defenderId, amount: damage });
-
-    // Apply software effects like Bleed
-    applyBleedOnHit(world, eventBus, attackerId, defenderId);
-
-    // Emit UI message
-    const attackerActor = world.getComponent(attackerId, Actor);
-    const defenderActor = world.getComponent(defenderId, Actor);
-    const attackerName = attackerActor?.isPlayer ? 'You' : 'The enemy';
-    const defenderName = defenderActor?.isPlayer ? 'you' : 'the enemy';
-
-    eventBus.emit('MESSAGE_EMITTED', {
-      text: `${attackerName} hit ${defenderName} for ${damage} damage.`,
-      type: 'combat'
-    });
-
-    if (defenderHealth.current <= 0) {
-      handleDeath(world, grid, eventBus, defenderId, attackerId);
-    }
-  });
-
-  // ENTITY_MOVED handler (Auto-pickup Logic)
-  eventBus.on('ENTITY_MOVED', (payload) => {
-    const { entityId, toX, toY } = payload;
-    const itemsAtPos = grid.getItemsAt(toX, toY);
-    for (const itemId of Array.from(itemsAtPos)) {
-      handlePickup(world, grid, eventBus, entityId, itemId);
-    }
-  });
-
-  // ENTITY_DIED handler (State Cleanup)
-  eventBus.on('ENTITY_DIED', (payload) => {
-    const { entityId } = payload;
-    
-    // Clear burned software on death
-    if (world.hasComponent(entityId, BurnedSoftware)) {
-      world.patchComponent(entityId, BurnedSoftware, { weapon: null, armor: null });
-    }
-
-    // Clear inventory on death
-    InventoryUtil.clearInventory(world, entityId);
-  });
-
-  // Note: RUN_ENDED and extraction rewards are now handled authoritatively 
-  // by the RunEnderSystem in src/game/systems/run-ender.ts
-}
-
-function handleDeath(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>, entityId: number, killerId: number) {
-  const pos = world.getComponent(entityId, Position);
-  if (pos) {
-    grid.removeEntity(entityId, pos.x, pos.y);
-  }
-
-  // Note: Loot generation requires EntityFactory which might have browser/asset dependencies.
-  // For now, we skip loot in the pure pipeline, or we pass it in if needed.
-  // ARCH deviation: If loot is critical for prediction, we need a pure version of EntityFactory.
-
-  const actor = world.getComponent(entityId, Actor);
-  eventBus.emit('ENTITY_DIED', { entityId, killerId, isPlayer: !!actor?.isPlayer });
-
-  // Apply software effects like Vampire (heal on kill)
-  applyVampireOnKill(world, eventBus, killerId);
-
-  const name = actor?.isPlayer ? 'You' : 'The enemy';
-  eventBus.emit('MESSAGE_EMITTED', {
-    text: `${name} died!`,
-    type: 'combat'
-  });
-
-  if (!actor?.isPlayer) {
-    world.destroyEntity(entityId);
-  }
-}
+// handlePickup is still used for explicit PICKUP intent or auto-pickup logic in other phases
+// handleDeath and setupInternalHandlers have been collapsed into authoritative systems

@@ -14,7 +14,7 @@ import { createCombatSystem } from './systems/combat';
 import { createAISystem } from './systems/ai';
 import { registerCoreSystems } from './systems/registration';
 import { createDeadZoneSystem, DeadZoneSystem } from './systems/dead-zone';
-import { ItemPickupSystem, createItemPickupSystem } from './systems/item-pickup';
+import { ItemPickupSystem } from './systems/item-pickup';
 import { createHeatSystem, HeatSystem } from './systems/heat';
 import { createStatusEffectSystem, StatusEffectSystem } from './systems/status-effects';
 import { createFirmwareSystem, FirmwareSystem } from './systems/firmware';
@@ -112,17 +112,16 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
 
   // Systems
   // Core Systems (Shared with Pipeline)
-  const { movement: movementSystem, combat: combatSystem } = registerCoreSystems(
-    world, 
-    grid, 
-    eventBus, 
-    entityFactory, 
+  const { movement: movementSystem, combat: combatSystem, itemPickup: itemPickupSystem } = registerCoreSystems(
+    world,
+    grid,
+    eventBus,
+    entityFactory,
     componentRegistry
   );
 
   const deadZoneSystem = createDeadZoneSystem(world, grid, eventBus);
   const aiSystem = createAISystem(world, grid, eventBus);
-  const itemPickupSystem = createItemPickupSystem(world, grid, eventBus);
   const heatSystem = createHeatSystem(world, eventBus);
   const statusEffectSystem = createStatusEffectSystem(world, eventBus);
   const firmwareSystem = createFirmwareSystem(world, grid, eventBus);
@@ -137,7 +136,6 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   // Initialize remaining systems
   aiSystem.init();
   deadZoneSystem.init();
-  itemPickupSystem.init();
   heatSystem.init();
   statusEffectSystem.init();
   firmwareSystem.init();
@@ -177,9 +175,9 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   // If a profile is provided, populate slots from installed items
   if (config.profile) {
     const activeShellId = config.shellRecord ? config.shellRecord.id : null;
-    
+
     // Filter installed items for this specific shell
-    const items = config.profile.installedItems.filter(item => 
+    const items = config.profile.installedItems.filter(item =>
       !activeShellId || item.shellId === activeShellId
     );
 
@@ -221,21 +219,21 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
 
   // Phase 16: Starter Loadout fallback (D-02, D-04)
   const hasEquippedItems = ((playerOverrides['firmwareSlots'] as any)?.equipped?.length || 0) > 0 ||
-                          ((playerOverrides['softwareSlots'] as any)?.equipped?.length || 0) > 0 ||
-                          ((playerOverrides['augmentSlots'] as any)?.equipped?.length || 0) > 0;
+    ((playerOverrides['softwareSlots'] as any)?.equipped?.length || 0) > 0 ||
+    ((playerOverrides['augmentSlots'] as any)?.equipped?.length || 0) > 0;
 
   if (!hasEquippedItems && config.shellRecord?.starterLoadout) {
     const firmwareIds: number[] = [];
-    
+
     for (const itemBlueprintId of config.shellRecord.starterLoadout) {
       // Spawn the starter item
       const itemId = entityFactory.create(world, itemBlueprintId, componentRegistry);
-      
+
       // For now, starter items are assumed to be firmware (per PRD archetypes)
       // but we could check the template type if needed.
       firmwareIds.push(itemId);
     }
-    
+
     playerOverrides['firmwareSlots'] = { equipped: firmwareIds };
   }
 
@@ -246,14 +244,14 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     playerOverrides['energy'] = { speed: currentStats.speed } as unknown as Record<string, unknown>;
 
     // Core Shell Components
-    playerOverrides['shell'] = { 
+    playerOverrides['shell'] = {
       archetypeId: config.shellRecord.archetypeId,
-      ...currentStats 
+      ...currentStats
     } as unknown as Record<string, unknown>;
     playerOverrides['portConfig'] = portConfig as unknown as Record<string, unknown>;
-    
+
     // Heat dissipation scales with shell stability
-    playerOverrides['heat'] = { 
+    playerOverrides['heat'] = {
       ...playerOverrides['heat'],
       baseDissipation: 5 + (currentStats.stability * 0.1) // Every 10 stability adds 1 dissipation
     };
@@ -317,7 +315,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
         const parts = action.split(':');
         const targetX = parts[1] !== undefined ? parseInt(parts[1]) : 0;
         const targetY = parts[2] !== undefined ? parseInt(parts[2]) : 0;
-        
+
         firmwareSystem.activateAbility(entityId, slotIndex, targetX, targetY);
       }
     } else if (action === GameAction.VENT) {

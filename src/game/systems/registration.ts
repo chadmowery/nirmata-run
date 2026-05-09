@@ -6,6 +6,7 @@ import { ComponentRegistry } from '@engine/entity/types';
 import { GameplayEvents } from '@shared/events/types';
 import { createMovementSystem } from './movement';
 import { createCombatSystem } from './combat';
+import { createItemPickupSystem } from './item-pickup';
 
 /**
  * Registers core gameplay systems that must run in both client/server and pipeline simulations.
@@ -16,13 +17,16 @@ export function registerCoreSystems<T extends GameplayEvents>(
   grid: Grid,
   eventBus: EventBus<T>,
   entityFactory: EntityFactory,
-  componentRegistry: ComponentRegistry
+  componentRegistry: ComponentRegistry,
+  options: { skipLoot?: boolean } = {}
 ) {
   const movement = createMovementSystem(world, grid, eventBus);
-  const combat = createCombatSystem(world, grid, eventBus, entityFactory, componentRegistry);
+  const combat = createCombatSystem(world, grid, eventBus, entityFactory, componentRegistry, options);
+  const itemPickup = createItemPickupSystem(world, grid, eventBus);
 
   movement.init();
   combat.init();
+  itemPickup.init();
 
-  return { movement, combat };
+  return { movement, combat, itemPickup };
 }
