@@ -12,7 +12,9 @@ import { PackMember } from '@shared/components/pack-member';
 import { StatusEffects } from '@shared/components/status-effects';
 import { MoveIntent, AttackIntent } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
-import { GameEvents } from '../events/types';
+
+import { EntityFactory } from '@engine/entity/factory';
+import { ComponentRegistry } from '@engine/entity/types';
 
 /**
  * AI System handles enemy decision making and behavior state transitions.
@@ -20,7 +22,9 @@ import { GameEvents } from '../events/types';
 export function createAISystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
-  eventBus: EventBus<T>
+  eventBus: EventBus<T>,
+  entityFactory: EntityFactory,
+  componentRegistry: ComponentRegistry
 ) {
   /**
    * Finds the player entity in the world.
@@ -291,12 +295,13 @@ export function createAISystem<T extends GameplayEvents>(
             const tx = pos.x + ddx;
             const ty = pos.y + ddy;
             if (grid.inBounds(tx, ty) && grid.isWalkable(tx, ty)) {
-              eventBus.emit('CREATE_DEAD_ZONE', {
-                x: tx,
-                y: ty,
-                duration: 6,
-                damagePerTick: 2,
-                creatorId: entityId
+              entityFactory.create(world, 'dead-zone', componentRegistry, {
+                position: { x: tx, y: ty },
+                deadZone: {
+                  remainingTurns: 6,
+                  damagePerTick: 2,
+                  creatorId: entityId
+                }
               });
             }
           }
@@ -358,7 +363,7 @@ export function createAISystem<T extends GameplayEvents>(
         } else if (dist <= ATTACK_RANGE) {
           // Ranged attack - delegated to CombatSystem via AttackIntent
           world.addComponent(entityId, AttackIntent, { targetId: player.id });
-          
+
           // Emit projectile event for visual feedback
           eventBus.emit('RANGED_ATTACK', {
             attackerId: entityId,

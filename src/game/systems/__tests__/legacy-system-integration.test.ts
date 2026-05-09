@@ -37,13 +37,14 @@ describe('Legacy System Integration', () => {
       isActive: false
     }));
 
+    world.addComponent(playerId, Heat, { current: 0, maxSafe: 100, baseDissipation: 5, ventPercentage: 0.5, isVenting: false });
     world.addComponent(playerId, FirmwareSlots, { equipped: [abilityId] });
 
     fwSystem.activateAbility(playerId, 0, 1, 0);
     
-    expect(emitSpy).toHaveBeenCalledWith('ADD_HEAT_REQUESTED', expect.objectContaining({
+    expect(emitSpy).toHaveBeenCalledWith('HEAT_CHANGED', expect.objectContaining({
       entityId: playerId,
-      amount: 20 // 10 * 2
+      newHeat: 20 // 10 * 2
     }));
   });
 

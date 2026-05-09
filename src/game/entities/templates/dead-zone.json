@@ -1,0 +1,14 @@
+{
+  "id": "dead-zone",
+  "components": {
+    "DeadZone": {
+      "remainingTurns": 6,
+      "damagePerTick": 2
+    },
+    "Sprite": {
+      "texture": "dead_zone",
+      "layer": "floor",
+      "zIndex": 1
+    }
+  }
+}

@@ -9,7 +9,7 @@ import { ComponentRegistry } from '../engine/entity/types';
 import { ComponentDef } from '../engine/ecs/types';
 import { registerGameTemplates } from './entities';
 import { createMovementSystem } from './systems/movement';
-import { MoveIntent } from '@shared/components';
+import { MoveIntent, VentIntent } from '@shared/components';
 import { createCombatSystem } from './systems/combat';
 import { createAISystem } from './systems/ai';
 import { registerCoreSystems } from './systems/registration';
@@ -125,7 +125,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   );
 
   const deadZoneSystem = createDeadZoneSystem(world, grid, eventBus);
-  const aiSystem = createAISystem(world, grid, eventBus);
+  const aiSystem = createAISystem(world, grid, eventBus, entityFactory, componentRegistry);
   const heatSystem = createHeatSystem(world, eventBus);
   const statusEffectSystem = createStatusEffectSystem(world, eventBus);
   const firmwareSystem = createFirmwareSystem(world, grid, eventBus);
@@ -329,7 +329,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
         firmwareSystem.activateAbility(entityId, slotIndex, targetX, targetY);
       }
     } else if (action === GameAction.VENT) {
-      eventBus.emit('VENT_HEAT_REQUESTED', { entityId });
+      world.addComponent(entityId, VentIntent, {});
     }
 
     eventBus.emit('PLAYER_ACTION', { action, entityId });

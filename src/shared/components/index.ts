@@ -37,7 +37,7 @@ import { StaircaseMarker } from './staircase-marker';
 import { AnchorMarker } from './anchor-marker';
 import { RunInventory, RunCurrency } from './run-inventory';
 import { TemplateId } from './template-id';
-import { MoveIntent, AttackIntent } from './intents';
+import { MoveIntent, AttackIntent, VentIntent } from './intents';
 import { MovedThisTurn } from './moved-this-turn';
 import { Dying } from './dying';
 
@@ -84,6 +84,7 @@ export const COMPONENTS_REGISTRY = [
   TemplateId,
   MoveIntent,
   AttackIntent,
+  VentIntent,
   MovedThisTurn,
   Dying,
 ] as const;

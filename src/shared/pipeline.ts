@@ -12,7 +12,7 @@ import {
   SoftwareDef, BurnedSoftware,
   Stability, AnchorMarker, FloorState, RarityTier,
   RunInventory, CurrencyItem, TemplateId,
-  MoveIntent, AttackIntent, COMPONENTS_REGISTRY,
+  MoveIntent, AttackIntent, VentIntent, COMPONENTS_REGISTRY,
 } from './components';
 import { handleEquip, handleUnequip } from './systems/equipment';
 import * as InventoryUtil from './utils/inventory-util';
@@ -191,7 +191,7 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
       eventBus.emit('PLAYER_ACTION', { action: 'USE_FIRMWARE', entityId });
       break;
     case 'VENT':
-      eventBus.emit('PLAYER_ACTION', { action: 'VENT', entityId });
+      world.addComponent(entityId, VentIntent, {});
       break;
     case 'MOVE_AND_USE_FIRMWARE':
       // Only allowed if checkAutoLoader returns true

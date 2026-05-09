@@ -21,3 +21,11 @@ export const AttackIntent = defineComponent(
     targetId: z.number(),
   })
 );
+
+/**
+ * Intent to vent heat.
+ */
+export const VentIntent = defineComponent(
+  'ventIntent',
+  z.object({})
+);

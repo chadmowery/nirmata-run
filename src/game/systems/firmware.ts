@@ -10,7 +10,8 @@ import {
   Defense,
   Actor,
   AbilityDefData,
-  StatusEffects
+  StatusEffects,
+  Heat
 } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
@@ -75,7 +76,18 @@ export function createFirmwareSystem<T extends GameplayEvents>(
 
       // 2. Heat cost
       const effectiveHeatCost = getLegacyHeatCost(abilityDef.heatCost, abilityDef.isLegacy);
-      eventBus.emit('ADD_HEAT_REQUESTED', { entityId, amount: effectiveHeatCost });
+      const heat = world.getComponent(entityId, Heat);
+      if (heat) {
+        const oldHeat = heat.current;
+        const nextHeat = oldHeat + effectiveHeatCost;
+        world.patchComponent(entityId, Heat, { current: nextHeat });
+        eventBus.emit('HEAT_CHANGED', {
+          entityId,
+          oldHeat,
+          newHeat: nextHeat,
+          maxSafe: heat.maxSafe,
+        });
+      }
 
       // 3. Resolve effect
       if (abilityDef.effectType === 'dash' || abilityDef.effectType === 'dash_attack') {

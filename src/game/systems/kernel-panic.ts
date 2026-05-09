@@ -1,6 +1,6 @@
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
-import { EntityId } from '@engine/ecs/types';
+import { EntityId, Phase } from '@engine/ecs/types';
 import { Heat, Shell } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
@@ -37,25 +37,17 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
     const shell = world.getComponent(entityId, Shell);
 
     if (!heat || !shell) {
-      const allStores = world.getSerializableState().stores;
-      const entityComponents = Object.keys(allStores).filter(k => allStores[k][entityId] !== undefined);
-      console.warn(`[KernelPanic] MISSING COMPONENTS for entity ${entityId}. Has: [${entityComponents.join(', ')}]. Heat: ${!!heat}, Shell: ${!!shell}`);
       return null;
     }
 
     const heatPercent = (heat.current / heat.maxSafe) * 100;
-    console.log(`[KernelPanic] >> EVALUATING OVERCLOCK for entity ${entityId} <<`);
-    console.log(`[KernelPanic] Heat: ${heat.current}/${heat.maxSafe} (${heatPercent.toFixed(1)}%)`);
-
+    
     if (heatPercent <= 100) return null;
 
     // Filter all tiers that are eligible at this heat level
     const eligibleTiers = KERNEL_PANIC_TABLE.filter(
       (tier) => heatPercent >= tier.minPercent
     );
-
-    const tierNames = eligibleTiers.map(t => t.effectName).join(', ');
-    console.log(`[KernelPanic] Eligible tiers: [${tierNames}]`);
 
     if (eligibleTiers.length === 0) return null;
 
@@ -71,10 +63,7 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
       const roll = Math.random();
       const effChance = Math.max(0, tier.baseChance - stabilityBonus);
 
-      console.log(`[KernelPanic] Rolling for Tier: ${tier.effectName} (Base ${tier.baseChance}, Stability ${-stabilityBonus.toFixed(2)} -> Eff ${effChance.toFixed(2)}). Roll: ${roll.toFixed(2)}`);
-
       if (roll < effChance) {
-        console.log(`[KernelPanic] >> SUCCESS: Applying ${tier.effectName}`);
         appliedEffectName = tier.effectName;
 
         eventBus.emit('APPLY_STATUS_EFFECT', {
@@ -98,7 +87,6 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
         triggeredTier = tier.tier;
 
         if (tier.effectName === 'CRITICAL_REBOOT') {
-          console.log(`[KernelPanic] >> CRITICAL_REBOOT: Venting heat to 0`);
           const oldHeat = heat.current;
           world.patchComponent(entityId, Heat, { current: 0 });
           eventBus.emit('HEAT_CHANGED', {
@@ -109,7 +97,6 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
           });
         }
 
-        // Only one panic consequence per heat spike (the most severe that succeeds)
         let message = '';
         switch (tier.severity) {
           case 'minor':
@@ -132,13 +119,10 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
         });
 
         break;
-      } else {
-        console.log(`[KernelPanic] >> FAILED roll for ${tier.effectName}`);
       }
     }
 
     if (triggeredTier > 0) {
-      console.log(`[KernelPanic] Panic triggered: ${appliedEffectName}`);
       return {
         tier: triggeredTier,
         effectName: appliedEffectName,
@@ -146,8 +130,6 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
         effectApplied: true,
       };
     }
-
-    console.log(`[KernelPanic] No panics triggered after rolling all eligible tiers.`);
 
     return {
       tier: 0,
@@ -157,21 +139,20 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
     };
   };
 
-  const onHeatChanged = (payload: T['HEAT_CHANGED']) => {
-    console.log(`[KernelPanic] EVENT_RECEIVED: HEAT_CHANGED for entity ${payload.entityId} (Old: ${payload.oldHeat}, New: ${payload.newHeat})`);
-    if (payload.newHeat > payload.oldHeat) {
-      checkOverclock(payload.entityId);
+  const updateCleanup = (w: World<T>) => {
+    const entities = w.query(Heat, Shell);
+    for (const entityId of entities) {
+      checkOverclock(entityId);
     }
   };
 
   return {
     init() {
-      console.log('[KernelPanicSystem] Initializing and registering listeners...');
-      eventBus.on('HEAT_CHANGED', onHeatChanged);
+      world.registerSystem(Phase.CLEANUP, updateCleanup);
     },
 
     dispose() {
-      eventBus.off('HEAT_CHANGED', onHeatChanged);
+      world.unregisterSystem(Phase.CLEANUP, updateCleanup);
     },
 
     checkOverclock,

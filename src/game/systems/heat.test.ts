@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { World } from '@engine/ecs/world';
+import { Phase } from '@engine/ecs/types';
 import { EventBus } from '@engine/events/event-bus';
 import { Heat, Shell, Actor, FirmwareSlots, AbilityDef } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
@@ -138,12 +139,18 @@ describe('Heat System', () => {
       expect(world.getComponent(playerId, Heat)?.current).toBe(50);
     });
 
-    it('subscribes to TURN_START', () => {
-      world.patchComponent(playerId, Heat, { current: 50 });
-      
+    it('registers to Phase.PRE_TURN and Phase.ACTION', () => {
+      const registerSpy = vi.spyOn(world, 'registerSystem');
       heatSystem.init();
-      eventBus.emit('TURN_START', { turnNumber: 1 });
-      eventBus.flush();
+      expect(registerSpy).toHaveBeenCalledWith(Phase.PRE_TURN, expect.any(Function));
+      expect(registerSpy).toHaveBeenCalledWith(Phase.ACTION, expect.any(Function));
+    });
+
+    it('processes Phase.PRE_TURN to dissipate heat', () => {
+      world.patchComponent(playerId, Heat, { current: 50 });
+      heatSystem.init();
+      
+      world.executeSystems(Phase.PRE_TURN);
       
       expect(world.getComponent(playerId, Heat)?.current).toBe(40);
     });

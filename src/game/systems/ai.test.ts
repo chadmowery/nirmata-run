@@ -9,6 +9,9 @@ import { AIState, AIBehavior } from '@shared/components/ai-state';
 import { FovAwareness } from '@shared/components/fov-awareness';
 import { MoveIntent } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
+import { EntityFactory } from '@engine/entity/factory';
+import { EntityRegistry } from '@engine/entity/registry';
+import { COMPONENTS_REGISTRY } from '@shared/components';
 
 describe('AISystem', () => {
   let world: World<GameplayEvents>;
@@ -28,7 +31,17 @@ describe('AISystem', () => {
       }
     }
 
-    aiSystem = createAISystem(world, grid, eventBus);
+    const entityRegistry = new EntityRegistry();
+    const entityFactory = new EntityFactory(entityRegistry);
+    const componentsMap = Object.fromEntries(
+      COMPONENTS_REGISTRY.map((c) => [c.key, c])
+    );
+    const componentRegistry = {
+      get: (key: string) => componentsMap[key],
+      has: (key: string) => !!componentsMap[key],
+    };
+
+    aiSystem = createAISystem(world, grid, eventBus, entityFactory, componentRegistry);
   });
 
   const setupEntities = (playerPos: { x: number, y: number }, enemyPos: { x: number, y: number }) => {

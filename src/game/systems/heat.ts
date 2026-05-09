@@ -1,9 +1,8 @@
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
-import { EntityId } from '@engine/ecs/types';
-import { Heat, Shell, FirmwareSlots, AbilityDef, Actor } from '@shared/components';
+import { EntityId, Phase } from '@engine/ecs/types';
+import { Heat, Shell, FirmwareSlots, AbilityDef, Actor, VentIntent } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
-import { GameEvents } from '../events/types';
 
 /**
  * Heat system that manages entity heat dissipation and venting.
@@ -100,50 +99,44 @@ export function createHeatSystem<T extends GameplayEvents>(
     });
   };
 
-  const isInCorruptionZone = (entityId: EntityId): boolean => {
-    const heat = world.getComponent(entityId, Heat);
-    return heat ? heat.current > heat.maxSafe : false;
-  };
-
-  const getHeatPercentage = (entityId: EntityId): number => {
-    const heat = world.getComponent(entityId, Heat);
-    return heat ? (heat.current / heat.maxSafe) * 100 : 0;
-  };
-
-  const onTurnStart = () => {
-    const players = world.query(Actor).filter(id => world.getComponent(id, Actor)?.isPlayer);
+  const updatePreTurn = (w: World<T>) => {
+    const players = w.query(Actor).filter(id => w.getComponent(id, Actor)?.isPlayer);
     for (const playerId of players) {
       dissipate(playerId);
     }
   };
 
+  const updateAction = (w: World<T>) => {
+    const entities = w.query(VentIntent);
+    for (const entityId of entities) {
+      vent(entityId);
+      w.removeComponent(entityId, VentIntent);
+    }
+  };
+
   return {
     init() {
-      eventBus.on('TURN_START', onTurnStart);
-      eventBus.on('VENT_HEAT_REQUESTED', onVentRequested);
-      eventBus.on('ADD_HEAT_REQUESTED', onAddHeatRequested);
+      world.registerSystem(Phase.PRE_TURN, updatePreTurn);
+      world.registerSystem(Phase.ACTION, updateAction);
     },
 
     dispose() {
-      eventBus.off('TURN_START', onTurnStart);
-      eventBus.off('VENT_HEAT_REQUESTED', onVentRequested);
-      eventBus.off('ADD_HEAT_REQUESTED', onAddHeatRequested);
+      world.unregisterSystem(Phase.PRE_TURN, updatePreTurn);
+      world.unregisterSystem(Phase.ACTION, updateAction);
     },
 
     dissipate,
     addHeat,
     vent,
-    isInCorruptionZone,
-    getHeatPercentage,
+    isInCorruptionZone: (entityId: EntityId) => {
+      const heat = world.getComponent(entityId, Heat);
+      return heat ? heat.current > heat.maxSafe : false;
+    },
+    getHeatPercentage: (entityId: EntityId) => {
+      const heat = world.getComponent(entityId, Heat);
+      return heat ? (heat.current / heat.maxSafe) * 100 : 0;
+    },
   };
-
-  function onVentRequested(payload: T['VENT_HEAT_REQUESTED']) {
-    vent(payload.entityId);
-  }
-
-  function onAddHeatRequested(payload: T['ADD_HEAT_REQUESTED']) {
-    addHeat(payload.entityId, payload.amount);
-  }
 }
 
 export type HeatSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<typeof createHeatSystem<T>>;

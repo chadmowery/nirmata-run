@@ -6,7 +6,7 @@ import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
 import { AIState, AIBehaviorType } from '@shared/components/ai-state';
 import { FloorState } from '@shared/components/floor-state';
-import { RunInventory, BurnedSoftware, MovedThisTurn, Dying, FirmwareSlots, SoftwareSlots, AugmentSlots } from '@shared/components';
+import { RunInventory, BurnedSoftware, MovedThisTurn, Dying, FirmwareSlots, SoftwareSlots, AugmentSlots, Stability } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
@@ -176,15 +176,6 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     }
   };
 
-  const handleStabilityZero = (payload: T['STABILITY_ZERO']) => {
-    const isServer = typeof window === 'undefined' || (typeof process !== 'undefined' && process.env.NODE_ENV === 'test');
-    if (!isServer) return;
-    const actor = world.getComponent(payload.entityId, Actor);
-    if (actor?.isPlayer) {
-      executeRunEnd(payload.entityId, 'FATAL: REALITY_ANCHOR_COLLAPSED', false);
-    }
-  };
-
   const handleAnchorExtract = () => {
     const player = getPlayerEntity();
     if (player) {
@@ -193,11 +184,22 @@ export function createRunEnderSystem<T extends GameplayEvents>(
   };
 
   const updateCleanup = (w: World<T>) => {
+    // Check for dying players
     const dyingEntities = w.query(Dying);
     for (const entityId of dyingEntities) {
       const actor = w.getComponent(entityId, Actor);
       if (actor?.isPlayer) {
         executeRunEnd(entityId, 'death', false);
+      }
+    }
+
+    // Check for collapsed stability (Phase 6.6)
+    const actorsWithStability = w.query(Actor, Stability);
+    for (const entityId of actorsWithStability) {
+      const actor = w.getComponent(entityId, Actor);
+      const stability = w.getComponent(entityId, Stability);
+      if (actor?.isPlayer && stability && stability.current <= 0) {
+        executeRunEnd(entityId, 'FATAL: REALITY_ANCHOR_COLLAPSED', false);
       }
     }
   };
@@ -206,13 +208,11 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     init() {
       world.registerSystem(Phase.REACTION, update);
       world.registerSystem(Phase.CLEANUP, updateCleanup);
-      eventBus.on('STABILITY_ZERO', handleStabilityZero);
       eventBus.on('ANCHOR_EXTRACT', handleAnchorExtract);
     },
     dispose() {
       world.unregisterSystem(Phase.REACTION, update);
       world.unregisterSystem(Phase.CLEANUP, updateCleanup);
-      eventBus.off('STABILITY_ZERO', handleStabilityZero);
       eventBus.off('ANCHOR_EXTRACT', handleAnchorExtract);
     },
     update,

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { World } from '@engine/ecs/world';
+import { Phase } from '@engine/ecs/types';
 import { EventBus } from '@engine/events/event-bus';
 import { Heat, Shell, HeatData, ShellData } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
@@ -197,20 +198,21 @@ describe('KernelPanicSystem', () => {
     vi.spyOn(Math, 'random').mockRestore();
   });
 
-  it('triggers checkOverclock on HEAT_CHANGED when heat increases', () => {
+  it('registers to Phase.CLEANUP', () => {
+    const registerSpy = vi.spyOn(world, 'registerSystem');
+    kernelPanicSystem.init();
+    expect(registerSpy).toHaveBeenCalledWith(Phase.CLEANUP, expect.any(Function));
+  });
+
+  it('triggers checkOverclock on Phase.CLEANUP when heat is above maxSafe', () => {
     const entityId = world.createEntity();
     world.addComponent(entityId, Heat, createHeatData({ current: 110, maxSafe: 100 }));
     world.addComponent(entityId, Shell, createShellData({ stability: 0 }));
 
     vi.spyOn(Math, 'random').mockReturnValue(0); // Force success
     
-    eventBus.emit('HEAT_CHANGED', {
-      entityId,
-      oldHeat: 100,
-      newHeat: 110,
-      maxSafe: 100
-    });
-    eventBus.flush();
+    kernelPanicSystem.init();
+    world.executeSystems(Phase.CLEANUP);
 
     expect(eventBus.emit).toHaveBeenCalledWith('KERNEL_PANIC_TRIGGERED', expect.objectContaining({
       entityId,
@@ -220,20 +222,15 @@ describe('KernelPanicSystem', () => {
     vi.spyOn(Math, 'random').mockRestore();
   });
 
-  it('does NOT trigger checkOverclock on HEAT_CHANGED when heat decreases', () => {
+  it('does NOT trigger checkOverclock on Phase.CLEANUP when heat <= maxSafe', () => {
     const entityId = world.createEntity();
-    world.addComponent(entityId, Heat, createHeatData({ current: 50, maxSafe: 100 }));
+    world.addComponent(entityId, Heat, createHeatData({ current: 80, maxSafe: 100 }));
     world.addComponent(entityId, Shell, createShellData({ stability: 0 }));
 
     vi.spyOn(Math, 'random').mockReturnValue(0); // Force success if it were called
     
-    eventBus.emit('HEAT_CHANGED', {
-      entityId,
-      oldHeat: 110,
-      newHeat: 50,
-      maxSafe: 100
-    });
-    eventBus.flush();
+    kernelPanicSystem.init();
+    world.executeSystems(Phase.CLEANUP);
 
     expect(eventBus.emit).not.toHaveBeenCalledWith('KERNEL_PANIC_TRIGGERED', expect.anything());
 

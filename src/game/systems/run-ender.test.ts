@@ -3,7 +3,7 @@ import { World } from '../../engine/ecs/world';
 import { Grid } from '../../engine/grid/grid';
 import { EventBus } from '../../engine/events/event-bus';
 import { createRunEnderSystem } from './run-ender';
-import { Actor, Position, FloorState, RunInventory, BurnedSoftware, MovedThisTurn, AIState, AIBehaviorType, AIBehavior, Dying } from '@shared/components';
+import { Actor, Position, FloorState, RunInventory, BurnedSoftware, MovedThisTurn, AIState, AIBehaviorType, AIBehavior, Dying, Stability } from '@shared/components';
 import { Phase } from '../../engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
 
@@ -86,6 +86,30 @@ describe('RunEnderSystem', () => {
 
     expect(runEndedSpy).toHaveBeenCalledWith(expect.objectContaining({
       reason: 'FATAL: ADMIN_CONTACT',
+      entityId: playerId
+    }));
+  });
+
+  it('should end run when player stability reaches zero', () => {
+    const eventBus = new EventBus<GameplayEvents>();
+    const world = new World<GameplayEvents>(eventBus);
+    const grid = new Grid(10, 10);
+    const system = createRunEnderSystem(world, grid, eventBus);
+    system.init();
+
+    const playerId = world.createEntity();
+    world.addComponent(playerId, Actor, { isPlayer: true });
+    world.addComponent(playerId, Position, { x: 1, y: 1 });
+    world.addComponent(playerId, Stability, { current: 0, max: 100 });
+
+    const runEndedSpy = vi.fn();
+    eventBus.on('RUN_ENDED', runEndedSpy);
+
+    world.executeSystems(Phase.CLEANUP);
+    eventBus.flush();
+
+    expect(runEndedSpy).toHaveBeenCalledWith(expect.objectContaining({
+      reason: 'FATAL: REALITY_ANCHOR_COLLAPSED',
       entityId: playerId
     }));
   });

@@ -93,9 +93,21 @@ export function createAugmentSystem<T extends GameplayEvents>(
             });
           }
           break;
-        case 'VENT_HEAT':
-          eventBus.emit('ADD_HEAT_REQUESTED', { entityId, amount: -magnitude });
+        case 'VENT_HEAT': {
+          const heat = world.getComponent(entityId, Heat);
+          if (heat) {
+            const oldHeat = heat.current;
+            const nextHeat = Math.max(0, oldHeat - magnitude);
+            world.patchComponent(entityId, Heat, { current: nextHeat });
+            eventBus.emit('HEAT_CHANGED', {
+              entityId,
+              oldHeat,
+              newHeat: nextHeat,
+              maxSafe: heat.maxSafe,
+            });
+          }
           break;
+        }
         case 'DAMAGE_BONUS':
           eventBus.emit('APPLY_STATUS_EFFECT', {
             entityId,

@@ -72,10 +72,7 @@ export async function POST(req: Request) {
         break;
 
       case 'VENT':
-        if (session.systems?.heat) {
-          session.systems.heat.vent(session.playerId);
-          actionKey = GameAction.VENT;
-        }
+        actionKey = GameAction.VENT;
         break;
 
       case 'STAIRCASE_DESCEND': {
@@ -175,11 +172,6 @@ export async function POST(req: Request) {
 
     // Filter out internal request events that should not be replayed on the client
     const EXCLUDED_SYNC_EVENTS = new Set([
-      'MOVE_REQUESTED',
-      'CREATE_DEAD_ZONE',
-      'VENT_HEAT_REQUESTED',
-      'ADD_HEAT_REQUESTED',
-      'APPLY_STATUS_EFFECT',
       'PLAYER_ACTION',
       'GAME_PAUSE_REQUESTED',
       'GAME_RESUME_REQUESTED'

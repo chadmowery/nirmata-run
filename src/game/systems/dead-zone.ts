@@ -2,7 +2,7 @@ import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityId } from '@engine/ecs/types';
-import { DeadZone, Position, Health, Actor } from '@shared/components';
+import { DeadZone, Position, Health, Actor, Dying } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 
@@ -28,13 +28,15 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
       // 1. Deal damage to all entities on this tile
       const entitiesOnTile = grid.getEntitiesAt(pos.x, pos.y);
       for (const targetId of entitiesOnTile) {
-        // Don't damage the dead zone entity itself (though it doesn't have Health usually)
+        // Don't damage the dead zone entity itself
         if (targetId === entityId) continue;
 
         const health = world.getComponent(targetId, Health);
-        if (health) {
+        if (health && !world.hasComponent(targetId, Dying)) {
           const damage = deadZone.damagePerTick;
+          const oldHealth = health.current;
           const nextHealth = Math.max(0, health.current - damage);
+          
           world.patchComponent(targetId, Health, { current: nextHealth });
           
           eventBus.emit('DAMAGE_DEALT', {
@@ -43,20 +45,18 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
             amount: damage,
           });
 
-          // Basic death check - if health system is added later, this can be moved
-          if (nextHealth <= 0) {
+          if (nextHealth <= 0 && oldHealth > 0) {
             const actor = world.getComponent(targetId as EntityId, Actor);
+            const killerId = (deadZone.creatorId as EntityId) ?? (entityId as EntityId);
+            
             eventBus.emit('ENTITY_DIED', { 
               entityId: targetId as EntityId, 
-              killerId: (deadZone.creatorId as EntityId) ?? (entityId as EntityId),
+              killerId,
               isPlayer: !!actor?.isPlayer 
             });
             
-            const targetPos = world.getComponent(targetId, Position);
-            if (targetPos) {
-              grid.removeEntity(targetId, targetPos.x, targetPos.y);
-            }
-            world.destroyEntity(targetId);
+            // Mark as dying for Phase 6.5
+            world.addComponent(targetId, Dying, { killerId });
           }
         }
       }
@@ -76,6 +76,7 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
 
   /**
    * Creates a new Dead Zone entity at the specified coordinates.
+   * (Kept for internal use if needed, but AI now uses EntityFactory)
    */
   const createDeadZone = (
     x: number,
@@ -98,25 +99,11 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
   };
 
   return {
-    init() {
-      eventBus.on('CREATE_DEAD_ZONE', onCreateDeadZoneRequested);
-    },
-    dispose() {
-      eventBus.off('CREATE_DEAD_ZONE', onCreateDeadZoneRequested);
-    },
+    init() {},
+    dispose() {},
     tickDeadZones,
     createDeadZone,
   };
-
-  function onCreateDeadZoneRequested(payload: T['CREATE_DEAD_ZONE']) {
-    createDeadZone(
-      payload.x,
-      payload.y,
-      payload.duration,
-      payload.damagePerTick,
-      payload.creatorId
-    );
-  }
 }
 
 export type DeadZoneSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createDeadZoneSystem<T>>;

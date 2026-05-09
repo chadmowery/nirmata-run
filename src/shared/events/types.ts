@@ -51,8 +51,6 @@ export interface GameplayEvents extends EngineEvents {
     reason: 'floor_entry' | 'turn_bleed' | 'anchor_refill';
   };
 
-  /** Queued when an entity's Stability reaches zero. */
-  STABILITY_ZERO: { entityId: EntityId };
 
   /** Queued when an entity takes damage from a degraded Stability state. */
   DEGRADED_DAMAGE: { entityId: EntityId; damage: number };
@@ -265,25 +263,10 @@ export interface GameplayEvents extends EngineEvents {
   /** Queued when a system requests the game to resume. */
   GAME_RESUME_REQUESTED: Record<string, never>;
 
-  /** Queued when an entity requests movement. */
-  MOVE_REQUESTED: { entityId: EntityId; dx: number; dy: number };
-
-  /** Queued when an entity requests a dead zone creation. */
-  CREATE_DEAD_ZONE: {
-    x: number;
-    y: number;
-    duration: number;
-    damagePerTick: number;
-    creatorId: EntityId;
-  };
-
-  /** Queued when an entity requests to vent heat. */
-  VENT_HEAT_REQUESTED: { entityId: EntityId };
-
-  /** Queued when an entity requests to add (or subtract) heat. */
-  ADD_HEAT_REQUESTED: { entityId: EntityId; amount: number };
-
-  /** Queued when an entity requests to apply a status effect. */
+  /** 
+   * Queued when an entity requests to apply a status effect. 
+   * @deprecated Use direct system call in future phases.
+   */
   APPLY_STATUS_EFFECT: {
     entityId: EntityId;
     effect: {

@@ -1,11 +1,12 @@
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
-import { EntityId } from '@engine/ecs/types';
+import { EntityId, Phase } from '@engine/ecs/types';
 import { Stability, StabilityData } from '@shared/components/stability';
 import { Health, HealthData } from '@shared/components/health';
 import { Actor } from '@shared/components/actor';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
+import { Dying } from '@shared/components/dying';
 
 /**
  * Configuration for the Reality Stability system.
@@ -59,10 +60,6 @@ export function createStabilitySystem<T extends GameplayEvents>(
       newValue,
       reason: 'floor_entry'
     } as unknown as T['STABILITY_CHANGED']);
-
-    if (newValue === 0 && oldValue > 0) {
-      eventBus.emit('STABILITY_ZERO', { entityId } as unknown as T['STABILITY_ZERO']);
-    }
   };
 
   /**
@@ -84,10 +81,6 @@ export function createStabilitySystem<T extends GameplayEvents>(
       newValue,
       reason: 'turn_bleed'
     } as unknown as T['STABILITY_CHANGED']);
-
-    if (newValue === 0 && oldValue > 0) {
-      eventBus.emit('STABILITY_ZERO', { entityId } as unknown as T['STABILITY_ZERO']);
-    }
   };
 
   /**
@@ -114,34 +107,41 @@ export function createStabilitySystem<T extends GameplayEvents>(
         killerId: entityId,
         isPlayer: !!actor?.isPlayer
       });
+      // Mark as dying for Phase 6.5
+      world.addComponent(entityId, Dying, { killerId: entityId });
+    }
+  };
+
+  const updatePreTurn = (w: World<T>) => {
+    const entities = w.query(Stability);
+    for (const entityId of entities) {
+      // For now, we use a default floor number. In a full implementation, 
+      // this could be queried from a FloorState component.
+      const floorNumber = 1; 
+      applyTurnBleed(entityId, floorNumber);
+      applyDegradedDamage(entityId);
     }
   };
 
   /** Initialize system listeners. */
   const init = () => {
-    // Listen for floor transitions
+    world.registerSystem(Phase.PRE_TURN, updatePreTurn);
+
+    // Listen for floor transitions (natural reactive event)
     eventBus.on('FLOOR_TRANSITION', (payload) => {
-      // Find the player entity
       const players = world.query(Stability);
       for (const playerId of players) {
         applyFloorDrain(playerId, payload.floorNumber);
       }
     });
-
-    // Listen for player actions/turns
-    eventBus.on('PLAYER_ACTION', (payload) => {
-      // We'll need a way to get the current floor number.
-      // For now, we might need to store it or get it from somewhere.
-      // Assuming we can find an entity with FloorState or something similar.
-      // Or just pass a default for now and refine later.
-      const floorNumber = 1; // TODO: Get actual floor number
-      applyTurnBleed(payload.entityId, floorNumber);
-      applyDegradedDamage(payload.entityId);
-    });
   };
 
   return {
     init,
+    dispose: () => {
+      world.unregisterSystem(Phase.PRE_TURN, updatePreTurn);
+      // NOTE: eventBus.off would be needed if we tracked the transition listener
+    },
     applyFloorDrain,
     applyTurnBleed,
     applyDegradedDamage
