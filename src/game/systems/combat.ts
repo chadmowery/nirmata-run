@@ -86,7 +86,6 @@ export function createCombatSystem<T extends GameplayEvents>(
   options: { skipLoot?: boolean } = {}
 ) {
   function resolveBumpAttack(payload: T['BUMP_ATTACK']) {
-    if (EventOriginContext.current === 'server') return;
     const { attackerId, defenderId } = payload;
 
     const attackerAttack = world.getComponent(attackerId, Attack);
@@ -177,8 +176,10 @@ export function createCombatSystem<T extends GameplayEvents>(
       type: 'combat'
     });
 
-    // 4. Destroy entity
-    world.destroyEntity(entityId);
+    // 4. Destroy entity (if not player, to preserve components for RunEnderSystem)
+    if (!isPlayer) {
+      world.destroyEntity(entityId);
+    }
   };
 
   return {

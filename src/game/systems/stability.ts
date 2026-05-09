@@ -122,7 +122,6 @@ export function createStabilitySystem<T extends GameplayEvents>(
   const init = () => {
     // Listen for floor transitions
     eventBus.on('FLOOR_TRANSITION', (payload) => {
-      if (EventOriginContext.current === 'server') return;
       // Find the player entity
       const players = world.query(Stability);
       for (const playerId of players) {
@@ -132,7 +131,6 @@ export function createStabilitySystem<T extends GameplayEvents>(
 
     // Listen for player actions/turns
     eventBus.on('PLAYER_ACTION', (payload) => {
-      if (EventOriginContext.current === 'server') return;
       // We'll need a way to get the current floor number.
       // For now, we might need to store it or get it from somewhere.
       // Assuming we can find an entity with FloorState or something similar.

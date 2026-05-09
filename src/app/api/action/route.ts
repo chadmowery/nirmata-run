@@ -10,9 +10,9 @@ import { EngineInstance } from '@game/engine-factory';
 import { FloorState } from '@shared/components/floor-state';
 import { createDefaultProfile, VaultItem } from '@shared/profile';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
-import { runInventoryRegistry } from '@game/systems/run-inventory';
 import economy from '@game/entities/templates/economy.json';
 import { handleServerDebugCommand } from '@game/debug/server-debug-handler';
+import { EventOriginContext } from '@shared/utils/event-context';
 
 export async function POST(req: Request) {
 
@@ -24,6 +24,7 @@ export async function POST(req: Request) {
     }
 
     const { sessionId, action } = result.data;
+    EventOriginContext.current = 'server';
     logger.info(`[API] Processing action: ${action.type} for session: ${sessionId}`);
     const session = sessionManager.getSession<GameplayEvents, EngineInstance['systems']>(sessionId);
     if (!session) {
@@ -195,7 +196,6 @@ export async function POST(req: Request) {
         turnNumber: turnManager.getTurnNumber(),
         playerId: session.playerId,
         phase: turnManager.getPhase(),
-        runInventory: runInventoryRegistry.getOrCreate(sessionId),
       };
       logger.info(`[API] Sending FULL state sync (Massive Change: ${isMassiveChange}).`);
     } else {
@@ -207,7 +207,6 @@ export async function POST(req: Request) {
         events: syncEvents,
         turnNumber: turnManager.getTurnNumber(),
         playerId: session.playerId,
-        runInventory: runInventoryRegistry.getOrCreate(sessionId),
       };
     }
  

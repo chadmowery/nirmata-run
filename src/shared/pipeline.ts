@@ -11,10 +11,11 @@ import { Actor } from './components/actor';
 import {
   Position, Hostile, BlocksMovement, Attack, Health, Defense, Item, PickupEffect, EffectType,
   SoftwareDef, BurnedSoftware, Heat,
-  Stability, Scrap, AnchorMarker, FloorState
+  Stability, Scrap, AnchorMarker, FloorState,
+  RunInventory, RunCurrency, CurrencyItem, TemplateId,
 } from './components';
 import { handleEquip, handleUnequip } from './systems/equipment';
-import { runInventoryRegistry } from '../game/systems/run-inventory';
+import * as InventoryUtil from './utils/inventory-util';
 import { resolveDamage, collectDamageModifiers } from '../game/systems/combat';
 import { checkAutoLoader, applyBleedOnHit, applyVampireOnKill } from '../game/systems/software-effects';
 import {
@@ -88,11 +89,11 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
       handleUnequip(world, eventBus, entityId, action.slotType, action.slotIndex);
       break;
     case 'BURN_SOFTWARE': {
-      if (!sessionId) {
-        eventBus.emit('MESSAGE_EMITTED', { text: 'Session ID required for burning software.', type: 'error' });
+      const inventory = world.getComponent(entityId, RunInventory);
+      if (!inventory) {
+        eventBus.emit('MESSAGE_EMITTED', { text: 'Inventory component not found.', type: 'error' });
         return;
       }
-      const inventory = runInventoryRegistry.getOrCreate(sessionId);
       const swItem = inventory.software[action.runInventoryIndex];
       if (!swItem) {
         eventBus.emit('MESSAGE_EMITTED', { text: 'Invalid software index.', type: 'error' });
@@ -143,7 +144,7 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
       world.patchComponent(entityId, BurnedSoftware, {
         [action.targetSlot]: swItem.entityId
       });
-      runInventoryRegistry.removeSoftware(sessionId, action.runInventoryIndex);
+      InventoryUtil.removeSoftware(world, entityId, action.runInventoryIndex);
 
       eventBus.emit('SOFTWARE_BURNED', {
         entityId,
@@ -190,11 +191,7 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
       });
       break;
     case 'ANCHOR_DESCEND': {
-      if (!sessionId) {
-        eventBus.emit('MESSAGE_EMITTED', { text: 'Session ID required for anchor descend.', type: 'error' });
-        return;
-      }
-      const currentScrap = runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap');
+      const currentScrap = InventoryUtil.getCurrencyAmount(world, entityId, 'scrap');
       if (currentScrap < action.cost) {
         eventBus.emit('MESSAGE_EMITTED', {
           text: `INSUFFICIENT_SCRAP: ${action.cost} REQUIRED`,
@@ -202,7 +199,7 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
         });
         return;
       }
-      runInventoryRegistry.removeCurrency(sessionId, 'scrap', action.cost);
+      InventoryUtil.removeCurrency(world, entityId, 'scrap', action.cost);
       const stability = world.getComponent(entityId, Stability);
       if (stability) {
         const oldValue = stability.current;
@@ -228,21 +225,20 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
     case 'ANCHOR_EXTRACT':
       eventBus.emit('ANCHOR_EXTRACT', {});
       break;
-    case 'PICKUP_CURRENCY':
+    case 'PICKUP_CURRENCY': {
       // Explicit pickup for prediction/authoritative sync
-      if (sessionId) {
-        const success = runInventoryRegistry.addCurrency(sessionId, action.currencyType, action.amount);
-        if (success) {
-          grid.removeItem(action.itemId, 0, 0); // Simplified, item-pickup handles actual grid removal
-          world.destroyEntity(action.itemId);
-          eventBus.emit('CURRENCY_PICKED_UP', {
-            entityId,
-            currencyType: action.currencyType,
-            amount: action.amount
-          });
-        }
+      const success = InventoryUtil.addCurrency(world, entityId, action.currencyType, action.amount);
+      if (success) {
+        grid.removeItem(action.itemId, 0, 0); // Simplified, item-pickup handles actual grid removal
+        world.destroyEntity(action.itemId);
+        eventBus.emit('CURRENCY_PICKED_UP', {
+          entityId,
+          currencyType: action.currencyType,
+          amount: action.amount
+        });
       }
       break;
+    }
   }
 }
 
@@ -300,14 +296,51 @@ function handlePickup(world: World<GameplayEvents>, grid: Grid, eventBus: EventB
     }
   }
 
-  // Handle Scrap pickup
-  const itemScrap = world.getComponent(itemId, Scrap);
-  if (itemScrap) {
-    const playerScrap = world.getComponent(entityId, Scrap);
-    if (playerScrap) {
-      world.patchComponent(entityId, Scrap, {
-        amount: playerScrap.amount + itemScrap.amount
+  // Handle CurrencyItem pickup
+  const currencyItem = world.getComponent(itemId, CurrencyItem);
+  if (currencyItem) {
+    InventoryUtil.addCurrency(world, entityId, currencyItem.currencyType, currencyItem.amount, {
+      blueprintId: currencyItem.blueprintId,
+      blueprintType: currencyItem.blueprintType
+    });
+  }
+
+  // Handle Software item pickup
+  const swDef = world.getComponent(itemId, SoftwareDef);
+  if (swDef) {
+    const rarity = world.getComponent(itemId, RarityTier);
+    const templateRef = world.getComponent(itemId, TemplateId);
+    const floorState = world.getComponent(entityId, FloorState);
+
+    if (templateRef) {
+      const added = InventoryUtil.addSoftware(world, entityId, {
+        entityId: itemId,
+        templateId: templateRef.id,
+        rarityTier: rarity?.tier || 'v1.x',
+        pickedUpAtFloor: floorState?.currentFloor || 1,
+        pickedUpAtTimestamp: Date.now(),
       });
+
+      if (added) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `+ SOFTWARE SECURED: ${swDef.name} [${rarity?.tier || 'v1.x'}]`,
+          type: 'info'
+        });
+
+        const pos = world.getComponent(entityId, Position);
+        if (pos) {
+          grid.removeItem(itemId, pos.x, pos.y);
+        }
+        // NOTE: We DO NOT destroy the entity here because it's now in the inventory.
+        // It will be destroyed if burned or when the run ends.
+        eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
+        return;
+      } else {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `INVENTORY FULL: Cannot secure ${swDef.name}`,
+          type: 'error'
+        });
+      }
     }
   }
 
@@ -370,80 +403,8 @@ export function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, 
     }
   });
 
-  // ENTITY_DIED handler (Cleanup and Rewards)
-  eventBus.on('ENTITY_DIED', (payload) => {
-    const { entityId } = payload;
-    
-    // Clear burned software component
-    if (world.hasComponent(entityId, BurnedSoftware)) {
-      world.patchComponent(entityId, BurnedSoftware, {
-        weapon: null,
-        armor: null
-      });
-    }
-
-    const actor = world.getComponent(entityId, Actor);
-    if (actor?.isPlayer && sessionId) {
-      // Handle Pity on Failure
-      const totalScrap = runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap');
-      const pityScrap = calculatePityScrap(totalScrap);
-
-      runInventoryRegistry.clearCurrency(sessionId);
-      if (pityScrap > 0) runInventoryRegistry.addCurrency(sessionId, 'scrap', pityScrap);
-      runInventoryRegistry.clearSoftware(sessionId);
-
-      eventBus.emit('MESSAGE_EMITTED', {
-        text: `FATAL ERROR: SHELL_LOSS. Pity Scrap: ${pityScrap}`,
-        type: 'error'
-      });
-    }
-  });
-
-  // ANCHOR_EXTRACT handler (Rewards)
-  eventBus.on('ANCHOR_EXTRACT', () => {
-    if (!sessionId) return;
-
-    // This is the authoritative place where the pipeline applies rewards
-    // so they are reflected in the DELTA.
-    const playerActors = world.query(Actor);
-    let playerId = -1;
-    for (const pid of playerActors) {
-      if (world.getComponent(pid, Actor)?.isPlayer) {
-        playerId = pid;
-        break;
-      }
-    }
-
-    if (playerId !== -1) {
-      const floorState = world.getComponent(playerId, FloorState);
-      const floorNumber = floorState?.currentFloor ?? 1;
-
-      const currentScrap = runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap');
-      const currentFlux = runInventoryRegistry.getCurrencyAmount(sessionId, 'flux');
-      
-      const fluxBonus = calculateExtractionFluxBonus(floorNumber);
-      
-      const inventory = runInventoryRegistry.getOrCreate(sessionId);
-      const itemsExtracted = mapInventoryToVaultItems(inventory.software, floorNumber);
-
-      // CLEAR inventory so it shows 0 in the UI/Delta
-      runInventoryRegistry.clearCurrency(sessionId);
-      runInventoryRegistry.clearSoftware(sessionId);
-
-      eventBus.emit('RUN_ENDED', {
-        reason: 'extraction',
-        entityId: playerId,
-        floorNumber,
-        stats: {
-          scrapExtracted: currentScrap,
-          fluxExtracted: currentFlux + fluxBonus,
-          softwareExtracted: itemsExtracted.length,
-          pityAwarded: false,
-          itemsExtracted,
-        }
-      });
-    }
-  });
+  // Note: RUN_ENDED and extraction rewards are now handled authoritatively 
+  // by the RunEnderSystem in src/game/systems/run-ender.ts
 }
 
 function handleDeath(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>, entityId: number, killerId: number) {
@@ -468,5 +429,7 @@ function handleDeath(world: World<GameplayEvents>, grid: Grid, eventBus: EventBu
     type: 'combat'
   });
 
-  world.destroyEntity(entityId);
+  if (!actor?.isPlayer) {
+    world.destroyEntity(entityId);
+  }
 }

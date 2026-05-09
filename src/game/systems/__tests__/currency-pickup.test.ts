@@ -7,7 +7,8 @@ import { EntityRegistry } from '@engine/entity/registry';
 import { COMPONENTS_REGISTRY, Actor, Position, LootTable, CurrencyItem, Item } from '@shared/components';
 import { createCurrencyDropSystem } from '../currency-drop';
 import { createItemPickupSystem } from '../item-pickup';
-import { runInventoryRegistry } from '../run-inventory';
+import { RunInventory, RunCurrency } from '@shared/components/run-inventory';
+import * as InventoryUtil from '@shared/utils/inventory-util';
 import { GameEvents } from '../../events/types';
 import { ComponentRegistry } from '@engine/entity/types';
 
@@ -52,17 +53,17 @@ describe('Currency Pickup System', () => {
       get: (key) => componentsMap[key],
       has: (key) => !!componentsMap[key]
     };
-
-    runInventoryRegistry.clear(sessionId);
   });
 
   it('walking over Scrap adds it to run inventory', () => {
-    const pickupSystem = createItemPickupSystem(world, grid, eventBus, sessionId);
+    const pickupSystem = createItemPickupSystem(world, grid, eventBus);
     pickupSystem.init();
 
     const playerId = world.createEntity();
     world.addComponent(playerId, Actor, { isPlayer: true });
     world.addComponent(playerId, Position, { x: 1, y: 1 });
+    world.addComponent(playerId, RunInventory, { software: [], maxSlots: 5 });
+    world.addComponent(playerId, RunCurrency, { stacks: [] });
 
     const scrapId = entityFactory.create(world, 'scrap', componentRegistry, {
       position: { x: 2, y: 1 },
@@ -81,21 +82,23 @@ describe('Currency Pickup System', () => {
     });
     eventBus.flush();
 
-    expect(runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap')).toBe(15);
+    expect(InventoryUtil.getCurrencyAmount(world, playerId, 'scrap')).toBe(15);
     expect(world.entityExists(scrapId)).toBe(false);
   });
 
   it('emits error message if inventory is full', () => {
-    const pickupSystem = createItemPickupSystem(world, grid, eventBus, sessionId);
+    const pickupSystem = createItemPickupSystem(world, grid, eventBus);
     pickupSystem.init();
 
     const playerId = world.createEntity();
     world.addComponent(playerId, Actor, { isPlayer: true });
     world.addComponent(playerId, Position, { x: 1, y: 1 });
+    world.addComponent(playerId, RunInventory, { software: [], maxSlots: 5 });
+    world.addComponent(playerId, RunCurrency, { stacks: [] });
 
     // Fill inventory with software (max 5)
     for (let i = 0; i < 5; i++) {
-      runInventoryRegistry.addSoftware(sessionId, {
+      InventoryUtil.addSoftware(world, playerId, {
         entityId: 999 + i,
         templateId: 'test',
         rarityTier: 'common',
@@ -124,7 +127,7 @@ describe('Currency Pickup System', () => {
     });
     eventBus.flush();
 
-    expect(runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap')).toBe(0);
+    expect(InventoryUtil.getCurrencyAmount(world, playerId, 'scrap')).toBe(0);
     expect(world.entityExists(scrapId)).toBe(true);
     expect(messageSpy).toHaveBeenCalledWith(expect.objectContaining({
       text: expect.stringContaining('Inventory full'),
@@ -133,19 +136,21 @@ describe('Currency Pickup System', () => {
   });
 
   it('allows stacking currency even if software inventory is full', () => {
-    const pickupSystem = createItemPickupSystem(world, grid, eventBus, sessionId);
+    const pickupSystem = createItemPickupSystem(world, grid, eventBus);
     pickupSystem.init();
 
     const playerId = world.createEntity();
     world.addComponent(playerId, Actor, { isPlayer: true });
     world.addComponent(playerId, Position, { x: 1, y: 1 });
+    world.addComponent(playerId, RunInventory, { software: [], maxSlots: 5 });
+    world.addComponent(playerId, RunCurrency, { stacks: [] });
 
     // Add some scrap first
-    runInventoryRegistry.addCurrency(sessionId, 'scrap', 10);
+    InventoryUtil.addCurrency(world, playerId, 'scrap', 10);
 
     // Fill remaining slots with software (total 5 slots)
     for (let i = 0; i < 4; i++) {
-      runInventoryRegistry.addSoftware(sessionId, {
+      InventoryUtil.addSoftware(world, playerId, {
         entityId: 999 + i,
         templateId: 'test',
         rarityTier: 'common',
@@ -173,7 +178,7 @@ describe('Currency Pickup System', () => {
     eventBus.flush();
 
     // Should succeed because it stacks
-    expect(runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap')).toBe(25);
+    expect(InventoryUtil.getCurrencyAmount(world, playerId, 'scrap')).toBe(25);
     expect(world.entityExists(scrapId)).toBe(false);
   });
 });

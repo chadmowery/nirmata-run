@@ -2,7 +2,6 @@ import { createEngineInstance } from './engine-factory';
 import { GameContext, GameSystem } from './types';
 import { syncEngineToStore } from './ui/sync-bridge';
 import { registerInputBridge } from './input/input-bridge';
-import { runInventoryRegistry } from './systems/run-inventory';
 import { StateMachine } from '../engine/state-machine/state-machine';
 import { StateConfig } from '../engine/state-machine/types';
 import { GameState } from './states/types';
@@ -41,10 +40,6 @@ import { globalShellRegistry } from './shells';
 export function createGame(config: GameConfig & { sessionId?: string }): GameContext {
   const seed = config.seed ?? `run-${Date.now()}`;
   const sessionId = config.sessionId || 'default-player-session';
-
-  // Ensure client-side registry is clean for new run (D-05/D-06)
-  console.log(`[CLIENT] Clearing local run inventory registry for session: ${sessionId}`);
-  runInventoryRegistry.clear(sessionId);
 
   // Fetch shell record for the player
   const shellId = config.shellId || 'player-shell-default';
@@ -338,24 +333,6 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
           // Update playerId before applying delta so that events emitted during sync see the correct ID (D-05 regression)
           context.playerId = serverState.playerId;
           applyStateDelta(world, grid, turnManager, eventBus, serverState);
-
-          // Synchronize run inventory registry (D-05/D-06)
-          if (serverState.runInventory && context.sessionId) {
-            runInventoryRegistry.load(context.sessionId, serverState.runInventory);
-
-            // TODO: This is a HACK and needs to be cleaned up!
-            // Emit currency event to trigger UI refresh
-            if (context.playerId !== undefined) {
-              eventBus.emit('CURRENCY_PICKED_UP', {
-                entityId: context.playerId,
-                currencyType: 'scrap',
-                amount: 0
-              }); // Amount 0 as we're syncing state
-            }
-
-            // Explicitly notify UI to refresh from registry
-            eventBus.emit('RUN_INVENTORY_SYNCED', { sessionId: context.sessionId });
-          }
         }
       }
     } catch (error) {

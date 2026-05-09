@@ -8,8 +8,13 @@ import { PickupEffect, EffectType } from '@shared/components/pickup-effect';
 import { Health } from '@shared/components/health';
 import { Scrap } from '@shared/components/scrap';
 import { CurrencyItem } from '@shared/components/currency-item';
-import { runInventoryRegistry } from './run-inventory';
+import { RunInventory, RunCurrency, TemplateId } from '@shared/components';
+import * as InventoryUtil from '@shared/utils/inventory-util';
 import { EventOriginContext } from '@shared/utils/event-context';
+import { RarityTier } from '@shared/components/rarity-tier';
+import { SoftwareDef } from '@shared/components/software-def';
+import { FloorState } from '@shared/components/floor-state';
+import { Position } from '@shared/components/position';
 
 export interface ItemPickupSystem {
   init(): void;
@@ -19,12 +24,10 @@ export interface ItemPickupSystem {
 export function createItemPickupSystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
-  eventBus: EventBus<T>,
-  sessionId?: string
+  eventBus: EventBus<T>
 ): ItemPickupSystem {
 
   function onEntityMoved(payload: T['ENTITY_MOVED']) {
-    if (EventOriginContext.current === 'server') return;
     const { entityId, toX, toY } = payload;
 
     // 1. Check if mover is the player
@@ -66,12 +69,7 @@ export function createItemPickupSystem<T extends GameplayEvents>(
           // but implement the logic structure.
         }
 
-        if (!sessionId) {
-          console.warn(`[ItemPickupSystem] No sessionId provided! Cannot add ${amount} ${type} to registry.`);
-        }
-
-
-        const success = sessionId ? runInventoryRegistry.addCurrency(sessionId, type, amount, meta) : false;
+        const success = InventoryUtil.addCurrency(world, entityId, type, amount, meta);
         
         if (success) {
           const message = type === 'blueprint' 
@@ -97,6 +95,42 @@ export function createItemPickupSystem<T extends GameplayEvents>(
           });
           // Do not destroy, leave on ground
           continue;
+        }
+      }
+      
+      // 4.1 Handle Software item pickup
+      const swDef = world.getComponent(itemId, SoftwareDef);
+      if (swDef) {
+        const rarity = world.getComponent(itemId, RarityTier);
+        const templateRef = world.getComponent(itemId, TemplateId);
+        const floorState = world.getComponent(entityId, FloorState);
+
+        if (templateRef) {
+          const added = InventoryUtil.addSoftware(world, entityId, {
+            entityId: itemId,
+            templateId: templateRef.id,
+            rarityTier: rarity?.tier || 'v1.x',
+            pickedUpAtFloor: floorState?.currentFloor || 1,
+            pickedUpAtTimestamp: Date.now(),
+          });
+
+          if (added) {
+            eventBus.emit('MESSAGE_EMITTED', {
+              text: `+ SOFTWARE SECURED: ${swDef.name} [${rarity?.tier || 'v1.x'}]`,
+              type: 'info'
+            });
+
+            grid.removeItem(itemId, toX, toY);
+            // NOTE: We DO NOT destroy the entity here because it's now in the inventory.
+            eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
+            continue;
+          } else {
+            eventBus.emit('MESSAGE_EMITTED', {
+              text: `INVENTORY FULL: Cannot secure ${swDef.name}`,
+              type: 'error'
+            });
+            continue;
+          }
         }
       }
 

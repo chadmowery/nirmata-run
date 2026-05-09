@@ -16,8 +16,9 @@ import { BurnedSoftware } from '@shared/components/burned-software';
 import { AbilityDef } from '@shared/components/ability-def';
 import { SoftwareDef } from '@shared/components/software-def';
 import { StatusEffects } from '@shared/components/status-effects';
+import { RunCurrency } from '@shared/components/run-inventory';
 import { getDepthBand } from '../generation/dungeon-generator';
-import { runInventoryRegistry } from '../systems/run-inventory';
+import * as InventoryUtil from '@shared/utils/inventory-util';
 import { getHeatTier } from '../config/heat-tiers';
 
 export function syncEngineToStore(context: GameContext) {
@@ -38,9 +39,7 @@ export function syncEngineToStore(context: GameContext) {
     const fSlots = world.getComponent(context.playerId, FirmwareSlots);
 
     // New authoritative source for run currency
-    const scrapAmount = context.sessionId 
-      ? runInventoryRegistry.getCurrencyAmount(context.sessionId, 'scrap') 
-      : 0;
+    const scrapAmount = InventoryUtil.getCurrencyAmount(world, context.playerId, 'scrap');
 
     const store = gameStore.getState();
 

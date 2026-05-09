@@ -17,7 +17,7 @@ import {
   AbilityDef,
   SoftwareDef
 } from '@shared/components';
-import { runInventoryRegistry } from './run-inventory';
+import * as InventoryUtil from '@shared/utils/inventory-util';
 import depthConfig from '../generation/depth-config.json';
 
 export function createAnchorInteractionSystem<T extends GameplayEvents = GameEvents>(
@@ -25,8 +25,7 @@ export function createAnchorInteractionSystem<T extends GameplayEvents = GameEve
   grid: Grid,
   eventBus: EventBus<T>,
   turnManager: TurnManager<T>,
-  playerId: EntityId,
-  sessionId?: string
+  playerId: EntityId
 ) {
   const handleEntityMoved = (payload: T['ENTITY_MOVED']) => {
     if (payload.entityId !== playerId) return;
@@ -64,10 +63,8 @@ export function createAnchorInteractionSystem<T extends GameplayEvents = GameEve
     const floorNumber = floorState?.currentFloor ?? 1;
     const stabilityPercent = stability?.current ?? 100;
 
-    // Use runInventoryRegistry for scrap amount if sessionId is available
-    const scrapAmount = sessionId 
-      ? runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap') 
-      : world.getComponent(playerId, Scrap)?.amount ?? 0;
+    // Use ECS-based run inventory for scrap amount
+    const scrapAmount = InventoryUtil.getCurrencyAmount(world, playerId, 'scrap');
 
     // Categorized inventory data
     const inventory = {

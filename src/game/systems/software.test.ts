@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { SoftwareDef } from '../../shared/components/software-def';
 import { BurnedSoftware } from '../../shared/components/burned-software';
 import { RarityTier, RARITY_SCALE_FACTORS } from '../../shared/components/rarity-tier';
-import { RunInventoryRegistry, runInventoryRegistry } from './run-inventory';
+import { RunInventory, RunCurrency } from '../../shared/components/run-inventory';
+import * as InventoryUtil from '../../shared/utils/inventory-util';
 import { World } from '../../engine/ecs/world';
 import { Grid } from '../../engine/grid/grid';
 import { runActionPipeline, setupInternalHandlers } from '../../shared/pipeline';
@@ -177,19 +178,15 @@ describe('Software System', () => {
     });
   });
 
-  describe('RunInventoryRegistry', () => {
-    let registry: RunInventoryRegistry;
-    const sessionId = 'test-session';
+  describe('Inventory Utilities (ECS)', () => {
+    let world: World<GameplayEvents>;
+    let playerId: number;
 
     beforeEach(() => {
-      registry = new RunInventoryRegistry();
-    });
-
-    it('getOrCreate returns inventory with maxSlots=5', () => {
-      const inventory = registry.getOrCreate(sessionId);
-      expect(inventory.sessionId).toBe(sessionId);
-      expect(inventory.maxSlots).toBe(5);
-      expect(inventory.software).toEqual([]);
+      world = new World<GameplayEvents>(new EventBus<GameplayEvents>());
+      playerId = world.createEntity();
+      world.addComponent(playerId, RunInventory, { software: [], maxSlots: 5 });
+      world.addComponent(playerId, RunCurrency, { stacks: [] });
     });
 
     it('addSoftware rejects when inventory is full (5 items)', () => {
@@ -202,23 +199,23 @@ describe('Software System', () => {
       };
 
       for (let i = 0; i < 5; i++) {
-        expect(registry.addSoftware(sessionId, { ...item, entityId: i })).toBe(true);
+        expect(InventoryUtil.addSoftware(world, playerId, { ...item, entityId: i })).toBe(true);
       }
-      expect(registry.addSoftware(sessionId, { ...item, entityId: 5 })).toBe(false);
-      expect(registry.getOrCreate(sessionId).software.length).toBe(5);
+      expect(InventoryUtil.addSoftware(world, playerId, { ...item, entityId: 5 })).toBe(false);
+      expect(world.getComponent(playerId, RunInventory)?.software.length).toBe(5);
     });
 
-    it('clear empties the inventory', () => {
-      registry.addSoftware(sessionId, {
+    it('clearInventory empties the inventory', () => {
+      InventoryUtil.addSoftware(world, playerId, {
         entityId: 1,
         templateId: 'temp',
         rarityTier: 'v0.x',
         pickedUpAtFloor: 1,
         pickedUpAtTimestamp: Date.now(),
       });
-      expect(registry.getOrCreate(sessionId).software.length).toBe(1);
-      registry.clear(sessionId);
-      expect(registry.getOrCreate(sessionId).software.length).toBe(0);
+      expect(world.getComponent(playerId, RunInventory)?.software.length).toBe(1);
+      InventoryUtil.clearInventory(world, playerId);
+      expect(world.getComponent(playerId, RunInventory)?.software.length).toBe(0);
     });
 
     it('removeSoftware removes by index and shifts remaining', () => {
@@ -230,15 +227,15 @@ describe('Software System', () => {
         pickedUpAtTimestamp: Date.now(),
       }));
 
-      items.forEach(item => registry.addSoftware(sessionId, item));
+      items.forEach(item => InventoryUtil.addSoftware(world, playerId, item));
       
-      const removed = registry.removeSoftware(sessionId, 1);
+      const removed = InventoryUtil.removeSoftware(world, playerId, 1);
       expect(removed?.entityId).toBe(1);
       
-      const inventory = registry.getOrCreate(sessionId);
-      expect(inventory.software.length).toBe(2);
-      expect(inventory.software[0].entityId).toBe(0);
-      expect(inventory.software[1].entityId).toBe(2);
+      const inventory = world.getComponent(playerId, RunInventory);
+      expect(inventory?.software.length).toBe(2);
+      expect(inventory?.software[0].entityId).toBe(0);
+      expect(inventory?.software[1].entityId).toBe(2);
     });
   });
 
@@ -256,8 +253,8 @@ describe('Software System', () => {
       world.addComponent(playerId, Position, { x: 0, y: 0 });
       world.addComponent(playerId, Health, Health.schema.parse({ current: 10, max: 10 }));
       world.addComponent(playerId, SoftwareSlots, { equipped: [] });
-      
-      runInventoryRegistry.clear(sessionId);
+      world.addComponent(playerId, RunInventory, { software: [], maxSlots: 5 });
+      world.addComponent(playerId, RunCurrency, { stacks: [] });
     });
 
     it('burn with valid Software and matching targetSlot succeeds', () => {
@@ -272,7 +269,7 @@ describe('Software System', () => {
         purchaseCost: 0,
       });
 
-      runInventoryRegistry.addSoftware(sessionId, {
+      InventoryUtil.addSoftware(world, playerId, {
         entityId: swEntity,
         templateId: 'bleed',
         rarityTier: 'v0.x',
@@ -288,7 +285,7 @@ describe('Software System', () => {
 
       const burned = newWorld.getComponent(playerId, BurnedSoftware);
       expect(burned?.weapon).toBe(swEntity);
-      expect(runInventoryRegistry.getOrCreate(sessionId).software.length).toBe(0);
+      expect(newWorld.getComponent(playerId, RunInventory)?.software.length).toBe(0);
     });
 
     it('burn with wrong targetSlot is rejected', () => {
@@ -303,7 +300,7 @@ describe('Software System', () => {
         purchaseCost: 0,
       });
 
-      runInventoryRegistry.addSoftware(sessionId, {
+      InventoryUtil.addSoftware(world, playerId, {
         entityId: swEntity,
         templateId: 'armor',
         rarityTier: 'v0.x',
@@ -319,7 +316,7 @@ describe('Software System', () => {
 
       const burned = newWorld.getComponent(playerId, BurnedSoftware);
       expect(burned).toBeUndefined();
-      expect(runInventoryRegistry.getOrCreate(sessionId).software.length).toBe(1);
+      expect(newWorld.getComponent(playerId, RunInventory)?.software.length).toBe(1);
     });
 
     it('burn with duplicate Software type already active is rejected', () => {
@@ -347,7 +344,7 @@ describe('Software System', () => {
         purchaseCost: 0,
       });
 
-      runInventoryRegistry.addSoftware(sessionId, {
+      InventoryUtil.addSoftware(world, playerId, {
         entityId: sw2,
         templateId: 'bleed',
         rarityTier: 'v1.x',
@@ -364,7 +361,7 @@ describe('Software System', () => {
       const burned = newWorld.getComponent(playerId, BurnedSoftware);
       expect(burned?.armor).toBe(null);
       expect(burned?.weapon).toBe(sw1);
-      expect(runInventoryRegistry.getOrCreate(sessionId).software.length).toBe(1);
+      expect(newWorld.getComponent(playerId, RunInventory)?.software.length).toBe(1);
     });
 
     it('overwrite existing Software on same slot destroys old entity', () => {
@@ -392,7 +389,7 @@ describe('Software System', () => {
         purchaseCost: 0,
       });
 
-      runInventoryRegistry.addSoftware(sessionId, {
+      InventoryUtil.addSoftware(world, playerId, {
         entityId: swNew,
         templateId: 'new',
         rarityTier: 'v0.x',
@@ -427,11 +424,10 @@ describe('Software System', () => {
       world.addComponent(playerId, Actor, { isPlayer: true });
       world.addComponent(playerId, Position, { x: 0, y: 0 });
       world.addComponent(playerId, BurnedSoftware, { weapon: 101, armor: 102 });
+      world.addComponent(playerId, RunInventory, { software: [], maxSlots: 5 });
+      world.addComponent(playerId, RunCurrency, { stacks: [] });
       
-      runInventoryRegistry.clear(sessionId);
-      (runInventoryRegistry as any).stashes.set(sessionId, []);
-
-      setupInternalHandlers(world, grid, eventBus, sessionId);
+      setupInternalHandlers(world, grid, eventBus);
     });
 
     it('ENTITY_DIED clears BurnedSoftware weapon and armor to null', () => {

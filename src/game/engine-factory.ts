@@ -115,7 +115,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   });
   const deadZoneSystem = createDeadZoneSystem(world, grid, eventBus);
   const aiSystem = createAISystem(world, grid, eventBus);
-  const itemPickupSystem = createItemPickupSystem(world, grid, eventBus, config.sessionId);
+  const itemPickupSystem = createItemPickupSystem(world, grid, eventBus);
   const heatSystem = createHeatSystem(world, eventBus);
   const statusEffectSystem = createStatusEffectSystem(world, eventBus);
   const firmwareSystem = createFirmwareSystem(world, grid, eventBus);
@@ -123,7 +123,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   const augmentSystem = createAugmentSystem(world, eventBus);
   const packCoordinatorSystem = createPackCoordinatorSystem(world, grid, eventBus);
   const tileCorruptionSystem = createTileCorruptionSystem(world, grid, eventBus, entityFactory, componentRegistry);
-  const runEnderSystem = createRunEnderSystem(world, grid, eventBus, config.sessionId, config.runMode);
+  const runEnderSystem = createRunEnderSystem(world, grid, eventBus, config.runMode);
   const stabilitySystem = createStabilitySystem(world, eventBus);
   const currencyDropSystem = createCurrencyDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
 
@@ -165,8 +165,6 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     'augmentState': { activationsThisTurn: {}, cooldownsRemaining: {} },
     'heat': { current: 0, maxSafe: 100, baseDissipation: 5, ventPercentage: 0.5, isVenting: false },
     'stability': { current: 100, max: 100 },
-    'scrap': { amount: config.profile?.wallet.scrap ?? 0 },
-    'wallet': { scrap: config.profile?.wallet.scrap ?? 0, flux: config.profile?.wallet.flux ?? 0 },
     'floorState': { currentFloor: 1, maxFloor: 15, runSeed: config.seed }
   };
 
@@ -280,8 +278,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     grid,
     eventBus,
     turnManager,
-    placement.playerId,
-    config.sessionId
+    placement.playerId
   );
 
   // Initialize All Systems

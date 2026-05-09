@@ -3,7 +3,6 @@ import { createEngineInstance } from '@game/engine-factory';
 import { sessionManager } from '@engine/session/SessionManager';
 import { createDefaultProfile } from '@shared/profile';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
-import { runInventoryRegistry } from '@game/systems/run-inventory';
 import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT } from '@/shared/constants';
 
 export async function POST(req: Request) {
@@ -18,8 +17,6 @@ export async function POST(req: Request) {
     }
 
     const sessionId = providedSessionId || 'default-player-session';
-
-    runInventoryRegistry.clear(sessionId);
 
     // Load or create profile
     let profile = await profileRepository.load(sessionId);

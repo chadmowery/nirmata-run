@@ -6,7 +6,8 @@ import { GameplayEvents } from './events/types';
 import { BurnedSoftware } from './components/burned-software';
 import { Actor, Position } from './components';
 import { setupInternalHandlers } from './pipeline';
-import { runInventoryRegistry } from '../game/systems/run-inventory';
+import { RunInventory, RunCurrency } from './components/run-inventory';
+import * as InventoryUtil from './utils/inventory-util';
 
 describe('Pipeline - Software Integration', () => {
   let world: World<GameplayEvents>;
@@ -18,8 +19,7 @@ describe('Pipeline - Software Integration', () => {
     eventBus = new EventBus<GameplayEvents>();
     world = new World<GameplayEvents>(eventBus);
     grid = new Grid(10, 10);
-    runInventoryRegistry.clear(sessionId);
-    setupInternalHandlers(world, grid, eventBus, sessionId);
+    setupInternalHandlers(world, grid, eventBus);
   });
 
   describe('Software death clearing', () => {
@@ -36,18 +36,20 @@ describe('Pipeline - Software Integration', () => {
       expect(burned?.armor).toBe(null);
     });
 
-    it('ENTITY_DIED clears RunInventory for session', () => {
+    it('ENTITY_DIED clears RunInventory for player', () => {
       const playerId = world.createEntity();
       world.addComponent(playerId, Actor, { isPlayer: true });
+      world.addComponent(playerId, RunInventory, { software: [], maxSlots: 5 });
+      world.addComponent(playerId, RunCurrency, { stacks: [] });
       
       const item: any = { entityId: 101, templateId: 'test', rarityTier: 'v0.x', pickedUpAtFloor: 1, pickedUpAtTimestamp: Date.now() };
-      runInventoryRegistry.addSoftware(sessionId, item);
-      expect(runInventoryRegistry.getOrCreate(sessionId).software.length).toBe(1);
+      InventoryUtil.addSoftware(world, playerId, item);
+      expect(world.getComponent(playerId, RunInventory)?.software.length).toBe(1);
 
       eventBus.emit('ENTITY_DIED', { entityId: playerId, killerId: 0, isPlayer: true });
       eventBus.flush();
 
-      expect(runInventoryRegistry.getOrCreate(sessionId).software.length).toBe(0);
+      expect(world.getComponent(playerId, RunInventory)?.software.length).toBe(0);
     });
   });
 });

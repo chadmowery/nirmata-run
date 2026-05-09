@@ -6,8 +6,9 @@ import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
 import { AIState, AIBehaviorType } from '@shared/components/ai-state';
 import { FloorState } from '@shared/components/floor-state';
+import { RunInventory, RunCurrency } from '@shared/components/run-inventory';
+import * as InventoryUtil from '@shared/utils/inventory-util';
 import { GameplayEvents } from '@shared/events/types';
-import { runInventoryRegistry } from './run-inventory';
 import { RunMode } from '@shared/run-mode';
 import { VaultItem } from '@shared/profile';
 import {
@@ -23,7 +24,6 @@ export function createRunEnderSystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
   eventBus: EventBus<T>,
-  sessionId?: string,
   runMode: RunMode = RunMode.SIMULATION
 ) {
   let isEnding = false;
@@ -50,7 +50,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     if (isEnding) return;
     isEnding = true;
 
-    console.log(`[RunEnderSystem] executeRunEnd STARTED. Reason: ${reason}, sessionId: ${sessionId}`);
+    console.log(`[RunEnderSystem] executeRunEnd STARTED. Reason: ${reason}`);
     
     const floorState = world.getComponent(playerId, FloorState);
     const floorNumber = floorState?.currentFloor ?? 1;
@@ -61,36 +61,33 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     let pityAwarded = false;
     let itemsExtracted: VaultItem[] = [];
 
-    if (!sessionId) {
-      console.warn(`[RunEnderSystem] executeRunEnd called without sessionId! Reason: ${reason}. Final stats will be 0.`);
-    }
 
-    if (sessionId) {
-      console.log(`[RunEnderSystem] executeRunEnd: SessionId found (${sessionId}), isSuccess: ${isSuccess}`);
-      const inventory = runInventoryRegistry.getOrCreate(sessionId);
+    if (playerId) {
+      console.log(`[RunEnderSystem] executeRunEnd: Player found (${playerId}), isSuccess: ${isSuccess}`);
       if (isSuccess) {
         // Authoritative extraction calculation (per D-06)
-        finalScrap = runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap');
-        const inventoryFlux = runInventoryRegistry.getCurrencyAmount(sessionId, 'flux');
+        finalScrap = InventoryUtil.getCurrencyAmount(world, playerId, 'scrap');
+        const inventoryFlux = InventoryUtil.getCurrencyAmount(world, playerId, 'flux');
         
         finalFlux = inventoryFlux + calculateExtractionFluxBonus(floorNumber);
-        swCount = inventory.software.length;
+        
+        const inventory = world.getComponent(playerId, RunInventory);
+        swCount = inventory?.software.length || 0;
         
         // Map software to VaultItems using unified utility
-        itemsExtracted = mapInventoryToVaultItems(inventory.software, floorNumber);
+        itemsExtracted = mapInventoryToVaultItems(inventory?.software || [], floorNumber);
 
-        // Finalize inventory to stash
-        runInventoryRegistry.transferToStash(sessionId);
+        // Finalize inventory (clear for extraction)
+        InventoryUtil.clearInventory(world, playerId);
       } else {
         // Handle Pity on Failure (Death, Admin Contact, Instability)
-        const totalScrap = runInventoryRegistry.getCurrencyAmount(sessionId, 'scrap');
+        const totalScrap = InventoryUtil.getCurrencyAmount(world, playerId, 'scrap');
         finalScrap = calculatePityScrap(totalScrap);
         console.log(`[RunEnderSystem] executeRunEnd (FAIL): totalScrap: ${totalScrap}, pityScrap: ${finalScrap}`);
         pityAwarded = true;
 
-        runInventoryRegistry.clearCurrency(sessionId);
-        if (finalScrap > 0) runInventoryRegistry.addCurrency(sessionId, 'scrap', finalScrap);
-        runInventoryRegistry.clearSoftware(sessionId);
+        InventoryUtil.clearInventory(world, playerId);
+        if (finalScrap > 0) InventoryUtil.addCurrency(world, playerId, 'scrap', finalScrap);
       }
     }
 
@@ -155,7 +152,8 @@ export function createRunEnderSystem<T extends GameplayEvents>(
   }
 
   const handleStabilityZero = (payload: T['STABILITY_ZERO']) => {
-    if (typeof window !== 'undefined') return; // Server only
+    const isServer = typeof window === 'undefined' || (typeof process !== 'undefined' && process.env.NODE_ENV === 'test');
+    if (!isServer) return;
     const actor = world.getComponent(payload.entityId, Actor);
     if (actor?.isPlayer) {
       executeRunEnd(payload.entityId, 'FATAL: REALITY_ANCHOR_COLLAPSED', false);
@@ -170,7 +168,8 @@ export function createRunEnderSystem<T extends GameplayEvents>(
   };
 
   const handleEntityDied = (payload: T['ENTITY_DIED']) => {
-    if (typeof window !== 'undefined') return; // Server only
+    const isServer = typeof window === 'undefined' || (typeof process !== 'undefined' && process.env.NODE_ENV === 'test');
+    if (!isServer) return;
     if (payload.isPlayer) {
       executeRunEnd(payload.entityId, 'death', false);
     }

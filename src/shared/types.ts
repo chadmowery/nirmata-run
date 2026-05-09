@@ -165,28 +165,6 @@ export type SerializedGrid = z.infer<typeof SerializedGridSchema>;
 import { Changeset } from 'json-diff-ts';
 import { TurnPhase } from '@engine/turn/types';
 
-export interface RunInventoryItem {
-  entityId: number;
-  templateId: string;
-  rarityTier: string;
-  pickedUpAtFloor: number;
-  pickedUpAtTimestamp: number;
-}
-
-export interface CurrencyStack {
-  currencyType: 'scrap' | 'blueprint' | 'flux';
-  amount: number;
-  blueprintId?: string;
-  blueprintType?: 'firmware' | 'augment';
-}
-
-export interface RunInventory {
-  sessionId: string;
-  maxSlots: number;
-  software: RunInventoryItem[];
-  currency: CurrencyStack[];
-}
-
 /**
  * Polymorphic payload for state synchronization.
  * DELTA: Incremental changes using json-diff-ts. Best for small performance-critical updates.
@@ -199,7 +177,6 @@ export type DeltaPayload = {
   events?: Array<{ type: string; payload: unknown }>;
   turnNumber: number;
   playerId: number;
-  runInventory?: RunInventory; // Serialized RunInventory state
 };
 
 export type FullSyncPayload = {
@@ -210,7 +187,6 @@ export type FullSyncPayload = {
   turnNumber: number;
   playerId: number;
   phase: TurnPhase;
-  runInventory?: RunInventory; // Serialized RunInventory state
 };
 
 export type StateDelta = {

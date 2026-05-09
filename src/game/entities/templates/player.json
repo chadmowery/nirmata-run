@@ -4,7 +4,9 @@
   "components": {
     "actor": { "isPlayer": true },
     "energy": { "current": 1000, "speed": 100, "threshold": 1000 },
-    "sprite": { "key": "player" }
+    "sprite": { "key": "player" },
+    "run_inventory": { "maxSlots": 30, "software": [] },
+    "run_currency": { "stacks": [] }
   },
   "overrides": {
     "health": { "current": 180, "max": 180 },

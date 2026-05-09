@@ -36,6 +36,8 @@ import { CurrencyItem } from './currency-item';
 import { FloorState } from './floor-state';
 import { StaircaseMarker } from './staircase-marker';
 import { AnchorMarker } from './anchor-marker';
+import { RunInventory, RunCurrency } from './run-inventory';
+import { TemplateId } from './template-id';
 
 export const COMPONENTS_REGISTRY = [
   Position,
@@ -76,6 +78,9 @@ export const COMPONENTS_REGISTRY = [
   FloorState,
   StaircaseMarker,
   AnchorMarker,
+  RunInventory,
+  RunCurrency,
+  TemplateId,
 ] as const;
 
 export * from './position';
@@ -116,3 +121,5 @@ export * from './currency-item';
 export * from './floor-state';
 export * from './staircase-marker';
 export * from './anchor-marker';
+export * from './run-inventory';
+export * from './template-id';

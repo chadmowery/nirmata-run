@@ -113,5 +113,11 @@ export function buildEntity<T extends EngineEvents>(
     world.addComponent(entityId, def, deepClonedData);
   }
 
+  // Stamp the template ID for tracking and persistence
+  if (componentRegistry.has('templateId')) {
+    const templateIdDef = componentRegistry.get('templateId');
+    world.addComponent(entityId, templateIdDef, { id: templateName });
+  }
+
   return entityId;
 }

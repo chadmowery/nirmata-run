@@ -3,7 +3,7 @@ import { EventBus } from '@engine/events/event-bus';
 import { Health, Heat, Stability, Position, Actor, FloorState } from '@shared/components';
 import { EntityId } from '@engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
-import { runInventoryRegistry } from '../systems/run-inventory';
+import * as InventoryUtil from '@shared/utils/inventory-util';
 import { sessionManager } from '@engine/session/SessionManager';
 
 export function handleServerDebugCommand(
@@ -133,8 +133,8 @@ export function handleServerDebugCommand(
       const amount = Number(args.amount) || 100;
       console.log(`[DEBUG-SERVER] Giving ${amount} ${type} to session ${sessionId}`);
       
-      // Update the authoritative registry
-      runInventoryRegistry.addCurrency(sessionId, type as any, amount, {
+      // Update the authoritative ECS components
+      InventoryUtil.addCurrency(world, playerId, type as any, amount, {
         blueprintId: args.blueprintId
       });
 
