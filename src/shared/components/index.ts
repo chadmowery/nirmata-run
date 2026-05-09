@@ -37,6 +37,7 @@ import { StaircaseMarker } from './staircase-marker';
 import { AnchorMarker } from './anchor-marker';
 import { RunInventory, RunCurrency } from './run-inventory';
 import { TemplateId } from './template-id';
+import { MoveIntent, AttackIntent } from './intents';
 
 export const COMPONENTS_REGISTRY = [
   Position,
@@ -79,6 +80,8 @@ export const COMPONENTS_REGISTRY = [
   RunInventory,
   RunCurrency,
   TemplateId,
+  MoveIntent,
+  AttackIntent,
 ] as const;
 
 export * from './position';
@@ -120,3 +123,4 @@ export * from './staircase-marker';
 export * from './anchor-marker';
 export * from './run-inventory';
 export * from './template-id';
+export * from './intents';

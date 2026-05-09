@@ -13,6 +13,7 @@ import {
   StatusEffects
 } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
+import { GameEvents } from '../events/types';
 import { getLegacyHeatCost } from './legacy-code';
 
 /**
@@ -222,4 +223,4 @@ export function createFirmwareSystem<T extends GameplayEvents>(
   };
 }
 
-export type FirmwareSystem = ReturnType<typeof createFirmwareSystem>;
+export type FirmwareSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createFirmwareSystem<T>>;

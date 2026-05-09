@@ -13,10 +13,12 @@ import { RarityTier } from '@shared/components/rarity-tier';
 import { SoftwareDef } from '@shared/components/software-def';
 import { FloorState } from '@shared/components/floor-state';
 
-export interface ItemPickupSystem {
+import { GameEvents } from '../events/types';
+
+export type ItemPickupSystem<T extends GameplayEvents = GameEvents> = {
   init(): void;
   dispose(): void;
-}
+};
 
 export function createItemPickupSystem<T extends GameplayEvents>(
   world: World<T>,

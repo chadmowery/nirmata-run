@@ -2,10 +2,12 @@ import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
-import { EntityId } from '@engine/ecs/types';
+import { EntityId, Phase } from '@engine/ecs/types';
 import { Attack, Defense, LootTable, Health, Position, Actor, Heat, BurnedSoftware, SoftwareDef, RarityTier } from '@shared/components';
+import { AttackIntent } from '@shared/components/intents';
 
 import { GameplayEvents } from '@shared/events/types';
+import { GameEvents } from '../events/types';
 
 import { ComponentRegistry } from '@engine/entity/types';
 import { applyBleedOnHit, applyVampireOnKill } from './software-effects';
@@ -38,8 +40,6 @@ export function resolveDamage(
   // Apply defense
   const finalDamage = Math.max(1, damage - defense);
 
-
-
   return Math.floor(finalDamage);
 }
 
@@ -60,7 +60,6 @@ export function collectDamageModifiers<T extends GameplayEvents>(
     const rarity = world.getComponent(burnedSoftware.weapon, RarityTier);
     if (softwareDef && rarity && softwareDef.effectType !== 'dot' && softwareDef.effectType !== 'action_economy' && softwareDef.effectType !== 'heal_on_kill') {
       // Non-DoT weapon Software adds flat damage bonus
-      // (Bleed applies via status effect, not direct modifier)
       modifiers.push({
         source: `software:${softwareDef.type}`,
         type: 'additive',
@@ -74,7 +73,7 @@ export function collectDamageModifiers<T extends GameplayEvents>(
 }
 
 /**
- * Combat system that resolves damage and handles entity death.
+ * Combat system that resolves AttackIntent during the REACTION phase.
  */
 export function createCombatSystem<T extends GameplayEvents>(
   world: World<T>,
@@ -84,56 +83,6 @@ export function createCombatSystem<T extends GameplayEvents>(
   componentRegistry: ComponentRegistry,
   options: { skipLoot?: boolean } = {}
 ) {
-  function resolveBumpAttack(payload: T['BUMP_ATTACK']) {
-    const { attackerId, defenderId } = payload;
-
-    const attackerAttack = world.getComponent(attackerId, Attack);
-    const defenderHealth = world.getComponent(defenderId, Health);
-    const defenderDefense = world.getComponent(defenderId, Defense);
-
-    if (!attackerAttack || !defenderHealth) {
-      return;
-    }
-
-    const modifiers = collectDamageModifiers(world, attackerId);
-    const armor = defenderDefense?.armor ?? 0;
-    const defenderHeat = world.getComponent(defenderId, Heat);
-    const effectiveArmor = defenderHeat?.isVenting ? 0 : armor;
-
-    const damage = resolveDamage(attackerAttack.power, modifiers, effectiveArmor);
-    const oldHealth = defenderHealth.current;
-    const newHealth = Math.max(0, oldHealth - damage);
-
-    // Authoritative update: save back to world store (D-15)
-    world.addComponent(defenderId, Health, { ...defenderHealth, current: newHealth });
-
-
-
-    eventBus.emit('DAMAGE_DEALT', {
-      attackerId,
-      defenderId,
-      amount: damage,
-    });
-
-    // Apply software effects like Bleed
-    applyBleedOnHit(world, eventBus, attackerId, defenderId);
-
-    // Emit UI message
-    const attackerActor = world.getComponent(attackerId, Actor);
-    const defenderActor = world.getComponent(defenderId, Actor);
-    const attackerName = attackerActor?.isPlayer ? 'You' : 'The enemy';
-    const defenderName = defenderActor?.isPlayer ? 'you' : 'the enemy';
-
-    eventBus.emit('MESSAGE_EMITTED', {
-      text: `${attackerName} hit ${defenderName} for ${damage} damage.`,
-      type: 'combat'
-    });
-
-    if (newHealth <= 0) {
-      handleDeath(defenderId, attackerId);
-    }
-  };
-
   const handleDeath = (entityId: EntityId, killerId: EntityId) => {
     const pos = world.getComponent(entityId, Position);
     const lootTable = world.getComponent(entityId, LootTable);
@@ -181,15 +130,78 @@ export function createCombatSystem<T extends GameplayEvents>(
     }
   };
 
+  const update = (w: World<T>) => {
+    const entities = w.query(AttackIntent);
+    
+    for (const attackerId of entities) {
+      const intent = w.getComponent(attackerId, AttackIntent)!;
+      const defenderId = intent.targetId;
+
+      const attackerAttack = w.getComponent(attackerId, Attack);
+      const defenderHealth = w.getComponent(defenderId, Health);
+      const defenderDefense = w.getComponent(defenderId, Defense);
+
+      if (!attackerAttack || !defenderHealth) {
+        w.removeComponent(attackerId, AttackIntent);
+        continue;
+      }
+
+      const modifiers = collectDamageModifiers(w, attackerId);
+      const armor = defenderDefense?.armor ?? 0;
+      const defenderHeat = w.getComponent(defenderId, Heat);
+      const effectiveArmor = defenderHeat?.isVenting ? 0 : armor;
+
+      const damage = resolveDamage(attackerAttack.power, modifiers, effectiveArmor);
+      const oldHealth = defenderHealth.current;
+      const newHealth = Math.max(0, oldHealth - damage);
+
+      // Authoritative update
+      w.patchComponent(defenderId, Health, { current: newHealth });
+
+      // Signal visual bump for rendering/animations
+      eventBus.emit('BUMP_ATTACK', {
+        attackerId,
+        defenderId,
+      });
+
+      eventBus.emit('DAMAGE_DEALT', {
+        attackerId,
+        defenderId,
+        amount: damage,
+      });
+
+      // Apply software effects like Bleed
+      applyBleedOnHit(w, eventBus, attackerId, defenderId);
+
+      // Emit UI message
+      const attackerActor = w.getComponent(attackerId, Actor);
+      const defenderActor = w.getComponent(defenderId, Actor);
+      const attackerName = attackerActor?.isPlayer ? 'You' : 'The enemy';
+      const defenderName = defenderActor?.isPlayer ? 'you' : 'the enemy';
+
+      eventBus.emit('MESSAGE_EMITTED', {
+        text: `${attackerName} hit ${defenderName} for ${damage} damage.`,
+        type: 'combat'
+      });
+
+      if (newHealth <= 0) {
+        handleDeath(defenderId, attackerId);
+      }
+
+      // Cleanup intent
+      w.removeComponent(attackerId, AttackIntent);
+    }
+  };
+
   return {
     init() {
-      eventBus.on('BUMP_ATTACK', resolveBumpAttack);
+      world.registerSystem(Phase.REACTION, update);
     },
-
     dispose() {
-      eventBus.off('BUMP_ATTACK', resolveBumpAttack);
-    }
+      world.unregisterSystem(Phase.REACTION, update);
+    },
+    update,
   };
 }
 
-export type CombatSystem = ReturnType<typeof createCombatSystem>;
+export type CombatSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<typeof createCombatSystem<T>>;

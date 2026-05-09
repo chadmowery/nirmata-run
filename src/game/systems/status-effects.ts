@@ -3,6 +3,7 @@ import { EventBus } from '@engine/events/event-bus';
 import { EntityId } from '@engine/ecs/types';
 import { StatusEffects } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
+import { GameEvents } from '../events/types';
 
 /**
  * Status effect system that manages timed effects on entities.
@@ -129,4 +130,4 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
   }
 }
 
-export type StatusEffectSystem = ReturnType<typeof createStatusEffectSystem>;
+export type StatusEffectSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createStatusEffectSystem<T>>;

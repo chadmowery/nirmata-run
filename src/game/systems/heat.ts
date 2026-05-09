@@ -3,6 +3,7 @@ import { EventBus } from '@engine/events/event-bus';
 import { EntityId } from '@engine/ecs/types';
 import { Heat, Shell, FirmwareSlots, AbilityDef, Actor } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
+import { GameEvents } from '../events/types';
 
 /**
  * Heat system that manages entity heat dissipation and venting.
@@ -145,4 +146,4 @@ export function createHeatSystem<T extends GameplayEvents>(
   }
 }
 
-export type HeatSystem = ReturnType<typeof createHeatSystem>;
+export type HeatSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<typeof createHeatSystem<T>>;

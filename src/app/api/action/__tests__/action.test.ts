@@ -6,6 +6,7 @@ import { Grid } from '@engine/grid/grid';
 import { TurnManager } from '@engine/turn/turn-manager';
 import { EventBus } from '@engine/events/event-bus';
 import { Actor, Position, Energy, Health } from '@shared/components';
+import { MoveIntent } from '@shared/components/intents';
 import { GameAction, DIRECTIONS } from '@game/input/actions';
 import { createMovementSystem } from '@game/systems/movement';
 import { GameplayEvents } from '@shared/events/types';
@@ -48,11 +49,13 @@ describe('Action API Route', () => {
     grid.addEntity(playerId, 5, 5);
 
     const movementSystem = createMovementSystem(world, grid, eventBus);
+    movementSystem.init();
+
     turnManager.setPlayerActionHandler((action: string, entityId: number) => {
       const gameAction = action as GameAction;
       if (DIRECTIONS[gameAction]) {
         const { dx, dy } = DIRECTIONS[gameAction];
-        movementSystem.processMove(entityId, dx, dy);
+        world.addComponent(entityId, MoveIntent, { dx, dy });
       }
     });
 
@@ -141,7 +144,7 @@ describe('Action API Route', () => {
 
   it('should process enemy turns during the player action request', async () => {
     // Setup additional movement system for AI if needed, but we used the same one
-    const movementSystem = createMovementSystem(world, grid, eventBus);
+    // Already initialized in beforeEach
 
     // Add enemy
     const enemyId = world.createEntity();
@@ -154,8 +157,8 @@ describe('Action API Route', () => {
     // Mock AI System
     const aiSystem = {
       processEnemyTurn: vi.fn((eid: number) => {
-        // Simple AI move: step west
-        movementSystem.processMove(eid, -1, 0);
+        // Simple AI move: step west via MoveIntent
+        world.addComponent(eid, MoveIntent, { dx: -1, dy: 0 });
       }),
     };
 

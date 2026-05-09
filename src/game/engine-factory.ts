@@ -9,8 +9,10 @@ import { ComponentRegistry } from '../engine/entity/types';
 import { ComponentDef } from '../engine/ecs/types';
 import { registerGameTemplates } from './entities';
 import { createMovementSystem } from './systems/movement';
+import { MoveIntent } from '@shared/components';
 import { createCombatSystem } from './systems/combat';
 import { createAISystem } from './systems/ai';
+import { registerCoreSystems } from './systems/registration';
 import { createDeadZoneSystem, DeadZoneSystem } from './systems/dead-zone';
 import { ItemPickupSystem, createItemPickupSystem } from './systems/item-pickup';
 import { createHeatSystem, HeatSystem } from './systems/heat';
@@ -24,7 +26,7 @@ import { createRunEnderSystem } from './systems/run-ender';
 import { createStabilitySystem, StabilitySystem } from './systems/stability';
 import { createFloorManagerSystem, FloorManagerSystem } from './systems/floor-manager';
 import { createAnchorInteractionSystem, AnchorInteractionSystem } from './systems/anchor-interaction';
-import { createCurrencyDropSystem } from './systems/currency-drop';
+import { createCurrencyDropSystem, CurrencyDropSystem } from './systems/currency-drop';
 import { generateDungeon } from './generation/dungeon-generator';
 import { placeEntities } from './generation/entity-placement';
 import RNG from 'rot-js/lib/rng';
@@ -60,20 +62,20 @@ export interface EngineInstance<T extends GameplayEvents = GameEvents> {
     movement: ReturnType<typeof createMovementSystem<T>>;
     combat: ReturnType<typeof createCombatSystem<T>>;
     ai: ReturnType<typeof createAISystem<T>>;
-    deadZone: DeadZoneSystem;
-    itemPickup: ItemPickupSystem;
-    heat: HeatSystem;
-    statusEffect: StatusEffectSystem;
-    firmware: FirmwareSystem;
-    kernelPanic: KernelPanicSystem;
-    augment: AugmentSystem;
-    packCoordinator: PackCoordinatorSystem;
+    deadZone: DeadZoneSystem<T>;
+    itemPickup: ItemPickupSystem<T>;
+    heat: HeatSystem<T>;
+    statusEffect: StatusEffectSystem<T>;
+    firmware: FirmwareSystem<T>;
+    kernelPanic: KernelPanicSystem<T>;
+    augment: AugmentSystem<T>;
+    packCoordinator: PackCoordinatorSystem<T>;
     tileCorruption: ReturnType<typeof createTileCorruptionSystem<T>>;
     runEnder: ReturnType<typeof createRunEnderSystem<T>>;
     stability: StabilitySystem<T>;
     floorManager: FloorManagerSystem<T>;
     anchorInteraction: AnchorInteractionSystem<T>;
-    currencyDrop: ReturnType<typeof createCurrencyDropSystem>;
+    currencyDrop: CurrencyDropSystem<T>;
   };
 }
 
@@ -109,10 +111,15 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   const grid = dungeonResult.grid;
 
   // Systems
-  const movementSystem = createMovementSystem(world, grid, eventBus);
-  const combatSystem = createCombatSystem(world, grid, eventBus, entityFactory, componentRegistry, {
-    skipLoot: config.isClient
-  });
+  // Core Systems (Shared with Pipeline)
+  const { movement: movementSystem, combat: combatSystem } = registerCoreSystems(
+    world, 
+    grid, 
+    eventBus, 
+    entityFactory, 
+    componentRegistry
+  );
+
   const deadZoneSystem = createDeadZoneSystem(world, grid, eventBus);
   const aiSystem = createAISystem(world, grid, eventBus);
   const itemPickupSystem = createItemPickupSystem(world, grid, eventBus);
@@ -127,8 +134,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   const stabilitySystem = createStabilitySystem(world, eventBus);
   const currencyDropSystem = createCurrencyDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
 
-  movementSystem.init();
-  combatSystem.init();
+  // Initialize remaining systems
   aiSystem.init();
   deadZoneSystem.init();
   itemPickupSystem.init();
@@ -300,7 +306,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     if (DIRECTIONS[action]) {
       const { dx, dy } = DIRECTIONS[action];
       if (dx !== 0 || dy !== 0) {
-        eventBus.emit('MOVE_REQUESTED', { entityId, dx, dy });
+        world.addComponent(entityId, MoveIntent, { dx, dy });
       }
     } else if (action === GameAction.WAIT) {
       // Wait

@@ -1,128 +1,136 @@
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
-import { EntityId } from '@engine/ecs/types';
+import { EntityId, Phase } from '@engine/ecs/types';
 import { Position } from '@shared/components/position';
 import { Hostile } from '@shared/components/hostile';
 import { Actor } from '@shared/components/actor';
 import { BlocksMovement } from '@shared/components/blocks-movement';
 import { StatusEffects } from '@shared/components/status-effects';
+import { MoveIntent, AttackIntent } from '@shared/components/intents';
 
 import { GameplayEvents } from '@shared/events/types';
-
-export type MoveResult = 'moved' | 'blocked' | 'bump-attack';
+import { GameEvents } from '../events/types';
 
 /**
- * Creates a movement system that handles entity movement and collision.
+ * Movement system that resolves MoveIntent during the ACTION phase.
  */
 export function createMovementSystem<T extends GameplayEvents>(
   world: World<T>, 
   grid: Grid, 
   eventBus: EventBus<T>
 ) {
-  const processMove = (entityId: EntityId, dx: number, dy: number): MoveResult => {
-    const pos = world.getComponent(entityId, Position);
-    if (!pos) return 'blocked';
+  const update = (w: World<T>) => {
+    const entities = w.query(MoveIntent, Position);
+    
+    for (const entityId of entities) {
+      const intent = w.getComponent(entityId, MoveIntent)!;
+      const pos = w.getComponent(entityId, Position)!;
 
-    // Check for status effects that impede movement
-    const statusEffects = world.getComponent(entityId, StatusEffects);
-    if (statusEffects) {
-      // CRITICAL_REBOOT blocks everything
-      if (statusEffects.effects.some(e => e.name === 'CRITICAL_REBOOT')) {
-        eventBus.emit('MESSAGE_EMITTED', {
-          text: 'System is rebooting... Movement disabled!',
-          type: 'error'
-        });
-        return 'blocked';
-      }
-
-      // INPUT_LAG has a chance to ignore input
-      if (statusEffects.effects.some(e => e.name === 'INPUT_LAG')) {
-        if (Math.random() < 0.5) {
+      // 1. Check for status effects that impede movement
+      const statusEffects = w.getComponent(entityId, StatusEffects);
+      if (statusEffects) {
+        if (statusEffects.effects.some(e => e.name === 'CRITICAL_REBOOT')) {
           eventBus.emit('MESSAGE_EMITTED', {
-            text: 'Input lag! Command dropped.',
-            type: 'warning'
+            text: 'System is rebooting... Movement disabled!',
+            type: 'error'
           });
-          return 'blocked';
+          w.removeComponent(entityId, MoveIntent);
+          continue;
+        }
+
+        if (statusEffects.effects.some(e => e.name === 'INPUT_LAG')) {
+          if (Math.random() < 0.5) {
+            eventBus.emit('MESSAGE_EMITTED', {
+              text: 'Input lag! Command dropped.',
+              type: 'warning'
+            });
+            w.removeComponent(entityId, MoveIntent);
+            continue;
+          }
         }
       }
-    }
 
-    const targetX = pos.x + dx;
-    const targetY = pos.y + dy;
+      const targetX = pos.x + intent.dx;
+      const targetY = pos.y + intent.dy;
 
-    // 1. Check bounds
-    if (!grid.inBounds(targetX, targetY)) {
-      return 'blocked';
-    }
-
-    // 2. Check walkability (static terrain)
-    if (!grid.isWalkable(targetX, targetY)) {
-      return 'blocked';
-    }
-
-    // 3. Check entity collisions
-    const occupants = grid.getEntitiesAt(targetX, targetY);
-    const attacker = world.getComponent(entityId, Actor);
-    const isAttackerPlayer = attacker?.isPlayer ?? false;
-
-    for (const occupantId of occupants) {
-      if (occupantId === entityId) continue;
-
-      const defenderHostile = world.hasComponent(occupantId, Hostile);
-      const defenderActor = world.getComponent(occupantId, Actor);
-      const isDefenderPlayer = defenderActor?.isPlayer ?? false;
-
-      // Attack if: Player -> Hostile OR Hostile -> Player
-      if ((isAttackerPlayer && defenderHostile) || (!isAttackerPlayer && isDefenderPlayer)) {
-        eventBus.emit('BUMP_ATTACK', {
-          attackerId: entityId,
-          defenderId: occupantId,
-        });
-        return 'bump-attack';
+      // 2. Check bounds
+      if (!grid.inBounds(targetX, targetY)) {
+        w.removeComponent(entityId, MoveIntent);
+        continue;
       }
 
-      // Check for non-hostile blocking entities
-      if (world.hasComponent(occupantId, BlocksMovement)) {
-        return 'blocked';
+      // 3. Check walkability (static terrain)
+      if (!grid.isWalkable(targetX, targetY)) {
+        w.removeComponent(entityId, MoveIntent);
+        continue;
       }
+
+      // 4. Check entity collisions
+      const occupants = grid.getEntitiesAt(targetX, targetY);
+      const attacker = w.getComponent(entityId, Actor);
+      const isAttackerPlayer = attacker?.isPlayer ?? false;
+
+      let blocked = false;
+      let combatTriggered = false;
+
+      for (const occupantId of occupants) {
+        if (occupantId === entityId) continue;
+
+        const defenderHostile = w.hasComponent(occupantId, Hostile);
+        const defenderActor = w.getComponent(occupantId, Actor);
+        const isDefenderPlayer = defenderActor?.isPlayer ?? false;
+
+        // Convert MoveIntent to AttackIntent if: Player -> Hostile OR Hostile -> Player
+        if ((isAttackerPlayer && defenderHostile) || (!isAttackerPlayer && isDefenderPlayer)) {
+          w.addComponent(entityId, AttackIntent, { targetId: occupantId });
+          combatTriggered = true;
+          break;
+        }
+
+        // Check for non-hostile blocking entities
+        if (w.hasComponent(occupantId, BlocksMovement)) {
+          blocked = true;
+          break;
+        }
+      }
+
+      if (combatTriggered || blocked) {
+        w.removeComponent(entityId, MoveIntent);
+        continue;
+      }
+
+      // 5. Perform movement
+      const oldX = pos.x;
+      const oldY = pos.y;
+      
+      w.patchComponent(entityId, Position, { x: targetX, y: targetY });
+      grid.moveEntity(entityId, oldX, oldY, targetX, targetY);
+
+      // Emit movement event for UI/Rendering
+      eventBus.emit('ENTITY_MOVED', {
+        entityId,
+        fromX: oldX,
+        fromY: oldY,
+        toX: targetX,
+        toY: targetY,
+      });
+
+      // Cleanup intent
+      w.removeComponent(entityId, MoveIntent);
     }
-
-    // 4. Perform movement
-    const oldX = pos.x;
-    const oldY = pos.y;
-    
-    // Update position component
-    world.patchComponent(entityId, Position, { x: targetX, y: targetY });
-    
-    // Update grid spatial index
-    grid.moveEntity(entityId, oldX, oldY, targetX, targetY);
-
-    // Emit movement event
-    eventBus.emit('ENTITY_MOVED', {
-      entityId,
-      fromX: oldX,
-      fromY: oldY,
-      toX: targetX,
-      toY: targetY,
-    });
-
-    return 'moved';
-  };
-
-  const onMoveRequested = (payload: T['MOVE_REQUESTED']) => {
-    processMove(payload.entityId, payload.dx, payload.dy);
   };
 
   return {
     init() {
-      eventBus.on('MOVE_REQUESTED', onMoveRequested);
+      world.registerSystem(Phase.ACTION, update);
     },
     dispose() {
-      eventBus.off('MOVE_REQUESTED', onMoveRequested);
+      world.unregisterSystem(Phase.ACTION, update);
     },
-    processMove,
+    // We keep update exposed for manual execution in pipeline.ts (Phase 6.3)
+    update,
   };
 }
 
-export type MovementSystem = ReturnType<typeof createMovementSystem>;
+export type MovementSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<typeof createMovementSystem<T>>;

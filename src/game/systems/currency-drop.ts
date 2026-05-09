@@ -3,6 +3,7 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
+import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 import { LootTable, Position, Actor } from '@shared/components';
 import economyRaw from '../entities/templates/economy.json';
@@ -14,10 +15,10 @@ const economy = economyRaw as unknown as EconomyConfig;
 /**
  * System that handles currency drops when entities die.
  */
-export function createCurrencyDropSystem(
-  world: World<GameEvents>,
+export function createCurrencyDropSystem<T extends GameplayEvents>(
+  world: World<T>,
   grid: Grid,
-  eventBus: EventBus<GameEvents>,
+  eventBus: EventBus<T>,
   entityFactory: EntityFactory,
   componentRegistry: ComponentRegistry
 ) {
@@ -75,7 +76,7 @@ export function createCurrencyDropSystem(
   };
 
   const spawnCurrency = (
-    world: World<GameEvents>,
+    world: World<T>,
     type: 'scrap' | 'flux' | 'blueprint',
     amount: number,
     x: number,
@@ -105,10 +106,12 @@ export function createCurrencyDropSystem(
       x,
       y,
       blueprintId: meta?.blueprintId
-    });
+    } as unknown as T['CURRENCY_DROPPED']);
   };
 
   return {
     init
   };
 }
+
+export type CurrencyDropSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createCurrencyDropSystem<T>>;

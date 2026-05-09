@@ -11,6 +11,7 @@ import {
   PayloadType
 } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
+import { GameEvents } from '../events/types';
 import { getLegacyMagnitude } from './legacy-code';
 
 interface TriggerContext {
@@ -263,4 +264,4 @@ export function createAugmentSystem<T extends GameplayEvents>(
   };
 }
 
-export type AugmentSystem = ReturnType<typeof createAugmentSystem>;
+export type AugmentSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createAugmentSystem<T>>;

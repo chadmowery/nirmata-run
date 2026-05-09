@@ -32,14 +32,17 @@ export function defineComponent<T>(key: string, zodShape: ZodSchema<T>): Compone
  * Internal type for World to avoid circular dependency.
  * Systems are functions that take the World and perform logic.
  */
-export type SystemFn = (world: unknown) => void;
+export type SystemFn = (world: any) => void;
 
 /**
  * Standard execution phases for systems.
  */
 export enum Phase {
   PRE_TURN = 'pre-turn',
+  GATHER_INTENT = 'gather-intent',
   ACTION = 'action',
+  REACTION = 'reaction',
+  CLEANUP = 'cleanup',
   POST_TURN = 'post-turn',
   RENDER = 'render',
 }

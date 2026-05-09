@@ -398,6 +398,19 @@ export function setupInternalHandlers(world: World<GameplayEvents>, grid: Grid, 
     }
   });
 
+  // ENTITY_DIED handler (State Cleanup)
+  eventBus.on('ENTITY_DIED', (payload) => {
+    const { entityId } = payload;
+    
+    // Clear burned software on death
+    if (world.hasComponent(entityId, BurnedSoftware)) {
+      world.patchComponent(entityId, BurnedSoftware, { weapon: null, armor: null });
+    }
+
+    // Clear inventory on death
+    InventoryUtil.clearInventory(world, entityId);
+  });
+
   // Note: RUN_ENDED and extraction rewards are now handled authoritatively 
   // by the RunEnderSystem in src/game/systems/run-ender.ts
 }

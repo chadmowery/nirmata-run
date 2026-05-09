@@ -160,6 +160,19 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
   }
 
   /**
+   * Unregister a system from a specific phase.
+   */
+  unregisterSystem(phase: Phase, system: SystemFn): void {
+    const phaseSystems = this.systems.get(phase);
+    if (phaseSystems) {
+      const index = phaseSystems.indexOf(system);
+      if (index !== -1) {
+        phaseSystems.splice(index, 1);
+      }
+    }
+  }
+
+  /**
    * Execute all systems registered for a phase.
    */
   executeSystems(phase: Phase): void {

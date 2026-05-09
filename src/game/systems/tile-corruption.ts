@@ -6,6 +6,7 @@ import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
 import { CorruptionState } from '@shared/components/corruption-state';
 import { GameplayEvents } from '@shared/events/types';
+import { GameEvents } from '../events/types';
 import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
 
@@ -267,4 +268,4 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
   };
 }
 
-export type TileCorruptionSystem = ReturnType<typeof createTileCorruptionSystem>;
+export type TileCorruptionSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createTileCorruptionSystem<T>>;

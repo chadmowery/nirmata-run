@@ -10,9 +10,9 @@ import { AIState, AIBehavior, AIBehaviorType } from '@shared/components/ai-state
 import { FovAwareness } from '@shared/components/fov-awareness';
 import { PackMember } from '@shared/components/pack-member';
 import { StatusEffects } from '@shared/components/status-effects';
-import { Health } from '@shared/components/health';
-import { Defense } from '@shared/components/defense';
+import { MoveIntent, AttackIntent } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
+import { GameEvents } from '../events/types';
 
 /**
  * AI System handles enemy decision making and behavior state transitions.
@@ -152,13 +152,13 @@ export function createAISystem<T extends GameplayEvents>(
 
         const step = pathfindToward(pos.x, pos.y, targetX, targetY);
         if (step) {
-          eventBus.emit('MOVE_REQUESTED', { entityId, dx: step.dx, dy: step.dy });
+          world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
         }
       } else if (nextBehavior === AIBehavior.ATTACKING) {
         // Move toward player to trigger bump attack
         const dx = player.x - pos.x;
         const dy = player.y - pos.y;
-        eventBus.emit('MOVE_REQUESTED', { entityId, dx, dy });
+        world.addComponent(entityId, MoveIntent, { dx, dy });
       }
     },
 
@@ -210,14 +210,13 @@ export function createAISystem<T extends GameplayEvents>(
       const player = findPlayerEntity();
       if (!player) return;
 
-      // 2. Emit ADMIN_DETECTED if not already done (can be handled by a flag in AIState or similar, 
-      // but plan says "on first turn". We'll just emit it, UI can throttle if needed)
+      // 2. Emit ADMIN_DETECTED if not already done
       eventBus.emit('ADMIN_DETECTED', {});
 
-      // 3. Always pathfind toward player (System_Admin has global knowledge)
+      // 3. Always pathfind toward player
       const step = pathfindToward(pos.x, pos.y, player.x, player.y);
       if (step) {
-        eventBus.emit('MOVE_REQUESTED', { entityId, dx: step.dx, dy: step.dy });
+        world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
       }
     },
 
@@ -247,16 +246,14 @@ export function createAISystem<T extends GameplayEvents>(
           // Bump attack
           const dx = player.x - pos.x;
           const dy = player.y - pos.y;
-          eventBus.emit('MOVE_REQUESTED', { entityId, dx, dy });
+          world.addComponent(entityId, MoveIntent, { dx, dy });
         } else {
           // Pathfind toward player
           const step = pathfindToward(pos.x, pos.y, player.x, player.y);
           if (step) {
-            eventBus.emit('MOVE_REQUESTED', { entityId, dx: step.dx, dy: step.dy });
+            world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
           }
         }
-      } else {
-        // If not visible, stay in place (Seed_Eater is "ceiling-mounted" and doesn't patrol)
       }
     },
 
@@ -286,7 +283,7 @@ export function createAISystem<T extends GameplayEvents>(
           // Ground slam!
           const dx = player.x - pos.x;
           const dy = player.y - pos.y;
-          eventBus.emit('MOVE_REQUESTED', { entityId, dx, dy });
+          world.addComponent(entityId, MoveIntent, { dx, dy });
 
           // Create Dead Zones on 4 cardinal adjacent tiles
           const directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];
@@ -311,7 +308,7 @@ export function createAISystem<T extends GameplayEvents>(
           // Chase player
           const step = pathfindToward(pos.x, pos.y, player.x, player.y);
           if (step) {
-            eventBus.emit('MOVE_REQUESTED', { entityId, dx: step.dx, dy: step.dy });
+            world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
           }
         }
       }
@@ -353,82 +350,55 @@ export function createAISystem<T extends GameplayEvents>(
 
           const step = pathfindToward(pos.x, pos.y, targetX, targetY);
           if (step) {
-            eventBus.emit('MOVE_REQUESTED', { entityId, dx: step.dx, dy: step.dy });
+            world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
             eventBus.emit('MESSAGE_EMITTED', { text: 'Logic-Leaker retreats!', type: 'combat' });
           } else {
             this.processBasicTurn(entityId);
           }
         } else if (dist <= ATTACK_RANGE) {
-          // Ranged attack
-          const damage = 5;
-          const projectileType = 'corrupted_packet';
-
+          // Ranged attack - delegated to CombatSystem via AttackIntent
+          world.addComponent(entityId, AttackIntent, { targetId: player.id });
+          
+          // Emit projectile event for visual feedback
           eventBus.emit('RANGED_ATTACK', {
             attackerId: entityId,
             defenderId: player.id,
-            damage,
-            projectileType
+            damage: 5, // Note: CombatSystem will resolve actual damage from Attack component
+            projectileType: 'corrupted_packet'
           });
 
-          const playerHealth = world.getComponent(player.id, Health);
-          const playerDefense = world.getComponent(player.id, Defense);
-          if (playerHealth) {
-            const armor = playerDefense?.armor ?? 0;
-            const finalDamage = Math.max(1, damage - armor);
-            world.patchComponent(player.id, Health, {
-              current: Math.max(0, playerHealth.current - finalDamage)
+          // Apply FIRMWARE_LOCK status effect
+          const statusEffects = world.getComponent(player.id, StatusEffects);
+          if (statusEffects) {
+            world.patchComponent(player.id, StatusEffects, {
+              effects: [
+                ...statusEffects.effects,
+                {
+                  name: 'FIRMWARE_LOCK',
+                  duration: 3,
+                  magnitude: 1,
+                  source: 'logic_leaker'
+                }
+              ]
             });
-
-            eventBus.emit('DAMAGE_DEALT', {
-              attackerId: entityId,
-              defenderId: player.id,
-              amount: finalDamage
+            eventBus.emit('STATUS_EFFECT_APPLIED', {
+              entityId: player.id,
+              effectName: 'FIRMWARE_LOCK',
+              duration: 3,
+              magnitude: 1,
+              source: 'logic_leaker'
             });
-
-            // Apply FIRMWARE_LOCK
-            const statusEffects = world.getComponent(player.id, StatusEffects);
-            if (statusEffects) {
-              world.patchComponent(player.id, StatusEffects, {
-                effects: [
-                  ...statusEffects.effects,
-                  {
-                    name: 'FIRMWARE_LOCK',
-                    duration: 3,
-                    magnitude: 1,
-                    source: 'logic_leaker'
-                  }
-                ]
-              });
-              eventBus.emit('STATUS_EFFECT_APPLIED', {
-                entityId: player.id,
-                effectName: 'FIRMWARE_LOCK',
-                duration: 3,
-                magnitude: 1,
-                source: 'logic_leaker'
-              });
-            }
-
-            eventBus.emit('MESSAGE_EMITTED', {
-              text: 'Logic-Leaker fires a Corrupted Packet! Firmware locked!',
-              type: 'combat'
-            });
-
-            if (playerHealth.current <= 0) {
-              world.addComponent(player.id, Health, { ...playerHealth, isAlive: false });
-              eventBus.emit('ENTITY_DIED', { entityId: player.id, killerId: entityId, isPlayer: true });
-
-              const playerPos = world.getComponent(player.id, Position);
-              if (playerPos) {
-                grid.removeEntity(player.id, playerPos.x, playerPos.y);
-              }
-              world.destroyEntity(player.id);
-            }
           }
+
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: 'Logic-Leaker fires a Corrupted Packet! Firmware locked!',
+            type: 'combat'
+          });
         } else {
-          // Chase player (close the gap)
+          // Chase player
           const step = pathfindToward(pos.x, pos.y, player.x, player.y);
           if (step) {
-            eventBus.emit('MOVE_REQUESTED', { entityId, dx: step.dx, dy: step.dy });
+            world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
           }
         }
       }
@@ -456,19 +426,17 @@ export function createAISystem<T extends GameplayEvents>(
 
       const dist = Math.abs(pos.x - player.x) + Math.abs(pos.y - player.y);
 
-      // 2. Teleport if visible and within range (8 tiles) but not already adjacent
+      // 2. Teleport logic
       if (canSeePlayer && dist > 1 && dist <= 8) {
         const dx = Math.sign(player.x - pos.x);
         const dy = Math.sign(player.y - pos.y);
 
-        // Target is "behind" the player relative to current position
         const targetX = player.x + dx;
         const targetY = player.y + dy;
 
         let finalX = -1;
         let finalY = -1;
 
-        // Search for walkable tile near target
         outer: for (let r = 0; r <= 3; r++) {
           for (let tx = -r; tx <= r; tx++) {
             for (let ty = -r; ty <= r; ty++) {
@@ -500,14 +468,11 @@ export function createAISystem<T extends GameplayEvents>(
       if (isAdjacent(pos.x, pos.y, player.x, player.y)) {
         const adx = player.x - pos.x;
         const ady = player.y - pos.y;
-        eventBus.emit('MOVE_REQUESTED', { entityId, dx: adx, dy: ady });
-
-        // Note: Special bump attack effect (HUD_GLITCH) should now be handled 
-        // by a system listening for BUMP_ATTACK from a Null-Pointer.
+        world.addComponent(entityId, MoveIntent, { dx: adx, dy: ady });
         return;
       }
 
-      // 4. Fallback to basic chasing/pathfinding
+      // 4. Fallback to basic chasing
       this.processBasicTurn(entityId);
     },
 
@@ -544,7 +509,6 @@ export function createAISystem<T extends GameplayEvents>(
         return this.processBasicTurn(entityId);
       }
 
-      // Sort by proximity to follower
       targets.sort((a, b) => {
         const distA = Math.abs(a.x - pos.x) + Math.abs(a.y - pos.y);
         const distB = Math.abs(b.x - pos.x) + Math.abs(b.y - pos.y);
@@ -553,14 +517,13 @@ export function createAISystem<T extends GameplayEvents>(
 
       const bestTarget = targets[0];
 
-      // If already at best target, do nothing (wait for detonation)
       if (bestTarget.x === pos.x && bestTarget.y === pos.y) {
         return;
       }
 
       const step = pathfindToward(pos.x, pos.y, bestTarget.x, bestTarget.y);
       if (step) {
-        eventBus.emit('MOVE_REQUESTED', { entityId, dx: step.dx, dy: step.dy });
+        world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
       }
     },
 
@@ -569,4 +532,4 @@ export function createAISystem<T extends GameplayEvents>(
   };
 }
 
-export type AISystem = ReturnType<typeof createAISystem>;
+export type AISystem<T extends GameplayEvents = GameplayEvents> = ReturnType<typeof createAISystem<T>>;

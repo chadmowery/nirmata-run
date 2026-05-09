@@ -4,6 +4,7 @@ import { EventBus } from '@engine/events/event-bus';
 import { EntityId } from '@engine/ecs/types';
 import { Position, PackMember, Actor, StatusEffects } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
+import { GameEvents } from '../events/types';
 
 /**
  * System that coordinates swarm/pack behaviors, such as the Buffer-Overflow detonation.
@@ -130,4 +131,4 @@ export function createPackCoordinatorSystem<T extends GameplayEvents>(
   };
 }
 
-export type PackCoordinatorSystem = ReturnType<typeof createPackCoordinatorSystem>;
+export type PackCoordinatorSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createPackCoordinatorSystem<T>>;

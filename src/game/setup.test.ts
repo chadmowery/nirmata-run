@@ -4,7 +4,7 @@ import { createGame } from './setup';
 import { GameState } from './states/types';
 import { GameAction } from './input/actions';
 import * as Components from '@shared/components';
-const { Position, Actor, Energy, Hostile } = Components;
+const { Position, Actor, Energy, Hostile, Health } = Components;
 
 describe('Game Setup Integration', () => {
   let context: ReturnType<typeof createGame>;
@@ -15,7 +15,13 @@ describe('Game Setup Integration', () => {
     // Mock fetch for action calls
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ payload: { type: 'DELTA', world: {}, grid: {}, events: [], turnNumber: 1 } })
+      json: async () => ({ payload: { 
+        type: 'DELTA', 
+        world: { nextId: 100, entities: [], stores: {} }, 
+        grid: [], 
+        events: [], 
+        turnNumber: 1 
+      } })
     }));
   });
 
@@ -125,6 +131,8 @@ describe('Game Setup Integration', () => {
     const enemy = world.createEntity();
     world.addComponent(enemy, Position, { x: 2, y: 1 });
     world.addComponent(enemy, Hostile, {});
+    world.addComponent(enemy, Health, { current: 10, max: 10, isAlive: true });
+    world.addComponent(enemy, Actor, { isPlayer: false });
     grid.addEntity(enemy, 2, 1);
 
     // 3. Transition to Playing

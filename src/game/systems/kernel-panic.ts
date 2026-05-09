@@ -3,6 +3,7 @@ import { EventBus } from '@engine/events/event-bus';
 import { EntityId } from '@engine/ecs/types';
 import { Heat, Shell } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
+import { GameEvents } from '../events/types';
 
 export interface KernelPanicResult {
   tier: number;
@@ -178,4 +179,4 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
   };
 }
 
-export type KernelPanicSystem = ReturnType<typeof createKernelPanicSystem>;
+export type KernelPanicSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createKernelPanicSystem<T>>;

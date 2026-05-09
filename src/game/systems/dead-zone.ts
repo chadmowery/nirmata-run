@@ -4,6 +4,7 @@ import { EventBus } from '@engine/events/event-bus';
 import { EntityId } from '@engine/ecs/types';
 import { DeadZone, Position, Health, Actor } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
+import { GameEvents } from '../events/types';
 
 /**
  * Dead zone system that manages creation, damage application, and expiration of Dead Zone tiles.
@@ -118,4 +119,4 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
   }
 }
 
-export type DeadZoneSystem = ReturnType<typeof createDeadZoneSystem>;
+export type DeadZoneSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createDeadZoneSystem<T>>;

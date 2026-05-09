@@ -9,7 +9,7 @@ import { GAME_TRANSITIONS } from './states/game-states';
 import { InputManager } from './input/input-manager';
 import { GameAction, DIRECTIONS, DEFAULT_BINDINGS, isFirmwareAction, getFirmwareSlotIndex } from './input/actions';
 import { createTargetingManager } from './input/targeting';
-import { AbilityDef, FirmwareSlots, Position } from '@shared/components';
+import { AbilityDef, FirmwareSlots, Position, MoveIntent } from '@shared/components';
 import { ActionIntent } from '@shared/types';
 import { RunMode } from '@shared/run-mode';
 import { logger } from '@shared/utils/logger';
@@ -364,7 +364,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     context.packCoordinatorSystem.resetTurnState();
     if (DIRECTIONS[gameAction]) {
       const { dx, dy } = DIRECTIONS[gameAction];
-      eventBus.emit('MOVE_REQUESTED', { entityId, dx: dx, dy: dy });
+      world.addComponent(entityId, MoveIntent, { dx, dy });
     } else if (action === GameAction.VENT) {
       eventBus.emit('VENT_HEAT_REQUESTED', { entityId });
     }

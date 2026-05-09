@@ -52,7 +52,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
   }
 
   /**
-   * Run the full turn cycle: pre-turn -> enemy turns -> post-turn -> energy tick.
+   * Run the full turn cycle: pre-turn -> action resolution -> enemy turns -> post-turn -> energy tick.
    */
   private executeTurnCycle(): void {
     if (this._paused) return;
@@ -65,17 +65,22 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     this.world.executeSystems(Phase.PRE_TURN);
     if (this._paused) return;
 
-    // 2. Enemy turns (for those already ready)
+    // 2. Resolve Player Action Sequence
+    // The player's intent was already attached in submitAction via the playerActionHandler
+    this.executeActionSequence();
+    if (this._paused) return;
+
+    // 3. Enemy turns (for those already ready)
     this.phase = TurnPhase.ENEMY_TURNS;
     this.processEnemyTurns();
     if (this._paused) return;
 
-    // 3. Post-turn phase
+    // 4. Post-turn phase
     this.phase = TurnPhase.POST_TURN;
     this.world.executeSystems(Phase.POST_TURN);
     if (this._paused) return;
 
-    // 4. Advance energy until player is ready
+    // 5. Advance energy until player is ready
     this.advanceUntilPlayerReady();
     if (this._paused) return;
 
@@ -84,6 +89,25 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
 
     // Flush events at the very end of the cycle
     this.eventBus.flush();
+  }
+
+  /**
+   * Sequentially executes the core gameplay phases (ACTION, REACTION, CLEANUP).
+   */
+  private executeActionSequence(): void {
+    if (this._paused) return;
+
+    // 1. Gather Intent phase
+    this.world.executeSystems(Phase.GATHER_INTENT);
+
+    // 2. Action phase (Movement)
+    this.world.executeSystems(Phase.ACTION);
+
+    // 3. Reaction phase (Combat)
+    this.world.executeSystems(Phase.REACTION);
+
+    // 4. Cleanup phase
+    this.world.executeSystems(Phase.CLEANUP);
   }
 
   /**
@@ -110,6 +134,9 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
         this.enemyActionHandler(enemyId);
       }
       this.deductEnergy(enemyId, this.config.defaultActionCost);
+      
+      // Resolve the enemy's intent immediately before the next enemy acts
+      this.executeActionSequence();
     }
   }
 

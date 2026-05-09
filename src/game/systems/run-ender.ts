@@ -6,9 +6,10 @@ import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
 import { AIState, AIBehaviorType } from '@shared/components/ai-state';
 import { FloorState } from '@shared/components/floor-state';
-import { RunInventory } from '@shared/components/run-inventory';
+import { RunInventory, BurnedSoftware } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { GameplayEvents } from '@shared/events/types';
+import { GameEvents } from '../events/types';
 import { RunMode } from '@shared/run-mode';
 import { VaultItem } from '@shared/profile';
 import {
@@ -79,6 +80,9 @@ export function createRunEnderSystem<T extends GameplayEvents>(
 
         // Finalize inventory (clear for extraction)
         InventoryUtil.clearInventory(world, playerId);
+        if (world.hasComponent(playerId, BurnedSoftware)) {
+          world.patchComponent(playerId, BurnedSoftware, { weapon: null, armor: null });
+        }
       } else {
         // Handle Pity on Failure (Death, Admin Contact, Instability)
         const totalScrap = InventoryUtil.getCurrencyAmount(world, playerId, 'scrap');
@@ -87,6 +91,9 @@ export function createRunEnderSystem<T extends GameplayEvents>(
         pityAwarded = true;
 
         InventoryUtil.clearInventory(world, playerId);
+        if (world.hasComponent(playerId, BurnedSoftware)) {
+          world.patchComponent(playerId, BurnedSoftware, { weapon: null, armor: null });
+        }
         if (finalScrap > 0) InventoryUtil.addCurrency(world, playerId, 'scrap', finalScrap);
       }
     }
@@ -191,4 +198,4 @@ export function createRunEnderSystem<T extends GameplayEvents>(
   };
 }
 
-export type RunEnderSystem = ReturnType<typeof createRunEnderSystem>;
+export type RunEnderSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createRunEnderSystem<T>>;

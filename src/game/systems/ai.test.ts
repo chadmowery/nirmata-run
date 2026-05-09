@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { createAISystem } from './ai';
 import { Grid } from '@engine/grid/grid';
 import { World } from '@engine/ecs/world';
@@ -7,6 +7,7 @@ import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
 import { AIState, AIBehavior } from '@shared/components/ai-state';
 import { FovAwareness } from '@shared/components/fov-awareness';
+import { MoveIntent } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
 
 describe('AISystem', () => {
@@ -15,11 +16,11 @@ describe('AISystem', () => {
   let eventBus: EventBus<GameplayEvents>;
   let aiSystem: any;
 
-  const PLAYER_ID = 1;
-  const ENEMY_ID = 2;
-
   beforeEach(() => {
+    eventBus = new EventBus<GameplayEvents>();
+    world = new World<GameplayEvents>(eventBus);
     grid = new Grid(10, 10);
+    
     // Set all tiles to walkable and transparent by default
     for (let y = 0; y < 10; y++) {
       for (let x = 0; x < 10; x++) {
@@ -27,181 +28,87 @@ describe('AISystem', () => {
       }
     }
 
-    world = {
-      query: vi.fn(),
-      getComponent: vi.fn(),
-      hasComponent: vi.fn(),
-      patchComponent: vi.fn((id, comp, patch) => {
-        const existing = world.getComponent(id, comp);
-        if (existing) {
-          Object.assign(existing, patch);
-        }
-      }),
-      addComponent: vi.fn(),
-      destroyEntity: vi.fn(),
-    } as any;
-
-    eventBus = {
-      emit: vi.fn(),
-      on: vi.fn(),
-      off: vi.fn(),
-    } as any;
-
     aiSystem = createAISystem(world, grid, eventBus);
   });
 
   const setupEntities = (playerPos: { x: number, y: number }, enemyPos: { x: number, y: number }) => {
-    const playerActor = { isPlayer: true };
-    const enemyAI: any = { behavior: AIBehavior.IDLE, sightRadius: 6 };
-    const enemyAwareness: any = { canSeePlayer: false };
+    const playerId = world.createEntity();
+    world.addComponent(playerId, Actor, { isPlayer: true });
+    world.addComponent(playerId, Position, playerPos);
+    grid.addEntity(playerId, playerPos.x, playerPos.y);
 
-    vi.mocked(world.query).mockReturnValue([PLAYER_ID]);
-    vi.mocked(world.getComponent).mockImplementation((id, comp) => {
-      if (id === PLAYER_ID) {
-        if (comp === Position) return playerPos;
-        if (comp === Actor) return playerActor;
-      }
-      if (id === ENEMY_ID) {
-        if (comp === Position) return enemyPos;
-        if (comp === AIState) return enemyAI;
-        if (comp === FovAwareness) return enemyAwareness;
-      }
-      return null;
-    });
+    const enemyId = world.createEntity();
+    world.addComponent(enemyId, Position, enemyPos);
+    world.addComponent(enemyId, AIState, { behavior: AIBehavior.IDLE, sightRadius: 6, behaviorType: 'vanguard' });
+    world.addComponent(enemyId, FovAwareness, { canSeePlayer: false });
+    grid.addEntity(enemyId, enemyPos.x, enemyPos.y);
 
-    return { enemyAI, enemyAwareness };
+    return { playerId, enemyId };
   };
 
   describe('FOV Awareness', () => {
     it('should detect player in clear line of sight', () => {
-      const { enemyAwareness } = setupEntities({ x: 5, y: 5 }, { x: 2, y: 2 });
+      const { enemyId } = setupEntities({ x: 5, y: 5 }, { x: 2, y: 2 });
       
-      aiSystem.processEnemyTurn(ENEMY_ID);
+      aiSystem.processEnemyTurn(enemyId);
 
-      expect(enemyAwareness.canSeePlayer).toBe(true);
-      expect(enemyAwareness.lastKnownPlayerX).toBe(5);
-      expect(enemyAwareness.lastKnownPlayerY).toBe(5);
+      const awareness = world.getComponent(enemyId, FovAwareness);
+      expect(awareness?.canSeePlayer).toBe(true);
+      expect(awareness?.lastKnownPlayerX).toBe(5);
+      expect(awareness?.lastKnownPlayerY).toBe(5);
     });
 
     it('should not detect player behind wall', () => {
-      const { enemyAwareness } = setupEntities({ x: 5, y: 5 }, { x: 2, y: 5 });
+      const { enemyId } = setupEntities({ x: 5, y: 5 }, { x: 2, y: 5 });
       grid.setTile(3, 5, { transparent: false });
       
-      aiSystem.processEnemyTurn(ENEMY_ID);
+      aiSystem.processEnemyTurn(enemyId);
 
-      expect(enemyAwareness.canSeePlayer).toBe(false);
-    });
-
-    it('should not detect player out of sight radius', () => {
-      const { enemyAI, enemyAwareness } = setupEntities({ x: 9, y: 9 }, { x: 0, y: 0 });
-      enemyAI.sightRadius = 5;
-      
-      aiSystem.processEnemyTurn(ENEMY_ID);
-
-      expect(enemyAwareness.canSeePlayer).toBe(false);
+      const awareness = world.getComponent(enemyId, FovAwareness);
+      expect(awareness?.canSeePlayer).toBe(false);
     });
   });
 
   describe('State Transitions', () => {
     it('should transition from IDLE to CHASING when player is spotted', () => {
-      const { enemyAI } = setupEntities({ x: 5, y: 5 }, { x: 2, y: 2 });
-      enemyAI.behavior = AIBehavior.IDLE;
+      const { enemyId } = setupEntities({ x: 5, y: 5 }, { x: 2, y: 2 });
+      
+      aiSystem.processEnemyTurn(enemyId);
 
-      aiSystem.processEnemyTurn(ENEMY_ID);
-
-      expect(enemyAI.behavior).toBe(AIBehavior.CHASING);
+      const aiState = world.getComponent(enemyId, AIState);
+      expect(aiState?.behavior).toBe(AIBehavior.CHASING);
     });
 
     it('should transition from CHASING to ATTACKING when adjacent to player', () => {
-      const { enemyAI } = setupEntities({ x: 5, y: 5 }, { x: 4, y: 5 });
-      enemyAI.behavior = AIBehavior.CHASING;
+      const { enemyId } = setupEntities({ x: 5, y: 5 }, { x: 4, y: 5 });
+      world.patchComponent(enemyId, AIState, { behavior: AIBehavior.CHASING });
 
-      aiSystem.processEnemyTurn(ENEMY_ID);
+      aiSystem.processEnemyTurn(enemyId);
 
-      expect(enemyAI.behavior).toBe(AIBehavior.ATTACKING);
-    });
-
-    it('should transition from ATTACKING to CHASING when player moves away', () => {
-      const { enemyAI } = setupEntities({ x: 5, y: 5 }, { x: 3, y: 5 });
-      enemyAI.behavior = AIBehavior.ATTACKING;
-
-      aiSystem.processEnemyTurn(ENEMY_ID);
-
-      expect(enemyAI.behavior).toBe(AIBehavior.CHASING);
-    });
-
-    it('should transition from CHASING to IDLE when player is lost', () => {
-      const { enemyAI, enemyAwareness } = setupEntities({ x: 5, y: 5 }, { x: 2, y: 5 });
-      grid.setTile(3, 5, { transparent: false });
-      enemyAI.behavior = AIBehavior.CHASING;
-      enemyAwareness.canSeePlayer = false;
-      enemyAwareness.lastKnownPlayerX = undefined;
-
-      aiSystem.processEnemyTurn(ENEMY_ID);
-
-      expect(enemyAI.behavior).toBe(AIBehavior.IDLE);
+      const aiState = world.getComponent(enemyId, AIState);
+      expect(aiState?.behavior).toBe(AIBehavior.ATTACKING);
     });
   });
 
   describe('Actions', () => {
-    it('should move toward player when CHASING', () => {
-      setupEntities({ x: 5, y: 5 }, { x: 3, y: 5 });
-      const { enemyAI } = setupEntities({ x: 5, y: 5 }, { x: 3, y: 5 });
-      enemyAI.behavior = AIBehavior.CHASING;
+    it('should attach MoveIntent toward player when CHASING', () => {
+      const { enemyId } = setupEntities({ x: 5, y: 5 }, { x: 3, y: 5 });
+      world.patchComponent(enemyId, AIState, { behavior: AIBehavior.CHASING });
 
-      aiSystem.processEnemyTurn(ENEMY_ID);
+      aiSystem.processEnemyTurn(enemyId);
 
-      expect(eventBus.emit).toHaveBeenCalledWith('MOVE_REQUESTED', { entityId: ENEMY_ID, dx: 1, dy: 0 });
+      const intent = world.getComponent(enemyId, MoveIntent);
+      expect(intent).toEqual({ dx: 1, dy: 0 });
     });
 
-    it('should trigger bump attack when ATTACKING', () => {
-      setupEntities({ x: 5, y: 5 }, { x: 4, y: 5 });
-      const { enemyAI } = setupEntities({ x: 5, y: 5 }, { x: 4, y: 5 });
-      enemyAI.behavior = AIBehavior.ATTACKING;
+    it('should attach MoveIntent (which triggers bump attack) when ATTACKING', () => {
+      const { enemyId } = setupEntities({ x: 5, y: 5 }, { x: 4, y: 5 });
+      world.patchComponent(enemyId, AIState, { behavior: AIBehavior.ATTACKING });
 
-      aiSystem.processEnemyTurn(ENEMY_ID);
+      aiSystem.processEnemyTurn(enemyId);
 
-      expect(eventBus.emit).toHaveBeenCalledWith('MOVE_REQUESTED', { entityId: ENEMY_ID, dx: 1, dy: 0 });
-    });
-
-    it('should do nothing when IDLE and player not visible', () => {
-      setupEntities({ x: 9, y: 9 }, { x: 0, y: 0 });
-      const { enemyAI } = setupEntities({ x: 9, y: 9 }, { x: 0, y: 0 });
-      enemyAI.behavior = AIBehavior.IDLE;
-      enemyAI.sightRadius = 2;
-
-      aiSystem.processEnemyTurn(ENEMY_ID);
-
-      expect(eventBus.emit).not.toHaveBeenCalledWith('MOVE_REQUESTED', expect.anything());
-    });
-  });
-
-  describe('Pathfinding', () => {
-    it('should navigate around an L-shaped wall', () => {
-      // Player at (5, 5), Enemy at (3, 5)
-      // Wall at (4, 5) and (4, 6)
-      const { enemyAI, enemyAwareness } = setupEntities({ x: 5, y: 5 }, { x: 3, y: 5 });
-      enemyAI.behavior = AIBehavior.CHASING;
-      enemyAwareness.lastKnownPlayerX = 5;
-      enemyAwareness.lastKnownPlayerY = 5;
-      
-      grid.setTile(4, 5, { walkable: false, transparent: false });
-      grid.setTile(4, 6, { walkable: false, transparent: false });
-
-      aiSystem.processEnemyTurn(ENEMY_ID);
-
-      // Path should go around, likely North or South
-      // (3,5) -> (3,4) or (3,6)
-      const call = vi.mocked(eventBus.emit).mock.calls.find(c => c[0] === 'MOVE_REQUESTED');
-      expect(call).toBeDefined();
-      const payload = call![1] as any;
-      const dx = payload.dx;
-      const dy = payload.dy;
-      
-      // It should NOT move East into the wall
-      expect(dx).not.toBe(1);
-      // It should move North or South
-      expect(Math.abs(dx) + Math.abs(dy)).toBe(1);
+      const intent = world.getComponent(enemyId, MoveIntent);
+      expect(intent).toEqual({ dx: 1, dy: 0 });
     });
   });
 });

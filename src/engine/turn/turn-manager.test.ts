@@ -140,8 +140,15 @@ describe('TurnManager', () => {
     turnManager.start();
     turnManager.submitAction('move');
 
-    // pre-turn -> post-turn (player action and energy tick don't use executeSystems directly in this implementation)
-    expect(order).toEqual([Phase.PRE_TURN, Phase.POST_TURN]);
+    // pre-turn -> gather-intent -> action -> reaction -> cleanup -> post-turn
+    expect(order).toEqual([
+      Phase.PRE_TURN,
+      Phase.GATHER_INTENT,
+      Phase.ACTION,
+      Phase.REACTION,
+      Phase.CLEANUP,
+      Phase.POST_TURN
+    ]);
   });
 
   it('handles fast enemies with sub-tick processing', () => {
