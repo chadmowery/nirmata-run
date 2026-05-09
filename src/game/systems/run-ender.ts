@@ -1,12 +1,12 @@
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
-import { EntityId } from '@engine/ecs/types';
+import { EntityId, Phase } from '@engine/ecs/types';
 import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
 import { AIState, AIBehaviorType } from '@shared/components/ai-state';
 import { FloorState } from '@shared/components/floor-state';
-import { RunInventory, BurnedSoftware } from '@shared/components';
+import { RunInventory, BurnedSoftware, MovedThisTurn } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
@@ -26,7 +26,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
   grid: Grid,
   eventBus: EventBus<T>,
   runMode: RunMode = RunMode.SIMULATION
-) {
+): RunEnderSystem<T> {
   let isEnding = false;
 
   function getPlayerEntity(): { id: EntityId; x: number; y: number } | null {
@@ -131,32 +131,39 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     }
   }
 
-  function handleEntityMoved(payload: T['ENTITY_MOVED']) {
-    const { entityId, toX, toY } = payload;
+  const update = (w: World<T>) => {
+    // Phase 6.4: Only check adjacency if something moved
+    const movers = w.query(MovedThisTurn);
+    if (movers.length === 0) return;
 
-    const actor = world.getComponent(entityId, Actor);
-    const aiState = world.getComponent(entityId, AIState);
+    for (const entityId of movers) {
+      const moved = w.getComponent(entityId, MovedThisTurn)!;
+      const { toX, toY } = moved;
 
-    // If System_Admin moved
-    if (aiState?.behaviorType === AIBehaviorType.SYSTEM_ADMIN) {
-      checkAdminAdjacency(entityId, toX, toY);
-    }
-    // If player moved
-    else if (actor?.isPlayer) {
-      // Check all System_Admins
-      const admins = world.query(AIState, Position);
-      for (const adminId of admins) {
-        const adminAI = world.getComponent(adminId, AIState);
-        if (adminAI?.behaviorType === AIBehaviorType.SYSTEM_ADMIN) {
-          const adminPos = world.getComponent(adminId, Position)!;
-          if (isAdjacentOrSame(toX, toY, adminPos.x, adminPos.y)) {
-            executeRunEnd(entityId, 'FATAL: ADMIN_CONTACT', false);
-            break;
+      const actor = w.getComponent(entityId, Actor);
+      const aiState = w.getComponent(entityId, AIState);
+
+      // If System_Admin moved
+      if (aiState?.behaviorType === AIBehaviorType.SYSTEM_ADMIN) {
+        checkAdminAdjacency(entityId, toX, toY);
+      }
+      // If player moved
+      else if (actor?.isPlayer) {
+        // Check all System_Admins
+        const admins = w.query(AIState, Position);
+        for (const adminId of admins) {
+          const adminAI = w.getComponent(adminId, AIState);
+          if (adminAI?.behaviorType === AIBehaviorType.SYSTEM_ADMIN) {
+            const adminPos = w.getComponent(adminId, Position)!;
+            if (isAdjacentOrSame(toX, toY, adminPos.x, adminPos.y)) {
+              executeRunEnd(entityId, 'FATAL: ADMIN_CONTACT', false);
+              break;
+            }
           }
         }
       }
     }
-  }
+  };
 
   const handleStabilityZero = (payload: T['STABILITY_ZERO']) => {
     const isServer = typeof window === 'undefined' || (typeof process !== 'undefined' && process.env.NODE_ENV === 'test');
@@ -184,18 +191,23 @@ export function createRunEnderSystem<T extends GameplayEvents>(
 
   return {
     init() {
-      eventBus.on('ENTITY_MOVED', handleEntityMoved);
+      world.registerSystem(Phase.REACTION, update);
       eventBus.on('STABILITY_ZERO', handleStabilityZero);
       eventBus.on('ANCHOR_EXTRACT', handleAnchorExtract);
       eventBus.on('ENTITY_DIED', handleEntityDied);
     },
     dispose() {
-      eventBus.off('ENTITY_MOVED', handleEntityMoved);
+      world.unregisterSystem(Phase.REACTION, update);
       eventBus.off('STABILITY_ZERO', handleStabilityZero);
       eventBus.off('ANCHOR_EXTRACT', handleAnchorExtract);
       eventBus.off('ENTITY_DIED', handleEntityDied);
-    }
+    },
+    update,
   };
 }
 
-export type RunEnderSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createRunEnderSystem<T>>;
+export interface RunEnderSystem<T extends GameplayEvents = GameEvents> {
+  init(): void;
+  dispose(): void;
+  update(world: World<T>): void;
+}

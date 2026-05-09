@@ -4,8 +4,7 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { EntityRegistry } from '@engine/entity/registry';
-import { COMPONENTS_REGISTRY, Actor, Position, LootTable, CurrencyItem, Item } from '@shared/components';
-import { createCurrencyDropSystem } from '../currency-drop';
+import { COMPONENTS_REGISTRY, Actor, Position, MovedThisTurn } from '@shared/components';
 import { createItemPickupSystem } from '../item-pickup';
 import { RunInventory, RunCurrency } from '@shared/components/run-inventory';
 import * as InventoryUtil from '@shared/utils/inventory-util';
@@ -24,7 +23,7 @@ describe('Currency Pickup System', () => {
     eventBus = new EventBus<GameEvents>();
     world = new World<GameEvents>(eventBus);
     grid = new Grid(10, 10);
-    
+
     const registry = new EntityRegistry();
     // Register basic templates
     registry.register({
@@ -73,13 +72,11 @@ describe('Currency Pickup System', () => {
     grid.addItem(scrapId, 2, 1);
 
     // Move player onto scrap
-    eventBus.emit('ENTITY_MOVED', {
-      entityId: playerId,
-      fromX: 1,
-      fromY: 1,
-      toX: 2,
-      toY: 1
-    });
+    world.patchComponent(playerId, Position, { x: 2, y: 1 });
+    world.addComponent(playerId, MovedThisTurn, { fromX: 1, fromY: 1, toX: 2, toY: 1 });
+
+    pickupSystem.update(world);
+
     eventBus.flush();
 
     expect(InventoryUtil.getCurrencyAmount(world, playerId, 'scrap')).toBe(15);
@@ -118,13 +115,11 @@ describe('Currency Pickup System', () => {
     eventBus.on('MESSAGE_EMITTED', messageSpy);
 
     // Move player onto scrap
-    eventBus.emit('ENTITY_MOVED', {
-      entityId: playerId,
-      fromX: 1,
-      fromY: 1,
-      toX: 2,
-      toY: 1
-    });
+    world.patchComponent(playerId, Position, { x: 2, y: 1 });
+    world.addComponent(playerId, MovedThisTurn, { fromX: 1, fromY: 1, toX: 2, toY: 1 });
+
+    pickupSystem.update(world);
+
     eventBus.flush();
 
     expect(InventoryUtil.getCurrencyAmount(world, playerId, 'scrap')).toBe(0);
@@ -168,13 +163,11 @@ describe('Currency Pickup System', () => {
     grid.addItem(scrapId, 2, 1);
 
     // Move player onto scrap
-    eventBus.emit('ENTITY_MOVED', {
-      entityId: playerId,
-      fromX: 1,
-      fromY: 1,
-      toX: 2,
-      toY: 1
-    });
+    world.patchComponent(playerId, Position, { x: 2, y: 1 });
+    world.addComponent(playerId, MovedThisTurn, { fromX: 1, fromY: 1, toX: 2, toY: 1 });
+
+    pickupSystem.update(world);
+
     eventBus.flush();
 
     // Should succeed because it stacks

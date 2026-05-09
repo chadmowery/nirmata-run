@@ -38,6 +38,7 @@ import { AnchorMarker } from './anchor-marker';
 import { RunInventory, RunCurrency } from './run-inventory';
 import { TemplateId } from './template-id';
 import { MoveIntent, AttackIntent } from './intents';
+import { MovedThisTurn } from './moved-this-turn';
 
 export const COMPONENTS_REGISTRY = [
   Position,
@@ -82,6 +83,7 @@ export const COMPONENTS_REGISTRY = [
   TemplateId,
   MoveIntent,
   AttackIntent,
+  MovedThisTurn,
 ] as const;
 
 export * from './position';
@@ -124,3 +126,4 @@ export * from './anchor-marker';
 export * from './run-inventory';
 export * from './template-id';
 export * from './intents';
+export * from './moved-this-turn';

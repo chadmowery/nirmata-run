@@ -3,7 +3,7 @@ import { World } from '../../engine/ecs/world';
 import { Grid } from '../../engine/grid/grid';
 import { EventBus } from '../../engine/events/event-bus';
 import { createRunEnderSystem } from './run-ender';
-import { Actor, Position, FloorState, RunInventory, BurnedSoftware } from '@shared/components';
+import { Actor, Position, FloorState, RunInventory, BurnedSoftware, MovedThisTurn, AIState, AIBehaviorType } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 
 describe('RunEnderSystem', () => {
@@ -53,5 +53,35 @@ describe('RunEnderSystem', () => {
     expect(burned?.weapon).toBe(null);
     expect(burned?.armor).toBe(null);
     expect(world.getComponent(playerId, RunInventory)?.software.length).toBe(0);
+  });
+
+  it('should end run when player moves adjacent to System_Admin', () => {
+    const eventBus = new EventBus<GameplayEvents>();
+    const world = new World<GameplayEvents>(eventBus);
+    const grid = new Grid(10, 10);
+    const system = createRunEnderSystem(world, grid, eventBus);
+    system.init();
+
+    const playerId = world.createEntity();
+    world.addComponent(playerId, Actor, { isPlayer: true });
+    world.addComponent(playerId, Position, { x: 5, y: 5 });
+
+    const adminId = world.createEntity();
+    world.addComponent(adminId, AIState, { behaviorType: AIBehaviorType.SYSTEM_ADMIN });
+    world.addComponent(adminId, Position, { x: 6, y: 5 });
+
+    const runEndedSpy = vi.fn();
+    eventBus.on('RUN_ENDED', runEndedSpy);
+
+    // Simulate player movement to (5, 5) which is adjacent to (6, 5)
+    world.addComponent(playerId, MovedThisTurn, { fromX: 4, fromY: 5, toX: 5, toY: 5 });
+
+    system.update(world);
+    eventBus.flush();
+
+    expect(runEndedSpy).toHaveBeenCalledWith(expect.objectContaining({
+      reason: 'FATAL: ADMIN_CONTACT',
+      entityId: playerId
+    }));
   });
 });

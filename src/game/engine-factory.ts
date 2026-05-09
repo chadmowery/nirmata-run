@@ -27,6 +27,7 @@ import { createStabilitySystem, StabilitySystem } from './systems/stability';
 import { createFloorManagerSystem, FloorManagerSystem } from './systems/floor-manager';
 import { createAnchorInteractionSystem, AnchorInteractionSystem } from './systems/anchor-interaction';
 import { createCurrencyDropSystem, CurrencyDropSystem } from './systems/currency-drop';
+import { createTagCleanupSystem } from './systems/tag-cleanup';
 import { generateDungeon } from './generation/dungeon-generator';
 import { placeEntities } from './generation/entity-placement';
 import RNG from 'rot-js/lib/rng';
@@ -76,6 +77,7 @@ export interface EngineInstance<T extends GameplayEvents = GameEvents> {
     floorManager: FloorManagerSystem<T>;
     anchorInteraction: AnchorInteractionSystem<T>;
     currencyDrop: CurrencyDropSystem<T>;
+    tagCleanup: ReturnType<typeof createTagCleanupSystem<T>>;
   };
 }
 
@@ -132,6 +134,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   const runEnderSystem = createRunEnderSystem(world, grid, eventBus, config.runMode);
   const stabilitySystem = createStabilitySystem(world, eventBus);
   const currencyDropSystem = createCurrencyDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
+  const tagCleanupSystem = createTagCleanupSystem(world);
 
   // Initialize remaining systems
   aiSystem.init();
@@ -146,6 +149,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   runEnderSystem.init();
   stabilitySystem.init();
   currencyDropSystem.init();
+  tagCleanupSystem.init();
 
   // Register ticks to POST_TURN phase
   world.registerSystem(Phase.POST_TURN, () => {
@@ -357,7 +361,8 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
       stability: stabilitySystem,
       floorManager: floorManagerSystem,
       anchorInteraction: anchorInteractionSystem,
-      currencyDrop: currencyDropSystem
+      currencyDrop: currencyDropSystem,
+      tagCleanup: tagCleanupSystem
     }
   };
 }

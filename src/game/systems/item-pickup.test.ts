@@ -4,6 +4,8 @@ import { Grid } from '../../engine/grid/grid';
 import { World } from '../../engine/ecs/world';
 import { EventBus } from '../../engine/events/event-bus';
 import { Actor } from '@shared/components/actor';
+import { Position } from '@shared/components/position';
+import { MovedThisTurn } from '@shared/components/moved-this-turn';
 import { Item } from '@shared/components/item';
 import { PickupEffect, EffectType } from '@shared/components/pickup-effect';
 import { Health } from '@shared/components/health';
@@ -44,6 +46,9 @@ describe('ItemPickupSystem', () => {
       hasComponent: vi.fn(),
       destroyEntity: vi.fn(),
       patchComponent: vi.fn(),
+      query: vi.fn(),
+      registerSystem: vi.fn(),
+      unregisterSystem: vi.fn(),
     } as unknown as World<GameplayEvents>;
 
     itemPickupSystem = createItemPickupSystem(world, grid, eventBus);
@@ -65,14 +70,17 @@ describe('ItemPickupSystem', () => {
     grid.addEntity(PLAYER_ID, 5, 5);
     grid.addItem(ITEM_ID, 6, 5);
 
-    // Trigger ENTITY_MOVED
-    eventHandlers['ENTITY_MOVED']({
-      entityId: PLAYER_ID,
-      fromX: 5,
-      fromY: 5,
-      toX: 6,
-      toY: 5,
+    // Trigger ENTITY_MOVED (Phase 6.4 logic)
+    vi.mocked(world.query).mockReturnValue([PLAYER_ID]);
+    vi.mocked(world.getComponent).mockImplementation((id, def) => {
+      if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
+      if (id === PLAYER_ID && def === MovedThisTurn) return { fromX: 5, fromY: 5, toX: 6, toY: 5 };
+      if (id === PLAYER_ID && def === Position) return { x: 6, y: 5 };
+      if (id === ITEM_ID && def === Item) return { name: 'Health Potion' };
+      return undefined;
     });
+
+    itemPickupSystem.update(world);
 
     // Verification
     expect(eventBus.emit).toHaveBeenCalledWith('ITEM_PICKED_UP', {
@@ -99,13 +107,18 @@ describe('ItemPickupSystem', () => {
     grid.addEntity(PLAYER_ID, 5, 5);
     grid.addItem(ITEM_ID, 6, 5);
 
-    eventHandlers['ENTITY_MOVED']({
-      entityId: PLAYER_ID,
-      fromX: 5,
-      fromY: 5,
-      toX: 6,
-      toY: 5,
+    vi.mocked(world.query).mockReturnValue([PLAYER_ID]);
+    vi.mocked(world.getComponent).mockImplementation((id, def) => {
+      if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
+      if (id === PLAYER_ID && def === Health) return { current: 10, max: 20 };
+      if (id === PLAYER_ID && def === MovedThisTurn) return { fromX: 5, fromY: 5, toX: 6, toY: 5 };
+      if (id === PLAYER_ID && def === Position) return { x: 6, y: 5 };
+      if (id === ITEM_ID && def === Item) return { name: 'Health Potion' };
+      if (id === ITEM_ID && def === PickupEffect) return { type: EffectType.HEAL, value: 5 };
+      return undefined;
     });
+
+    itemPickupSystem.update(world);
 
     expect(world.patchComponent).toHaveBeenCalledWith(PLAYER_ID, Health, { current: 15 });
     expect(eventBus.emit).toHaveBeenCalledWith('ITEM_PICKED_UP', {
@@ -129,13 +142,18 @@ describe('ItemPickupSystem', () => {
 
     grid.addItem(ITEM_ID, 6, 5);
 
-    eventHandlers['ENTITY_MOVED']({
-      entityId: PLAYER_ID,
-      fromX: 5,
-      fromY: 5,
-      toX: 6,
-      toY: 5,
+    vi.mocked(world.query).mockReturnValue([PLAYER_ID]);
+    vi.mocked(world.getComponent).mockImplementation((id, def) => {
+      if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
+      if (id === PLAYER_ID && def === Health) return { current: 18, max: 20 };
+      if (id === PLAYER_ID && def === MovedThisTurn) return { fromX: 5, fromY: 5, toX: 6, toY: 5 };
+      if (id === PLAYER_ID && def === Position) return { x: 6, y: 5 };
+      if (id === ITEM_ID && def === Item) return { name: 'Health Potion' };
+      if (id === ITEM_ID && def === PickupEffect) return { type: EffectType.HEAL, value: 5 };
+      return undefined;
     });
+
+    itemPickupSystem.update(world);
 
     expect(world.patchComponent).toHaveBeenCalledWith(PLAYER_ID, Health, { current: 20 });
   });
@@ -149,13 +167,15 @@ describe('ItemPickupSystem', () => {
 
     grid.addItem(ITEM_ID, 6, 5);
 
-    eventHandlers['ENTITY_MOVED']({
-      entityId: ENEMY_ID,
-      fromX: 5,
-      fromY: 5,
-      toX: 6,
-      toY: 5,
+    vi.mocked(world.query).mockReturnValue([ENEMY_ID]);
+    vi.mocked(world.getComponent).mockImplementation((id, def) => {
+      if (id === ENEMY_ID && def === Actor) return { isPlayer: false };
+      if (id === ENEMY_ID && def === MovedThisTurn) return { fromX: 5, fromY: 5, toX: 6, toY: 5 };
+      if (id === ENEMY_ID && def === Position) return { x: 6, y: 5 };
+      return undefined;
     });
+
+    itemPickupSystem.update(world);
 
     expect(eventBus.emit).not.toHaveBeenCalledWith('ITEM_PICKED_UP', expect.anything());
     expect(grid.getItemsAt(6, 5).has(ITEM_ID)).toBe(true);
@@ -168,16 +188,18 @@ describe('ItemPickupSystem', () => {
       return undefined;
     });
     vi.mocked(world.hasComponent).mockReturnValue(false); // No Item component
+    vi.mocked(world.getComponent).mockImplementation((id, def) => {
+      if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
+      if (id === PLAYER_ID && def === MovedThisTurn) return { fromX: 5, fromY: 5, toX: 6, toY: 5 };
+      if (id === PLAYER_ID && def === Position) return { x: 6, y: 5 };
+      return undefined;
+    });
 
+    vi.mocked(world.query).mockReturnValue([PLAYER_ID]);
+
+    itemPickupSystem.update(world);
     grid.addItem(DECOR_ID, 6, 5);
 
-    eventHandlers['ENTITY_MOVED']({
-      entityId: PLAYER_ID,
-      fromX: 5,
-      fromY: 5,
-      toX: 6,
-      toY: 5,
-    });
 
     expect(eventBus.emit).not.toHaveBeenCalled();
     expect(grid.getItemsAt(6, 5).has(DECOR_ID)).toBe(true);
@@ -203,15 +225,22 @@ describe('ItemPickupSystem', () => {
     });
 
     grid.addItem(ITEM_ID, 6, 5);
-    grid.addItem(ITEM_ID_2, 6, 5);
-
-    eventHandlers['ENTITY_MOVED']({
-      entityId: PLAYER_ID,
-      fromX: 5,
-      fromY: 5,
-      toX: 6,
-      toY: 5,
+    grid.addItem(ITEM_ID_2, 6, 5);    vi.mocked(world.getComponent).mockImplementation((id, def) => {
+      if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
+      if (id === PLAYER_ID && def === Health) return { current: 10, max: 20 };
+      if (id === PLAYER_ID && def === MovedThisTurn) return { fromX: 5, fromY: 5, toX: 6, toY: 5 };
+      if (id === PLAYER_ID && def === Position) return { x: 6, y: 5 };
+      if (id === ITEM_ID || id === ITEM_ID_2) {
+        if (def === Item) return { name: 'Health Potion' };
+        if (def === PickupEffect) return { type: EffectType.HEAL, value: 5 };
+      }
+      return undefined;
     });
+
+    vi.mocked(world.query).mockReturnValue([PLAYER_ID]);
+
+    itemPickupSystem.update(world);
+
 
     // Since each pickup starts with health 10 in the mock:
     expect(world.patchComponent).toHaveBeenCalledWith(PLAYER_ID, Health, { current: 15 });

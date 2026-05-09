@@ -1,7 +1,7 @@
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
-import { EntityId } from '@engine/ecs/types';
+import { EntityId, Phase } from '@engine/ecs/types';
 import { TurnManager } from '@engine/turn/turn-manager';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
@@ -14,7 +14,9 @@ import {
   SoftwareSlots,
   StaircaseMarker,
   AbilityDef,
-  SoftwareDef
+  SoftwareDef,
+  Position,
+  MovedThisTurn,
 } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import depthConfig from '../generation/depth-config.json';
@@ -25,23 +27,27 @@ export function createAnchorInteractionSystem<T extends GameplayEvents = GameEve
   eventBus: EventBus<T>,
   turnManager: TurnManager<T>,
   playerId: EntityId
-) {
-  const handleEntityMoved = (payload: T['ENTITY_MOVED']) => {
-    if (payload.entityId !== playerId) return;
+): AnchorInteractionSystem<T> {
+  const update = (w: World<T>) => {
+    // Phase 6.4: Check if player moved
+    const playerMoved = w.getComponent(playerId, MovedThisTurn);
+    if (!playerMoved) return;
 
-    const { toX, toY } = payload;
-    const occupants = grid.getEntitiesAt(toX, toY);
+    const pos = w.getComponent(playerId, Position);
+    if (!pos) return;
+
+    const occupants = grid.getEntitiesAt(pos.x, pos.y);
 
     for (const occupantId of occupants) {
       // Check for Anchor
-      const anchor = world.getComponent(occupantId, AnchorMarker);
+      const anchor = w.getComponent(occupantId, AnchorMarker);
       if (anchor && !anchor.used) {
         triggerAnchorInteraction(occupantId);
         return;
       }
 
       // Check for Staircase
-      const staircase = world.getComponent(occupantId, StaircaseMarker);
+      const staircase = w.getComponent(occupantId, StaircaseMarker);
       if (staircase) {
         triggerStaircaseInteraction(occupantId);
         return;
@@ -150,16 +156,21 @@ export function createAnchorInteractionSystem<T extends GameplayEvents = GameEve
 
   return {
     init() {
-      eventBus.on('ENTITY_MOVED', handleEntityMoved);
+      world.registerSystem(Phase.REACTION, update);
       eventBus.on('ANCHOR_DECISION_MADE', handleAnchorDecisionMade);
       eventBus.on('STAIRCASE_DECISION_MADE', handleStaircaseDecisionMade);
     },
     dispose() {
-      eventBus.off('ENTITY_MOVED', handleEntityMoved);
+      world.unregisterSystem(Phase.REACTION, update);
       eventBus.off('ANCHOR_DECISION_MADE', handleAnchorDecisionMade);
       eventBus.off('STAIRCASE_DECISION_MADE', handleStaircaseDecisionMade);
-    }
+    },
+    update,
   };
 }
 
-export type AnchorInteractionSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createAnchorInteractionSystem<T>>;
+export interface AnchorInteractionSystem<T extends GameplayEvents = GameEvents> {
+  init(): void;
+  dispose(): void;
+  update(world: World<T>): void;
+}

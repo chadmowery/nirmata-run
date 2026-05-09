@@ -1,8 +1,8 @@
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
-import { EntityId } from '@engine/ecs/types';
-import { Position, PackMember, Actor, StatusEffects } from '@shared/components';
+import { EntityId, Phase } from '@engine/ecs/types';
+import { Position, PackMember, Actor, StatusEffects, MovedThisTurn } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 
@@ -13,7 +13,7 @@ export function createPackCoordinatorSystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
   eventBus: EventBus<T>
-) {
+): PackCoordinatorSystem<T> {
   const detonatedPacksThisTurn = new Set<string>();
 
   /**
@@ -108,8 +108,22 @@ export function createPackCoordinatorSystem<T extends GameplayEvents>(
     }
   };
 
-  const onEntityMoved = () => {
-    checkDetonation();
+  const update = (w: World<T>) => {
+    // Phase 6.4: Only check detonation if something moved that matters
+    const movers = w.query(MovedThisTurn);
+    if (movers.length === 0) return;
+
+    let relevantMovers = false;
+    for (const id of movers) {
+      if (w.hasComponent(id, PackMember) || w.getComponent(id, Actor)?.isPlayer) {
+        relevantMovers = true;
+        break;
+      }
+    }
+
+    if (relevantMovers) {
+      checkDetonation();
+    }
   };
 
   const onTurnStart = () => {
@@ -118,17 +132,23 @@ export function createPackCoordinatorSystem<T extends GameplayEvents>(
 
   return {
     init() {
-      eventBus.on('ENTITY_MOVED', onEntityMoved);
+      world.registerSystem(Phase.REACTION, update);
       eventBus.on('TURN_START', onTurnStart);
     },
     dispose() {
-      eventBus.off('ENTITY_MOVED', onEntityMoved);
+      world.unregisterSystem(Phase.REACTION, update);
       eventBus.off('TURN_START', onTurnStart);
     },
     resetTurnState() {
       detonatedPacksThisTurn.clear();
-    }
+    },
+    update,
   };
 }
 
-export type PackCoordinatorSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createPackCoordinatorSystem<T>>;
+export interface PackCoordinatorSystem<T extends GameplayEvents = GameEvents> {
+  init(): void;
+  dispose(): void;
+  update(world: World<T>): void;
+  resetTurnState(): void;
+}

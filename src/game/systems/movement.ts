@@ -1,28 +1,27 @@
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
-import { EntityId, Phase } from '@engine/ecs/types';
+import { Phase } from '@engine/ecs/types';
 import { Position } from '@shared/components/position';
 import { Hostile } from '@shared/components/hostile';
 import { Actor } from '@shared/components/actor';
 import { BlocksMovement } from '@shared/components/blocks-movement';
 import { StatusEffects } from '@shared/components/status-effects';
-import { MoveIntent, AttackIntent } from '@shared/components/intents';
+import { MoveIntent, AttackIntent, MovedThisTurn } from '@shared/components/index';
 
 import { GameplayEvents } from '@shared/events/types';
-import { GameEvents } from '../events/types';
 
 /**
  * Movement system that resolves MoveIntent during the ACTION phase.
  */
 export function createMovementSystem<T extends GameplayEvents>(
-  world: World<T>, 
-  grid: Grid, 
+  world: World<T>,
+  grid: Grid,
   eventBus: EventBus<T>
 ) {
   const update = (w: World<T>) => {
     const entities = w.query(MoveIntent, Position);
-    
+
     for (const entityId of entities) {
       const intent = w.getComponent(entityId, MoveIntent)!;
       const pos = w.getComponent(entityId, Position)!;
@@ -103,9 +102,17 @@ export function createMovementSystem<T extends GameplayEvents>(
       // 5. Perform movement
       const oldX = pos.x;
       const oldY = pos.y;
-      
+
       w.patchComponent(entityId, Position, { x: targetX, y: targetY });
       grid.moveEntity(entityId, oldX, oldY, targetX, targetY);
+
+      // Attach tag for reactive systems (Phase 6.4)
+      w.addComponent(entityId, MovedThisTurn, {
+        fromX: oldX,
+        fromY: oldY,
+        toX: targetX,
+        toY: targetY
+      });
 
       // Emit movement event for UI/Rendering
       eventBus.emit('ENTITY_MOVED', {
