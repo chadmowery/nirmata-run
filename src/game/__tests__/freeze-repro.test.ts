@@ -34,7 +34,7 @@ describe('Engine Freeze Reproduction', () => {
     expect(healthAfterMove).toBe(initialHealth);
   });
 
-  it('should emit STAIRCASE_INTERACTION when player steps on a staircase', () => {
+  it('should emit MESSAGE_EMITTED when player steps on a staircase', () => {
     const engine = createEngineInstance({
       width: 80,
       height: 45,
@@ -49,21 +49,19 @@ describe('Engine Freeze Reproduction', () => {
 
     // Create a staircase just north of the player
     const staircaseId = world.createEntity();
-    world.addComponent(staircaseId, { key: 'staircaseMarker' } as any, {});
+    world.addComponent(staircaseId, { key: 'staircaseMarker' } as any, { targetFloor: 2 });
     world.addComponent(staircaseId, { key: 'position' } as any, { x: pos.x, y: pos.y - 1 });
     grid.addEntity(staircaseId, pos.x, pos.y - 1);
 
-    const interactionSpy = vi.fn();
-    eventBus.on('STAIRCASE_INTERACTION', interactionSpy);
+    const messageSpy = vi.fn();
+    eventBus.on('MESSAGE_EMITTED', messageSpy);
 
     // Act: Move North onto the staircase
     engine.turnManager.submitAction(GameAction.MOVE_NORTH);
 
-    // Assert: STAIRCASE_INTERACTION should have been emitted
-    expect(interactionSpy).toHaveBeenCalled();
-    const payload = interactionSpy.mock.calls[0][0];
-    expect(payload.entityId).toBe(playerId);
-    expect(payload.staircaseId).toBe(staircaseId);
-    expect(payload.targetFloor).toBe(2); // Default target floor is current + 1
+    // Assert: MESSAGE_EMITTED should have been called with staircase text
+    expect(messageSpy).toHaveBeenCalledWith(expect.objectContaining({
+      text: expect.stringContaining('Staircase'),
+    }));
   });
 });

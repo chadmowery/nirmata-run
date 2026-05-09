@@ -6,7 +6,7 @@ import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
 import { AIState, AIBehaviorType } from '@shared/components/ai-state';
 import { FloorState } from '@shared/components/floor-state';
-import { RunInventory, BurnedSoftware, MovedThisTurn, Dying, FirmwareSlots, SoftwareSlots, AugmentSlots, Stability } from '@shared/components';
+import { RunInventory, BurnedSoftware, MovedThisTurn, Dying, FirmwareSlots, SoftwareSlots, AugmentSlots, Stability, ExtractionIntent } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
@@ -176,15 +176,19 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     }
   };
 
-  const handleAnchorExtract = () => {
-    const player = getPlayerEntity();
-    if (player) {
-      executeRunEnd(player.id, 'extraction', true);
-    }
-  };
 
   const updateCleanup = (w: World<T>) => {
-    // Check for dying players
+    // 1. Check for manual extraction intent
+    const actorsWithIntent = w.query(Actor, ExtractionIntent);
+    for (const entityId of actorsWithIntent) {
+      const actor = w.getComponent(entityId, Actor);
+      if (actor?.isPlayer) {
+        executeRunEnd(entityId, 'extraction', true);
+        w.removeComponent(entityId, ExtractionIntent);
+      }
+    }
+
+    // 2. Check for dying players
     const dyingEntities = w.query(Dying);
     for (const entityId of dyingEntities) {
       const actor = w.getComponent(entityId, Actor);
@@ -193,7 +197,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
       }
     }
 
-    // Check for collapsed stability
+    // 3. Check for collapsed stability
     const actorsWithStability = w.query(Actor, Stability);
     for (const entityId of actorsWithStability) {
       const actor = w.getComponent(entityId, Actor);
@@ -208,12 +212,10 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     init() {
       world.registerSystem(Phase.REACTION, update);
       world.registerSystem(Phase.CLEANUP, updateCleanup);
-      eventBus.on('ANCHOR_EXTRACT', handleAnchorExtract);
     },
     dispose() {
       world.unregisterSystem(Phase.REACTION, update);
       world.unregisterSystem(Phase.CLEANUP, updateCleanup);
-      eventBus.off('ANCHOR_EXTRACT', handleAnchorExtract);
     },
     update,
   };

@@ -12,6 +12,9 @@ import { AugmentSlots } from '@shared/components/augment-slots';
 import { SoftwareSlots } from '@shared/components/software-slots';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
+import { Actor } from '@shared/components/actor';
+import { Dying } from '@shared/components/dying';
+import { DescentIntent } from '@shared/components/intents';
 import { generateDungeon, getDepthBand } from '../generation/dungeon-generator';
 import { placeEntities } from '../generation/entity-placement';
 import { hashSeedForPlacement } from '../engine-factory';
@@ -27,13 +30,20 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
   eventBus: EventBus<T>,
   entityFactory: EntityFactory,
   componentRegistry: ComponentRegistry,
-  playerId: EntityId,
   isClient: boolean = false
 ) {
+  const getPlayerId = () => {
+    const actors = world.query(Actor);
+    for (const id of actors) {
+      const actor = world.getComponent(id, Actor);
+      if (actor?.isPlayer) return id;
+    }
+    return null;
+  };
   /**
    * Transitions the game to a new floor.
    */
-  const descendToFloor = (newFloor: number, runSeed: string) => {
+  const descendToFloor = (playerId: EntityId, newFloor: number, runSeed: string) => {
     // 1. Snapshot all entity IDs to avoid modification-during-iteration issues
     const entities = [...world.query()];
 
@@ -48,8 +58,12 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
     if (aSlots) aSlots.equipped.forEach(id => protectedEntities.add(id));
     if (sSlots) sSlots.equipped.forEach(id => protectedEntities.add(id));
 
-    // 3. Destroy all non-protected entities
-    entities.filter(id => !protectedEntities.has(id)).forEach(id => world.destroyEntity(id));
+    // 3. Mark all non-protected entities for destruction via the Dying pipeline
+    for (const id of entities) {
+      if (!protectedEntities.has(id)) {
+        world.addComponent(id, Dying, { reason: 'floor_transition' });
+      }
+    }
 
     // 3. Clear the grid
     grid.clear();
@@ -123,19 +137,30 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
     eventBus.flush();
   };
 
-  /** Initialize listeners. */
-  const init = () => {
-    // Only listen for descent triggers on the server
-    // On the client, this is handled by receiving the full sync payload
-    if (!isClient) {
-      eventBus.on('STAIRCASE_DESCEND_TRIGGERED', (payload) => {
-        descendToFloor(payload.targetFloor, payload.runSeed);
-      });
+  const update = (w: World<T>) => {
+    // Only the server or simulation pipeline handles actual transition logic
+    if (isClient) return;
+
+    const playerId = getPlayerId();
+    if (playerId === null) return;
+
+    const descent = w.getComponent(playerId, DescentIntent);
+    if (descent) {
+      const floorState = w.getComponent(playerId, FloorState);
+      const runSeed = floorState?.runSeed ?? 'default';
+      descendToFloor(playerId, descent.targetFloor, runSeed);
+      w.removeComponent(playerId, DescentIntent);
     }
+  };
+
+  /** Initialize system. */
+  const init = () => {
+    // Note: Registration moved to Phase.CLEANUP in registration.ts
   };
 
   return {
     init,
+    update,
     descendToFloor
   };
 }

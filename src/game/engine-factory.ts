@@ -13,19 +13,19 @@ import { MoveIntent, VentIntent } from '@shared/components';
 import { createCombatSystem } from './systems/combat';
 import { createAISystem } from './systems/ai';
 import { registerCoreSystems } from './systems/registration';
-import { createDeadZoneSystem, DeadZoneSystem } from './systems/dead-zone';
+import { DeadZoneSystem } from './systems/dead-zone';
 import { ItemPickupSystem } from './systems/item-pickup';
 import { createHeatSystem, HeatSystem } from './systems/heat';
-import { createStatusEffectSystem, StatusEffectSystem } from './systems/status-effects';
+import { StatusEffectSystem } from './systems/status-effects';
 import { createFirmwareSystem, FirmwareSystem } from './systems/firmware';
 import { createKernelPanicSystem, KernelPanicSystem } from './systems/kernel-panic';
 import { AugmentSystem } from './systems/augment';
-import { createPackCoordinatorSystem, PackCoordinatorSystem } from './systems/pack-coordinator';
+import { PackCoordinatorSystem } from './systems/pack-coordinator';
 import { createTileCorruptionSystem } from './systems/tile-corruption';
 import { createRunEnderSystem } from './systems/run-ender';
-import { createStabilitySystem, StabilitySystem } from './systems/stability';
-import { createFloorManagerSystem, FloorManagerSystem } from './systems/floor-manager';
-import { createAnchorInteractionSystem, AnchorInteractionSystem } from './systems/anchor-interaction';
+import { StabilitySystem } from './systems/stability';
+import { FloorManagerSystem } from './systems/floor-manager';
+import { AnchorInteractionSystem } from './systems/anchor-interaction';
 import { RewardDropSystem } from './systems/reward-drop';
 import { createTagCleanupSystem } from './systems/tag-cleanup';
 import { createGravediggerSystem } from './systems/gravedigger';
@@ -125,41 +125,21 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     { runMode: config.runMode }
   );
 
-  const {
-    movement: movementSystem,
-    combat: combatSystem,
-    itemPickup: itemPickupSystem,
-    augment: augmentSystem,
-    tagCleanup: tagCleanupSystem,
-    gravedigger: gravediggerSystem,
-    rewardDrop: rewardDropSystem,
-    runEnder: runEnderSystem
-  } = coreSystems;
-
-  const deadZoneSystem = createDeadZoneSystem(world, grid, eventBus);
   const aiSystem = createAISystem(world, grid, eventBus, entityFactory, componentRegistry);
   const heatSystem = createHeatSystem(world, eventBus);
-  const statusEffectSystem = createStatusEffectSystem(world, eventBus);
   const firmwareSystem = createFirmwareSystem(world, grid, eventBus);
   const kernelPanicSystem = createKernelPanicSystem(world, eventBus);
-  const packCoordinatorSystem = createPackCoordinatorSystem(world, grid, eventBus);
   const tileCorruptionSystem = createTileCorruptionSystem(world, grid, eventBus, entityFactory, componentRegistry);
-  const stabilitySystem = createStabilitySystem(world, eventBus);
 
   // Initialize remaining systems
   aiSystem.init();
-  deadZoneSystem.init();
   heatSystem.init();
-  statusEffectSystem.init();
   firmwareSystem.init();
   kernelPanicSystem.init();
-  packCoordinatorSystem.init();
   tileCorruptionSystem.init();
-  stabilitySystem.init();
 
   // Register ticks to POST_TURN phase
   world.registerSystem(Phase.POST_TURN, () => {
-    deadZoneSystem.tickDeadZones();
     tileCorruptionSystem.tick();
   });
 
@@ -278,39 +258,13 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     { playerOverrides, depth: 1 }
   );
 
-  const floorManagerSystem = createFloorManagerSystem(
-    world,
-    grid,
-    eventBus,
-    entityFactory,
-    componentRegistry,
-    placement.playerId,
-    config.isClient
-  );
-  const anchorInteractionSystem = createAnchorInteractionSystem(
-    world,
-    grid,
-    eventBus,
-    turnManager,
-    placement.playerId
-  );
-
-  // Initialize All Systems
-  floorManagerSystem.init();
-  anchorInteractionSystem.init();
-
+  // Turn Manager Handlers
   // Turn Manager Handlers
   turnManager.setEnemyActionHandler((entityId) => {
-    statusEffectSystem.tickDown(entityId);
-    augmentSystem.resetTurnState(entityId);
-    packCoordinatorSystem.resetTurnState();
     aiSystem.processEnemyTurn(entityId);
   });
 
   turnManager.setPlayerActionHandler((action: string, entityId: number) => {
-    statusEffectSystem.tickDown(entityId);
-    augmentSystem.resetTurnState(entityId);
-    packCoordinatorSystem.resetTurnState();
     if (DIRECTIONS[action]) {
       const { dx, dy } = DIRECTIONS[action];
       if (dx !== 0 || dy !== 0) {
@@ -351,26 +305,13 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     playerId: placement.playerId,
     sessionId: config.sessionId,
     systems: {
-      movement: movementSystem,
-      combat: combatSystem,
+      ...coreSystems,
       ai: aiSystem,
-      deadZone: deadZoneSystem,
-      itemPickup: itemPickupSystem,
       heat: heatSystem,
-      statusEffect: statusEffectSystem,
       firmware: firmwareSystem,
       kernelPanic: kernelPanicSystem,
-      augment: augmentSystem,
-      packCoordinator: packCoordinatorSystem,
       tileCorruption: tileCorruptionSystem,
-      runEnder: runEnderSystem,
-      stability: stabilitySystem,
-      floorManager: floorManagerSystem,
-      anchorInteraction: anchorInteractionSystem,
-      rewardDrop: rewardDropSystem,
-      tagCleanup: tagCleanupSystem,
-      gravedigger: gravediggerSystem
-    }
+    } as any
   };
 }
 

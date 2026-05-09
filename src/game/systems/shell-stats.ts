@@ -1,13 +1,13 @@
 import { World } from '@engine/ecs/world';
-import { EntityId } from '@engine/ecs/types';
-import { Shell, Health, Defense, Energy } from '@shared/components';
+import { EntityId, Phase } from '@engine/ecs/types';
+import { Shell, Health, Defense, Energy, ShellUpdateTag } from '@shared/components';
 import { EventBus } from '@engine/events/event-bus';
 import { GameplayEvents } from '@shared/events/types';
 
 /**
  * Syncs an entity's derived stats (Health, Defense, Energy) with its Shell component values.
  */
-export function propagateShellStats(world: World<GameplayEvents>, entityId: EntityId): void {
+export function propagateShellStats(world: World<any>, entityId: EntityId): void {
   const shell = world.getComponent(entityId, Shell);
   if (!shell) return;
 
@@ -39,10 +39,29 @@ export function propagateShellStats(world: World<GameplayEvents>, entityId: Enti
 }
 
 /**
- * Registers listeners for shell changes.
+ * The ShellStatsSystem manages re-synchronizing derived stats when a shell is updated.
  */
-export function initShellStatsSystem(world: World<GameplayEvents>, eventBus: EventBus<GameplayEvents>): void {
-  eventBus.on('SHELL_STATS_CHANGED', (payload) => {
-    propagateShellStats(world, payload.entityId);
-  });
+export function createShellStatsSystem<T extends GameplayEvents>(
+  world: World<T>,
+  eventBus: EventBus<T>
+) {
+  const update = (w: World<T>) => {
+    const entities = w.query(ShellUpdateTag);
+    for (const entityId of entities) {
+      propagateShellStats(w, entityId);
+      w.removeComponent(entityId, ShellUpdateTag);
+    }
+  };
+
+  return {
+    init() {
+      world.registerSystem(Phase.PRE_TURN, update);
+    },
+    dispose() {
+      world.unregisterSystem(Phase.PRE_TURN, update);
+    },
+    update,
+  };
 }
+
+export type ShellStatsSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<typeof createShellStatsSystem<T>>;

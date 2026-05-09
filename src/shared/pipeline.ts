@@ -9,12 +9,11 @@ import { logger } from './utils/logger';
 
 import {
   Position, Health, Item, PickupEffect, EffectType,
-  SoftwareDef, BurnedSoftware,
-  Stability, AnchorMarker, FloorState, RarityTier,
+  SoftwareDef, BurnedSoftware, FloorState, RarityTier,
   RunInventory, CurrencyItem, TemplateId,
   MoveIntent, AttackIntent, VentIntent, COMPONENTS_REGISTRY,
+  DescentIntent, ExtractionIntent, EquipIntent, UnequipIntent, Dying, ShellUpdateTag
 } from './components';
-import { handleEquip, handleUnequip } from './systems/equipment';
 import * as InventoryUtil from './utils/inventory-util';
 import { checkAutoLoader } from '../game/systems/software-effects';
 import { Phase } from '../engine/ecs/types';
@@ -102,10 +101,10 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
       world.addComponent(entityId, AttackIntent, { targetId: action.targetId });
       break;
     case 'EQUIP':
-      handleEquip(world, eventBus, entityId, action.slotType, action.itemEntityId);
+      world.addComponent(entityId, EquipIntent, { slotType: action.slotType, itemEntityId: action.itemEntityId });
       break;
     case 'UNEQUIP':
-      handleUnequip(world, eventBus, entityId, action.slotType, action.slotIndex);
+      world.addComponent(entityId, UnequipIntent, { slotType: action.slotType, slotIndex: action.slotIndex });
       break;
     case 'BURN_SOFTWARE': {
       const inventory = world.getComponent(entityId, RunInventory);
@@ -154,10 +153,10 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
         }
       }
 
-      // 3. Overwrite/Burn
+      // 3. Overwrite/Burn: Mark old software as dying instead of destroying immediately
       const oldSoftwareId = burned[action.targetSlot];
       if (oldSoftwareId !== null) {
-        world.destroyEntity(oldSoftwareId);
+        world.addComponent(oldSoftwareId, Dying, { reason: 'overwritten' });
       }
 
       world.patchComponent(entityId, BurnedSoftware, {
@@ -178,12 +177,11 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
       break;
     }
     case 'SELECT_SHELL':
-      // Placeholder for Phase 7: emitting event is enough for now, 
-      // actual stat stamping happens in engine-factory or special system
+      world.addComponent(entityId, ShellUpdateTag, {});
       eventBus.emit('SHELL_SELECTED', { shellId: action.shellId });
       break;
     case 'UPGRADE_SHELL':
-      // Will be handled by ShellStatsSystem listening to event
+      world.addComponent(entityId, ShellUpdateTag, {});
       eventBus.emit('SHELL_STATS_CHANGED', { entityId, shellId: action.shellId });
       break;
     case 'USE_FIRMWARE':
@@ -209,47 +207,20 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
         targetY: action.targetY,
       });
       break;
-    case 'ANCHOR_DESCEND': {
-      const currentScrap = InventoryUtil.getCurrencyAmount(world, entityId, 'scrap');
-      if (currentScrap < action.cost) {
-        eventBus.emit('MESSAGE_EMITTED', {
-          text: `INSUFFICIENT_SCRAP: ${action.cost} REQUIRED`,
-          type: 'error'
-        });
-        return;
-      }
-      InventoryUtil.removeCurrency(world, entityId, 'scrap', action.cost);
-      const stability = world.getComponent(entityId, Stability);
-      if (stability) {
-        const oldValue = stability.current;
-        const newValue = Math.min(stability.max, stability.current + stability.max * 0.5);
-        world.patchComponent(entityId, Stability, { current: newValue });
-        eventBus.emit('STABILITY_CHANGED', {
-          entityId,
-          oldValue,
-          newValue,
-          reason: 'anchor_refill'
-        });
-      }
-      const anchorMarker = world.getComponent(action.anchorId, AnchorMarker);
-      if (anchorMarker) {
-        world.patchComponent(action.anchorId, AnchorMarker, { used: true });
-      }
-      eventBus.emit('MESSAGE_EMITTED', {
-        text: `STABILIZE_AND_DESCEND: -${action.cost} Scrap, Stability refilled`,
-        type: 'info'
-      });
+    case 'ANCHOR_DESCEND':
+      world.addComponent(entityId, DescentIntent, { targetFloor: 0, cost: action.cost }); // Floor manager handles target calculation
       break;
-    }
     case 'ANCHOR_EXTRACT':
-      eventBus.emit('ANCHOR_EXTRACT', {});
+      world.addComponent(entityId, ExtractionIntent, { reason: 'anchor' });
+      break;
+    case 'STAIRCASE_DESCEND':
+      world.addComponent(entityId, DescentIntent, { targetFloor: action.targetFloor, cost: 0 });
       break;
     case 'PICKUP_CURRENCY': {
-      // Explicit pickup for prediction/authoritative sync
       const success = InventoryUtil.addCurrency(world, entityId, action.currencyType, action.amount);
       if (success) {
-        grid.removeItem(action.itemId, 0, 0); // Simplified, item-pickup handles actual grid removal
-        world.destroyEntity(action.itemId);
+        // Mark the dropped item as dying instead of destroying immediately
+        world.addComponent(action.itemId, Dying, { reason: 'pickup' });
         eventBus.emit('CURRENCY_PICKED_UP', {
           entityId,
           currencyType: action.currencyType,
@@ -326,7 +297,7 @@ function handlePickup(world: World<GameplayEvents>, grid: Grid, eventBus: EventB
   if (pos) {
     grid.removeItem(itemId, pos.x, pos.y);
   }
-  world.destroyEntity(itemId);
+  world.addComponent(itemId, Dying, { reason: 'pickup' });
   eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
 }
 

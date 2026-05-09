@@ -4,7 +4,7 @@ import { createGame } from './setup';
 import { GameState } from './states/types';
 import { GameAction } from './input/actions';
 import * as Components from '@shared/components';
-const { Position, Actor, Energy, Hostile, Health } = Components;
+const { Position, Actor, Energy, Hostile, Health, Attack } = Components;
 
 describe('Game Setup Integration', () => {
   let context: ReturnType<typeof createGame>;
@@ -124,6 +124,7 @@ describe('Game Setup Integration', () => {
     if (world.hasComponent(player, Energy)) {
       world.patchComponent(player, Energy, { current: 1000, speed: 100, threshold: 1000 });
     }
+    world.addComponent(player, Attack, { power: 5 });
     grid.removeEntity(player, 5, 4); // Remove from default spawn
     grid.addEntity(player, 1, 1);
 

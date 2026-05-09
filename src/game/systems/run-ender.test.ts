@@ -3,12 +3,12 @@ import { World } from '../../engine/ecs/world';
 import { Grid } from '../../engine/grid/grid';
 import { EventBus } from '../../engine/events/event-bus';
 import { createRunEnderSystem } from './run-ender';
-import { Actor, Position, FloorState, RunInventory, BurnedSoftware, MovedThisTurn, AIState, AIBehaviorType, AIBehavior, Dying, Stability } from '@shared/components';
+import { Actor, Position, FloorState, RunInventory, BurnedSoftware, MovedThisTurn, AIState, AIBehaviorType, AIBehavior, Dying, Stability, ExtractionIntent } from '@shared/components';
 import { Phase } from '../../engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
 
 describe('RunEnderSystem', () => {
-  it('should emit RUN_ENDED when ANCHOR_EXTRACT is emitted', () => {
+  it('should emit RUN_ENDED when ExtractionIntent is added', () => {
     const eventBus = new EventBus<GameplayEvents>();
     const world = new World<GameplayEvents>(eventBus);
     const grid = new Grid(10, 10);
@@ -23,7 +23,8 @@ describe('RunEnderSystem', () => {
     const runEndedSpy = vi.fn();
     eventBus.on('RUN_ENDED', runEndedSpy);
 
-    eventBus.emit('ANCHOR_EXTRACT', {});
+    world.addComponent(playerId, ExtractionIntent, { reason: 'manual' });
+    world.executeSystems(Phase.CLEANUP);
     eventBus.flush();
 
     expect(runEndedSpy).toHaveBeenCalledWith(expect.objectContaining({

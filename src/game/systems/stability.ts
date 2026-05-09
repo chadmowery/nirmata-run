@@ -3,12 +3,11 @@ import { EventBus } from '@engine/events/event-bus';
 import { EntityId, Phase } from '@engine/ecs/types';
 import { Stability, StabilityData } from '@shared/components/stability';
 import { Health, HealthData } from '@shared/components/health';
-import { Actor } from '@shared/components/actor';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
-import { Dying } from '@shared/components/dying';
 import { FloorTransitioned } from '@shared/components/floor-transitioned';
 import { FloorState } from '@shared/components/floor-state';
+import { DamageIntent } from '@shared/components/intents';
 
 /**
  * Configuration for the Reality Stability system.
@@ -94,24 +93,16 @@ export function createStabilitySystem<T extends GameplayEvents>(
 
     if (!stability || !health || stability.current > 0 || health.current <= 0) return;
 
-    const nextHealth = Math.max(0, health.current - config.degradedDamagePerTurn);
-    world.patchComponent(entityId, Health, { current: nextHealth });
+    // Request damage via DamageIntent instead of direct patching
+    world.addComponent(entityId, DamageIntent, {
+      targetId: entityId,
+      amount: config.degradedDamagePerTurn
+    });
 
     eventBus.emit('DEGRADED_DAMAGE', {
       entityId,
       damage: config.degradedDamagePerTurn
     } as unknown as T['DEGRADED_DAMAGE']);
-
-    if (nextHealth === 0) {
-      const actor = world.getComponent(entityId, Actor);
-      eventBus.emit('ENTITY_DIED', {
-        entityId,
-        killerId: entityId,
-        isPlayer: !!actor?.isPlayer
-      });
-      // Mark as dying
-      world.addComponent(entityId, Dying, { killerId: entityId });
-    }
   };
 
   const updatePreTurn = (w: World<T>) => {
@@ -139,8 +130,8 @@ export function createStabilitySystem<T extends GameplayEvents>(
     init,
     dispose: () => {
       world.unregisterSystem(Phase.PRE_TURN, updatePreTurn);
-      // NOTE: eventBus.off would be needed if we tracked the transition listener
     },
+    update: updatePreTurn,
     applyFloorDrain,
     applyTurnBleed,
     applyDegradedDamage

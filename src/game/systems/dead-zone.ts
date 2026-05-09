@@ -2,7 +2,7 @@ import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityId } from '@engine/ecs/types';
-import { DeadZone, Position, Health, Actor, Dying } from '@shared/components';
+import { DeadZone, Position, Health, Dying, DamageIntent } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 
@@ -16,14 +16,13 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
 ) {
   /**
    * Ticks all dead zones: applies DoT and handles expiration.
-   * This should be called once per turn cycle.
    */
-  const tickDeadZones = () => {
-    const deadZoneIds = world.query(DeadZone, Position);
+  const update = (w: World<T>) => {
+    const deadZoneIds = w.query(DeadZone, Position);
 
     for (const entityId of deadZoneIds) {
-      const deadZone = world.getComponent(entityId, DeadZone)!;
-      const pos = world.getComponent(entityId, Position)!;
+      const deadZone = w.getComponent(entityId, DeadZone)!;
+      const pos = w.getComponent(entityId, Position)!;
 
       // 1. Deal damage to all entities on this tile
       const entitiesOnTile = grid.getEntitiesAt(pos.x, pos.y);
@@ -31,52 +30,30 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
         // Don't damage the dead zone entity itself
         if (targetId === entityId) continue;
 
-        const health = world.getComponent(targetId, Health);
-        if (health && !world.hasComponent(targetId, Dying)) {
-          const damage = deadZone.damagePerTick;
-          const oldHealth = health.current;
-          const nextHealth = Math.max(0, health.current - damage);
-          
-          world.patchComponent(targetId, Health, { current: nextHealth });
-          
-          eventBus.emit('DAMAGE_DEALT', {
-            attackerId: (deadZone.creatorId as EntityId) ?? (entityId as EntityId),
-            defenderId: targetId as EntityId,
-            amount: damage,
+        if (w.hasComponent(targetId, Health) && !w.hasComponent(targetId, Dying)) {
+          // Request damage via DamageIntent instead of direct patching
+          w.addComponent(entityId, DamageIntent, {
+            targetId: targetId as EntityId,
+            amount: deadZone.damagePerTick,
           });
-
-          if (nextHealth <= 0 && oldHealth > 0) {
-            const actor = world.getComponent(targetId as EntityId, Actor);
-            const killerId = (deadZone.creatorId as EntityId) ?? (entityId as EntityId);
-            
-            eventBus.emit('ENTITY_DIED', { 
-              entityId: targetId as EntityId, 
-              killerId,
-              isPlayer: !!actor?.isPlayer 
-            });
-            
-            // Mark as dying
-            world.addComponent(targetId, Dying, { killerId });
-          }
         }
       }
 
       // 2. Decrement remaining turns
       const nextTurns = deadZone.remainingTurns - 1;
-      world.patchComponent(entityId, DeadZone, { remainingTurns: nextTurns });
+      w.patchComponent(entityId, DeadZone, { remainingTurns: nextTurns });
 
       // 3. Handle expiration
       if (nextTurns <= 0) {
         eventBus.emit('DEAD_ZONE_EXPIRED', { x: pos.x, y: pos.y });
-        // Per the Death Protocol, we mark it as dying and let Gravedigger purge it
-        world.addComponent(entityId, Dying, { reason: 'expiration' });
+        // Mark as dying and let Gravedigger purge it
+        w.addComponent(entityId, Dying, { reason: 'expiration' });
       }
     }
   };
 
   /**
    * Creates a new Dead Zone entity at the specified coordinates.
-   * (Kept for internal use if needed, but AI now uses EntityFactory)
    */
   const createDeadZone = (
     x: number,
@@ -92,16 +69,19 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
       damagePerTick,
       creatorId,
     });
-    
+
     grid.addEntity(entityId, x, y);
-    
+
     eventBus.emit('DEAD_ZONE_CREATED', { x, y, duration, creatorId });
   };
 
   return {
-    init() {},
-    dispose() {},
-    tickDeadZones,
+    init() {
+      // Note: Registration moved to Phase.POST_TURN in registration.ts
+    },
+    dispose() {
+    },
+    update,
     createDeadZone,
   };
 }

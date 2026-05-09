@@ -37,7 +37,7 @@ import { StaircaseMarker } from './staircase-marker';
 import { AnchorMarker } from './anchor-marker';
 import { RunInventory, RunCurrency } from './run-inventory';
 import { TemplateId } from './template-id';
-import { MoveIntent, AttackIntent, VentIntent, DamageIntent } from './intents';
+import { MoveIntent, AttackIntent, VentIntent, DamageIntent, DescentIntent, ExtractionIntent, EquipIntent, UnequipIntent, ShellUpdateTag } from './intents';
 import { MovedThisTurn } from './moved-this-turn';
 import { Dying } from './dying';
 import { FirmwareActivatedThisTurn } from './firmware-activated-this-turn';
@@ -95,6 +95,11 @@ export const COMPONENTS_REGISTRY = [
   DealtDamageThisTurn,
   FloorTransitioned,
   DamageIntent,
+  DescentIntent,
+  ExtractionIntent,
+  EquipIntent,
+  UnequipIntent,
+  ShellUpdateTag,
 ] as const;
 
 export * from './position';

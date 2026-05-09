@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
-import { Actor, Position, FloorState, RunInventory, RunCurrency, Dying } from '../components';
+import { Actor, Position, FloorState, RunInventory, RunCurrency, Dying, ExtractionIntent } from '../components';
 import { Phase } from '@engine/ecs/types';
 import * as InventoryUtil from '../utils/inventory-util';
 import { GameplayEvents } from '../events/types';
@@ -55,7 +55,8 @@ describe('Death Pity and Extraction (RunEnderSystem)', () => {
     const endSpy = vi.fn();
     eventBus.on('RUN_ENDED', endSpy);
 
-    eventBus.emit('ANCHOR_EXTRACT', {});
+    world.addComponent(playerId, ExtractionIntent, { reason: 'manual' });
+    world.executeSystems(Phase.CLEANUP);
     eventBus.flush();
 
     // Run inventory is cleared upon extraction (authoritative result is in event)

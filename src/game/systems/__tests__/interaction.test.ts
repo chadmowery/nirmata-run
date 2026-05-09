@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createEngineInstance } from '../../engine-factory';
-import { StaircaseMarker, AnchorMarker, Position } from '@shared/components';
+import { StaircaseMarker, Position, DescentIntent, ExtractionIntent } from '@shared/components';
 import { GameAction } from '../../input/actions';
 
 describe('Interaction Systems', () => {
@@ -10,13 +10,10 @@ describe('Interaction Systems', () => {
     seed: 'test-seed',
   };
 
-  it('emits STAIRCASE_INTERACTION and pauses when moving onto stairs', async () => {
+  it('triggers proximity messages when moving onto stairs', async () => {
     const engine = createEngineInstance(config);
     const { world, grid, eventBus, playerId } = engine;
 
-    // Find and move player to a safe spot next to stairs
-    const playerPos = world.getComponent(playerId, Position)!;
-    
     // Create a staircase at (10, 10)
     const staircaseId = world.createEntity();
     world.addComponent(staircaseId, Position, { x: 10, y: 10 });
@@ -25,91 +22,59 @@ describe('Interaction Systems', () => {
 
     // Position player at (10, 11)
     world.patchComponent(playerId, Position, { x: 10, y: 11 });
-    grid.clear(); // Clear initial placement for simplicity
+    grid.clear();
     grid.addEntity(playerId, 10, 11);
     grid.addEntity(staircaseId, 10, 10);
     grid.setTile(10, 10, { terrain: 'floor', walkable: true, transparent: true });
 
-    const eventSpy = vi.fn();
-    eventBus.on('STAIRCASE_INTERACTION', eventSpy);
-    const descendSpy = vi.fn();
-    eventBus.on('STAIRCASE_DESCEND_TRIGGERED', descendSpy);
-    const pauseSpy = vi.fn();
-    eventBus.on('GAME_PAUSE_REQUESTED', pauseSpy);
+    const messageSpy = vi.fn();
+    eventBus.on('MESSAGE_EMITTED', messageSpy);
 
     // 1. Move North onto stairs
     engine.turnManager.submitAction(GameAction.MOVE_NORTH);
-    
-    // Should show UI and pause, but NOT descend yet
-    expect(eventSpy).toHaveBeenCalled();
-    expect(pauseSpy).toHaveBeenCalled();
-    expect(descendSpy).not.toHaveBeenCalled();
-    expect(world.getComponent(playerId, Position)!.y).toBe(10); // Still at (10,10) on current floor
 
-    // 2. Confirm descent via event
-    eventBus.emit('STAIRCASE_DECISION_MADE', {
-      confirmed: true,
-      targetFloor: 2,
-      staircaseId: staircaseId
-    });
-    eventBus.flush();
-
-    // Now it should trigger descent
-    expect(descendSpy).toHaveBeenCalledWith(expect.objectContaining({
-      targetFloor: 2
+    // Should show proximity message
+    expect(messageSpy).toHaveBeenCalledWith(expect.objectContaining({
+      text: expect.stringContaining('Staircase'),
     }));
+
+    // Position should have updated to (10, 10)
+    expect(world.getComponent(playerId, Position)!.y).toBe(10);
   });
 
-  it('does NOT trigger local descent on the client', async () => {
-    const engine = createEngineInstance({ ...config, isClient: true });
-    const { eventBus } = engine;
+  it('resolves descent when DescentIntent is added', async () => {
+    const engine = createEngineInstance(config);
+    const { world, eventBus, playerId } = engine;
 
     const transitionSpy = vi.fn();
     eventBus.on('FLOOR_TRANSITION', transitionSpy);
 
-    // Simulate Receiving STAIRCASE_DESCEND_TRIGGERED from server
-    eventBus.emit('STAIRCASE_DESCEND_TRIGGERED', {
-      entityId: engine.playerId,
-      targetFloor: 2,
-      runSeed: 'test-seed'
-    });
-    eventBus.flush();
+    // Manually add DescentIntent (simulating UI confirmation)
+    world.addComponent(playerId, DescentIntent, { targetFloor: 2, cost: 0 });
 
-    // FloorManager should have ignored it
-    expect(transitionSpy).not.toHaveBeenCalled();
+    // Run a turn cycle to process intents
+    engine.turnManager.submitAction(GameAction.WAIT);
+
+    expect(transitionSpy).toHaveBeenCalledWith(expect.objectContaining({
+      floorNumber: 2
+    }));
   });
 
-  it('emits ANCHOR_INTERACTION with full data when moving onto anchor', async () => {
+  it('resolves extraction when ExtractionIntent is added', async () => {
     const engine = createEngineInstance(config);
-    const { world, grid, eventBus, playerId } = engine;
+    const { world, eventBus, playerId } = engine;
 
-    const playerPos = world.getComponent(playerId, Position)!;
-    
-    // Create an anchor at (5, 5)
-    const anchorId = world.createEntity();
-    world.addComponent(anchorId, Position, { x: 5, y: 5 });
-    world.addComponent(anchorId, AnchorMarker, { used: false });
-    grid.clear();
-    grid.addEntity(anchorId, 5, 5);
-    grid.setTile(5, 5, { terrain: 'floor', walkable: true, transparent: true });
+    const runEndedSpy = vi.fn();
+    eventBus.on('RUN_ENDED', runEndedSpy);
 
-    // Position player at (5, 6)
-    world.patchComponent(playerId, Position, { x: 5, y: 6 });
-    grid.addEntity(playerId, 5, 6);
+    // Manually add ExtractionIntent
+    world.addComponent(playerId, ExtractionIntent, { reason: 'manual' });
 
-    const eventSpy = vi.fn();
-    eventBus.on('ANCHOR_INTERACTION', eventSpy);
+    // Run a turn cycle
+    engine.turnManager.submitAction(GameAction.WAIT);
 
-    // Move North onto anchor
-    engine.turnManager.submitAction(GameAction.MOVE_NORTH);
-    
-    expect(eventSpy).toHaveBeenCalledWith(expect.objectContaining({
-      entityId: playerId,
-      anchorId: anchorId,
-      floorNumber: 1,
-      stabilityPercent: expect.any(Number),
-      inventory: expect.any(Object),
-      descendCost: expect.any(Number)
+    expect(runEndedSpy).toHaveBeenCalledWith(expect.objectContaining({
+      reason: 'extraction'
     }));
   });
 });
