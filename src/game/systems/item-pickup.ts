@@ -30,8 +30,8 @@ export function createItemPickupSystem<T extends GameplayEvents>(
 ): ItemPickupSystem<T> {
 
   function processItem(w: World<T>, entityId: number, itemId: number, x: number, y: number) {
-    // Security check: ensure it actually has the Item component
-    if (!w.hasComponent(itemId, Item)) {
+    // Security check: ensure it actually has the Item component and isn't already dying/picked up
+    if (!w.hasComponent(itemId, Item) || w.hasComponent(itemId, Dying)) {
       return;
     }
 
@@ -97,6 +97,7 @@ export function createItemPickupSystem<T extends GameplayEvents>(
           });
 
           grid.removeItem(itemId, x, y);
+          w.removeComponent(itemId, Position);
           // NOTE: We DO NOT destroy the entity here because it's now in the inventory.
           eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
           return;

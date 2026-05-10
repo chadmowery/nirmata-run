@@ -60,7 +60,15 @@ export class EventBus<TEventMap extends Record<string, any>> {
       : (window as any).DEBUG_EVENTS === true;
 
     if (isDebugEnabled || isServer) {
-      console.log(`[EventBus] emit: ${type as string}`);
+      const typeStr = type as string;
+      const isLifecycleEvent = typeStr === 'COMPONENT_ADDED' || 
+                              typeStr === 'COMPONENT_REMOVED' || 
+                              typeStr === 'ENTITY_CREATED' || 
+                              typeStr === 'ENTITY_DESTROYED';
+      
+      if (!isLifecycleEvent || (isServer && process.env.DEBUG_ECS_LIFECYCLE === 'true')) {
+        console.log(`[EventBus] emit: ${typeStr}`);
+      }
     }
 
     // Notify wildcard handlers immediately

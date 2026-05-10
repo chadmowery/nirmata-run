@@ -33,17 +33,14 @@ export function createRewardDropSystem<T extends GameplayEvents>(
       const lootTable = w.getComponent(entityId, LootTable);
 
 
-      // Drop logic: Skip if no position or if it's the player
-      if (!pos) {
+      // Drop logic: Skip if no position, if it's the player, or if it died due to pickup
+      const dyingInfo = w.getComponent(entityId, Dying);
+      if (!pos || dyingInfo?.reason === 'pickup') {
         continue;
       }
 
-      // 0. Handle death event emission and messaging (Centralized from CombatSystem)
+      // 0. Messaging (Death authority is handled by CombatSystem/Dying tag)
       const isPlayer = !!actor?.isPlayer;
-      const killerId = w.getComponent(entityId, Dying)?.killerId ?? 0;
-
-      eventBus.emit('ENTITY_DIED', { entityId, killerId, isPlayer });
-
       const name = isPlayer ? 'You' : 'The enemy';
       eventBus.emit('MESSAGE_EMITTED', {
         text: `${name} died!`,
@@ -65,7 +62,7 @@ export function createRewardDropSystem<T extends GameplayEvents>(
               { position: { x: pos.x, y: pos.y } }
             );
             grid.addItem(itemId, pos.x, pos.y);
-            // Equipment is added as an item on the grid
+            logger.info(`[RewardDropSystem] LootTable dropped: ${drop.template}`);
           }
         }
       }
@@ -92,7 +89,7 @@ export function createRewardDropSystem<T extends GameplayEvents>(
 
       // Roll for Blueprint
       const blueprintConfig = economy.currencyDrops.blueprint[tierKey] as BlueprintDropConfig | undefined;
-      if (blueprintConfig && Math.random() <= 1.0) { // blueprintConfig.chance) {
+      if (blueprintConfig && Math.random() <= blueprintConfig.chance) {
         const blueprintPool = [
           'Phase_Shift.sh',
           'Neural_Spike.exe',
@@ -140,7 +137,7 @@ export function createRewardDropSystem<T extends GameplayEvents>(
     }
 
     const currencyId = entityFactory.create(world, templateName, componentRegistry, overrides);
-    grid.addEntity(currencyId, x, y);
+    grid.addItem(currencyId, x, y);
   };
 
   return {

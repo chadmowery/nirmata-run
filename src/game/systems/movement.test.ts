@@ -106,4 +106,22 @@ describe('MovementSystem', () => {
     expect(world.hasComponent(playerId, AttackIntent)).toBe(false);
     expect(world.hasComponent(playerId, MoveIntent)).toBe(false);
   });
+
+  it('should not be blocked by non-blocking entities (e.g. items)', () => {
+    const playerId = world.createEntity();
+    world.addComponent(playerId, Position, { x: 5, y: 5 });
+    grid.addEntity(playerId, 5, 5);
+
+    const itemId = world.createEntity();
+    world.addComponent(itemId, Position, { x: 6, y: 5 });
+    grid.addEntity(itemId, 6, 5);
+    // itemId DOES NOT have BlocksMovement
+
+    world.addComponent(playerId, MoveIntent, { dx: 1, dy: 0 });
+    world.executeSystems(Phase.ACTION);
+
+    const pos = world.getComponent(playerId, Position);
+    expect(pos).toEqual({ x: 6, y: 5 });
+    expect(world.hasComponent(playerId, MoveIntent)).toBe(false);
+  });
 });

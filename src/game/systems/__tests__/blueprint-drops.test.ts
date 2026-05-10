@@ -74,7 +74,7 @@ describe('Currency Drop System', () => {
     eventBus.flush();
 
     // Verify state: should have a scrap entity at (5, 5)
-    const entities = Array.from(grid.getEntitiesAt(5, 5));
+    const entities = Array.from(grid.getItemsAt(5, 5));
     const scrapEntity = entities.find(id => world.getComponent(id, CurrencyItem)?.currencyType === 'scrap');
     
     expect(scrapEntity).toBeDefined();
@@ -101,7 +101,7 @@ describe('Currency Drop System', () => {
       world.executeSystems(Phase.CLEANUP);
       eventBus.flush();
 
-      const entities = Array.from(grid.getEntitiesAt(5, 5));
+      const entities = Array.from(grid.getItemsAt(5, 5));
       const types = entities.map(id => world.getComponent(id, CurrencyItem)?.currencyType).filter(Boolean);
       
       expect(types).toContain('scrap');

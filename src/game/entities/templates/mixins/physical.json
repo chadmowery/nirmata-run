@@ -1,7 +1,6 @@
 {
   "name": "physical",
   "components": {
-    "position": { "x": 0, "y": 0 },
-    "blocksMovement": {}
+    "position": { "x": 0, "y": 0 }
   }
 }

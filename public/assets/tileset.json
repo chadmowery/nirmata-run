@@ -395,6 +395,42 @@
         "w": 32,
         "h": 32
       }
+    },
+    "item_blueprint": {
+      "frame": {
+        "x": 32,
+        "y": 192,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "item_flux": {
+      "frame": {
+        "x": 64,
+        "y": 192,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
     }
   },
   "meta": {

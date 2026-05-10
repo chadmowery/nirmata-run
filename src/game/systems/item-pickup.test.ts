@@ -54,6 +54,7 @@ describe('ItemPickupSystem', () => {
       registerSystem: vi.fn(),
       unregisterSystem: vi.fn(),
       addComponent: vi.fn(),
+      removeComponent: vi.fn(),
     } as unknown as World<GameplayEvents>;
 
     itemPickupSystem = createItemPickupSystem(world, grid, eventBus);

@@ -3,6 +3,7 @@
   "mixins": ["physical", "combatant"],
   "components": {
     "actor": { "isPlayer": true },
+    "blocksMovement": {},
     "energy": { "current": 1000, "speed": 100, "threshold": 1000 },
     "sprite": { "key": "player" },
     "run_inventory": { "maxSlots": 30, "software": [] },
