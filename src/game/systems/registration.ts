@@ -26,6 +26,7 @@ import { createAISystem } from './ai';
 import { createFirmwareSystem } from './firmware';
 import { createTileCorruptionSystem } from './tile-corruption';
 import { RunMode } from '@shared/run-mode';
+import { Phase } from '@/engine/ecs/types';
 
 /**
  * Registers core gameplay systems that must run in both client/server and pipeline simulations.
@@ -37,7 +38,7 @@ export function registerCoreSystems<T extends GameplayEvents>(
   eventBus: EventBus<T>,
   entityFactory: EntityFactory,
   componentRegistry: ComponentRegistry,
-  options: { skipLoot?: boolean; runMode?: RunMode } = {}
+  options: { skipLoot?: boolean; runMode?: RunMode; isClient?: boolean } = {}
 ) {
   const teleport = createTeleportSystem(world, grid, eventBus);
   const movement = createMovementSystem(world, grid, eventBus);
@@ -56,7 +57,14 @@ export function registerCoreSystems<T extends GameplayEvents>(
   const tileCorruption = createTileCorruptionSystem(world, grid, eventBus, entityFactory, componentRegistry);
 
   // Floor manager is special but registered to cleanup
-  const floorManager = createFloorManagerSystem(world, grid, eventBus, entityFactory, componentRegistry, options.runMode === RunMode.SIMULATION);
+  const floorManager = createFloorManagerSystem(
+    world, 
+    grid, 
+    eventBus, 
+    entityFactory, 
+    componentRegistry, 
+    options.isClient === true
+  );
 
   const anchorInteraction = createAnchorInteractionSystem(world, grid, eventBus);
 
@@ -96,9 +104,14 @@ export function registerCoreSystems<T extends GameplayEvents>(
   const tagCleanup = createTagCleanupSystem(world);
   tagCleanup.init();
 
+  // Register ticks to POST_TURN phase
+  world.registerSystem(Phase.POST_TURN, () => {
+    tileCorruption.tick();
+  });
+
   return {
     movement, combat, itemPickup, gravedigger, rewardDrop, runEnder,
     augment, tagCleanup, stability, deadZone, equipment, shellStats, floorManager, anchorInteraction,
-    statusEffect, packCoordinator, teleport, software
+    statusEffect, packCoordinator, teleport, software, ai, firmware, tileCorruption
   };
 }

@@ -13,7 +13,7 @@ import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import economy from '@game/entities/templates/economy.json';
 import { handleServerDebugCommand } from '@game/debug/server-debug-handler';
 import { EventOriginContext } from '@shared/utils/event-context';
-import { DescentIntent } from '@shared/components';
+import { DescentIntent, ExtractionIntent } from '@shared/components';
 
 export async function POST(req: Request) {
 
@@ -81,6 +81,7 @@ export async function POST(req: Request) {
           targetFloor: action.targetFloor, 
           cost: 0 
         });
+        actionKey = 'STAIRCASE_DESCEND';
         break;
       }
 
@@ -90,11 +91,13 @@ export async function POST(req: Request) {
           targetFloor: (floorState?.currentFloor ?? 1) + 1, 
           cost: action.cost 
         });
+        actionKey = 'ANCHOR_DESCEND';
         break;
       }
 
       case 'ANCHOR_EXTRACT':
-        eventBus.emit('ANCHOR_EXTRACT', {});
+        world.addComponent(session.playerId, ExtractionIntent, { reason: 'manual' });
+        actionKey = 'ANCHOR_EXTRACT';
         break;
 
       case 'DEBUG_COMMAND':

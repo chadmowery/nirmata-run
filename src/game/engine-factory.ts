@@ -17,7 +17,7 @@ import { DeadZoneSystem } from './systems/dead-zone';
 import { ItemPickupSystem } from './systems/item-pickup';
 import { createHeatSystem, HeatSystem } from './systems/heat';
 import { StatusEffectSystem } from './systems/status-effects';
-import { createFirmwareSystem, FirmwareSystem } from './systems/firmware';
+import { FirmwareSystem } from './systems/firmware';
 import { createKernelPanicSystem, KernelPanicSystem } from './systems/kernel-panic';
 import { AugmentSystem } from './systems/augment';
 import { PackCoordinatorSystem } from './systems/pack-coordinator';
@@ -122,26 +122,15 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     eventBus,
     entityFactory,
     componentRegistry,
-    { runMode: config.runMode }
+    { runMode: config.runMode, isClient: config.isClient }
   );
 
-  const aiSystem = createAISystem(world, grid, eventBus, entityFactory, componentRegistry);
   const heatSystem = createHeatSystem(world, eventBus);
-  const firmwareSystem = createFirmwareSystem(world, grid, eventBus);
   const kernelPanicSystem = createKernelPanicSystem(world, eventBus);
-  const tileCorruptionSystem = createTileCorruptionSystem(world, grid, eventBus, entityFactory, componentRegistry);
 
-  // Initialize remaining systems
-  aiSystem.init();
+  // Initialize systems not in core
   heatSystem.init();
-  firmwareSystem.init();
   kernelPanicSystem.init();
-  tileCorruptionSystem.init();
-
-  // Register ticks to POST_TURN phase
-  world.registerSystem(Phase.POST_TURN, () => {
-    tileCorruptionSystem.tick();
-  });
 
   const turnManager = new TurnManager<GameEvents>(world, eventBus, {
     energyThreshold: 1000,
@@ -281,6 +270,8 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
       }
     } else if (action === GameAction.VENT) {
       world.addComponent(entityId, VentIntent, {});
+    } else if (action === GameAction.ANCHOR_DESCEND || action === GameAction.STAIRCASE_DESCEND || action === GameAction.ANCHOR_EXTRACT) {
+      // Intent already added by API, we just need to satisfy the turn cycle
     }
 
     eventBus.emit('PLAYER_ACTION', { action, entityId });
@@ -303,11 +294,8 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     sessionId: config.sessionId,
     systems: {
       ...coreSystems,
-      ai: aiSystem,
       heat: heatSystem,
-      firmware: firmwareSystem,
       kernelPanic: kernelPanicSystem,
-      tileCorruption: tileCorruptionSystem,
     } as any
   };
 }

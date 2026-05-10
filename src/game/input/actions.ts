@@ -18,6 +18,7 @@ export enum GameAction {
   INTERACT_ANCHOR = 'INTERACT_ANCHOR',
   ANCHOR_DESCEND = 'ANCHOR_DESCEND',
   ANCHOR_EXTRACT = 'ANCHOR_EXTRACT',
+  STAIRCASE_DESCEND = 'STAIRCASE_DESCEND',
   DEBUG_PATHFIND_ANCHOR = 'DEBUG_PATHFIND_ANCHOR',
   DEBUG_TOGGLE_TIMELINE = 'DEBUG_TOGGLE_TIMELINE',
 }
@@ -52,6 +53,10 @@ export const DEFAULT_BINDINGS: Record<string, GameAction> = {
   KeyV: GameAction.VENT,
   KeyP: GameAction.DEBUG_PATHFIND_ANCHOR,
   'Shift+Backquote': GameAction.DEBUG_TOGGLE_TIMELINE,
+
+  // Interaction
+  'Shift+Period': GameAction.INTERACT_STAIRCASE,
+  KeyE: GameAction.INTERACT_ANCHOR,
 };
 
 /**

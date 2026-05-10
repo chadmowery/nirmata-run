@@ -65,7 +65,17 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
 
     // 2. Resolve Player Action Sequence
     // The player's intent was already attached in submitAction via the playerActionHandler
+    const playerId = this.world.query(Actor).find(id => this.world.getComponent(id, Actor)?.isPlayer);
+    if (playerId !== undefined) {
+      this.world.addComponent(playerId, Acting, {});
+    }
+
     this.executeActionSequence();
+
+    if (playerId !== undefined) {
+      this.world.removeComponent(playerId, Acting);
+    }
+
     if (this._paused) return;
 
     // 3. Enemy turns (for those already ready)
