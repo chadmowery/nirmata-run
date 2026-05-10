@@ -170,13 +170,6 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
         corruptedTileKeys: [...state.corruptedTileKeys, key]
       });
 
-      eventBus.emit('TILE_CORRUPTED', { 
-        x: tile.x, 
-        y: tile.y, 
-        newType: newTerrain as 'wall' | 'floor', 
-        corruptorId: seedEaterId 
-      });
-
       // Displace entities if it became a wall
       if (!newWalkable) {
         const entities = Array.from(grid.getEntitiesAt(tile.x, tile.y));
@@ -192,13 +185,6 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
               world.patchComponent(eid, Position, { x: target.x, y: target.y });
               grid.removeEntity(eid, fromX, fromY);
               grid.addEntity(eid, target.x, target.y);
-              eventBus.emit('ENTITY_DISPLACED', { 
-                entityId: eid, 
-                fromX, 
-                fromY, 
-                toX: target.x, 
-                toY: target.y 
-              });
             }
           }
         }
@@ -231,11 +217,6 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
           position: { x: spawnPos.x, y: spawnPos.y }
         });
         grid.addEntity(childId, spawnPos.x, spawnPos.y);
-        eventBus.emit('SUB_PROCESS_SPAWNED', { 
-          parentId: seedEaterId, 
-          childId, 
-          templateName 
-        });
         eventBus.emit('MESSAGE_EMITTED', { 
           text: `Seed_Eater spawned a ${templateName}!`, 
           type: 'combat' 

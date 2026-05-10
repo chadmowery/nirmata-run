@@ -10,13 +10,13 @@ import {
   Defense,
   Heat
 } from '@shared/components';
-import { DamageIntent } from '@shared/components/intents';
+import { DamageIntent, HeatIntent } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
+import { Phase } from '@engine/ecs/types';
 import { createFirmwareSystem } from './firmware';
 import { createHeatSystem } from './heat';
 import { createMovementSystem } from './movement';
 import { createTeleportSystem } from './teleport';
-import { TeleportIntent } from '@shared/components/intents';
 
 describe('FirmwareSystem', () => {
   let world: World<GameplayEvents>;
@@ -71,6 +71,14 @@ describe('FirmwareSystem', () => {
 
     firmwareSystem.activateAbility(playerId, 0, 6, 6);
     eventBus.flush();
+
+    // Verify intent first
+    const intent = world.getComponent(playerId, HeatIntent);
+    expect(intent).toBeDefined();
+    expect(intent?.amount).toBe(10);
+
+    // Resolution happens in HeatSystem during ACTION phase
+    world.executeSystems(Phase.ACTION);
 
     const heat = world.getComponent(playerId, Heat);
     expect(heat?.current).toBe(10);
@@ -192,6 +200,9 @@ describe('FirmwareSystem', () => {
 
     firmwareSystem.activateAbility(playerId, 0, 6, 6);
     eventBus.flush();
+
+    // Resolution happens in HeatSystem during ACTION phase
+    world.executeSystems(Phase.ACTION);
 
     const heat = world.getComponent(playerId, Heat);
     expect(heat?.current).toBe(20); // 10 * 2

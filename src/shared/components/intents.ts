@@ -175,3 +175,14 @@ export const ShellUpdateTag = defineComponent(
   'shellUpdateTag',
   z.object({})
 );
+
+/**
+ * Intent to pick up an item.
+ */
+export const PickupIntent = defineComponent(
+  'pickupIntent',
+  z.object({
+    actorId: z.number(),
+    itemId: z.number(),
+  })
+);

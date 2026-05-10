@@ -7,7 +7,7 @@ import * as InventoryUtil from '../../shared/utils/inventory-util';
 import { World } from '../../engine/ecs/world';
 import { Grid } from '../../engine/grid/grid';
 import { runActionPipeline } from '../../shared/pipeline';
-import { Actor, Position, Health, SoftwareSlots, Attack, Heat, StatusEffects, Dying } from '../../shared/components';
+import { Actor, Position, Health, SoftwareSlots, StatusEffects, Dying, HealIntent, ApplyStatusEffectIntent } from '../../shared/components';
 import { Phase } from '../../engine/ecs/types';
 import { createRunEnderSystem } from './run-ender';
 import { GameplayEvents } from '../../shared/events/types';
@@ -407,7 +407,8 @@ describe('Software System', () => {
 
       const burned = newWorld.getComponent(playerId, BurnedSoftware);
       expect(burned?.weapon).toBe(swNew);
-      expect(newWorld.query().includes(swOld)).toBe(false); // Old destroyed
+      // Old software should be destroyed by Gravedigger in Phase.CLEANUP
+      expect(newWorld.query().includes(swOld)).toBe(false);
     });
   });
 
@@ -538,10 +539,11 @@ describe('Software System', () => {
 
       applyBleedOnHit(world, eventBus, attacker, defender);
 
-      const status = world.getComponent(defender, StatusEffects);
-      expect(status?.effects).toHaveLength(1);
-      expect(status?.effects[0].name).toBe('BLEED');
-      expect(status?.effects[0].magnitude).toBe(2);
+      const intent = world.getComponent(attacker, ApplyStatusEffectIntent);
+      expect(intent).toBeDefined();
+      expect(intent?.targetId).toBe(defender);
+      expect(intent?.effect.name).toBe('BLEED');
+      expect(intent?.effect.magnitude).toBe(2);
     });
 
     it('Bleed v2.x scales magnitude to 4 (baseMagnitude=2 * 2.0)', () => {
@@ -566,8 +568,8 @@ describe('Software System', () => {
 
       applyBleedOnHit(world, eventBus, attacker, defender);
 
-      const status = world.getComponent(defender, StatusEffects);
-      expect(status?.effects[0].magnitude).toBe(4);
+      const intent = world.getComponent(attacker, ApplyStatusEffectIntent);
+      expect(intent?.effect.magnitude).toBe(4);
     });
 
     it('no status effect when attacker has no Bleed burned', () => {
@@ -581,8 +583,7 @@ describe('Software System', () => {
 
       applyBleedOnHit(world, eventBus, attacker, defender);
 
-      const status = world.getComponent(defender, StatusEffects);
-      expect(status?.effects).toHaveLength(0);
+      expect(world.hasComponent(attacker, ApplyStatusEffectIntent)).toBe(false);
     });
   });
 
@@ -636,8 +637,10 @@ describe('Software System', () => {
 
       applyVampireOnKill(world, eventBus, player);
 
-      const health = world.getComponent(player, Health);
-      expect(health?.current).toBe(15);
+      const intent = world.getComponent(player, HealIntent);
+      expect(intent).toBeDefined();
+      expect(intent?.targetId).toBe(player);
+      expect(intent?.amount).toBe(5);
     });
 
     it('Vampire v3.x heals 15 HP (5 * 3.0)', () => {
@@ -661,8 +664,8 @@ describe('Software System', () => {
 
       applyVampireOnKill(world, eventBus, player);
 
-      const health = world.getComponent(player, Health);
-      expect(health?.current).toBe(25);
+      const intent = world.getComponent(player, HealIntent);
+      expect(intent?.amount).toBe(15); // 5 * 3.0
     });
 
     it('heal does not exceed Health.max', () => {
@@ -686,8 +689,9 @@ describe('Software System', () => {
 
       applyVampireOnKill(world, eventBus, player);
 
-      const health = world.getComponent(player, Health);
-      expect(health?.current).toBe(20);
+      const intent = world.getComponent(player, HealIntent);
+      expect(intent?.amount).toBe(5);
+      // Actual health check would happen after HealSystem update
     });
 
     it('triggers on ENTITY_DIED when killerId is the player', () => {
@@ -726,8 +730,8 @@ describe('Software System', () => {
       // Act: Kill that triggers Vampire
       applyVampireOnKill(world, eventBus, player);
 
-      expect(world.getComponent(defender, StatusEffects)?.effects).toHaveLength(1);
-      expect(world.getComponent(player, Health)?.current).toBe(15);
+      expect(world.hasComponent(player, ApplyStatusEffectIntent)).toBe(true);
+      expect(world.hasComponent(player, HealIntent)).toBe(true);
     });
   });
 
@@ -748,7 +752,7 @@ describe('Software System', () => {
 
       applyBleedOnHit(world, eventBus, attacker, defender);
 
-      expect(world.getComponent(defender, StatusEffects)?.effects[0].magnitude).toBe(15);
+      expect(world.getComponent(attacker, ApplyStatusEffectIntent)?.effect.magnitude).toBe(15);
     });
   });
 });

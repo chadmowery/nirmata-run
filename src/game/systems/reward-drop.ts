@@ -34,8 +34,24 @@ export function createRewardDropSystem<T extends GameplayEvents>(
 
 
       // Drop logic: Skip if no position or if it's the player
-      if (!pos || (actor && actor.isPlayer)) {
+      if (!pos) {
         continue;
+      }
+
+      // 0. Handle death event emission and messaging (Centralized from CombatSystem)
+      const isPlayer = !!actor?.isPlayer;
+      const killerId = w.getComponent(entityId, Dying)?.killerId ?? 0;
+
+      eventBus.emit('ENTITY_DIED', { entityId, killerId, isPlayer });
+
+      const name = isPlayer ? 'You' : 'The enemy';
+      eventBus.emit('MESSAGE_EMITTED', {
+        text: `${name} died!`,
+        type: 'combat'
+      });
+
+      if (isPlayer) {
+        continue; // Player doesn't drop loot
       }
 
       // 1. Roll for Equipment (LootTable)
@@ -125,15 +141,6 @@ export function createRewardDropSystem<T extends GameplayEvents>(
 
     const currencyId = entityFactory.create(world, templateName, componentRegistry, overrides);
     grid.addEntity(currencyId, x, y);
-
-    eventBus.emit('CURRENCY_DROPPED', {
-      entityId: currencyId,
-      currencyType: type,
-      amount,
-      x,
-      y,
-      blueprintId: meta?.blueprintId
-    } as unknown as T['CURRENCY_DROPPED']);
   };
 
   return {

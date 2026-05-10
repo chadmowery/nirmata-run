@@ -69,23 +69,18 @@ describe('Currency Drop System', () => {
     world.addComponent(enemyId, Position, { x: 5, y: 5 });
     world.addComponent(enemyId, LootTable, { tier: 1, drops: [] });
 
-    const droppedSpy = vi.fn();
-    eventBus.on('CURRENCY_DROPPED', droppedSpy);
-
     world.addComponent(enemyId, Dying, { killerId: 123 });
     world.executeSystems(Phase.CLEANUP);
     eventBus.flush();
 
-    // Tier 1 scrap chance is 1.0
-    expect(droppedSpy).toHaveBeenCalledWith(expect.objectContaining({
-      currencyType: 'scrap',
-      x: 5,
-      y: 5
-    }));
-
-    const droppedAmount = droppedSpy.mock.calls[0][0].amount;
-    expect(droppedAmount).toBeGreaterThanOrEqual(5);
-    expect(droppedAmount).toBeLessThanOrEqual(15);
+    // Verify state: should have a scrap entity at (5, 5)
+    const entities = Array.from(grid.getEntitiesAt(5, 5));
+    const scrapEntity = entities.find(id => world.getComponent(id, CurrencyItem)?.currencyType === 'scrap');
+    
+    expect(scrapEntity).toBeDefined();
+    const ci = world.getComponent(scrapEntity!, CurrencyItem)!;
+    expect(ci.amount).toBeGreaterThanOrEqual(5);
+    expect(ci.amount).toBeLessThanOrEqual(15);
   });
 
   it('may spawn Flux on Tier 2 enemy death', () => {
@@ -102,17 +97,16 @@ describe('Currency Drop System', () => {
       world.addComponent(enemyId, Position, { x: 5, y: 5 });
       world.addComponent(enemyId, LootTable, { tier: 2, drops: [] });
 
-      const droppedSpy = vi.fn();
-      eventBus.on('CURRENCY_DROPPED', droppedSpy);
-
       world.addComponent(enemyId, Dying, { killerId: 123 });
       world.executeSystems(Phase.CLEANUP);
       eventBus.flush();
 
-      const droppedTypes = droppedSpy.mock.calls.map(call => call[0].currencyType);
-      expect(droppedTypes).toContain('scrap');
-      expect(droppedTypes).toContain('flux');
-      expect(droppedTypes).toContain('blueprint');
+      const entities = Array.from(grid.getEntitiesAt(5, 5));
+      const types = entities.map(id => world.getComponent(id, CurrencyItem)?.currencyType).filter(Boolean);
+      
+      expect(types).toContain('scrap');
+      expect(types).toContain('flux');
+      expect(types).toContain('blueprint');
     } finally {
       Math.random = originalRandom;
     }

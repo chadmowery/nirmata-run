@@ -4,7 +4,7 @@ import { EventBus } from '@engine/events/event-bus';
 import { Grid } from '@engine/grid/grid';
 import { createFirmwareSystem } from '../firmware';
 import { createAugmentSystem } from '../augment';
-import { AbilityDef, Health, Heat, AugmentSlots, AugmentData, AugmentState, Position, FirmwareSlots, FirmwareActivatedThisTurn } from '@shared/components';
+import { AbilityDef, Health, Heat, AugmentSlots, AugmentData, AugmentState, Position, FirmwareSlots, FirmwareActivatedThisTurn, HeatIntent, ApplyStatusEffectIntent } from '@shared/components';
 import { GameEvents } from '../../events/types';
 
 describe('Legacy System Integration', () => {
@@ -18,9 +18,8 @@ describe('Legacy System Integration', () => {
     grid = new Grid(10, 10);
   });
 
-  it('doubles heat cost for legacy firmware', () => {
+  it('submits double heat cost for legacy firmware via HeatIntent', () => {
     const fwSystem = createFirmwareSystem(world, grid, eventBus);
-    const emitSpy = vi.spyOn(eventBus, 'emit');
     
     const playerId = world.createEntity();
     world.addComponent(playerId, Position, { x: 0, y: 0 });
@@ -42,15 +41,14 @@ describe('Legacy System Integration', () => {
 
     fwSystem.activateAbility(playerId, 0, 1, 0);
     
-    expect(emitSpy).toHaveBeenCalledWith('HEAT_CHANGED', expect.objectContaining({
-      entityId: playerId,
-      newHeat: 20 // 10 * 2
-    }));
+    // Check for HeatIntent
+    const intent = world.getComponent(playerId, HeatIntent);
+    expect(intent).toBeDefined();
+    expect(intent?.amount).toBe(20); // 10 * 2
   });
 
-  it('halves payload magnitude for legacy augments', () => {
+  it('halves payload magnitude for legacy augments via ApplyStatusEffectIntent', () => {
     const augmentSystem = createAugmentSystem(world, eventBus);
-    const emitSpy = vi.spyOn(eventBus, 'emit');
     
     const playerId = world.createEntity();
     const augmentId = world.createEntity();
@@ -72,10 +70,10 @@ describe('Legacy System Integration', () => {
     world.addComponent(playerId, FirmwareActivatedThisTurn, { slotIndex: 0 });
     augmentSystem.processTriggersForEntity(playerId);
 
-    expect(emitSpy).toHaveBeenCalledWith('STATUS_EFFECT_APPLIED', expect.objectContaining({
-      entityId: playerId,
-      effectName: 'SHIELD',
-      magnitude: 5 // 10 * 0.5
-    }));
+    // Check for ApplyStatusEffectIntent
+    const intent = world.getComponent(playerId, ApplyStatusEffectIntent);
+    expect(intent).toBeDefined();
+    expect(intent?.effect.name).toBe('SHIELD');
+    expect(intent?.effect.magnitude).toBe(5); // 10 * 0.5
   });
 });

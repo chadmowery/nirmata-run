@@ -95,12 +95,6 @@ export function createSoftwareSystem<T extends GameplayEvents>(
       });
       InventoryUtil.removeSoftware(w, entityId, inventoryIndex);
 
-      eventBus.emit('SOFTWARE_BURNED', {
-        entityId,
-        softwareId: softwareEntityId,
-        targetSlot
-      });
-
       eventBus.emit('MESSAGE_EMITTED', {
         text: `Successfully burned ${swDef.name} onto ${targetSlot}.`,
         type: 'combat'

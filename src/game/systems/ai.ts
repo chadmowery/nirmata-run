@@ -231,9 +231,6 @@ export function createAISystem<T extends GameplayEvents>(
       const player = findPlayerEntity();
       if (!player) return;
 
-      // 2. Emit ADMIN_DETECTED if not already done
-      eventBus.emit('ADMIN_DETECTED', {});
-
       // 3. Always pathfind toward player
       const step = pathfindToward(pos.x, pos.y, player.x, player.y);
       if (step) {
@@ -380,14 +377,6 @@ export function createAISystem<T extends GameplayEvents>(
         } else if (dist <= ATTACK_RANGE) {
           // Ranged attack - delegated to CombatSystem via AttackIntent
           world.addComponent(entityId, AttackIntent, { targetId: player.id });
-
-          // Emit projectile event for visual feedback
-          eventBus.emit('RANGED_ATTACK', {
-            attackerId: entityId,
-            defenderId: player.id,
-            damage: 5, // Note: CombatSystem will resolve actual damage from Attack component
-            projectileType: 'corrupted_packet'
-          });
 
           // Intent-based status effect application
           world.addComponent(entityId, ApplyStatusEffectIntent, {

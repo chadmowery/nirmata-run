@@ -7,10 +7,9 @@ import {
   FirmwareSlots,
   Position,
   StatusEffects,
-  Heat,
   FirmwareActivatedThisTurn
 } from '@shared/components';
-import { DamageIntent, TeleportIntent, FirmwareIntent } from '@shared/components/intents';
+import { DamageIntent, TeleportIntent, FirmwareIntent, HeatIntent } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 import { getLegacyHeatCost } from './legacy-code';
@@ -74,18 +73,11 @@ export function createFirmwareSystem<T extends GameplayEvents>(
 
       // 2. Heat cost
       const effectiveHeatCost = getLegacyHeatCost(abilityDef.heatCost, abilityDef.isLegacy);
-      const heat = world.getComponent(entityId, Heat);
-      if (heat) {
-        const oldHeat = heat.current;
-        const nextHeat = oldHeat + effectiveHeatCost;
-        world.patchComponent(entityId, Heat, { current: nextHeat });
-        eventBus.emit('HEAT_CHANGED', {
-          entityId,
-          oldHeat,
-          newHeat: nextHeat,
-          maxSafe: heat.maxSafe,
-        });
-      }
+      // 2. Submit HeatIntent instead of direct patching
+      world.addComponent(entityId, HeatIntent, {
+        targetId: entityId,
+        amount: effectiveHeatCost
+      });
 
       // 3. Resolve effect
       if (abilityDef.effectType === 'dash' || abilityDef.effectType === 'dash_attack') {
@@ -131,13 +123,6 @@ export function createFirmwareSystem<T extends GameplayEvents>(
       } else if (abilityDef.effectType === 'toggle_vision') {
         const nextActive = !abilityDef.isActive;
         world.patchComponent(firmwareId, AbilityDef, { isActive: nextActive });
-
-        eventBus.emit('FIRMWARE_TOGGLED', {
-          entityId,
-          firmwareEntityId: firmwareId,
-          abilityName: abilityDef.name,
-          active: nextActive
-        });
 
         eventBus.emit('MESSAGE_EMITTED', {
           text: `${abilityDef.name} ${nextActive ? 'activated' : 'deactivated'}.`,

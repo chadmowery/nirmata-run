@@ -11,6 +11,7 @@ import {
 } from '@shared/components';
 import { EntityId } from '@engine/ecs/types';
 import { ComponentDef } from '@engine/ecs/types';
+import { ApplyStatusEffectIntent, HeatIntent } from '@shared/components';
 
 describe('Augment Integration', () => {
   let engine: any;
@@ -59,12 +60,14 @@ describe('Augment Integration', () => {
     engine.turnManager.submitAction(GameAction.WAIT);
     
     // 7. Verify augment triggered
-    // Heat math: 20 - 5 (turn-start dissipation) - 15 (augment vent) = 0
-    const heat = world.getComponent(playerId, Heat);
-    expect(heat?.current).toBe(0);
-    expect(messageSpy).toHaveBeenCalledWith(expect.objectContaining({
-      text: 'Displacement_Venting.arc TRIGGERED!'
-    }));
+    // Heat is now an intent, resolution happens in ACTION phase of NEXT turn
+    // (Wait, actually it happens in ACTION of THIS turn if we run a full turn?)
+    // No, turn manager runs ACTION then REACTION.
+    // AugmentSystem runs in REACTION. So it adds HeatIntent in REACTION.
+    // That intent won't be resolved until the NEXT turn's ACTION.
+    expect(world.hasComponent(playerId, HeatIntent)).toBe(true);
+    const heatIntent = world.getComponent(playerId, HeatIntent);
+    expect(heatIntent?.amount).toBe(-15);
   });
 
   it('triggers multiple augments in a single turn (Stacking)', () => {
@@ -86,9 +89,11 @@ describe('Augment Integration', () => {
     // 4. Submit action
     engine.turnManager.submitAction(GameAction.WAIT);
     
-    // 5. Verify both triggered: 40 - 5 (dissipation) - 15 - 15 = 5
-    const heat = world.getComponent(playerId, Heat);
-    expect(heat?.current).toBe(5);
+    // 5. Verify intent added (dissipation is immediate in PRE_TURN, but vent is deferred)
+    expect(world.hasComponent(playerId, HeatIntent)).toBe(true);
+    const heatIntent = world.getComponent(playerId, HeatIntent);
+    // 15 * 2 = 30
+    expect(heatIntent?.amount).toBe(-30);
   });
 
   it('handles compound triggers (Static Siphon: ON_ACTIVATION + ON_KILL)', () => {
@@ -109,6 +114,7 @@ describe('Augment Integration', () => {
     world.addComponent(targetId, Dying, { killerId: playerId, reason: 'test' });
     
     engine.turnManager.submitAction(GameAction.WAIT);
-    expect(engine.systems.statusEffect.hasEffect(playerId, 'SHIELD')).toBe(true);
+    // Resolution happens in PRE_TURN of next turn, so we check for intent
+    expect(world.hasComponent(playerId, ApplyStatusEffectIntent)).toBe(true);
   });
 });

@@ -10,10 +10,9 @@ import { logger } from './utils/logger';
 import {
   Position, RunInventory,
   MoveIntent, AttackIntent, VentIntent, COMPONENTS_REGISTRY,
-  DescentIntent, ExtractionIntent, EquipIntent, UnequipIntent, Dying, ShellUpdateTag, MovedThisTurn,
-  BurnSoftwareIntent, FirmwareIntent
+  DescentIntent, ExtractionIntent, EquipIntent, UnequipIntent, ShellUpdateTag, MovedThisTurn,
+  BurnSoftwareIntent, FirmwareIntent, PickupIntent
 } from './components';
-import * as InventoryUtil from './utils/inventory-util';
 import { checkAutoLoader } from '../game/systems/software-effects';
 import { Phase } from '../engine/ecs/types';
 import { EntityRegistry } from '../engine/entity/registry';
@@ -175,16 +174,11 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
       world.addComponent(entityId, DescentIntent, { targetFloor: action.targetFloor, cost: 0 });
       break;
     case 'PICKUP_CURRENCY': {
-      const success = InventoryUtil.addCurrency(world, entityId, action.currencyType, action.amount);
-      if (success) {
-        // Mark the dropped item as dying instead of destroying immediately
-        world.addComponent(action.itemId, Dying, { reason: 'pickup' });
-        eventBus.emit('CURRENCY_PICKED_UP', {
-          entityId,
-          currencyType: action.currencyType,
-          amount: action.amount
-        });
-      }
+      // Use PickupIntent to follow the Phase-Driven pattern
+      world.addComponent(entityId, PickupIntent, {
+        actorId: entityId,
+        itemId: action.itemId
+      });
       break;
     }
   }

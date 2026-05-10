@@ -47,7 +47,10 @@ describe('ItemPickupSystem', () => {
       hasComponent: vi.fn(),
       destroyEntity: vi.fn(),
       patchComponent: vi.fn(),
-      query: vi.fn(),
+      query: vi.fn().mockImplementation((...args) => {
+        // Default to empty array for any query not explicitly handled in tests
+        return [];
+      }),
       registerSystem: vi.fn(),
       unregisterSystem: vi.fn(),
       addComponent: vi.fn(),
@@ -73,7 +76,7 @@ describe('ItemPickupSystem', () => {
     grid.addItem(ITEM_ID, 6, 5);
 
     // Trigger ENTITY_MOVED
-    vi.mocked(world.query).mockReturnValue([PLAYER_ID]);
+    vi.mocked(world.query).mockImplementation((...args) => args.includes(MovedThisTurn) ? [PLAYER_ID] : []);
     vi.mocked(world.getComponent).mockImplementation((id, def) => {
       if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
       if (id === PLAYER_ID && def === MovedThisTurn) return { fromX: 5, fromY: 5, toX: 6, toY: 5 };
@@ -109,7 +112,7 @@ describe('ItemPickupSystem', () => {
     grid.addEntity(PLAYER_ID, 5, 5);
     grid.addItem(ITEM_ID, 6, 5);
 
-    vi.mocked(world.query).mockReturnValue([PLAYER_ID]);
+    vi.mocked(world.query).mockImplementation((...args) => args.includes(MovedThisTurn) ? [PLAYER_ID] : []);
     vi.mocked(world.getComponent).mockImplementation((id, def) => {
       if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
       if (id === PLAYER_ID && def === Health) return { current: 10, max: 20 };
@@ -147,7 +150,7 @@ describe('ItemPickupSystem', () => {
 
     grid.addItem(ITEM_ID, 6, 5);
 
-    vi.mocked(world.query).mockReturnValue([PLAYER_ID]);
+    vi.mocked(world.query).mockImplementation((...args) => args.includes(MovedThisTurn) ? [PLAYER_ID] : []);
     vi.mocked(world.getComponent).mockImplementation((id, def) => {
       if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
       if (id === PLAYER_ID && def === Health) return { current: 18, max: 20 };
@@ -175,7 +178,7 @@ describe('ItemPickupSystem', () => {
 
     grid.addItem(ITEM_ID, 6, 5);
 
-    vi.mocked(world.query).mockReturnValue([ENEMY_ID]);
+    vi.mocked(world.query).mockImplementation((...args) => args.includes(MovedThisTurn) ? [ENEMY_ID] : []);
     vi.mocked(world.getComponent).mockImplementation((id, def) => {
       if (id === ENEMY_ID && def === Actor) return { isPlayer: false };
       if (id === ENEMY_ID && def === MovedThisTurn) return { fromX: 5, fromY: 5, toX: 6, toY: 5 };
@@ -203,7 +206,7 @@ describe('ItemPickupSystem', () => {
       return undefined;
     });
 
-    vi.mocked(world.query).mockReturnValue([PLAYER_ID]);
+    vi.mocked(world.query).mockImplementation((...args) => args.includes(MovedThisTurn) ? [PLAYER_ID] : []);
 
     itemPickupSystem.update(world);
     grid.addItem(DECOR_ID, 6, 5);
@@ -245,7 +248,7 @@ describe('ItemPickupSystem', () => {
       return undefined;
     });
 
-    vi.mocked(world.query).mockReturnValue([PLAYER_ID]);
+    vi.mocked(world.query).mockImplementation((...args) => args.includes(MovedThisTurn) ? [PLAYER_ID] : []);
 
     itemPickupSystem.update(world);
 

@@ -5,8 +5,9 @@ import {
   AugmentData,
   AugmentState,
   AugmentSlots,
-  Health,
-  Heat
+  HealIntent,
+  HeatIntent,
+  ApplyStatusEffectIntent
 } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { getLegacyMagnitude } from './legacy-code';
@@ -23,43 +24,44 @@ export function createAugmentSystem<T extends GameplayEvents>(
 
       switch (payload.type) {
         case 'HEAL': {
-          const health = world.getComponent(entityId, Health);
-          if (health) {
-            world.patchComponent(entityId, Health, {
-              current: Math.min(health.max, health.current + magnitude)
-            });
-          }
+          const existing = world.getComponent(entityId, HealIntent);
+          const currentAmount = existing?.amount ?? 0;
+          world.addComponent(entityId, HealIntent, {
+            targetId: entityId,
+            amount: currentAmount + magnitude
+          });
           break;
         }
         case 'SHIELD':
-          applyStatusEffect(world, eventBus, entityId, {
-            name: 'SHIELD',
-            duration: 1,
-            magnitude: magnitude,
+          // Status effects can overwrite for now as they usually don't stack magnitude
+          world.addComponent(entityId, ApplyStatusEffectIntent, {
+            targetId: entityId,
+            effect: {
+              name: 'SHIELD',
+              duration: 1,
+              magnitude: magnitude,
+            }
           });
           break;
         case 'APPLY_STATUS':
           if (payload.statusEffectName) {
-            applyStatusEffect(world, eventBus, entityId, {
-              name: payload.statusEffectName,
-              duration: payload.statusEffectDuration ?? 1,
-              magnitude: magnitude,
+            world.addComponent(entityId, ApplyStatusEffectIntent, {
+              targetId: entityId,
+              effect: {
+                name: payload.statusEffectName,
+                duration: payload.statusEffectDuration ?? 1,
+                magnitude: magnitude,
+              }
             });
           }
           break;
         case 'VENT_HEAT': {
-          const heat = world.getComponent(entityId, Heat);
-          if (heat) {
-            const oldHeat = heat.current;
-            const nextHeat = Math.max(0, oldHeat - magnitude);
-            world.patchComponent(entityId, Heat, { current: nextHeat });
-            eventBus.emit('HEAT_CHANGED', {
-              entityId,
-              oldHeat,
-              newHeat: nextHeat,
-              maxSafe: heat.maxSafe,
-            });
-          }
+          const existing = world.getComponent(entityId, HeatIntent);
+          const currentAmount = existing?.amount ?? 0;
+          world.addComponent(entityId, HeatIntent, {
+            targetId: entityId,
+            amount: currentAmount - magnitude
+          });
           break;
         }
         case 'DAMAGE_BONUS':
@@ -131,13 +133,6 @@ export function createAugmentSystem<T extends GameplayEvents>(
           });
         }
       }
-    }
-
-    if (triggeredAugments.length > 0) {
-      eventBus.emit('AUGMENT_TRIGGERED', {
-        entityId,
-        augments: triggeredAugments
-      });
     }
   };
 

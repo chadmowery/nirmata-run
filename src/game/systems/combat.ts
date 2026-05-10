@@ -122,18 +122,15 @@ export function createCombatSystem<T extends GameplayEvents>(
     const actor = world.getComponent(entityId, Actor);
     const isPlayer = !!actor?.isPlayer;
 
-    // 1. Emit death event for external observers (UI, SFX)
-    eventBus.emit('ENTITY_DIED', { entityId, killerId, isPlayer });
-
-    const name = isPlayer ? 'You' : 'The enemy';
-    eventBus.emit('MESSAGE_EMITTED', {
-      text: `${name} died!`,
-      type: 'combat'
-    });
-
-    // 2. Mark entity as dying
+    // 1. Mark entity as dying
     // Per the Death Protocol, RewardDropSystem and GravediggerSystem will handle the rest in Phase.CLEANUP
     world.addComponent(entityId, Dying, { killerId });
+
+    eventBus.emit('ENTITY_DIED', {
+      entityId,
+      killerId,
+      isPlayer,
+    });
   };
 
   const update = (w: World<T>) => {

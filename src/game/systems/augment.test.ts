@@ -2,14 +2,15 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
 import { createAugmentSystem } from './augment';
-import { 
-  AugmentData, 
-  AugmentState, 
-  AugmentSlots, 
-  Health, 
-  Heat, 
+import {
+  AugmentData,
+  AugmentState,
+  AugmentSlots,
+  Health,
+  Heat,
   Actor,
-  FirmwareActivatedThisTurn
+  FirmwareActivatedThisTurn,
+  HealIntent
 } from '@shared/components';
 import { Phase } from '@engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
@@ -23,7 +24,7 @@ describe('AugmentSystem', () => {
   beforeEach(() => {
     eventBus = new EventBus<GameplayEvents>();
     world = new World<GameplayEvents>(eventBus);
-    
+
     augmentSystem = createAugmentSystem(world, eventBus);
     augmentSystem.init();
 
@@ -71,9 +72,11 @@ describe('AugmentSystem', () => {
       // Execute phase
       world.executeSystems(Phase.REACTION);
 
-      const health = world.getComponent(playerId, Health);
-      expect(health.current).toBe(15);
-      
+      // Check for HealIntent
+      const intent = world.getComponent(playerId, HealIntent);
+      expect(intent).toBeDefined();
+      expect(intent?.amount).toBe(5);
+
       const state = world.getComponent(playerId, AugmentState);
       expect(state.activationsThisTurn[augmentId.toString()]).toBe(1);
     });
@@ -94,14 +97,17 @@ describe('AugmentSystem', () => {
       // First trigger
       world.addComponent(playerId, FirmwareActivatedThisTurn, { slotIndex: 0 });
       world.executeSystems(Phase.REACTION);
-      
+
       // Second trigger (should be ignored due to maxTriggersPerTurn)
-      // Note: In real game, FirmwareActivatedThisTurn would still be there unless cleaned up.
-      // But activationsThisTurn is already 1.
       world.executeSystems(Phase.REACTION);
 
-      const health = world.getComponent(playerId, Health);
-      expect(health.current).toBe(11); // Only healed once
+      // We don't check health, we check that only ONE intent was ever processed
+      // Wait, if it triggers again, it would ADD another component?
+      // Actually, addComponent overwrites if it already exists.
+      // But in this case, it shouldn't even call addComponent.
+
+      const state = world.getComponent(playerId, AugmentState);
+      expect(state.activationsThisTurn[augmentId.toString()]).toBe(1);
     });
 
     it('respects cooldownTurns', () => {
@@ -120,7 +126,7 @@ describe('AugmentSystem', () => {
       // Trigger 1
       world.addComponent(playerId, FirmwareActivatedThisTurn, { slotIndex: 0 });
       world.executeSystems(Phase.REACTION);
-      
+
       const state = world.getComponent(playerId, AugmentState);
       expect(state.cooldownsRemaining[augmentId.toString()]).toBe(2);
 
@@ -132,8 +138,12 @@ describe('AugmentSystem', () => {
       // Try to trigger while on cooldown
       world.executeSystems(Phase.REACTION);
 
-      const updatedHealth = world.getComponent(playerId, Health);
-      expect(updatedHealth.current).toBe(11); // Still 11
+      const updatedIntent = world.getComponent(playerId, HealIntent);
+      // It should NOT have added an intent if it's on cooldown
+      // Wait, the first trigger added an intent. We should remove it to check if a second one is added.
+      world.removeComponent(playerId, HealIntent);
+      world.executeSystems(Phase.REACTION);
+      expect(world.hasComponent(playerId, HealIntent)).toBe(false);
     });
 
     it('resets activationsThisTurn via resetTurnState', () => {
@@ -151,7 +161,7 @@ describe('AugmentSystem', () => {
 
       world.addComponent(playerId, FirmwareActivatedThisTurn, { slotIndex: 0 });
       world.executeSystems(Phase.REACTION);
-      
+
       const state = world.getComponent(playerId, AugmentState);
       expect(state.activationsThisTurn[augmentId.toString()]).toBe(1);
 

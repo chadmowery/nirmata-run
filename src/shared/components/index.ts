@@ -40,7 +40,7 @@ import { TemplateId } from './template-id';
 import { 
   MoveIntent, AttackIntent, VentIntent, DamageIntent, DescentIntent, ExtractionIntent, 
   EquipIntent, UnequipIntent, ShellUpdateTag, TeleportIntent,
-  ApplyStatusEffectIntent, HealIntent, HeatIntent, BurnSoftwareIntent, FirmwareIntent, Acting
+  ApplyStatusEffectIntent, HealIntent, HeatIntent, BurnSoftwareIntent, FirmwareIntent, Acting, PickupIntent
 } from './intents';
 import { MovedThisTurn } from './moved-this-turn';
 import { Dying } from './dying';
@@ -111,6 +111,7 @@ export const COMPONENTS_REGISTRY = [
   BurnSoftwareIntent,
   FirmwareIntent,
   Acting,
+  PickupIntent,
 ] as const;
 
 export * from './position';

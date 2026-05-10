@@ -45,7 +45,6 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
 
       // 3. Handle expiration
       if (nextTurns <= 0) {
-        eventBus.emit('DEAD_ZONE_EXPIRED', { x: pos.x, y: pos.y });
         // Mark as dying and let Gravedigger purge it
         w.addComponent(entityId, Dying, { reason: 'expiration' });
       }
@@ -71,16 +70,14 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
     });
 
     grid.addEntity(entityId, x, y);
-
-    eventBus.emit('DEAD_ZONE_CREATED', { x, y, duration, creatorId });
   };
 
   return {
     init() {
-      world.registerSystem(Phase.POST_TURN, update);
+      world.registerSystem(Phase.ACTION, update);
     },
     dispose() {
-      world.unregisterSystem(Phase.POST_TURN, update);
+      world.unregisterSystem(Phase.ACTION, update);
     },
     update,
     createDeadZone,

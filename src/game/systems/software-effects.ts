@@ -1,7 +1,7 @@
 import { World } from '@engine/ecs/world';
 import { EntityId } from '@engine/ecs/types';
 import { EventBus } from '@engine/events/event-bus';
-import { BurnedSoftware, SoftwareDef, RarityTier, StatusEffects, Health } from '@shared/components';
+import { BurnedSoftware, SoftwareDef, RarityTier, HealIntent, ApplyStatusEffectIntent } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 
 /**
@@ -27,32 +27,15 @@ export function applyBleedOnHit<T extends GameplayEvents>(
   const scaledDamage = softwareDef.baseMagnitude * rarity.scaleFactor;
   // baseMagnitude=2: v0.x→2, v1.x→3, v2.x→4, v3.x→6
 
-  const statusEffects = world.getComponent(defenderId, StatusEffects);
-  if (!statusEffects) return;
-
-  const effect = {
-    name: 'BLEED',
-    duration: 3,
-    magnitude: scaledDamage,
-    source: `software:bleed-${rarity.tier}`,
-  };
-
-  world.patchComponent(defenderId, StatusEffects, {
-    effects: [...statusEffects.effects, effect]
-  });
-
-  eventBus.emit('STATUS_EFFECT_APPLIED', {
-    entityId: defenderId,
-    effectName: 'BLEED',
-    duration: 3,
-    magnitude: scaledDamage,
-    source: `software:bleed-${rarity.tier}`,
-  });
-
-  eventBus.emit('SOFTWARE_MODIFIER_APPLIED', {
-    entityId: attackerId,
-    softwareType: 'bleed',
-    magnitude: scaledDamage,
+  // Submit intent for status effect resolution
+  world.addComponent(attackerId, ApplyStatusEffectIntent, {
+    targetId: defenderId,
+    effect: {
+      name: 'BLEED',
+      duration: 3,
+      magnitude: scaledDamage,
+      source: `software:bleed-${rarity.tier}`,
+    }
   });
 }
 
@@ -96,24 +79,14 @@ export function applyVampireOnKill<T extends GameplayEvents>(
   const healAmount = Math.floor(softwareDef.baseMagnitude * rarity.scaleFactor);
   // baseMagnitude=5: v0.x→5, v1.x→7, v2.x→10, v3.x→15
 
-  const health = world.getComponent(killerId, Health);
-  if (!health) return;
+  // Submit intent for heal resolution
+  world.addComponent(killerId, HealIntent, {
+    targetId: killerId,
+    amount: healAmount
+  });
 
-  const oldHealth = health.current;
-  const nextHealth = Math.min(health.max, health.current + healAmount);
-  world.patchComponent(killerId, Health, { current: nextHealth });
-  const actualHeal = nextHealth - oldHealth;
-
-  if (actualHeal > 0) {
-    eventBus.emit('HEALED', { entityId: killerId, amount: actualHeal });
-    eventBus.emit('SOFTWARE_MODIFIER_APPLIED', {
-      entityId: killerId,
-      softwareType: 'vampire',
-      magnitude: actualHeal,
-    });
-    eventBus.emit('MESSAGE_EMITTED', {
-      text: `Vampire.exe: Healed ${actualHeal} HP on kill.`,
-      type: 'combat',
-    });
-  }
+  eventBus.emit('MESSAGE_EMITTED', {
+    text: `Vampire.exe activated on kill.`,
+    type: 'combat',
+  });
 }

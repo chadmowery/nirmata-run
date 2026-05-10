@@ -126,13 +126,13 @@ export function handleServerDebugCommand(
 
     case 'SPAWN_DEADZONE': {
       const pos = world.getComponent(playerId, Position);
-      if (pos) {
-        eventBus.emit('DEAD_ZONE_CREATED', {
-          x: pos.x,
-          y: pos.y,
-          duration: Number(args.duration) || 5,
-          creatorId: playerId,
-        });
+      if (pos && systems?.deadZone) {
+        systems.deadZone.createDeadZone(
+          pos.x,
+          pos.y,
+          Number(args.duration) || 5,
+          playerId
+        );
       }
       break;
     }

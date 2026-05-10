@@ -2,7 +2,7 @@ import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityId, Phase } from '@engine/ecs/types';
-import { Position, PackMember, Actor, StatusEffects, MovedThisTurn, Dying } from '@shared/components';
+import { Position, PackMember, Actor, MovedThisTurn, Dying, ApplyStatusEffectIntent, DamageIntent } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 
@@ -48,7 +48,7 @@ export function createPackCoordinatorSystem<T extends GameplayEvents>(
 
       const pos = world.getComponent(memberId, Position)!;
       const dist = Math.abs(pos.x - player.x) + Math.abs(pos.y - player.y);
-      
+
       if (dist === 1) {
         if (!packsInRange.has(pm.packId)) {
           packsInRange.set(pm.packId, []);
@@ -60,31 +60,18 @@ export function createPackCoordinatorSystem<T extends GameplayEvents>(
     for (const [packId, adjacentMembers] of packsInRange.entries()) {
       if (adjacentMembers.length >= 3) {
         detonatedPacksThisTurn.add(packId);
-        
-        // Apply MOVEMENT_SLOW to player once per pack detonation
-        const statusEffects = world.getComponent(player.id, StatusEffects);
-        if (statusEffects) {
-          // Objective 5: Fix direct mutation
-          world.patchComponent(player.id, StatusEffects, {
-            effects: [
-              ...statusEffects.effects,
-              {
-                name: 'MOVEMENT_SLOW',
-                duration: 2,
-                magnitude: 50,
-                source: 'buffer_overflow'
-              }
-            ]
-          });
 
-          eventBus.emit('STATUS_EFFECT_APPLIED', {
-            entityId: player.id,
-            effectName: 'MOVEMENT_SLOW',
+        // Apply MOVEMENT_SLOW to player once per pack detonation
+        // Request status effect via intent instead of direct patching
+        world.addComponent(player.id, ApplyStatusEffectIntent, {
+          targetId: player.id,
+          effect: {
+            name: 'MOVEMENT_SLOW',
             duration: 2,
             magnitude: 50,
             source: 'buffer_overflow'
-          });
-        }
+          }
+        });
 
         eventBus.emit('MESSAGE_EMITTED', {
           text: 'A Buffer-Overflow pack detonates!',
@@ -93,20 +80,17 @@ export function createPackCoordinatorSystem<T extends GameplayEvents>(
 
         // Process each detonating member
         for (const memberId of adjacentMembers) {
-          const pos = world.getComponent(memberId, Position)!;
-          
-          eventBus.emit('PACK_DETONATION', {
-            entityId: memberId,
-            x: pos.x,
-            y: pos.y,
-            packId,
-            damage: 8
+
+          // Request damage via DamageIntent instead of an unused event
+          world.addComponent(memberId, DamageIntent, {
+            targetId: player.id,
+            amount: 8
           });
 
           // In a real implementation, we might want to deal damage to the player here too,
           // but the event might be enough for a separate damage system to pick up.
           // For now, we follow the plan and emit events.
-          
+
           // Mark the detonating member as dying
           // Per the Death Protocol, we no longer destroy entities directly
           world.addComponent(memberId, Dying, { killerId: player.id });
