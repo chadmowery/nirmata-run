@@ -8,6 +8,7 @@ export const DealtDamageThisTurn = defineComponent(
   'dealtDamageThisTurn',
   z.object({
     amount: z.number().default(0),
+    targets: z.array(z.number()).default([]),
   }),
 );
 

@@ -10,7 +10,7 @@ import { Item } from '@shared/components/item';
 import { PickupEffect, EffectType } from '@shared/components/pickup-effect';
 import { Health } from '@shared/components/health';
 import { CurrencyItem } from '@shared/components/currency-item';
-import { TemplateId } from '@shared/components';
+import { TemplateId, Dying } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { RarityTier } from '@shared/components/rarity-tier';
 import { SoftwareDef } from '@shared/components/software-def';
@@ -86,7 +86,7 @@ export function createItemPickupSystem<T extends GameplayEvents>(
 
             // Cleanup and continue to next item
             grid.removeItem(itemId, toX, toY);
-            w.destroyEntity(itemId);
+            w.addComponent(itemId, Dying, { reason: 'pickup' });
             continue;
           } else {
             eventBus.emit('MESSAGE_EMITTED', {
@@ -152,7 +152,7 @@ export function createItemPickupSystem<T extends GameplayEvents>(
 
         // 6. Cleanup
         grid.removeItem(itemId, toX, toY);
-        w.destroyEntity(itemId);
+        w.addComponent(itemId, Dying, { reason: 'pickup' });
       }
     }
   }

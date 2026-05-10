@@ -8,11 +8,9 @@ import { serializeWorld, serializeGrid, deserializeWorld, deserializeGrid } from
 import { logger } from './utils/logger';
 
 import {
-  Position, Health, Item, PickupEffect, EffectType,
-  SoftwareDef, BurnedSoftware, FloorState, RarityTier,
-  RunInventory, CurrencyItem, TemplateId,
+  Position, SoftwareDef, BurnedSoftware, RunInventory,
   MoveIntent, AttackIntent, VentIntent, COMPONENTS_REGISTRY,
-  DescentIntent, ExtractionIntent, EquipIntent, UnequipIntent, Dying, ShellUpdateTag
+  DescentIntent, ExtractionIntent, EquipIntent, UnequipIntent, Dying, ShellUpdateTag, MovedThisTurn
 } from './components';
 import * as InventoryUtil from './utils/inventory-util';
 import { checkAutoLoader } from '../game/systems/software-effects';
@@ -65,9 +63,11 @@ export function runActionPipeline(
   );
 
   // 5. Execute Core Phases
+  newWorld.executeSystems(Phase.PRE_TURN);
   newWorld.executeSystems(Phase.ACTION);
   newWorld.executeSystems(Phase.REACTION);
   newWorld.executeSystems(Phase.CLEANUP);
+  newWorld.executeSystems(Phase.POST_TURN);
 
   localEventBus.flush();
 
@@ -92,10 +92,20 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
     case 'WAIT':
       // Do nothing
       break;
-    case 'PICKUP':
-      // Item pickup is usually triggered by MOVE, but if called explicitly:
-      handlePickup(world, grid, eventBus, entityId, action.itemId);
+    case 'PICKUP': {
+      // Walking onto an item triggers pickup via MovedThisTurn in Phase.REACTION.
+      // If called explicitly, we simulate a "move to self" to trigger the system.
+      const pos = world.getComponent(entityId, Position);
+      if (pos) {
+        world.addComponent(entityId, MovedThisTurn, {
+          fromX: pos.x,
+          fromY: pos.y,
+          toX: pos.x,
+          toY: pos.y
+        });
+      }
       break;
+    }
     case 'ATTACK':
       // Explicit attack intent
       world.addComponent(entityId, AttackIntent, { targetId: action.targetId });
@@ -185,8 +195,7 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
       eventBus.emit('SHELL_STATS_CHANGED', { entityId, shellId: action.shellId });
       break;
     case 'USE_FIRMWARE':
-      // For now, emit intent. Full resolution in Phase 13 or specific system.
-      // This allows MOVE_AND_USE_FIRMWARE to at least emit the intent.
+      // Handled via TurnManager and authoritative system resolution
       eventBus.emit('PLAYER_ACTION', { action: 'USE_FIRMWARE', entityId });
       break;
     case 'VENT':
@@ -231,75 +240,3 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
     }
   }
 }
-
-function handlePickup(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>, entityId: number, itemId: number) {
-  if (!world.hasComponent(itemId, Item)) return;
-
-  const effect = world.getComponent(itemId, PickupEffect);
-  if (effect && effect.type === EffectType.HEAL) {
-    const health = world.getComponent(entityId, Health);
-    if (health) {
-      world.patchComponent(entityId, Health, {
-        current: Math.min(health.max, health.current + effect.value)
-      });
-    }
-  }
-
-  // Handle CurrencyItem pickup
-  const currencyItem = world.getComponent(itemId, CurrencyItem);
-  if (currencyItem) {
-    InventoryUtil.addCurrency(world, entityId, currencyItem.currencyType, currencyItem.amount, {
-      blueprintId: currencyItem.blueprintId,
-      blueprintType: currencyItem.blueprintType
-    });
-  }
-
-  // Handle Software item pickup
-  const swDef = world.getComponent(itemId, SoftwareDef);
-  if (swDef) {
-    const rarity = world.getComponent(itemId, RarityTier);
-    const templateRef = world.getComponent(itemId, TemplateId);
-    const floorState = world.getComponent(entityId, FloorState);
-
-    if (templateRef) {
-      const added = InventoryUtil.addSoftware(world, entityId, {
-        entityId: itemId,
-        templateId: templateRef.id,
-        rarityTier: rarity?.tier || 'v1.x',
-        pickedUpAtFloor: floorState?.currentFloor || 1,
-        pickedUpAtTimestamp: Date.now(),
-      });
-
-      if (added) {
-        eventBus.emit('MESSAGE_EMITTED', {
-          text: `+ SOFTWARE SECURED: ${swDef.name} [${rarity?.tier || 'v1.x'}]`,
-          type: 'info'
-        });
-
-        const pos = world.getComponent(entityId, Position);
-        if (pos) {
-          grid.removeItem(itemId, pos.x, pos.y);
-        }
-        // NOTE: We DO NOT destroy the entity here because it's now in the inventory.
-        // It will be destroyed if burned or when the run ends.
-        eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
-        return;
-      } else {
-        eventBus.emit('MESSAGE_EMITTED', {
-          text: `INVENTORY FULL: Cannot secure ${swDef.name}`,
-          type: 'error'
-        });
-      }
-    }
-  }
-
-  const pos = world.getComponent(entityId, Position);
-  if (pos) {
-    grid.removeItem(itemId, pos.x, pos.y);
-  }
-  world.addComponent(itemId, Dying, { reason: 'pickup' });
-  eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
-}
-
-// handlePickup is still used for explicit PICKUP intent or auto-pickup logic in other phases
-// handleDeath and setupInternalHandlers have been collapsed into authoritative systems

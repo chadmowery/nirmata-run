@@ -1,7 +1,7 @@
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
-import { EntityId } from '@engine/ecs/types';
+import { EntityId, Phase } from '@engine/ecs/types';
 import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
 import { FloorState } from '@shared/components/floor-state';
@@ -155,7 +155,11 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
 
   /** Initialize system. */
   const init = () => {
-    // Note: Registration moved to Phase.CLEANUP in registration.ts
+    world.registerSystem(Phase.CLEANUP, update);
+  };
+
+  const dispose = () => {
+    world.unregisterSystem(Phase.CLEANUP, update);
   };
 
   return {

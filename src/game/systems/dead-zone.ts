@@ -1,7 +1,7 @@
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
-import { EntityId } from '@engine/ecs/types';
+import { EntityId, Phase } from '@engine/ecs/types';
 import { DeadZone, Position, Health, Dying, DamageIntent } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
@@ -77,9 +77,10 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
 
   return {
     init() {
-      // Note: Registration moved to Phase.POST_TURN in registration.ts
+      world.registerSystem(Phase.POST_TURN, update);
     },
     dispose() {
+      world.unregisterSystem(Phase.POST_TURN, update);
     },
     update,
     createDeadZone,

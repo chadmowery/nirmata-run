@@ -11,7 +11,7 @@ import {
   Heat,
   FirmwareActivatedThisTurn
 } from '@shared/components';
-import { DamageIntent } from '@shared/components/intents';
+import { DamageIntent, TeleportIntent } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 import { getLegacyHeatCost } from './legacy-code';
@@ -90,22 +90,8 @@ export function createFirmwareSystem<T extends GameplayEvents>(
 
       // 3. Resolve effect
       if (abilityDef.effectType === 'dash' || abilityDef.effectType === 'dash_attack') {
-        const oldX = pos.x;
-        const oldY = pos.y;
-
-        // Update position
-        world.patchComponent(entityId, Position, { x: targetX, y: targetY });
-
-        // Update grid
-        grid.moveEntity(entityId, oldX, oldY, targetX, targetY);
-
-        eventBus.emit('ENTITY_MOVED', {
-          entityId,
-          fromX: oldX,
-          fromY: oldY,
-          toX: targetX,
-          toY: targetY,
-        } as T['ENTITY_MOVED']);
+        // Submit teleport intent instead of direct mutation
+        world.addComponent(entityId, TeleportIntent, { x: targetX, y: targetY });
 
         eventBus.emit('MESSAGE_EMITTED', {
           text: `${abilityDef.name} activated! Dashed to (${targetX}, ${targetY}).`,
@@ -125,7 +111,6 @@ export function createFirmwareSystem<T extends GameplayEvents>(
             });
           }
         }
-
       } else if (abilityDef.effectType === 'ranged_attack' || abilityDef.effectType === 'melee_attack') {
         const targets = grid.getEntitiesAt(targetX, targetY);
 

@@ -171,16 +171,19 @@ export function createCombatSystem<T extends GameplayEvents>(
         amount: damage,
       });
 
-      // Track damage dealt this turn for augment triggers
+      // Track damage dealt this turn for augment/software triggers
       const dealtDamage = w.getComponent(attackerId, DealtDamageThisTurn);
       if (dealtDamage) {
-        w.patchComponent(attackerId, DealtDamageThisTurn, { amount: dealtDamage.amount + damage });
+        w.patchComponent(attackerId, DealtDamageThisTurn, { 
+          amount: dealtDamage.amount + damage,
+          targets: [...dealtDamage.targets, defenderId]
+        });
       } else {
-        w.addComponent(attackerId, DealtDamageThisTurn, { amount: damage });
+        w.addComponent(attackerId, DealtDamageThisTurn, { 
+          amount: damage,
+          targets: [defenderId]
+        });
       }
-
-      // Apply software effects like Bleed
-      applyBleedOnHit(w, eventBus, attackerId, defenderId);
 
       // Emit UI message
       const attackerActor = w.getComponent(attackerId, Actor);

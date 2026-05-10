@@ -133,21 +133,24 @@ export function createPackCoordinatorSystem<T extends GameplayEvents>(
     }
   };
 
-  const onTurnStart = () => {
+  const preTurnUpdate = (w: World<T>) => {
     detonatedPacksThisTurn.clear();
   };
 
   return {
     init() {
+      world.registerSystem(Phase.PRE_TURN, preTurnUpdate);
       world.registerSystem(Phase.REACTION, update);
     },
     dispose() {
+      world.unregisterSystem(Phase.PRE_TURN, preTurnUpdate);
       world.unregisterSystem(Phase.REACTION, update);
     },
     resetTurnState() {
       detonatedPacksThisTurn.clear();
     },
     update,
+    preTurnUpdate,
   };
 }
 
@@ -156,4 +159,5 @@ export interface PackCoordinatorSystem<T extends GameplayEvents = GameEvents> {
   dispose(): void;
   update(world: World<T>): void;
   resetTurnState(): void;
+  preTurnUpdate(world: World<T>): void;
 }

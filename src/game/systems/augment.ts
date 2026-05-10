@@ -166,16 +166,26 @@ export function createAugmentSystem<T extends GameplayEvents>(
     }
   };
 
+  const preTurnUpdate = (w: World<T>) => {
+    const entities = w.query(AugmentState);
+    for (const entityId of entities) {
+      resetTurnState(entityId);
+    }
+  };
+
   return {
     init() {
+      world.registerSystem(Phase.PRE_TURN, preTurnUpdate);
       world.registerSystem(Phase.REACTION, update);
     },
 
     dispose() {
+      world.unregisterSystem(Phase.PRE_TURN, preTurnUpdate);
       world.unregisterSystem(Phase.REACTION, update);
     },
 
     update,
+    preTurnUpdate,
     resetTurnState,
     evaluateCondition, // Keep for backward compat or tests
     resolvePayloads,

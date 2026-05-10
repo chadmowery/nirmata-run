@@ -15,6 +15,8 @@ import { GameplayEvents } from '@shared/events/types';
 import { createFirmwareSystem } from './firmware';
 import { createHeatSystem } from './heat';
 import { createMovementSystem } from './movement';
+import { createTeleportSystem } from './teleport';
+import { TeleportIntent } from '@shared/components/intents';
 
 describe('FirmwareSystem', () => {
   let world: World<GameplayEvents>;
@@ -22,6 +24,7 @@ describe('FirmwareSystem', () => {
   let eventBus: EventBus<GameplayEvents>;
   let heatSystem: ReturnType<typeof createHeatSystem>;
   let movementSystem: ReturnType<typeof createMovementSystem>;
+  let teleportSystem: ReturnType<typeof createTeleportSystem>;
   let firmwareSystem: ReturnType<typeof createFirmwareSystem>;
 
   beforeEach(() => {
@@ -30,10 +33,12 @@ describe('FirmwareSystem', () => {
     grid = new Grid(10, 10);
     heatSystem = createHeatSystem(world, eventBus);
     movementSystem = createMovementSystem(world, grid, eventBus);
+    teleportSystem = createTeleportSystem(world, grid, eventBus);
     firmwareSystem = createFirmwareSystem(world, grid, eventBus);
 
     heatSystem.init();
     movementSystem.init();
+    teleportSystem.init();
     firmwareSystem.init();
   });
 
@@ -92,6 +97,9 @@ describe('FirmwareSystem', () => {
     const result = firmwareSystem.activateAbility(playerId, 0, 7, 6); // Distance 3
     eventBus.flush();
     expect(result).toBe(true);
+
+    // Resolution happens in TeleportSystem (Phase.ACTION)
+    teleportSystem.update(world);
 
     const pos = world.getComponent(playerId, Position);
     expect(pos?.x).toBe(7);

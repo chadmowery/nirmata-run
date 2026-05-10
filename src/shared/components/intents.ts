@@ -85,6 +85,17 @@ export const UnequipIntent = defineComponent(
 );
 
 /**
+ * Intent to teleport to a specific coordinate.
+ */
+export const TeleportIntent = defineComponent(
+  'teleportIntent',
+  z.object({
+    x: z.number(),
+    y: z.number(),
+  })
+);
+
+/**
  * Tag indicating that shell stats need to be re-synchronized.
  */
 export const ShellUpdateTag = defineComponent(

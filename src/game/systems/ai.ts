@@ -10,7 +10,7 @@ import { AIState, AIBehavior, AIBehaviorType } from '@shared/components/ai-state
 import { FovAwareness } from '@shared/components/fov-awareness';
 import { PackMember } from '@shared/components/pack-member';
 import { StatusEffects } from '@shared/components/status-effects';
-import { MoveIntent, AttackIntent } from '@shared/components/intents';
+import { MoveIntent, AttackIntent, TeleportIntent } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
 
 import { EntityFactory } from '@engine/entity/factory';
@@ -458,12 +458,7 @@ export function createAISystem<T extends GameplayEvents>(
         }
 
         if (finalX !== -1) {
-          const fromX = pos.x;
-          const fromY = pos.y;
-          world.patchComponent(entityId, Position, { x: finalX, y: finalY });
-          grid.removeEntity(entityId, fromX, fromY);
-          grid.addEntity(entityId, finalX, finalY);
-          eventBus.emit('ENEMY_TELEPORTED', { entityId, fromX, fromY, toX: finalX, toY: finalY });
+          world.addComponent(entityId, TeleportIntent, { x: finalX, y: finalY });
           eventBus.emit('MESSAGE_EMITTED', { text: 'A Null-Pointer teleports behind you!', type: 'combat' });
           return;
         }

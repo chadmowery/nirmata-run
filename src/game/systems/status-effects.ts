@@ -1,6 +1,6 @@
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
-import { EntityId } from '@engine/ecs/types';
+import { EntityId, Phase } from '@engine/ecs/types';
 import { StatusEffects } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
@@ -116,15 +116,23 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
       .reduce((sum, e) => sum + e.magnitude, 0);
   };
 
+  const update = (w: World<T>) => {
+    const entities = w.query(StatusEffects);
+    for (const entityId of entities) {
+      tickDown(entityId);
+    }
+  };
+
   return {
     init() {
-      // Internal system state initialization
+      world.registerSystem(Phase.PRE_TURN, update);
     },
 
     dispose() {
-      // Cleanup
+      world.unregisterSystem(Phase.PRE_TURN, update);
     },
 
+    update,
     tickDown,
     applyEffect: (
       entityId: EntityId,

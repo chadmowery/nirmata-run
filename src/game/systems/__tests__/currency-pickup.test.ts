@@ -4,7 +4,7 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { EntityRegistry } from '@engine/entity/registry';
-import { COMPONENTS_REGISTRY, Actor, Position, MovedThisTurn } from '@shared/components';
+import { COMPONENTS_REGISTRY, Actor, Position, MovedThisTurn, Dying } from '@shared/components';
 import { createItemPickupSystem } from '../item-pickup';
 import { RunInventory, RunCurrency } from '@shared/components/run-inventory';
 import * as InventoryUtil from '@shared/utils/inventory-util';
@@ -80,7 +80,7 @@ describe('Currency Pickup System', () => {
     eventBus.flush();
 
     expect(InventoryUtil.getCurrencyAmount(world, playerId, 'scrap')).toBe(15);
-    expect(world.entityExists(scrapId)).toBe(false);
+    expect(world.hasComponent(scrapId, Dying)).toBe(true);
   });
 
   it('emits error message if inventory is full', () => {
@@ -172,6 +172,6 @@ describe('Currency Pickup System', () => {
 
     // Should succeed because it stacks
     expect(InventoryUtil.getCurrencyAmount(world, playerId, 'scrap')).toBe(25);
-    expect(world.entityExists(scrapId)).toBe(false);
+    expect(world.hasComponent(scrapId, Dying)).toBe(true);
   });
 });

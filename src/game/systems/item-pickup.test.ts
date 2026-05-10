@@ -49,6 +49,7 @@ describe('ItemPickupSystem', () => {
       query: vi.fn(),
       registerSystem: vi.fn(),
       unregisterSystem: vi.fn(),
+      addComponent: vi.fn(),
     } as unknown as World<GameplayEvents>;
 
     itemPickupSystem = createItemPickupSystem(world, grid, eventBus);
@@ -88,7 +89,7 @@ describe('ItemPickupSystem', () => {
       itemId: ITEM_ID,
     });
     expect(grid.getItemsAt(6, 5).has(ITEM_ID)).toBe(false);
-    expect(world.destroyEntity).toHaveBeenCalledWith(ITEM_ID);
+    expect(world.addComponent).toHaveBeenCalledWith(ITEM_ID, expect.anything(), expect.objectContaining({ reason: 'pickup' }));
   });
 
   it('should apply heal effect when picking up a health potion', () => {
@@ -246,7 +247,7 @@ describe('ItemPickupSystem', () => {
     expect(world.patchComponent).toHaveBeenCalledWith(PLAYER_ID, Health, { current: 15 });
     expect(eventBus.emit).toHaveBeenCalledTimes(2);
     expect(grid.getItemsAt(6, 5).size).toBe(0);
-    expect(world.destroyEntity).toHaveBeenCalledWith(ITEM_ID);
-    expect(world.destroyEntity).toHaveBeenCalledWith(ITEM_ID_2);
+    expect(world.addComponent).toHaveBeenCalledWith(ITEM_ID, expect.anything(), expect.objectContaining({ reason: 'pickup' }));
+    expect(world.addComponent).toHaveBeenCalledWith(ITEM_ID_2, expect.anything(), expect.objectContaining({ reason: 'pickup' }));
   });
 });

@@ -359,9 +359,6 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   // Wire TurnManager handles
   turnManager.setPlayerActionHandler((action: string, entityId: number) => {
     const gameAction = action as GameAction;
-    context.statusEffectSystem.tickDown(entityId);
-    context.augmentSystem.resetTurnState(entityId);
-    context.packCoordinatorSystem.resetTurnState();
     if (DIRECTIONS[gameAction]) {
       const { dx, dy } = DIRECTIONS[gameAction];
       world.addComponent(entityId, MoveIntent, { dx, dy });
@@ -376,9 +373,6 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
   // Enemy action handler
   turnManager.setEnemyActionHandler((entityId: number) => {
-    context.statusEffectSystem.tickDown(entityId);
-    context.augmentSystem.resetTurnState(entityId);
-    context.packCoordinatorSystem.resetTurnState();
     context.aiSystem.processEnemyTurn(entityId);
   });
 
