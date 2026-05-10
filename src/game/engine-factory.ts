@@ -9,7 +9,7 @@ import { ComponentRegistry } from '../engine/entity/types';
 import { ComponentDef } from '../engine/ecs/types';
 import { registerGameTemplates } from './entities';
 import { createMovementSystem } from './systems/movement';
-import { MoveIntent, VentIntent } from '@shared/components';
+import { MoveIntent, VentIntent, FirmwareIntent } from '@shared/components';
 import { createCombatSystem } from './systems/combat';
 import { createAISystem } from './systems/ai';
 import { registerCoreSystems } from './systems/registration';
@@ -260,10 +260,6 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
 
   // Turn Manager Handlers
   // Turn Manager Handlers
-  turnManager.setEnemyActionHandler((entityId) => {
-    aiSystem.processEnemyTurn(entityId);
-  });
-
   turnManager.setPlayerActionHandler((action: string, entityId: number) => {
     if (DIRECTIONS[action]) {
       const { dx, dy } = DIRECTIONS[action];
@@ -275,12 +271,13 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     } else if (isFirmwareAction(action)) {
       const slotIndex = getFirmwareSlotIndex(action);
       if (slotIndex !== null) {
-        // Parse coordinates if provided (encoded as USE_FIRMWARE_X:targetX:targetY)
         const parts = action.split(':');
-        const targetX = parts[1] !== undefined ? parseInt(parts[1]) : 0;
-        const targetY = parts[2] !== undefined ? parseInt(parts[2]) : 0;
-
-        firmwareSystem.activateAbility(entityId, slotIndex, targetX, targetY);
+        world.addComponent(entityId, FirmwareIntent, {
+          actorId: entityId,
+          slotIndex,
+          targetX: parts[1] !== undefined ? parseInt(parts[1]) : undefined,
+          targetY: parts[2] !== undefined ? parseInt(parts[2]) : undefined,
+        });
       }
     } else if (action === GameAction.VENT) {
       world.addComponent(entityId, VentIntent, {});

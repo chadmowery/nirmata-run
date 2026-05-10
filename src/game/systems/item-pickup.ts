@@ -8,9 +8,8 @@ import { Position } from '@shared/components/position';
 import { MovedThisTurn } from '@shared/components/moved-this-turn';
 import { Item } from '@shared/components/item';
 import { PickupEffect, EffectType } from '@shared/components/pickup-effect';
-import { Health } from '@shared/components/health';
 import { CurrencyItem } from '@shared/components/currency-item';
-import { TemplateId, Dying } from '@shared/components';
+import { TemplateId, Dying, HealIntent } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { RarityTier } from '@shared/components/rarity-tier';
 import { SoftwareDef } from '@shared/components/software-def';
@@ -138,12 +137,10 @@ export function createItemPickupSystem<T extends GameplayEvents>(
         const effect = w.getComponent(itemId, PickupEffect);
         if (effect) {
           if (effect.type === EffectType.HEAL) {
-            const health = w.getComponent(entityId, Health);
-            if (health) {
-              w.patchComponent(entityId, Health, {
-                current: Math.min(health.max, health.current + effect.value),
-              });
-            }
+            w.addComponent(entityId, HealIntent, {
+              targetId: entityId,
+              amount: effect.value
+            });
           }
         }
 

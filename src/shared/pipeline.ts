@@ -8,9 +8,10 @@ import { serializeWorld, serializeGrid, deserializeWorld, deserializeGrid } from
 import { logger } from './utils/logger';
 
 import {
-  Position, SoftwareDef, BurnedSoftware, RunInventory,
+  Position, RunInventory,
   MoveIntent, AttackIntent, VentIntent, COMPONENTS_REGISTRY,
-  DescentIntent, ExtractionIntent, EquipIntent, UnequipIntent, Dying, ShellUpdateTag, MovedThisTurn
+  DescentIntent, ExtractionIntent, EquipIntent, UnequipIntent, Dying, ShellUpdateTag, MovedThisTurn,
+  BurnSoftwareIntent, FirmwareIntent
 } from './components';
 import * as InventoryUtil from './utils/inventory-util';
 import { checkAutoLoader } from '../game/systems/software-effects';
@@ -64,6 +65,7 @@ export function runActionPipeline(
 
   // 5. Execute Core Phases
   newWorld.executeSystems(Phase.PRE_TURN);
+  newWorld.executeSystems(Phase.GATHER_INTENT);
   newWorld.executeSystems(Phase.ACTION);
   newWorld.executeSystems(Phase.REACTION);
   newWorld.executeSystems(Phase.CLEANUP);
@@ -118,72 +120,15 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
       break;
     case 'BURN_SOFTWARE': {
       const inventory = world.getComponent(entityId, RunInventory);
-      if (!inventory) {
-        eventBus.emit('MESSAGE_EMITTED', { text: 'Inventory component not found.', type: 'error' });
-        return;
-      }
-      const swItem = inventory.software[action.runInventoryIndex];
-      if (!swItem) {
-        eventBus.emit('MESSAGE_EMITTED', { text: 'Invalid software index.', type: 'error' });
-        return;
-      }
-
-      const swDef = world.getComponent(swItem.entityId, SoftwareDef);
-      if (!swDef) {
-        eventBus.emit('MESSAGE_EMITTED', { text: 'Software definition not found.', type: 'error' });
-        return;
-      }
-
-      // 1. Slot check
-      if (swDef.targetSlot !== action.targetSlot) {
-        eventBus.emit('MESSAGE_EMITTED', {
-          text: `Cannot burn ${swDef.name} onto ${action.targetSlot} slot. It requires ${swDef.targetSlot}.`,
-          type: 'error'
+      const swItem = inventory?.software[action.runInventoryIndex];
+      if (swItem) {
+        world.addComponent(entityId, BurnSoftwareIntent, {
+          actorId: entityId,
+          softwareEntityId: swItem.entityId,
+          targetSlot: action.targetSlot,
+          inventoryIndex: action.runInventoryIndex,
         });
-        return;
       }
-
-      // 2. Duplicate check
-      let burned = world.getComponent(entityId, BurnedSoftware);
-      if (!burned) {
-        const newData = { weapon: null, armor: null };
-        world.addComponent(entityId, BurnedSoftware, newData);
-        burned = newData;
-      }
-
-      const activeSoftwareIds = [burned.weapon, burned.armor].filter((id): id is number => id !== null);
-      for (const activeId of activeSoftwareIds) {
-        const activeDef = world.getComponent(activeId, SoftwareDef);
-        if (activeDef && activeDef.type === swDef.type) {
-          eventBus.emit('MESSAGE_EMITTED', {
-            text: `Software type ${swDef.type} is already active.`,
-            type: 'error'
-          });
-          return;
-        }
-      }
-
-      // 3. Overwrite/Burn: Mark old software as dying instead of destroying immediately
-      const oldSoftwareId = burned[action.targetSlot];
-      if (oldSoftwareId !== null) {
-        world.addComponent(oldSoftwareId, Dying, { reason: 'overwritten' });
-      }
-
-      world.patchComponent(entityId, BurnedSoftware, {
-        [action.targetSlot]: swItem.entityId
-      });
-      InventoryUtil.removeSoftware(world, entityId, action.runInventoryIndex);
-
-      eventBus.emit('SOFTWARE_BURNED', {
-        entityId,
-        softwareId: swItem.entityId,
-        targetSlot: action.targetSlot
-      });
-
-      eventBus.emit('MESSAGE_EMITTED', {
-        text: `Successfully burned ${swDef.name} onto ${action.targetSlot}.`,
-        type: 'combat'
-      });
       break;
     }
     case 'SELECT_SHELL':
@@ -195,8 +140,12 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
       eventBus.emit('SHELL_STATS_CHANGED', { entityId, shellId: action.shellId });
       break;
     case 'USE_FIRMWARE':
-      // Handled via TurnManager and authoritative system resolution
-      eventBus.emit('PLAYER_ACTION', { action: 'USE_FIRMWARE', entityId });
+      world.addComponent(entityId, FirmwareIntent, {
+        actorId: entityId,
+        slotIndex: action.slotIndex,
+        targetX: action.targetX,
+        targetY: action.targetY,
+      });
       break;
     case 'VENT':
       world.addComponent(entityId, VentIntent, {});

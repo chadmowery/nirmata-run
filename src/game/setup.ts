@@ -371,10 +371,6 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     eventBus.emit('PLAYER_ACTION', { action, entityId });
   });
 
-  // Enemy action handler
-  turnManager.setEnemyActionHandler((entityId: number) => {
-    context.aiSystem.processEnemyTurn(entityId);
-  });
 
   return context;
 }

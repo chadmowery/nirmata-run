@@ -6,9 +6,8 @@ import {
   TurnPhase,
   TurnManagerConfig,
   PlayerActionHandler,
-  EnemyActionHandler
 } from './types';
-import { Actor, Energy, Health } from '@shared/components';
+import { Actor, Energy, Health, Acting } from '@shared/components';
 
 /**
  * Orchestrates the game turn loop using an energy-based system.
@@ -17,7 +16,6 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
   private phase: TurnPhase = TurnPhase.AWAIT_INPUT;
   private turnNumber: number = 0;
   private playerActionHandler: PlayerActionHandler | null = null;
-  private enemyActionHandler: EnemyActionHandler | null = null;
   private _paused = false;
 
   constructor(
@@ -130,13 +128,16 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     enemies.sort((a, b) => a - b);
 
     for (const enemyId of enemies) {
-      if (this.enemyActionHandler) {
-        this.enemyActionHandler(enemyId);
-      }
+      // Mark enemy as acting to trigger AI gathering intent
+      this.world.addComponent(enemyId, Acting, {});
+      
       this.deductEnergy(enemyId, this.config.defaultActionCost);
       
-      // Resolve the enemy's intent immediately before the next enemy acts
+      // Resolve the enemy's intent (GATHER_INTENT -> ACTION -> REACTION -> CLEANUP)
       this.executeActionSequence();
+
+      // Clear acting tag
+      this.world.removeComponent(enemyId, Acting);
     }
   }
 
@@ -245,7 +246,6 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
   setPlayerActionHandler(handler: PlayerActionHandler): void {
     this.playerActionHandler = handler;
   }
-  setEnemyActionHandler(handler: EnemyActionHandler): void { this.enemyActionHandler = handler; }
 
   // Getters & Controls
   getPhase(): TurnPhase { return this.phase; }

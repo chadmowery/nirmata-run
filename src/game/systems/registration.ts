@@ -22,6 +22,9 @@ import { createStatusEffectSystem } from './status-effects';
 import { createAnchorInteractionSystem } from './anchor-interaction';
 import { createSoftwareSystem } from './software';
 import { createTeleportSystem } from './teleport';
+import { createAISystem } from './ai';
+import { createFirmwareSystem } from './firmware';
+import { createTileCorruptionSystem } from './tile-corruption';
 import { RunMode } from '@shared/run-mode';
 
 /**
@@ -48,6 +51,9 @@ export function registerCoreSystems<T extends GameplayEvents>(
   const augment = createAugmentSystem(world, eventBus);
   const software = createSoftwareSystem(world, eventBus);
   const packCoordinator = createPackCoordinatorSystem(world, grid, eventBus);
+  const ai = createAISystem(world, grid, eventBus, entityFactory, componentRegistry);
+  const firmware = createFirmwareSystem(world, grid, eventBus);
+  const tileCorruption = createTileCorruptionSystem(world, grid, eventBus, entityFactory, componentRegistry);
 
   // Floor manager is special but registered to cleanup
   const floorManager = createFloorManagerSystem(world, grid, eventBus, entityFactory, componentRegistry, options.runMode === RunMode.SIMULATION);
@@ -71,6 +77,9 @@ export function registerCoreSystems<T extends GameplayEvents>(
   statusEffect.init();
   packCoordinator.init();
   anchorInteraction.init();
+  ai.init();
+  firmware.init();
+  tileCorruption.init();
 
   // Cleanup & Death Processing
   const gravedigger = createGravediggerSystem(world, grid);

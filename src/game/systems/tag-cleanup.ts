@@ -1,6 +1,6 @@
 import { World } from '@engine/ecs/world';
 import { Phase } from '@engine/ecs/types';
-import { MovedThisTurn, FirmwareActivatedThisTurn, DealtDamageThisTurn, FloorTransitioned } from '@shared/components';
+import { MovedThisTurn, FirmwareActivatedThisTurn, DealtDamageThisTurn, FloorTransitioned, Acting } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 
 /**
@@ -26,6 +26,11 @@ export function createTagCleanupSystem<T extends GameplayEvents>(world: World<T>
     const transitions = w.query(FloorTransitioned);
     for (const entityId of transitions) {
       w.removeComponent(entityId, FloorTransitioned);
+    }
+
+    const acting = w.query(Acting);
+    for (const entityId of acting) {
+      w.removeComponent(entityId, Acting);
     }
   };
 

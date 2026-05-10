@@ -1,7 +1,7 @@
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityId, Phase } from '@engine/ecs/types';
-import { Heat, Shell, FirmwareSlots, AbilityDef, Actor, VentIntent } from '@shared/components';
+import { Heat, Shell, FirmwareSlots, AbilityDef, Actor, VentIntent, HeatIntent } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 
 /**
@@ -107,10 +107,19 @@ export function createHeatSystem<T extends GameplayEvents>(
   };
 
   const updateAction = (w: World<T>) => {
-    const entities = w.query(VentIntent);
-    for (const entityId of entities) {
+    // 1. Process VentIntent
+    const venters = w.query(VentIntent);
+    for (const entityId of venters) {
       vent(entityId);
       w.removeComponent(entityId, VentIntent);
+    }
+
+    // 2. Process HeatIntent
+    const heaters = w.query(HeatIntent);
+    for (const entityId of heaters) {
+      const intent = w.getComponent(entityId, HeatIntent)!;
+      addHeat(intent.targetId, intent.amount);
+      w.removeComponent(entityId, HeatIntent);
     }
   };
 

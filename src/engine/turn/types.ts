@@ -49,7 +49,3 @@ export const DEFAULT_ACTION_COSTS: ActionCosts = {
  */
 export type PlayerActionHandler = (action: string, entityId: EntityId) => void;
 
-/**
- * Callback for enemy actions.
- */
-export type EnemyActionHandler = (entityId: EntityId) => void;

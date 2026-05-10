@@ -1,10 +1,9 @@
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityId, Phase } from '@engine/ecs/types';
-import { Heat, Shell } from '@shared/components';
+import { Heat, Shell, ApplyStatusEffectIntent, VentIntent } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
-import { applyStatusEffect } from './status-effects';
 
 export interface KernelPanicResult {
   tier: number;
@@ -66,32 +65,22 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
 
       if (roll < effChance) {
         appliedEffectName = tier.effectName;
-        applyStatusEffect(world, eventBus, entityId, {
-          name: tier.effectName,
-          duration: tier.duration,
-          magnitude: tier.magnitude,
-          severity: tier.severity,
-          source: 'kernel_panic',
+        
+        world.addComponent(entityId, ApplyStatusEffectIntent, {
+          targetId: entityId,
+          effect: {
+            name: tier.effectName,
+            duration: tier.duration,
+            magnitude: tier.magnitude,
+            severity: tier.severity as any,
+            source: 'kernel_panic',
+          }
         });
-
-        eventBus.emit('KERNEL_PANIC_TRIGGERED', {
-          entityId,
-          tier: tier.tier,
-          effectName: tier.effectName,
-          severity: tier.severity,
-        } as unknown as T['KERNEL_PANIC_TRIGGERED']);
 
         triggeredTier = tier.tier;
 
         if (tier.effectName === 'CRITICAL_REBOOT') {
-          const oldHeat = heat.current;
-          world.patchComponent(entityId, Heat, { current: 0 });
-          eventBus.emit('HEAT_CHANGED', {
-            entityId,
-            oldHeat,
-            newHeat: 0,
-            maxSafe: heat.maxSafe,
-          });
+          world.addComponent(entityId, VentIntent, {});
         }
 
         let message = '';

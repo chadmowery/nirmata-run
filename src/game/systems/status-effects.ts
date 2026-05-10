@@ -1,7 +1,7 @@
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityId, Phase } from '@engine/ecs/types';
-import { StatusEffects } from '@shared/components';
+import { StatusEffects, ApplyStatusEffectIntent } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 
@@ -123,13 +123,24 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
     }
   };
 
+  const updateIntents = (w: World<T>) => {
+    const intents = w.query(ApplyStatusEffectIntent);
+    for (const entityId of intents) {
+      const intent = w.getComponent(entityId, ApplyStatusEffectIntent)!;
+      applyStatusEffect(w, eventBus, intent.targetId, intent.effect);
+      w.removeComponent(entityId, ApplyStatusEffectIntent);
+    }
+  };
+
   return {
     init() {
       world.registerSystem(Phase.PRE_TURN, update);
+      world.registerSystem(Phase.PRE_TURN, updateIntents);
     },
 
     dispose() {
       world.unregisterSystem(Phase.PRE_TURN, update);
+      world.unregisterSystem(Phase.PRE_TURN, updateIntents);
     },
 
     update,

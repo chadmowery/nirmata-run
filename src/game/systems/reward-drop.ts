@@ -13,7 +13,6 @@ import { logger } from '@/shared/utils/logger';
 
 const economy = economyRaw as unknown as EconomyConfig;
 
-import { applyVampireOnKill } from './software-effects';
 
 /**
  * System that handles currency and equipment drops when entities die.
@@ -32,12 +31,7 @@ export function createRewardDropSystem<T extends GameplayEvents>(
       const actor = w.getComponent(entityId, Actor);
       const pos = w.getComponent(entityId, Position);
       const lootTable = w.getComponent(entityId, LootTable);
-      const dying = w.getComponent(entityId, Dying)!;
 
-      // Reaction logic: Software effects like Vampire (heal on kill)
-      if (dying.killerId !== undefined) {
-        applyVampireOnKill(w, eventBus, dying.killerId);
-      }
 
       // Drop logic: Skip if no position or if it's the player
       if (!pos || (actor && actor.isPlayer)) {

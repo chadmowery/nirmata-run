@@ -9,6 +9,7 @@ import { MovedThisTurn } from '@shared/components/moved-this-turn';
 import { Item } from '@shared/components/item';
 import { PickupEffect, EffectType } from '@shared/components/pickup-effect';
 import { Health } from '@shared/components/health';
+import { HealIntent, Dying } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 
 describe('ItemPickupSystem', () => {
@@ -121,7 +122,10 @@ describe('ItemPickupSystem', () => {
 
     itemPickupSystem.update(world);
 
-    expect(world.patchComponent).toHaveBeenCalledWith(PLAYER_ID, Health, { current: 15 });
+    expect(world.addComponent).toHaveBeenCalledWith(PLAYER_ID, HealIntent, {
+      targetId: PLAYER_ID,
+      amount: 5
+    });
     expect(eventBus.emit).toHaveBeenCalledWith('ITEM_PICKED_UP', {
       entityId: PLAYER_ID,
       itemId: ITEM_ID,
@@ -156,7 +160,10 @@ describe('ItemPickupSystem', () => {
 
     itemPickupSystem.update(world);
 
-    expect(world.patchComponent).toHaveBeenCalledWith(PLAYER_ID, Health, { current: 20 });
+    expect(world.addComponent).toHaveBeenCalledWith(PLAYER_ID, HealIntent, {
+      targetId: PLAYER_ID,
+      amount: 5
+    });
   });
 
   it('should ignore non-player entities moving over items', () => {
@@ -244,7 +251,10 @@ describe('ItemPickupSystem', () => {
 
 
     // Since each pickup starts with health 10 in the mock:
-    expect(world.patchComponent).toHaveBeenCalledWith(PLAYER_ID, Health, { current: 15 });
+    expect(world.addComponent).toHaveBeenCalledWith(PLAYER_ID, HealIntent, {
+      targetId: PLAYER_ID,
+      amount: 5
+    });
     expect(eventBus.emit).toHaveBeenCalledTimes(2);
     expect(grid.getItemsAt(6, 5).size).toBe(0);
     expect(world.addComponent).toHaveBeenCalledWith(ITEM_ID, expect.anything(), expect.objectContaining({ reason: 'pickup' }));

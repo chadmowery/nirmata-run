@@ -1,7 +1,7 @@
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
-import { EntityId } from '@engine/ecs/types';
+import { EntityId, Phase } from '@engine/ecs/types';
 import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
 import { CorruptionState } from '@shared/components/corruption-state';
@@ -247,8 +247,12 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
   }
 
   return {
-    init() {},
-    dispose() {},
+    init() {
+      world.registerSystem(Phase.POST_TURN, () => this.tick());
+    },
+    dispose() {
+      world.unregisterSystem(Phase.POST_TURN, () => this.tick());
+    },
     tick() {
       const seedEaters = world.query(CorruptionState, Position);
       for (const id of seedEaters) {

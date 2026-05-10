@@ -1,17 +1,16 @@
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
-import { EntityId } from '@engine/ecs/types';
+import { EntityId, Phase } from '@engine/ecs/types';
 import {
   AbilityDef,
   FirmwareSlots,
   Position,
-  AbilityDefData,
   StatusEffects,
   Heat,
   FirmwareActivatedThisTurn
 } from '@shared/components';
-import { DamageIntent, TeleportIntent } from '@shared/components/intents';
+import { DamageIntent, TeleportIntent, FirmwareIntent } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 import { getLegacyHeatCost } from './legacy-code';
@@ -162,21 +161,28 @@ export function createFirmwareSystem<T extends GameplayEvents>(
     },
 
     /**
-     * Gets the ability definition for a firmware slot.
+     * Internal update loop that processes FirmwareIntents.
      */
-    getAbilityDef(entityId: EntityId, slotIndex: number): AbilityDefData | null {
-      const slots = world.getComponent(entityId, FirmwareSlots);
-      if (!slots || slotIndex < 0 || slotIndex >= slots.equipped.length) {
-        return null;
+    update(w: World<T>): void {
+      const entities = w.query(FirmwareIntent);
+      for (const entityId of entities) {
+        const intent = w.getComponent(entityId, FirmwareIntent)!;
+        this.activateAbility(
+          entityId,
+          intent.slotIndex,
+          intent.targetX ?? 0,
+          intent.targetY ?? 0
+        );
+        w.removeComponent(entityId, FirmwareIntent);
       }
-
-      const firmwareId = slots.equipped[slotIndex];
-      const abilityDef = world.getComponent(firmwareId, AbilityDef);
-      return abilityDef || null;
     },
 
-    init() { },
-    dispose() { }
+    init() {
+      world.registerSystem(Phase.ACTION, (w) => this.update(w));
+    },
+    dispose() {
+      world.unregisterSystem(Phase.ACTION, (w) => this.update(w));
+    }
   };
 }
 

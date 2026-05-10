@@ -13,6 +13,7 @@ import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import economy from '@game/entities/templates/economy.json';
 import { handleServerDebugCommand } from '@game/debug/server-debug-handler';
 import { EventOriginContext } from '@shared/utils/event-context';
+import { DescentIntent } from '@shared/components';
 
 export async function POST(req: Request) {
 
@@ -76,27 +77,18 @@ export async function POST(req: Request) {
         break;
 
       case 'STAIRCASE_DESCEND': {
-        const floorState = world.getComponent(session.playerId, FloorState);
-        eventBus.emit('STAIRCASE_DESCEND_TRIGGERED', {
-          entityId: session.playerId,
-          targetFloor: action.targetFloor,
-          runSeed: floorState?.runSeed ?? 'default',
+        world.addComponent(session.playerId, DescentIntent, { 
+          targetFloor: action.targetFloor, 
+          cost: 0 
         });
         break;
       }
 
       case 'ANCHOR_DESCEND': {
-        eventBus.emit('ANCHOR_DESCEND', {
-          anchorId: action.anchorId,
-          cost: action.cost,
-        });
-
-        // Use new descent trigger event
         const floorState = world.getComponent(session.playerId, FloorState);
-        eventBus.emit('STAIRCASE_DESCEND_TRIGGERED', {
-          entityId: session.playerId,
-          targetFloor: (floorState?.currentFloor ?? 1) + 1,
-          runSeed: floorState?.runSeed ?? 'default',
+        world.addComponent(session.playerId, DescentIntent, { 
+          targetFloor: (floorState?.currentFloor ?? 1) + 1, 
+          cost: action.cost 
         });
         break;
       }

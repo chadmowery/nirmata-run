@@ -1,9 +1,10 @@
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
 import { Phase } from '@engine/ecs/types';
-import { DealtDamageThisTurn, Dying } from '@shared/components';
+import { DealtDamageThisTurn, Dying, SoftwareDef, BurnedSoftware, BurnSoftwareIntent } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { applyBleedOnHit, applyVampireOnKill } from './software-effects';
+import * as InventoryUtil from '@shared/utils/inventory-util';
 
 /**
  * System that resolves Software effects (like Bleed and Vampire)
@@ -34,12 +35,89 @@ export function createSoftwareSystem<T extends GameplayEvents>(
     }
   };
 
+  const updateIntents = (w: World<T>) => {
+    const intents = w.query(BurnSoftwareIntent);
+    for (const entityId of intents) {
+      const intent = w.getComponent(entityId, BurnSoftwareIntent)!;
+      const { softwareEntityId, targetSlot, inventoryIndex } = intent;
+      
+      const swDef = w.getComponent(softwareEntityId, SoftwareDef);
+      if (!swDef) {
+        eventBus.emit('MESSAGE_EMITTED', { text: 'Software definition not found.', type: 'error' });
+        w.removeComponent(entityId, BurnSoftwareIntent);
+        continue;
+      }
+
+      // 1. Slot check
+      if (swDef.targetSlot !== targetSlot) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `Cannot burn ${swDef.name} onto ${targetSlot} slot. It requires ${swDef.targetSlot}.`,
+          type: 'error'
+        });
+        w.removeComponent(entityId, BurnSoftwareIntent);
+        continue;
+      }
+
+      // 2. Duplicate check
+      let burned = w.getComponent(entityId, BurnedSoftware);
+      if (!burned) {
+        const newData = { weapon: null, armor: null };
+        w.addComponent(entityId, BurnedSoftware, newData);
+        burned = newData;
+      }
+
+      const activeSoftwareIds = [burned.weapon, burned.armor].filter((id): id is number => id !== null);
+      let duplicate = false;
+      for (const activeId of activeSoftwareIds) {
+        const activeDef = w.getComponent(activeId, SoftwareDef);
+        if (activeDef && activeDef.type === swDef.type) {
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: `Software type ${swDef.type} is already active.`,
+            type: 'error'
+          });
+          duplicate = true;
+          break;
+        }
+      }
+      if (duplicate) {
+        w.removeComponent(entityId, BurnSoftwareIntent);
+        continue;
+      }
+
+      // 3. Overwrite/Burn: Mark old software as dying
+      const oldSoftwareId = burned[targetSlot];
+      if (oldSoftwareId !== null) {
+        w.addComponent(oldSoftwareId, Dying, { reason: 'overwritten' });
+      }
+
+      w.patchComponent(entityId, BurnedSoftware, {
+        [targetSlot]: softwareEntityId
+      });
+      InventoryUtil.removeSoftware(w, entityId, inventoryIndex);
+
+      eventBus.emit('SOFTWARE_BURNED', {
+        entityId,
+        softwareId: softwareEntityId,
+        targetSlot
+      });
+
+      eventBus.emit('MESSAGE_EMITTED', {
+        text: `Successfully burned ${swDef.name} onto ${targetSlot}.`,
+        type: 'combat'
+      });
+
+      w.removeComponent(entityId, BurnSoftwareIntent);
+    }
+  };
+
   return {
     init() {
       world.registerSystem(Phase.REACTION, update);
+      world.registerSystem(Phase.ACTION, updateIntents);
     },
     dispose() {
       world.unregisterSystem(Phase.REACTION, update);
+      world.unregisterSystem(Phase.ACTION, updateIntents);
     },
     update,
   };

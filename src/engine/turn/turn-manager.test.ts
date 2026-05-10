@@ -4,7 +4,7 @@ import { EventBus } from '../events/event-bus';
 import { EngineEvents } from '../events/types';
 import { TurnManager } from './turn-manager';
 import { TurnPhase, ENERGY_THRESHOLD } from './types';
-import { Actor, Energy, Health } from '@shared/components';
+import { Actor, Energy, Health, Acting } from '@shared/components';
 import { Phase } from '../ecs/types';
 import { GameAction } from '../../game/input/actions';
 
@@ -98,16 +98,25 @@ describe('TurnManager', () => {
     world.addComponent(enemy2, Actor, { isPlayer: false });
     world.addComponent(enemy2, Energy, { current: 1000, speed: 100, threshold: config.energyThreshold });
 
-    const callOrder: number[] = [];
-    turnManager.setEnemyActionHandler((id) => callOrder.push(id));
-    
     const playerEnergy = world.getComponent(playerEntity, Energy)!;
     world.addComponent(playerEntity, Energy, { ...playerEnergy, current: 1000 });
+
+    // Mock executeSystems to capture when enemies get the Acting tag
+    const actingEnemies: number[] = [];
+    const originalExecute = world.executeSystems.bind(world);
+    vi.spyOn(world, 'executeSystems').mockImplementation((phase) => {
+      if (phase === Phase.GATHER_INTENT) {
+        const acting = world.query(Acting);
+        actingEnemies.push(...acting);
+      }
+      originalExecute(phase);
+    });
 
     turnManager.start();
     turnManager.submitAction('move');
 
-    expect(callOrder).toEqual([enemy1, enemy2]);
+    expect(actingEnemies).toContain(enemy1);
+    expect(actingEnemies).toContain(enemy2);
   });
 
   it('skips dead enemies', () => {
@@ -116,16 +125,24 @@ describe('TurnManager', () => {
     world.addComponent(enemy, Energy, { current: 1000, speed: 100, threshold: config.energyThreshold });
     world.addComponent(enemy, Health, Health.schema.parse({ current: 0, max: 10, isAlive: false }));
 
-    const handler = vi.fn();
-    turnManager.setEnemyActionHandler(handler);
-    
     const playerEnergy = world.getComponent(playerEntity, Energy)!;
     world.addComponent(playerEntity, Energy, { ...playerEnergy, current: 1000 });
+
+    let actingEnemyFound = false;
+    const originalExecute = world.executeSystems.bind(world);
+    vi.spyOn(world, 'executeSystems').mockImplementation((phase) => {
+      if (phase === Phase.GATHER_INTENT) {
+        if (world.hasComponent(enemy, Acting)) {
+          actingEnemyFound = true;
+        }
+      }
+      originalExecute(phase);
+    });
 
     turnManager.start();
     turnManager.submitAction('move');
 
-    expect(handler).not.toHaveBeenCalled();
+    expect(actingEnemyFound).toBe(false);
   });
 
   it('executes turn cycle phases in order', () => {
@@ -158,9 +175,15 @@ describe('TurnManager', () => {
     world.addComponent(fastEnemy, Actor, { isPlayer: false });
     world.addComponent(fastEnemy, Energy, { current: 0, speed: 200, threshold: config.energyThreshold });
 
-    let enemyActionCount = 0;
-    turnManager.setEnemyActionHandler(() => {
-      enemyActionCount++;
+    let enemyActingCount = 0;
+    const originalExecute = world.executeSystems.bind(world);
+    vi.spyOn(world, 'executeSystems').mockImplementation((phase) => {
+      if (phase === Phase.GATHER_INTENT) {
+        if (world.hasComponent(fastEnemy, Acting)) {
+          enemyActingCount++;
+        }
+      }
+      originalExecute(phase);
     });
 
     const playerEnergy = world.getComponent(playerEntity, Energy)!;
@@ -169,16 +192,14 @@ describe('TurnManager', () => {
     turnManager.start(); 
     // Player speed 100, Enemy speed 200.
     // 5 ticks of 200 = 1000 for enemy. 5 ticks of 100 = 500 for player.
-    // enemyActionCount should be 1 after start() because it reached threshold first during energy ticking.
-    // Note: processEnemyTurns is called AFTER each energy tick in advanceUntilPlayerReady.
-    expect(enemyActionCount).toBe(1);
+    // enemyActingCount should be 1 after start()
+    expect(enemyActingCount).toBe(1);
 
     turnManager.submitAction('move'); 
-    // Player -1000 energy -> 0 (because we set it to 1000 before submitAction).
-    // AdvanceUntilPlayerReady will tick 10 times to reach 1000 for player (10 * 100 = 1000).
-    // Enemy (currently 0) will reach 1000 at tick 5, then reach 1000 again at tick 10.
-    // So enemyActionCount should be 1 (start) + 2 (during advanceUntilPlayerReady) = 3.
-    expect(enemyActionCount).toBe(3);
+    // AdvanceUntilPlayerReady will tick 10 times to reach 1000 for player.
+    // Enemy reaches 1000 at tick 5 and tick 10.
+    // enemyActingCount should be 1 (start) + 2 (during advanceUntilPlayerReady) = 3.
+    expect(enemyActingCount).toBe(3);
   });
 
   it('emits TURN_START and TURN_END events', () => {

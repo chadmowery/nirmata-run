@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { World } from '@engine/ecs/world';
 import { Phase } from '@engine/ecs/types';
 import { EventBus } from '@engine/events/event-bus';
-import { Heat, Shell, HeatData, ShellData } from '@shared/components';
+import { Heat, Shell, HeatData, ShellData, ApplyStatusEffectIntent, VentIntent } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { createKernelPanicSystem } from './kernel-panic';
 import { createStatusEffectSystem } from './status-effects';
@@ -64,7 +64,10 @@ describe('KernelPanicSystem', () => {
     expect(result?.tier).toBe(1);
     expect(result?.effectName).toBe('HUD_GLITCH');
     expect(result?.effectApplied).toBe(true);
-    expect(eventBus.emit).toHaveBeenCalledWith('STATUS_EFFECT_APPLIED', expect.objectContaining({ entityId, effectName: 'HUD_GLITCH' }));
+    
+    expect(world.hasComponent(entityId, ApplyStatusEffectIntent)).toBe(true);
+    const intent = world.getComponent(entityId, ApplyStatusEffectIntent);
+    expect(intent?.effect.name).toBe('HUD_GLITCH');
     
     vi.spyOn(Math, 'random').mockRestore();
   });
@@ -151,9 +154,7 @@ describe('KernelPanicSystem', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0); // Force success
 
     kernelPanicSystem.checkOverclock(entityId);
-    const heat = world.getComponent(entityId, Heat);
-    expect(heat?.current).toBe(0);
-    expect(eventBus.emit).toHaveBeenCalledWith('HEAT_CHANGED', expect.objectContaining({ newHeat: 0 }));
+    expect(world.hasComponent(entityId, VentIntent)).toBe(true);
 
     vi.spyOn(Math, 'random').mockRestore();
   });
@@ -166,7 +167,9 @@ describe('KernelPanicSystem', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0); // Force success
 
     kernelPanicSystem.checkOverclock(entityId);
-    expect(eventBus.emit).toHaveBeenCalledWith('STATUS_EFFECT_APPLIED', expect.objectContaining({ entityId, effectName: 'CRITICAL_REBOOT', duration: 3 }));
+    const intent = world.getComponent(entityId, ApplyStatusEffectIntent);
+    expect(intent?.effect.name).toBe('CRITICAL_REBOOT');
+    expect(intent?.effect.duration).toBe(3);
 
     vi.spyOn(Math, 'random').mockRestore();
   });
@@ -179,7 +182,9 @@ describe('KernelPanicSystem', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0); // Force success
 
     kernelPanicSystem.checkOverclock(entityId);
-    expect(eventBus.emit).toHaveBeenCalledWith('KERNEL_PANIC_TRIGGERED', expect.objectContaining({ entityId, tier: 1, effectName: 'HUD_GLITCH', severity: 'minor' }));
+    expect(world.hasComponent(entityId, ApplyStatusEffectIntent)).toBe(true);
+    const intent = world.getComponent(entityId, ApplyStatusEffectIntent);
+    expect(intent?.effect.name).toBe('HUD_GLITCH');
 
     vi.spyOn(Math, 'random').mockRestore();
   });
@@ -193,7 +198,7 @@ describe('KernelPanicSystem', () => {
 
     const result = kernelPanicSystem.checkOverclock(entityId);
     expect(result?.effectApplied).toBe(false);
-    expect(eventBus.emit).not.toHaveBeenCalledWith('STATUS_EFFECT_APPLIED', expect.anything());
+    expect(world.hasComponent(entityId, ApplyStatusEffectIntent)).toBe(false);
 
     vi.spyOn(Math, 'random').mockRestore();
   });
@@ -213,11 +218,10 @@ describe('KernelPanicSystem', () => {
     
     kernelPanicSystem.init();
     world.executeSystems(Phase.CLEANUP);
-
-    expect(eventBus.emit).toHaveBeenCalledWith('KERNEL_PANIC_TRIGGERED', expect.objectContaining({
-      entityId,
-      effectName: 'HUD_GLITCH'
-    }));
+ 
+    expect(world.hasComponent(entityId, ApplyStatusEffectIntent)).toBe(true);
+    const intent = world.getComponent(entityId, ApplyStatusEffectIntent);
+    expect(intent?.effect.name).toBe('HUD_GLITCH');
 
     vi.spyOn(Math, 'random').mockRestore();
   });
@@ -231,8 +235,8 @@ describe('KernelPanicSystem', () => {
     
     kernelPanicSystem.init();
     world.executeSystems(Phase.CLEANUP);
-
-    expect(eventBus.emit).not.toHaveBeenCalledWith('KERNEL_PANIC_TRIGGERED', expect.anything());
+ 
+    expect(world.hasComponent(entityId, ApplyStatusEffectIntent)).toBe(false);
 
     vi.spyOn(Math, 'random').mockRestore();
   });

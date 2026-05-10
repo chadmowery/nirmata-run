@@ -3,14 +3,14 @@ import PreciseShadowcasting from 'rot-js/lib/fov/precise-shadowcasting';
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
-import { EntityId } from '@engine/ecs/types';
+import { EntityId, Phase } from '@engine/ecs/types';
 import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
 import { AIState, AIBehavior, AIBehaviorType } from '@shared/components/ai-state';
 import { FovAwareness } from '@shared/components/fov-awareness';
 import { PackMember } from '@shared/components/pack-member';
 import { StatusEffects } from '@shared/components/status-effects';
-import { MoveIntent, AttackIntent, TeleportIntent } from '@shared/components/intents';
+import { MoveIntent, AttackIntent, TeleportIntent, Acting, ApplyStatusEffectIntent } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
 
 import { EntityFactory } from '@engine/entity/factory';
@@ -167,6 +167,16 @@ export function createAISystem<T extends GameplayEvents>(
     },
 
     /**
+     * Internal update loop that processes all entities marked as 'Acting'.
+     */
+    update(w: World<T>): void {
+      const actingEntities = w.query(Acting, AIState);
+      for (const entityId of actingEntities) {
+        this.processEnemyTurn(entityId);
+      }
+    },
+
+    /**
      * Processes a single enemy's turn.
      */
     processEnemyTurn(entityId: EntityId): void {
@@ -175,20 +185,27 @@ export function createAISystem<T extends GameplayEvents>(
 
       switch (ai.behaviorType) {
         case AIBehaviorType.NULL_POINTER:
-          return this.processNullPointerTurn(entityId);
+          this.processNullPointerTurn(entityId);
+          break;
         case AIBehaviorType.BUFFER_OVERFLOW:
-          return this.processBufferOverflowTurn(entityId);
+          this.processBufferOverflowTurn(entityId);
+          break;
         case AIBehaviorType.FRAGMENTER:
-          return this.processFragmenterTurn(entityId);
+          this.processFragmenterTurn(entityId);
+          break;
         case AIBehaviorType.LOGIC_LEAKER:
-          return this.processLogicLeakerTurn(entityId);
+          this.processLogicLeakerTurn(entityId);
+          break;
         case AIBehaviorType.SYSTEM_ADMIN:
-          return this.processSystemAdminTurn(entityId);
+          this.processSystemAdminTurn(entityId);
+          break;
         case AIBehaviorType.SEED_EATER:
-          return this.processSeedEaterTurn(entityId);
+          this.processSeedEaterTurn(entityId);
+          break;
         case AIBehaviorType.BASIC:
         default:
-          return this.processBasicTurn(entityId);
+          this.processBasicTurn(entityId);
+          break;
       }
     },
 
@@ -372,28 +389,16 @@ export function createAISystem<T extends GameplayEvents>(
             projectileType: 'corrupted_packet'
           });
 
-          // Apply FIRMWARE_LOCK status effect
-          const statusEffects = world.getComponent(player.id, StatusEffects);
-          if (statusEffects) {
-            world.patchComponent(player.id, StatusEffects, {
-              effects: [
-                ...statusEffects.effects,
-                {
-                  name: 'FIRMWARE_LOCK',
-                  duration: 3,
-                  magnitude: 1,
-                  source: 'logic_leaker'
-                }
-              ]
-            });
-            eventBus.emit('STATUS_EFFECT_APPLIED', {
-              entityId: player.id,
-              effectName: 'FIRMWARE_LOCK',
+          // Intent-based status effect application
+          world.addComponent(entityId, ApplyStatusEffectIntent, {
+            targetId: player.id,
+            effect: {
+              name: 'FIRMWARE_LOCK',
               duration: 3,
               magnitude: 1,
               source: 'logic_leaker'
-            });
-          }
+            }
+          });
 
           eventBus.emit('MESSAGE_EMITTED', {
             text: 'Logic-Leaker fires a Corrupted Packet! Firmware locked!',
@@ -527,8 +532,12 @@ export function createAISystem<T extends GameplayEvents>(
       }
     },
 
-    init() { },
-    dispose() { }
+    init() {
+      world.registerSystem(Phase.GATHER_INTENT, (w) => this.update(w));
+    },
+    dispose() {
+      world.unregisterSystem(Phase.GATHER_INTENT, (w) => this.update(w));
+    }
   };
 }
 

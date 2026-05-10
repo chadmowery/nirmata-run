@@ -65,9 +65,6 @@ export interface GameplayEvents extends EngineEvents {
   /** Queued when a Firmware ability is activated. */
   FIRMWARE_ACTIVATED: { entityId: EntityId; firmwareEntityId: EntityId; slotIndex: number; abilityName: string; heatCost: number; targetX: number; targetY: number };
 
-  /** Queued when a Kernel Panic roll triggers a consequence. */
-  KERNEL_PANIC_TRIGGERED: { entityId: EntityId; tier: number; effectName: string; severity: string };
-
   /** Queued when an entity completes a Heat vent. */
   VENT_COMPLETED: { entityId: EntityId; oldHeat: number; newHeat: number };
 
@@ -151,7 +148,6 @@ export interface GameplayEvents extends EngineEvents {
   STAIRCASE_INTERACTION: { entityId: EntityId; staircaseId: EntityId; targetFloor: number };
 
   /** Queued when floor transition is confirmed. */
-  STAIRCASE_DESCEND_TRIGGERED: { entityId: EntityId; targetFloor: number; runSeed: string };
 
   /** Queued when player steps on anchor. */
   ANCHOR_INTERACTION: { 

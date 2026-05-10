@@ -4,13 +4,12 @@ import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { EntityId, Phase } from '@engine/ecs/types';
 import { Attack, Defense, Health, Actor, Heat, BurnedSoftware, SoftwareDef, RarityTier, Dying, StatusEffects, AugmentSlots, AugmentData, DealtDamageThisTurn } from '@shared/components';
-import { AttackIntent, DamageIntent } from '@shared/components/intents';
+import { AttackIntent, DamageIntent, HealIntent } from '@shared/components/intents';
 import { createTriggerContext, evaluateCondition } from './augment-util';
 
 import { GameplayEvents } from '@shared/events/types';
 
 import { ComponentRegistry } from '@engine/entity/types';
-import { applyBleedOnHit } from './software-effects';
 
 export interface DamageModifier {
   source: string;       // e.g., 'software:bleed', 'augment:static-siphon'
@@ -174,12 +173,12 @@ export function createCombatSystem<T extends GameplayEvents>(
       // Track damage dealt this turn for augment/software triggers
       const dealtDamage = w.getComponent(attackerId, DealtDamageThisTurn);
       if (dealtDamage) {
-        w.patchComponent(attackerId, DealtDamageThisTurn, { 
+        w.patchComponent(attackerId, DealtDamageThisTurn, {
           amount: dealtDamage.amount + damage,
           targets: [...dealtDamage.targets, defenderId]
         });
       } else {
-        w.addComponent(attackerId, DealtDamageThisTurn, { 
+        w.addComponent(attackerId, DealtDamageThisTurn, {
           amount: damage,
           targets: [defenderId]
         });
@@ -239,6 +238,29 @@ export function createCombatSystem<T extends GameplayEvents>(
       }
 
       w.removeComponent(requesterId, DamageIntent);
+    }
+
+    // 3. Process HealIntents
+    const healEntities = w.query(HealIntent);
+    for (const requesterId of healEntities) {
+      const intent = w.getComponent(requesterId, HealIntent)!;
+      const targetId = intent.targetId;
+      const targetHealth = w.getComponent(targetId, Health);
+
+      if (targetHealth) {
+        const oldVal = targetHealth.current;
+        const newVal = Math.min(targetHealth.max, oldVal + intent.amount);
+        w.patchComponent(targetId, Health, { current: newVal });
+
+        eventBus.emit('HEALED', { entityId: targetId, amount: intent.amount });
+
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `Restored ${intent.amount} HP.`,
+          type: 'info'
+        });
+      }
+
+      w.removeComponent(requesterId, HealIntent);
     }
   };
 
