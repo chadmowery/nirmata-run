@@ -1,4 +1,5 @@
 import { World } from '@engine/ecs/world';
+import { logger } from '@engine/utils/logger';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { Phase } from '@engine/ecs/types';
@@ -37,6 +38,7 @@ export function createTeleportSystem<T extends GameplayEvents>(
       // 1. Update state
       w.patchComponent(entityId, Position, { x: targetX, y: targetY });
       grid.moveEntity(entityId, oldX, oldY, targetX, targetY);
+      logger.debug(`Entity ${entityId} teleported: (${oldX}, ${oldY}) -> (${targetX}, ${targetY})`, 'SYSTEM');
 
       // 2. Attach tag for reactive systems (like ItemPickupSystem)
       w.addComponent(entityId, MovedThisTurn, {
@@ -64,7 +66,7 @@ export function createTeleportSystem<T extends GameplayEvents>(
 
   return {
     init() {
-      world.registerSystem(Phase.ACTION, update);
+      world.registerSystem(Phase.ACTION, update, 'TeleportSystem');
     },
     dispose() {
       world.unregisterSystem(Phase.ACTION, update);

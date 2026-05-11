@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createEngineInstance } from '../engine-factory';
 import { GameAction } from '../input/actions';
 import { RunMode } from '@shared/run-mode';
-import { EventOriginContext } from '@shared/utils/event-context';
+import { EventOriginContext } from '@engine/utils/event-context';
 
 describe('Engine Freeze Reproduction', () => {
   beforeEach(() => {

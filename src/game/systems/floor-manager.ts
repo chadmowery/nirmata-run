@@ -14,6 +14,7 @@ import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 import { Actor } from '@shared/components/actor';
 import { Dying } from '@shared/components/dying';
+import { logger } from '@engine/utils/logger';
 import { DescentIntent } from '@shared/components/intents';
 import { generateDungeon, getDepthBand } from '../generation/dungeon-generator';
 import { placeEntities } from '../generation/entity-placement';
@@ -44,6 +45,9 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
    * Transitions the game to a new floor.
    */
   const descendToFloor = (playerId: EntityId, newFloor: number, runSeed: string) => {
+    const floorSeed = `${runSeed}_floor_${newFloor}`;
+    logger.info(`Floor Transition Initiated: Floor ${newFloor} (Seed: ${floorSeed})`, 'SYSTEM');
+
     // 1. Snapshot all entity IDs to avoid modification-during-iteration issues
     const entities = [...world.query()];
 
@@ -69,7 +73,6 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
     grid.clear();
 
     // 4. Generate floor seed and set RNG
-    const floorSeed = `${runSeed}_floor_${newFloor}`;
     const hash = hashSeedForPlacement(floorSeed);
     RNG.setSeed(hash);
     const rng = { random: () => RNG.getUniform() };
@@ -152,10 +155,8 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
       w.removeComponent(playerId, DescentIntent);
     }
   };
-
-  /** Initialize system. */
   const init = () => {
-    world.registerSystem(Phase.CLEANUP, update);
+    world.registerSystem(Phase.CLEANUP, update, 'FloorManagerSystem');
   };
 
   const dispose = () => {

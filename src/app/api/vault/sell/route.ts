@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sellOverflowItem } from '@/game/systems/vault-manager';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 
+import { logger } from '@engine/utils/logger';
+
 /**
  * POST /api/vault/sell
  * Sells an item from the overflow limbo for Scrap.
@@ -25,7 +27,7 @@ export async function POST(req: NextRequest) {
       scrapGained: result.scrapGained 
     });
   } catch (error) {
-    console.error('[VaultSell] Error selling item:', error);
+    logger.error('[VaultSell] Error selling item:', 'API', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

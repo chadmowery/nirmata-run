@@ -1,4 +1,5 @@
 import { World } from '@engine/ecs/world';
+import { logger } from '@engine/utils/logger';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { Phase } from '@engine/ecs/types';
@@ -105,6 +106,7 @@ export function createMovementSystem<T extends GameplayEvents>(
 
       w.patchComponent(entityId, Position, { x: targetX, y: targetY });
       grid.moveEntity(entityId, oldX, oldY, targetX, targetY);
+      logger.debug(`Entity ${entityId} moved: (${oldX}, ${oldY}) -> (${targetX}, ${targetY})`, 'SYSTEM');
 
       // Attach tag for reactive systems
       w.addComponent(entityId, MovedThisTurn, {
@@ -130,7 +132,7 @@ export function createMovementSystem<T extends GameplayEvents>(
 
   return {
     init() {
-      world.registerSystem(Phase.ACTION, update);
+      world.registerSystem(Phase.ACTION, update, 'MovementSystem');
     },
     dispose() {
       world.unregisterSystem(Phase.ACTION, update);

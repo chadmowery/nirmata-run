@@ -206,7 +206,7 @@ describe('KernelPanicSystem', () => {
   it('registers to Phase.CLEANUP', () => {
     const registerSpy = vi.spyOn(world, 'registerSystem');
     kernelPanicSystem.init();
-    expect(registerSpy).toHaveBeenCalledWith(Phase.CLEANUP, expect.any(Function));
+    expect(registerSpy).toHaveBeenCalledWith(Phase.CLEANUP, expect.any(Function), 'KernelPanicSystem');
   });
 
   it('triggers checkOverclock on Phase.CLEANUP when heat is above maxSafe', () => {

@@ -16,6 +16,8 @@ export interface WorldState<T extends EngineEvents = EngineEvents, S = unknown> 
   systems?: S; // EngineInstance.systems
 }
 
+import { logger } from '../utils/logger';
+
 /**
  * High-level manager for game sessions.
  */
@@ -35,14 +37,20 @@ export class SessionManager {
   }
 
   public createSession<T extends EngineEvents, S = unknown>(sessionId: string, state: WorldState<T, S>): void {
+    logger.info(`Session Created: ${sessionId}`, 'SESSION');
     this.sessions.set(sessionId, state);
   }
 
   public getSession<T extends EngineEvents = EngineEvents, S = unknown>(sessionId: string): WorldState<T, S> | undefined {
-    return this.sessions.get(sessionId) as WorldState<T, S> | undefined;
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      logger.debug(`Session Miss: ${sessionId}`, 'SESSION');
+    }
+    return session as WorldState<T, S> | undefined;
   }
 
   public deleteSession(sessionId: string): void {
+    logger.info(`Session Deleted: ${sessionId}`, 'SESSION');
     this.sessions.delete(sessionId);
   }
 
@@ -55,6 +63,7 @@ export class SessionManager {
   }
 
   public clear(): void {
+    logger.info('All Sessions Cleared', 'SESSION');
     this.sessions.clear();
   }
 }

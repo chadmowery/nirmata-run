@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { RunMode, getRunModeConfig } from '@/game/systems/run-mode-config';
 
+import { logger } from '@engine/utils/logger';
+
 /**
  * GET /api/run-mode/available
  * Returns availability and attempt status for all run modes.
@@ -58,7 +60,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ modes });
   } catch (error) {
-    console.error('[RunModeAvailable] Error:', error);
+    logger.error('[RunModeAvailable] Error:', 'API', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

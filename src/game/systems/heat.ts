@@ -3,6 +3,7 @@ import { EventBus } from '@engine/events/event-bus';
 import { EntityId, Phase } from '@engine/ecs/types';
 import { Heat, Shell, FirmwareSlots, AbilityDef, Actor, VentIntent, HeatIntent } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
+import { logger } from '@engine/utils/logger';
 
 /**
  * Heat system that manages entity heat dissipation and venting.
@@ -35,6 +36,7 @@ export function createHeatSystem<T extends GameplayEvents>(
     }
 
     if (nextHeat !== oldHeat || heat.isVenting) {
+      logger.debug(`Dissipating Heat for ${entityId}: ${oldHeat} -> ${nextHeat}`, 'HEAT');
       world.patchComponent(entityId, Heat, {
         current: nextHeat,
         isVenting: false
@@ -56,7 +58,7 @@ export function createHeatSystem<T extends GameplayEvents>(
     const oldHeat = heat.current;
     const nextHeat = oldHeat + amount;
 
-    console.log(`[HeatSystem] addHeat: entity ${entityId} +${amount} -> new heat: ${nextHeat}`);
+    logger.info(`Add Heat: Entity ${entityId} +${amount} -> ${nextHeat}`, 'HEAT');
 
     world.patchComponent(entityId, Heat, { current: nextHeat });
 
@@ -74,6 +76,8 @@ export function createHeatSystem<T extends GameplayEvents>(
 
     const oldHeat = heat.current;
     const nextHeat = Math.floor(oldHeat * (1 - heat.ventPercentage));
+
+    logger.info(`Venting: Entity ${entityId} ${oldHeat} -> ${nextHeat}`, 'HEAT');
 
     world.patchComponent(entityId, Heat, {
       current: nextHeat,
@@ -125,8 +129,8 @@ export function createHeatSystem<T extends GameplayEvents>(
 
   return {
     init() {
-      world.registerSystem(Phase.PRE_TURN, updatePreTurn);
-      world.registerSystem(Phase.ACTION, updateAction);
+      world.registerSystem(Phase.PRE_TURN, updatePreTurn, 'HeatPreTurnSystem');
+      world.registerSystem(Phase.ACTION, updateAction, 'HeatActionSystem');
     },
 
     dispose() {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { logger } from '@engine/utils/logger';
 
 interface TerminalLine {
   text: string;
@@ -56,7 +57,7 @@ export function DevTerminal() {
 
   const parseCommand = (cmdStr: string) => {
     if (!window.__DEBUG__) {
-      console.warn('[DevTerminal] window.__DEBUG__ is not available.');
+      logger.warn('[DevTerminal] window.__DEBUG__ is not available.', 'UI');
       return;
     }
 
@@ -126,7 +127,7 @@ export function DevTerminal() {
           ]);
       }
     } catch (err) {
-      console.error('[DevTerminal] Error executing command:', err);
+      logger.error('[DevTerminal] Error executing command:', 'UI', err);
       setHistory(prev => [...prev, { text: `EXEC_ERROR: ${err instanceof Error ? err.message : String(err)}`, type: 'error' }]);
     }
   };

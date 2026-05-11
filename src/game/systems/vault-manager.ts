@@ -1,5 +1,6 @@
 import { VaultItem, ProfileRepository } from '@shared/profile';
 import { VAULT_MAX_SLOTS, SELL_VALUES } from '@shared/vault';
+import { logger } from '@engine/utils/logger';
 import economy from '../entities/templates/economy.json';
 
 /**
@@ -35,6 +36,7 @@ export async function discardOverflowItem(
   const success = profile.overflow.length < initialLength;
   if (success) {
     await repo.save(profile);
+    logger.info(`Vault Manager: Discarded item ${entityId} from overflow for session ${sessionId}`, 'SYSTEM');
   }
   return success;
 }
@@ -65,6 +67,7 @@ export async function sellOverflowItem(
   profile.wallet.scrap = Math.min(profile.wallet.scrap + scrapGained, maxScrap);
 
   await repo.save(profile);
+  logger.info(`Vault Manager: Sold item ${entityId} for ${scrapGained} scrap for session ${sessionId}`, 'SYSTEM');
   return { success: true, scrapGained };
 }
 
@@ -87,6 +90,7 @@ export async function moveOverflowToVault(
   profile.vault.push(...itemsToMove);
 
   await repo.save(profile);
+  logger.info(`Vault Manager: Moved ${itemsToMove.length} items from overflow to vault for session ${sessionId}`, 'SYSTEM');
   return { moved: itemsToMove.length, remaining: profile.overflow.length };
 }
 

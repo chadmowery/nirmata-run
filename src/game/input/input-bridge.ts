@@ -11,12 +11,14 @@ export function registerInputBridge(fn: SubmitActionFn) {
   submitActionRegistry = fn;
 }
 
+import { logger } from '@engine/utils/logger';
+
 /**
  * Dispatches a semantic game action from the UI to the engine.
  */
 export function dispatchUIAction(action: GameAction) {
   if (!submitActionRegistry) {
-    console.warn('Input bridge called before registration');
+    logger.warn('Input bridge called before registration', 'INPUT');
     return;
   }
   submitActionRegistry(action);

@@ -1,6 +1,7 @@
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
+import { logger } from '@engine/utils/logger';
 import { EntityId, Phase } from '@engine/ecs/types';
 import { DeadZone, Position, Health, Dying, DamageIntent } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
@@ -70,11 +71,12 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
     });
 
     grid.addEntity(entityId, x, y);
+    logger.info(`Dead Zone Created at (${x}, ${y}) by ${creatorId} (Duration: ${duration}, Damage: ${damagePerTick})`, 'SYSTEM');
   };
 
   return {
     init() {
-      world.registerSystem(Phase.ACTION, update);
+      world.registerSystem(Phase.ACTION, update, 'DeadZoneSystem');
     },
     dispose() {
       world.unregisterSystem(Phase.ACTION, update);

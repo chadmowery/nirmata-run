@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ItemPickupSystem, createItemPickupSystem } from './item-pickup';
 import { Grid } from '../../engine/grid/grid';
 import { World } from '../../engine/ecs/world';
+import { Phase } from '../../engine/ecs/types';
 import { EventBus } from '../../engine/events/event-bus';
 import { Actor } from '@shared/components/actor';
 import { Position } from '@shared/components/position';
@@ -59,6 +60,7 @@ describe('ItemPickupSystem', () => {
 
     itemPickupSystem = createItemPickupSystem(world, grid, eventBus);
     itemPickupSystem.init();
+    expect(world.registerSystem).toHaveBeenCalledWith(Phase.REACTION, expect.any(Function), 'ItemPickupSystem');
   });
 
   it('should pick up an item when player moves onto its tile', () => {

@@ -8,6 +8,7 @@ import { AttackIntent, DamageIntent, HealIntent } from '@shared/components/inten
 import { createTriggerContext, evaluateCondition } from './augment-util';
 
 import { GameplayEvents } from '@shared/events/types';
+import { logger } from '@engine/utils/logger';
 
 import { ComponentRegistry } from '@engine/entity/types';
 
@@ -124,6 +125,7 @@ export function createCombatSystem<T extends GameplayEvents>(
 
     // 1. Mark entity as dying
     // Per the Death Protocol, RewardDropSystem and GravediggerSystem will handle the rest in Phase.CLEANUP
+    logger.info(`Entity ${entityId} CONDEMNED by killer ${killerId}`, 'COMBAT');
     world.addComponent(entityId, Dying, { killerId });
 
     eventBus.emit('ENTITY_DIED', {
@@ -158,6 +160,8 @@ export function createCombatSystem<T extends GameplayEvents>(
       const oldHealth = defenderHealth.current;
       const newHealth = Math.max(0, oldHealth - damage);
 
+      logger.info(`Attack Resolved: ${attackerId} -> ${defenderId} | DMG: ${damage} (Health: ${oldHealth} -> ${newHealth})`, 'COMBAT');
+      
       // Authoritative update
       w.patchComponent(defenderId, Health, { current: newHealth });
 
@@ -222,6 +226,8 @@ export function createCombatSystem<T extends GameplayEvents>(
       const oldHealth = targetHealth.current;
       const newHealth = Math.max(0, oldHealth - finalDamage);
 
+      logger.info(`Damage Intent Resolved: ${requesterId} -> ${targetId} | DMG: ${finalDamage} (Health: ${oldHealth} -> ${newHealth})`, 'COMBAT');
+
       w.patchComponent(targetId, Health, { current: newHealth });
 
       eventBus.emit('DAMAGE_DEALT', {
@@ -247,6 +253,9 @@ export function createCombatSystem<T extends GameplayEvents>(
       if (targetHealth) {
         const oldVal = targetHealth.current;
         const newVal = Math.min(targetHealth.max, oldVal + intent.amount);
+        
+        logger.info(`Heal Intent Resolved: ${targetId} | HP: ${oldVal} -> ${newVal} (+${intent.amount})`, 'COMBAT');
+        
         w.patchComponent(targetId, Health, { current: newVal });
 
         eventBus.emit('HEALED', { entityId: targetId, amount: intent.amount });
@@ -263,7 +272,7 @@ export function createCombatSystem<T extends GameplayEvents>(
 
   return {
     init() {
-      world.registerSystem(Phase.REACTION, update);
+      world.registerSystem(Phase.REACTION, update, 'CombatSystem');
     },
     dispose() {
       world.unregisterSystem(Phase.REACTION, update);

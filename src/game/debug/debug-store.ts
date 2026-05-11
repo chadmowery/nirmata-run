@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { EventOrigin } from '../../shared/utils/event-context';
+import { EventOrigin } from '@engine/utils/event-context';
+import { logger } from '@engine/utils/logger';
 
 export interface TimelineEvent {
   id: string;
@@ -96,9 +97,9 @@ export const useDebugStore = create<DebugState>((set) => ({
         throw new Error('Failed to export timeline');
       }
       
-      console.log('[DEBUG] Timeline exported to debug/session_events.json');
+      logger.info('Timeline exported to debug/session_events.json', 'DEBUG');
     } catch (error) {
-      console.error('Export Error:', error);
+      logger.error('Timeline export failed', 'DEBUG', { error });
     }
   },
 }));

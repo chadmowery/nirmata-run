@@ -1,6 +1,7 @@
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityId, Phase } from '@engine/ecs/types';
+import { logger } from '@engine/utils/logger';
 import {
   AugmentData,
   AugmentState,
@@ -131,6 +132,10 @@ export function createAugmentSystem<T extends GameplayEvents>(
             text: `${augmentData.name} TRIGGERED!`,
             type: 'info'
           });
+
+          logger.info(`Augment ${augmentData.name} triggered for entity ${entityId}`, 'SYSTEM', { 
+            payloads: augmentData.payloads 
+          });
         }
       }
     }
@@ -160,7 +165,6 @@ export function createAugmentSystem<T extends GameplayEvents>(
       });
     }
   };
-
   const preTurnUpdate = (w: World<T>) => {
     const entities = w.query(AugmentState);
     for (const entityId of entities) {
@@ -170,8 +174,8 @@ export function createAugmentSystem<T extends GameplayEvents>(
 
   return {
     init() {
-      world.registerSystem(Phase.PRE_TURN, preTurnUpdate);
-      world.registerSystem(Phase.REACTION, update);
+      world.registerSystem(Phase.PRE_TURN, preTurnUpdate, 'AugmentPreTurnSystem');
+      world.registerSystem(Phase.REACTION, update, 'AugmentReactionSystem');
     },
 
     dispose() {

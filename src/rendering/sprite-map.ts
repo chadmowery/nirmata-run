@@ -4,6 +4,8 @@ import { TILE_SIZE } from './constants';
 
 const entitySprites = new Map<EntityId, Sprite>();
 
+import { logger } from '../engine/utils/logger';
+
 /**
  * Creates a sprite for an entity and adds it to the specified container.
  * If a sprite already exists for this entity, it returns the existing one.
@@ -26,7 +28,7 @@ export function createEntitySprite(entityId: EntityId, spriteKey: string, contai
   }
 
   if (!texture || texture.width === 1) {
-    console.warn(`Texture not found or empty for key: ${spriteKey} in 'tileset'`);
+    logger.warn(`Texture not found or empty for key: ${spriteKey} in 'tileset'`, 'RENDER');
   }
 
   const sprite = new Sprite(texture);

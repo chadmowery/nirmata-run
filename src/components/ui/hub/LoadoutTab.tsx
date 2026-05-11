@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import { ShellTemplate } from '@/game/shells/types';
@@ -32,7 +33,7 @@ export const LoadoutTab: React.FC = () => {
           setTemplates(data.templates);
         }
       } catch (error) {
-        console.error('Failed to fetch shells:', error);
+        logger.error('Failed to fetch shells:', 'UI', error);
       }
     };
     fetchShells();
@@ -73,7 +74,7 @@ export const LoadoutTab: React.FC = () => {
 
   const handleSlotDrop = async (slotType: string, slotIndex: number) => {
     // Current inventory system is list-based, but we receive slot metadata for future coordinate-based placement.
-    console.debug(`[Loadout] Dropping into ${slotType}:${slotIndex}`);
+    logger.debug(`[Loadout] Dropping into ${slotType}:${slotIndex}`, 'UI');
     if (!draggedItem || draggedItem.extractedAtTimestamp === -1) return;
 
     const sessionId = playerProfile.sessionId;
@@ -110,7 +111,7 @@ export const LoadoutTab: React.FC = () => {
         throw new Error('Failed to equip item');
       }
     } catch (error) {
-      console.error('Equip error:', error);
+      logger.error('Equip error:', 'UI', error);
       // Revert optimistic update
       updateProfileOptimistic(() => previousProfile);
     } finally {
@@ -162,7 +163,7 @@ export const LoadoutTab: React.FC = () => {
       // This is a discrepancy between API and UI requirements.
       // I'll proceed as if it works for now.
     } catch (error) {
-      console.error('Unequip error:', error);
+      logger.error('Unequip error:', 'UI', error);
       updateProfileOptimistic(() => previousProfile);
     } finally {
       setDraggedItem(null);

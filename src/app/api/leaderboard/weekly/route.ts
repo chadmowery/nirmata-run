@@ -4,6 +4,8 @@ import path from 'path';
 
 const LEADERBOARD_DIR = path.join(process.cwd(), 'data', 'leaderboards');
 
+import { logger } from '@engine/utils/logger';
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function GET(req: NextRequest) {
   try {
@@ -20,7 +22,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ entries: [] });
     }
   } catch (error) {
-    console.error('[LeaderboardWeekly] Error:', error);
+    logger.error('[LeaderboardWeekly] Error:', 'API', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

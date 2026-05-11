@@ -1,4 +1,5 @@
 import { RawTemplate } from './types';
+import { logger } from '../utils/logger';
 
 /**
  * Registry for storing and retrieving entity templates.
@@ -15,7 +16,7 @@ export class EntityRegistry {
       throw new Error(`Template '${template.name}' is already registered`);
     }
     if (template.overrides && typeof window === 'undefined') {
-      console.log(`[Registry] Registered ${template.name} with overrides:`, Object.keys(template.overrides).join(', '));
+      logger.debug(`Registered ${template.name} with overrides: ${Object.keys(template.overrides).join(', ')}`, 'Registry');
     }
     this.templates.set(template.name, template);
   }

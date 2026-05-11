@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import { RunMode } from '@/shared/run-mode';
@@ -61,7 +62,7 @@ export const RitualOverlay: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('Launch failed:', error);
+      logger.error('Launch failed:', 'UI', error);
     } finally {
       setIsDeploying(false);
     }

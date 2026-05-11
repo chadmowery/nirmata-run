@@ -9,7 +9,7 @@ import { GameEvents } from '../events/types';
 import { LootTable, Position, Actor, Dying } from '@shared/components';
 import economyRaw from '../entities/templates/economy.json';
 import { EconomyConfig, BlueprintDropConfig, DropRateConfig } from '@shared/economy-types';
-import { logger } from '@/shared/utils/logger';
+import { logger } from '@engine/utils/logger';
 
 const economy = economyRaw as unknown as EconomyConfig;
 
@@ -62,7 +62,7 @@ export function createRewardDropSystem<T extends GameplayEvents>(
               { position: { x: pos.x, y: pos.y } }
             );
             grid.addItem(itemId, pos.x, pos.y);
-            logger.info(`[RewardDropSystem] LootTable dropped: ${drop.template}`);
+            logger.info(`Entity ${entityId} dropped loot: ${drop.template}`, 'SYSTEM');
           }
         }
       }
@@ -76,7 +76,7 @@ export function createRewardDropSystem<T extends GameplayEvents>(
       if (scrapConfig && Math.random() <= scrapConfig.chance) {
         const amount = Math.floor(Math.random() * (scrapConfig.max - scrapConfig.min + 1)) + scrapConfig.min;
         spawnCurrency(w, 'scrap', amount, pos.x, pos.y);
-        logger.info(`[RewardDropSystem] Dropped scrap: ${amount}`);
+        logger.info(`Entity ${entityId} dropped scrap: ${amount}`, 'SYSTEM');
       }
 
       // Roll for Flux
@@ -84,7 +84,7 @@ export function createRewardDropSystem<T extends GameplayEvents>(
       if (fluxConfig && Math.random() <= fluxConfig.chance) {
         const amount = Math.floor(Math.random() * (fluxConfig.max - fluxConfig.min + 1)) + fluxConfig.min;
         spawnCurrency(w, 'flux', amount, pos.x, pos.y);
-        logger.info(`[RewardDropSystem] Dropped flux: ${amount}`);
+        logger.info(`Entity ${entityId} dropped flux: ${amount}`, 'SYSTEM');
       }
 
       // Roll for Blueprint
@@ -102,13 +102,12 @@ export function createRewardDropSystem<T extends GameplayEvents>(
         const blueprintType = blueprintId.endsWith('.arc') ? 'augment' : 'firmware';
 
         spawnCurrency(w, 'blueprint', 1, pos.x, pos.y, { blueprintId, blueprintType });
-        logger.info(`[RewardDropSystem] Dropped blueprint: ${blueprintId}`);
+        logger.info(`Entity ${entityId} dropped blueprint: ${blueprintId}`, 'SYSTEM');
       }
     }
   };
-
   const init = () => {
-    world.registerSystem(Phase.CLEANUP, update);
+    world.registerSystem(Phase.CLEANUP, update, 'RewardDropSystem');
   };
 
   const dispose = () => {

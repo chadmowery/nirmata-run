@@ -1,6 +1,7 @@
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
 import { Phase } from '@engine/ecs/types';
+import { logger } from '@engine/utils/logger';
 import { DealtDamageThisTurn, Dying, SoftwareDef, BurnedSoftware, BurnSoftwareIntent } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { applyBleedOnHit, applyVampireOnKill } from './software-effects';
@@ -100,14 +101,16 @@ export function createSoftwareSystem<T extends GameplayEvents>(
         type: 'combat'
       });
 
+      logger.info(`Software Burn Success: ${swDef.name} onto ${targetSlot} for entity ${entityId}`, 'SYSTEM');
+
       w.removeComponent(entityId, BurnSoftwareIntent);
     }
   };
 
   return {
     init() {
-      world.registerSystem(Phase.REACTION, update);
-      world.registerSystem(Phase.ACTION, updateIntents);
+      world.registerSystem(Phase.REACTION, update, 'SoftwareEffectSystem');
+      world.registerSystem(Phase.ACTION, updateIntents, 'SoftwareIntentSystem');
     },
     dispose() {
       world.unregisterSystem(Phase.REACTION, update);

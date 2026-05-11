@@ -4,7 +4,7 @@ import { sessionManager } from '@engine/session/SessionManager';
 import { serializeWorld, serializeGrid } from '@shared/serialization';
 import { diff } from 'json-diff-ts';
 import { DIRECTIONS, GameAction } from '@game/input/actions';
-import { logger } from '@shared/utils/logger';
+import { logger } from '@engine/utils/logger';
 import { GameplayEvents } from '@shared/events/types';
 import { EngineInstance } from '@game/engine-factory';
 import { FloorState } from '@shared/components/floor-state';
@@ -12,7 +12,7 @@ import { createDefaultProfile, VaultItem } from '@shared/profile';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import economy from '@game/entities/templates/economy.json';
 import { handleServerDebugCommand } from '@game/debug/server-debug-handler';
-import { EventOriginContext } from '@shared/utils/event-context';
+import { EventOriginContext } from '@engine/utils/event-context';
 import { DescentIntent, ExtractionIntent } from '@shared/components';
 
 export async function POST(req: Request) {
@@ -26,14 +26,14 @@ export async function POST(req: Request) {
 
     const { sessionId, action } = result.data;
     EventOriginContext.current = 'server';
-    logger.info(`[API] Processing action: ${action.type} for session: ${sessionId}`);
+    logger.info(`[API] Processing action: ${action.type} for session: ${sessionId}`, 'API');
     const session = sessionManager.getSession<GameplayEvents, EngineInstance['systems']>(sessionId);
     if (!session) {
-      logger.warn(`[API] Session NOT FOUND: ${sessionId}`);
+      logger.warn(`[API] Session NOT FOUND: ${sessionId}`, 'API');
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    console.log(`[API] Session Found for ${sessionId}. PlayerId: ${session.playerId}`);
+    logger.info(`Session Found for ${sessionId}. PlayerId: ${session.playerId}`, 'API');
 
     const { world, grid, turnManager, eventBus } = session;
 
@@ -117,8 +117,6 @@ export async function POST(req: Request) {
     eventBus.offAny(eventCaptureHandler);
     
     // 4. Handle Run Persistence
-
-
     const runEndedEvent = capturedEvents.find(e => e.type === 'RUN_ENDED');
     if (runEndedEvent) {
       const payload = runEndedEvent.payload as GameplayEvents['RUN_ENDED'];
@@ -137,11 +135,11 @@ export async function POST(req: Request) {
       if (payload.reason === 'extraction') {
         // Extraction SUCCESS (D-09/D-13)
         // Prioritize adding extracted items to the vault, then overflow
-        if (payload.stats.itemsExtracted && (payload.stats.itemsExtracted as VaultItem[]).length > 0) {
-          console.log(`[API] Processing extraction for ${sessionId}: ${(payload.stats.itemsExtracted as VaultItem[]).length} items.`);
+        const items = (payload.stats.itemsExtracted as VaultItem[]) || [];
+        if (items.length > 0) {
+          logger.info(`Processing extraction for ${sessionId}: ${items.length} items.`, 'API');
           
           const VAULT_CAPACITY = 20;
-          const items = payload.stats.itemsExtracted as VaultItem[];
           
           for (const item of items) {
             if (profile.vault.length < VAULT_CAPACITY) {
@@ -184,9 +182,9 @@ export async function POST(req: Request) {
         playerId: session.playerId,
         phase: turnManager.getPhase(),
       };
-      logger.info(`[API] Sending FULL state sync (Massive Change: ${isMassiveChange}).`);
+      logger.info(`[API] Sending FULL state sync (Massive Change: ${isMassiveChange}).`, 'API');
     } else {
-      logger.info(`[API] Sending DELTA state sync.`);
+      logger.info(`[API] Sending DELTA state sync.`, 'API');
       syncPayload = {
         type: 'DELTA',
         world: newWorldState,
@@ -203,7 +201,7 @@ export async function POST(req: Request) {
     });
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    logger.error('API Error:', error);
+    logger.error('API Error:', 'API', error);
     return NextResponse.json({ error: 'Internal Server Error', message: errorMessage }, { status: 500 });
   }
 }

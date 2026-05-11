@@ -11,6 +11,7 @@ import { gameStore } from '@/game/ui/store';
 import { useDebugStore } from '@/game/debug/debug-store';
 import { GameState } from '@/game/states/types';
 import { RunMode } from '@/shared/run-mode';
+import { logger } from '@engine/utils/logger';
 import { HUDOverlay } from '@/components/ui/HUDOverlay';
 import { MainMenu } from '@/components/ui/MainMenu';
 import { AnchorOverlay } from '@/components/ui/AnchorOverlay';
@@ -42,7 +43,7 @@ export default function GamePage() {
     
     isInitializing.current = true;
     try {
-      console.log('--- STARTING ENGINE ---');
+      logger.info('--- STARTING ENGINE ---', 'SYSTEM');
       const store = gameStore.getState();
       const launchConfig = store.launchConfig;
       
@@ -59,7 +60,7 @@ export default function GamePage() {
         seed = launchConfig.seed;
         sessionId = launchConfig.sessionId;
         runMode = launchConfig.mode;
-        console.log('[CLIENT] Using Hub launch configuration:', launchConfig);
+        logger.info(`Using Hub launch configuration: ${JSON.stringify(launchConfig)}`, 'NETWORK');
       } else {
         // Fallback for legacy/direct play
         seed = `run-${Date.now()}`;
@@ -76,9 +77,9 @@ export default function GamePage() {
         if (sessionResponse.ok) {
           const sessionData = await sessionResponse.json();
           sessionId = sessionData.sessionId;
-          console.log('[CLIENT] Server session initialized:', sessionId);
+          logger.info(`Server session initialized: ${sessionId}`, 'NETWORK');
         } else {
-          console.warn('[CLIENT] Failed to initialize server session. Falling back to local only.');
+          logger.warn('Failed to initialize server session. Falling back to local only.', 'NETWORK');
         }
       }
 
@@ -124,9 +125,9 @@ export default function GamePage() {
 
       // Focus management: ensure window is focused for input
       window.focus();
-      console.log('--- ENGINE READY ---');
+      logger.info('--- ENGINE READY ---', 'SYSTEM');
     } catch (error) {
-      console.error('CRITICAL: Game initialization failed:', error);
+      logger.error('CRITICAL: Game initialization failed', 'SYSTEM', { error });
     } finally {
       isInitializing.current = false;
     }
@@ -142,7 +143,7 @@ export default function GamePage() {
   // Effect 2: Destroy engine when returning to MainMenu or Hub to ensure a fresh session next time
   useEffect(() => {
     if ((status === GameState.MainMenu || status === GameState.Hub) && contextRef.current) {
-      console.log('--- DESTROYING ENGINE (RETURN TO HUB/MENU) ---');
+      logger.info('--- DESTROYING ENGINE (RETURN TO HUB/MENU) ---', 'SYSTEM');
       
       // 1. Cleanup Render System
       if (renderSystemRef.current) {
@@ -173,7 +174,7 @@ export default function GamePage() {
   // Effect 3: Full cleanup on component unmount
   useEffect(() => {
     return () => {
-      console.log('--- DESTROYING ENGINE (UNMOUNT) ---');
+      logger.info('--- DESTROYING ENGINE (UNMOUNT) ---', 'SYSTEM');
       if (renderSystemRef.current) {
         renderSystemRef.current.destroy();
         renderSystemRef.current = null;

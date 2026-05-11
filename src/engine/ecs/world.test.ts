@@ -189,5 +189,15 @@ describe('World', () => {
       expect(actionSystem).toHaveBeenCalled();
       expect(renderSystem).not.toHaveBeenCalled();
     });
+
+    it('should support explicit system naming', () => {
+      const system = vi.fn();
+      world.registerSystem(Phase.ACTION, system, 'TestSystem');
+      
+      // We can't directly inspect systemNames as it's private, 
+      // but we can verify it doesn't crash and works normally.
+      world.executeSystems(Phase.ACTION);
+      expect(system).toHaveBeenCalled();
+    });
   });
 });

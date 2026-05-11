@@ -1,5 +1,6 @@
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
+import { logger } from '@engine/utils/logger';
 import { Health, Heat, Stability, Position, FloorState, DescentIntent, HeatIntent, ApplyStatusEffectIntent, HealIntent, DamageIntent, VentIntent } from '@shared/components';
 import { EntityId } from '@engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
@@ -16,11 +17,11 @@ export function handleServerDebugCommand(
   systems?: any
 ) {
   if (process.env.NODE_ENV !== 'development') {
-    console.warn(`[DEBUG] Attempted debug command "${command}" in non-development environment. Ignoring.`);
+    logger.warn(`Attempted debug command "${command}" in non-development environment. Ignoring.`, 'DEBUG');
     return;
   }
 
-  console.log(`[DEBUG-SERVER] Executing: ${command}`, args, `PlayerId: ${playerId}`);
+  logger.debug(`Executing: ${command} with args ${JSON.stringify(args)} (PlayerId: ${playerId})`, 'DEBUG');
 
   switch (command) {
     case 'SET_HEAT': {
@@ -29,13 +30,13 @@ export function handleServerDebugCommand(
       if (heatComp) {
         const diff = amount - heatComp.current;
         world.addComponent(playerId, HeatIntent, { targetId: playerId, amount: diff });
-        console.log(`[DEBUG-SERVER] Queued HeatIntent for entity ${playerId}: ${diff}`);
+        logger.debug(`Queued HeatIntent for entity ${playerId}: ${diff}`, 'DEBUG');
       }
       break;
     }
 
     case 'TRIGGER_PANIC': {
-      console.log(`[DEBUG-SERVER] Triggering Panic for ${playerId}`);
+      logger.debug(`Triggering Panic for ${playerId}`, 'DEBUG');
       const tier = Number(args.tier) || 1;
       const effectName = args.effectName || (tier === 1 ? 'HUD_GLITCH' : tier === 2 ? 'INPUT_LAG' : tier === 3 ? 'FIRMWARE_LOCK' : 'CRITICAL_REBOOT');
 
@@ -66,7 +67,7 @@ export function handleServerDebugCommand(
         } else if (diff < 0) {
           world.addComponent(playerId, DamageIntent, { targetId: playerId, amount: Math.abs(diff) });
         }
-        console.log(`[DEBUG-SERVER] Queued Health Intent for entity ${playerId}: ${diff}`);
+        logger.debug(`Queued Health Intent for entity ${playerId}: ${diff}`, 'DEBUG');
       }
       break;
     }
@@ -143,6 +144,6 @@ export function handleServerDebugCommand(
     }
 
     default:
-      console.warn(`[DEBUG-SERVER] Unknown command: ${command}`);
+      logger.warn(`Unknown command: ${command}`, 'DEBUG');
   }
 }

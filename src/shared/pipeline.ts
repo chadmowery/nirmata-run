@@ -1,11 +1,11 @@
 import { diff } from 'json-diff-ts';
-import { World } from '../engine/ecs/world';
-import { Grid } from '../engine/grid/grid';
-import { EventBus } from '../engine/events/event-bus';
+import { World } from '@engine/ecs/world';
+import { Grid } from '@engine/grid/grid';
+import { EventBus } from '@engine/events/event-bus';
 import { GameplayEvents } from './events/types';
 import { ActionIntent, StateDelta } from './types';
 import { serializeWorld, serializeGrid, deserializeWorld, deserializeGrid } from './serialization';
-import { logger } from './utils/logger';
+import { logger } from '@engine/utils/logger';
 
 import {
   Position, RunInventory,
@@ -14,10 +14,10 @@ import {
   BurnSoftwareIntent, FirmwareIntent, PickupIntent
 } from './components';
 import { checkAutoLoader } from '../game/systems/software-effects';
-import { Phase } from '../engine/ecs/types';
-import { EntityRegistry } from '../engine/entity/registry';
-import { EntityFactory } from '../engine/entity/factory';
-import { ComponentRegistry } from '../engine/entity/types';
+import { Phase } from '@engine/ecs/types';
+import { EntityRegistry } from '@engine/entity/registry';
+import { EntityFactory } from '@engine/entity/factory';
+import { ComponentRegistry } from '@engine/entity/types';
 import { registerCoreSystems } from '../game/systems/registration';
 import { RunMode } from './run-mode';
 
@@ -32,7 +32,7 @@ export function runActionPipeline(
   action: ActionIntent,
   sessionId?: string
 ): { world: World<GameplayEvents>; grid: Grid; delta: StateDelta } {
-  logger.debug(`[PIPELINE] Processing action: ${action.type}`, action);
+  logger.debug(`[PIPELINE] Processing action: ${action.type}`, 'PIPELINE', action);
   // 1. Snapshot initial state
   const oldWorldState = serializeWorld(world);
   const oldGridState = serializeGrid(grid);

@@ -4,6 +4,7 @@ import { EntityId, Phase } from '@engine/ecs/types';
 import { StatusEffects, ApplyStatusEffectIntent } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
+import { logger } from '@engine/utils/logger';
 
 /**
  * Pure function to apply a status effect to an entity.
@@ -14,11 +15,7 @@ export function applyStatusEffect<T extends GameplayEvents>(
   entityId: EntityId,
   effect: { name: string; duration: number; magnitude?: number; severity?: string; source?: string },
 ) {
-  console.log(
-    `[StatusEffectSystem] Applying ${effect.name} to entity ${entityId} (Duration: ${
-      effect.duration
-    }, Source: ${effect.source ?? 'unknown'})`,
-  );
+  logger.info(`Applying ${effect.name} to entity ${entityId} (Dur: ${effect.duration}, Src: ${effect.source ?? 'unknown'})`, 'STATUS');
   let statusEffects = world.getComponent(entityId, StatusEffects);
   if (!statusEffects) {
     world.addComponent(entityId, StatusEffects, { effects: [] });
@@ -69,6 +66,7 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
       if (nextDuration > 0) {
         remainingEffects.push({ ...effect, duration: nextDuration });
       } else {
+        logger.debug(`Status Effect Expired: ${effect.name} on entity ${entityId}`, 'STATUS');
         eventBus.emit('STATUS_EFFECT_EXPIRED', {
           entityId,
           effectName: effect.name,
@@ -134,8 +132,8 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
 
   return {
     init() {
-      world.registerSystem(Phase.PRE_TURN, update);
-      world.registerSystem(Phase.PRE_TURN, updateIntents);
+      world.registerSystem(Phase.PRE_TURN, update, 'StatusEffectTickSystem');
+      world.registerSystem(Phase.PRE_TURN, updateIntents, 'StatusEffectIntentSystem');
     },
 
     dispose() {

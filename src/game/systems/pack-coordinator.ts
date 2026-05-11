@@ -3,6 +3,7 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityId, Phase } from '@engine/ecs/types';
 import { Position, PackMember, Actor, MovedThisTurn, Dying, ApplyStatusEffectIntent, DamageIntent } from '@shared/components';
+import { logger } from '@engine/utils/logger';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 
@@ -60,6 +61,8 @@ export function createPackCoordinatorSystem<T extends GameplayEvents>(
     for (const [packId, adjacentMembers] of packsInRange.entries()) {
       if (adjacentMembers.length >= 3) {
         detonatedPacksThisTurn.add(packId);
+
+        logger.info(`Pack Detonation Triggered: Pack ${packId} (Members: ${adjacentMembers.length})`, 'SYSTEM');
 
         // Apply MOVEMENT_SLOW to player once per pack detonation
         // Request status effect via intent instead of direct patching
@@ -123,8 +126,8 @@ export function createPackCoordinatorSystem<T extends GameplayEvents>(
 
   return {
     init() {
-      world.registerSystem(Phase.PRE_TURN, preTurnUpdate);
-      world.registerSystem(Phase.REACTION, update);
+      world.registerSystem(Phase.PRE_TURN, preTurnUpdate, 'PackCoordinatorPreTurnSystem');
+      world.registerSystem(Phase.REACTION, update, 'PackCoordinatorReactionSystem');
     },
     dispose() {
       world.unregisterSystem(Phase.PRE_TURN, preTurnUpdate);

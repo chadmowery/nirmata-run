@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import { generateShopStock } from '@/game/systems/shop-rotation';
@@ -53,7 +54,7 @@ const SoftwareShop: React.FC = () => {
         }));
       }
     } catch (error) {
-      console.error('Purchase failed:', error);
+      logger.error('Purchase failed:', 'UI', error);
     }
   };
 

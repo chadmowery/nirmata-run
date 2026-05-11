@@ -1,6 +1,7 @@
 import { ProfileRepository } from '@shared/profile';
 import { applyLegacyToProfile } from './legacy-code';
 import economyConfig from '../entities/templates/economy.json';
+import { logger } from '@engine/utils/logger';
 
 export interface ResetResult {
   sessionId: string;
@@ -97,6 +98,7 @@ export async function executeWeeklyReset(
   const winnersItem = getWinnersItem(newWeekSeed);
 
   await repo.save(profile);
+  logger.info(`Weekly Reset Executed for session ${sessionId}: ${blueprintsDeleted} blueprints deleted, ${itemsLegacied} items legacied, ${upgradesReset} upgrades reset`, 'SYSTEM');
 
   return {
     sessionId,

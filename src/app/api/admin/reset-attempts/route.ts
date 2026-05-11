@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 
+import { logger } from '@engine/utils/logger';
+
 /**
  * POST /api/admin/reset-attempts
  * Resets a player's attempt tracking status for daily/weekly modes.
@@ -33,7 +35,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, message: `Attempts reset for ${type}` });
   } catch (error) {
-    console.error('[AdminResetAttempts] Error:', error);
+    logger.error('[AdminResetAttempts] Error:', 'API', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

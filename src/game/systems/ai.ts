@@ -12,6 +12,7 @@ import { PackMember } from '@shared/components/pack-member';
 import { StatusEffects } from '@shared/components/status-effects';
 import { MoveIntent, AttackIntent, TeleportIntent, Acting, ApplyStatusEffectIntent } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
+import { logger } from '@engine/utils/logger';
 
 import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
@@ -146,6 +147,7 @@ export function createAISystem<T extends GameplayEvents>(
       }
 
       if (nextBehavior !== ai.behavior) {
+        logger.info(`Entity ${entityId} behavior transition: ${ai.behavior} -> ${nextBehavior}`, 'AI');
         world.patchComponent(entityId, AIState, { behavior: nextBehavior });
       }
 
@@ -156,10 +158,12 @@ export function createAISystem<T extends GameplayEvents>(
 
         const step = pathfindToward(pos.x, pos.y, targetX, targetY);
         if (step) {
+          logger.debug(`Entity ${entityId} chasing player toward (${targetX}, ${targetY})`, 'AI');
           world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
         }
       } else if (nextBehavior === AIBehavior.ATTACKING) {
         // Move toward player to trigger bump attack
+        logger.debug(`Entity ${entityId} attacking player`, 'AI');
         const dx = player.x - pos.x;
         const dy = player.y - pos.y;
         world.addComponent(entityId, MoveIntent, { dx, dy });
@@ -183,6 +187,7 @@ export function createAISystem<T extends GameplayEvents>(
       const ai = world.getComponent(entityId, AIState);
       if (!ai) return;
 
+      logger.debug(`Turn processing started for entity ${entityId} (${ai.behaviorType})`, 'AI');
       switch (ai.behaviorType) {
         case AIBehaviorType.NULL_POINTER:
           this.processNullPointerTurn(entityId);
@@ -522,10 +527,14 @@ export function createAISystem<T extends GameplayEvents>(
     },
 
     init() {
-      world.registerSystem(Phase.GATHER_INTENT, (w) => this.update(w));
+      const update = (w: World<T>) => this.update(w);
+      world.registerSystem(Phase.GATHER_INTENT, update, 'AISystem');
+      (this as any)._updateHandler = update;
     },
     dispose() {
-      world.unregisterSystem(Phase.GATHER_INTENT, (w) => this.update(w));
+      if ((this as any)._updateHandler) {
+        world.unregisterSystem(Phase.GATHER_INTENT, (this as any)._updateHandler);
+      }
     }
   };
 }

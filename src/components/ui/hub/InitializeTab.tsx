@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import { RunMode } from '@/shared/run-mode';
@@ -25,7 +26,7 @@ export const InitializeTab: React.FC = () => {
           setModeAvailability(data.modes);
         }
       } catch (error) {
-        console.error('Failed to fetch mode availability:', error);
+        logger.error('Failed to fetch mode availability:', 'UI', error);
       }
     };
 

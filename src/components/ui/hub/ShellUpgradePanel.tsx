@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import economyConfig from '@/game/entities/templates/economy.json';
@@ -22,7 +23,7 @@ const ShellUpgradePanel: React.FC = () => {
           setShells(data.templates);
         }
       } catch (error) {
-        console.error('Failed to fetch shells:', error);
+        logger.error('Failed to fetch shells:', 'UI', error);
       } finally {
         setLoading(false);
       }
@@ -109,7 +110,7 @@ const ShellUpgradePanel: React.FC = () => {
         });
       }
     } catch (error) {
-      console.error('Upgrade failed:', error);
+      logger.error('Upgrade failed:', 'UI', error);
     }
   };
 

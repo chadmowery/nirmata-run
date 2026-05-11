@@ -33,6 +33,8 @@ function seededRandom(seed: number): () => number {
   };
 }
 
+import { logger } from '@engine/utils/logger';
+
 export function generateShopStock(weekSeed: number): ShopItem[] {
   const rng = seededRandom(weekSeed);
   const stockSize = economyConfig.shop.stockSize;
@@ -50,5 +52,6 @@ export function generateShopStock(weekSeed: number): ShopItem[] {
     });
   }
 
+  logger.debug(`Generated Shop Stock [seed:${weekSeed}]: ${stock.map(s => s.templateId).join(', ')}`, 'ECONOMY');
   return stock;
 }

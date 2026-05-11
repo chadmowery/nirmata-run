@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { createDefaultProfile } from '@/shared/profile';
 
+import { logger } from '@engine/utils/logger';
+
 export async function GET(req: NextRequest) {
   const sessionId = req.nextUrl.searchParams.get('sessionId');
   if (!sessionId) {
@@ -15,7 +17,7 @@ export async function GET(req: NextRequest) {
     }
     return NextResponse.json({ profile });
   } catch (error) {
-    console.error('[Profile] Error:', error);
+    logger.error('[Profile] Error:', 'API', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

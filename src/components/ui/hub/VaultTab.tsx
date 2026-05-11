@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import VaultGrid from './VaultGrid';
@@ -46,7 +47,7 @@ const VaultTab: React.FC = () => {
         }));
       }
     } catch (error) {
-      console.error('Sell failed:', error);
+      logger.error('Sell failed:', 'UI', error);
     }
     setContextMenu({ ...contextMenu, visible: false });
   };
@@ -70,7 +71,7 @@ const VaultTab: React.FC = () => {
         }));
       }
     } catch (error) {
-      console.error('Discard failed:', error);
+      logger.error('Discard failed:', 'UI', error);
     }
     setContextMenu({ ...contextMenu, visible: false });
   };

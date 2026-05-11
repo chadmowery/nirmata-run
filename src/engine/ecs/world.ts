@@ -1,6 +1,7 @@
 import { EntityId, ComponentDef, SystemFn, Phase } from './types';
 import { EventBus } from '../events/event-bus';
 import { EngineEvents } from '../events/types';
+import { logger } from '../utils/logger';
 
 /**
  * The World class is the central coordinator of the ECS.
@@ -11,6 +12,7 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
   private entities: Set<EntityId> = new Set();
   private stores: Map<string, Map<EntityId, unknown>> = new Map();
   private systems: Map<Phase, SystemFn[]> = new Map();
+  private systemNames: Map<SystemFn, string> = new Map();
   private eventBus: EventBus<TEvents>;
 
   constructor(eventBus: EventBus<TEvents>) {
@@ -23,6 +25,7 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
   createEntity(): EntityId {
     const id = this.nextId++;
     this.entities.add(id);
+    logger.debug(`Created Entity: ${id}`, 'ECS');
     this.eventBus.emit('ENTITY_CREATED', { entityId: id });
     return id;
   }
@@ -39,6 +42,7 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
     }
 
     this.entities.delete(id);
+    logger.debug(`Destroyed Entity: ${id}`, 'ECS');
     this.eventBus.emit('ENTITY_DESTROYED', { entityId: id });
   }
 
@@ -150,13 +154,16 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
   /**
    * Register a system to be executed in a specific phase.
    */
-  registerSystem(phase: Phase, system: SystemFn): void {
+  registerSystem(phase: Phase, system: SystemFn, name?: string): void {
     let phaseSystems = this.systems.get(phase);
     if (!phaseSystems) {
       phaseSystems = [];
       this.systems.set(phase, phaseSystems);
     }
     phaseSystems.push(system);
+    if (name) {
+      this.systemNames.set(system, name);
+    }
   }
 
   /**
@@ -177,8 +184,11 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
    */
   executeSystems(phase: Phase): void {
     const phaseSystems = this.systems.get(phase);
-    if (phaseSystems) {
+    if (phaseSystems && phaseSystems.length > 0) {
+      logger.info(`Entering Phase: ${phase}`, 'ECS');
       for (const system of phaseSystems) {
+        const systemName = this.systemNames.get(system) || system.name || 'anonymous';
+        logger.debug(`Executing System: ${systemName}`, 'ECS');
         system(this);
       }
     }

@@ -2,6 +2,7 @@ import { World } from '../ecs/world';
 import { EventBus } from '../events/event-bus';
 import { EngineEvents } from '../events/types';
 import { EntityId, Phase } from '../ecs/types';
+import { logger } from '../utils/logger';
 import {
   TurnPhase,
   TurnManagerConfig,
@@ -30,6 +31,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
   submitAction(action: string): void {
     if (this._paused || this.phase !== TurnPhase.AWAIT_INPUT) return;
 
+    logger.info(`Player submitting action: ${action}`, 'TURN');
     this.phase = TurnPhase.PLAYER_ACTION;
     const playerEntity = this.getPlayerEntity();
     if (playerEntity === null || !this.isAlive(playerEntity)) {
@@ -56,6 +58,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     if (this._paused) return;
 
     this.turnNumber++;
+    logger.info(`STARTING TURN ${this.turnNumber}`, 'TURN');
     this.eventBus.emit('TURN_START', { turnNumber: this.turnNumber });
 
     // 1. Pre-turn phase
@@ -80,6 +83,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
 
     // 3. Enemy turns (for those already ready)
     this.phase = TurnPhase.ENEMY_TURNS;
+    logger.debug('Processing Ready Enemies', 'TURN');
     this.processEnemyTurns();
     if (this._paused) return;
 
@@ -93,6 +97,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     if (this._paused) return;
 
     this.phase = TurnPhase.AWAIT_INPUT;
+    logger.info(`COMPLETED TURN ${this.turnNumber}`, 'TURN');
     this.eventBus.emit('TURN_END', { turnNumber: this.turnNumber });
 
     // Flush events at the very end of the cycle
@@ -138,6 +143,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     enemies.sort((a, b) => a - b);
 
     for (const enemyId of enemies) {
+      logger.info(`Enemy Acting: ${enemyId}`, 'TURN');
       // Mark enemy as acting to trigger AI gathering intent
       this.world.addComponent(enemyId, Acting, {});
       
@@ -175,6 +181,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
       // This prevents double-dipping when player and enemy reach threshold in same tick
       const updatedPlayerEnergy = this.world.getComponent(playerEntity, Energy);
       if (updatedPlayerEnergy && updatedPlayerEnergy.current < this.config.energyThreshold) {
+        logger.debug(`Player not ready (${updatedPlayerEnergy.current}/${this.config.energyThreshold}). Checking enemies...`, 'TURN');
         this.processEnemyTurns();
       }
 
@@ -182,7 +189,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     }
 
     if (subTickCount >= MAX_SUB_TICKS) {
-      console.error('Max sub-ticks reached in TurnManager. Check for degenerate speed values.');
+      logger.error('Max sub-ticks reached in TurnManager. Check for degenerate speed values.', 'TURN');
     }
   }
 

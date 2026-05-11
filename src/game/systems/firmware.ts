@@ -13,6 +13,7 @@ import { DamageIntent, TeleportIntent, FirmwareIntent, HeatIntent } from '@share
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 import { getLegacyHeatCost } from './legacy-code';
+import { logger } from '@engine/utils/logger';
 
 /**
  * Firmware system that handles activation of firmware abilities.
@@ -40,6 +41,7 @@ export function createFirmwareSystem<T extends GameplayEvents>(
       // Check for FIRMWARE_LOCK
       const statusEffects = world.getComponent(entityId, StatusEffects);
       if (statusEffects?.effects.some(e => e.name === 'FIRMWARE_LOCK')) {
+        logger.warn(`Activation blocked: Firmware locked for entity ${entityId}`, 'FIRMWARE');
         eventBus.emit('MESSAGE_EMITTED', {
           text: 'ERROR: Firmware subsystem is locked! Try again later.',
           type: 'error'
@@ -47,12 +49,14 @@ export function createFirmwareSystem<T extends GameplayEvents>(
         return false;
       }
 
-      console.log(`[FirmwareSystem] Activating ability in slot ${slotIndex} for entity ${entityId} at (${targetX}, ${targetY})`);
       const firmwareId = slots.equipped[slotIndex];
       const abilityDef = world.getComponent(firmwareId, AbilityDef);
       if (!abilityDef) {
+        logger.warn(`Failed to activate ability: No AbilityDef for firmware entity ${firmwareId}`, 'FIRMWARE');
         return false;
       }
+
+      logger.info(`Activating ${abilityDef.name} (Slot: ${slotIndex}) for entity ${entityId} at (${targetX}, ${targetY})`, 'FIRMWARE');
 
       // 1. Validate target range/distance
       const pos = world.getComponent(entityId, Position);
@@ -63,12 +67,21 @@ export function createFirmwareSystem<T extends GameplayEvents>(
       const distance = dx + dy; // Manhattan distance
 
       if (abilityDef.effectType === 'dash' || abilityDef.effectType === 'dash_attack') {
-        if (distance > abilityDef.dashDistance) return false;
+        if (distance > abilityDef.dashDistance) {
+          logger.warn(`Activation failed: Target (${targetX}, ${targetY}) out of dash range (${distance} > ${abilityDef.dashDistance})`, 'FIRMWARE');
+          return false;
+        }
         // Dash can target empty space or any tile (ignores collision)
       } else if (abilityDef.effectType === 'ranged_attack') {
-        if (distance > abilityDef.range) return false;
+        if (distance > abilityDef.range) {
+          logger.warn(`Activation failed: Target (${targetX}, ${targetY}) out of ranged range (${distance} > ${abilityDef.range})`, 'FIRMWARE');
+          return false;
+        }
       } else if (abilityDef.effectType === 'melee_attack') {
-        if (distance > 1) return false; // Strict range 1 for melee
+        if (distance > 1) {
+          logger.warn(`Activation failed: Target (${targetX}, ${targetY}) out of melee range (${distance} > 1)`, 'FIRMWARE');
+          return false; // Strict range 1 for melee
+        }
       }
 
       // 2. Heat cost
@@ -162,11 +175,15 @@ export function createFirmwareSystem<T extends GameplayEvents>(
       }
     },
 
+    _updateHandler: null as any,
     init() {
-      world.registerSystem(Phase.ACTION, (w) => this.update(w));
+      this._updateHandler = (w: World<T>) => this.update(w);
+      world.registerSystem(Phase.ACTION, this._updateHandler, 'FirmwareSystem');
     },
     dispose() {
-      world.unregisterSystem(Phase.ACTION, (w) => this.update(w));
+      if (this._updateHandler) {
+        world.unregisterSystem(Phase.ACTION, this._updateHandler);
+      }
     }
   };
 }

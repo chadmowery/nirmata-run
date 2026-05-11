@@ -1,5 +1,6 @@
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
+import { logger } from '@engine/utils/logger';
 import { EntityId, Phase } from '@engine/ecs/types';
 import { Heat, Shell, ApplyStatusEffectIntent, VentIntent } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
@@ -79,6 +80,8 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
 
         triggeredTier = tier.tier;
 
+        logger.info(`Kernel Panic Triggered for entity ${entityId}: ${tier.effectName} (Tier: ${tier.tier}, Severity: ${tier.severity})`, 'SYSTEM');
+
         if (tier.effectName === 'CRITICAL_REBOOT') {
           world.addComponent(entityId, VentIntent, {});
         }
@@ -134,7 +137,7 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
 
   return {
     init() {
-      world.registerSystem(Phase.CLEANUP, updateCleanup);
+      world.registerSystem(Phase.CLEANUP, updateCleanup, 'KernelPanicSystem');
     },
 
     dispose() {

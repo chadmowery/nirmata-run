@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { moveOverflowToVault } from '@/game/systems/vault-manager';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 
+import { logger } from '@engine/utils/logger';
+
 /**
  * POST /api/vault/move-to-vault
  * Moves items from overflow limbo to the persistent Vault.
@@ -25,7 +27,7 @@ export async function POST(req: NextRequest) {
         : result.remaining > 0 ? 'Vault is full' : 'Overflow is empty',
     });
   } catch (error) {
-    console.error('[VaultMoveToVault] Error:', error);
+    logger.error('[VaultMoveToVault] Error:', 'API', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -49,6 +49,7 @@ vi.mock('@game/engine-factory', () => ({
       getComponent: vi.fn(),
       hasComponent: vi.fn(),
       patchComponent: vi.fn(),
+      addComponent: vi.fn(),
       destroyEntity: vi.fn(),
       query: vi.fn(() => []),
     },
@@ -165,12 +166,14 @@ describe('Profile Persistence Integration', () => {
       
       const eventBus = new EventBus<any>();
       const world = new World<any>(eventBus);
+      // Mock behavior in API route expects entity 1 to exist
+      world.createEntity(); // Ensure playerId exists (will be 1)
       const grid = new Grid(20, 20);
       const turnManager = { 
         canAcceptInput: () => true, 
         submitAction: vi.fn(), 
         getTurnNumber: () => 1,
-        getPhase: () => 'AWAIT_INPUT'
+        getPhase: () => 'PLAYER_TURN'
       };
       
       (sessionManager.getSession as any).mockReturnValue({
@@ -205,6 +208,10 @@ describe('Profile Persistence Integration', () => {
       };
 
       const res = await processAction(req);
+      if (res.status === 500) {
+        const errData = await res.json();
+        console.error('Failing Test Response Error:', errData);
+      }
       expect(res.status).toBe(200);
 
       expect(profileRepository.save).toHaveBeenCalledWith(expect.objectContaining({

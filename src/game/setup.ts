@@ -12,10 +12,10 @@ import { createTargetingManager } from './input/targeting';
 import { AbilityDef, FirmwareSlots, Position, MoveIntent, VentIntent } from '@shared/components';
 import { ActionIntent } from '@shared/types';
 import { RunMode } from '@shared/run-mode';
-import { logger } from '@shared/utils/logger';
+import { logger } from '@engine/utils/logger';
 import { AutoPathfinder } from './debug/auto-pathfind';
 import { useDebugStore } from './debug/debug-store';
-import { EventOriginContext } from '@shared/utils/event-context';
+import { EventOriginContext } from '@engine/utils/event-context';
 import { DebugAPI } from './debug/debug-api';
 
 declare global {
@@ -313,8 +313,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   async function sendActionToServer(intent: ActionIntent | null) {
     if (!intent) return;
     try {
-      console.log(`[CLIENT] Fetching /api/action with sessionId: ${context.sessionId || 'default-session'}`);
-      logger.info(`[CLIENT] Sending action to server. SessionId: ${context.sessionId || 'default-session'}`);
+      logger.info(`[CLIENT] Sending action to server. SessionId: ${context.sessionId || 'default-session'}`, 'NETWORK');
       const response = await fetch('/api/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -333,9 +332,11 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
           context.playerId = serverState.playerId;
           applyStateDelta(world, grid, turnManager, eventBus, serverState);
         }
+      } else if (response.status === 404) {
+        logger.warn(`[API] Session NOT FOUND: ${context.sessionId || 'default-session'}`, 'API');
       }
     } catch (error) {
-      logger.error('Failed to sync with server:', error);
+      logger.error('Failed to sync with server:', 'NETWORK', error);
     }
   }
 

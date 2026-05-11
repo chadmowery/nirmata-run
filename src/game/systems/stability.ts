@@ -1,5 +1,6 @@
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
+import { logger } from '@engine/utils/logger';
 import { EntityId, Phase } from '@engine/ecs/types';
 import { Stability, StabilityData } from '@shared/components/stability';
 import { Health, HealthData } from '@shared/components/health';
@@ -61,6 +62,8 @@ export function createStabilitySystem<T extends GameplayEvents>(
       newValue,
       reason: 'floor_entry'
     } as unknown as T['STABILITY_CHANGED']);
+
+    logger.debug(`Stability Floor Drain for entity ${entityId}: ${oldValue.toFixed(2)} -> ${newValue.toFixed(2)}`, 'SYSTEM');
   };
 
   /**
@@ -82,6 +85,8 @@ export function createStabilitySystem<T extends GameplayEvents>(
       newValue,
       reason: 'turn_bleed'
     } as unknown as T['STABILITY_CHANGED']);
+
+    logger.debug(`Stability Turn Bleed for entity ${entityId}: ${oldValue.toFixed(2)} -> ${newValue.toFixed(2)}`, 'SYSTEM');
   };
 
   /**
@@ -103,6 +108,8 @@ export function createStabilitySystem<T extends GameplayEvents>(
       entityId,
       damage: config.degradedDamagePerTurn
     } as unknown as T['DEGRADED_DAMAGE']);
+
+    logger.info(`Degraded Damage applied to entity ${entityId}: ${config.degradedDamagePerTurn} HP`, 'SYSTEM');
   };
 
   const updatePreTurn = (w: World<T>) => {
@@ -120,10 +127,8 @@ export function createStabilitySystem<T extends GameplayEvents>(
       applyDegradedDamage(entityId);
     }
   };
-
-  /** Initialize system. */
   const init = () => {
-    world.registerSystem(Phase.PRE_TURN, updatePreTurn);
+    world.registerSystem(Phase.PRE_TURN, updatePreTurn, 'StabilitySystem');
   };
 
   return {

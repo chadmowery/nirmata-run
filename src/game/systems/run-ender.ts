@@ -9,6 +9,7 @@ import { FloorState } from '@shared/components/floor-state';
 import { RunInventory, BurnedSoftware, MovedThisTurn, Dying, FirmwareSlots, SoftwareSlots, AugmentSlots, Stability, ExtractionIntent } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { GameplayEvents } from '@shared/events/types';
+import { logger } from '@engine/utils/logger';
 import { GameEvents } from '../events/types';
 import { RunMode } from '@shared/run-mode';
 import { VaultItem } from '@shared/profile';
@@ -51,7 +52,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     if (isEnding) return;
     isEnding = true;
 
-    console.log(`[RunEnderSystem] executeRunEnd STARTED. Reason: ${reason}`);
+    logger.info(`Run End Initiated (Reason: ${reason}, Success: ${isSuccess})`, 'SYSTEM');
 
     const floorState = world.getComponent(playerId, FloorState);
     const floorNumber = floorState?.currentFloor ?? 1;
@@ -75,7 +76,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
         world.patchComponent(playerId, AugmentSlots, { equipped: [] });
       }
 
-      console.log(`[RunEnderSystem] executeRunEnd: Player found (${playerId}), isSuccess: ${isSuccess}`);
+      logger.info(`Processing run rewards for Player ${playerId} (isSuccess: ${isSuccess})`, 'SYSTEM');
       if (isSuccess) {
         // Authoritative extraction calculation (per D-06)
         finalScrap = InventoryUtil.getCurrencyAmount(world, playerId, 'scrap');
@@ -95,10 +96,9 @@ export function createRunEnderSystem<T extends GameplayEvents>(
           world.patchComponent(playerId, BurnedSoftware, { weapon: null, armor: null });
         }
       } else {
-        // Handle Pity on Failure (Death, Admin Contact, Instability)
         const totalScrap = InventoryUtil.getCurrencyAmount(world, playerId, 'scrap');
         finalScrap = calculatePityScrap(totalScrap);
-        console.log(`[RunEnderSystem] executeRunEnd (FAIL): totalScrap: ${totalScrap}, pityScrap: ${finalScrap}`);
+        logger.info(`Failure Pity Calculation: ${totalScrap} scrap -> ${finalScrap} scrap (pity)`, 'SYSTEM');
         pityAwarded = true;
 
         InventoryUtil.clearInventory(world, playerId);
@@ -210,8 +210,8 @@ export function createRunEnderSystem<T extends GameplayEvents>(
 
   return {
     init() {
-      world.registerSystem(Phase.REACTION, update);
-      world.registerSystem(Phase.CLEANUP, updateCleanup);
+      world.registerSystem(Phase.REACTION, update, 'RunEnderReactionSystem');
+      world.registerSystem(Phase.CLEANUP, updateCleanup, 'RunEnderCleanupSystem');
     },
     dispose() {
       world.unregisterSystem(Phase.REACTION, update);

@@ -15,6 +15,8 @@ export async function GET() {
   }
 }
 
+import { logger } from '@engine/utils/logger';
+
 /**
  * POST /api/admin/seed-rotation
  * Manually rotates a specific seed.
@@ -30,7 +32,7 @@ export async function POST(req: NextRequest) {
     const newSeed = await rotateSeed(type);
     return NextResponse.json({ success: true, newSeed });
   } catch (error) {
-    console.error('[AdminSeedRotation] Error:', error);
+    logger.error('[AdminSeedRotation] Error:', 'API', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

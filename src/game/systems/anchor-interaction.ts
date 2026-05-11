@@ -4,6 +4,7 @@ import { EventBus } from '@engine/events/event-bus';
 import { EntityId, Phase } from '@engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
+import { logger } from '@engine/utils/logger';
 import {
   AnchorMarker,
   FloorState,
@@ -17,7 +18,6 @@ import {
   RunInventory,
   FirmwareSlots,
   AugmentSlots,
-  SoftwareSlots,
   AbilityDef,
   SoftwareDef,
   AugmentData,
@@ -84,6 +84,7 @@ export function createAnchorInteractionSystem<T extends GameplayEvents = GameEve
   };
 
   const handleAnchorProximity = (playerId: EntityId, anchorId: EntityId) => {
+    logger.info(`Anchor Proximity Triggered: Entity ${playerId} at Anchor ${anchorId}`, 'SYSTEM');
     const floorState = world.getComponent(playerId, FloorState);
     const stability = world.getComponent(playerId, Stability);
     const fSlots = world.getComponent(playerId, FirmwareSlots);
@@ -129,6 +130,7 @@ export function createAnchorInteractionSystem<T extends GameplayEvents = GameEve
   };
 
   const handleStaircaseProximity = (playerId: EntityId, staircaseId: EntityId) => {
+    logger.info(`Staircase Proximity Triggered: Entity ${playerId} at Staircase ${staircaseId}`, 'SYSTEM');
     const floorState = world.getComponent(playerId, FloorState);
     const currentFloor = floorState?.currentFloor ?? 1;
     const nextFloor = currentFloor + 1;
@@ -149,7 +151,7 @@ export function createAnchorInteractionSystem<T extends GameplayEvents = GameEve
 
   return {
     init() {
-      world.registerSystem(Phase.REACTION, update);
+      world.registerSystem(Phase.REACTION, update, 'AnchorInteractionSystem');
     },
     dispose() {
       world.unregisterSystem(Phase.REACTION, update);

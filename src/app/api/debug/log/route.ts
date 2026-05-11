@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@engine/utils/logger';
 import { promises as fs } from 'fs';
 import path from 'path';
 
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, path: jsonFile });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error('Debug Log Error:', error);
+    logger.error('Debug Log Error:', 'API', error);
     return NextResponse.json({ error: 'Failed to write debug log', message }, { status: 500 });
   }
 }

@@ -5,6 +5,8 @@ import { calculateScore, RunMode } from '@/game/systems/run-mode-config';
 
 const LEADERBOARD_DIR = path.join(process.cwd(), 'data', 'leaderboards');
 
+import { logger } from '@engine/utils/logger';
+
 export async function POST(req: NextRequest) {
   try {
     const { sessionId, mode, stats } = await req.json();
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, score, rank: entries.findIndex((e: any) => e.sessionId === sessionId) + 1 });
   } catch (error) {
-    console.error('[LeaderboardSubmit] Error:', error);
+    logger.error('[LeaderboardSubmit] Error:', 'API', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

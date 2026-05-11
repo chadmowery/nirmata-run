@@ -6,6 +6,8 @@ import { createEngineInstance } from '@/game/engine-factory';
 import { globalShellRegistry } from '@/game/shells';
 import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT } from '@/shared/constants';
 
+import { logger } from '@engine/utils/logger';
+
 /**
  * POST /api/run-mode/launch
  * Launches a new run in the specified mode.
@@ -92,7 +94,7 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[RunLaunch] Error:', error);
+    logger.error('[RunLaunch] Error:', 'API', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

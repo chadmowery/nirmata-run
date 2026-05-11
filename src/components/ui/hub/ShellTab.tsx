@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { logger } from '@engine/utils/logger';
 import styles from './ShellTab.module.css';
 import { ShellCarousel } from './ShellCarousel';
 import { ShellTemplate } from '@/game/shells/types';
@@ -23,7 +24,7 @@ export const ShellTab: React.FC = () => {
           setShellTemplates(data.templates);
         }
       } catch (error) {
-        console.error('Failed to fetch shells:', error);
+        logger.error('Failed to fetch shells:', 'UI', error);
       } finally {
         setLoading(false);
       }

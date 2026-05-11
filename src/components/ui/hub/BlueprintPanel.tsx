@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import economyConfig from '@/game/entities/templates/economy.json';
@@ -70,7 +71,7 @@ const BlueprintPanel: React.FC = () => {
         setTimeout(() => setLastCompiledId(null), 1000);
       }
     } catch (error) {
-      console.error('Compilation failed:', error);
+      logger.error('Compilation failed:', 'UI', error);
     } finally {
       setCompilingBlueprintId(null);
     }

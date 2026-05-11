@@ -3,7 +3,7 @@ import { GameContext } from '../types';
 import { AnchorMarker, Health, Position, StaircaseMarker } from '@shared/components';
 import { GameAction, DIRECTIONS } from '../input/actions';
 import { ActionIntent } from '@shared/types';
-import { logger } from '@shared/utils/logger';
+import { logger } from '@engine/utils/logger';
 
 /**
  * Handles automatic pathfinding to the floor's anchor (staircase).

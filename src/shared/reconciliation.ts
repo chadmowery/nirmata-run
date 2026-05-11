@@ -7,7 +7,7 @@ import { EventBus } from '../engine/events/event-bus';
 import { GameplayEvents } from './events/types';
 import { serializeGrid } from './serialization';
 import { SyncPayload, DeltaPayload, SerializedGrid } from './types';
-import { EventOriginContext } from './utils/event-context';
+import { EventOriginContext } from '@engine/utils/event-context';
 
 /**
  * Reconciles the local client engine state with the authoritative server state.

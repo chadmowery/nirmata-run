@@ -55,7 +55,7 @@ export function createShellStatsSystem<T extends GameplayEvents>(
 
   return {
     init() {
-      world.registerSystem(Phase.PRE_TURN, update);
+      world.registerSystem(Phase.PRE_TURN, update, 'ShellStatsSystem');
     },
     dispose() {
       world.unregisterSystem(Phase.PRE_TURN, update);

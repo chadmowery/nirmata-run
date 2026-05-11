@@ -142,8 +142,8 @@ describe('Heat System', () => {
     it('registers to Phase.PRE_TURN and Phase.ACTION', () => {
       const registerSpy = vi.spyOn(world, 'registerSystem');
       heatSystem.init();
-      expect(registerSpy).toHaveBeenCalledWith(Phase.PRE_TURN, expect.any(Function));
-      expect(registerSpy).toHaveBeenCalledWith(Phase.ACTION, expect.any(Function));
+      expect(registerSpy).toHaveBeenCalledWith(Phase.PRE_TURN, expect.any(Function), 'HeatPreTurnSystem');
+      expect(registerSpy).toHaveBeenCalledWith(Phase.ACTION, expect.any(Function), 'HeatActionSystem');
     });
 
     it('processes Phase.PRE_TURN to dissipate heat', () => {

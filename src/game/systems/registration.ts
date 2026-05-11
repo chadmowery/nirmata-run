@@ -104,11 +104,6 @@ export function registerCoreSystems<T extends GameplayEvents>(
   const tagCleanup = createTagCleanupSystem(world);
   tagCleanup.init();
 
-  // Register ticks to POST_TURN phase
-  world.registerSystem(Phase.POST_TURN, () => {
-    tileCorruption.tick();
-  });
-
   return {
     movement, combat, itemPickup, gravedigger, rewardDrop, runEnder,
     augment, tagCleanup, stability, deadZone, equipment, shellStats, floorManager, anchorInteraction,

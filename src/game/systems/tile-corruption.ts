@@ -9,6 +9,7 @@ import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
+import { logger } from '@engine/utils/logger';
 
 /**
  * System that handles tile corruption spread and subprocess spawning for Seed_Eater.
@@ -147,6 +148,8 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
 
     const toCorrupt = ring.slice(0, state.tilesPerTurn);
 
+    logger.debug(`Seed Eater ${seedEaterId} corrupting ${toCorrupt.length} tiles at wave ${state.corruptionWave}`, 'SYSTEM');
+
     for (const tile of toCorrupt) {
       // Safety check: don't trap player
       if (grid.isWalkable(tile.x, tile.y) && isPlayerTrappedAfterCorruption(tile.x, tile.y)) {
@@ -221,18 +224,23 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
           text: `Seed_Eater spawned a ${templateName}!`, 
           type: 'combat' 
         });
+        logger.info(`Seed Eater ${seedEaterId} spawned ${templateName} at (${spawnPos.x}, ${spawnPos.y})`, 'SYSTEM');
       } catch (e) {
-        console.error(`[TileCorruptionSystem] Failed to spawn sub-process: ${templateName}`, e);
+        logger.error(`Failed to spawn sub-process: ${templateName}`, 'SYSTEM', { error: e });
       }
     }
   }
 
   return {
     init() {
-      world.registerSystem(Phase.POST_TURN, () => this.tick());
+      const tick = () => this.tick();
+      world.registerSystem(Phase.POST_TURN, tick, 'TileCorruptionSystem');
+      (this as any)._tickHandler = tick;
     },
     dispose() {
-      world.unregisterSystem(Phase.POST_TURN, () => this.tick());
+      if ((this as any)._tickHandler) {
+        world.unregisterSystem(Phase.POST_TURN, (this as any)._tickHandler);
+      }
     },
     tick() {
       const seedEaters = world.query(CorruptionState, Position);

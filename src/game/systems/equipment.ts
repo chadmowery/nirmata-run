@@ -1,6 +1,7 @@
 import { World } from '@engine/ecs/world';
 import { EntityId, Phase } from '@engine/ecs/types';
 import { EventBus } from '@engine/events/event-bus';
+import { logger } from '@engine/utils/logger';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 import {
@@ -77,6 +78,7 @@ export function createEquipmentSystem<T extends GameplayEvents>(
     
     eventBus.emit('EQUIPMENT_CHANGED', { entityId, slotType: intent.slotType } as any);
     eventBus.emit('MESSAGE_EMITTED', { text: `Equipped item to ${intent.slotType} slot`, type: 'info' } as any);
+    logger.info(`Entity ${entityId} equipped item ${intent.itemEntityId} to ${intent.slotType} slot`, 'SYSTEM');
   };
 
   const handleUnequip = (w: World<T>, entityId: EntityId, intent: any) => {
@@ -108,11 +110,12 @@ export function createEquipmentSystem<T extends GameplayEvents>(
     
     eventBus.emit('EQUIPMENT_CHANGED', { entityId, slotType: intent.slotType } as any);
     eventBus.emit('MESSAGE_EMITTED', { text: `Unequipped item from ${intent.slotType} slot`, type: 'info' } as any);
+    logger.info(`Entity ${entityId} unequipped item at index ${intent.slotIndex} from ${intent.slotType} slot`, 'SYSTEM');
   };
 
   return {
     init() {
-      world.registerSystem(Phase.ACTION, update);
+      world.registerSystem(Phase.ACTION, update, 'EquipmentSystem');
     },
     dispose() {
       world.unregisterSystem(Phase.ACTION, update);

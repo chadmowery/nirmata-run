@@ -1,5 +1,6 @@
 import { World } from '@engine/ecs/world';
 import { Phase } from '@engine/ecs/types';
+import { logger } from '@engine/utils/logger';
 import { Grid } from '@engine/grid/grid';
 import { Dying, Position } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
@@ -19,13 +20,14 @@ export function createGravediggerSystem<T extends GameplayEvents>(world: World<T
       }
 
       // 2. Final purge
+      logger.debug(`Gravedigger purging entity ${entityId}`, 'ECS');
       w.destroyEntity(entityId);
     }
   };
 
   return {
     init() {
-      world.registerSystem(Phase.CLEANUP, update);
+      world.registerSystem(Phase.CLEANUP, update, 'GravediggerSystem');
     },
     dispose() {
       world.unregisterSystem(Phase.CLEANUP, update);

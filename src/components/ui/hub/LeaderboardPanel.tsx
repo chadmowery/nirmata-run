@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { logger } from '@engine/utils/logger';
 import { RunMode } from '@/shared/run-mode';
 import styles from './LeaderboardPanel.module.css';
 
@@ -28,7 +29,7 @@ export const LeaderboardPanel: React.FC<LeaderboardPanelProps> = ({ mode, sessio
           setEntries(data.entries || []);
         }
       } catch (error) {
-        console.error('Failed to fetch leaderboard:', error);
+        logger.error('Failed to fetch leaderboard:', 'UI', error);
       } finally {
         setLoading(false);
       }

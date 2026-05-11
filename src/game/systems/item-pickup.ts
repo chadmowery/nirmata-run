@@ -1,4 +1,5 @@
 import { World } from '../../engine/ecs/world';
+import { logger } from '@engine/utils/logger';
 import { Grid } from '../../engine/grid/grid';
 import { EventBus } from '../../engine/events/event-bus';
 import { Phase } from '@engine/ecs/types';
@@ -48,6 +49,7 @@ export function createItemPickupSystem<T extends GameplayEvents>(
       const success = InventoryUtil.addCurrency(w, entityId, type, amount, meta);
 
       if (success) {
+        logger.info(`Entity ${entityId} picked up ${amount} ${type} (Blueprint: ${meta.blueprintId ?? 'none'})`, 'SYSTEM');
         const message =
           type === 'blueprint'
             ? `+1 Locked File: ${meta.blueprintId}`
@@ -91,6 +93,7 @@ export function createItemPickupSystem<T extends GameplayEvents>(
         });
 
         if (added) {
+          logger.info(`Entity ${entityId} picked up software ${itemId} (Template: ${templateRef.id}, Name: ${swDef.name})`, 'SYSTEM');
           eventBus.emit('MESSAGE_EMITTED', {
             text: `+ SOFTWARE SECURED: ${swDef.name} [${rarity?.tier || 'v1.x'}]`,
             type: 'info',
@@ -157,7 +160,7 @@ export function createItemPickupSystem<T extends GameplayEvents>(
 
   return {
     init() {
-      world.registerSystem(Phase.REACTION, update);
+      world.registerSystem(Phase.REACTION, update, 'ItemPickupSystem');
     },
     dispose() {
       world.unregisterSystem(Phase.REACTION, update);

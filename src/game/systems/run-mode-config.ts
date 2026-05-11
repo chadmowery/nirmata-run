@@ -1,4 +1,5 @@
 import { RunMode, RunModeConfig } from '@shared/run-mode';
+import { logger } from '@engine/utils/logger';
 import { getCurrentDailySeed, getCurrentWeeklySeed } from '@/app/persistence/seed-rotation';
 import economyRaw from '../entities/templates/economy.json';
 import { EconomyConfig } from '@shared/economy-types';
@@ -12,9 +13,10 @@ export type { RunModeConfig };
  * Gets the configuration for a specific run mode.
  */
 export async function getRunModeConfig(mode: RunMode): Promise<RunModeConfig> {
+  let config: RunModeConfig;
   switch (mode) {
     case RunMode.SIMULATION:
-      return {
+      config = {
         mode: RunMode.SIMULATION,
         name: 'Neural Simulation',
         description: 'Randomized training run. No risk to shell upgrades.',
@@ -29,9 +31,10 @@ export async function getRunModeConfig(mode: RunMode): Promise<RunModeConfig> {
         isCompetitive: false,
         hasLeaderboard: false,
       };
+      break;
 
     case RunMode.DAILY:
-      return {
+      config = {
         mode: RunMode.DAILY,
         name: 'Daily Challenge',
         description: 'Shared daily seed. Competitive leaderboard.',
@@ -47,9 +50,10 @@ export async function getRunModeConfig(mode: RunMode): Promise<RunModeConfig> {
         isCompetitive: true,
         hasLeaderboard: true,
       };
+      break;
 
     case RunMode.WEEKLY:
-      return {
+      config = {
         mode: RunMode.WEEKLY,
         name: 'Weekly One-Shot',
         description: 'The definitive challenge. Exactly ONE life per week.',
@@ -64,10 +68,14 @@ export async function getRunModeConfig(mode: RunMode): Promise<RunModeConfig> {
         isCompetitive: true,
         hasLeaderboard: true,
       };
+      break;
 
     default:
       throw new Error(`Invalid RunMode: ${mode}`);
   }
+
+  logger.info(`Run Mode Config Loaded: ${config.name} (Seed: ${config.seed})`, 'SYSTEM');
+  return config;
 }
 
 /**

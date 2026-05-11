@@ -1,5 +1,6 @@
 import { GameContext } from '../types';
 import { ActionIntent } from '@shared/types';
+import { logger } from '@engine/utils/logger';
 
 export type SendActionFn = (intent: ActionIntent) => Promise<void>;
 
@@ -21,7 +22,7 @@ export class DebugAPI {
       command: 'SET_HEAT',
       args: { amount },
     });
-    console.log(`[DEBUG] Requested Heat set to ${amount}`);
+    logger.debug(`Requested Heat set to ${amount}`, 'DEBUG');
   }
 
   /**
@@ -33,7 +34,7 @@ export class DebugAPI {
       command: 'TRIGGER_PANIC',
       args: { tier, severity, effectName },
     });
-    console.log(`[DEBUG] Requested Kernel Panic Tier ${tier} (${severity}: ${effectName})`);
+    logger.debug(`Requested Kernel Panic Tier ${tier} (${severity}: ${effectName})`, 'DEBUG');
   }
 
   /**
@@ -45,7 +46,7 @@ export class DebugAPI {
       command: 'SET_HP',
       args: { amount },
     });
-    console.log(`[DEBUG] Requested HP set to ${amount}`);
+    logger.debug(`Requested HP set to ${amount}`, 'DEBUG');
   }
 
   /**
@@ -57,7 +58,7 @@ export class DebugAPI {
       command: 'SET_STABILITY',
       args: { amount },
     });
-    console.log(`[DEBUG] Requested Stability set to ${amount}`);
+    logger.debug(`Requested Stability set to ${amount}`, 'DEBUG');
   }
 
   /**
@@ -70,7 +71,7 @@ export class DebugAPI {
       command: 'STATUS',
       args: { effectName, duration },
     });
-    console.log(`[DEBUG] Requested status: ${effectName} for ${duration} turns`);
+    logger.debug(`Requested status: ${effectName} for ${duration} turns`, 'DEBUG');
   }
 
   /**
@@ -82,7 +83,7 @@ export class DebugAPI {
       command: 'GIVE_CURRENCY',
       args: { type: 'scrap', amount },
     });
-    console.log(`[DEBUG] Requested ${amount} scrap`);
+    logger.debug(`Requested ${amount} scrap`, 'DEBUG');
   }
 
   /**
@@ -94,7 +95,7 @@ export class DebugAPI {
       command: 'GIVE_CURRENCY',
       args: { type: 'flux', amount },
     });
-    console.log(`[DEBUG] Requested ${amount} flux`);
+    logger.debug(`Requested ${amount} flux`, 'DEBUG');
   }
 
   /**
@@ -106,7 +107,7 @@ export class DebugAPI {
       command: 'GIVE_CURRENCY',
       args: { type: 'blueprint', amount: 1, blueprintId },
     });
-    console.log(`[DEBUG] Requested blueprint: ${blueprintId}`);
+    logger.debug(`Requested blueprint: ${blueprintId}`, 'DEBUG');
   }
 
   /**
@@ -119,7 +120,7 @@ export class DebugAPI {
       command: 'DESCEND',
       args: { count },
     });
-    console.log(`[DEBUG] Requested forced descend of ${count} floors`);
+    logger.debug(`Requested forced descend of ${count} floors`, 'DEBUG');
   }
 
   /**
@@ -131,7 +132,7 @@ export class DebugAPI {
       command: 'SPAWN_DEADZONE',
       args: { duration: 5 },
     });
-    console.log(`[DEBUG] Requested deadzone at player position`);
+    logger.debug(`Requested deadzone at player position`, 'DEBUG');
   }
   /**
    * Clears all server sessions.
@@ -142,6 +143,6 @@ export class DebugAPI {
       command: 'CLEAR_SESSIONS',
       args: {},
     });
-    console.log(`[DEBUG] Requested session clear`);
+    logger.debug(`Requested session clear`, 'DEBUG');
   }
 }

@@ -1,3 +1,5 @@
+import { logger } from '../utils/logger';
+
 /**
  * Signature for an event handler function.
  */
@@ -67,7 +69,7 @@ export class EventBus<TEventMap extends Record<string, any>> {
                               typeStr === 'ENTITY_DESTROYED';
       
       if (!isLifecycleEvent || (isServer && process.env.DEBUG_ECS_LIFECYCLE === 'true')) {
-        console.log(`[EventBus] emit: ${typeStr}`);
+        logger.debug(`emit: ${typeStr}`, 'EventBus');
       }
     }
 
