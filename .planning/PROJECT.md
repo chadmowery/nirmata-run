@@ -132,3 +132,11 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 *Last updated: 2026-04-03 after Phase 14 completion*
+
+## Current State
+- **Version:** v2.0
+- **Status:** Shipped (2026-05-11)
+- **Archive:** [v2.0 Roadmap](milestones/v2.0-ROADMAP.md)
+
+## Next Milestone Goals
+- TBD
