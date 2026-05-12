@@ -1,0 +1,193 @@
+.editor {
+  max-width: 800px;
+}
+
+.editorHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.editorTitle {
+  font-family: var(--font-body);
+  font-size: var(--font-size-heading);
+  color: var(--vibrant-cyan);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 0;
+}
+
+.buttonRow {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.saveButton {
+  padding: var(--space-sm) var(--space-md);
+  background: transparent;
+  border: 1px solid var(--vibrant-cyan);
+  color: var(--vibrant-cyan);
+  font-family: 'Courier New', monospace;
+  font-size: var(--font-size-body);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: background 0.1s;
+}
+.saveButton:hover { background: rgba(0, 240, 255, 0.1); }
+.saveButton:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.cloneButton {
+  padding: var(--space-sm) var(--space-md);
+  background: transparent;
+  border: 1px solid var(--safety-orange);
+  color: var(--safety-orange);
+  font-family: 'Courier New', monospace;
+  font-size: var(--font-size-body);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: background 0.1s;
+}
+.cloneButton:hover { background: rgba(255, 149, 0, 0.1); }
+
+.deleteButton {
+  padding: var(--space-sm) var(--space-md);
+  background: transparent;
+  border: 1px solid var(--vibrant-pink);
+  color: var(--vibrant-pink);
+  font-family: 'Courier New', monospace;
+  font-size: var(--font-size-body);
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.deleteButton:hover { background: rgba(255, 0, 85, 0.1); }
+
+.fieldGroup {
+  margin-bottom: var(--space-md);
+  padding: var(--space-md);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.fieldGroupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+}
+
+.fieldGroupTitle {
+  color: var(--vibrant-cyan);
+  font-size: var(--font-size-body);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.fieldRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.fieldLabel {
+  min-width: 140px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: var(--font-size-label);
+  font-family: 'Courier New', monospace;
+}
+
+.fieldInput {
+  flex: 1;
+  padding: var(--space-xs) var(--space-sm);
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--white);
+  font-family: 'Courier New', monospace;
+  font-size: var(--font-size-body);
+}
+.fieldInput:focus { outline: none; border-color: var(--vibrant-cyan); }
+
+.fieldCheckbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--vibrant-cyan);
+}
+
+.fieldSelect {
+  padding: var(--space-xs) var(--space-sm);
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--white);
+  font-family: 'Courier New', monospace;
+  font-size: var(--font-size-body);
+}
+
+.errorMessage {
+  color: var(--vibrant-pink);
+  font-size: var(--font-size-label);
+  margin-top: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border-left: 2px solid var(--vibrant-pink);
+}
+
+.successMessage {
+  color: var(--vibrant-cyan);
+  font-size: var(--font-size-label);
+  margin-top: var(--space-xs);
+}
+
+.addComponentButton {
+  padding: var(--space-xs) var(--space-sm);
+  background: transparent;
+  border: 1px dashed rgba(0, 240, 255, 0.4);
+  color: var(--vibrant-cyan);
+  font-family: 'Courier New', monospace;
+  font-size: var(--font-size-label);
+  cursor: pointer;
+  width: 100%;
+  margin-top: var(--space-md);
+}
+.addComponentButton:hover { border-color: var(--vibrant-cyan); background: rgba(0, 240, 255, 0.05); }
+
+.removeButton {
+  background: transparent;
+  border: none;
+  color: var(--vibrant-pink);
+  cursor: pointer;
+  padding: var(--space-xs);
+  font-size: var(--font-size-label);
+}
+
+.componentSelect {
+  width: 100%;
+  padding: var(--space-sm);
+  background: rgba(0, 0, 0, 0.8);
+  border: 1px solid var(--vibrant-cyan);
+  color: var(--white);
+  font-family: 'Courier New', monospace;
+  margin-bottom: var(--space-md);
+}
+
+.readOnlyField {
+  padding: var(--space-xs) var(--space-sm);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+  font-family: 'Courier New', monospace;
+  font-size: var(--font-size-body);
+}
+
+.mixinTag {
+  display: inline-block;
+  padding: 2px var(--space-sm);
+  margin-right: var(--space-xs);
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  color: var(--vibrant-cyan);
+  font-size: var(--font-size-label);
+}

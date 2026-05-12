@@ -1,6 +1,6 @@
 import React from 'react';
 import styles from './ShellStatCard.module.css';
-import { ShellTemplate } from '@/game/shells/types';
+import { ShellTemplate } from '@/game/shells/shared';
 import { ShellUpgrades, InstalledItem } from '@/shared/profile';
 import { SlotBox } from './SlotBox';
 

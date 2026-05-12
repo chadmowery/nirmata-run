@@ -3,7 +3,7 @@ import { GameState } from '../states/types';
 import { EventOriginContext } from '@engine/utils/event-context';
 import { PlayerProfile, VaultItem } from '@/shared/profile';
 import { RunMode } from '@/shared/run-mode';
-import { ShellTemplate } from '@/game/shells/types';
+import { ShellTemplate } from '@/game/shells/shared';
 
 export type GameStatus = GameState;
 export type MessageType = 'info' | 'combat' | 'error' | 'warning';

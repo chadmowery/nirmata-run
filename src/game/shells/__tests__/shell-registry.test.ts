@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { ShellRegistry } from '../shell-registry';
-import { ShellTemplate } from '../types';
+import { ShellRegistry } from '../server/shell-registry';
+import { ShellTemplate } from '../server/types';
 
 describe('ShellRegistry', () => {
   const mockTemplate: ShellTemplate = {

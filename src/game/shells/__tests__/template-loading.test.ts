@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { ShellRegistry } from '../shell-registry';
-import vanguard from '../templates/vanguard-v1.json';
-import ghost from '../templates/ghost-v1.json';
-import bastion from '../templates/bastion-v1.json';
+import { ShellRegistry } from '../server/shell-registry';
+import vanguard from '../shared/templates/vanguard-v1.json';
+import ghost from '../shared/templates/ghost-v1.json';
+import bastion from '../shared/templates/bastion-v1.json';
 
 describe('Shell Template Loading', () => {
   it('should correctly load and register all starter templates', () => {

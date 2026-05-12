@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import styles from './ShellCarousel.module.css';
 import { ShellStatCard } from './ShellStatCard';
-import { ShellTemplate } from '@/game/shells/types';
+import { ShellTemplate } from '@/game/shells/shared';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 

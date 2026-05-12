@@ -37,7 +37,7 @@ import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from './events/types';
 import { Phase } from '../engine/ecs/types';
 
-import { ShellRecord } from './shells/types';
+import { ShellRecord } from './shells/shared';
 import { PlayerProfile } from '@shared/profile';
 import { RunMode } from '@shared/run-mode';
 

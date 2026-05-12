@@ -32,7 +32,7 @@ export interface GameConfig {
   runMode?: RunMode;
 }
 
-import { globalShellRegistry } from './shells';
+import { globalShellRegistry } from './shells/client';
 
 /**
  * Bootstraps the game and engine together.

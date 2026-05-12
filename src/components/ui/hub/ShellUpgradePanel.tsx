@@ -3,7 +3,7 @@ import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import economyConfig from '@/game/entities/templates/economy.json';
-import { ShellTemplate } from '@/game/shells/types';
+import { ShellTemplate } from '@/game/shells/shared';
 import styles from './ShellUpgradePanel.module.css';
 
 const ShellUpgradePanel: React.FC = () => {

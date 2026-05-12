@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { globalShellRegistry } from '@/game/shells';
+import { globalShellRegistry } from '@/game/shells/server';
 
 import { logger } from '@engine/utils/logger';
 

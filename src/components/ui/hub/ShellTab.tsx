@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { logger } from '@engine/utils/logger';
 import styles from './ShellTab.module.css';
 import { ShellCarousel } from './ShellCarousel';
-import { ShellTemplate } from '@/game/shells/types';
+import { ShellTemplate } from '@/game/shells/shared';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 

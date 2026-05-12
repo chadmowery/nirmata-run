@@ -1,7 +1,7 @@
 import React from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
-import { PortConfig } from '@/game/shells/types';
+import { PortConfig } from '@/game/shells/shared';
 import { InstalledItem } from '@/shared/profile';
 import { SlotBox } from './SlotBox';
 import styles from './LoadoutSlotPanel.module.css';
