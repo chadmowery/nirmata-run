@@ -33,4 +33,16 @@ This milestone transitions the game from a stubbed software system to a full hie
 - **Multiplayer Trading**: System remains strictly single-player.
 
 ## Traceability
-*To be filled by the Roadmap phase.*
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| EQP-01 | Phase 22 | Pending |
+| EQP-02 | Phase 18 | Pending |
+| EQP-03 | Phase 19 | Pending |
+| UI-01 | Phase 21 | Pending |
+| UI-02 | Phase 22 | Pending |
+| UI-03 | Phase 21 | Pending |
+| SW-01 | Phase 22 | Pending |
+| SW-02 | Phase 22 | Pending |
+| LMC-01 | Phase 20 | Pending |
+| LMC-02 | Phase 19 | Pending |

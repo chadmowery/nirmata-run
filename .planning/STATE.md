@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Equipment and Inventory System
-status: Defining requirements
+status: Planning
 stopped_at: 
-last_updated: ""
-last_activity: ""
+last_updated: "2024-05-15"
+last_activity: "2024-05-15 — Roadmap created for v2.1"
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** The Shell/Firmware/Augment/Software customization hierarchy combined with the Neural Heat risk system — every encounter is a resource management puzzle.
-**Current focus:** Defining requirements
+**Current focus:** Building the core equipment and inventory system.
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: Phase 18: Hierarchical Entity Foundation
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-13 — Milestone v2.1 started
+Status: Planning phase 18
+Last activity: 2024-05-15 — Roadmap created for v2.1
 
 Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/0 plans)
 
@@ -44,7 +44,7 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/0
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-|       |       |       |          |
+| 18 | 0 | 0 | 0 |
 
 **Recent Trend:**
 
@@ -60,30 +60,29 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/0
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [v2.0]: Currency system implemented with Scrap (inventory stacking), Flux (persistent compilation), and Blueprints.
-- [v2.0]: Multi-session support added to engine factory and systems via sessionId.
-- [v2.0]: Weekly reset (Format C:) wipes uninstalled blueprints and resets shell upgrades.
-- [v2.0]: Legacy Code system implemented: installed items degrade with doubled Heat or halved magnitude instead of deletion.
-- [v2.0]: Server-authoritative economy endpoints implemented for compile, install, uninstall, purchase, and upgrade.
+- [v2.1]: No external libraries for Drag & Drop (manual implementation required).
+- [v2.1]: No external libraries for Tooltips/UI components (manual implementation required).
+- [v2.1]: Items are full ECS entities, not just data objects.
 
 ### Roadmap Evolution
 
-- Phase 17 added: Add design tool for authoring and viewing entities, component templates, and gamedata
+- Phase 17: Added design tool for authoring and viewing entities (completed/ad-hoc).
+- Phase 18-22: Defined for Milestone v2.1.
 
 ### Pending Todos
 
-None yet.
+None.
 
 ### Blockers/Concerns
 
-None yet.
+- Performance of `json-diff-ts` with increased entity counts (hierarchical items) needs monitoring.
 
 ## Session Continuity
 
-Last session: 2026-05-13
-Stopped at: Defining requirements
+Last session: 2024-05-15
+Stopped at: Roadmap creation complete.
 Resume file: 
 
 ---
 *State initialized: 2026-05-13*
-*Last updated: 2026-05-13 — Milestone v2.1 started*
+*Last updated: 2024-05-15 — Milestone v2.1 roadmap created*
