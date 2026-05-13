@@ -8,24 +8,16 @@ A web-based turn-based extraction roguelike set in a Sci-Fi "Vibrant Decay" univ
 
 The Shell/Firmware/Augment/Software customization hierarchy combined with the Neural Heat risk system — every encounter is a resource management puzzle where players balance power output against overclock risk, creating high-skill-ceiling tactical depth within a turn-based extraction loop.
 
-## Current Milestone: v2.0 Nirmata Runner — Core Game Systems
+## Current Milestone: v2.1 Equipment and Inventory System
 
-**Goal:** Transform the engine tech demo into a fully playable extraction roguelike with the complete customization hierarchy, Neural Heat combat mechanics, tiered enemy system, Stability Anchor extraction loop, run economy, and "Vibrant Decay" visual identity.
+**Goal:** Implement a robust equipment and inventory system that allows players to manage weapons, armor, software, augments, and firmware, enhancing tactical depth during extraction runs.
 
 **Target features:**
-- Shell System — Archetypes with base stats and Port configurations
-- Firmware & Neural Heat — Active abilities with Heat costs and overclock risk
-- Augment Synergy Engine — Passive "Trigger & Payload" system
-- Software System — Consumable item modifiers, lost on death
-- Enemy Hierarchy — 3-tier: Corrupted Data, Static Horrors, Logic Breakers
-- Stability & Extraction — Reality Stability bar, Stability Anchor decision points
-- Run Types — Neural Simulation, Daily Challenge, Weekly One-Shot
-- Neural Deck Hub — Between-run management UI
-- Currency Ecosystem — Raw Scrap, Neural Blueprints, Flux
-- Blueprint System — Find → Compile → Install → Weekly Reset
-- Vault & Weekly Prep — Protected inventory for Weekly Challenge
-- Visual Identity — "Vibrant Decay" neon aesthetic, glitch effects, System Handshake UI
-- Starter Loadouts — Vanguard, Operator, Ghost bundles
+- Equipment System (weapons, armor, firmware, augments)
+- In-run inventory management screen
+- Software installation/uninstallation system (not permanent)
+- Updated enemy drop tables for new item types
+- Item-driven impact on combat and other game systems
 
 ## Requirements
 
@@ -136,6 +128,28 @@ This document evolves at phase transitions and milestone boundaries.
 ## Current State
 - **Version:** v2.0
 - **Status:** Shipped (2026-05-11)
+- **Archive:** [v2.0 Roadmap](milestones/v2.0-ROADMAP.md)
+
+## Next Milestone Goals
+- TBD
+irements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd-complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
+---
+*Last updated: 2026-04-03 after Phase 14 completion*
+
+## Current State
+- **Version:** v2.1
+- **Status:** Planning
 - **Archive:** [v2.0 Roadmap](milestones/v2.0-ROADMAP.md)
 
 ## Next Milestone Goals

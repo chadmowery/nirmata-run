@@ -1,64 +1,55 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: milestone
-status: In Progress — feature/phase-16
-stopped_at: Phase 15 completed
-last_updated: "2026-05-07T13:39:00.000Z"
-last_activity: 2026-05-07
+milestone: v2.1
+milestone_name: Equipment and Inventory System
+status: Defining requirements
+stopped_at: 
+last_updated: ""
+last_activity: ""
 progress:
-  total_phases: 10
-  completed_phases: 8
-  total_plans: 40
-  completed_plans: 31
-  percent: 77.5
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-29)
+See: .planning/PROJECT.md
 
 **Core value:** The Shell/Firmware/Augment/Software customization hierarchy combined with the Neural Heat risk system — every encounter is a resource management puzzle.
-**Current focus:** Phase 15 — Neural Deck Hub UI
+**Current focus:** Defining requirements
 
 ## Current Position
 
-Phase: 16
-Plan: 01-04 planned
-Status: In Progress — feature/phase-16
-Last activity: 2026-05-07
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-13 — Milestone v2.1 started
 
-Progress: [███████████████░░░░] 77.5% (31/40 plans)
+Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/0 plans)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 23
-- Average duration: 1 hour
-- Total execution time: 23 hours
+- Total plans completed: 0
+- Average duration: 0
+- Total execution time: 0
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 7. Shell & Equipment Data Model | 3/3 | 3h | 1h |
-| 8. Firmware & Neural Heat System | 4/4 | 4h | 1h |
-| 9. Status Effects & Augment Synergy | 4/4 | 4h | 1h |
-| 10. Software System & Enhanced Combat | 4/4 | 4h | 1h |
-| 11. Enemy Hierarchy | 0/4 | — | — |
-| 12. Multi-Floor Generation & Stability/Extraction | 4/4 | 4h | 1h |
-| 13. Currency, Economy & Blueprint System | 4/4 | 4h | 1h |
-| 14. Stash, Vault & Run Modes | 4/4 | 4h | 1h |
-| 15. Neural Deck Hub UI | 4/4 | 4h | 1h |
-| 16. Visual Identity & Starter Loadouts | 0/4 (planned) | — | — |
+|       |       |       |          |
 
 **Recent Trend:**
 
-- Last 5 plans: 13-01, 13-02, 13-03, 13-04
-- Trend: Consistent high velocity
+- Last 5 plans:
+- Trend: —
 
 *Updated after each plan completion*
 
@@ -89,10 +80,10 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-07T18:00:23.189Z
-Stopped at: Phase 17 UI-SPEC approved
-Resume file: .planning/phases/17-add-design-tool-for-authoring-and-viewing-entities-component-templates-and-gamedata/17-UI-SPEC.md
+Last session: 2026-05-13
+Stopped at: Defining requirements
+Resume file: 
 
 ---
-*State initialized: 2026-03-13*
-*Last updated: 2026-04-02 — Phase 13 completed*
+*State initialized: 2026-05-13*
+*Last updated: 2026-05-13 — Milestone v2.1 started*
