@@ -1,84 +1,55 @@
-# Stack Research: Nirmata Runner v2.0
+# Technology Stack
 
-## Existing Stack (DO NOT re-research)
+**Project:** Nirmata Runner (v2.1 Equipment System Milestone)
+**Researched:** 2024-05-15
 
-- TypeScript + Next.js (API routes for server authority)
-- PixiJS (tile-based rendering, CompositeTilemap, camera, FOV, animations)
-- React + Zustand (UI layer, state bridge)
-- Custom ECS (entity-component-system with JSON templates, event bus)
-- rot-js (A* pathfinding, Alea PRNG)
-- Vitest (testing)
-- Zod (schema validation)
+## Recommended Stack
 
-## Stack Additions Needed for v2.0
+### Core Framework
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| Next.js | 16.1.6 | App routing & React framework | (Existing) Unifies the stack, API routes handle validation |
+| React | 19.2.4 | UI components | (Existing) Required by constraints |
+| PixiJS | 8.17.0 | 2D WebGL rendering | (Existing) Required by constraints |
 
-### 1. Status Effect / Buff System Engine
+### Database
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| N/A | N/A | No new database | Game uses server-authoritative state via API route round-trips, no DB changes required for this milestone |
 
-**Need:** Neural Heat, Kernel Panic effects, Augment triggers, and enemy debuffs (HUD glitch, input lag, firmware lock) all require a generic status effect system.
+### Infrastructure
+| Technology | Version | Purpose | Why |
+|------------|---------|---------|-----|
+| N/A | N/A | No new infrastructure | Leverages existing Next.js backend and Vercel/Node deployment |
 
-**Recommendation:** Build in-house using ECS components. No library needed.
-- `StatusEffect` component with `type`, `duration`, `magnitude`, `source`
-- `StatusEffectSystem` processes effects each turn (tick, expire, apply)
-- **Confidence:** High — status effects are pure data transforms on existing components
+### Supporting Libraries
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| `@dnd-kit/core` | 6.3.1 | Drag and Drop functionality | Use for the in-run inventory management screen to handle dragging items between slots/grid. |
+| `@radix-ui/react-tooltip` | 1.2.8 | Headless UI Tooltips | Use for robust, accessible tooltips on inventory items, weapons, and augments to show stats and effects. |
+| `immer` | 11.1.8 | Immutable state updates | Use in conjunction with Zustand for complex nested object updates (e.g., deep inventory trees, equipment slots). |
+| `rot-js` | 2.2.1 | Loot Generation | (Existing) Use `RNG.getWeightedValue()` for updated enemy drop tables instead of adding a new RNG library. |
 
-### 2. State Persistence Layer
+## Alternatives Considered
 
-**Need:** Stash, Vault, Blueprint library, currency balances, and Shell configurations must persist between runs and across the weekly cycle.
+| Category | Recommended | Alternative | Why Not |
+|----------|-------------|-------------|---------|
+| Drag and Drop | `@dnd-kit/core` | `react-beautiful-dnd` | `react-beautiful-dnd` is deprecated and not officially supported for React 18/19. `@dnd-kit` is modern and modular. |
+| Tooltips | `@radix-ui/react-tooltip` | `@floating-ui/react` | Floating UI requires more boilerplate to setup basic tooltips. Radix provides headless accessible components out of the box which fits the "Vibrant Decay" custom styling requirement. |
+| State Mgmt | `immer` | native spread operator | Deeply nested inventory and equipment state updates become highly error-prone and unreadable with pure native spread syntax. |
+| Loot Generation | Native `rot-js` | Custom loot table library | `rot-js` is already in the stack and has `RNG.getWeightedValue()`, completely satisfying the requirement without adding package bloat. |
 
-**Recommendation:** Start with server-side JSON/file storage via Next.js API routes. Migrate to a database only when scaling requires it.
-- `/api/stash` — CRUD for player inventory
-- `/api/blueprints` — Blueprint library management
-- `/api/economy` — Currency transactions
-- **Confidence:** High — Next.js API routes already handle game state; extend the pattern
+## Installation
 
-### 3. Seeded Weekly/Daily Run Generation
+```bash
+# Core
+npm install @dnd-kit/core @dnd-kit/utilities @radix-ui/react-tooltip immer
 
-**Need:** Global seeds for Weekly and Daily challenges that produce identical dungeons for all players.
+# Dev dependencies
+# No new dev dependencies required
+```
 
-**Recommendation:** Extend existing rot-js Alea PRNG seeding.
-- Weekly seed derived from ISO week number + year
-- Daily seed derived from ISO date string
-- Neural Simulation seeds from `Date.now()` or player-chosen
-- **Confidence:** High — already using seeded generation
+## Sources
 
-### 4. Leaderboard Storage
-
-**Need:** Daily/Weekly leaderboard for competitive scoring.
-
-**Recommendation:** Server-side storage via Next.js API routes. Simple sorted arrays initially.
-- Score = depth reached + enemies killed + loot extracted (weighted)
-- **Confidence:** Medium — scoring formula needs playtesting
-
-### 5. Timer/Scheduler for Weekly Reset
-
-**Need:** Automated weekly blueprint purge and seed rotation.
-
-**Recommendation:** Server-side cron job or Next.js middleware that checks timestamps.
-- On Monday 00:00 UTC: rotate seed, deprecate blueprints to "Legacy Code"
-- Client polls `/api/season` for current week metadata
-- **Confidence:** Medium — exact reset behavior needs design iteration
-
-### 6. Enhanced Visual Effects
-
-**Need:** Glitch shaders, screen-tearing, HUD jitter, color inversion, dead pixel trails.
-
-**Recommendation:** PixiJS filters + custom fragment shaders.
-- `@pixi/filter-glitch` — for glitch displacement effects
-- `@pixi/filter-crt` — CRT scanline overlay
-- Custom `KernelPanicFilter` — heat-responsive visual corruption
-- CSS animations for HUD-level effects (jitter, flicker)
-- **Confidence:** Medium — PixiJS filter pipeline is well-documented but custom shaders need testing
-
-### What NOT to Add
-
-| Technology | Why NOT |
-|-----------|---------|
-| SQLite/PostgreSQL | Premature for v2.0; JSON persistence is sufficient for single-player |
-| WebSocket/real-time networking | Game is turn-based with HTTP request/response; no need for persistent connections |
-| Physics engine (matter.js, planck.js) | Turn-based grid movement; physics is irrelevant |
-| State machine library (xstate) | Custom FSM already works; adding xstate adds complexity for no gain |
-| Animation library (gsap, anime.js) | PixiJS ticker + tweens already handle animation; adding another library creates conflicts |
-| Canvas UI library | React + Zustand already handle UI; don't mix canvas UI with React |
-
----
-*Research completed: 2026-03-29*
+- NPM registry (verified versions 6.3.1 for @dnd-kit/core, 1.2.8 for @radix-ui/react-tooltip, 11.1.8 for immer)
+- rot-js Official Documentation (verified `RNG.getWeightedValue()`)

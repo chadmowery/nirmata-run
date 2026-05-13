@@ -1,218 +1,65 @@
-# Features Research: Nirmata Runner v2.0
+# Feature Landscape
 
-## Existing Features (already built in v1.0)
+**Domain:** Extraction Roguelike (Sci-Fi)
+**Researched:** 2024-05-24
 
-- ECS entity management, JSON templates, builder/factory/registry pipeline
-- BSP dungeon generation with seeded RNG
-- Turn-based game loop with state machine
-- Cardinal movement with collision
-- Basic combat (attack vs defense, health, death, loot drops)
-- Enemy AI (idle/chase/attack states, A* pathfinding, FOV-aware)
-- Item entities with walk-over pickup
-- PixiJS rendering (tilemap, camera, FOV, movement/attack/death animations)
-- Server-authoritative action pipeline
-- React UI (HUD, message log, menus)
+## Table Stakes
 
----
+Features users expect. Missing = product feels incomplete.
 
-## Feature Categories for v2.0
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Slot-based Equipment | Core RPG/roguelike expectation. Players need visual representation of what is equipped where (Weapon, Armor, Firmware, Augments). | Medium | Dictated by the "Shell" archetype port configurations (e.g., number of available slots). |
+| In-Run Inventory Interface | Players must be able to view, manage, and discard looted items versus equipped items. Must have capacity limits. | Medium | Needs descriptive tooltips detailing stat changes, Heat costs, and effects. |
+| Equipment Stat Application | Equipping an item must alter ECS Component values (e.g., changing attack damage, granting abilities). | High | Requires robust ECS entity composition handling to dynamically add/remove components from the player entity. |
+| Tiered Enemy Drop Tables | Standard roguelike loot loop. Tougher enemies drop better gear/software. | Low | Integrates with existing 3-tier enemy hierarchy (Corrupted Data, Static Horrors, Logic Breakers). |
+| Contextual Item Actions | Right-click or action menu (Equip, Drop, Install) in inventory. | Low | Essential for basic usability without "inventory tetris". |
 
-### 1. Shell & Loadout System
+## Differentiators
 
-**Table Stakes:**
-- Multiple Shell archetypes with distinct base stats (Speed, Stability, Armor)
-- Port configuration per Shell (determines how many Firmware/Augment/Software slots)
-- Shell selection before each run
-- Shell persistence (never lost on death)
+Features that set product apart. Not expected, but valued.
 
-**Differentiators:**
-- Shell upgrading via Materials (increases base stats or adds Port slots)
-- Shell availability rotation (certain Shells locked per week based on live conditions)
-- Shell visual customization
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Neural Heat Equipment Costs | Gear isn't just "better stats"; powerful gear/firmware generates more Neural Heat. Creates risk/reward loadout puzzles. | High | Deeply ties the inventory into the core gameplay loop (Overclocking/Kernel Panic). |
+| Trigger & Payload Augments | Augments are conditional (e.g., "On Overclock -> Vent 10 Heat"), creating emergent synergies rather than flat passive buffs. | High | Requires an event-bus driven interrupt system in the ECS engine. |
+| Turn-Cost Inventory Management | Swapping gear or installing software *during* combat costs turns, adding tactical weight to preparation vs. adaptation. | Medium | Standard in classic roguelikes, ensures players can't freely optimize mid-firefight. |
+| Hardware-Burn Software | Software installs directly onto specific gear, altering its properties for the run. Lost on death, but keeps the underlying Shell intact. | Medium | Makes gear highly modular but ephemeral. Requires entity parent/child relationships in ECS. |
 
-**Complexity:** Medium — extends existing entity template system with new components
-**Dependencies:** Must exist before Firmware/Augments/Software can be equipped
+## Anti-Features
 
-### 2. Firmware & Neural Heat
+Features to explicitly NOT build.
 
-**Table Stakes:**
-- Active abilities with Heat cost per use
-- Heat bar (0-100 safe zone, 100+ Corruption Zone)
-- Heat dissipation over turns
-- Heat venting action (spend a turn to rapidly cool)
-- Kernel Panic table (escalating negative effects above 100 Heat)
-- At least 3 starter Firmware abilities (Phase_Shift, Neural_Spike, Extended_Sight)
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| Real-time Inventory Tetris | Breaks the turn-based pacing. It's a tactical game, not a reflex or spatial puzzle game. | Simple slot/weight limits with 1-click equip/drop actions. |
+| Infinite Stash Mid-Run | Removes the tension of extraction. Players must choose what to keep and what to leave. | Strict inventory caps based on Shell archetype base stats. |
+| Permanent Global Stat Buffs | Project constraints state Software is "burned onto equipment" and "lost on death." | Keep Software strictly scoped to modifying specific equipment entities only for the duration of the run. |
+| Universal Gear Slots | Prevents balancing and class distinction. Every shell shouldn't be able to equip everything. | Enforce strict Shell "Port Configurations" (e.g., Vanguard has 2 Weapon ports, 1 Augment port). |
 
-**Differentiators:**
-- Firmware discovered as dungeon loot (rare drops from Tier 2/3 enemies)
-- Firmware as "Locked Files" requiring Flux to compile
-- Heat threshold modifiers from equipment/augments
+## Feature Dependencies
 
-**Complexity:** High — new resource system, probability table, visual feedback pipeline
-**Dependencies:** Shell system (Firmware equips to Shell ports); combat system (Heat affects combat flow)
+```
+Shell Archetypes (Base) → Port Configurations (Defines available equipment slots)
+Port Configurations → Equipment System (Equipping gear onto valid slots)
+Equipment System → Neural Heat Engine (Weapons/Firmware interactions with Heat)
+Event Bus (Engine) → Trigger/Payload Augments (Listening for discrete combat/movement events)
+In-Run Inventory → Software Installation (Targeting specific items in inventory)
+Enemy Tiers → Drop Tables (Rarity and drop pool mapping)
+```
 
-### 3. Augment Synergy Engine
+## MVP Recommendation
 
-**Table Stakes:**
-- Passive effects that trigger on specific Firmware actions
-- Three trigger types: On Activation, On Target Hit, On Overclock
-- At least 3 starter Augments matching the 3 starter loadouts
-- Clear visual feedback when Augment triggers (geometric shape flash)
+Prioritize:
+1. **Slot-based Equipment System**: Basic Weapons and Armor mapping to ECS components, constrained by basic Shell ports.
+2. **Simple In-Run Inventory**: List/Grid view with max item capacity and basic Equip/Drop actions.
+3. **Updated Drop Tables**: Basic Scrap, Currencies, and standard Weapon drops mapped to the 3-tier enemy hierarchy.
 
-**Differentiators:**
-- Augment stacking/interaction rules (can multiple augments trigger from one action?)
-- Rare augments with compound triggers (IF X AND Y THEN Z)
-- Augment discovery as deep-run loot
+Defer:
+- **Trigger & Payload Augments**: High complexity, requires deep Event Bus integration. Start with basic stat-modifiers for Firmware/Weapons before adding conditional triggers.
+- **Hardware-Burn Software**: Defer until the base equipment system and component composition are fully stable and tested.
 
-**Complexity:** High — interrupt-based event system, must integrate with Firmware and combat pipelines
-**Dependencies:** Firmware system (augments react to Firmware actions)
+## Sources
 
-### 4. Software System
-
-**Table Stakes:**
-- Consumable modifiers "Burned" onto equipment
-- Lost on death, kept on extraction
-- Software as common drops (high-frequency loot)
-- At least 3 Software types (damage over time, reload speed, vampiric)
-
-**Differentiators:**
-- Software stacking rules (can you Burn multiple Software onto one item?)
-- Software rarity tiers affecting magnitude
-- Software crafting/purchasing at Neural Deck
-
-**Complexity:** Low-Medium — extends item system with "modifier" component
-**Dependencies:** Item system (Software attaches to items); extraction loop (lost vs kept logic)
-
-### 5. Enemy Hierarchy (3 Tiers)
-
-**Table Stakes:**
-- Tier 1 (Corrupted Data): Low HP, pack behavior, simple mechanics
-  - Null-Pointer: teleport flanker, HUD glitch on hit
-  - Buffer-Overflow: swarm, surround, AOE detonation
-- Tier 2 (Static Horrors): Medium HP, tactical behavior, Software drops
-  - Fragmenter: ground slam creates damage zones
-  - Logic-Leaker: ranged "Corrupted Packets," forces Firmware cooldown on hit
-- Tier 3 (Logic Breakers): Mini-bosses, unique mechanics, appear near Anchors
-  - System_Admin: unstoppable stalker, instant-kill on touch, can only be stunned
-  - Seed_Eater: room-shifting, spawns sub-processes
-
-**Differentiators:**
-- Enemy "glitch" visual effects (flickering, static trails, dead pixels)
-- Enemy-specific death effects (leak source code, static explosion)
-- Tier 3 enemies that modify the dungeon layout during combat
-
-**Complexity:** High — unique behaviors per enemy type, new AI states, visual effects
-**Dependencies:** AI system (new behavior states); combat system (new damage types); rendering (glitch effects)
-
-### 6. Stability & Extraction Loop
-
-**Table Stakes:**
-- Reality Stability bar (secondary resource, drops as player descends)
-- Stability Anchors at fixed depth intervals (every 5 floors)
-- Extract option: end run, keep all loot
-- Descend option: spend currency to refill Stability, continue deeper, Anchor breaks
-- Death or Stability=0: lose Firmware/Augments/Software, keep Shell, get pity Scrap
-
-**Differentiators:**
-- System Handshake UI with inventory manifest and risk visualization
-- Dynamic Stability drain rate based on floor difficulty
-- "Pressure" mechanics (Tier 3 enemies appearing near Anchors)
-
-**Complexity:** Medium-High — multi-floor progression, extraction state management, win/loss conditions
-**Dependencies:** Dungeon generation (multi-floor); currency system; item loss/keep logic
-
-### 7. Run Types & Modes
-
-**Table Stakes:**
-- Neural Simulation (unlimited, uses Virtual Shells, low stakes)
-- The Daily Run (daily seed, cumulative leaderboard)
-- The Weekly One-Shot (weekly seed, highest stakes, single attempt)
-
-**Differentiators:**
-- Run-type-specific rules (what's at risk, what scoring applies)
-- Leaderboard display with top runners
-- "The Ritual" pre-run loadout ceremony for Weekly
-
-**Complexity:** Medium — run mode selection, seed management, scoring logic
-**Dependencies:** Shell system (Virtual vs Physical); leaderboard storage; seeded generation
-
-### 8. Neural Deck (Hub/Between-Run UI)
-
-**Table Stakes:**
-- Shell inspection/selection
-- Firmware/Augment/Software management
-- Stash inventory view
-- Blueprint compilation workshop
-- Run mode selection and launch
-
-**Differentiators:**
-- 2D/3D Shell visualization in maintenance rack
-- "Infected" aesthetic evolving based on dungeon data
-- Server room ambient effects
-
-**Complexity:** Medium — primarily UI/UX work, React components, Zustand stores
-**Dependencies:** All equipment systems; currency system; blueprint system
-
-### 9. Currency & Economy
-
-**Table Stakes:**
-- Raw Scrap (common, basic purchases)
-- Neural Blueprints (rare, unlock Firmware compilation)
-- Flux (premium earned, Shell upgrades and Blueprint compilation)
-- Pity payout on death (25% Scrap)
-
-**Differentiators:**
-- Dynamic pricing based on weekly meta
-- Currency conversion rates
-
-**Complexity:** Medium — currency components, transaction validation, server-side economy
-**Dependencies:** Server authority (all transactions must be server-validated)
-
-### 10. Blueprint & Weekly Reset Cycle
-
-**Table Stakes:**
-- Blueprint discovery in dungeon
-- Compilation at Neural Deck (spend Flux)
-- Installation on Shell
-- Weekly "Format C:" reset
-- Legacy Code degradation (installed Firmware stays but Heat cost doubles)
-
-**Differentiators:**
-- "Version Patch" system (v1.0 → v1.1 blueprints)
-- Winner's Item reveal each Monday
-
-**Complexity:** Medium — temporal game state, scheduled resets, degradation logic
-**Dependencies:** Firmware system; economy; server-side scheduling
-
-### 11. Visual Identity ("Vibrant Decay")
-
-**Table Stakes:**
-- Neon Cyan (#00F0FF) / Electric Pink (#FF0055) / Black (#000000) palette
-- Bold condensed sans-serif typography
-- Kernel Panic visual escalation (HUD jitter → color inversion → screen-tearing → grayscale)
-- Death screen as styled BSOD
-- Augment trigger flash (geometric shapes)
-
-**Differentiators:**
-- Post-processing glitch shaders
-- Enemy "graphical artifact" rendering
-- System Handshake transition at Stability Anchors (world desaturates, HUD zooms)
-
-**Complexity:** Medium-High — shader work, CSS animation, themed component library
-**Dependencies:** PixiJS filter pipeline; React themed components
-
----
-
-## Anti-Features (deliberately NOT building)
-
-| Feature | Reason |
-|---------|--------|
-| PvP / multiplayer extraction | Single-player focus; server authority is for anti-cheat |
-| Paid currency / microtransactions | Flux is earned in-game only |
-| Real-time combat / aiming | Turn-based core; no twitch mechanics |
-| Friend-list / social features | Not relevant to core loop |
-| Achievement / trophy system | Distracting from core extraction tension |
-| Procedural narrative / quest system | Focus is on mechanical depth, not story |
-
----
-*Research completed: 2026-03-29*
+- `.planning/PROJECT.md` (Project Context & Constraints)
+- Industry Standard Roguelike/Extraction Conventions (e.g., Cogmind, Caves of Qud, Escape from Tarkov)

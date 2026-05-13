@@ -1,202 +1,93 @@
-# Pitfalls Research: Nirmata Runner v2.0
+# Domain Pitfalls: Nirmata Runner
 
-## 1. Neural Heat System — The "Optimal Avoidance" Trap
+**Project:** Nirmata Runner — Extraction Roguelike
+**Milestone:** v2.1 Equipment & Inventory System
+**Researched:** 2026-04-05
+**Overall confidence:** HIGH
 
-**The Pitfall:** If Kernel Panic consequences are too harsh, players will never use abilities above 75 Heat. The entire overclock mechanic becomes theoretical — players find the "safe" rotation and never deviate.
+## Critical Pitfalls (v2.1 New Features)
 
-**Warning Signs:**
-- Playtesters avoid using abilities when Heat is above 50
-- No one voluntarily enters the Corruption Zone
-- "Optimal" play becomes "use ability, wait 3 turns, use ability"
+Mistakes that cause rewrites or major state desyncs in the Equipment/Inventory system.
 
-**Prevention:**
-- Make the Corruption Zone visually exciting and mechanically rewarding (damage boost, speed buff) before consequences kick in
-- Ensure some encounters are designed to be unsolvable without overclocking
-- Augments that specifically benefit from high Heat create positive incentive
-- Kernel Panic effects should be recoverable (temporary debuffs, not permanent damage to run)
+### 1. The "Delta Bloat" Performance Trap
+**What goes wrong:** In a server-authoritative ECS, every item in the inventory is often treated as an entity. If a player has 30 items, and each item has 5 components (`Name`, `Description`, `Stats`, `Type`, `Rarity`), moving a single item triggers a state delta that includes data for all entities in the world.
+**Why it happens:** `json-diff-ts` (the current stack's differ) compares the entire `World` state.
+**Consequences:** Massive JSON payloads on every turn, causing lag in browser rendering and high bandwidth usage.
+**Prevention:** 
+- Store items as "Data Objects" inside a single `InventoryComponent` on the Player entity rather than separate Entities.
+- Only promote an item to a "Full Entity" when it is dropped on the floor (needs a `Position` and `Sprite`).
+**Detection:** Monitor the size of the `state-delta` in the Network tab; if it exceeds 50KB for a simple movement, you have bloat.
 
-**Phase to address:** Firmware & Heat System phase — bake in "warmth bonuses" from the start
+### 2. Software "Orphan Effects"
+**What goes wrong:** Software provides a temporary ability or buff (e.g., "Shield for 3 turns"). If the player uninstalls the Software while the effect is active, the system responsible for cleaning up the effect might lose its reference to the source.
+**Why it happens:** Lack of "Owner" tracking or improper cleanup logic during the "Uninstall" action.
+**Consequences:** Permanent buffs/shields that never expire, breaking game balance.
+**Prevention:** 
+- Implement an "Effect Registry" that tracks the `EntityID` of the source.
+- Prevent uninstallation of Software that has active, non-expired effects.
+- Validation: The "Uninstall" action must be a server-validated intent, not just a UI change.
 
----
+### 3. Inventory-Movement Race Conditions
+**What goes wrong:** Player picks up an item and immediately moves. On the client, the item is in the inventory. On the server, the "Move" happened first, and the "Pick Up" fails because the player is now too far from the item.
+**Why it happens:** Optimistic client updates and out-of-order execution of intents.
+**Consequences:** "Ghost items" in UI that disappear or cause an "Illegal State" error during the next server reconciliation.
+**Prevention:** 
+- Use "Action Sequencing": Client must wait for the "Pick Up" ACK before allowing "Move", OR the server must process the "Pick Up" at the position where the player *was* when they sent the intent.
+- Strictly validate item distance on both Client and Server.
 
-## 2. Augment Synergy — The "Invisible Effect" Problem
-
-**The Pitfall:** If Augment triggers fire silently, players won't understand why they won or lost. They'll ignore the synergy system and just equip "highest stat" augments.
-
-**Warning Signs:**
-- Players can't explain what their Augments did during a run
-- No one discusses "builds" or synergy combinations
-- Augment selection becomes rote (always pick the same one)
-
-**Prevention:**
-- Every Augment trigger MUST have a clear visual + log feedback
-- Geometric shape flash (from design doc) is good — make it informative, not just decorative
-- Message log should say "Static_Siphon.arc TRIGGERED: +5% Shield (Neural_Spike hit 2 enemies)"
-- Consider a post-run "Synergy Report" showing how many times each Augment fired
-
-**Phase to address:** Augment System phase — visual feedback is not polish, it's core
-
----
-
-## 3. Economy — The "Inflation Death Spiral"
-
-**The Pitfall:** If Scrap drops are too generous relative to costs, players will have infinite Scrap by mid-week and shops become meaningless. Conversely, if too stingy, players feel punished.
-
-**Warning Signs:**
-- Players have 10x more Scrap than they can spend
-- Or: players can't afford basic repairs after 3 failed runs
-- Flux becomes the only currency that matters
-
-**Prevention:**
-- Every currency faucet must have a corresponding hard sink (permanently removed, not transferred)
-- Scrap: earned on every run → spent on repairs, re-initialization, basic Software purchases
-- Blueprints: rare drops → consumed on compilation (permanent sink)
-- Flux: deep-run extraction only → spent on Shell upgrades, Blueprint compilation
-- Implement server-side economy validation — clients cannot mint currency
-- Start conservative (slightly stingy) and tune up — it's easier to increase rewards than to take them away
-
-**Phase to address:** Currency & Economy phase — build with monitoring hooks from day one
+### 4. Recursive Stat Dependency (The Calculation Loop)
+**What goes wrong:** Shell gives +10 HP. Armor gives +20% HP. Augment gives +5 HP based on Armor. Software gives +10% total HP.
+**Why it happens:** No clear hierarchy for stat modifiers (Additive vs Multiplicative).
+**Consequences:** Client and Server calculate different final HP (e.g., `(10 + 5) * 1.2` vs `(10 * 1.2) + 5`), leading to "Dead but Alive" state desyncs.
+**Prevention:** 
+- Implement a **Standard Stat Pipeline**: 
+  1. `Base Stats` (Shell)
+  2. `Flat Additives` (Augments, Firmware)
+  3. `Percent Multipliers` (Armor, Software)
+  4. `Final Total`.
+- Share this logic in `@shared/logic/stats.ts` to ensure bit-perfect parity.
 
 ---
 
-## 4. Weekly Reset — The "Player Betrayal" Risk
+## Moderate Pitfalls
 
-**The Pitfall:** If the weekly reset feels like it erases player effort, players will quit. The "Legacy Code" degradation mechanic helps, but if communicated poorly, it reads as "your stuff got nerfed."
+### 1. Drop Table Dilution
+**What goes wrong:** Adding Weapons, Armor, and Augments reduces the chance of finding "Healing" or "Heat Venting" items.
+**Prevention:** Use "Slot-Based" loot generation. Instead of one big list, roll for "Category" first (50% Consumable, 30% Equipment, 20% Software).
 
-**Warning Signs:**
-- Players complain about "losing everything" on Monday
-- Engagement drops sharply after first weekly reset
-- Players hoard and refuse to use good items (paralysis)
-
-**Prevention:**
-- Frame the reset as a positive event: "New Version Available" with new meta, winner's item reveal
-- Legacy Code should still be usable — just incentivize finding new versions
-- The pity mechanic (installed Firmware stays) must feel meaningful
-- Visual ceremony for the reset — make it feel like an event, not a punishment
-- Consider a "Legacy Score" that persists across weeks (lifetime achievement)
-
-**Phase to address:** Blueprint & Weekly Reset phase — framing and UX are critical
+### 2. UI-ECS Desync (The "Double Item" Bug)
+**What goes wrong:** React UI (Zustand) updates to show an item equipped, but the ECS `World` hasn't applied the server delta yet.
+**Prevention:** The UI must be a **reactive projection** of the ECS `World` state. Never store "Item Position" in Zustand if it's already in the ECS.
 
 ---
 
-## 5. Multi-Floor Generation — The "Monotonous Descent" Problem
+## Technical Pitfalls (Existing v2.0 Context)
 
-**The Pitfall:** If every floor feels the same but harder, depth becomes tedious. Players will extract early because there's no compelling reason to go deeper beyond "bigger numbers."
+### 1. Neural Heat "Safe Rotation" Trap
+**What goes wrong:** Players avoid abilities above 75 Heat, making the "Overclock" mechanic irrelevant.
+**Prevention:** Create "Warmth Bonuses" — abilities that deal *more* damage or have shorter cooldowns when Heat is high, incentivizing risky play.
 
-**Warning Signs:**
-- Players consistently extract at the first Anchor
-- Deeper floors only differ in enemy HP/damage scaling
-- No "wow moments" below floor 5
+### 2. Augment Synergy "Invisible Effects"
+**What goes wrong:** Synergies fire (e.g., "On Crit, vent 5 Heat") but the player doesn't see it.
+**Prevention:** Every trigger must have a visual "Handshake" effect or a clear log entry.
 
-**Prevention:**
-- Each depth tier should introduce new enemy types (Tier 1 on floors 1-5, Tier 2 on 5-10, Tier 3 on 10-15)
-- Environmental variety (different tile themes, room shapes, hazard types per depth band)
-- Loot tables that are strictly better at depth (Firmware ONLY drops below floor 5, rare Augments below floor 10)
-- Unique room types that only appear at specific depths (treasure rooms, challenge rooms)
-
-**Phase to address:** Multi-Floor Generation phase + Extraction Loop phase
+### 3. Weekly Reset "Progress Betrayal"
+**What goes wrong:** Players feel punished by the reset.
+**Prevention:** Frame the reset as a "System Update" that provides new blueprints. Use the "Legacy Code" mechanic to allow some carry-over.
 
 ---
 
-## 6. Enemy Tier 3 (Logic Breakers) — The "Unfair Death" Effect
+## Phase-Specific Warnings (v2.1)
 
-**The Pitfall:** The System_Admin (instant-kill stalker) is a brilliant design concept, but if players can't see it coming or can't react, it creates frustration rather than tension.
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| **Inventory UI** | Drag-and-drop desync | Block world movement while Inventory is open (or use strict sequence IDs). |
+| **Drop Tables** | Entity ID exhaustion | Pool item entities or use a "Loot Manager" to clean up old drops. |
+| **Software Install** | Neural Memory leaks | Strictly validate Software "Size" vs "Memory Capacity" on every turn. |
+| **Equipment Stats** | Multiplier stacking | Cap all multipliers at a "Saturation Point" to prevent exponential power creep. |
 
-**Warning Signs:**
-- Players complain about "unfair" deaths to System_Admin
-- Players reload/restart when they hear the System_Admin spawn
-- The mechanic feels like a "gotcha" rather than a pressure valve
+## Sources
 
-**Prevention:**
-- Heavy foreshadowing: visual/audio cues rooms before the System_Admin appears
-- Give players multiple escape options (Phase_Shift through it, stun items, environmental traps)
-- System_Admin movement should be SLOW and predictable — the terror is inevitability, not speed
-- Never spawn System_Admin without an escape route available
-- Consider making it attracted to high Heat (reward for playing safe, extra threat for overclockers)
-
-**Phase to address:** Enemy Hierarchy phase — test System_Admin extensively in isolation
-
----
-
-## 7. Software "Burn" System — The "Consumable Hoarding" Problem
-
-**The Pitfall:** If Software is consumable and lost on death, players will hoard it and never use it on practice runs. The entire system becomes irrelevant except for Weekly.
-
-**Warning Signs:**
-- Players only equip Software on Weekly runs
-- Software inventory grows unchecked in stash
-- Daily runs feel "naked" and less fun
-
-**Prevention:**
-- Make Software common enough that players don't fear using it
-- Neural Simulation drops should be generous with Software
-- Consider "Virtual Software" for Simulation runs (copies that only work in practice mode)
-- Weekly Vault system should have limited slots — forces players to choose which Software to protect
-
-**Phase to address:** Software System phase + Run Modes phase (different rules per mode)
-
----
-
-## 8. ECS Component Explosion — The Architectural Creep
-
-**The Pitfall:** Adding Shell, Firmware, Augment, Software, Heat, Stability, Wallet, Stash, Vault, Blueprint, StatusEffect, EnemyTier, Swarm, Boss, SpecialAttack, etc. can make the component system unwieldy. Queries become complex, system ordering becomes fragile.
-
-**Warning Signs:**
-- Entities have 15+ components
-- Systems need to query 5+ component types
-- Adding a new system requires touching 3+ existing systems
-- Performance degrades due to component lookup overhead
-
-**Prevention:**
-- Group related data into compound components (LoadoutComponent contains all equipment references)
-- Use the event bus for cross-system communication instead of component queries
-- Document system execution order explicitly
-- Systems should follow single-responsibility: HeatSystem ONLY manages heat, not combat effects
-- Regular architecture audits to check engine/game boundary is maintained
-
-**Phase to address:** Every phase — enforce in code review
-
----
-
-## 9. Stability Anchor UI — The "Flow Breaker" Risk
-
-**The Pitfall:** If the Stability Anchor transition takes too long or is too jarring, it breaks the game's flow. The "System Handshake" animation concept is cool but could become tedious by floor 10.
-
-**Warning Signs:**
-- Players skip through the Anchor UI as fast as possible
-- The transition animation feels like a loading screen
-- Players find the forced pause frustrating in practice runs
-
-**Prevention:**
-- Keep the transition under 2 seconds (visual flair should be snappy)
-- Make the inventory manifest genuinely useful — show what you'd lose vs. keep
-- Add a "quick extract" keybind for experienced players (skip animation)
-- Different behavior per run mode: faster/simpler in Neural Simulations, full ceremony in Weekly
-
-**Phase to address:** Stability & Extraction phase — playtest the transition aggressively
-
----
-
-## 10. Turn-Based Adaptation — The "Real-Time Envy" Problem
-
-**The Pitfall:** The design docs describe real-time concepts (dash, teleport, homing projectiles, toggle abilities, "slippery" movement). If adapted poorly to turn-based, they'll feel clunky or meaningless.
-
-**Warning Signs:**
-- Phase_Shift "dash" is just "move to tile" with animation
-- "Homing" projectiles are just guaranteed-hit ranged attacks
-- Toggle abilities (Extended_Sight) drain Heat "per second" which doesn't map to turns
-- Status effects with "3 seconds" duration need to be "3 turns" — but is that balanced?
-
-**Prevention:**
-- Reframe each mechanic in turn-based terms explicitly during implementation:
-  - Phase_Shift: move up to 3 tiles, ignore collision, costs Heat
-  - Neural_Spike: ranged attack, line-of-sight, high damage, costs Heat
-  - Extended_Sight: costs Heat PER TURN while active (toggle on/off as free action)
-  - "Homing" → "guided" (can curve around a single corner)
-  - "Slippery" movement → input lag: player's next move goes in the PREVIOUS direction first
-- Playtest every real-time concept's turn-based adaptation in isolation before combining
-
-**Phase to address:** Firmware phase (abilities) + Enemy Hierarchy phase (enemy abilities)
-
----
-*Research completed: 2026-03-29*
+- [RoguelikeDev: Inventory System Patterns](https://reddit.com/r/roguelikedev) (Community Wisdom)
+- [GDC: Server-Authoritative Gameplay in Action Games](https://www.youtube.com/watch?v=W3aieHjyNvw) (Architecture Reference)
+- [ECS FAQ: Storing Items as Entities vs Components](https://github.com/SanderMertens/ecs-faq) (Technical Reference)

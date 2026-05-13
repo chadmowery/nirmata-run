@@ -1,198 +1,102 @@
-# Architecture Research: Nirmata Runner v2.0
+# Architecture Patterns
 
-## Existing Architecture
+**Domain:** Equipment System and Dynamic Software Inventories (v2.1)
+**Researched:** 2026-05-14
 
-```
-src/
-├── engine/          # ECS core, event bus, grid, world, state machine
-├── shared/          # Action pipeline, types, events shared client/server
-├── game/            # Game-specific systems, setup, components, AI
-├── rendering/       # PixiJS render system, animations, camera, FOV
-├── ui/              # React components, Zustand stores
-└── app/api/         # Next.js API routes (action validation)
-```
+## Recommended Architecture
 
-**Key patterns:**
-- Engine ← Game boundary (enforced by ESLint)
-- Server-authoritative action pipeline (pure function, shared types)
-- Event-driven communication (EventBus with typed events)
-- JSON entity templates → builder → registry → factory
+To integrate full Weapons and Armor with the existing ECS, the system must transition from the Phase 10 "Stub" model (where Software "burned" directly onto a player's `BurnedSoftware` component) to a **Hierarchical Equipment Model**. 
 
----
+Items (Weapons, Armor, Software) are full ECS entities. The Player entity holds references to equipped items, and those equipped items can, in turn, hold references to installed Software. This cleanly decouples Player base stats from Equipment stats, prevents stat bloat on the Player entity, and allows Software to be installed or uninstalled dynamically.
 
-## New Components Needed
+### Component Boundaries
 
-### 1. Equipment System (src/game/systems/)
+| Component | Responsibility | Communicates With |
+|-----------|---------------|-------------------|
+| `RunInventory` | Stores generic unequipped `RunInventoryItem` records (Weapons, Armor, Software). | `ItemPickupSystem`, `EquipmentSystem`, UI |
+| `WeaponSlots` / `ArmorSlots` | Attached to the Player. Stores entity IDs of currently equipped Weapon and Armor entities. | `EquipmentSystem`, `CombatSystem`, UI |
+| `WeaponDef` / `ArmorDef` | Attached to Item entities. Defines base combat properties (e.g., base damage, damage type, base armor). | `CombatSystem` |
+| `SoftwareSlots` | Attached to Item entities (Weapons/Armor). Stores entity IDs of Software installed in that specific item. | `EquipmentSystem`, `CombatSystem` |
+| `EquipmentSystem` | Processes intents (`EquipIntent`, `UnequipIntent`, `InstallIntent`, `UninstallIntent`) to move entities between `RunInventory` and equipment/software slots. | `RunInventory`, Slot Components |
+| `CombatSystem` | Resolves attacks by traversing the hierarchy: Player -> Equipped Weapon -> WeaponDef & Installed Software. | `WeaponSlots`, `ArmorSlots`, `SoftwareSlots` |
 
-**New Components:**
-```
-ShellComponent       { archetype, baseStats, ports: PortConfig }
-PortConfig           { firmwareSlots: number, augmentSlots: number, softwareSlots: number }
-FirmwareComponent    { abilityId, heatCost, effects, installed: boolean }
-AugmentComponent     { augmentId, triggerType, triggerCondition, payload }
-SoftwareComponent    { softwareId, modifier, magnitude, burnedOnto: EntityId | null }
-HeatComponent        { current: number, max: number, ventRate: number }
-LoadoutComponent     { shellId, firmware: EntityId[], augments: EntityId[], software: EntityId[] }
-```
+### Data Flow
 
-**New Systems:**
-- `HeatSystem` — processes heat generation, dissipation, and venting per turn
-- `FirmwareSystem` — handles ability activation, heat cost application, cooldown (if overloaded)
-- `AugmentSystem` — listens for firmware events, evaluates trigger conditions, fires payloads
-- `SoftwareSystem` — applies modifier effects to combat calculations
-- `KernelPanicSystem` — evaluates overclock risk, rolls panic table, applies consequences
+1. **Loot Generation**: `RewardDropSystem` spawns Weapon/Armor/Software entities on the `Grid` with `Item`, `Position`, and definition components (`WeaponDef`, `SoftwareDef`).
+2. **Pickup**: `ItemPickupSystem` removes the `Position` component (removing it from the map) and adds an item record to the Player's `RunInventory.items` array. The item entity is **not** destroyed.
+3. **Equipping**: Client sends `EQUIP` action. Input bridge queues `EquipIntent`. `EquipmentSystem` removes the item from `RunInventory` and adds its Entity ID to the Player's `WeaponSlots.equipped` array.
+4. **Software Installation**: Client sends `INSTALL` action. Input bridge queues `InstallIntent` with the Software ID and target Item ID. `EquipmentSystem` removes the Software from `RunInventory` and adds it to the target Weapon/Armor's `SoftwareSlots.equipped` array.
+5. **Combat Resolution**: `CombatSystem` calculates damage by querying the Player's `WeaponSlots` -> fetching the Weapon entity -> reading `WeaponDef.damage` -> reading `SoftwareSlots` -> fetching attached Software entities to apply active modifiers.
 
-**Integration points:**
-- FirmwareSystem emits `FIRMWARE_ACTIVATED` → AugmentSystem listens for trigger
-- HeatSystem reads `HeatComponent` each post-turn → applies venting
-- KernelPanicSystem runs after FirmwareSystem when heat > 100
-- Combat system reads SoftwareComponent modifiers during damage calculation
+## Patterns to Follow
 
-### 2. Status Effect System (src/game/systems/)
+### Pattern 1: Hierarchical Entity Composition
+**What:** Equipment items are entities that themselves contain slot components pointing to other entities.
+**When:** Whenever an equippable item can be customized with sub-items (like Software in Weapons).
+**Example:**
+```typescript
+// Player Entity
+world.addComponent(playerId, WeaponSlots, { equipped: [weaponEntityId] });
 
-**New Components:**
-```
-StatusEffectsComponent  { effects: StatusEffect[] }
-StatusEffect            { type, duration, magnitude, source, visualId }
+// Weapon Entity
+world.addComponent(weaponEntityId, WeaponDef, { baseDamage: 15, damageType: 'physical' });
+world.addComponent(weaponEntityId, SoftwareSlots, { equipped: [softwareEntityId] }); // Installed software
 ```
 
-**Status effect types (from design docs):**
-- `HUD_GLITCH` — HUD elements flicker/disappear (Null-Pointer enemy, Kernel Panic)
-- `INPUT_LAG` — movement delay (Kernel Panic 121-140%)
-- `FIRMWARE_LOCK` — all abilities disabled (Kernel Panic 141-160%)
-- `CRITICAL_REBOOT` — Stability damage + stun (Kernel Panic 161%+)
-- `FIRMWARE_COOLDOWN` — specific ability locked (Logic-Leaker enemy)
-- `MOVEMENT_SLOW` — reduced movement (Buffer-Overflow enemy)
-- `VISION_GRAYSCALE` — rendering filter change (Phase_Shift side effect)
+### Pattern 2: Unified Intent Queuing for Inventory Actions
+**What:** All inventory mutations (Equip, Unequip, Install, Uninstall, Drop) must be processed through discrete ECS Intent components (e.g., `InstallIntent`) applied during `Phase.INPUT` and resolved in `Phase.ACTION`.
+**When:** Processing UI actions from the In-Run Inventory Management Screen.
+**Why:** Maintains server-authoritative validation and aligns with the existing turn-based state machine and reconciliation logic.
 
-**System:** `StatusEffectSystem` — ticks durations, applies/removes effects, emits events for rendering
-
-### 3. Stability & Extraction (src/game/systems/)
-
-**New Components:**
-```
-StabilityComponent      { current: number, max: number, drainRate: number }
-FloorComponent          { depth: number, difficulty: number, seed: string }
-ExtractionStateComponent { canExtract: boolean, anchorAvailable: boolean, lootManifest: ItemId[] }
+### Pattern 3: Generalized RunInventory
+**What:** Refactoring `RunInventory` to hold generic items rather than strictly `software`.
+**When:** Updating the core inventory storage.
+**Example:**
+```typescript
+export const RunInventoryItemSchema = z.object({
+  entityId: z.number(),
+  templateId: z.string(),
+  rarityTier: z.string(),
+  itemType: z.enum(['weapon', 'armor', 'software']), // Generalized type
+});
 ```
 
-**New Systems:**
-- `StabilitySystem` — drains stability per floor, checks for zero (run ends)
-- `ExtractionSystem` — manages Anchor interaction, Extract/Descend logic
-- `FloorTransitionSystem` — generates next floor, places enemies/items, resets camera
+## Anti-Patterns to Avoid
 
-**Data flow:**
-```
-Player reaches Anchor → ExtractionSystem pauses game → UI shows decision
-  → Extract: End run, transfer loot to stash (server-validated)
-  → Descend: Spend currency, refill stability, generate next floor
-```
+### Anti-Pattern 1: Mutating `BurnedSoftware` on the Player
+**What:** Continuing to use the Phase 10 `BurnedSoftware` component on the player entity to track software.
+**Why bad:** If a player swaps their Weapon, the Software remains "burned" onto their player entity, which violates the requirement that Software modifies the *item*, not the *shell*.
+**Instead:** Software must be nested under the specific Item entity's `SoftwareSlots` component. When a weapon is unequipped to inventory, its installed software stays with the weapon.
 
-### 4. Economy & Persistence (src/game/economy/ + src/app/api/)
+### Anti-Pattern 2: Orphaned Inventory Entities
+**What:** Destroying an entity (`addComponent(id, Dying)`) that is still referenced by an inventory array or an equipment slot.
+**Why bad:** Systems like `CombatSystem` will attempt to fetch definitions for destroyed IDs, leading to fatal errors during combat calculation.
+**Instead:** Ensure the `DropIntent` handler strictly validates the item is unequipped and removed from all inventory arrays before applying the `Dying` component.
 
-**New Components:**
-```
-WalletComponent         { scrap: number, blueprints: number, flux: number }
-StashComponent          { items: ItemData[], maxSlots: number }
-VaultComponent          { items: ItemData[], maxSlots: number, locked: boolean }
-BlueprintLibrary        { blueprints: BlueprintData[], compiledIds: string[] }
-```
+### Anti-Pattern 3: Fat Player Stats
+**What:** Updating the Player's core `Defense` or `Health` component permanently when Armor is equipped.
+**Why bad:** Creates syncing issues on unequip and risks stat desyncs across server/client round-trips.
+**Instead:** `CombatSystem` should compute the *effective* stats dynamically on-the-fly by reading the `ShellComponent` base stats + `ArmorDef` + `SoftwareDef`s during `Phase.ACTION`.
 
-**API Routes:**
-```
-POST /api/stash        — save/load stash
-POST /api/economy      — currency transactions (server-validated)
-POST /api/blueprints   — compile/install/weekly-reset
-POST /api/leaderboard  — submit/query scores
-GET  /api/season       — current week metadata, active seed, reset timestamp
-```
+## Scalability Considerations
 
-**Integration:** All economy mutations go through the action pipeline (same pattern as combat actions).
+| Concern | Resolution |
+|---------|--------------|
+| **Nested Component Queries** | ECS lookup times for `world.getComponent` are O(1). Querying Player -> Weapon -> Software adds negligible overhead (max 3-4 lookups per attack). |
+| **Inventory UI Sync** | The UI needs full state of inventory + equipped items + installed software. Ensure `json-diff-ts` serialization correctly captures the nested state without excessive deep-cloning of unchanged entities. |
+| **Garbage Collection** | When an Item with installed Software is permanently dropped or destroyed, the system must cascade the `Dying` component to all nested Software entities to prevent ID leaks. |
 
-### 5. Enhanced Enemy AI (src/game/systems/)
+## Recommended Build Order
 
-**New Components:**
-```
-EnemyTierComponent      { tier: 1 | 2 | 3, archetype: string }
-SwarmComponent          { packId: string, role: 'leader' | 'follower' }
-SpecialAttackComponent  { attackType, cooldown, currentCooldown, effect }
-BossComponent           { phases: BossPhase[], currentPhase: number }
-InvulnerableComponent   {} // Tag for System_Admin — cannot be killed
-```
+1. **Generalized Inventory:** Refactor `RunInventory` and `ItemPickupSystem` to support generalized items (`itemType`). Update `inventory-util.ts`.
+2. **Item Entities:** Create `WeaponDef`, `ArmorDef`, `WeaponSlots`, and `ArmorSlots` components.
+3. **Hierarchical Refactor:** Deprecate `BurnedSoftware`. Move `SoftwareSlots` onto Weapon/Armor entities. Add Install/Uninstall intents.
+4. **Combat Refactor:** Update `CombatSystem` and `resolveDamage` pipeline to source values from the new equipment hierarchy.
+5. **Drop Tables:** Update `RewardDropSystem` and enemy templates to drop Weapons and Armor.
+6. **UI Integration:** Build the In-Run Inventory Management Screen utilizing Zustand `ui/store.ts` bound to the new structures.
 
-**New behavior states (extend existing AI):**
-- `flanking` — Null-Pointer: try to get behind player
-- `swarming` — Buffer-Overflow: surround player, detonate when adjacent
-- `zone_control` — Fragmenter: create Dead Zones on slam
-- `kiting` — Logic-Leaker: stay at max range, fire homing projectiles
-- `stalking` — System_Admin: slow walk toward player, ignore damage
-- `world_shift` — Seed_Eater: modify room layout during combat
-
-**Slot-based positioning:** For swarm enemies, use "attack slots" around player to prevent stacking on same tile.
-
-### 6. Run Mode Manager (src/game/modes/)
-
-**New module:**
-```
-RunModeManager {
-  mode: 'simulation' | 'daily' | 'weekly'
-  seed: string
-  rules: RunRules
-  scoring: ScoringConfig
-}
-
-RunRules {
-  shellType: 'virtual' | 'physical'
-  lossOnDeath: LossConfig
-  stabilityConfig: StabilityConfig
-  maxFloors: number | null
-}
-```
-
-**Integration:** RunModeManager configures the game setup before a run begins. Different rules for what's at risk, how scoring works, which Shell type is used.
-
-### 7. Visual Effect Pipeline (src/rendering/)
-
-**New systems:**
-- `GlitchEffectSystem` — manages PixiJS filters based on game state (heat level, enemy proximity)
-- `HeatVisualizerSystem` — maps heat level to visual corruption (HUD jitter, sprite ghosting)
-- `TransitionSystem` — System Handshake animation at Anchors, floor transitions
-
-**Filter chain:**
-```
-Normal → [Heat > 50: CRT scanlines] → [Heat > 75: Glitch displacement]
-  → [Heat > 100: Color inversion] → [Heat > 140: Heavy screen-tear]
-  → [Kernel Panic: Grayscale world]
-```
-
----
-
-## Suggested Build Order
-
-Based on dependency analysis:
-
-```mermaid
-graph TD
-    A[Shell & Equipment Data Model] --> B[Firmware & Heat System]
-    B --> C[Augment Synergy Engine]
-    B --> D[Kernel Panic System]
-    A --> E[Software System]
-    F[Status Effect System] --> D
-    F --> G[Enhanced Enemy AI]
-    G --> H[Enemy Hierarchy - 3 Tiers]
-    I[Multi-Floor Generation] --> J[Stability & Extraction]
-    J --> K[Run Mode Manager]
-    L[Currency & Economy] --> M[Blueprint System]
-    M --> N[Weekly Reset Cycle]
-    K --> O[Neural Deck Hub UI]
-    L --> O
-    N --> O
-    P[Visual Identity Theme] --> Q[Glitch Effects Pipeline]
-    Q --> R[Heat Visualization]
-    D --> R
-```
-
-**Critical path:** Shell → Firmware/Heat → Augments → Kernel Panic → Enemy Hierarchy → Stability/Extraction → Run Modes → Hub UI
-
----
-*Research completed: 2026-03-29*
+## Sources
+- `.planning/PROJECT.md` (HIGH) - Core architecture mandates and Next Milestone requirements.
+- `.planning/milestones/v2.0-phases/10-software-system-enhanced-combat/10-RESEARCH.md` (HIGH) - Historical context for Phase 10 "Stub" implementation (`BurnedSoftware`).
+- `src/game/systems/item-pickup.ts` (HIGH) - Current item ingestion flow.
+- `src/game/systems/equipment.ts` (HIGH) - Existing equipment intent mechanics.

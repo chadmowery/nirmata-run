@@ -1,98 +1,76 @@
-# Research Summary: Nirmata Runner v2.0
+# Research Summary: Equipment & Inventory System (v2.1)
+
+**Project:** Nirmata Runner — Extraction Roguelike
+**Milestone:** v2.1 Equipment System
+**Status:** Synthesis Complete
+**Date:** 2024-05-15
 
 ## Executive Summary
 
-Adding Nirmata Runner's game systems to the existing engine requires **11 major feature groups** built on top of validated v1.0 infrastructure. The critical dependency chain runs: **Shell data model → Firmware/Heat → Augments → Status Effects → Enemy Hierarchy → Multi-Floor Generation → Stability/Extraction → Economy → Blueprint Cycle → Run Modes → Hub UI → Visual Polish**. No new external libraries are required — the existing stack (PixiJS, React, Next.js, rot-js, Zustand, Zod) handles all needs with targeted extensions (PixiJS filters for visual effects, API routes for persistence).
+The v2.1 Milestone transitions Nirmata Runner from a "stub" software system to a fully realized **Hierarchical Equipment Model**. The research confirms that the best approach for a server-authoritative extraction roguelike is to treat major equipment (Weapons, Armor) as first-class ECS entities capable of hosting their own sub-entities (Software). This architecture preserves the "Vibrant Decay" aesthetic of modular, ephemeral gear while ensuring state consistency across the Next.js/React/PixiJS stack.
 
----
+The core innovation remains the intersection of the **Neural Heat** risk system and equipment management. Research suggests that inventory management should not just be a menu but a tactical layer, with turn-costs for swapping gear and high-heat penalties for high-power loadouts. The primary technical risk is "Delta Bloat"—ensuring that the increase in entity count for items doesn't degrade performance of the `json-diff-ts` state synchronization.
 
-## Stack Additions
+## Key Findings
 
-| Addition | Purpose | Risk |
-|----------|---------|------|
-| Status effect system (in-house) | Neural Heat consequences, enemy debuffs, Kernel Panic effects | Low — pure ECS components |
-| Server-side JSON persistence | Stash, Vault, Blueprint library, currency between runs | Low — extends existing API pattern |
-| Enhanced seeded generation | Weekly/Daily global seeds, multi-floor dungeons | Low — extends rot-js Alea PRNG |
-| PixiJS filter pipeline | Glitch effects, CRT overlay, heat visualization | Medium — custom shaders need testing |
-| Leaderboard API | Daily/Weekly scoring and ranking | Low — simple sorted storage |
-| Temporal scheduling | Weekly reset, Legacy Code degradation | Medium — needs reliable timing |
+### From STACK.md (Technology)
+*   **Core Stack (Unchanged):** Next.js 16.1.6, React 19.2.4, PixiJS 8.17.0, and `rot-js` 2.2.1.
+*   **Inventory UI Enhancements:** Recommended use of `@dnd-kit/core` for drag-and-drop inventory management and `@radix-ui/react-tooltip` for detailed, accessible item stat overlays.
+*   **State Management:** `immer` is added to handle complex, nested immutable updates for the hierarchical inventory state within the existing Zustand stores.
+*   **Rationale:** These libraries minimize boilerplate while maintaining the strict "Vibrant Decay" custom styling requirements.
 
-**What NOT to add:** No database (JSON persistence sufficient), no WebSockets (turn-based HTTP is fine), no physics engine, no animation library (PixiJS handles it), no state machine library (custom FSM works).
+### From FEATURES.md (Capabilities)
+*   **Table Stakes:** Slot-based equipment (Weapon, Armor, Firmware, Augments) and in-run inventory capacity limits are essential for the extraction loop.
+*   **Differentiators:** Neural Heat costs for gear and "Turn-Cost Inventory Management" (swapping gear costs a turn) add tactical depth.
+*   **Anti-Features:** Explicitly avoid "Inventory Tetris" and "Infinite Stash" to maintain the focus on high-stakes extraction.
+*   **MVP Priority:** Focus on basic slot-mapping and item drop tables before attempting complex Trigger/Payload augment synergies.
 
----
+### From ARCHITECTURE.md (Patterns)
+*   **Hierarchical Entity Model:** Items are full entities. The Player entity references equipped items, and items reference installed Software entities (nested slots).
+*   **Intent Queuing:** All inventory actions (Equip, Install, Drop) must be processed via discrete ECS `Intent` components to maintain server authority.
+*   **Dynamic Stat Pipeline:** Combat stats should be computed on-the-fly (Shell + Gear + Software) rather than mutating the Player's base component, preventing desync.
 
-## Feature Table Stakes
+### From PITFALLS.md (Risks)
+*   **Delta Bloat:** Syncing many item entities can spike network traffic. *Mitigation:* Consider data-only records for unequipped items; promote to full entities only when dropped.
+*   **Recursive Stat Dependency:** Inconsistent calculation of additive vs. multiplicative buffs. *Mitigation:* Implement a standardized `shared/logic/stats.ts` pipeline.
+*   **Orphan Effects:** Unstalling software while it has active buffs. *Mitigation:* Implement an "Effect Registry" with owner tracking.
 
-### Must-ship (game doesn't work without these):
-1. **Shell archetypes** with base stats and Port configurations
-2. **Firmware abilities** with Heat costs (at least 3 starter abilities)
-3. **Neural Heat bar** (0-100 safe, 100+ Corruption Zone)
-4. **Kernel Panic table** (escalating consequences above 100 Heat)
-5. **Augment triggers** with visual feedback (at least 3 starters)
-6. **Software consumable modifiers** (burn, use, lose on death)
-7. **All 6 enemy types** across 3 tiers with unique behaviors
-8. **Reality Stability bar** with drain mechanics
-9. **Stability Anchors** with Extract/Descend decision
-10. **Multi-floor dungeon** generation
-11. **3 run modes** (Simulation, Daily, Weekly)
-12. **3-tier currency** (Scrap, Blueprints, Flux)
-13. **Blueprint discovery → compilation → installation cycle**
-14. **Weekly reset** with Legacy Code degradation
-15. **Neural Deck hub** for between-run management
-16. **"Vibrant Decay" visual theme** (palette, typography, effects)
+## Implications for Roadmap
 
-### Can-defer (nice-to-have for v2.0):
-- Shell visual customization
-- Shell availability rotation per week
-- Software stacking rules
-- Dynamic pricing
-- Winner's Item system
-- Post-run Synergy Report
-- 3D Shell visualization in Neural Deck
+### Suggested Phase Structure
 
----
+1.  **Refactor: Generalized Inventory** — Update `RunInventory` to support generic item types (`weapon`, `armor`, `software`) and refactor `ItemPickupSystem`.
+    *   *Rationale:* Establishes the foundation for all future item types.
+2.  **Implementation: Hierarchical Equipment** — Create `WeaponDef`/`ArmorDef` components and move `SoftwareSlots` onto item entities.
+    *   *Rationale:* Core architectural shift required for modular equipment.
+3.  **Engine: Dynamic Stat Pipeline** — Update `CombatSystem` and `resolveDamage` to source values from the equipment hierarchy.
+    *   *Rationale:* Ensures gear actually impacts gameplay; must avoid permanent stat mutation.
+4.  **Balance: Updated Drop Tables** — Integrate Weapons/Armor into the 3-tier enemy hierarchy using `rot-js` RNG.
+    *   *Rationale:* Connects the new systems to the core gameplay loop.
+5.  **UI: Inventory Management Screen** — Build the React interface using `@dnd-kit` and `@radix-ui`.
+    *   *Rationale:* Final Polish and user accessibility; depends on all underlying systems being stable.
 
-## Watch Out For
+### Research Flags
+*   **Needs Research Phase:** The "Trigger & Payload" augment system (Phase 11-12) requires a dedicated research phase to define the event-bus interrupt patterns.
+*   **Standard Patterns:** The basic Slot-based equipment and Inventory UI (Phase 1-2) follow well-documented patterns and can skip deep research.
 
-### Critical Risks (from Pitfalls research):
+## Confidence Assessment
 
-1. **🔴 Optimal Avoidance:** Players never overclock if Kernel Panic is too punishing → build "warmth bonuses" in Corruption Zone
-2. **🔴 Invisible Augments:** Synergy triggers without clear feedback → visual flash + message log is mandatory, not polish
-3. **🔴 Weekly Reset Betrayal:** Reset feels like punishment → frame as event, Legacy Code must be usable
-4. **🟡 Economy Inflation:** Scrap accumulates with no sink → every faucet needs a hard sink
-5. **🟡 Consumable Hoarding:** Software never used on practice runs → make drops generous in Simulation mode
-6. **🟡 Turn-Based Adaptation:** Real-time concepts (dash, homing, toggles) must be explicitly reframed in turn-based terms
-7. **🟡 Monotonous Descent:** Deeper floors must introduce new enemy types and mechanics, not just stat scaling
-8. **🟠 Component Explosion:** 20+ new components could make ECS unwieldy → compound components, clear system ordering
-9. **🟠 Flow Breaker UI:** Stability Anchor transition must be snappy (< 2 seconds), offer skip for experienced players
-10. **🟠 Unfair System_Admin:** Instant-kill stalker needs heavy foreshadowing and multiple escape options
+| Area | Confidence | Notes |
+|------|------------|-------|
+| Stack | HIGH | Libraries are modern and well-supported; minimal risk. |
+| Features | HIGH | Well-aligned with "Extraction Roguelike" genre expectations. |
+| Architecture | HIGH | Hierarchical ECS is a standard solution for modular systems. |
+| Pitfalls | MEDIUM | Performance of state-diffing with nested entities needs active monitoring. |
 
-### Architectural Safeguards:
-- All economy mutations must go through server-validated action pipeline
-- Status effects must be ECS components (not special-cased logic)
-- Every new system must follow single-responsibility principle
-- Engine/game boundary must hold — new game systems go in `src/game/`
-- Event tier classification (from AGENTS.md) must be followed for all new events
+### Gaps to Address
+*   **Network Performance:** We need to verify the threshold where `json-diff-ts` performance degrades with entity count.
+*   **Save/Persistence:** The research focused on run-time state; the serialization of the hierarchical entity tree for "between-run" storage needs refinement.
 
----
-
-## Recommended Build Order
-
-```
-Phase 1: Shell & Equipment Data Model
-Phase 2: Firmware & Neural Heat System
-Phase 3: Status Effects & Augment Synergy
-Phase 4: Software System & Enhanced Combat
-Phase 5: Enemy Hierarchy (3 Tiers)
-Phase 6: Multi-Floor Generation & Stability/Extraction
-Phase 7: Currency, Economy & Blueprint System
-Phase 8: Run Modes & Leaderboard
-Phase 9: Neural Deck Hub UI
-Phase 10: Visual Identity & Glitch Effects
-Phase 11: Starter Loadouts & Integration Polish
-```
-
-This order follows the critical dependency chain: data models first, systems that consume them second, meta-game last.
-
----
-*Research synthesized: 2026-03-29*
+## Sources
+*   `.planning/research/STACK.md`
+*   `.planning/research/FEATURES.md`
+*   `.planning/research/ARCHITECTURE.md`
+*   `.planning/research/PITFALLS.md`
+*   `PROJECT.md` (Core Mandates)
+*   ECS FAQ (Technical Patterns)
