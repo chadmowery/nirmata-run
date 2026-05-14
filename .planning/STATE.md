@@ -1,11 +1,11 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.1
-milestone_name: Equipment and Inventory System
-status: Planning
-stopped_at: 
-last_updated: "2024-05-15"
-last_activity: "2024-05-15 — Roadmap created for v2.1"
+milestone: v2.0
+milestone_name: milestone
+status: planning
+stopped_at: Phase 18 context gathered
+last_updated: "2026-05-14T03:19:48.866Z"
+last_activity: 2024-05-15 — Roadmap created for v2.1
 progress:
   total_phases: 5
   completed_phases: 0
@@ -79,10 +79,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2024-05-15
-Stopped at: Roadmap creation complete.
+Last session: 2026-05-14T03:19:48.863Z
+Stopped at: Phase 18 context gathered
 Resume file: 
 
----
+.planning/phases/18-hierarchical-entity-foundation/18-CONTEXT.md
 *State initialized: 2026-05-13*
 *Last updated: 2024-05-15 — Milestone v2.1 roadmap created*
