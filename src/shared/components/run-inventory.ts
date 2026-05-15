@@ -28,6 +28,7 @@ export const CurrencyStackSchema = z.object({
 export const RunInventory = defineComponent('run_inventory', z.object({
   maxSlots: z.number().int().default(5),
   software: z.array(RunInventoryItemSchema).default([]),
+  equipment: z.array(RunInventoryItemSchema).default([]),
 }));
 
 /**

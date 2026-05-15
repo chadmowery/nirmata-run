@@ -14,6 +14,7 @@ import { TemplateId, Dying, HealIntent, PickupIntent } from '@shared/components'
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { RarityTier } from '@shared/components/rarity-tier';
 import { SoftwareDef } from '@shared/components/software-def';
+import { EquipmentDef } from '@shared/components/equipment-def';
 import { FloorState } from '@shared/components/floor-state';
 
 import { GameEvents } from '../events/types';
@@ -76,7 +77,45 @@ export function createItemPickupSystem<T extends GameplayEvents>(
       }
     }
 
-    // 2. Handle Software item pickup
+    // 2. Handle Equipment item pickup
+    const eqDef = w.getComponent(itemId, EquipmentDef);
+    if (eqDef) {
+      const rarity = w.getComponent(itemId, RarityTier);
+      const templateRef = w.getComponent(itemId, TemplateId);
+      const floorState = w.getComponent(entityId, FloorState);
+
+      if (templateRef) {
+        const added = InventoryUtil.addEquipment(w, entityId, {
+          entityId: itemId,
+          templateId: templateRef.id,
+          rarityTier: rarity?.tier || 'v1.x',
+          pickedUpAtFloor: floorState?.currentFloor || 1,
+          pickedUpAtTimestamp: Date.now(),
+        });
+
+        if (added) {
+          logger.info(`Entity ${entityId} picked up equipment ${itemId} (Template: ${templateRef.id}, Name: ${eqDef.name})`, 'SYSTEM');
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: `+ EQUIPMENT SECURED: ${eqDef.name} [${rarity?.tier || 'v1.x'}]`,
+            type: 'info',
+          });
+
+          grid.removeItem(itemId, x, y);
+          w.removeComponent(itemId, Position);
+          // NOTE: We DO NOT destroy the entity here because it's now in the inventory.
+          eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
+          return;
+        } else {
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: `INVENTORY FULL: Cannot secure ${eqDef.name}`,
+            type: 'error',
+          });
+          return;
+        }
+      }
+    }
+
+    // 3. Handle Software item pickup
     const swDef = w.getComponent(itemId, SoftwareDef);
     if (swDef) {
       const rarity = w.getComponent(itemId, RarityTier);
@@ -114,7 +153,7 @@ export function createItemPickupSystem<T extends GameplayEvents>(
       }
     }
 
-    // 3. Apply pickup effect if it exists (e.g. Health Potions)
+    // 4. Apply pickup effect if it exists (e.g. Health Potions)
     const effect = w.getComponent(itemId, PickupEffect);
     if (effect) {
       if (effect.type === EffectType.HEAL) {
@@ -125,10 +164,10 @@ export function createItemPickupSystem<T extends GameplayEvents>(
       }
     }
 
-    // 4. Emit event for standard items
+    // 5. Emit event for standard items
     eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
 
-    // 5. Cleanup
+    // 6. Cleanup
     grid.removeItem(itemId, x, y);
     w.addComponent(itemId, Dying, { reason: 'pickup' });
   }

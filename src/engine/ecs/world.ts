@@ -36,6 +36,15 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
   destroyEntity(id: EntityId): void {
     if (!this.entities.has(id)) return;
 
+    // Recursively destroy children first
+    const childrenStore = this.stores.get('children');
+    if (childrenStore && childrenStore.has(id)) {
+      const childrenData = childrenStore.get(id) as { entityIds: number[] };
+      for (const childId of childrenData.entityIds) {
+        this.destroyEntity(childId);
+      }
+    }
+
     // Remove from all component stores
     for (const store of this.stores.values()) {
       store.delete(id);

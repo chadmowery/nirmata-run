@@ -54,6 +54,21 @@ describe('World', () => {
       expect(handler).toHaveBeenNthCalledWith(1, { entityId: id });
       expect(handler).toHaveBeenNthCalledWith(2, { entityId: id });
     });
+    it('should recursively destroy child entities when a parent is destroyed', () => {
+      const Children = defineComponent('children', z.object({ entityIds: z.array(z.number()) }));
+      
+      const parent = world.createEntity();
+      const child1 = world.createEntity();
+      const child2 = world.createEntity();
+      
+      world.addComponent(parent, Children, { entityIds: [child1, child2] });
+      
+      world.destroyEntity(parent);
+      
+      expect(world.entityExists(parent)).toBe(false);
+      expect(world.entityExists(child1)).toBe(false);
+      expect(world.entityExists(child2)).toBe(false);
+    });
   });
 
   describe('Component CRUD', () => {

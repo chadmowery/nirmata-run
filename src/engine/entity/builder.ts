@@ -92,7 +92,9 @@ export function buildEntity<T extends EngineEvents>(
   world: World<T>,
   templateName: string,
   resolvedComponents: Record<string, unknown>,
-  componentRegistry: ComponentRegistry
+  componentRegistry: ComponentRegistry,
+  templateRegistry: EntityRegistry,
+  children?: RawTemplate['children']
 ): EntityId {
   const entityId = world.createEntity();
 
@@ -111,6 +113,38 @@ export function buildEntity<T extends EngineEvents>(
     // sharing the same template/mixin object references.
     const deepClonedData = JSON.parse(JSON.stringify(result.data));
     world.addComponent(entityId, def, deepClonedData);
+  }
+
+  // Process children recursively
+  if (children && children.length > 0) {
+    const childIds: number[] = [];
+    const parentDef = componentRegistry.get('parent');
+    const childrenDef = componentRegistry.get('children');
+
+    if (!parentDef || !childrenDef) {
+        throw new Error(`Template '${templateName}': parent or children component definition missing`);
+    }
+
+    for (const child of children) {
+      const childTemplate = templateRegistry.get(child.template);
+      if (!childTemplate) {
+        throw new Error(`Template '${templateName}' references unknown child template: '${child.template}'`);
+      }
+
+      // Clone template to avoid mutating the original registry
+      const childTemplateCopy = { ...childTemplate };
+      if (child.overrides) {
+        childTemplateCopy.overrides = { ...childTemplateCopy.overrides, ...child.overrides };
+      }
+
+      const childComponents = resolveMixins(childTemplateCopy, templateRegistry);
+      const childId = buildEntity(world, child.template, childComponents, componentRegistry, templateRegistry, childTemplateCopy.children);
+      
+      world.addComponent(childId, parentDef, { entityId, slotComponent: child.slotComponent });
+      childIds.push(childId);
+    }
+    
+    world.addComponent(entityId, childrenDef, { entityIds: childIds });
   }
 
   // Stamp the template ID for tracking and persistence

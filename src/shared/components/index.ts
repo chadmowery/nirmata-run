@@ -37,8 +37,8 @@ import { StaircaseMarker } from './staircase-marker';
 import { AnchorMarker } from './anchor-marker';
 import { RunInventory, RunCurrency } from './run-inventory';
 import { TemplateId } from './template-id';
-import { 
-  MoveIntent, AttackIntent, VentIntent, DamageIntent, DescentIntent, ExtractionIntent, 
+import {
+  MoveIntent, AttackIntent, VentIntent, DamageIntent, DescentIntent, ExtractionIntent,
   EquipIntent, UnequipIntent, ShellUpdateTag, TeleportIntent,
   ApplyStatusEffectIntent, HealIntent, HeatIntent, BurnSoftwareIntent, FirmwareIntent, Acting, PickupIntent
 } from './intents';
@@ -46,8 +46,59 @@ import { MovedThisTurn } from './moved-this-turn';
 import { Dying } from './dying';
 import { FirmwareActivatedThisTurn } from './firmware-activated-this-turn';
 import { DealtDamageThisTurn } from './dealt-damage-this-turn';
-
 import { FloorTransitioned } from './floor-transitioned';
+import { Parent } from './parent';
+import { Children } from './children';
+import { EquipmentDef } from './equipment-def';
+
+export * from './position';
+export * from './health';
+export * from './energy';
+export * from './actor';
+export * from './sprite';
+export * from './hostile';
+export * from './attack';
+export * from './defense';
+export * from './loot-table';
+export * from './ai-state';
+export * from './fov-awareness';
+export * from './blocks-movement';
+export * from './item';
+export * from './pickup-effect';
+export * from './progression';
+export * from './shell';
+export * from './port-config';
+export * from './firmware-slots';
+export * from './augment-slots';
+export * from './software-slots';
+export * from './heat';
+export * from './ability-def';
+export * from './status-effects';
+export * from './augment-data';
+export * from './augment-state';
+export * from './software-def';
+export * from './burned-software';
+export * from './rarity-tier';
+export * from './pack-member';
+export * from './dead-zone';
+export * from './corruption-state';
+export * from './stability';
+export * from './wallet';
+export * from './currency-item';
+export * from './floor-state';
+export * from './staircase-marker';
+export * from './anchor-marker';
+export * from './run-inventory';
+export * from './template-id';
+export * from './intents';
+export * from './moved-this-turn';
+export * from './dying';
+export * from './firmware-activated-this-turn';
+export * from './dealt-damage-this-turn';
+export * from './floor-transitioned';
+export * from './parent';
+export * from './children';
+export * from './equipment-def';
 
 export const COMPONENTS_REGISTRY = [
   Position,
@@ -112,50 +163,8 @@ export const COMPONENTS_REGISTRY = [
   FirmwareIntent,
   Acting,
   PickupIntent,
+  Parent,
+  Children,
+  EquipmentDef,
+  SoftwareSlots,
 ] as const;
-
-export * from './position';
-export * from './health';
-export * from './energy';
-export * from './actor';
-export * from './sprite';
-export * from './hostile';
-export * from './attack';
-export * from './defense';
-export * from './loot-table';
-export * from './ai-state';
-export * from './fov-awareness';
-export * from './blocks-movement';
-export * from './item';
-export * from './pickup-effect';
-export * from './progression';
-export * from './shell';
-export * from './port-config';
-export * from './firmware-slots';
-export * from './augment-slots';
-export * from './software-slots';
-export * from './heat';
-export * from './ability-def';
-export * from './status-effects';
-export * from './augment-data';
-export * from './augment-state';
-export * from './software-def';
-export * from './burned-software';
-export * from './rarity-tier';
-export * from './pack-member';
-export * from './dead-zone';
-export * from './corruption-state';
-export * from './stability';
-export * from './wallet';
-export * from './currency-item';
-export * from './floor-state';
-export * from './staircase-marker';
-export * from './anchor-marker';
-export * from './run-inventory';
-export * from './template-id';
-export * from './intents';
-export * from './moved-this-turn';
-export * from './dying';
-export * from './firmware-activated-this-turn';
-export * from './dealt-damage-this-turn';
-export * from './floor-transitioned';

@@ -44,7 +44,7 @@ describe('RunEnderSystem', () => {
     const playerId = world.createEntity();
     world.addComponent(playerId, Actor, { isPlayer: true });
     world.addComponent(playerId, Position, { x: 1, y: 1 });
-    world.addComponent(playerId, RunInventory, { software: [], maxSlots: 5 });
+    world.addComponent(playerId, RunInventory, { software: [], equipment: [], maxSlots: 5 });
     world.addComponent(playerId, BurnedSoftware, { weapon: 101, armor: 102 });
 
     // Mark as dying and execute cleanup

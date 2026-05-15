@@ -39,6 +39,6 @@ export class EntityFactory {
     };
 
     const resolvedComponents = resolveMixins(templateCopy, this.registry);
-    return buildEntity(world, templateName, resolvedComponents, componentRegistry);
+    return buildEntity(world, templateName, resolvedComponents, componentRegistry, this.registry, templateCopy.children);
   }
 }

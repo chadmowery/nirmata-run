@@ -24,7 +24,7 @@ describe('Death Pity and Extraction (RunEnderSystem)', () => {
     world.addComponent(playerId, Actor, { isPlayer: true });
     world.addComponent(playerId, Position, { x: 5, y: 5 });
     world.addComponent(playerId, FloorState, { currentFloor: 1, maxFloor: 15, runSeed: 'test' });
-    world.addComponent(playerId, RunInventory, { software: [], maxSlots: 5 });
+    world.addComponent(playerId, RunInventory, { software: [], equipment: [], maxSlots: 5 });
     world.addComponent(playerId, RunCurrency, { stacks: [] });
 
     // Initialize RunEnderSystem

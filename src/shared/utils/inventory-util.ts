@@ -104,12 +104,31 @@ export function addSoftware(
   const runCurrency = world.getComponent(playerId, RunCurrency);
   if (!runInventory || !runCurrency) return false;
 
-  if (runInventory.software.length + runCurrency.stacks.length >= runInventory.maxSlots) {
+  if (runInventory.software.length + runInventory.equipment.length + runCurrency.stacks.length >= runInventory.maxSlots) {
     return false;
   }
 
   world.patchComponent(playerId, RunInventory, {
     software: [...runInventory.software, item]
+  });
+  return true;
+}
+
+export function addEquipment(
+  world: World<any>,
+  playerId: number,
+  item: RunInventoryItem
+): boolean {
+  const runInventory = world.getComponent(playerId, RunInventory);
+  const runCurrency = world.getComponent(playerId, RunCurrency);
+  if (!runInventory || !runCurrency) return false;
+
+  if (runInventory.software.length + runInventory.equipment.length + runCurrency.stacks.length >= runInventory.maxSlots) {
+    return false;
+  }
+
+  world.patchComponent(playerId, RunInventory, {
+    equipment: [...runInventory.equipment, item]
   });
   return true;
 }
@@ -131,9 +150,26 @@ export function removeSoftware(
   return removed;
 }
 
+export function removeEquipment(
+  world: World<any>,
+  playerId: number,
+  index: number
+): RunInventoryItem | null {
+  const runInventory = world.getComponent(playerId, RunInventory);
+  if (!runInventory || index < 0 || index >= runInventory.equipment.length) {
+    return null;
+  }
+
+  const equipment = [...runInventory.equipment];
+  const [removed] = equipment.splice(index, 1);
+
+  world.patchComponent(playerId, RunInventory, { equipment });
+  return removed;
+}
+
 export function clearInventory(world: World<any>, playerId: number): void {
   if (world.hasComponent(playerId, RunInventory)) {
-    world.patchComponent(playerId, RunInventory, { software: [] });
+    world.patchComponent(playerId, RunInventory, { software: [], equipment: [] });
   }
   if (world.hasComponent(playerId, RunCurrency)) {
     world.patchComponent(playerId, RunCurrency, { stacks: [] });

@@ -61,7 +61,7 @@ describe('Currency Pickup System', () => {
     const playerId = world.createEntity();
     world.addComponent(playerId, Actor, { isPlayer: true });
     world.addComponent(playerId, Position, { x: 1, y: 1 });
-    world.addComponent(playerId, RunInventory, { software: [], maxSlots: 5 });
+    world.addComponent(playerId, RunInventory, { software: [], equipment: [], maxSlots: 5 });
     world.addComponent(playerId, RunCurrency, { stacks: [] });
 
     const scrapId = entityFactory.create(world, 'scrap', componentRegistry, {
@@ -90,7 +90,7 @@ describe('Currency Pickup System', () => {
     const playerId = world.createEntity();
     world.addComponent(playerId, Actor, { isPlayer: true });
     world.addComponent(playerId, Position, { x: 1, y: 1 });
-    world.addComponent(playerId, RunInventory, { software: [], maxSlots: 5 });
+    world.addComponent(playerId, RunInventory, { software: [], equipment: [], maxSlots: 5 });
     world.addComponent(playerId, RunCurrency, { stacks: [] });
 
     // Fill inventory with software (max 5)
@@ -137,7 +137,7 @@ describe('Currency Pickup System', () => {
     const playerId = world.createEntity();
     world.addComponent(playerId, Actor, { isPlayer: true });
     world.addComponent(playerId, Position, { x: 1, y: 1 });
-    world.addComponent(playerId, RunInventory, { software: [], maxSlots: 5 });
+    world.addComponent(playerId, RunInventory, { software: [], equipment: [], maxSlots: 5 });
     world.addComponent(playerId, RunCurrency, { stacks: [] });
 
     // Add some scrap first

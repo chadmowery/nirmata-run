@@ -160,12 +160,26 @@ describe('Entity Builder', () => {
   });
 
   describe('buildEntity', () => {
+    const Parent = defineComponent('parent', z.object({ entityId: z.number(), slotComponent: z.string().optional() }));
+    const Children = defineComponent('children', z.object({ entityIds: z.array(z.number()) }));
+
+    const componentRegistryWithHierarchy: ComponentRegistry = {
+      get: (key: string) => {
+        if (key === 'position') return Position;
+        if (key === 'health') return Health;
+        if (key === 'parent') return Parent;
+        if (key === 'children') return Children;
+        return undefined;
+      },
+      has: (key: string) => ['position', 'health', 'parent', 'children'].includes(key)
+    };
+
     it('creates an entity with all components', () => {
       const resolved = {
         position: { x: 5, y: 5 },
         health: { current: 10, max: 10 }
       };
-      const id = buildEntity(world, 'player', resolved, componentRegistry);
+      const id = buildEntity(world, 'player', resolved, componentRegistry, registry);
       
       expect(world.hasComponent(id, Position)).toBe(true);
       expect(world.hasComponent(id, Health)).toBe(true);
@@ -173,16 +187,39 @@ describe('Entity Builder', () => {
       expect(world.getComponent(id, Health)).toEqual({ current: 10, max: 10 });
     });
 
+    it('recursively instantiates children and links them via Parent and Children components', () => {
+      registry.register({ name: 'child', components: { position: { x: 0, y: 0 } } });
+      
+      const resolved = {
+        health: { current: 10, max: 10 }
+      };
+      const children = [{ template: 'child', slotComponent: 'software' }];
+      
+      const parentId = buildEntity(world, 'parent', resolved, componentRegistryWithHierarchy, registry, children);
+      
+      // Verify parent components
+      expect(world.hasComponent(parentId, Children)).toBe(true);
+      const parentChildren = world.getComponent(parentId, Children)!;
+      expect(parentChildren.entityIds).toHaveLength(1);
+      
+      // Verify child components
+      const childId = parentChildren.entityIds[0];
+      expect(world.entityExists(childId)).toBe(true);
+      expect(world.hasComponent(childId, Parent)).toBe(true);
+      expect(world.getComponent(childId, Parent)).toEqual({ entityId: parentId, slotComponent: 'software' });
+      expect(world.getComponent(childId, Position)).toEqual({ x: 0, y: 0 });
+    });
+
     it('throws on unknown component', () => {
       const resolved = { unknown: { foo: 'bar' } };
-      expect(() => buildEntity(world, 'test', resolved, componentRegistry)).toThrow(/unknown component/);
+      expect(() => buildEntity(world, 'test', resolved, componentRegistry, registry)).toThrow(/unknown component/);
     });
 
     it('throws on Zod validation failure', () => {
       const resolved = {
         position: { x: 'invalid', y: 5 }
       };
-      expect(() => buildEntity(world, 'test', resolved, componentRegistry)).toThrow(/expected number/i);
+      expect(() => buildEntity(world, 'test', resolved, componentRegistry, registry)).toThrow(/expected number/i);
     });
   });
 });

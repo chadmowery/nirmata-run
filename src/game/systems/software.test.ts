@@ -187,7 +187,7 @@ describe('Software System', () => {
     beforeEach(() => {
       world = new World<GameplayEvents>(new EventBus<GameplayEvents>());
       playerId = world.createEntity();
-      world.addComponent(playerId, RunInventory, { software: [], maxSlots: 5 });
+      world.addComponent(playerId, RunInventory, { software: [], equipment: [], maxSlots: 5 });
       world.addComponent(playerId, RunCurrency, { stacks: [] });
     });
 
@@ -254,8 +254,8 @@ describe('Software System', () => {
       world.addComponent(playerId, Actor, { isPlayer: true });
       world.addComponent(playerId, Position, { x: 0, y: 0 });
       world.addComponent(playerId, Health, Health.schema.parse({ current: 10, max: 10 }));
-      world.addComponent(playerId, SoftwareSlots, { equipped: [] });
-      world.addComponent(playerId, RunInventory, { software: [], maxSlots: 5 });
+      world.addComponent(playerId, SoftwareSlots, { maxSlots: 3, allowedTypes: ['software'], equipped: [] });
+      world.addComponent(playerId, RunInventory, { software: [], equipment: [], maxSlots: 5 });
       world.addComponent(playerId, RunCurrency, { stacks: [] });
     });
 
@@ -427,7 +427,7 @@ describe('Software System', () => {
       world.addComponent(playerId, Actor, { isPlayer: true });
       world.addComponent(playerId, Position, { x: 0, y: 0 });
       world.addComponent(playerId, BurnedSoftware, { weapon: 101, armor: 102 });
-      world.addComponent(playerId, RunInventory, { software: [], maxSlots: 5 });
+      world.addComponent(playerId, RunInventory, { software: [], equipment: [], maxSlots: 5 });
       world.addComponent(playerId, RunCurrency, { stacks: [] });
     });
 
