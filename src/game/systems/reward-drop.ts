@@ -10,6 +10,7 @@ import { LootTable, Position, Actor, Dying } from '@shared/components';
 import economyRaw from '../entities/templates/economy.json';
 import { EconomyConfig, BlueprintDropConfig, DropRateConfig } from '@shared/economy-types';
 import { logger } from '@engine/utils/logger';
+import RNG from 'rot-js/lib/rng';
 
 const economy = economyRaw as unknown as EconomyConfig;
 
@@ -53,8 +54,25 @@ export function createRewardDropSystem<T extends GameplayEvents>(
 
       // 1. Roll for Equipment (LootTable)
       if (lootTable) {
-        for (const drop of lootTable.drops) {
-          if (Math.random() < drop.chance) {
+        const drops = [...lootTable.drops];
+        const tier = lootTable.tier ?? 1;
+
+        if (tier >= 2 && drops.length > 0) {
+          const guaranteedIndex = Math.floor(RNG.getUniform() * drops.length);
+          const drop = drops[guaranteedIndex];
+          const itemId = entityFactory.create(
+            w,
+            drop.template,
+            componentRegistry,
+            { position: { x: pos.x, y: pos.y } }
+          );
+          grid.addItem(itemId, pos.x, pos.y);
+          logger.info(`Entity ${entityId} dropped guaranteed loot: ${drop.template}`, 'SYSTEM');
+          drops.splice(guaranteedIndex, 1);
+        }
+
+        for (const drop of drops) {
+          if (RNG.getUniform() < drop.chance) {
             const itemId = entityFactory.create(
               w,
               drop.template,
@@ -73,23 +91,23 @@ export function createRewardDropSystem<T extends GameplayEvents>(
 
       // Roll for Scrap
       const scrapConfig = economy.currencyDrops.scrap[tierKey];
-      if (scrapConfig && Math.random() <= scrapConfig.chance) {
-        const amount = Math.floor(Math.random() * (scrapConfig.max - scrapConfig.min + 1)) + scrapConfig.min;
+      if (scrapConfig && RNG.getUniform() <= scrapConfig.chance) {
+        const amount = Math.floor(RNG.getUniform() * (scrapConfig.max - scrapConfig.min + 1)) + scrapConfig.min;
         spawnCurrency(w, 'scrap', amount, pos.x, pos.y);
         logger.info(`Entity ${entityId} dropped scrap: ${amount}`, 'SYSTEM');
       }
 
       // Roll for Flux
       const fluxConfig = economy.currencyDrops.flux[tierKey] as DropRateConfig | undefined;
-      if (fluxConfig && Math.random() <= fluxConfig.chance) {
-        const amount = Math.floor(Math.random() * (fluxConfig.max - fluxConfig.min + 1)) + fluxConfig.min;
+      if (fluxConfig && RNG.getUniform() <= fluxConfig.chance) {
+        const amount = Math.floor(RNG.getUniform() * (fluxConfig.max - fluxConfig.min + 1)) + fluxConfig.min;
         spawnCurrency(w, 'flux', amount, pos.x, pos.y);
         logger.info(`Entity ${entityId} dropped flux: ${amount}`, 'SYSTEM');
       }
 
       // Roll for Blueprint
       const blueprintConfig = economy.currencyDrops.blueprint[tierKey] as BlueprintDropConfig | undefined;
-      if (blueprintConfig && Math.random() <= blueprintConfig.chance) {
+      if (blueprintConfig && RNG.getUniform() <= blueprintConfig.chance) {
         const blueprintPool = [
           'Phase_Shift.sh',
           'Neural_Spike.exe',
@@ -98,7 +116,7 @@ export function createRewardDropSystem<T extends GameplayEvents>(
           'Static_Siphon.arc',
           'Neural_Feedback.arc'
         ];
-        const blueprintId = blueprintPool[Math.floor(Math.random() * blueprintPool.length)];
+        const blueprintId = blueprintPool[Math.floor(RNG.getUniform() * blueprintPool.length)];
         const blueprintType = blueprintId.endsWith('.arc') ? 'augment' : 'firmware';
 
         spawnCurrency(w, 'blueprint', 1, pos.x, pos.y, { blueprintId, blueprintType });
@@ -140,7 +158,8 @@ export function createRewardDropSystem<T extends GameplayEvents>(
   };
 
   return {
-    init
+    init,
+    update
   };
 }
 

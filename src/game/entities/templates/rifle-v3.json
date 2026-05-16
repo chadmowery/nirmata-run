@@ -1,0 +1,9 @@
+{
+  "id": "rifle-v3",
+  "name": "Overclocked Kinetic Rifle",
+  "tier": 3,
+  "components": {
+    "weapon": { "damage": 12, "range": 7 },
+    "software": [ "basic-strike", "neural-spike", "ghost-pulse" ]
+  }
+}

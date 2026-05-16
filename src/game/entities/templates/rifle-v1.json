@@ -1,0 +1,9 @@
+{
+  "id": "rifle-v1",
+  "name": "Standard Kinetic Rifle",
+  "tier": 1,
+  "components": {
+    "weapon": { "damage": 5, "range": 5 },
+    "software": [ "basic-strike" ]
+  }
+}

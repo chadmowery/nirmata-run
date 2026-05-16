@@ -1,4 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+vi.mock('rot-js/lib/rng', () => ({
+  default: {
+    getUniform: vi.fn(),
+  },
+}));
+
+import RNG from 'rot-js/lib/rng';
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
@@ -11,6 +19,7 @@ import { ComponentRegistry } from '@engine/entity/types';
 import { Phase } from '@engine/ecs/types';
 
 describe('Currency Drop System', () => {
+
   let world: World<GameEvents>;
   let grid: Grid;
   let eventBus: EventBus<GameEvents>;
@@ -18,6 +27,7 @@ describe('Currency Drop System', () => {
   let componentRegistry: ComponentRegistry;
 
   beforeEach(() => {
+    vi.mocked(RNG.getUniform).mockReturnValue(0.5);
     eventBus = new EventBus<GameEvents>();
     world = new World<GameEvents>(eventBus);
     grid = new Grid(10, 10);
@@ -98,6 +108,9 @@ describe('Currency Drop System', () => {
       world.addComponent(enemyId, LootTable, { tier: 2, drops: [] });
 
       world.addComponent(enemyId, Dying, { killerId: 123 });
+      // Force blueprint to drop by mocking RNG
+      vi.mocked(RNG.getUniform).mockReturnValue(0.01);
+
       world.executeSystems(Phase.CLEANUP);
       eventBus.flush();
 

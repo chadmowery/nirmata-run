@@ -12,10 +12,13 @@
     "corruptionState": { "corruptionWave": 1, "corruptedTileKeys": [], "tilesPerTurn": 2, "spawnFrequency": 3, "turnsSinceLastSpawn": 0 },
     "statusEffects": { "effects": [] },
     "lootTable": {
+      "tier": 2,
       "drops": [
         { "template": "bleed-v2", "chance": 0.4 },
         { "template": "vampire-v2", "chance": 0.3 },
-        { "template": "auto-loader-v2", "chance": 0.3 }
+        { "template": "auto-loader-v2", "chance": 0.3 },
+        { "template": "rifle-v2", "chance": 0.2 },
+        { "template": "armor-v2", "chance": 0.2 }
       ]
     }
   },

@@ -1,0 +1,9 @@
+{
+  "id": "armor-v3",
+  "name": "Overclocked Plating",
+  "tier": 3,
+  "components": {
+    "armor": { "defense": 6 },
+    "software": [ "kinetic-link", "neural-feedback", "phase-shift" ]
+  }
+}

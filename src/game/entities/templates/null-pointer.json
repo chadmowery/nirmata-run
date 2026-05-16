@@ -11,10 +11,13 @@
     "blocksMovement": {},
     "statusEffects": { "effects": [] },
     "lootTable": {
+      "tier": 1,
       "drops": [
         { "template": "health-potion", "chance": 0.25 },
         { "template": "bleed-v0", "chance": 0.15 },
-        { "template": "scrap", "chance": 0.4 }
+        { "template": "scrap", "chance": 0.4 },
+        { "template": "rifle-v1", "chance": 0.1 },
+        { "template": "armor-v1", "chance": 0.1 }
       ]
     }
   },

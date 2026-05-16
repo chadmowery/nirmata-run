@@ -1,0 +1,9 @@
+{
+  "id": "armor-v2",
+  "name": "Refined Plating",
+  "tier": 2,
+  "components": {
+    "armor": { "defense": 4 },
+    "software": [ "kinetic-link", "neural-feedback" ]
+  }
+}

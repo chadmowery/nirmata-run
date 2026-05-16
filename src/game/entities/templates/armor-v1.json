@@ -1,0 +1,9 @@
+{
+  "id": "armor-v1",
+  "name": "Standard Plating",
+  "tier": 1,
+  "components": {
+    "armor": { "defense": 2 },
+    "software": [ "kinetic-link" ]
+  }
+}

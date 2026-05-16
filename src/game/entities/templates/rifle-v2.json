@@ -1,0 +1,9 @@
+{
+  "id": "rifle-v2",
+  "name": "Refined Kinetic Rifle",
+  "tier": 2,
+  "components": {
+    "weapon": { "damage": 8, "range": 6 },
+    "software": [ "basic-strike", "neural-spike" ]
+  }
+}

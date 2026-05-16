@@ -9,6 +9,16 @@
     "aiState": { "behavior": "idle", "sightRadius": 20, "behaviorType": "system_admin" },
     "fovAwareness": { "canSeePlayer": false },
     "blocksMovement": {},
-    "statusEffects": { "effects": [] }
+    "statusEffects": { "effects": [] },
+    "lootTable": {
+      "tier": 3,
+      "drops": [
+        { "template": "rifle-v3", "chance": 0.4 },
+        { "template": "armor-v3", "chance": 0.4 },
+        { "template": "bleed-v3", "chance": 0.5 },
+        { "template": "vampire-v3", "chance": 0.5 },
+        { "template": "auto-loader-v3", "chance": 0.5 }
+      ]
+    }
   }
 }
