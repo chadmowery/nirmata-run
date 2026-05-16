@@ -68,7 +68,7 @@ export const ExtractionIntent = defineComponent(
 export const EquipIntent = defineComponent(
   'equipIntent',
   z.object({
-    slotType: z.enum(['firmware', 'software', 'augment']),
+    slotType: z.enum(['firmware', 'software', 'augment', 'weapon', 'armor']),
     itemEntityId: z.number(),
   })
 );
@@ -79,7 +79,7 @@ export const EquipIntent = defineComponent(
 export const UnequipIntent = defineComponent(
   'unequipIntent',
   z.object({
-    slotType: z.enum(['firmware', 'software', 'augment']),
+    slotType: z.enum(['firmware', 'software', 'augment', 'weapon', 'armor']),
     slotIndex: z.number(),
   })
 );

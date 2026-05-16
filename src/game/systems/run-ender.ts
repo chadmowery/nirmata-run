@@ -6,7 +6,7 @@ import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
 import { AIState, AIBehaviorType } from '@shared/components/ai-state';
 import { FloorState } from '@shared/components/floor-state';
-import { RunInventory, BurnedSoftware, MovedThisTurn, Dying, FirmwareSlots, SoftwareSlots, AugmentSlots, Stability, ExtractionIntent } from '@shared/components';
+import { RunInventory, EquipmentSlots, MovedThisTurn, Dying, FirmwareSlots, SoftwareSlots, AugmentSlots, Stability, ExtractionIntent } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { GameplayEvents } from '@shared/events/types';
 import { logger } from '@engine/utils/logger';
@@ -92,8 +92,8 @@ export function createRunEnderSystem<T extends GameplayEvents>(
 
         // Finalize inventory (clear for extraction)
         InventoryUtil.clearInventory(world, playerId);
-        if (world.hasComponent(playerId, BurnedSoftware)) {
-          world.patchComponent(playerId, BurnedSoftware, { weapon: null, armor: null });
+        if (world.hasComponent(playerId, EquipmentSlots)) {
+          world.patchComponent(playerId, EquipmentSlots, { weapon: null, armor: null });
         }
       } else {
         const totalScrap = InventoryUtil.getCurrencyAmount(world, playerId, 'scrap');
@@ -102,8 +102,8 @@ export function createRunEnderSystem<T extends GameplayEvents>(
         pityAwarded = true;
 
         InventoryUtil.clearInventory(world, playerId);
-        if (world.hasComponent(playerId, BurnedSoftware)) {
-          world.patchComponent(playerId, BurnedSoftware, { weapon: null, armor: null });
+        if (world.hasComponent(playerId, EquipmentSlots)) {
+          world.patchComponent(playerId, EquipmentSlots, { weapon: null, armor: null });
         }
         if (finalScrap > 0) InventoryUtil.addCurrency(world, playerId, 'scrap', finalScrap);
       }

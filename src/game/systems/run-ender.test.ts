@@ -3,7 +3,7 @@ import { World } from '../../engine/ecs/world';
 import { Grid } from '../../engine/grid/grid';
 import { EventBus } from '../../engine/events/event-bus';
 import { createRunEnderSystem } from './run-ender';
-import { Actor, Position, FloorState, RunInventory, BurnedSoftware, MovedThisTurn, AIState, AIBehaviorType, AIBehavior, Dying, Stability, ExtractionIntent } from '@shared/components';
+import { Actor, Position, FloorState, RunInventory, EquipmentSlots, MovedThisTurn, AIState, AIBehaviorType, AIBehavior, Dying, Stability, ExtractionIntent } from '@shared/components';
 import { Phase } from '../../engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
 
@@ -45,13 +45,13 @@ describe('RunEnderSystem', () => {
     world.addComponent(playerId, Actor, { isPlayer: true });
     world.addComponent(playerId, Position, { x: 1, y: 1 });
     world.addComponent(playerId, RunInventory, { software: [], equipment: [], maxSlots: 5 });
-    world.addComponent(playerId, BurnedSoftware, { weapon: 101, armor: 102 });
+    world.addComponent(playerId, EquipmentSlots, { weapon: 101, armor: 102 });
 
     // Mark as dying and execute cleanup
     world.addComponent(playerId, Dying, { killerId: 0 });
     world.executeSystems(Phase.CLEANUP);
 
-    const burned = world.getComponent(playerId, BurnedSoftware);
+    const burned = world.getComponent(playerId, EquipmentSlots);
     expect(burned?.weapon).toBe(null);
     expect(burned?.armor).toBe(null);
     expect(world.getComponent(playerId, RunInventory)?.software.length).toBe(0);

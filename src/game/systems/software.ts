@@ -2,7 +2,7 @@ import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
 import { Phase } from '@engine/ecs/types';
 import { logger } from '@engine/utils/logger';
-import { DealtDamageThisTurn, Dying, SoftwareDef, BurnedSoftware, BurnSoftwareIntent } from '@shared/components';
+import { DealtDamageThisTurn, Dying, SoftwareDef, EquipmentSlots, BurnSoftwareIntent } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { applyBleedOnHit, applyVampireOnKill } from './software-effects';
 import * as InventoryUtil from '@shared/utils/inventory-util';
@@ -60,10 +60,10 @@ export function createSoftwareSystem<T extends GameplayEvents>(
       }
 
       // 2. Duplicate check
-      let burned = w.getComponent(entityId, BurnedSoftware);
+      let burned = w.getComponent(entityId, EquipmentSlots);
       if (!burned) {
         const newData = { weapon: null, armor: null };
-        w.addComponent(entityId, BurnedSoftware, newData);
+        w.addComponent(entityId, EquipmentSlots, newData);
         burned = newData;
       }
 
@@ -91,7 +91,7 @@ export function createSoftwareSystem<T extends GameplayEvents>(
         w.addComponent(oldSoftwareId, Dying, { reason: 'overwritten' });
       }
 
-      w.patchComponent(entityId, BurnedSoftware, {
+      w.patchComponent(entityId, EquipmentSlots, {
         [targetSlot]: softwareEntityId
       });
       InventoryUtil.removeSoftware(w, entityId, inventoryIndex);

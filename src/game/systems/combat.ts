@@ -3,7 +3,7 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { EntityId, Phase } from '@engine/ecs/types';
-import { Attack, Defense, Health, Actor, Heat, BurnedSoftware, SoftwareDef, RarityTier, Dying, StatusEffects, AugmentSlots, AugmentData, DealtDamageThisTurn } from '@shared/components';
+import { Attack, Defense, Health, Actor, Heat, EquipmentSlots, Children, SoftwareDef, RarityTier, Dying, StatusEffects, AugmentSlots, AugmentData, DealtDamageThisTurn } from '@shared/components';
 import { AttackIntent, DamageIntent, HealIntent } from '@shared/components/intents';
 import { createTriggerContext, evaluateCondition } from './augment-util';
 
@@ -44,28 +44,53 @@ export function resolveDamage(
 }
 
 /**
- * Collects active damage modifiers for an entity based on burned software.
+ * Gets effective armor by traversing EquipmentSlots hierarchy.
+ */
+export function getEffectiveArmor<T extends GameplayEvents>(
+  world: World<T>,
+  defenderId: EntityId,
+  isVenting: boolean
+): number {
+  if (isVenting) return 0;
+  const baseDefense = world.getComponent(defenderId, Defense);
+  const equipment = world.getComponent(defenderId, EquipmentSlots);
+
+  let armor = baseDefense?.armor ?? 0;
+  if (equipment && equipment.armor !== null) {
+    const armorEntityDef = world.getComponent(equipment.armor, Defense);
+    armor += armorEntityDef?.armor ?? 0;
+  }
+  return armor;
+}
+
+/**
+ * Collects active damage modifiers for an entity based on equipped weapon hierarchy.
  */
 export function collectDamageModifiers<T extends GameplayEvents>(
   world: World<T>,
   attackerId: EntityId
 ): DamageModifier[] {
   const modifiers: DamageModifier[] = [];
-  const burnedSoftware = world.getComponent(attackerId, BurnedSoftware);
-  if (!burnedSoftware) return modifiers;
+  const equipment = world.getComponent(attackerId, EquipmentSlots);
+  if (!equipment) return modifiers;
 
-  // Collect weapon Software modifier (offensive Software on weapon)
-  if (burnedSoftware.weapon !== null) {
-    const softwareDef = world.getComponent(burnedSoftware.weapon, SoftwareDef);
-    const rarity = world.getComponent(burnedSoftware.weapon, RarityTier);
-    if (softwareDef && rarity && softwareDef.effectType !== 'dot' && softwareDef.effectType !== 'action_economy' && softwareDef.effectType !== 'heal_on_kill') {
-      // Non-DoT weapon Software adds flat damage bonus
-      modifiers.push({
-        source: `software:${softwareDef.type}`,
-        type: 'additive',
-        value: softwareDef.baseMagnitude * rarity.scaleFactor,
-        phase: 'pre_defense',
-      });
+  // Collect weapon Software modifiers (traversing hierarchy)
+  if (equipment.weapon !== null) {
+    const weaponId = equipment.weapon;
+    const children = world.getComponent(weaponId, Children);
+    if (children) {
+      for (const childId of children.entityIds) {
+        const softwareDef = world.getComponent(childId, SoftwareDef);
+        const rarity = world.getComponent(childId, RarityTier);
+        if (softwareDef && rarity && softwareDef.effectType !== 'dot' && softwareDef.effectType !== 'action_economy' && softwareDef.effectType !== 'heal_on_kill') {
+          modifiers.push({
+            source: `software:${softwareDef.type}`,
+            type: 'additive',
+            value: softwareDef.baseMagnitude * rarity.scaleFactor,
+            phase: 'pre_defense',
+          });
+        }
+      }
     }
   }
 
@@ -152,9 +177,8 @@ export function createCombatSystem<T extends GameplayEvents>(
       }
 
       const modifiers = collectDamageModifiers(w, attackerId);
-      const armor = defenderDefense?.armor ?? 0;
       const defenderHeat = w.getComponent(defenderId, Heat);
-      const effectiveArmor = defenderHeat?.isVenting ? 0 : armor;
+      const effectiveArmor = getEffectiveArmor(w, defenderId, defenderHeat?.isVenting ?? false);
 
       const damage = resolveDamage(attackerAttack.power, modifiers, effectiveArmor);
       const oldHealth = defenderHealth.current;
@@ -219,7 +243,7 @@ export function createCombatSystem<T extends GameplayEvents>(
 
       const armor = targetDefense?.armor ?? 0;
       const targetHeat = w.getComponent(targetId, Heat);
-      const effectiveArmor = targetHeat?.isVenting ? 0 : armor;
+      const effectiveArmor = getEffectiveArmor(w, targetId, targetHeat?.isVenting ?? false);
 
       // Abilities use raw amount minus armor
       const finalDamage = Math.max(1, intent.amount - effectiveArmor);

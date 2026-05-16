@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { SoftwareDef } from '../../shared/components/software-def';
-import { BurnedSoftware } from '../../shared/components/burned-software';
+import { EquipmentSlots, Children } from '@shared/components';
 import { RarityTier, RARITY_SCALE_FACTORS } from '../../shared/components/rarity-tier';
 import { RunInventory, RunCurrency } from '../../shared/components/run-inventory';
 import * as InventoryUtil from '../../shared/utils/inventory-util';
@@ -65,7 +65,8 @@ describe('Software System', () => {
         scaleFactor: 1.5,
         minFloor: 0,
       });
-      world.addComponent(attacker, BurnedSoftware, { weapon: swEntity, armor: null });
+      world.addComponent(attacker, EquipmentSlots, { weapon: swEntity, armor: null });
+      world.addComponent(swEntity, Children, { entityIds: [swEntity] });
 
       const modifiers = collectDamageModifiers(world, attacker);
       expect(modifiers).toHaveLength(1);
@@ -93,7 +94,8 @@ describe('Software System', () => {
       });
       world.addComponent(bleedSw, RarityTier, { tier: 'v0.x', scaleFactor: 1, minFloor: 0 });
 
-      world.addComponent(attacker, BurnedSoftware, { weapon: bleedSw, armor: null });
+      world.addComponent(attacker, EquipmentSlots, { weapon: bleedSw, armor: null });
+      world.addComponent(bleedSw, Children, { entityIds: [bleedSw] });
 
       expect(collectDamageModifiers(world, attacker)).toEqual([]);
     });
@@ -137,13 +139,13 @@ describe('Software System', () => {
     });
   });
 
-  describe('BurnedSoftware Component', () => {
-    it('validates BurnedSoftware schema with weapon and armor nullable', () => {
+  describe('EquipmentSlots Component', () => {
+    it('validates EquipmentSlots schema with weapon and armor nullable', () => {
       const validData = {
         weapon: 123,
         armor: null,
       };
-      const result = BurnedSoftware.schema.safeParse(validData);
+      const result = EquipmentSlots.schema.safeParse(validData);
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.weapon).toBe(123);
@@ -152,7 +154,7 @@ describe('Software System', () => {
     });
 
     it('uses default null values', () => {
-      const result = BurnedSoftware.schema.safeParse({});
+      const result = EquipmentSlots.schema.safeParse({});
       expect(result.success).toBe(true);
       if (result.success) {
         expect(result.data.weapon).toBe(null);
@@ -285,7 +287,7 @@ describe('Software System', () => {
         targetSlot: 'weapon',
       }, sessionId);
 
-      const burned = newWorld.getComponent(playerId, BurnedSoftware);
+      const burned = newWorld.getComponent(playerId, EquipmentSlots);
       expect(burned?.weapon).toBe(swEntity);
       expect(newWorld.getComponent(playerId, RunInventory)?.software.length).toBe(0);
     });
@@ -316,7 +318,7 @@ describe('Software System', () => {
         targetSlot: 'weapon',
       }, sessionId);
 
-      const burned = newWorld.getComponent(playerId, BurnedSoftware);
+      const burned = newWorld.getComponent(playerId, EquipmentSlots);
       expect(burned).toBeUndefined();
       expect(newWorld.getComponent(playerId, RunInventory)?.software.length).toBe(1);
     });
@@ -333,7 +335,7 @@ describe('Software System', () => {
         purchaseCost: 0,
       });
 
-      world.addComponent(playerId, BurnedSoftware, { weapon: sw1, armor: null });
+      world.addComponent(playerId, EquipmentSlots, { weapon: sw1, armor: null });
 
       const sw2 = world.createEntity();
       world.addComponent(sw2, SoftwareDef, {
@@ -360,7 +362,7 @@ describe('Software System', () => {
         targetSlot: 'armor',
       }, sessionId);
 
-      const burned = newWorld.getComponent(playerId, BurnedSoftware);
+      const burned = newWorld.getComponent(playerId, EquipmentSlots);
       expect(burned?.armor).toBe(null);
       expect(burned?.weapon).toBe(sw1);
       expect(newWorld.getComponent(playerId, RunInventory)?.software.length).toBe(1);
@@ -378,7 +380,7 @@ describe('Software System', () => {
         purchaseCost: 0,
       });
 
-      world.addComponent(playerId, BurnedSoftware, { weapon: swOld, armor: null });
+      world.addComponent(playerId, EquipmentSlots, { weapon: swOld, armor: null });
 
       const swNew = world.createEntity();
       world.addComponent(swNew, SoftwareDef, {
@@ -405,7 +407,7 @@ describe('Software System', () => {
         targetSlot: 'weapon',
       }, sessionId);
 
-      const burned = newWorld.getComponent(playerId, BurnedSoftware);
+      const burned = newWorld.getComponent(playerId, EquipmentSlots);
       expect(burned?.weapon).toBe(swNew);
       // Old software should be destroyed by Gravedigger in Phase.CLEANUP
       expect(newWorld.query().includes(swOld)).toBe(false);
@@ -426,19 +428,19 @@ describe('Software System', () => {
       playerId = world.createEntity();
       world.addComponent(playerId, Actor, { isPlayer: true });
       world.addComponent(playerId, Position, { x: 0, y: 0 });
-      world.addComponent(playerId, BurnedSoftware, { weapon: 101, armor: 102 });
+      world.addComponent(playerId, EquipmentSlots, { weapon: 101, armor: 102 });
       world.addComponent(playerId, RunInventory, { software: [], equipment: [], maxSlots: 5 });
       world.addComponent(playerId, RunCurrency, { stacks: [] });
     });
 
-    it('Dying component and CLEANUP clears BurnedSoftware weapon and armor to null', () => {
+    it('Dying component and CLEANUP clears EquipmentSlots weapon and armor to null', () => {
       const runEnder = createRunEnderSystem(world, grid, eventBus);
       runEnder.init();
 
       world.addComponent(playerId, Dying, { killerId: 0 });
       world.executeSystems(Phase.CLEANUP);
 
-      const burned = world.getComponent(playerId, BurnedSoftware);
+      const burned = world.getComponent(playerId, EquipmentSlots);
       expect(burned?.weapon).toBe(null);
       expect(burned?.armor).toBe(null);
     });
@@ -470,7 +472,7 @@ describe('Software System', () => {
         description: '...',
         purchaseCost: 0,
       });
-      world.addComponent(playerId, BurnedSoftware, { weapon: swEntity, armor: null });
+      world.addComponent(playerId, EquipmentSlots, { weapon: swEntity, armor: null });
 
       const events: any[] = [];
       world['eventBus'].on('ENTITY_MOVED', (e) => events.push({ type: 'ENTITY_MOVED', ...e }));
@@ -499,7 +501,7 @@ describe('Software System', () => {
     });
 
     it('MOVE_AND_USE_FIRMWARE fails without Auto-Loader', () => {
-      world.addComponent(playerId, BurnedSoftware, { weapon: null, armor: null });
+      world.addComponent(playerId, EquipmentSlots, { weapon: null, armor: null });
 
       const { world: newWorld } = runActionPipeline(world, grid, playerId, {
         type: 'MOVE_AND_USE_FIRMWARE',
@@ -534,7 +536,7 @@ describe('Software System', () => {
         purchaseCost: 0,
       });
       world.addComponent(swEntity, RarityTier, { tier: 'v0.x', scaleFactor: 1, minFloor: 0 });
-      world.addComponent(attacker, BurnedSoftware, { weapon: swEntity, armor: null });
+      world.addComponent(attacker, EquipmentSlots, { weapon: swEntity, armor: null });
       world.addComponent(defender, StatusEffects, { effects: [] });
 
       applyBleedOnHit(world, eventBus, attacker, defender);
@@ -563,7 +565,7 @@ describe('Software System', () => {
         purchaseCost: 0,
       });
       world.addComponent(swEntity, RarityTier, { tier: 'v2.x', scaleFactor: 2.0, minFloor: 0 });
-      world.addComponent(attacker, BurnedSoftware, { weapon: swEntity, armor: null });
+      world.addComponent(attacker, EquipmentSlots, { weapon: swEntity, armor: null });
       world.addComponent(defender, StatusEffects, { effects: [] });
 
       applyBleedOnHit(world, eventBus, attacker, defender);
@@ -578,7 +580,7 @@ describe('Software System', () => {
       const attacker = world.createEntity();
       const defender = world.createEntity();
 
-      world.addComponent(attacker, BurnedSoftware, { weapon: null, armor: null });
+      world.addComponent(attacker, EquipmentSlots, { weapon: null, armor: null });
       world.addComponent(defender, StatusEffects, { effects: [] });
 
       applyBleedOnHit(world, eventBus, attacker, defender);
@@ -601,7 +603,7 @@ describe('Software System', () => {
         description: '...',
         purchaseCost: 0,
       });
-      world.addComponent(entity, BurnedSoftware, { weapon: swEntity, armor: null });
+      world.addComponent(entity, EquipmentSlots, { weapon: swEntity, armor: null });
 
       expect(checkAutoLoader(world, entity)).toBe(true);
     });
@@ -609,7 +611,7 @@ describe('Software System', () => {
     it('checkAutoLoader returns false when no Auto-Loader burned', () => {
       const world = new World<GameplayEvents>(new EventBus<GameplayEvents>());
       const entity = world.createEntity();
-      world.addComponent(entity, BurnedSoftware, { weapon: null, armor: null });
+      world.addComponent(entity, EquipmentSlots, { weapon: null, armor: null });
 
       expect(checkAutoLoader(world, entity)).toBe(false);
     });
@@ -632,7 +634,7 @@ describe('Software System', () => {
         purchaseCost: 0,
       });
       world.addComponent(swEntity, RarityTier, { tier: 'v0.x', scaleFactor: 1.0, minFloor: 0 });
-      world.addComponent(player, BurnedSoftware, { weapon: null, armor: swEntity });
+      world.addComponent(player, EquipmentSlots, { weapon: null, armor: swEntity });
       world.addComponent(player, Health, Health.schema.parse({ current: 10, max: 20 }));
 
       applyVampireOnKill(world, eventBus, player);
@@ -659,7 +661,7 @@ describe('Software System', () => {
         purchaseCost: 0,
       });
       world.addComponent(swEntity, RarityTier, { tier: 'v3.x', scaleFactor: 3.0, minFloor: 0 });
-      world.addComponent(player, BurnedSoftware, { weapon: null, armor: swEntity });
+      world.addComponent(player, EquipmentSlots, { weapon: null, armor: swEntity });
       world.addComponent(player, Health, Health.schema.parse({ current: 10, max: 30 }));
 
       applyVampireOnKill(world, eventBus, player);
@@ -684,7 +686,7 @@ describe('Software System', () => {
         purchaseCost: 0,
       });
       world.addComponent(swEntity, RarityTier, { tier: 'v0.x', scaleFactor: 1.0, minFloor: 0 });
-      world.addComponent(player, BurnedSoftware, { weapon: null, armor: swEntity });
+      world.addComponent(player, EquipmentSlots, { weapon: null, armor: swEntity });
       world.addComponent(player, Health, Health.schema.parse({ current: 18, max: 20 }));
 
       applyVampireOnKill(world, eventBus, player);
@@ -721,7 +723,7 @@ describe('Software System', () => {
       });
       world.addComponent(vampireSw, RarityTier, { tier: 'v0.x', scaleFactor: 1, minFloor: 0 });
 
-      world.addComponent(player, BurnedSoftware, { weapon: bleedSw, armor: vampireSw });
+      world.addComponent(player, EquipmentSlots, { weapon: bleedSw, armor: vampireSw });
       world.addComponent(player, Health, Health.schema.parse({ current: 10, max: 20 }));
       world.addComponent(defender, StatusEffects, { effects: [] });
 
@@ -747,7 +749,7 @@ describe('Software System', () => {
         name: 'Bleed.exe', type: 'bleed', targetSlot: 'weapon', baseMagnitude: 10, effectType: 'dot', description: '...', purchaseCost: 0
       });
       world.addComponent(swEntity, RarityTier, { tier: 'v1.x', scaleFactor: 1.5, minFloor: 0 });
-      world.addComponent(attacker, BurnedSoftware, { weapon: swEntity, armor: null });
+      world.addComponent(attacker, EquipmentSlots, { weapon: swEntity, armor: null });
       world.addComponent(defender, StatusEffects, { effects: [] });
 
       applyBleedOnHit(world, eventBus, attacker, defender);

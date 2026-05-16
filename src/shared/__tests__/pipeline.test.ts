@@ -4,7 +4,7 @@ import { Grid } from '../../engine/grid/grid';
 import { EventBus } from '../../engine/events/event-bus';
 import { GameplayEvents } from '../events/types';
 import { runActionPipeline } from '../pipeline';
-import { Position, Health, Hostile, Attack, Defense, Actor } from '../../shared/components';
+import { Position, Health, Hostile, Attack, Defense, Actor, EquipmentSlots } from '../../shared/components';
 
 describe('ActionPipeline', () => {
   let world: World<GameplayEvents>;
@@ -75,5 +75,41 @@ describe('ActionPipeline', () => {
 
     expect(delta.world.length).toBe(0);
     expect(delta.grid.length).toBe(0);
+  });
+
+  describe('Equipment gear actions (weapon/armor)', () => {
+    beforeEach(() => {
+      world.addComponent(PLAYER_ID, EquipmentSlots, { weapon: null, armor: null });
+    });
+
+    it('should equip a weapon', () => {
+      const action = { type: 'EQUIP' as const, shellId: 'shell', slotType: 'weapon' as const, itemEntityId: 99 };
+      const { world: newWorld } = runActionPipeline(world, grid, PLAYER_ID, action);
+      const equipment = newWorld.getComponent(PLAYER_ID, EquipmentSlots);
+      expect(equipment?.weapon).toBe(99);
+    });
+
+    it('should unequip a weapon', () => {
+      world.patchComponent(PLAYER_ID, EquipmentSlots, { weapon: 99 });
+      const action = { type: 'UNEQUIP' as const, slotType: 'weapon' as const, slotIndex: 0 };
+      const { world: newWorld } = runActionPipeline(world, grid, PLAYER_ID, action);
+      const equipment = newWorld.getComponent(PLAYER_ID, EquipmentSlots);
+      expect(equipment?.weapon).toBe(null);
+    });
+
+    it('should equip armor', () => {
+      const action = { type: 'EQUIP' as const, shellId: 'shell', slotType: 'armor' as const, itemEntityId: 88 };
+      const { world: newWorld } = runActionPipeline(world, grid, PLAYER_ID, action);
+      const equipment = newWorld.getComponent(PLAYER_ID, EquipmentSlots);
+      expect(equipment?.armor).toBe(88);
+    });
+
+    it('should unequip armor', () => {
+      world.patchComponent(PLAYER_ID, EquipmentSlots, { armor: 88 });
+      const action = { type: 'UNEQUIP' as const, slotType: 'armor' as const, slotIndex: 0 };
+      const { world: newWorld } = runActionPipeline(world, grid, PLAYER_ID, action);
+      const equipment = newWorld.getComponent(PLAYER_ID, EquipmentSlots);
+      expect(equipment?.armor).toBe(null);
+    });
   });
 });

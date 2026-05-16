@@ -189,12 +189,12 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     playerOverrides['softwareSlots'] = { equipped: softwareIds };
     playerOverrides['augmentSlots'] = { equipped: augmentIds };
 
-    // Populate "BurnedSoftware" component for passive software effects
-    playerOverrides['burnedSoftware'] = {
-      weapon: weaponSoftwareId,
-      armor: armorSoftwareId,
+    // Populate "EquipmentSlots" component
+    playerOverrides['equipmentSlots'] = {
+      weapon: null,
+      armor: null,
     };
-  }
+    }
 
   // Phase 16: Starter Loadout fallback (D-02, D-04)
   const hasEquippedItems = ((playerOverrides['firmwareSlots'] as any)?.equipped?.length || 0) > 0 ||

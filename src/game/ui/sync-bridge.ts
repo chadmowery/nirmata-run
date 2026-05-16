@@ -12,7 +12,7 @@ import { AugmentSlots } from '@shared/components/augment-slots';
 import { SoftwareSlots } from '@shared/components/software-slots';
 import { Heat } from '@shared/components/heat';
 import { Shell } from '@shared/components/shell';
-import { BurnedSoftware } from '@shared/components/burned-software';
+import { EquipmentSlots } from '@shared/components';
 import { AbilityDef } from '@shared/components/ability-def';
 import { SoftwareDef } from '@shared/components/software-def';
 import { StatusEffects } from '@shared/components/status-effects';
@@ -34,7 +34,7 @@ export function syncEngineToStore(context: GameContext) {
     const floorState = world.getComponent(context.playerId, FloorState);
     const heat = world.getComponent(context.playerId, Heat);
     const shell = world.getComponent(context.playerId, Shell);
-    const burned = world.getComponent(context.playerId, BurnedSoftware);
+    const burned = world.getComponent(context.playerId, EquipmentSlots);
     const fSlots = world.getComponent(context.playerId, FirmwareSlots);
 
     // New authoritative source for run currency

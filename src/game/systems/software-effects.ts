@@ -1,7 +1,7 @@
 import { World } from '@engine/ecs/world';
 import { EntityId } from '@engine/ecs/types';
 import { EventBus } from '@engine/events/event-bus';
-import { BurnedSoftware, SoftwareDef, RarityTier, HealIntent, ApplyStatusEffectIntent } from '@shared/components';
+import { EquipmentSlots, SoftwareDef, RarityTier, HealIntent, ApplyStatusEffectIntent } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 
 /**
@@ -15,7 +15,7 @@ export function applyBleedOnHit<T extends GameplayEvents>(
   attackerId: EntityId,
   defenderId: EntityId,
 ): void {
-  const burned = world.getComponent(attackerId, BurnedSoftware);
+  const burned = world.getComponent(attackerId, EquipmentSlots);
   if (!burned?.weapon) return;
 
   const softwareDef = world.getComponent(burned.weapon, SoftwareDef);
@@ -49,7 +49,7 @@ export function checkAutoLoader<T extends GameplayEvents>(
   world: World<T>,
   entityId: EntityId,
 ): boolean {
-  const burned = world.getComponent(entityId, BurnedSoftware);
+  const burned = world.getComponent(entityId, EquipmentSlots);
   if (!burned?.weapon) return false;
 
   const softwareDef = world.getComponent(burned.weapon, SoftwareDef);
@@ -67,7 +67,7 @@ export function applyVampireOnKill<T extends GameplayEvents>(
   eventBus: EventBus<T>,
   killerId: EntityId,
 ): void {
-  const burned = world.getComponent(killerId, BurnedSoftware);
+  const burned = world.getComponent(killerId, EquipmentSlots);
   if (!burned?.armor) return;
 
   const softwareDef = world.getComponent(burned.armor, SoftwareDef);

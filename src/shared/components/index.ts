@@ -24,7 +24,7 @@ import { StatusEffects } from './status-effects';
 import { AugmentData } from './augment-data';
 import { AugmentState } from './augment-state';
 import { SoftwareDef } from './software-def';
-import { BurnedSoftware } from './burned-software';
+import { EquipmentSlots } from './equipment-slots';
 import { RarityTier } from './rarity-tier';
 import { PackMember } from './pack-member';
 import { DeadZone } from './dead-zone';
@@ -77,7 +77,7 @@ export * from './status-effects';
 export * from './augment-data';
 export * from './augment-state';
 export * from './software-def';
-export * from './burned-software';
+export * from './equipment-slots';
 export * from './rarity-tier';
 export * from './pack-member';
 export * from './dead-zone';
@@ -127,7 +127,7 @@ export const COMPONENTS_REGISTRY = [
   AugmentData,
   AugmentState,
   SoftwareDef,
-  BurnedSoftware,
+  EquipmentSlots,
   RarityTier,
   PackMember,
   DeadZone,

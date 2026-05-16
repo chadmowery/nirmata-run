@@ -26,13 +26,13 @@ export const WaitActionSchema = z.object({
 export const EquipActionSchema = z.object({
   type: z.literal('EQUIP'),
   shellId: z.string(),
-  slotType: z.enum(['firmware', 'augment', 'software']),
+  slotType: z.enum(['firmware', 'augment', 'software', 'weapon', 'armor']),
   itemEntityId: z.number(),
 });
 
 export const UnequipActionSchema = z.object({
   type: z.literal('UNEQUIP'),
-  slotType: z.enum(['firmware', 'augment', 'software']),
+  slotType: z.enum(['firmware', 'augment', 'software', 'weapon', 'armor']),
   slotIndex: z.number(),
 });
 
