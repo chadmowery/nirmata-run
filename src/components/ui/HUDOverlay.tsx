@@ -6,12 +6,15 @@ import { MessageLog } from './MessageLog';
 import { NearbyEntities } from './NearbyEntities';
 import { FloorIndicator } from './FloorIndicator';
 import EventTimelinePanel from './EventTimelinePanel';
+import { InventoryOverlay } from './inventory/InventoryOverlay';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import styles from './styles.module.css';
 
 export const HUDOverlay: React.FC = () => {
   const heatTier = useStore(gameStore, (s) => s.heatTier);
+  const inventoryVisible = useStore(gameStore, (s) => s.inventoryVisible);
+  const toggleInventory = () => gameStore.getState().toggleInventory();
 
   // Map tier number to CSS module class name
   const tierClassMap: Record<number, string> = {
@@ -27,6 +30,7 @@ export const HUDOverlay: React.FC = () => {
 
   return (
     <div className={`${styles.overlay} ${tierClass}`}>
+      {inventoryVisible && <InventoryOverlay onClose={toggleInventory} />}
       <FloorIndicator />
       <PlayerHUD />
       <NearbyEntities />

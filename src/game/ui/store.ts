@@ -139,6 +139,8 @@ export interface UIState {
   targetingRange: number;
   targetingX: number;
   targetingY: number;
+  inventoryVisible: boolean;
+  inventoryRevision: number;
 
   // Actions
   updatePlayerStats: (stats: Partial<PlayerStats>) => void;
@@ -146,6 +148,8 @@ export interface UIState {
   setGameStatus: (status: GameStatus) => void;
   setVisibleEntities: (entities: VisibleEntity[]) => void;
   updateStats: (stats: Partial<RunStats>) => void;
+  toggleInventory: () => void;
+  incrementInventoryRevision: () => void;
   
   // Phase 12 actions
   updateStability: (stability: number, max: number) => void;
@@ -249,6 +253,8 @@ export const gameStore = createStore<UIState>((set) => ({
   targetingRange: 0,
   targetingX: 0,
   targetingY: 0,
+  inventoryVisible: false,
+  inventoryRevision: 0,
   heatTier: 0,
   heatValue: 0,
   heatMaxSafe: 100,
@@ -373,6 +379,8 @@ export const gameStore = createStore<UIState>((set) => ({
     heatTier: 0,
     heatValue: 0,
     heatMaxSafe: 100,
+    inventoryVisible: false,
+    inventoryRevision: 0,
     messages: [],
   }),
   clearMessages: () => set({ messages: [] }),
@@ -429,5 +437,7 @@ export const gameStore = createStore<UIState>((set) => ({
       targetingY: y
     }),
   updateTargetingCursor: (x, y) => set({ targetingX: x, targetingY: y }),
+  toggleInventory: () => set((state) => ({ inventoryVisible: !state.inventoryVisible })),
+  incrementInventoryRevision: () => set((state) => ({ inventoryRevision: state.inventoryRevision + 1 })),
   updateHeatTier: (tier, value, maxSafe) => set({ heatTier: tier, heatValue: value, heatMaxSafe: maxSafe }),
 }));

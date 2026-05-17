@@ -13,7 +13,8 @@ import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import economy from '@game/entities/templates/economy.json';
 import { handleServerDebugCommand } from '@game/debug/server-debug-handler';
 import { EventOriginContext } from '@engine/utils/event-context';
-import { DescentIntent, ExtractionIntent } from '@shared/components';
+import { ExtractionIntent, DescentIntent } from '@shared/components';
+import { handleInventorySwap } from '@game/intent/inventory-intent';
 
 export async function POST(req: Request) {
 
@@ -99,6 +100,12 @@ export async function POST(req: Request) {
         world.addComponent(session.playerId, ExtractionIntent, { reason: 'manual' });
         actionKey = 'ANCHOR_EXTRACT';
         break;
+
+      case 'INVENTORY_SWAP': {
+        handleInventorySwap(world as any, session.playerId, action.sourceIndex, action.destinationIndex);
+        actionKey = 'INVENTORY_SWAP';
+        break;
+      }
 
       case 'DEBUG_COMMAND':
         handleServerDebugCommand(world, eventBus, session.playerId, sessionId, action.command, action.args, session.systems);

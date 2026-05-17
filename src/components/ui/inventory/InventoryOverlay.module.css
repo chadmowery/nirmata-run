@@ -1,0 +1,50 @@
+.overlayContainer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+.splitLayout {
+  display: flex;
+  gap: 32px;
+  padding: 48px;
+  max-width: 1200px;
+  width: 100%;
+}
+
+.panel {
+  flex: 1;
+  background-color: rgba(0, 20, 0, 0.85);
+  border: 1px solid #00ff41;
+  padding: 24px;
+}
+
+.gridContainer {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.slot {
+  width: 64px;
+  height: 64px;
+  border: 1px solid #374151;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slotFilled {
+  border: 1px solid #00F0FF;
+  color: #00F0FF;
+}
+
+.softwareIndicator {
+  display: flex;
+  gap: 2px;
+  margin-top: 4px;
+}

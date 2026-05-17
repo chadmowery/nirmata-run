@@ -21,6 +21,7 @@ export enum GameAction {
   STAIRCASE_DESCEND = 'STAIRCASE_DESCEND',
   DEBUG_PATHFIND_ANCHOR = 'DEBUG_PATHFIND_ANCHOR',
   DEBUG_TOGGLE_TIMELINE = 'DEBUG_TOGGLE_TIMELINE',
+  TOGGLE_INVENTORY = 'TOGGLE_INVENTORY',
 }
 
 /**
@@ -57,6 +58,7 @@ export const DEFAULT_BINDINGS: Record<string, GameAction> = {
   // Interaction
   'Shift+Period': GameAction.INTERACT_STAIRCASE,
   KeyE: GameAction.INTERACT_ANCHOR,
+  KeyI: GameAction.TOGGLE_INVENTORY,
 };
 
 /**

@@ -101,6 +101,12 @@ export const DebugActionSchema = z.object({
   args: z.record(z.string(), z.any()).optional(),
 });
 
+export const InventorySwapActionSchema = z.object({
+  type: z.literal('INVENTORY_SWAP'),
+  sourceIndex: z.number().int(),
+  destinationIndex: z.number().int(),
+});
+
 export const ActionIntentSchema = z.discriminatedUnion('type', [
   MoveActionSchema,
   AttackActionSchema,
@@ -119,6 +125,7 @@ export const ActionIntentSchema = z.discriminatedUnion('type', [
   StaircaseDescendActionSchema,
   PickupCurrencyActionSchema,
   DebugActionSchema,
+  InventorySwapActionSchema,
 ]);
 
 export type ActionIntent = z.infer<typeof ActionIntentSchema>;

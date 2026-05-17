@@ -109,8 +109,15 @@ export function addSoftware<T extends EngineEvents>(
     return false;
   }
 
+  // Find first empty gridIndex
+  const usedIndices = new Set(runInventory.software.map(s => s.gridIndex).filter(i => i !== undefined));
+  let gridIndex = 0;
+  while (usedIndices.has(gridIndex)) {
+    gridIndex++;
+  }
+
   world.patchComponent(playerId, RunInventory, {
-    software: [...runInventory.software, item]
+    software: [...runInventory.software, { ...item, gridIndex }]
   });
   return true;
 }
@@ -128,8 +135,15 @@ export function addEquipment<T extends EngineEvents>(
     return false;
   }
 
+  // Find first empty gridIndex
+  const usedIndices = new Set(runInventory.equipment.map(s => s.gridIndex).filter(i => i !== undefined));
+  let gridIndex = 0;
+  while (usedIndices.has(gridIndex)) {
+    gridIndex++;
+  }
+
   world.patchComponent(playerId, RunInventory, {
-    equipment: [...runInventory.equipment, item]
+    equipment: [...runInventory.equipment, { ...item, gridIndex }]
   });
   return true;
 }

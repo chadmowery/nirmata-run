@@ -253,6 +253,7 @@ export function syncEngineToStore(context: GameContext) {
 
   // Sync listener to refresh HUD when registry updates (D-15)
   eventBus.on('RUN_INVENTORY_SYNCED', () => {
+    gameStore.getState().incrementInventoryRevision();
     refreshPlayerStats();
   });
 

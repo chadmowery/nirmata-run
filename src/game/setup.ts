@@ -1,3 +1,4 @@
+import { gameStore } from './ui/store';
 import { createEngineInstance } from './engine-factory';
 import { GameContext, GameSystem } from './types';
 import { syncEngineToStore } from './ui/sync-bridge';
@@ -258,6 +259,11 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
   // The shared handler for both Keyboard (InputManager) and UI Buttons (InputBridge)
   async function handlePlayerInput(action: GameAction) {
+    if (action === GameAction.TOGGLE_INVENTORY) {
+      gameStore.getState().toggleInventory();
+      return;
+    }
+
     if (action === GameAction.PAUSE) {
       const currentState = fsm.getCurrentState();
       if (currentState === GameState.Playing) {

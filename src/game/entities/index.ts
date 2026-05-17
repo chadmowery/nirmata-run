@@ -40,6 +40,12 @@ import augment_drop from './templates/augment-drop.json';
 import scrap from './templates/scrap.json';
 import flux from './templates/flux.json';
 import blueprint_locked from './templates/blueprint-locked.json';
+import armor_v1 from './templates/armor-v1.json';
+import armor_v2 from './templates/armor-v2.json';
+import armor_v3 from './templates/armor-v3.json';
+import rifle_v1 from './templates/rifle-v1.json';
+import rifle_v2 from './templates/rifle-v2.json';
+import rifle_v3 from './templates/rifle-v3.json';
 
 /**
  * Registers all game entity templates and mixins.
@@ -87,4 +93,10 @@ export function registerGameTemplates(registry: EntityRegistry): void {
   registry.register(scrap as unknown as RawTemplate);
   registry.register(flux as unknown as RawTemplate);
   registry.register(blueprint_locked as unknown as RawTemplate);
+  registry.register(armor_v1 as unknown as RawTemplate);
+  registry.register(armor_v2 as unknown as RawTemplate);
+  registry.register(armor_v3 as unknown as RawTemplate);
+  registry.register(rifle_v1 as unknown as RawTemplate);
+  registry.register(rifle_v2 as unknown as RawTemplate);
+  registry.register(rifle_v3 as unknown as RawTemplate);
 }

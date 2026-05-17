@@ -10,6 +10,7 @@ export const RunInventoryItemSchema = z.object({
   rarityTier: z.string(),
   pickedUpAtFloor: z.number(),
   pickedUpAtTimestamp: z.number(),
+  gridIndex: z.number().optional(),
 });
 
 /**

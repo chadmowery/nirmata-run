@@ -3,7 +3,14 @@
   "name": "Overclocked Plating",
   "tier": 3,
   "components": {
-    "armor": { "defense": 6 },
-    "software": [ "kinetic-link", "neural-feedback", "phase-shift" ]
+    "equipmentDef": {
+      "slotType": "armor",
+      "name": "Overclocked Plating"
+    },
+    "software": [
+      "kinetic-link",
+      "neural-feedback",
+      "phase-shift"
+    ]
   }
 }

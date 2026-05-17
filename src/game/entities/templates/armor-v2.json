@@ -3,7 +3,13 @@
   "name": "Refined Plating",
   "tier": 2,
   "components": {
-    "armor": { "defense": 4 },
-    "software": [ "kinetic-link", "neural-feedback" ]
+    "equipmentDef": {
+      "slotType": "armor",
+      "name": "Refined Plating"
+    },
+    "software": [
+      "kinetic-link",
+      "neural-feedback"
+    ]
   }
 }
