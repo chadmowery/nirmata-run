@@ -1,11 +1,12 @@
 import { World } from '@engine/ecs/world';
+import { EngineEvents } from '@engine/events/types';
 import { RunInventory, RunCurrency, RunInventoryItem } from '../components/run-inventory';
 
 /**
  * Pure utility functions for interacting with ECS-based Run Inventory components.
  */
 
-export function getCurrencyAmount(world: World<any>, playerId: number, currencyType: 'scrap' | 'blueprint' | 'flux'): number {
+export function getCurrencyAmount<T extends EngineEvents>(world: World<T>, playerId: number, currencyType: 'scrap' | 'blueprint' | 'flux'): number {
   const runCurrency = world.getComponent(playerId, RunCurrency);
   if (!runCurrency) return 0;
   return runCurrency.stacks
@@ -13,8 +14,8 @@ export function getCurrencyAmount(world: World<any>, playerId: number, currencyT
     .reduce((sum, s) => sum + s.amount, 0);
 }
 
-export function addCurrency(
-  world: World<any>,
+export function addCurrency<T extends EngineEvents>(
+  world: World<T>,
   playerId: number,
   currencyType: 'scrap' | 'blueprint' | 'flux',
   amount: number,
@@ -60,8 +61,8 @@ export function addCurrency(
   return true;
 }
 
-export function removeCurrency(
-  world: World<any>,
+export function removeCurrency<T extends EngineEvents>(
+  world: World<T>,
   playerId: number,
   currencyType: 'scrap' | 'blueprint' | 'flux',
   amount: number
@@ -95,8 +96,8 @@ export function removeCurrency(
   return true;
 }
 
-export function addSoftware(
-  world: World<any>,
+export function addSoftware<T extends EngineEvents>(
+  world: World<T>,
   playerId: number,
   item: RunInventoryItem
 ): boolean {
@@ -114,8 +115,8 @@ export function addSoftware(
   return true;
 }
 
-export function addEquipment(
-  world: World<any>,
+export function addEquipment<T extends EngineEvents>(
+  world: World<T>,
   playerId: number,
   item: RunInventoryItem
 ): boolean {
@@ -133,8 +134,8 @@ export function addEquipment(
   return true;
 }
 
-export function removeSoftware(
-  world: World<any>,
+export function removeSoftware<T extends EngineEvents>(
+  world: World<T>,
   playerId: number,
   index: number
 ): RunInventoryItem | null {
@@ -150,8 +151,8 @@ export function removeSoftware(
   return removed;
 }
 
-export function removeEquipment(
-  world: World<any>,
+export function removeEquipment<T extends EngineEvents>(
+  world: World<T>,
   playerId: number,
   index: number
 ): RunInventoryItem | null {
@@ -167,7 +168,7 @@ export function removeEquipment(
   return removed;
 }
 
-export function clearInventory(world: World<any>, playerId: number): void {
+export function clearInventory<T extends EngineEvents>(world: World<T>, playerId: number): void {
   if (world.hasComponent(playerId, RunInventory)) {
     world.patchComponent(playerId, RunInventory, { software: [], equipment: [] });
   }

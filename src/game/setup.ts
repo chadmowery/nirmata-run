@@ -87,6 +87,14 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     stabilitySystem: systems.stability,
     floorManagerSystem: systems.floorManager,
     anchorInteractionSystem: systems.anchorInteraction,
+    gravediggerSystem: systems.gravedigger,
+    rewardDropSystem: systems.rewardDrop,
+    tagCleanupSystem: systems.tagCleanup,
+    deadZoneSystem: systems.deadZone,
+    equipmentSystem: systems.equipment,
+    shellStatsSystem: systems.shellStats,
+    teleportSystem: systems.teleport,
+    softwareSystem: systems.software,
   };
 
   const stateConfigs: Record<GameState, StateConfig<GameState, GameContext>> = {
@@ -392,7 +400,18 @@ export function destroyGame(context: GameContext) {
     context.augmentSystem,
     context.packCoordinatorSystem,
     context.tileCorruptionSystem,
-    context.runEnderSystem
+    context.runEnderSystem,
+    context.stabilitySystem,
+    context.floorManagerSystem,
+    context.anchorInteractionSystem,
+    context.gravediggerSystem,
+    context.rewardDropSystem,
+    context.tagCleanupSystem,
+    context.deadZoneSystem,
+    context.equipmentSystem,
+    context.shellStatsSystem,
+    context.teleportSystem,
+    context.softwareSystem
   ];
 
   for (const sys of systems) {

@@ -29,13 +29,16 @@ import { AnchorInteractionSystem } from './systems/anchor-interaction';
 import { RewardDropSystem } from './systems/reward-drop';
 import { createTagCleanupSystem } from './systems/tag-cleanup';
 import { createGravediggerSystem } from './systems/gravedigger';
+import { EquipmentSystem } from './systems/equipment';
+import { ShellStatsSystem } from './systems/shell-stats';
+import { TeleportSystem } from './systems/teleport';
+import { SoftwareSystem } from './systems/software';
 import { generateDungeon } from './generation/dungeon-generator';
 import { placeEntities } from './generation/entity-placement';
 import RNG from 'rot-js/lib/rng';
 import { GameAction, DIRECTIONS, isFirmwareAction, getFirmwareSlotIndex } from './input/actions';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from './events/types';
-import { Phase } from '../engine/ecs/types';
 
 import { ShellRecord } from './shells/shared';
 import { PlayerProfile } from '@shared/profile';
@@ -80,6 +83,10 @@ export interface EngineInstance<T extends GameplayEvents = GameEvents> {
     rewardDrop: RewardDropSystem<T>;
     tagCleanup: ReturnType<typeof createTagCleanupSystem<T>>;
     gravedigger: ReturnType<typeof createGravediggerSystem<T>>;
+    equipment: EquipmentSystem<T>;
+    shellStats: ShellStatsSystem<T>;
+    teleport: TeleportSystem<T>;
+    software: SoftwareSystem<T>;
   };
 }
 
@@ -194,7 +201,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
       weapon: null,
       armor: null,
     };
-    }
+  }
 
   // Phase 16: Starter Loadout fallback (D-02, D-04)
   const hasEquippedItems = ((playerOverrides['firmwareSlots'] as any)?.equipped?.length || 0) > 0 ||

@@ -26,7 +26,6 @@ import { createAISystem } from './ai';
 import { createFirmwareSystem } from './firmware';
 import { createTileCorruptionSystem } from './tile-corruption';
 import { RunMode } from '@shared/run-mode';
-import { Phase } from '@/engine/ecs/types';
 
 /**
  * Registers core gameplay systems that must run in both client/server and pipeline simulations.
@@ -58,11 +57,11 @@ export function registerCoreSystems<T extends GameplayEvents>(
 
   // Floor manager is special but registered to cleanup
   const floorManager = createFloorManagerSystem(
-    world, 
-    grid, 
-    eventBus, 
-    entityFactory, 
-    componentRegistry, 
+    world,
+    grid,
+    eventBus,
+    entityFactory,
+    componentRegistry,
     options.isClient === true
   );
 
