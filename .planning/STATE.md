@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 22 context gathered
-last_updated: "2026-05-17T17:14:53.379Z"
+stopped_at: Phase 22 UI-SPEC approved
+last_updated: "2026-05-17T17:18:44.713Z"
 last_activity: 2026-05-15 -- Phase 19 planning complete
 progress:
   total_phases: 5
@@ -79,10 +79,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-17T17:14:53.376Z
-Stopped at: Phase 22 context gathered
+Last session: 2026-05-17T17:18:44.711Z
+Stopped at: Phase 22 UI-SPEC approved
 Resume file: 
 
-.planning/phases/22-equipment-interaction-drag-drop/22-CONTEXT.md
+.planning/phases/22-equipment-interaction-drag-drop/22-UI-SPEC.md
 *State initialized: 2026-05-13*
 *Last updated: 2024-05-15 — Milestone v2.1 roadmap created*
