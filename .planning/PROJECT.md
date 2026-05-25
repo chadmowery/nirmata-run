@@ -37,6 +37,9 @@ The Shell/Firmware/Augment/Software customization hierarchy combined with the Ne
 - ✓ Vault system (protected inventory for Weekly Challenge) — Phase 14
 - ✓ Run Types (Neural Simulation, Daily Challenge, Weekly One-Shot) — Phase 14
 - ✓ Leaderboard system with server-side scoring — Phase 14
+- ✓ EQP-01: Equip Weapons/Armor in dedicated slots — Phase 22
+- ✓ UI-02: Native drag-and-drop loadout management — Phase 22
+- ✓ SW-01/02: Software installation & uninstallation — Phase 22
 
 ### Active
 
@@ -123,33 +126,11 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-03 after Phase 14 completion*
-
-## Current State
-- **Version:** v2.0
-- **Status:** Shipped (2026-05-11)
-- **Archive:** [v2.0 Roadmap](milestones/v2.0-ROADMAP.md)
-
-## Next Milestone Goals
-- TBD
-irements invalidated? → Move to Out of Scope with reason
-2. Requirements validated? → Move to Validated with phase reference
-3. New requirements emerged? → Add to Active
-4. Decisions to log? → Add to Key Decisions
-5. "What This Is" still accurate? → Update if drifted
-
-**After each milestone** (via `/gsd-complete-milestone`):
-1. Full review of all sections
-2. Core Value check — still the right priority?
-3. Audit Out of Scope — reasons still valid?
-4. Update Context with current state
-
----
-*Last updated: 2026-04-03 after Phase 14 completion*
+*Last updated: 2026-05-25 after Phase 22 completion*
 
 ## Current State
 - **Version:** v2.1
-- **Status:** Planning
+- **Status:** Phase 22 Complete (Equipment Interaction - Drag & Drop implemented and verified)
 - **Archive:** [v2.0 Roadmap](milestones/v2.0-ROADMAP.md)
 
 ## Next Milestone Goals
