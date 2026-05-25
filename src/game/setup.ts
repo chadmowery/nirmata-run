@@ -238,6 +238,41 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     }
   });
 
+  eventBus.on('EQUIP_REQUESTED' as any, async (payload: any) => {
+    const { Shell } = await import('@shared/components/shell');
+    const shell = world.getComponent(playerId, Shell);
+    const shellId = shell?.archetypeId || 'player-shell-default';
+    
+    inputManager.setRequestPending(true);
+    await sendActionToServer({
+      type: 'EQUIP',
+      shellId,
+      slotType: payload.slotType,
+      itemEntityId: payload.itemEntityId,
+    });
+    inputManager.setRequestPending(false);
+  });
+
+  eventBus.on('UNEQUIP_REQUESTED' as any, async (payload: any) => {
+    inputManager.setRequestPending(true);
+    await sendActionToServer({
+      type: 'UNEQUIP',
+      slotType: payload.slotType,
+      slotIndex: payload.slotIndex,
+    });
+    inputManager.setRequestPending(false);
+  });
+
+  eventBus.on('BURN_SOFTWARE_REQUESTED' as any, async (payload: any) => {
+    inputManager.setRequestPending(true);
+    await sendActionToServer({
+      type: 'BURN_SOFTWARE',
+      runInventoryIndex: payload.runInventoryIndex,
+      targetSlot: payload.targetSlot,
+    });
+    inputManager.setRequestPending(false);
+  });
+
   async function handleConfirmedTarget(slotIndex: number, targetX: number, targetY: number) {
     if (fsm.getCurrentState() === GameState.Playing && turnManager.canAcceptInput() && context.playerId) {
       // Submit action to engine
@@ -351,6 +386,9 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
       }
     } catch (error) {
       logger.error('Failed to sync with server:', 'NETWORK', error);
+    } finally {
+      gameStore.getState().clearOptimisticUpdates();
+      gameStore.getState().incrementInventoryRevision();
     }
   }
 

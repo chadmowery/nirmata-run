@@ -4,6 +4,8 @@ import { EventOriginContext } from '@engine/utils/event-context';
 import { PlayerProfile, VaultItem } from '@/shared/profile';
 import { RunMode } from '@/shared/run-mode';
 import { ShellTemplate } from '@/game/shells/shared';
+import { RunInventory } from '@shared/components/run-inventory';
+import { EquipmentSlots } from '@shared/components/equipment-slots';
 
 export type GameStatus = GameState;
 export type MessageType = 'info' | 'combat' | 'error' | 'warning';
@@ -142,6 +144,12 @@ export interface UIState {
   inventoryVisible: boolean;
   inventoryRevision: number;
 
+  // Drag and drop / optimistic updates state
+  draggedRunItemEntityId: number | null;
+  optimisticWeapon: number | null | undefined;
+  optimisticArmor: number | null | undefined;
+  optimisticInventoryEquipmentIds: number[] | null;
+
   // Actions
   updatePlayerStats: (stats: Partial<PlayerStats>) => void;
   addMessage: (text: string, type: MessageType) => void;
@@ -150,6 +158,10 @@ export interface UIState {
   updateStats: (stats: Partial<RunStats>) => void;
   toggleInventory: () => void;
   incrementInventoryRevision: () => void;
+  setDraggedRunItemEntityId: (entityId: number | null) => void;
+  optimisticEquipItem: (entityId: number, slot: 'weapon' | 'armor') => void;
+  optimisticUnequipItem: (slot: 'weapon' | 'armor') => void;
+  clearOptimisticUpdates: () => void;
   
   // Phase 12 actions
   updateStability: (stability: number, max: number) => void;
@@ -255,6 +267,10 @@ export const gameStore = createStore<UIState>((set) => ({
   targetingY: 0,
   inventoryVisible: false,
   inventoryRevision: 0,
+  draggedRunItemEntityId: null,
+  optimisticWeapon: undefined,
+  optimisticArmor: undefined,
+  optimisticInventoryEquipmentIds: null,
   heatTier: 0,
   heatValue: 0,
   heatMaxSafe: 100,
@@ -440,4 +456,63 @@ export const gameStore = createStore<UIState>((set) => ({
   toggleInventory: () => set((state) => ({ inventoryVisible: !state.inventoryVisible })),
   incrementInventoryRevision: () => set((state) => ({ inventoryRevision: state.inventoryRevision + 1 })),
   updateHeatTier: (tier, value, maxSafe) => set({ heatTier: tier, heatValue: value, heatMaxSafe: maxSafe }),
+  setDraggedRunItemEntityId: (entityId) => set({ draggedRunItemEntityId: entityId }),
+  optimisticEquipItem: (entityId, slot) => set((state) => {
+    const currentWeapon = slot === 'weapon' ? entityId : state.optimisticWeapon;
+    const currentArmor = slot === 'armor' ? entityId : state.optimisticArmor;
+    
+    const context = (window as any).gameContext;
+    let newEquipmentIds: number[] = [];
+    if (context && context.playerId) {
+      const inv = context.world.getComponent(context.playerId, RunInventory);
+      if (inv) {
+        newEquipmentIds = inv.equipment
+          .map((item: any) => item.entityId)
+          .filter((id: number) => id !== entityId);
+      }
+    }
+    
+    return {
+      optimisticWeapon: currentWeapon,
+      optimisticArmor: currentArmor,
+      optimisticInventoryEquipmentIds: newEquipmentIds,
+      inventoryRevision: state.inventoryRevision + 1
+    };
+  }),
+  optimisticUnequipItem: (slot) => set((state) => {
+    const context = (window as any).gameContext;
+    let unequippedEntityId: number | null = null;
+    if (context && context.playerId) {
+      const eq = context.world.getComponent(context.playerId, EquipmentSlots);
+      if (eq) {
+        unequippedEntityId = eq[slot];
+      }
+    }
+    
+    const currentWeapon = slot === 'weapon' ? null : state.optimisticWeapon;
+    const currentArmor = slot === 'armor' ? null : state.optimisticArmor;
+    
+    let newEquipmentIds: number[] | null = state.optimisticInventoryEquipmentIds;
+    if (unequippedEntityId !== null && context && context.playerId) {
+      const inv = context.world.getComponent(context.playerId, RunInventory);
+      if (inv) {
+        const baseEquipmentIds = state.optimisticInventoryEquipmentIds !== null
+          ? state.optimisticInventoryEquipmentIds
+          : inv.equipment.map((item: any) => item.entityId);
+        newEquipmentIds = [...baseEquipmentIds, unequippedEntityId];
+      }
+    }
+    
+    return {
+      optimisticWeapon: currentWeapon,
+      optimisticArmor: currentArmor,
+      optimisticInventoryEquipmentIds: newEquipmentIds,
+      inventoryRevision: state.inventoryRevision + 1
+    };
+  }),
+  clearOptimisticUpdates: () => set({
+    optimisticWeapon: undefined,
+    optimisticArmor: undefined,
+    optimisticInventoryEquipmentIds: null,
+  }),
 }));

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 22 UI-SPEC approved
-last_updated: "2026-05-17T17:18:44.713Z"
-last_activity: 2026-05-15 -- Phase 19 planning complete
+stopped_at: Phase 22 Completed
+last_updated: "2026-05-25T14:33:47.911Z"
+last_activity: 2026-05-25 -- Phase 22 execution started
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 13
-  completed_plans: 12
+  completed_phases: 4
+  total_plans: 14
+  completed_plans: 13
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** The Shell/Firmware/Augment/Software customization hierarchy combined with the Neural Heat risk system — every encounter is a resource management puzzle.
-**Current focus:** Building the core equipment and inventory system.
+**Current focus:** Phase 22 — equipment-interaction-drag-drop
 
 ## Current Position
 
-Phase: Phase 18: Hierarchical Entity Foundation
-Plan: —
-Status: Ready to execute
-Last activity: 2026-05-15 -- Phase 19 planning complete
+Phase: 22 (equipment-interaction-drag-drop) — EXECUTING
+Plan: 1 of 1
+Status: Executing Phase 22
+Last activity: 2026-05-25 -- Phase 22 execution started
 
 Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/0 plans)
 
@@ -79,10 +79,10 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-17T17:18:44.711Z
-Stopped at: Phase 22 UI-SPEC approved
+Last session: 2026-05-25T14:33:47.908Z
+Stopped at: Phase 22 Completed
 Resume file: 
 
-.planning/phases/22-equipment-interaction-drag-drop/22-UI-SPEC.md
+None
 *State initialized: 2026-05-13*
 *Last updated: 2024-05-15 — Milestone v2.1 roadmap created*

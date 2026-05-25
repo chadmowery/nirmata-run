@@ -13,7 +13,7 @@ import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import economy from '@game/entities/templates/economy.json';
 import { handleServerDebugCommand } from '@game/debug/server-debug-handler';
 import { EventOriginContext } from '@engine/utils/event-context';
-import { ExtractionIntent, DescentIntent } from '@shared/components';
+import { ExtractionIntent, DescentIntent, EquipIntent, UnequipIntent, BurnSoftwareIntent, RunInventory } from '@shared/components';
 import { handleInventorySwap } from '@game/intent/inventory-intent';
 
 export async function POST(req: Request) {
@@ -104,6 +104,39 @@ export async function POST(req: Request) {
       case 'INVENTORY_SWAP': {
         handleInventorySwap(world as any, session.playerId, action.sourceIndex, action.destinationIndex);
         actionKey = 'INVENTORY_SWAP';
+        break;
+      }
+
+      case 'EQUIP': {
+        world.addComponent(session.playerId, EquipIntent, {
+          slotType: action.slotType,
+          itemEntityId: action.itemEntityId,
+        });
+        actionKey = 'EQUIP';
+        break;
+      }
+
+      case 'UNEQUIP': {
+        world.addComponent(session.playerId, UnequipIntent, {
+          slotType: action.slotType,
+          slotIndex: action.slotIndex,
+        });
+        actionKey = 'UNEQUIP';
+        break;
+      }
+
+      case 'BURN_SOFTWARE': {
+        const inventory = world.getComponent(session.playerId, RunInventory);
+        const swItem = inventory?.software[action.runInventoryIndex];
+        if (swItem) {
+          world.addComponent(session.playerId, BurnSoftwareIntent, {
+            actorId: session.playerId,
+            softwareEntityId: swItem.entityId,
+            targetSlot: action.targetSlot,
+            inventoryIndex: action.runInventoryIndex,
+          });
+        }
+        actionKey = 'BURN_SOFTWARE';
         break;
       }
 

@@ -43,6 +43,10 @@ export const InRunItemTooltip: React.FC<InRunItemTooltipProps> = ({ entityId }) 
         </div>
       )}
       {!showDeepStats && <p className="hint">Hold Alt for deep stats</p>}
+      
+      <div style={{ marginTop: '8px', color: '#00F0FF', fontSize: '11px', fontWeight: 'bold' }}>
+        {equipment ? 'Drag to Equip' : (software ? 'Drag to Install' : '')}
+      </div>
     </div>
   );
 };
