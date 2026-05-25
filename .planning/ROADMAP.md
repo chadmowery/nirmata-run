@@ -8,7 +8,7 @@
 - [ ] **Phase 19: Combat Stat Pipeline & Turn Costs** - Implement dynamic stat calculation and turn-cost for gear changes.
 - [ ] **Phase 20: Tiered Loot Distribution** - Update enemy drop tables with tiered Weapons, Armor, and Software.
 - [ ] **Phase 21: Inventory & Item Tooltips** - Create the in-run inventory overlay and manual hover-tooltip system.
-- [ ] **Phase 22: Equipment Interaction (Drag & Drop)** - Implement manual drag-and-drop loadout management.
+- [x] **Phase 22: Equipment Interaction (Drag & Drop)** - Implement manual drag-and-drop loadout management. (completed 2026-05-25)
 
 ## Phase Details
 
@@ -97,4 +97,4 @@ Plans:
 | 19. Combat Stat Pipeline & Turn Costs | 0/3 | Planning complete | - |
 | 20. Tiered Loot Distribution | 0/0 | Not started | - |
 | 21. Inventory & Item Tooltips | 0/0 | Not started | - |
-| 22. Equipment Interaction (Drag & Drop) | 0/0 | Not started | - |
+| 22. Equipment Interaction (Drag & Drop) | 0/0 | Complete    | 2026-05-25 |
