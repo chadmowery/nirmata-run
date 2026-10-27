@@ -17,7 +17,6 @@ interface LoadoutSlotPanelProps {
 export const LoadoutSlotPanel: React.FC<LoadoutSlotPanelProps> = ({
   portConfig,
   equippedItems,
-  shellId,
   onSlotDrop,
   onSlotDragStart,
 }) => {
@@ -56,7 +55,7 @@ export const LoadoutSlotPanel: React.FC<LoadoutSlotPanelProps> = ({
         }
       };
 
-      const handleDragStart = (e: React.PointerEvent) => {
+      const handleDragStart = () => {
         if (item) {
           onSlotDragStart(item);
         }

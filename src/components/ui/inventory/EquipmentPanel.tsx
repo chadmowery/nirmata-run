@@ -2,14 +2,18 @@ import React, { useState } from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import { EquipmentSlots, SoftwareDef, EquipmentDef } from '@shared/components';
+import type { ComponentDef } from '@engine/ecs/types';
+import type { EventBus } from '@engine/events/event-bus';
+import type { GameEvents } from '@/game/events/types';
 import styles from './InventoryOverlay.module.css';
 import { InRunItemTooltip } from './InRunItemTooltip';
 
 interface GameContext {
   playerId: number;
+  eventBus?: EventBus<GameEvents>;
   world: {
-    getComponent: (entityId: number, component: any) => any;
-    hasComponent: (entityId: number, component: any) => boolean;
+    getComponent: <T>(entityId: number, component: ComponentDef<T>) => T | undefined;
+    hasComponent: (entityId: number, component: ComponentDef<unknown>) => boolean;
   };
 }
 
@@ -19,7 +23,7 @@ export const EquipmentPanel: React.FC = () => {
   const gameContext = (window as unknown as { gameContext: GameContext }).gameContext;
 
   // Connect to Zustand game store to subscribe to revisions and handle updates
-  const inventoryRevision = useStore(gameStore, (s) => s.inventoryRevision);
+  useStore(gameStore, (s) => s.inventoryRevision);
   const draggedRunItemEntityId = useStore(gameStore, (s) => s.draggedRunItemEntityId);
   const dragOverSlot = useStore(gameStore, (s) => s.dragOverSlot);
   const optimisticWeapon = useStore(gameStore, (s) => s.optimisticWeapon);
@@ -46,23 +50,21 @@ export const EquipmentPanel: React.FC = () => {
 
       if (slotType === 'weapon') {
         isCompatible =
-          (isEq && eqDef.slotType === 'weapon') || (isSw && swDef.targetSlot === 'weapon');
+          (isEq && eqDef?.slotType === 'weapon') || (isSw && swDef?.targetSlot === 'weapon');
       } else if (slotType === 'armor') {
         isCompatible =
-          (isEq && eqDef.slotType === 'armor') || (isSw && swDef.targetSlot === 'armor');
+          (isEq && eqDef?.slotType === 'armor') || (isSw && swDef?.targetSlot === 'armor');
       }
     }
 
     // Get item name and details if entityId is present
     let itemName = '';
-    let isSoftwareItem = false;
     let detailText = '';
     if (entityId) {
       const sw = gameContext.world.getComponent(entityId, SoftwareDef);
       const eqItem = gameContext.world.getComponent(entityId, EquipmentDef);
       if (sw) {
         itemName = sw.name;
-        isSoftwareItem = true;
         detailText = `[Software: ${sw.type}]`;
       } else if (eqItem) {
         itemName = eqItem.name;
@@ -132,37 +134,32 @@ export const EquipmentPanel: React.FC = () => {
               const isEq = gameContext.world.hasComponent(itemEntityId, EquipmentDef);
               const eqDef = gameContext.world.getComponent(itemEntityId, EquipmentDef);
 
+              const eventBus = gameContext.eventBus;
               if (slotType === 'weapon') {
-                if (isEq && eqDef.slotType === 'weapon') {
+                if (isEq && eqDef && eqDef.slotType === 'weapon') {
                   gameStore.getState().optimisticEquipItem(itemEntityId, 'weapon');
-                  const eventBus = (window as any).gameContext?.eventBus;
                   eventBus?.emit('EQUIP_REQUESTED', { slotType: 'weapon', itemEntityId });
-                } else if (isSw && swDef.targetSlot === 'weapon') {
-                  const eventBus = (window as any).gameContext?.eventBus;
+                } else if (isSw && swDef && swDef.targetSlot === 'weapon') {
                   eventBus?.emit('BURN_SOFTWARE_REQUESTED', {
                     runInventoryIndex: data.inventoryIndex,
                     targetSlot: 'weapon',
                   });
                 } else {
-                  const eventBus = (window as any).gameContext?.eventBus;
                   eventBus?.emit('MESSAGE_EMITTED', {
                     text: 'Invalid drop target. Must be a compatible slot.',
                     type: 'error',
                   });
                 }
               } else if (slotType === 'armor') {
-                if (isEq && eqDef.slotType === 'armor') {
+                if (isEq && eqDef && eqDef.slotType === 'armor') {
                   gameStore.getState().optimisticEquipItem(itemEntityId, 'armor');
-                  const eventBus = (window as any).gameContext?.eventBus;
                   eventBus?.emit('EQUIP_REQUESTED', { slotType: 'armor', itemEntityId });
-                } else if (isSw && swDef.targetSlot === 'armor') {
-                  const eventBus = (window as any).gameContext?.eventBus;
+                } else if (isSw && swDef && swDef.targetSlot === 'armor') {
                   eventBus?.emit('BURN_SOFTWARE_REQUESTED', {
                     runInventoryIndex: data.inventoryIndex,
                     targetSlot: 'armor',
                   });
                 } else {
-                  const eventBus = (window as any).gameContext?.eventBus;
                   eventBus?.emit('MESSAGE_EMITTED', {
                     text: 'Invalid drop target. Must be a compatible slot.',
                     type: 'error',
@@ -177,7 +174,7 @@ export const EquipmentPanel: React.FC = () => {
         onDoubleClick={() => {
           if (entityId) {
             gameStore.getState().optimisticUnequipItem(slotType);
-            const eventBus = (window as any).gameContext?.eventBus;
+            const eventBus = gameContext.eventBus;
             eventBus?.emit('UNEQUIP_REQUESTED', { slotType, slotIndex: 0 });
           }
         }}

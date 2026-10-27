@@ -9,8 +9,23 @@ interface Props {
   onRefresh?: () => void;
 }
 
+interface TemplateEntry {
+  name: string;
+  weight: number;
+}
+
+interface DepthBand {
+  depthRange: { min: number; max: number };
+  templates: TemplateEntry[];
+}
+
+interface SpawnTableData {
+  name: string;
+  tables: DepthBand[];
+}
+
 export function SpawnTableEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<SpawnTableData | null>(null);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
   useEffect(() => {
@@ -44,8 +59,12 @@ export function SpawnTableEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
     <div className={styles.editor}>
       <div className={styles.editorHeader}>
         <h2 className={styles.editorTitle}>{isNew ? 'New Spawn Table' : `Table: ${name}`}</h2>
-        <button className={styles.saveButton} onClick={handleSave}>
-          SAVE
+        <button
+          className={styles.saveButton}
+          onClick={handleSave}
+          disabled={saveStatus === 'saving'}
+        >
+          {saveStatus === 'saving' ? 'SAVING...' : 'SAVE'}
         </button>
       </div>
 
@@ -59,7 +78,7 @@ export function SpawnTableEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
         />
       </div>
 
-      {data.tables.map((table: any, idx: number) => (
+      {data.tables.map((table: DepthBand, idx: number) => (
         <div key={idx} className={styles.fieldGroup}>
           <h3 className={styles.fieldGroupTitle}>Depth Band {idx}</h3>
           <div className={styles.fieldRow}>
@@ -85,7 +104,7 @@ export function SpawnTableEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
               }}
             />
           </div>
-          {table.templates.map((tpl: any, tIdx: number) => (
+          {table.templates.map((tpl: TemplateEntry, tIdx: number) => (
             <div key={tIdx} className={styles.fieldRow}>
               <input
                 className={styles.fieldInput}

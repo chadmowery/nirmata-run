@@ -38,7 +38,7 @@ const BlueprintPanel: React.FC = () => {
   ) => {
     if (!profile) return;
 
-    const cost = (economyConfig.costs.compilation as any)[rarity] || 50;
+    const cost = (economyConfig.costs.compilation as Record<string, number>)[rarity] || 50;
     if (profile.wallet.flux < cost) return;
 
     setCompilingBlueprintId(templateId);
@@ -94,7 +94,8 @@ const BlueprintPanel: React.FC = () => {
         ) : (
           <div className={styles.list}>
             {uniqueLockedFiles.map((item) => {
-              const cost = (economyConfig.costs.compilation as any)[item.rarityTier] || 50;
+              const cost =
+                (economyConfig.costs.compilation as Record<string, number>)[item.rarityTier] || 50;
               const canAfford = profile.wallet.flux >= cost;
               const isCompiling = compilingBlueprintId === item.templateId;
 
@@ -113,7 +114,11 @@ const BlueprintPanel: React.FC = () => {
                     className={`${styles.compileButton} ${!canAfford ? styles.compileButtonDisabled : ''}`}
                     disabled={!canAfford || isCompiling}
                     onClick={() =>
-                      handleCompile(item.templateId, item.itemType as any, item.rarityTier)
+                      handleCompile(
+                        item.templateId,
+                        item.itemType as 'firmware' | 'augment',
+                        item.rarityTier,
+                      )
                     }
                   >
                     COMPILE_BLUEPRINT:{' '}

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { validateEcsRules } from '@/app/api/dev/gamedata/ecs-rules';
+import type { FieldMeta } from '@/app/api/dev/gamedata/schema-introspect';
 import { ComponentFieldGroup } from './shared/ComponentFieldGroup';
 import styles from './editors.module.css';
 
@@ -11,11 +12,22 @@ interface Props {
   onRefresh?: () => void;
 }
 
+interface ComponentSchemaItem {
+  key: string;
+  fields: FieldMeta[];
+}
+
+interface TemplateData {
+  name: string;
+  mixins?: string[];
+  components: Record<string, Record<string, unknown>>;
+}
+
 export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
-  const [templateData, setTemplateData] = useState<any>(null);
+  const [templateData, setTemplateData] = useState<TemplateData | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
-  const [componentSchemas, setComponentSchemas] = useState<any[]>([]);
+  const [componentSchemas, setComponentSchemas] = useState<ComponentSchemaItem[]>([]);
 
   useEffect(() => {
     fetch('/api/dev/gamedata/components')
@@ -38,6 +50,7 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
   }, [name, isNew, cloneFrom]);
 
   const handleSave = async () => {
+    if (!templateData) return;
     setSaveStatus('saving');
     const ecsResult = validateEcsRules(templateData.components as Record<string, unknown>);
     if (!ecsResult.valid) {
@@ -56,13 +69,14 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
       if (!res.ok) throw new Error('Save failed');
       setSaveStatus('success');
       onRefresh?.();
-    } catch (e) {
+    } catch {
       setErrors(['Failed to save template']);
       setSaveStatus('error');
     }
   };
 
   const handleAddComponent = (compKey: string) => {
+    if (!templateData) return;
     setTemplateData({
       ...templateData,
       components: { ...templateData.components, [compKey]: {} },
@@ -70,6 +84,7 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
   };
 
   const handleComponentFieldChange = (compKey: string, fieldKey: string, value: unknown) => {
+    if (!templateData) return;
     setTemplateData({
       ...templateData,
       components: {
@@ -80,6 +95,7 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
   };
 
   const handleRemoveComponent = (compKey: string) => {
+    if (!templateData) return;
     const nextComponents = { ...templateData.components };
     delete nextComponents[compKey];
     setTemplateData({ ...templateData, components: nextComponents });

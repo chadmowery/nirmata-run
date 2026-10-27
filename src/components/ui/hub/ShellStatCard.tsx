@@ -43,7 +43,7 @@ export const ShellStatCard: React.FC<ShellStatCardProps> = ({
   const firmwareSlots = installedItems.filter((i) => i.type === 'firmware');
   const augmentSlots = installedItems.filter((i) => i.type === 'augment');
   // Software slots are virtual for now as per spec
-  const softwareSlots: any[] = [];
+  const softwareSlots: Array<{ name?: string }> = [];
 
   return (
     <div className={styles.card}>
@@ -54,7 +54,7 @@ export const ShellStatCard: React.FC<ShellStatCardProps> = ({
 
       <div className={styles.statsSection}>
         {stats.map((s) => {
-          const { base, upgrade, total } = getStatTotal(s.key);
+          const { upgrade, total } = getStatTotal(s.key);
           const percent = (total / 10) * 100;
           return (
             <div key={s.key} className={styles.statRow}>

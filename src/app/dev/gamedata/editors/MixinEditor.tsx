@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { validateEcsRules } from '@/app/api/dev/gamedata/ecs-rules';
+import type { FieldMeta } from '@/app/api/dev/gamedata/schema-introspect';
 import { ComponentFieldGroup } from './shared/ComponentFieldGroup';
 import styles from './editors.module.css';
 
@@ -11,11 +12,21 @@ interface Props {
   onRefresh?: () => void;
 }
 
+interface ComponentSchemaItem {
+  key: string;
+  fields: FieldMeta[];
+}
+
+interface MixinData {
+  name: string;
+  components: Record<string, Record<string, unknown>>;
+}
+
 export function MixinEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
-  const [mixinData, setMixinData] = useState<any>(null);
+  const [mixinData, setMixinData] = useState<MixinData | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
-  const [componentSchemas, setComponentSchemas] = useState<any[]>([]);
+  const [componentSchemas, setComponentSchemas] = useState<ComponentSchemaItem[]>([]);
 
   useEffect(() => {
     fetch('/api/dev/gamedata/components')
@@ -38,6 +49,7 @@ export function MixinEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
   }, [name, isNew, cloneFrom]);
 
   const handleSave = async () => {
+    if (!mixinData) return;
     setSaveStatus('saving');
     const ecsResult = validateEcsRules(mixinData.components as Record<string, unknown>);
     if (!ecsResult.valid) {
@@ -56,13 +68,14 @@ export function MixinEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
       if (!res.ok) throw new Error('Save failed');
       setSaveStatus('success');
       onRefresh?.();
-    } catch (e) {
+    } catch {
       setErrors(['Failed to save mixin']);
       setSaveStatus('error');
     }
   };
 
   const handleAddComponent = (compKey: string) => {
+    if (!mixinData) return;
     setMixinData({
       ...mixinData,
       components: { ...mixinData.components, [compKey]: {} },
@@ -70,6 +83,7 @@ export function MixinEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
   };
 
   const handleComponentFieldChange = (compKey: string, fieldKey: string, value: unknown) => {
+    if (!mixinData) return;
     setMixinData({
       ...mixinData,
       components: {
@@ -80,6 +94,7 @@ export function MixinEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
   };
 
   const handleRemoveComponent = (compKey: string) => {
+    if (!mixinData) return;
     const nextComponents = { ...mixinData.components };
     delete nextComponents[compKey];
     setMixinData({ ...mixinData, components: nextComponents });

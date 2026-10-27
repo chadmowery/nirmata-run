@@ -15,7 +15,7 @@ interface LeaderboardPanelProps {
   sessionId: string;
 }
 
-export const LeaderboardPanel: React.FC<LeaderboardPanelProps> = ({ mode, sessionId }) => {
+export const LeaderboardPanel: React.FC<LeaderboardPanelProps> = ({ mode }) => {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
 

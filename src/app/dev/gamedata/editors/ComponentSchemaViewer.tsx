@@ -7,8 +7,13 @@ interface Props {
   name?: string; // Optional component key
 }
 
+interface ComponentSchemaItem {
+  key: string;
+  fields: FieldMeta[];
+}
+
 export function ComponentSchemaViewer({ name }: Props) {
-  const [components, setComponents] = useState<any[]>([]);
+  const [components, setComponents] = useState<ComponentSchemaItem[]>([]);
 
   useEffect(() => {
     fetch('/api/dev/gamedata/components')

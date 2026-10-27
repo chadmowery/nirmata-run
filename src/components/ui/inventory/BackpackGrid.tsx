@@ -8,14 +8,18 @@ import {
   TemplateId,
   RarityTier,
 } from '@shared/components';
+import type { ComponentDef } from '@engine/ecs/types';
+import type { EventBus } from '@engine/events/event-bus';
+import type { GameEvents } from '@/game/events/types';
 import styles from './InventoryOverlay.module.css';
 import { InRunItemTooltip } from './InRunItemTooltip';
 
 interface GameContext {
   playerId: number;
+  eventBus?: EventBus<GameEvents>;
   world: {
-    getComponent: (entityId: number, component: any) => any;
-    hasComponent: (entityId: number, component: any) => boolean;
+    getComponent: <T>(entityId: number, component: ComponentDef<T>) => T | undefined;
+    hasComponent: (entityId: number, component: ComponentDef<unknown>) => boolean;
   };
 }
 
@@ -25,7 +29,7 @@ export const BackpackGrid: React.FC = () => {
   const gameContext = (window as unknown as { gameContext: GameContext }).gameContext;
 
   // Connect to Zustand game store to subscribe to revisions and handle updates
-  const inventoryRevision = useStore(gameStore, (s) => s.inventoryRevision);
+  useStore(gameStore, (s) => s.inventoryRevision);
   const optimisticInventoryEquipmentIds = useStore(
     gameStore,
     (s) => s.optimisticInventoryEquipmentIds,
@@ -124,7 +128,7 @@ export const BackpackGrid: React.FC = () => {
                   if (data.source === 'equipment') {
                     // Trigger unequip with optimistic update
                     gameStore.getState().optimisticUnequipItem(data.slotType);
-                    const eventBus = (window as any).gameContext?.eventBus;
+                    const eventBus = gameContext.eventBus;
                     if (eventBus) {
                       eventBus.emit('UNEQUIP_REQUESTED', { slotType: data.slotType, slotIndex: 0 });
                     }
@@ -140,7 +144,7 @@ export const BackpackGrid: React.FC = () => {
                   const isEq = gameContext.world.hasComponent(entityId, EquipmentDef);
                   const eqDef = gameContext.world.getComponent(entityId, EquipmentDef);
 
-                  const eventBus = (window as any).gameContext?.eventBus;
+                  const eventBus = gameContext.eventBus;
                   if (isEq && eqDef) {
                     gameStore.getState().optimisticEquipItem(entityId, eqDef.slotType);
                     eventBus?.emit('EQUIP_REQUESTED', {

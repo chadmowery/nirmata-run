@@ -9,8 +9,17 @@ interface Props {
   onRefresh?: () => void;
 }
 
+interface ShellData {
+  id: string;
+  name: string;
+  baseStats: Record<string, number>;
+  basePorts: Record<string, number>;
+  upgrades: unknown[];
+  [key: string]: unknown;
+}
+
 export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
-  const [shellData, setShellData] = useState<any>(null);
+  const [shellData, setShellData] = useState<ShellData | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
@@ -48,7 +57,7 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
       if (!res.ok) throw new Error('Save failed');
       setSaveStatus('success');
       onRefresh?.();
-    } catch (e) {
+    } catch {
       setErrors(['Failed to save shell']);
       setSaveStatus('error');
     }
@@ -70,6 +79,8 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
           </button>
         </div>
       </div>
+
+      {errors.length > 0 && <div className={styles.errorMessage}>{errors.join(', ')}</div>}
 
       <div className={styles.fieldRow}>
         <label className={styles.fieldLabel}>ID</label>

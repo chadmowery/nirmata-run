@@ -32,7 +32,7 @@ export default function GamePage() {
   const bsodVisible = useStore(gameStore, (s) => s.bsodVisible);
   const runResultsVisible = useStore(gameStore, (s) => s.runResultsVisible);
   const isInitializing = useRef(false);
-  const renderSystemRef = useRef<any>(null);
+  const renderSystemRef = useRef<ReturnType<typeof createRenderSystem> | null>(null);
   const tickerCallbackRef = useRef<(() => void) | null>(null);
 
   const showCanvas =

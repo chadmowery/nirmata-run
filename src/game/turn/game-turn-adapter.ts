@@ -13,9 +13,9 @@ export interface GameTurnAdapterConfig {
  * Concrete turn scheduler adapter connecting the generic engine TurnManager
  * to Nirmata Runner's ECS components (Actor, Energy, Health, Acting).
  */
-export class GameTurnAdapter<TEvents extends EngineEvents = EngineEvents>
-  implements TurnSchedulerAdapter<EntityId>
-{
+export class GameTurnAdapter<
+  TEvents extends EngineEvents = EngineEvents,
+> implements TurnSchedulerAdapter<EntityId> {
   constructor(
     private world: World<TEvents>,
     private config?: GameTurnAdapterConfig,

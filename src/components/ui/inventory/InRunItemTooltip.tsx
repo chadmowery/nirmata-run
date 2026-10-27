@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { EquipmentDef, SoftwareDef, Item } from '@shared/components';
+import type { ComponentDef } from '@engine/ecs/types';
+
+interface GameContext {
+  world: {
+    getComponent: <T>(entityId: number, component: ComponentDef<T>) => T | undefined;
+  };
+}
 
 interface InRunItemTooltipProps {
   entityId: number;
@@ -24,11 +31,15 @@ export const InRunItemTooltip: React.FC<InRunItemTooltipProps> = ({ entityId }) 
   }, []);
 
   // Accessing world from window.gameContext (mocked/available at runtime)
-  const world = (window as any).gameContext?.world;
+  const world = (window as unknown as { gameContext?: GameContext }).gameContext?.world;
   if (!world) return null;
 
-  const equipment = world.getComponent(entityId, EquipmentDef);
-  const software = world.getComponent(entityId, SoftwareDef);
+  const equipment = world.getComponent(entityId, EquipmentDef) as
+    | { name?: string; tier?: string }
+    | undefined;
+  const software = world.getComponent(entityId, SoftwareDef) as
+    | { name?: string; modifier?: string }
+    | undefined;
   const itemComponent = world.getComponent(entityId, Item);
 
   if (!equipment && !software && !itemComponent) return null;
