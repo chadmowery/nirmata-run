@@ -21,14 +21,19 @@ describe('Legacy Code System', () => {
       blueprintLibrary: [],
       installedItems: [
         { entityId: 1, blueprintId: 'b1', type: 'firmware', shellId: 's1', isLegacy: false },
-        { entityId: 2, blueprintId: 'b2', type: 'augment', shellId: 's1', isLegacy: false }
+        { entityId: 2, blueprintId: 'b2', type: 'augment', shellId: 's1', isLegacy: false },
       ],
       overflow: [],
       vault: [],
       shellUpgrades: {},
-      attemptTracking: { dayNumber: 0, weekNumber: 0, dailyAttemptUsed: false, weeklyAttemptUsed: false },
+      attemptTracking: {
+        dayNumber: 0,
+        weekNumber: 0,
+        dailyAttemptUsed: false,
+        weeklyAttemptUsed: false,
+      },
       weekSeed: 0,
-      createdAt: Date.now()
+      createdAt: Date.now(),
     };
 
     applyLegacyToProfile(mockProfile);

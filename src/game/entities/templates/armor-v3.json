@@ -8,9 +8,5 @@
       "name": "Overclocked Plating"
     }
   },
-  "software": [
-    "kinetic-link",
-    "neural-feedback",
-    "phase-shift"
-  ]
+  "software": ["kinetic-link", "neural-feedback", "phase-shift"]
 }

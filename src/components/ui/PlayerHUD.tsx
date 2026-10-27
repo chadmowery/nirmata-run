@@ -24,22 +24,19 @@ export const PlayerHUD: React.FC = () => {
 
   return (
     <div className={panelClasses}>
-      <div className={styles.panelHeader}>
-        {player.shellName} // RUNTIME_STATUS
-      </div>
+      <div className={styles.panelHeader}>{player.shellName} // RUNTIME_STATUS</div>
 
       {/* HP Bar */}
       <div className={styles.statRow}>
         <span className={styles.statLabel}>
           <Heart size={14} className="inline mr-1" /> HP
         </span>
-        <span className={styles.statValue}>{player.hp} / {player.maxHp}</span>
+        <span className={styles.statValue}>
+          {player.hp} / {player.maxHp}
+        </span>
       </div>
       <div className={styles.barContainer}>
-        <div 
-          className={`${styles.barFill} ${styles.hpBar}`} 
-          style={{ width: `${hpPercent}%` }} 
-        />
+        <div className={`${styles.barFill} ${styles.hpBar}`} style={{ width: `${hpPercent}%` }} />
       </div>
 
       {/* Level & XP */}
@@ -53,13 +50,12 @@ export const PlayerHUD: React.FC = () => {
         <span className={styles.statLabel}>
           <Zap size={14} className="inline mr-1" /> XP
         </span>
-        <span className={styles.statValue}>{player.xp} / {xpNextLevel}</span>
+        <span className={styles.statValue}>
+          {player.xp} / {xpNextLevel}
+        </span>
       </div>
       <div className={styles.barContainer}>
-        <div 
-          className={`${styles.barFill} ${styles.xpBar}`} 
-          style={{ width: `${xpPercent}%` }} 
-        />
+        <div className={`${styles.barFill} ${styles.xpBar}`} style={{ width: `${xpPercent}%` }} />
       </div>
 
       <div className={styles.statRow}>
@@ -75,7 +71,9 @@ export const PlayerHUD: React.FC = () => {
           <div className={`${styles.modsHeader} text-red-400`}>ACTIVE_STATUS</div>
           <div className={styles.modsList}>
             {player.statuses.map((status, i) => (
-              <span key={i} className={`${styles.modBadge} ${styles.statusBadge}`}>{status}</span>
+              <span key={i} className={`${styles.modBadge} ${styles.statusBadge}`}>
+                {status}
+              </span>
             ))}
           </div>
         </div>
@@ -87,7 +85,9 @@ export const PlayerHUD: React.FC = () => {
           <div className={styles.modsHeader}>ACTIVE_MODS</div>
           <div className={styles.modsList}>
             {player.mods.map((mod, i) => (
-              <span key={i} className={styles.modBadge}>{mod}</span>
+              <span key={i} className={styles.modBadge}>
+                {mod}
+              </span>
             ))}
           </div>
         </div>
@@ -101,7 +101,7 @@ export const PlayerHUD: React.FC = () => {
 
       {/* Action Controls */}
       <div className={styles.actionRow}>
-        <button 
+        <button
           className={styles.hudButton}
           onClick={() => dispatchUIAction(GameAction.WAIT)}
           title="Skip turn and recover energy (Z)"

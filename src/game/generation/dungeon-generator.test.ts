@@ -71,7 +71,7 @@ describe('generateDungeon', () => {
         result.grid.height,
         (x, y) => result.grid.isWalkable(x, y),
         result.playerSpawnRoom.centerX,
-        result.playerSpawnRoom.centerY
+        result.playerSpawnRoom.centerY,
       );
 
       expect(connectivity.connected).toBe(true);

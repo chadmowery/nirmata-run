@@ -104,7 +104,7 @@ describe('Grid', () => {
     it('should move entities', () => {
       grid.addEntity(ENTITY_ID, 0, 0);
       grid.moveEntity(ENTITY_ID, 0, 0, 1, 1);
-      
+
       expect(grid.getEntitiesAt(0, 0).has(ENTITY_ID)).toBe(false);
       expect(grid.getEntitiesAt(1, 1).has(ENTITY_ID)).toBe(true);
     });
@@ -140,7 +140,7 @@ describe('Grid', () => {
     it('should keep entities and items separate', () => {
       grid.addEntity(1, 2, 2);
       grid.addItem(10, 2, 2);
-      
+
       expect(grid.getEntitiesAt(2, 2).has(1)).toBe(true);
       expect(grid.getEntitiesAt(2, 2).has(10)).toBe(false);
       expect(grid.getItemsAt(2, 2).has(10)).toBe(true);

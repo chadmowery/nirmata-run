@@ -90,9 +90,15 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
   return (
     <div className={styles.editor}>
       <div className={styles.editorHeader}>
-        <h2 className={styles.editorTitle}>{isNew ? 'New Entity Template' : `Template: ${name}`}</h2>
+        <h2 className={styles.editorTitle}>
+          {isNew ? 'New Entity Template' : `Template: ${name}`}
+        </h2>
         <div className={styles.buttonRow}>
-          <button className={styles.saveButton} onClick={handleSave} disabled={saveStatus === 'saving'}>
+          <button
+            className={styles.saveButton}
+            onClick={handleSave}
+            disabled={saveStatus === 'saving'}
+          >
             {saveStatus === 'saving' ? 'SAVING...' : 'SAVE'}
           </button>
           {!isNew && (
@@ -103,9 +109,7 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
         </div>
       </div>
 
-      {errors.length > 0 && (
-        <div className={styles.errorMessage}>{errors.join(', ')}</div>
-      )}
+      {errors.length > 0 && <div className={styles.errorMessage}>{errors.join(', ')}</div>}
 
       <div className={styles.fieldRow}>
         <label className={styles.fieldLabel}>Name</label>
@@ -136,9 +140,13 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
         onChange={(e) => handleAddComponent(e.target.value)}
         value=""
       >
-        <option value="" disabled>+ Add Component</option>
+        <option value="" disabled>
+          + Add Component
+        </option>
         {componentSchemas.map((s) => (
-          <option key={s.key} value={s.key}>{s.key}</option>
+          <option key={s.key} value={s.key}>
+            {s.key}
+          </option>
         ))}
       </select>
     </div>

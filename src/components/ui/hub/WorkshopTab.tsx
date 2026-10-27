@@ -10,11 +10,7 @@ const WorkshopTab: React.FC = () => {
   const playerProfile = useStore(gameStore, (s) => s.playerProfile);
 
   if (!playerProfile) {
-    return (
-      <div className={styles.loading}>
-        INITIALIZING_WORKSHOP_TERMINAL...
-      </div>
-    );
+    return <div className={styles.loading}>INITIALIZING_WORKSHOP_TERMINAL...</div>;
   }
 
   return (

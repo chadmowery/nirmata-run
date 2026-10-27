@@ -36,12 +36,17 @@ export class SessionManager {
     return SessionManager.instance;
   }
 
-  public createSession<T extends EngineEvents, S = unknown>(sessionId: string, state: WorldState<T, S>): void {
+  public createSession<T extends EngineEvents, S = unknown>(
+    sessionId: string,
+    state: WorldState<T, S>,
+  ): void {
     logger.info(`Session Created: ${sessionId}`, 'SESSION');
     this.sessions.set(sessionId, state);
   }
 
-  public getSession<T extends EngineEvents = EngineEvents, S = unknown>(sessionId: string): WorldState<T, S> | undefined {
+  public getSession<T extends EngineEvents = EngineEvents, S = unknown>(
+    sessionId: string,
+  ): WorldState<T, S> | undefined {
     const session = this.sessions.get(sessionId);
     if (!session) {
       logger.debug(`Session Miss: ${sessionId}`, 'SESSION');

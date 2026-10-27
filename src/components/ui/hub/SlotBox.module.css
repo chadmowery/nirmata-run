@@ -76,6 +76,12 @@
 }
 
 /* Slot type specific accents if needed */
-.firmware.filled { border-left: 3px solid var(--vibrant-cyan); }
-.augment.filled { border-left: 3px solid var(--vibrant-pink); }
-.software.filled { border-left: 3px solid var(--safety-orange); }
+.firmware.filled {
+  border-left: 3px solid var(--vibrant-cyan);
+}
+.augment.filled {
+  border-left: 3px solid var(--vibrant-pink);
+}
+.software.filled {
+  border-left: 3px solid var(--safety-orange);
+}

@@ -8,8 +8,8 @@ import { NextRequest } from 'next/server';
 vi.mock('@/app/persistence/fs-profile-repository');
 vi.mock('@/engine/session/SessionManager', () => ({
   sessionManager: {
-    createSession: vi.fn()
-  }
+    createSession: vi.fn(),
+  },
 }));
 vi.mock('@/game/engine-factory', () => ({
   createEngineInstance: vi.fn(() => ({
@@ -18,8 +18,8 @@ vi.mock('@/game/engine-factory', () => ({
     turnManager: {},
     eventBus: {},
     systems: {},
-    playerId: 1
-  }))
+    playerId: 1,
+  })),
 }));
 
 describe('Run Lifecycle Integration', () => {
@@ -51,7 +51,7 @@ describe('Run Lifecycle Integration', () => {
     // 3. Simulate Extraction with Overflow
     // (Manually update profile to simulate what RunEnder + Action API would do)
     profile.overflow.push({ entityId: 99 } as any);
-    
+
     // 4. Try to launch AGAIN (should fail due to D-07 overflow block)
     const relaunchFailReq = new NextRequest('http://localhost/api/run-mode/launch', {
       method: 'POST',

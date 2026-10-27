@@ -7,9 +7,7 @@
       "trigger": {
         "type": "ON_ACTIVATION"
       },
-      "payloads": [
-        { "type": "VENT_HEAT", "magnitude": 15 }
-      ],
+      "payloads": [{ "type": "VENT_HEAT", "magnitude": 15 }],
       "maxTriggersPerTurn": 1,
       "cooldownTurns": 0
     }

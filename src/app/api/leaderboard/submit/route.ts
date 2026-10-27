@@ -16,7 +16,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (mode === RunMode.SIMULATION) {
-      return NextResponse.json({ error: 'Simulation runs are not eligible for leaderboards' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Simulation runs are not eligible for leaderboards' },
+        { status: 400 },
+      );
     }
 
     // 1. Calculate Score Server-Side (D-21)
@@ -29,9 +32,10 @@ export async function POST(req: NextRequest) {
 
     // 2. Determine Period File
     const now = new Date();
-    const periodId = mode === RunMode.DAILY
-      ? `daily-${Math.floor(now.getTime() / (24 * 60 * 60 * 1000))}`
-      : `weekly-${Math.floor(now.getTime() / (7 * 24 * 60 * 60 * 1000))}`;
+    const periodId =
+      mode === RunMode.DAILY
+        ? `daily-${Math.floor(now.getTime() / (24 * 60 * 60 * 1000))}`
+        : `weekly-${Math.floor(now.getTime() / (7 * 24 * 60 * 60 * 1000))}`;
 
     const filePath = path.join(LEADERBOARD_DIR, `${periodId}.json`);
     await fs.mkdir(LEADERBOARD_DIR, { recursive: true });
@@ -60,7 +64,11 @@ export async function POST(req: NextRequest) {
     entries.sort((a: any, b: any) => b.score - a.score);
     await fs.writeFile(filePath, JSON.stringify(entries, null, 2), 'utf-8');
 
-    return NextResponse.json({ success: true, score, rank: entries.findIndex((e: any) => e.sessionId === sessionId) + 1 });
+    return NextResponse.json({
+      success: true,
+      score,
+      rank: entries.findIndex((e: any) => e.sessionId === sessionId) + 1,
+    });
   } catch (error) {
     logger.error('[LeaderboardSubmit] Error:', 'API', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

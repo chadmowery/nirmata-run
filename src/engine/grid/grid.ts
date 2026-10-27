@@ -99,7 +99,13 @@ export class Grid {
   /**
    * Moves an entity from one set of coordinates to another.
    */
-  public moveEntity(entityId: EntityId, fromX: number, fromY: number, toX: number, toY: number): void {
+  public moveEntity(
+    entityId: EntityId,
+    fromX: number,
+    fromY: number,
+    toX: number,
+    toY: number,
+  ): void {
     this.removeEntity(entityId, fromX, fromY);
     this.addEntity(entityId, toX, toY);
   }
@@ -135,7 +141,7 @@ export class Grid {
    * Returns a copy of the internal tiles for serialization.
    */
   getSerializableTiles(): SerializedTile[] {
-    return this.tiles.map(tile => ({
+    return this.tiles.map((tile) => ({
       ...tile,
       entities: Array.from(tile.entities),
       items: Array.from(tile.items),

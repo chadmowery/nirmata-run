@@ -28,7 +28,11 @@ export interface RawTemplate {
   /**
    * Children entities instantiated with this template.
    */
-  children?: { template: string; slotComponent: string; overrides?: Record<string, Record<string, unknown>> }[];
+  children?: {
+    template: string;
+    slotComponent: string;
+    overrides?: Record<string, Record<string, unknown>>;
+  }[];
 }
 
 /**

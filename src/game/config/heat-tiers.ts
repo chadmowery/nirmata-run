@@ -4,20 +4,38 @@
  */
 
 export interface HeatTier {
-  tier: number;       // 0-5
-  name: string;       // 'clean' | 'jitter' | 'ghosting' | 'inversion' | 'screen-tear' | 'grayscale'
-  threshold: number;  // minimum Heat value for this tier
-  cssClass: string;   // CSS class name for HUD effects
+  tier: number; // 0-5
+  name: string; // 'clean' | 'jitter' | 'ghosting' | 'inversion' | 'screen-tear' | 'grayscale'
+  threshold: number; // minimum Heat value for this tier
+  cssClass: string; // CSS class name for HUD effects
   hasPixiFilters: boolean; // whether this tier has PixiJS world filters
 }
 
 export const HEAT_TIERS: HeatTier[] = [
-  { tier: 0, name: 'clean',       threshold: 0,   cssClass: 'heatTierClean',      hasPixiFilters: false },
-  { tier: 1, name: 'jitter',      threshold: 50,  cssClass: 'heatTierJitter',     hasPixiFilters: false },
-  { tier: 2, name: 'ghosting',    threshold: 80,  cssClass: 'heatTierGhosting',   hasPixiFilters: true },
-  { tier: 3, name: 'inversion',   threshold: 100, cssClass: 'heatTierInversion',  hasPixiFilters: true },
-  { tier: 4, name: 'screen-tear', threshold: 120, cssClass: 'heatTierScreenTear', hasPixiFilters: true },
-  { tier: 5, name: 'grayscale',   threshold: 160, cssClass: 'heatTierGrayscale',  hasPixiFilters: true },
+  { tier: 0, name: 'clean', threshold: 0, cssClass: 'heatTierClean', hasPixiFilters: false },
+  { tier: 1, name: 'jitter', threshold: 50, cssClass: 'heatTierJitter', hasPixiFilters: false },
+  { tier: 2, name: 'ghosting', threshold: 80, cssClass: 'heatTierGhosting', hasPixiFilters: true },
+  {
+    tier: 3,
+    name: 'inversion',
+    threshold: 100,
+    cssClass: 'heatTierInversion',
+    hasPixiFilters: true,
+  },
+  {
+    tier: 4,
+    name: 'screen-tear',
+    threshold: 120,
+    cssClass: 'heatTierScreenTear',
+    hasPixiFilters: true,
+  },
+  {
+    tier: 5,
+    name: 'grayscale',
+    threshold: 160,
+    cssClass: 'heatTierGrayscale',
+    hasPixiFilters: true,
+  },
 ];
 
 /**

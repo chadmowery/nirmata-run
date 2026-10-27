@@ -35,7 +35,7 @@ export async function POST(req: Request) {
       playerId: instance.playerId,
       turnManager: instance.turnManager,
       eventBus: instance.eventBus,
-      systems: instance.systems
+      systems: instance.systems,
     });
 
     logger.info(`Session created: ${sessionId} (seed: ${seed})`, 'API');
@@ -44,6 +44,9 @@ export async function POST(req: Request) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     logger.error('API Error (session creation)', 'API', { error });
-    return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal Server Error', message: error.message },
+      { status: 500 },
+    );
   }
 }

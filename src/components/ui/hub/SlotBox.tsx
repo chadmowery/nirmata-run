@@ -16,7 +16,7 @@ export const SlotBox: React.FC<SlotBoxProps> = ({
   itemName,
   slotType,
   onHover,
-  onHoverEnd
+  onHoverEnd,
 }) => {
   const handleMouseEnter = () => {
     if (filled && itemName && onHover) {
@@ -27,7 +27,7 @@ export const SlotBox: React.FC<SlotBoxProps> = ({
   const initials = itemName ? itemName.substring(0, 2).toUpperCase() : '';
 
   return (
-    <div 
+    <div
       className={`
         ${styles.slotBox} 
         ${filled ? styles.filled : styles.empty} 
@@ -36,7 +36,7 @@ export const SlotBox: React.FC<SlotBoxProps> = ({
       `}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={onHoverEnd}
-      aria-label={`${slotType} slot: ${filled ? (itemName || 'equipped') : 'empty'}${legacy ? ' (LEGACY)' : ''}`}
+      aria-label={`${slotType} slot: ${filled ? itemName || 'equipped' : 'empty'}${legacy ? ' (LEGACY)' : ''}`}
     >
       <div className={styles.icon}>
         {filled ? (

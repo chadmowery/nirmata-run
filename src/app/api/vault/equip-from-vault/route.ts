@@ -24,8 +24,12 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Find item in Vault
-    logger.debug(`[VaultEquipFromVault] Vault contents:`, 'API', profile.vault.map(i => ({ id: i.entityId, type: i.itemType })));
-    const vaultIndex = profile.vault.findIndex(item => item.entityId === entityId);
+    logger.debug(
+      `[VaultEquipFromVault] Vault contents:`,
+      'API',
+      profile.vault.map((i) => ({ id: i.entityId, type: i.itemType })),
+    );
+    const vaultIndex = profile.vault.findIndex((item) => item.entityId === entityId);
     if (vaultIndex === -1) {
       logger.warn(`[VaultEquipFromVault] Item not found in Vault: ${entityId}`, 'API');
       return NextResponse.json({ error: 'Item not found in Vault' }, { status: 404 });

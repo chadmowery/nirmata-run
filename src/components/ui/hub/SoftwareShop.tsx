@@ -16,7 +16,12 @@ const SoftwareShop: React.FC = () => {
 
   if (!profile) return null;
 
-  const handlePurchase = async (itemIndex: number, price: number, templateId: string, rarity: string) => {
+  const handlePurchase = async (
+    itemIndex: number,
+    price: number,
+    templateId: string,
+    rarity: string,
+  ) => {
     if (profile.wallet.scrap < price) return;
 
     try {
@@ -32,13 +37,13 @@ const SoftwareShop: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        
+
         // Optimistic update using server data if available
         updateProfileOptimistic((p) => ({
           ...p,
           wallet: {
             ...p.wallet,
-            scrap: data.remainingScrap ?? (p.wallet.scrap - price),
+            scrap: data.remainingScrap ?? p.wallet.scrap - price,
           },
           vault: [
             ...p.vault,

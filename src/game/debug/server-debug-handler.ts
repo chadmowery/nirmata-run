@@ -1,7 +1,19 @@
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
 import { logger } from '@engine/utils/logger';
-import { Health, Heat, Stability, Position, FloorState, DescentIntent, HeatIntent, ApplyStatusEffectIntent, HealIntent, DamageIntent, VentIntent } from '@shared/components';
+import {
+  Health,
+  Heat,
+  Stability,
+  Position,
+  FloorState,
+  DescentIntent,
+  HeatIntent,
+  ApplyStatusEffectIntent,
+  HealIntent,
+  DamageIntent,
+  VentIntent,
+} from '@shared/components';
 import { EntityId } from '@engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
 import * as InventoryUtil from '@shared/utils/inventory-util';
@@ -14,14 +26,20 @@ export function handleServerDebugCommand(
   sessionId: string,
   command: string,
   args: any = {},
-  systems?: any
+  systems?: any,
 ) {
   if (process.env.NODE_ENV !== 'development') {
-    logger.warn(`Attempted debug command "${command}" in non-development environment. Ignoring.`, 'DEBUG');
+    logger.warn(
+      `Attempted debug command "${command}" in non-development environment. Ignoring.`,
+      'DEBUG',
+    );
     return;
   }
 
-  logger.debug(`Executing: ${command} with args ${JSON.stringify(args)} (PlayerId: ${playerId})`, 'DEBUG');
+  logger.debug(
+    `Executing: ${command} with args ${JSON.stringify(args)} (PlayerId: ${playerId})`,
+    'DEBUG',
+  );
 
   switch (command) {
     case 'SET_HEAT': {
@@ -38,7 +56,15 @@ export function handleServerDebugCommand(
     case 'TRIGGER_PANIC': {
       logger.debug(`Triggering Panic for ${playerId}`, 'DEBUG');
       const tier = Number(args.tier) || 1;
-      const effectName = args.effectName || (tier === 1 ? 'HUD_GLITCH' : tier === 2 ? 'INPUT_LAG' : tier === 3 ? 'FIRMWARE_LOCK' : 'CRITICAL_REBOOT');
+      const effectName =
+        args.effectName ||
+        (tier === 1
+          ? 'HUD_GLITCH'
+          : tier === 2
+            ? 'INPUT_LAG'
+            : tier === 3
+              ? 'FIRMWARE_LOCK'
+              : 'CRITICAL_REBOOT');
 
       world.addComponent(playerId, ApplyStatusEffectIntent, {
         targetId: playerId,
@@ -46,8 +72,8 @@ export function handleServerDebugCommand(
           name: effectName,
           duration: tier === 4 ? 3 : 2,
           magnitude: 1,
-          source: 'debug'
-        }
+          source: 'debug',
+        },
       });
 
       // Special case for Tier 4: critical reboot vents heat
@@ -65,7 +91,10 @@ export function handleServerDebugCommand(
         if (diff > 0) {
           world.addComponent(playerId, HealIntent, { targetId: playerId, amount: diff });
         } else if (diff < 0) {
-          world.addComponent(playerId, DamageIntent, { targetId: playerId, amount: Math.abs(diff) });
+          world.addComponent(playerId, DamageIntent, {
+            targetId: playerId,
+            amount: Math.abs(diff),
+          });
         }
         logger.debug(`Queued Health Intent for entity ${playerId}: ${diff}`, 'DEBUG');
       }
@@ -86,7 +115,7 @@ export function handleServerDebugCommand(
       const type = args.type || 'scrap';
       const amount = Number(args.amount) || 100;
       InventoryUtil.addCurrency(world, playerId, type as any, amount, {
-        blueprintId: args.blueprintId
+        blueprintId: args.blueprintId,
       });
       eventBus.emit('CURRENCY_PICKED_UP', {
         entityId: playerId,
@@ -107,8 +136,8 @@ export function handleServerDebugCommand(
           name: effectName,
           duration,
           magnitude: 1,
-          source: 'debug'
-        }
+          source: 'debug',
+        },
       });
       break;
     }
@@ -120,7 +149,7 @@ export function handleServerDebugCommand(
 
       world.addComponent(playerId, DescentIntent, {
         targetFloor: nextFloor,
-        cost: 0
+        cost: 0,
       });
       break;
     }
@@ -128,12 +157,7 @@ export function handleServerDebugCommand(
     case 'SPAWN_DEADZONE': {
       const pos = world.getComponent(playerId, Position);
       if (pos && systems?.deadZone) {
-        systems.deadZone.createDeadZone(
-          pos.x,
-          pos.y,
-          Number(args.duration) || 5,
-          playerId
-        );
+        systems.deadZone.createDeadZone(pos.x, pos.y, Number(args.duration) || 5, playerId);
       }
       break;
     }

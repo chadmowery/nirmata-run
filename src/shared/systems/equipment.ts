@@ -12,11 +12,11 @@ export function handleEquip(
   events: EventBus<GameplayEvents>,
   entityId: EntityId,
   slotType: 'firmware' | 'augment' | 'software',
-  itemEntityId: EntityId
+  itemEntityId: EntityId,
 ): void {
   const portConfig = world.getComponent(entityId, PortConfig);
   if (!portConfig) {
-    events.emit('MESSAGE_EMITTED', { text: "Entity has no PortConfig", type: 'error' });
+    events.emit('MESSAGE_EMITTED', { text: 'Entity has no PortConfig', type: 'error' });
     return;
   }
 
@@ -40,7 +40,7 @@ export function handleEquip(
 
   const slots = world.getComponent(entityId, slotComponent);
   if (!slots) {
-  events.emit('MESSAGE_EMITTED', { text: `Entity has no ${slotType} slots`, type: 'error' });
+    events.emit('MESSAGE_EMITTED', { text: `Entity has no ${slotType} slots`, type: 'error' });
     return;
   }
 
@@ -51,7 +51,7 @@ export function handleEquip(
 
   // Add item to slots
   slots.equipped.push(itemEntityId);
-  
+
   // Emit success event
   events.emit('EQUIPMENT_CHANGED', { entityId, slotType });
   events.emit('MESSAGE_EMITTED', { text: `Equipped item to ${slotType} slot`, type: 'info' });
@@ -65,7 +65,7 @@ export function handleUnequip(
   events: EventBus<GameplayEvents>,
   entityId: EntityId,
   slotType: 'firmware' | 'augment' | 'software',
-  slotIndex: number
+  slotIndex: number,
 ): void {
   let slotComponent;
 
@@ -89,7 +89,7 @@ export function handleUnequip(
 
   // Remove item from slots
   slots.equipped.splice(slotIndex, 1);
-  
+
   // Emit success event
   events.emit('EQUIPMENT_CHANGED', { entityId, slotType });
   events.emit('MESSAGE_EMITTED', { text: `Unequipped item from ${slotType} slot`, type: 'info' });

@@ -8,7 +8,7 @@ import {
   AugmentSlots,
   HealIntent,
   HeatIntent,
-  ApplyStatusEffectIntent
+  ApplyStatusEffectIntent,
 } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { getLegacyMagnitude } from './legacy-code';
@@ -29,7 +29,7 @@ export function createAugmentSystem<T extends GameplayEvents>(
           const currentAmount = existing?.amount ?? 0;
           world.addComponent(entityId, HealIntent, {
             targetId: entityId,
-            amount: currentAmount + magnitude
+            amount: currentAmount + magnitude,
           });
           break;
         }
@@ -41,7 +41,7 @@ export function createAugmentSystem<T extends GameplayEvents>(
               name: 'SHIELD',
               duration: 1,
               magnitude: magnitude,
-            }
+            },
           });
           break;
         case 'APPLY_STATUS':
@@ -52,7 +52,7 @@ export function createAugmentSystem<T extends GameplayEvents>(
                 name: payload.statusEffectName,
                 duration: payload.statusEffectDuration ?? 1,
                 magnitude: magnitude,
-              }
+              },
             });
           }
           break;
@@ -61,7 +61,7 @@ export function createAugmentSystem<T extends GameplayEvents>(
           const currentAmount = existing?.amount ?? 0;
           world.addComponent(entityId, HeatIntent, {
             targetId: entityId,
-            amount: currentAmount - magnitude
+            amount: currentAmount - magnitude,
           });
           break;
         }
@@ -87,7 +87,10 @@ export function createAugmentSystem<T extends GameplayEvents>(
 
     let state = world.getComponent(entityId, AugmentState);
     if (!state) {
-      world.addComponent(entityId, AugmentState, { activationsThisTurn: {}, cooldownsRemaining: {} });
+      world.addComponent(entityId, AugmentState, {
+        activationsThisTurn: {},
+        cooldownsRemaining: {},
+      });
       state = world.getComponent(entityId, AugmentState)!;
     }
 
@@ -108,7 +111,7 @@ export function createAugmentSystem<T extends GameplayEvents>(
 
           const nextActivations = {
             ...state.activationsThisTurn,
-            [augmentKey]: activations + 1
+            [augmentKey]: activations + 1,
           };
           const nextCooldowns = { ...state.cooldownsRemaining };
           if (augmentData.cooldownTurns > 0) {
@@ -117,24 +120,24 @@ export function createAugmentSystem<T extends GameplayEvents>(
 
           world.patchComponent(entityId, AugmentState, {
             activationsThisTurn: nextActivations,
-            cooldownsRemaining: nextCooldowns
+            cooldownsRemaining: nextCooldowns,
           });
 
           for (const p of augmentData.payloads) {
             triggeredAugments.push({
               name: augmentData.name,
               payloadType: p.type,
-              magnitude: p.magnitude ?? 0
+              magnitude: p.magnitude ?? 0,
             });
           }
 
           eventBus.emit('MESSAGE_EMITTED', {
             text: `${augmentData.name} TRIGGERED!`,
-            type: 'info'
+            type: 'info',
           });
 
-          logger.info(`Augment ${augmentData.name} triggered for entity ${entityId}`, 'SYSTEM', { 
-            payloads: augmentData.payloads 
+          logger.info(`Augment ${augmentData.name} triggered for entity ${entityId}`, 'SYSTEM', {
+            payloads: augmentData.payloads,
           });
         }
       }
@@ -161,7 +164,7 @@ export function createAugmentSystem<T extends GameplayEvents>(
 
       world.patchComponent(entityId, AugmentState, {
         activationsThisTurn: {},
-        cooldownsRemaining: nextCooldowns
+        cooldownsRemaining: nextCooldowns,
       });
     }
   };
@@ -192,4 +195,6 @@ export function createAugmentSystem<T extends GameplayEvents>(
   };
 }
 
-export type AugmentSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<typeof createAugmentSystem<T>>;
+export type AugmentSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<
+  typeof createAugmentSystem<T>
+>;

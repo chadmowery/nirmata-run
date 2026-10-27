@@ -23,7 +23,7 @@ export function propagateShellStats(world: World<any>, entityId: EntityId): void
 
     world.patchComponent(entityId, Health, {
       max: shell.maxHealth,
-      current: nextCurrent
+      current: nextCurrent,
     });
   }
 
@@ -43,7 +43,7 @@ export function propagateShellStats(world: World<any>, entityId: EntityId): void
  */
 export function createShellStatsSystem<T extends GameplayEvents>(
   world: World<T>,
-  eventBus: EventBus<T>
+  eventBus: EventBus<T>,
 ) {
   const update = (w: World<T>) => {
     const entities = w.query(ShellUpdateTag);
@@ -64,4 +64,6 @@ export function createShellStatsSystem<T extends GameplayEvents>(
   };
 }
 
-export type ShellStatsSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<typeof createShellStatsSystem<T>>;
+export type ShellStatsSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<
+  typeof createShellStatsSystem<T>
+>;

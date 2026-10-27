@@ -1,4 +1,5 @@
-.overlay, .menuOverlay {
+.overlay,
+.menuOverlay {
   position: absolute;
   top: 0;
   left: 0;
@@ -11,8 +12,8 @@
 .overlay {
   display: grid;
   grid-template-areas:
-    "stats . ."
-    "log . entities";
+    'stats . .'
+    'log . entities';
   grid-template-columns: 300px 1fr 250px;
   grid-template-rows: auto 1fr;
   gap: 1rem;
@@ -75,7 +76,7 @@
 .stabilityLabel {
   font-size: var(--font-size-label, 12px);
   font-family: var(--font-body, sans-serif);
-  color: var(--vibrant-cyan, #00F0FF);
+  color: var(--vibrant-cyan, #00f0ff);
   margin-bottom: var(--space-xs, 4px);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -94,32 +95,42 @@
 }
 
 .stabilitySafe {
-  background: var(--vibrant-cyan, #00F0FF);
+  background: var(--vibrant-cyan, #00f0ff);
 }
 
 .stabilityWarning {
-  background: var(--vibrant-pink, #FF0055);
+  background: var(--vibrant-pink, #ff0055);
   animation: scanlinePulse 1s infinite;
 }
 
 .stabilityCritical {
-  background: var(--vibrant-pink, #FF0055);
+  background: var(--vibrant-pink, #ff0055);
   animation: criticalPulse 0.3s infinite;
 }
 
 .stabilityDegraded {
-  background: var(--vibrant-pink, #FF0055);
+  background: var(--vibrant-pink, #ff0055);
   width: 0% !important;
 }
 
 @keyframes scanlinePulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 @keyframes criticalPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.3; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 /* Floor Indicator */
@@ -130,7 +141,7 @@
   padding: var(--space-sm, 8px);
   font-size: var(--font-size-label, 12px);
   font-family: var(--font-body, sans-serif);
-  color: var(--vibrant-cyan, #00F0FF);
+  color: var(--vibrant-cyan, #00f0ff);
   border: 1px solid rgba(0, 240, 255, 0.3);
   background: rgba(0, 0, 0, 0.7);
   text-transform: uppercase;
@@ -164,8 +175,12 @@
   transition: width 0.3s ease-out;
 }
 
-.hpBar { background: var(--hp-color); }
-.xpBar { background: var(--xp-color); }
+.hpBar {
+  background: var(--hp-color);
+}
+.xpBar {
+  background: var(--xp-color);
+}
 
 /* Message Log */
 .messageLogPanel {
@@ -195,9 +210,15 @@
   line-height: 1.2;
 }
 
-.msgInfo { color: var(--info-color); }
-.msgCombat { color: var(--warning-color); }
-.msgError { color: var(--error-color); }
+.msgInfo {
+  color: var(--info-color);
+}
+.msgCombat {
+  color: var(--warning-color);
+}
+.msgError {
+  color: var(--error-color);
+}
 
 .msgCount {
   color: var(--text-dim);
@@ -247,28 +268,64 @@
 }
 
 @keyframes flicker {
-  0% { opacity: 0.97; }
-  5% { opacity: 0.95; }
-  10% { opacity: 0.97; }
-  15% { opacity: 0.94; }
-  20% { opacity: 0.98; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 0.97;
+  }
+  5% {
+    opacity: 0.95;
+  }
+  10% {
+    opacity: 0.97;
+  }
+  15% {
+    opacity: 0.94;
+  }
+  20% {
+    opacity: 0.98;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 @keyframes hudGlitch {
-  0% { transform: translate(0); filter: hue-rotate(0deg); }
-  10% { transform: translate(-2px, 2px); filter: hue-rotate(90deg); }
-  20% { transform: translate(2px, -2px); filter: hue-rotate(180deg); }
-  30% { transform: translate(-2px, -2px); filter: hue-rotate(270deg); }
-  40% { transform: translate(2px, 2px); filter: hue-rotate(360deg); }
-  50% { transform: translate(-1px, 1px); opacity: 0.8; }
-  60% { transform: translate(1px, -1px); opacity: 1; }
-  100% { transform: translate(0); filter: hue-rotate(0deg); }
+  0% {
+    transform: translate(0);
+    filter: hue-rotate(0deg);
+  }
+  10% {
+    transform: translate(-2px, 2px);
+    filter: hue-rotate(90deg);
+  }
+  20% {
+    transform: translate(2px, -2px);
+    filter: hue-rotate(180deg);
+  }
+  30% {
+    transform: translate(-2px, -2px);
+    filter: hue-rotate(270deg);
+  }
+  40% {
+    transform: translate(2px, 2px);
+    filter: hue-rotate(360deg);
+  }
+  50% {
+    transform: translate(-1px, 1px);
+    opacity: 0.8;
+  }
+  60% {
+    transform: translate(1px, -1px);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(0);
+    filter: hue-rotate(0deg);
+  }
 }
 
 .hudGlitch {
   animation: hudGlitch 0.2s infinite;
-  border-color: var(--vibrant-pink, #FF0055) !important;
+  border-color: var(--vibrant-pink, #ff0055) !important;
   box-shadow: 0 0 20px rgba(255, 0, 85, 0.4) !important;
 }
 
@@ -290,7 +347,7 @@
 
 .walletDisplay {
   font-size: 1rem;
-  color: var(--vibrant-cyan, #00F0FF);
+  color: var(--vibrant-cyan, #00f0ff);
   margin-top: 1rem;
   text-transform: uppercase;
   letter-spacing: 0.1rem;
@@ -392,7 +449,7 @@
 }
 
 .heatCritical {
-  background: var(--vibrant-pink, #FF0055);
+  background: var(--vibrant-pink, #ff0055);
   animation: criticalPulse 0.3s infinite;
 }
 
@@ -439,7 +496,7 @@
 
 .abilitySlotActive {
   background: rgba(0, 240, 255, 0.1) !important;
-  border-color: var(--vibrant-cyan, #00F0FF) !important;
+  border-color: var(--vibrant-cyan, #00f0ff) !important;
   box-shadow: inset 0 0 10px rgba(0, 240, 255, 0.2);
 }
 
@@ -457,7 +514,7 @@
 }
 
 .hotkeyPrefix {
-  color: var(--vibrant-cyan, #00F0FF);
+  color: var(--vibrant-cyan, #00f0ff);
   font-family: monospace;
   font-weight: bold;
 }
@@ -480,7 +537,7 @@
 }
 
 .abilityRange {
-  color: var(--vibrant-cyan, #00F0FF);
+  color: var(--vibrant-cyan, #00f0ff);
 }
 
 .targetingPulse {
@@ -489,14 +546,19 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: var(--vibrant-cyan, #00F0FF);
+  background: var(--vibrant-cyan, #00f0ff);
   opacity: 0.1;
   animation: targetingFlash 1.5s infinite;
 }
 
 @keyframes targetingFlash {
-  0%, 100% { opacity: 0.05; }
-  50% { opacity: 0.2; }
+  0%,
+  100% {
+    opacity: 0.05;
+  }
+  50% {
+    opacity: 0.2;
+  }
 }
 
 .modsHeader {
@@ -531,19 +593,41 @@
 
 /* Heat Tier Animations (per VIS-03, D-02) */
 @keyframes hudJitter {
-  0%, 100% { transform: translate(0, 0); }
-  10% { transform: translate(-1px, -1px); }
-  20% { transform: translate(1px, 0); }
-  30% { transform: translate(0, 1px); }
-  40% { transform: translate(-1px, 1px); }
-  50% { transform: translate(1px, -1px); }
-  60% { transform: translate(-1px, 0); }
-  70% { transform: translate(0, -1px); }
-  80% { transform: translate(1px, 1px); }
-  90% { transform: translate(-1px, -1px); }
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  10% {
+    transform: translate(-1px, -1px);
+  }
+  20% {
+    transform: translate(1px, 0);
+  }
+  30% {
+    transform: translate(0, 1px);
+  }
+  40% {
+    transform: translate(-1px, 1px);
+  }
+  50% {
+    transform: translate(1px, -1px);
+  }
+  60% {
+    transform: translate(-1px, 0);
+  }
+  70% {
+    transform: translate(0, -1px);
+  }
+  80% {
+    transform: translate(1px, 1px);
+  }
+  90% {
+    transform: translate(-1px, -1px);
+  }
 }
 
-.heatTierClean {}
+.heatTierClean {
+}
 
 .heatTierJitter {
   animation: hudJitter 0.1s infinite;
@@ -574,4 +658,3 @@
     animation: none;
   }
 }
-

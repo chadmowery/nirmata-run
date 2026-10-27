@@ -50,13 +50,21 @@ export function applyHeatTierFilters(container: Container, tier: number): void {
   // NOTE: Per plan, we track Heat filters separately. In this simple implementation,
   // we set container.filters. If other systems use filters, they must be merged.
   // For now, we follow the pattern of setting them directly or merging if possible.
-  
-  const existingFilters = container.filters ? (Array.isArray(container.filters) ? container.filters : [container.filters]) : [];
-  
+
+  const existingFilters = container.filters
+    ? Array.isArray(container.filters)
+      ? container.filters
+      : [container.filters]
+    : [];
+
   // Remove existing heat filters before adding new ones
-  const heatFilterInstances = [_inversionFilter, _screenTearFilter, _grayscaleFilter] as unknown as Filter[];
-  const nonHeatFilters = existingFilters.filter(f => !heatFilterInstances.includes(f));
-  
+  const heatFilterInstances = [
+    _inversionFilter,
+    _screenTearFilter,
+    _grayscaleFilter,
+  ] as unknown as Filter[];
+  const nonHeatFilters = existingFilters.filter((f) => !heatFilterInstances.includes(f));
+
   container.filters = [...nonHeatFilters, ...filters];
   if (container.filters.length === 0) container.filters = null;
 }
@@ -66,11 +74,17 @@ export function applyHeatTierFilters(container: Container, tier: number): void {
  */
 export function clearHeatTierFilters(container: Container): void {
   if (!container.filters) return;
-  
-  const existingFilters = Array.isArray(container.filters) ? container.filters : [container.filters];
-  const heatFilterInstances = [_inversionFilter, _screenTearFilter, _grayscaleFilter] as unknown as Filter[];
-  
-  const filtered = existingFilters.filter(f => !heatFilterInstances.includes(f));
+
+  const existingFilters = Array.isArray(container.filters)
+    ? container.filters
+    : [container.filters];
+  const heatFilterInstances = [
+    _inversionFilter,
+    _screenTearFilter,
+    _grayscaleFilter,
+  ] as unknown as Filter[];
+
+  const filtered = existingFilters.filter((f) => !heatFilterInstances.includes(f));
   container.filters = filtered.length > 0 ? filtered : null;
 }
 
@@ -78,7 +92,11 @@ export function clearHeatTierFilters(container: Container): void {
  * Manages the pink sprite ghosting effect for the player sprite (Tier 2).
  * Creates a secondary sprite with an offset and pink tint.
  */
-export function updateSpriteGhosting(playerSprite: Sprite, tier: number, entityLayer: Container): void {
+export function updateSpriteGhosting(
+  playerSprite: Sprite,
+  tier: number,
+  entityLayer: Container,
+): void {
   const state = ghostSprites.get(playerSprite);
 
   if (tier < 2) {
@@ -94,14 +112,14 @@ export function updateSpriteGhosting(playerSprite: Sprite, tier: number, entityL
     const ghost = new Sprite(playerSprite.texture);
     ghost.anchor.copyFrom(playerSprite.anchor);
     ghost.alpha = 0.4;
-    
+
     const pinkSplit = new RGBSplitFilter({
       red: { x: 2, y: 0 },
       green: { x: -2, y: 0 },
-      blue: { x: 2, y: 0 }
+      blue: { x: 2, y: 0 },
     });
     ghost.filters = [pinkSplit as unknown as Filter];
-    
+
     entityLayer.addChild(ghost);
     ghostSprites.set(playerSprite, { ghost, lastTier: tier });
   }

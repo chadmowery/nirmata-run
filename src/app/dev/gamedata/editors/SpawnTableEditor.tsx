@@ -44,12 +44,19 @@ export function SpawnTableEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
     <div className={styles.editor}>
       <div className={styles.editorHeader}>
         <h2 className={styles.editorTitle}>{isNew ? 'New Spawn Table' : `Table: ${name}`}</h2>
-        <button className={styles.saveButton} onClick={handleSave}>SAVE</button>
+        <button className={styles.saveButton} onClick={handleSave}>
+          SAVE
+        </button>
       </div>
 
       <div className={styles.fieldRow}>
         <label className={styles.fieldLabel}>Name</label>
-        <input className={styles.fieldInput} value={data.name} onChange={(e) => setData({ ...data, name: e.target.value })} disabled={!isNew} />
+        <input
+          className={styles.fieldInput}
+          value={data.name}
+          onChange={(e) => setData({ ...data, name: e.target.value })}
+          disabled={!isNew}
+        />
       </div>
 
       {data.tables.map((table: any, idx: number) => (
@@ -57,34 +64,63 @@ export function SpawnTableEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
           <h3 className={styles.fieldGroupTitle}>Depth Band {idx}</h3>
           <div className={styles.fieldRow}>
             <label className={styles.fieldLabel}>Min/Max Depth</label>
-            <input type="number" className={styles.fieldInput} value={table.depthRange.min} onChange={(e) => {
+            <input
+              type="number"
+              className={styles.fieldInput}
+              value={table.depthRange.min}
+              onChange={(e) => {
                 const tables = [...data.tables];
                 tables[idx].depthRange.min = Number(e.target.value);
-                setData({...data, tables});
-            }}/>
-            <input type="number" className={styles.fieldInput} value={table.depthRange.max} onChange={(e) => {
+                setData({ ...data, tables });
+              }}
+            />
+            <input
+              type="number"
+              className={styles.fieldInput}
+              value={table.depthRange.max}
+              onChange={(e) => {
                 const tables = [...data.tables];
                 tables[idx].depthRange.max = Number(e.target.value);
-                setData({...data, tables});
-            }}/>
+                setData({ ...data, tables });
+              }}
+            />
           </div>
           {table.templates.map((tpl: any, tIdx: number) => (
-              <div key={tIdx} className={styles.fieldRow}>
-                  <input className={styles.fieldInput} value={tpl.name} onChange={(e) => {
-                      const tables = [...data.tables];
-                      tables[idx].templates[tIdx].name = e.target.value;
-                      setData({...data, tables});
-                  }}/>
-                  <input type="number" className={styles.fieldInput} value={tpl.weight} onChange={(e) => {
-                      const tables = [...data.tables];
-                      tables[idx].templates[tIdx].weight = Number(e.target.value);
-                      setData({...data, tables});
-                  }}/>
-              </div>
+            <div key={tIdx} className={styles.fieldRow}>
+              <input
+                className={styles.fieldInput}
+                value={tpl.name}
+                onChange={(e) => {
+                  const tables = [...data.tables];
+                  tables[idx].templates[tIdx].name = e.target.value;
+                  setData({ ...data, tables });
+                }}
+              />
+              <input
+                type="number"
+                className={styles.fieldInput}
+                value={tpl.weight}
+                onChange={(e) => {
+                  const tables = [...data.tables];
+                  tables[idx].templates[tIdx].weight = Number(e.target.value);
+                  setData({ ...data, tables });
+                }}
+              />
+            </div>
           ))}
         </div>
       ))}
-      <button className={styles.addComponentButton} onClick={() => setData({...data, tables: [...data.tables, {depthRange: {min:0, max:1}, templates: []}]})}>+ Add Depth Band</button>
+      <button
+        className={styles.addComponentButton}
+        onClick={() =>
+          setData({
+            ...data,
+            tables: [...data.tables, { depthRange: { min: 0, max: 1 }, templates: [] }],
+          })
+        }
+      >
+        + Add Depth Band
+      </button>
     </div>
   );
 }

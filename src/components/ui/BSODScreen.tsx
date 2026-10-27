@@ -29,8 +29,8 @@ export const BSODScreen: React.FC = () => {
     <div className={styles.bsod}>
       <div style={{ position: 'relative', zIndex: 3 }}>
         <h1 className={styles.title}>FATAL_EXCEPTION</h1>
-        <p className={styles.reason}>{bsodReason || "0x00000000_NULL_POINTER"}</p>
-        
+        <p className={styles.reason}>{bsodReason || '0x00000000_NULL_POINTER'}</p>
+
         <div style={{ marginTop: '40px', opacity: 0.6, fontSize: '14px' }}>
           <p>*** STOP: 0x0000007E (0xFFFFFFFFC0000005, 0xFFFFF80002E5A188)</p>
           <p>*** nirmata_runner.sys - Address 0xFFFFF80002E5A188 base at 0xFFFFF80002E00000</p>

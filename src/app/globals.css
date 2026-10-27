@@ -12,10 +12,10 @@
   --hp-color: #ff0044;
 
   /* Phase 12: Vibrant Decay palette */
-  --vibrant-cyan: #00F0FF;
-  --vibrant-pink: #FF0055;
-  --safety-orange: #FF9500;
-  --white: #FFFFFF;
+  --vibrant-cyan: #00f0ff;
+  --vibrant-pink: #ff0055;
+  --safety-orange: #ff9500;
+  --white: #ffffff;
   --black: #000000;
 
   /* Semantic tokens */
@@ -26,17 +26,17 @@
   --color-bsod: var(--safety-orange);
 
   /* Overlay background */
-  --overlay-bg: rgba(0, 0, 0, 0.90);
+  --overlay-bg: rgba(0, 0, 0, 0.9);
 
   /* Typography */
-  --font-body: "Arial Narrow", "Helvetica Condensed", sans-serif;
+  --font-body: 'Arial Narrow', 'Helvetica Condensed', sans-serif;
   --font-size-display: 48px;
   --font-size-heading: 24px;
   --font-size-body: 14px;
   --font-size-label: 12px;
   --font-weight-regular: 400;
   --font-weight-semibold: 600;
-  --line-height-display: 1.0;
+  --line-height-display: 1;
   --line-height-heading: 1.2;
   --line-height-body: 1.5;
 
@@ -76,7 +76,8 @@
   --space-3xl: 64px;
 }
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   width: 100vw;
@@ -127,17 +128,12 @@ canvas {
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    rgba(18, 16, 16, 0) 50%,
-    rgba(0, 0, 0, 0.25) 50%
-  ),
-  linear-gradient(
-    90deg,
-    rgba(255, 0, 0, 0.06),
-    rgba(0, 255, 0, 0.02),
-    rgba(0, 0, 255, 0.06)
-  );
-  background-size: 100% 2px, 3px 100%;
+  background:
+    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+    linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  background-size:
+    100% 2px,
+    3px 100%;
   pointer-events: none;
   z-index: 100;
   opacity: 0.15;
@@ -157,27 +153,69 @@ canvas {
 }
 
 @keyframes flicker {
-  0% { opacity: 0.1; }
-  5% { opacity: 0.2; }
-  10% { opacity: 0.1; }
-  15% { opacity: 0.15; }
-  20% { opacity: 0.25; }
-  25% { opacity: 0.1; }
-  30% { opacity: 0.1; }
-  35% { opacity: 0.1; }
-  40% { opacity: 0.2; }
-  45% { opacity: 0.1; }
-  50% { opacity: 0.1; }
-  55% { opacity: 0.1; }
-  60% { opacity: 0.2; }
-  65% { opacity: 0.1; }
-  70% { opacity: 0.1; }
-  75% { opacity: 0.1; }
-  80% { opacity: 0.1; }
-  85% { opacity: 0.1; }
-  90% { opacity: 0.1; }
-  95% { opacity: 0.1; }
-  100% { opacity: 0.1; }
+  0% {
+    opacity: 0.1;
+  }
+  5% {
+    opacity: 0.2;
+  }
+  10% {
+    opacity: 0.1;
+  }
+  15% {
+    opacity: 0.15;
+  }
+  20% {
+    opacity: 0.25;
+  }
+  25% {
+    opacity: 0.1;
+  }
+  30% {
+    opacity: 0.1;
+  }
+  35% {
+    opacity: 0.1;
+  }
+  40% {
+    opacity: 0.2;
+  }
+  45% {
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.1;
+  }
+  55% {
+    opacity: 0.1;
+  }
+  60% {
+    opacity: 0.2;
+  }
+  65% {
+    opacity: 0.1;
+  }
+  70% {
+    opacity: 0.1;
+  }
+  75% {
+    opacity: 0.1;
+  }
+  80% {
+    opacity: 0.1;
+  }
+  85% {
+    opacity: 0.1;
+  }
+  90% {
+    opacity: 0.1;
+  }
+  95% {
+    opacity: 0.1;
+  }
+  100% {
+    opacity: 0.1;
+  }
 }
 /* Dev Terminal Modal */
 .dev-terminal-overlay {

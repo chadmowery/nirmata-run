@@ -8,8 +8,8 @@ import { NextRequest } from 'next/server';
 vi.mock('@/app/persistence/fs-profile-repository');
 vi.mock('@/engine/session/SessionManager', () => ({
   sessionManager: {
-    createSession: vi.fn()
-  }
+    createSession: vi.fn(),
+  },
 }));
 vi.mock('@/game/engine-factory', () => ({
   createEngineInstance: vi.fn(() => ({
@@ -18,8 +18,8 @@ vi.mock('@/game/engine-factory', () => ({
     turnManager: {},
     eventBus: {},
     systems: {},
-    playerId: 1
-  }))
+    playerId: 1,
+  })),
 }));
 
 describe('Run Launch API', () => {
@@ -34,7 +34,12 @@ describe('Run Launch API', () => {
       sessionId,
       overflow: [{ entityId: 1 } as any],
       vault: [],
-      attemptTracking: { dayNumber: 0, weekNumber: 0, dailyAttemptUsed: false, weeklyAttemptUsed: false },
+      attemptTracking: {
+        dayNumber: 0,
+        weekNumber: 0,
+        dailyAttemptUsed: false,
+        weeklyAttemptUsed: false,
+      },
       wallet: { scrap: 0, flux: 0 },
     } as any);
 
@@ -54,7 +59,12 @@ describe('Run Launch API', () => {
       sessionId,
       overflow: [],
       vault: [],
-      attemptTracking: { dayNumber: 0, weekNumber: 0, dailyAttemptUsed: false, weeklyAttemptUsed: false },
+      attemptTracking: {
+        dayNumber: 0,
+        weekNumber: 0,
+        dailyAttemptUsed: false,
+        weeklyAttemptUsed: false,
+      },
       wallet: { scrap: 0, flux: 0 },
     };
     vi.mocked(profileRepository.load).mockResolvedValue(profile as any);
@@ -66,8 +76,10 @@ describe('Run Launch API', () => {
 
     const res = await launchRoute(req);
     expect(res.status).toBe(200);
-    expect(vi.mocked(profileRepository.save)).toHaveBeenCalledWith(expect.objectContaining({
-      attemptTracking: expect.objectContaining({ weeklyAttemptUsed: true })
-    }));
+    expect(vi.mocked(profileRepository.save)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attemptTracking: expect.objectContaining({ weeklyAttemptUsed: true }),
+      }),
+    );
   });
 });

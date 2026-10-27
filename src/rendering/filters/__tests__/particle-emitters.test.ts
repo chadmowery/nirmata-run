@@ -36,9 +36,9 @@ vi.mock('pixi.js', () => {
 
 describe('Particle Emitters', () => {
   it('maps behaviors to correct neon colors', () => {
-    expect(_getColorForBehavior(AIBehaviorType.NULL_POINTER)).toBe(0x00F0FF);
-    expect(_getColorForBehavior(AIBehaviorType.FRAGMENTER)).toBe(0xFF0055);
-    expect(_getColorForBehavior(AIBehaviorType.SYSTEM_ADMIN)).toBe(0xFFFFFF);
+    expect(_getColorForBehavior(AIBehaviorType.NULL_POINTER)).toBe(0x00f0ff);
+    expect(_getColorForBehavior(AIBehaviorType.FRAGMENTER)).toBe(0xff0055);
+    expect(_getColorForBehavior(AIBehaviorType.SYSTEM_ADMIN)).toBe(0xffffff);
   });
 
   it('attaches emitter to sprite', () => {

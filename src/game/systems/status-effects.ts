@@ -13,9 +13,18 @@ export function applyStatusEffect<T extends GameplayEvents>(
   world: World<T>,
   eventBus: EventBus<T>,
   entityId: EntityId,
-  effect: { name: string; duration: number; magnitude?: number; severity?: string; source?: string },
+  effect: {
+    name: string;
+    duration: number;
+    magnitude?: number;
+    severity?: string;
+    source?: string;
+  },
 ) {
-  logger.info(`Applying ${effect.name} to entity ${entityId} (Dur: ${effect.duration}, Src: ${effect.source ?? 'unknown'})`, 'STATUS');
+  logger.info(
+    `Applying ${effect.name} to entity ${entityId} (Dur: ${effect.duration}, Src: ${effect.source ?? 'unknown'})`,
+    'STATUS',
+  );
   let statusEffects = world.getComponent(entityId, StatusEffects);
   if (!statusEffects) {
     world.addComponent(entityId, StatusEffects, { effects: [] });

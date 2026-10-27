@@ -38,8 +38,8 @@ export async function getRunModeConfig(mode: RunMode): Promise<RunModeConfig> {
         mode: RunMode.DAILY,
         name: 'Daily Challenge',
         description: 'Shared daily seed. Competitive leaderboard.',
-        attemptsPerPeriod: null, // Daily allows multiple practice runs? 
-                                // Actually D-02 says "Simulation = random, Daily = shared seed"
+        attemptsPerPeriod: null, // Daily allows multiple practice runs?
+        // Actually D-02 says "Simulation = random, Daily = shared seed"
         deathPenalty: {
           loseInventory: true,
           loseInstalledItems: true,
@@ -90,9 +90,9 @@ export function calculateScore(stats: {
 }): number {
   const { scoring } = economy;
   return (
-    (stats.floorNumber * scoring.floorReached) +
-    (stats.scrapExtracted * scoring.scrapCollected) +
-    (stats.softwareExtracted * scoring.softwareExtracted) +
-    (stats.fluxExtracted * scoring.fluxExtracted)
+    stats.floorNumber * scoring.floorReached +
+    stats.scrapExtracted * scoring.scrapCollected +
+    stats.softwareExtracted * scoring.softwareExtracted +
+    stats.fluxExtracted * scoring.fluxExtracted
   );
 }

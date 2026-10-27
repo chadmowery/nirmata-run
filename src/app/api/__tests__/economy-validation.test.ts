@@ -7,7 +7,7 @@ describe('Economy API Validation (ECON-05)', () => {
   it('rejects compile request with missing fields', async () => {
     const req = new Request('http://localhost/api/economy/compile', {
       method: 'POST',
-      body: JSON.stringify({ sessionId: 'test' }) // Missing blueprintId, type, rarity
+      body: JSON.stringify({ sessionId: 'test' }), // Missing blueprintId, type, rarity
     });
     const response = await compilePOST(req);
     expect(response.status).toBe(400);
@@ -22,8 +22,8 @@ describe('Economy API Validation (ECON-05)', () => {
         sessionId: 'test',
         blueprintId: 'b1',
         shellId: 's1',
-        type: 'invalid-type'
-      })
+        type: 'invalid-type',
+      }),
     });
     const response = await installPOST(req);
     expect(response.status).toBe(400);
@@ -35,8 +35,8 @@ describe('Economy API Validation (ECON-05)', () => {
       body: JSON.stringify({
         sessionId: 'test',
         shellId: 's1',
-        stat: 'unknown-stat'
-      })
+        stat: 'unknown-stat',
+      }),
     });
     const response = await upgradePOST(req);
     expect(response.status).toBe(400);

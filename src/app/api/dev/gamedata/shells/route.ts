@@ -14,7 +14,10 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     if (!body.id || !body.name || !body.baseStats || !body.basePorts) {
-      return errorResponse('Shell template requires id, name, baseStats, and basePorts fields', 400);
+      return errorResponse(
+        'Shell template requires id, name, baseStats, and basePorts fields',
+        400,
+      );
     }
     const filePath = resolveFilePath(DIR, body.id);
     if (!filePath) return errorResponse('Invalid shell id', 400);

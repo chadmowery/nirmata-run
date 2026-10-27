@@ -8,7 +8,13 @@ import { StateConfig } from '../engine/state-machine/types';
 import { GameState } from './states/types';
 import { GAME_TRANSITIONS } from './states/game-states';
 import { InputManager } from './input/input-manager';
-import { GameAction, DIRECTIONS, DEFAULT_BINDINGS, isFirmwareAction, getFirmwareSlotIndex } from './input/actions';
+import {
+  GameAction,
+  DIRECTIONS,
+  DEFAULT_BINDINGS,
+  isFirmwareAction,
+  getFirmwareSlotIndex,
+} from './input/actions';
 import { createTargetingManager } from './input/targeting';
 import { AbilityDef, FirmwareSlots, Position, MoveIntent, VentIntent } from '@shared/components';
 import { ActionIntent } from '@shared/types';
@@ -57,13 +63,13 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     isClient: true,
     shellRecord,
     sessionId: config.sessionId,
-    runMode: config.runMode
+    runMode: config.runMode,
   });
 
   const { world, grid, eventBus, turnManager, entityFactory, systems, playerId } = instance;
   const inputManager = new InputManager(DEFAULT_BINDINGS);
 
-  const contextBase: Omit<GameContext, "fsm"> = {
+  const contextBase: Omit<GameContext, 'fsm'> = {
     world,
     grid,
     eventBus,
@@ -145,7 +151,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   const fsm = new StateMachine<GameState, GameContext>(
     GameState.Loading,
     stateConfigs,
-    GAME_TRANSITIONS
+    GAME_TRANSITIONS,
   );
 
   const autoPathfinder = new AutoPathfinder(
@@ -165,7 +171,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
         return { type: 'VENT' };
       }
       return null;
-    }
+    },
   );
 
   const context: GameContext = {
@@ -242,7 +248,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     const { Shell } = await import('@shared/components/shell');
     const shell = world.getComponent(playerId, Shell);
     const shellId = shell?.archetypeId || 'player-shell-default';
-    
+
     inputManager.setRequestPending(true);
     await sendActionToServer({
       type: 'EQUIP',
@@ -274,7 +280,11 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   });
 
   async function handleConfirmedTarget(slotIndex: number, targetX: number, targetY: number) {
-    if (fsm.getCurrentState() === GameState.Playing && turnManager.canAcceptInput() && context.playerId) {
+    if (
+      fsm.getCurrentState() === GameState.Playing &&
+      turnManager.canAcceptInput() &&
+      context.playerId
+    ) {
       // Submit action to engine
       // We encode targeting data into the action key for the TurnManager's playerActionHandler
       // though the prediction here calls firmwareSystem directly.
@@ -342,7 +352,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
                     pos.x,
                     pos.y,
                     abilityDef.range || abilityDef.dashDistance,
-                    abilityDef.effectType
+                    abilityDef.effectType,
                   );
                 }
               }
@@ -362,7 +372,10 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   async function sendActionToServer(intent: ActionIntent | null) {
     if (!intent) return;
     try {
-      logger.info(`[CLIENT] Sending action to server. SessionId: ${context.sessionId || 'default-session'}`, 'NETWORK');
+      logger.info(
+        `[CLIENT] Sending action to server. SessionId: ${context.sessionId || 'default-session'}`,
+        'NETWORK',
+      );
       const response = await fetch('/api/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -424,7 +437,6 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     eventBus.emit('PLAYER_ACTION', { action, entityId });
   });
 
-
   return context;
 }
 
@@ -455,7 +467,7 @@ export function destroyGame(context: GameContext) {
     context.equipmentSystem,
     context.shellStatsSystem,
     context.teleportSystem,
-    context.softwareSystem
+    context.softwareSystem,
   ];
 
   for (const sys of systems) {

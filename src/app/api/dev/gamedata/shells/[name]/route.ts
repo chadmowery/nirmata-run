@@ -26,7 +26,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ name: st
   try {
     const body = await req.json();
     if (!body.id || !body.name || !body.baseStats || !body.basePorts) {
-      return errorResponse('Shell template requires id, name, baseStats, and basePorts fields', 400);
+      return errorResponse(
+        'Shell template requires id, name, baseStats, and basePorts fields',
+        400,
+      );
     }
     await atomicWrite(filePath, body);
     return NextResponse.json({ success: true });

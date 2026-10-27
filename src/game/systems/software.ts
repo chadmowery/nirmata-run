@@ -2,7 +2,13 @@ import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
 import { Phase } from '@engine/ecs/types';
 import { logger } from '@engine/utils/logger';
-import { DealtDamageThisTurn, Dying, SoftwareDef, EquipmentSlots, BurnSoftwareIntent } from '@shared/components';
+import {
+  DealtDamageThisTurn,
+  Dying,
+  SoftwareDef,
+  EquipmentSlots,
+  BurnSoftwareIntent,
+} from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { applyBleedOnHit, applyVampireOnKill } from './software-effects';
 import * as InventoryUtil from '@shared/utils/inventory-util';
@@ -14,7 +20,7 @@ import * as InventoryUtil from '@shared/utils/inventory-util';
  */
 export function createSoftwareSystem<T extends GameplayEvents>(
   world: World<T>,
-  eventBus: EventBus<T>
+  eventBus: EventBus<T>,
 ) {
   const update = (w: World<T>) => {
     // 1. Observe Damage Dealt (for Bleed)
@@ -41,7 +47,7 @@ export function createSoftwareSystem<T extends GameplayEvents>(
     for (const entityId of intents) {
       const intent = w.getComponent(entityId, BurnSoftwareIntent)!;
       const { softwareEntityId, targetSlot, inventoryIndex } = intent;
-      
+
       const swDef = w.getComponent(softwareEntityId, SoftwareDef);
       if (!swDef) {
         eventBus.emit('MESSAGE_EMITTED', { text: 'Software definition not found.', type: 'error' });
@@ -53,7 +59,7 @@ export function createSoftwareSystem<T extends GameplayEvents>(
       if (swDef.targetSlot !== targetSlot) {
         eventBus.emit('MESSAGE_EMITTED', {
           text: `Cannot burn ${swDef.name} onto ${targetSlot} slot. It requires ${swDef.targetSlot}.`,
-          type: 'error'
+          type: 'error',
         });
         w.removeComponent(entityId, BurnSoftwareIntent);
         continue;
@@ -67,14 +73,16 @@ export function createSoftwareSystem<T extends GameplayEvents>(
         burned = newData;
       }
 
-      const activeSoftwareIds = [burned.weapon, burned.armor].filter((id): id is number => id !== null);
+      const activeSoftwareIds = [burned.weapon, burned.armor].filter(
+        (id): id is number => id !== null,
+      );
       let duplicate = false;
       for (const activeId of activeSoftwareIds) {
         const activeDef = w.getComponent(activeId, SoftwareDef);
         if (activeDef && activeDef.type === swDef.type) {
           eventBus.emit('MESSAGE_EMITTED', {
             text: `Software type ${swDef.type} is already active.`,
-            type: 'error'
+            type: 'error',
           });
           duplicate = true;
           break;
@@ -92,16 +100,19 @@ export function createSoftwareSystem<T extends GameplayEvents>(
       }
 
       w.patchComponent(entityId, EquipmentSlots, {
-        [targetSlot]: softwareEntityId
+        [targetSlot]: softwareEntityId,
       });
       InventoryUtil.removeSoftware(w, entityId, inventoryIndex);
 
       eventBus.emit('MESSAGE_EMITTED', {
         text: `Successfully burned ${swDef.name} onto ${targetSlot}.`,
-        type: 'combat'
+        type: 'combat',
       });
 
-      logger.info(`Software Burn Success: ${swDef.name} onto ${targetSlot} for entity ${entityId}`, 'SYSTEM');
+      logger.info(
+        `Software Burn Success: ${swDef.name} onto ${targetSlot} for entity ${entityId}`,
+        'SYSTEM',
+      );
 
       w.removeComponent(entityId, BurnSoftwareIntent);
     }
@@ -120,4 +131,6 @@ export function createSoftwareSystem<T extends GameplayEvents>(
   };
 }
 
-export type SoftwareSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<typeof createSoftwareSystem<T>>;
+export type SoftwareSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<
+  typeof createSoftwareSystem<T>
+>;

@@ -19,17 +19,20 @@ export const AnchorOverlay: React.FC = () => {
     makeAnchorDecision('descend');
   };
 
-  const hasItems = anchorData.inventory.firmware.length > 0 || 
-                   anchorData.inventory.augments.length > 0 || 
-                   anchorData.inventory.software.length > 0 ||
-                   anchorData.inventory.scrap > 0;
+  const hasItems =
+    anchorData.inventory.firmware.length > 0 ||
+    anchorData.inventory.augments.length > 0 ||
+    anchorData.inventory.software.length > 0 ||
+    anchorData.inventory.scrap > 0;
 
   const canDescend = anchorData.inventory.scrap >= anchorData.descendCost;
 
   return (
     <div className={styles.overlay} role="dialog" aria-labelledby="anchor-title">
       <div className={styles.modal}>
-        <h1 id="anchor-title" className={styles.title}>ANCHOR_LINK_ESTABLISHED</h1>
+        <h1 id="anchor-title" className={styles.title}>
+          ANCHOR_LINK_ESTABLISHED
+        </h1>
         <h2 className={styles.subtitle}>SYSTEM_HANDSHAKE // EXTRACTION_PROTOCOL</h2>
 
         <div className={styles.statusBar}>
@@ -45,25 +48,37 @@ export const AnchorOverlay: React.FC = () => {
             <div className={styles.manifest}>
               {anchorData.inventory.firmware.length > 0 && (
                 <details open>
-                  <summary className={styles.categoryHeader}>FIRMWARE ({anchorData.inventory.firmware.length})</summary>
+                  <summary className={styles.categoryHeader}>
+                    FIRMWARE ({anchorData.inventory.firmware.length})
+                  </summary>
                   {anchorData.inventory.firmware.map((item, i) => (
-                    <div key={i} className={styles.itemRow}>{item}</div>
+                    <div key={i} className={styles.itemRow}>
+                      {item}
+                    </div>
                   ))}
                 </details>
               )}
               {anchorData.inventory.augments.length > 0 && (
                 <details open>
-                  <summary className={styles.categoryHeader}>AUGMENTS ({anchorData.inventory.augments.length})</summary>
+                  <summary className={styles.categoryHeader}>
+                    AUGMENTS ({anchorData.inventory.augments.length})
+                  </summary>
                   {anchorData.inventory.augments.map((item, i) => (
-                    <div key={i} className={styles.itemRow}>{item}</div>
+                    <div key={i} className={styles.itemRow}>
+                      {item}
+                    </div>
                   ))}
                 </details>
               )}
               {anchorData.inventory.software.length > 0 && (
                 <details open>
-                  <summary className={styles.categoryHeader}>SOFTWARE ({anchorData.inventory.software.length})</summary>
+                  <summary className={styles.categoryHeader}>
+                    SOFTWARE ({anchorData.inventory.software.length})
+                  </summary>
                   {anchorData.inventory.software.map((item, i) => (
-                    <div key={i} className={styles.itemRow}>{item}</div>
+                    <div key={i} className={styles.itemRow}>
+                      {item}
+                    </div>
                   ))}
                 </details>
               )}
@@ -76,7 +91,7 @@ export const AnchorOverlay: React.FC = () => {
         </div>
 
         <div className={styles.buttonRow}>
-          <button 
+          <button
             className={styles.extractButton}
             onClick={handleExtract}
             aria-label="De-rezz and Extract"
@@ -84,7 +99,7 @@ export const AnchorOverlay: React.FC = () => {
             DE-REZZ & EXTRACT
           </button>
           <div className={styles.descendContainer}>
-            <button 
+            <button
               className={styles.descendButton}
               onClick={handleDescend}
               disabled={!canDescend}
@@ -93,7 +108,8 @@ export const AnchorOverlay: React.FC = () => {
               STABILIZE & DESCEND
             </button>
             <div className={styles.riskInfo}>
-              FLOOR {String(anchorData.floorNumber + 1).padStart(2, '0')} // {anchorData.nextFloorEnemyTier} // {anchorData.descendCost} SCRAP
+              FLOOR {String(anchorData.floorNumber + 1).padStart(2, '0')} //{' '}
+              {anchorData.nextFloorEnemyTier} // {anchorData.descendCost} SCRAP
             </div>
             {!canDescend && (
               <div className={styles.errorText}>

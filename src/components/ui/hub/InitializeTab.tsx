@@ -20,7 +20,9 @@ export const InitializeTab: React.FC = () => {
     const fetchAvailability = async () => {
       if (!playerProfile?.sessionId) return;
       try {
-        const response = await fetch(`/api/run-mode/available?sessionId=${playerProfile.sessionId}`);
+        const response = await fetch(
+          `/api/run-mode/available?sessionId=${playerProfile.sessionId}`,
+        );
         if (response.ok) {
           const data = await response.json();
           setModeAvailability(data.modes);
@@ -39,12 +41,12 @@ export const InitializeTab: React.FC = () => {
     }
   };
 
-  const selectedModeData = modeAvailability?.find(m => m.mode === selectedRunMode);
+  const selectedModeData = modeAvailability?.find((m) => m.mode === selectedRunMode);
 
   return (
     <div className={styles.tab}>
       <h2 className={styles.heading}>DEPLOYMENT_PROTOCOL</h2>
-      
+
       <div className={styles.modeContainer}>
         {modeAvailability?.map((mode) => (
           <RunModeCard
@@ -58,9 +60,7 @@ export const InitializeTab: React.FC = () => {
 
         {hasOverflow && (
           <div className={styles.overflowOverlay}>
-            <div className={styles.overflowMessage}>
-              VAULT_OVERFLOW // RESOLVE_BEFORE_LAUNCH
-            </div>
+            <div className={styles.overflowMessage}>VAULT_OVERFLOW // RESOLVE_BEFORE_LAUNCH</div>
           </div>
         )}
       </div>
@@ -70,7 +70,7 @@ export const InitializeTab: React.FC = () => {
           <div className={styles.rules}>
             <h3 className={styles.rulesHeading}>PROTOCOL_SPECIFICATIONS</h3>
             <p className={styles.rulesText}>{selectedModeData.description}</p>
-            
+
             <button
               className={`${styles.launchButton} ${
                 selectedRunMode === RunMode.WEEKLY ? styles.launchWeekly : styles.launchStandard
@@ -87,10 +87,7 @@ export const InitializeTab: React.FC = () => {
             </button>
           </div>
 
-          <LeaderboardPanel 
-            mode={selectedRunMode} 
-            sessionId={playerProfile?.sessionId || ''} 
-          />
+          <LeaderboardPanel mode={selectedRunMode} sessionId={playerProfile?.sessionId || ''} />
         </div>
       )}
     </div>

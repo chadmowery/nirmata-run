@@ -10,7 +10,13 @@ import { AIState, AIBehavior, AIBehaviorType } from '@shared/components/ai-state
 import { FovAwareness } from '@shared/components/fov-awareness';
 import { PackMember } from '@shared/components/pack-member';
 import { StatusEffects } from '@shared/components/status-effects';
-import { MoveIntent, AttackIntent, TeleportIntent, Acting, ApplyStatusEffectIntent } from '@shared/components/intents';
+import {
+  MoveIntent,
+  AttackIntent,
+  TeleportIntent,
+  Acting,
+  ApplyStatusEffectIntent,
+} from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
 import { logger } from '@engine/utils/logger';
 
@@ -25,7 +31,7 @@ export function createAISystem<T extends GameplayEvents>(
   grid: Grid,
   eventBus: EventBus<T>,
   entityFactory: EntityFactory,
-  componentRegistry: ComponentRegistry
+  componentRegistry: ComponentRegistry,
 ) {
   /**
    * Finds the player entity in the world.
@@ -69,13 +75,23 @@ export function createAISystem<T extends GameplayEvents>(
    * Pathfinds from one position to another using A*.
    * Returns the first step (dx, dy) on the path.
    */
-  function pathfindToward(fromX: number, fromY: number, toX: number, toY: number): { dx: number; dy: number } | null {
-    const astar = new AStar(toX, toY, (x, y) => {
-      // Allow the start and end positions, otherwise check walkability
-      if (x === fromX && y === fromY) return true;
-      if (x === toX && y === toY) return true;
-      return grid.isWalkable(x, y);
-    }, { topology: 4 });
+  function pathfindToward(
+    fromX: number,
+    fromY: number,
+    toX: number,
+    toY: number,
+  ): { dx: number; dy: number } | null {
+    const astar = new AStar(
+      toX,
+      toY,
+      (x, y) => {
+        // Allow the start and end positions, otherwise check walkability
+        if (x === fromX && y === fromY) return true;
+        if (x === toX && y === toY) return true;
+        return grid.isWalkable(x, y);
+      },
+      { topology: 4 },
+    );
 
     const path: [number, number][] = [];
     astar.compute(fromX, fromY, (x, y) => {
@@ -87,7 +103,7 @@ export function createAISystem<T extends GameplayEvents>(
       const nextStep = path[1];
       return {
         dx: nextStep[0] - fromX,
-        dy: nextStep[1] - fromY
+        dy: nextStep[1] - fromY,
       };
     }
 
@@ -115,7 +131,7 @@ export function createAISystem<T extends GameplayEvents>(
 
       world.patchComponent(entityId, FovAwareness, {
         canSeePlayer,
-        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {})
+        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
       });
 
       // 2. State transitions
@@ -147,7 +163,10 @@ export function createAISystem<T extends GameplayEvents>(
       }
 
       if (nextBehavior !== ai.behavior) {
-        logger.info(`Entity ${entityId} behavior transition: ${ai.behavior} -> ${nextBehavior}`, 'AI');
+        logger.info(
+          `Entity ${entityId} behavior transition: ${ai.behavior} -> ${nextBehavior}`,
+          'AI',
+        );
         world.patchComponent(entityId, AIState, { behavior: nextBehavior });
       }
 
@@ -223,11 +242,11 @@ export function createAISystem<T extends GameplayEvents>(
 
       // 1. Check for DISRUPT status effect (stun)
       if (statusEffects) {
-        const isDisrupted = statusEffects.effects.some(e => e.name === 'DISRUPT');
+        const isDisrupted = statusEffects.effects.some((e) => e.name === 'DISRUPT');
         if (isDisrupted) {
           eventBus.emit('MESSAGE_EMITTED', {
             text: 'System_Admin is disrupted and cannot move!',
-            type: 'info'
+            type: 'info',
           });
           return;
         }
@@ -260,7 +279,7 @@ export function createAISystem<T extends GameplayEvents>(
 
       world.patchComponent(entityId, FovAwareness, {
         canSeePlayer,
-        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {})
+        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
       });
 
       // 2. Movement/Attack logic
@@ -297,7 +316,7 @@ export function createAISystem<T extends GameplayEvents>(
 
       world.patchComponent(entityId, FovAwareness, {
         canSeePlayer,
-        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {})
+        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
       });
 
       // 2. Fragmenter logic
@@ -309,7 +328,12 @@ export function createAISystem<T extends GameplayEvents>(
           world.addComponent(entityId, MoveIntent, { dx, dy });
 
           // Create Dead Zones on 4 cardinal adjacent tiles
-          const directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+          const directions = [
+            [0, 1],
+            [0, -1],
+            [1, 0],
+            [-1, 0],
+          ];
           for (const [ddx, ddy] of directions) {
             const tx = pos.x + ddx;
             const ty = pos.y + ddy;
@@ -319,14 +343,14 @@ export function createAISystem<T extends GameplayEvents>(
                 deadZone: {
                   remainingTurns: 6,
                   damagePerTick: 2,
-                  creatorId: entityId
-                }
+                  creatorId: entityId,
+                },
               });
             }
           }
           eventBus.emit('MESSAGE_EMITTED', {
             text: 'Fragmenter slams the ground! Dead Zones appear!',
-            type: 'combat'
+            type: 'combat',
           });
         } else {
           // Chase player
@@ -358,7 +382,7 @@ export function createAISystem<T extends GameplayEvents>(
 
       world.patchComponent(entityId, FovAwareness, {
         canSeePlayer,
-        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {})
+        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
       });
 
       if (canSeePlayer) {
@@ -390,13 +414,13 @@ export function createAISystem<T extends GameplayEvents>(
               name: 'FIRMWARE_LOCK',
               duration: 3,
               magnitude: 1,
-              source: 'logic_leaker'
-            }
+              source: 'logic_leaker',
+            },
           });
 
           eventBus.emit('MESSAGE_EMITTED', {
             text: 'Logic-Leaker fires a Corrupted Packet! Firmware locked!',
-            type: 'combat'
+            type: 'combat',
           });
         } else {
           // Chase player
@@ -425,7 +449,7 @@ export function createAISystem<T extends GameplayEvents>(
 
       world.patchComponent(entityId, FovAwareness, {
         canSeePlayer,
-        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {})
+        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
       });
 
       const dist = Math.abs(pos.x - player.x) + Math.abs(pos.y - player.y);
@@ -447,7 +471,11 @@ export function createAISystem<T extends GameplayEvents>(
               if (Math.abs(tx) + Math.abs(ty) !== r) continue;
               const x = targetX + tx;
               const y = targetY + ty;
-              if (grid.inBounds(x, y) && grid.isWalkable(x, y) && grid.getEntitiesAt(x, y).size === 0) {
+              if (
+                grid.inBounds(x, y) &&
+                grid.isWalkable(x, y) &&
+                grid.getEntitiesAt(x, y).size === 0
+              ) {
                 finalX = x;
                 finalY = y;
                 break outer;
@@ -458,7 +486,10 @@ export function createAISystem<T extends GameplayEvents>(
 
         if (finalX !== -1) {
           world.addComponent(entityId, TeleportIntent, { x: finalX, y: finalY });
-          eventBus.emit('MESSAGE_EMITTED', { text: 'A Null-Pointer teleports behind you!', type: 'combat' });
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: 'A Null-Pointer teleports behind you!',
+            type: 'combat',
+          });
           return;
         }
       }
@@ -498,10 +529,11 @@ export function createAISystem<T extends GameplayEvents>(
         { x: player.x - 1, y: player.y },
         { x: player.x, y: player.y + 1 },
         { x: player.x, y: player.y - 1 },
-      ].filter(t =>
-        grid.inBounds(t.x, t.y) &&
-        grid.isWalkable(t.x, t.y) &&
-        (grid.getEntitiesAt(t.x, t.y).size === 0 || (t.x === pos.x && t.y === pos.y))
+      ].filter(
+        (t) =>
+          grid.inBounds(t.x, t.y) &&
+          grid.isWalkable(t.x, t.y) &&
+          (grid.getEntitiesAt(t.x, t.y).size === 0 || (t.x === pos.x && t.y === pos.y)),
       );
 
       if (targets.length === 0) {
@@ -535,8 +567,10 @@ export function createAISystem<T extends GameplayEvents>(
       if ((this as any)._updateHandler) {
         world.unregisterSystem(Phase.GATHER_INTENT, (this as any)._updateHandler);
       }
-    }
+    },
   };
 }
 
-export type AISystem<T extends GameplayEvents = GameplayEvents> = ReturnType<typeof createAISystem<T>>;
+export type AISystem<T extends GameplayEvents = GameplayEvents> = ReturnType<
+  typeof createAISystem<T>
+>;

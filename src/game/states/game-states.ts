@@ -48,6 +48,6 @@ export function createGameFSM(context: GameContext): StateMachine<GameState, Gam
     GameState.Loading,
     GAME_STATE_CONFIGS,
     GAME_TRANSITIONS,
-    context
+    context,
   );
 }

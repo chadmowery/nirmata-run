@@ -12,12 +12,13 @@ export const RunResultsScreen: React.FC = () => {
   if (!runResults) return null;
 
   const isExtraction = runResults.reason.toLowerCase() === 'extraction';
-  
+
   // Calculate score if not provided or to ensure accuracy
   // Score formula: (floorsCleared * 100) + (enemiesKilled * 10) + (scrap * 1)
-  const calculatedScore = (runResults.floorNumber * 100) + 
-                          (runResults.enemiesKilled * 10) + 
-                          (runResults.itemsSecured.scrap * 1);
+  const calculatedScore =
+    runResults.floorNumber * 100 +
+    runResults.enemiesKilled * 10 +
+    runResults.itemsSecured.scrap * 1;
 
   const handleReturnToDeck = () => {
     gameStore.getState().setActiveTab('vault');
@@ -28,7 +29,9 @@ export const RunResultsScreen: React.FC = () => {
     <div className={styles.overlay}>
       <div className={styles.container}>
         <h1 className={isExtraction ? styles.headingExtract : styles.headingDeath}>
-          {isExtraction ? 'RUN_COMPLETE // EXTRACTION_SUCCESSFUL' : 'CONNECTION_LOST // CRITICAL_SYSTEM_FAILURE'}
+          {isExtraction
+            ? 'RUN_COMPLETE // EXTRACTION_SUCCESSFUL'
+            : 'CONNECTION_LOST // CRITICAL_SYSTEM_FAILURE'}
         </h1>
 
         {runResults.deathReason && !isExtraction && (
@@ -64,11 +67,9 @@ export const RunResultsScreen: React.FC = () => {
           </div>
         </div>
 
-        <div className={styles.score}>
-          SCORE: {calculatedScore.toLocaleString()}
-        </div>
+        <div className={styles.score}>SCORE: {calculatedScore.toLocaleString()}</div>
 
-        <button 
+        <button
           className={`${styles.reinitButton} ${!isExtraction ? styles.reinitButtonDeath : ''}`}
           onClick={handleReturnToDeck}
         >

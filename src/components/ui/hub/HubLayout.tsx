@@ -68,9 +68,7 @@ export const HubLayout: React.FC<HubLayoutProps> = ({ onLaunchComplete }) => {
   if (profileLoading) {
     return (
       <div className={styles.hubRoot}>
-        <div className={styles.loadingState}>
-          INITIALIZING_NEURAL_LINK...
-        </div>
+        <div className={styles.loadingState}>INITIALIZING_NEURAL_LINK...</div>
       </div>
     );
   }

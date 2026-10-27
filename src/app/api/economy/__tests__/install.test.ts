@@ -13,7 +13,7 @@ describe('POST /api/economy/install', () => {
   const sessionId = 'test-session';
   const blueprintId = 'Phase_Shift.sh';
   const shellId = 'striker-v1';
-  
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -26,10 +26,15 @@ describe('POST /api/economy/install', () => {
     overflow: [],
     vault: [],
     shellUpgrades: {},
-    attemptTracking: { dayNumber: 0, weekNumber: 0, dailyAttemptUsed: false, weeklyAttemptUsed: false },
+    attemptTracking: {
+      dayNumber: 0,
+      weekNumber: 0,
+      dailyAttemptUsed: false,
+      weeklyAttemptUsed: false,
+    },
     weekSeed: 0,
     createdAt: Date.now(),
-    ...overrides
+    ...overrides,
   });
 
   it('deducts Scrap and adds to installedItems on success', async () => {
@@ -37,17 +42,17 @@ describe('POST /api/economy/install', () => {
       wallet: { scrap: 100, flux: 0 },
       blueprintLibrary: [{ blueprintId, type: 'firmware', compiledAt: 123 }],
     });
-    
+
     (profileRepository.load as any).mockResolvedValue(mockProfile);
-    
+
     const req = new Request('http://localhost/api/economy/install', {
       method: 'POST',
       body: JSON.stringify({
         sessionId,
         blueprintId,
         shellId,
-        type: 'firmware'
-      })
+        type: 'firmware',
+      }),
     });
 
     const response = await POST(req);
@@ -56,12 +61,14 @@ describe('POST /api/economy/install', () => {
     expect(response.status).toBe(200);
     expect(data.success).toBe(true);
     expect(data.remainingScrap).toBe(75); // Firmware cost is 25
-    expect(profileRepository.save).toHaveBeenCalledWith(expect.objectContaining({
-      wallet: { scrap: 75, flux: 0 },
-      installedItems: expect.arrayContaining([
-        expect.objectContaining({ blueprintId, shellId, type: 'firmware' })
-      ])
-    }));
+    expect(profileRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        wallet: { scrap: 75, flux: 0 },
+        installedItems: expect.arrayContaining([
+          expect.objectContaining({ blueprintId, shellId, type: 'firmware' }),
+        ]),
+      }),
+    );
   });
 
   it('returns 400 if blueprint not compiled', async () => {
@@ -69,17 +76,17 @@ describe('POST /api/economy/install', () => {
       wallet: { scrap: 100, flux: 0 },
       blueprintLibrary: [],
     });
-    
+
     (profileRepository.load as any).mockResolvedValue(mockProfile);
-    
+
     const req = new Request('http://localhost/api/economy/install', {
       method: 'POST',
       body: JSON.stringify({
         sessionId,
         blueprintId,
         shellId,
-        type: 'firmware'
-      })
+        type: 'firmware',
+      }),
     });
 
     const response = await POST(req);

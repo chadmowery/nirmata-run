@@ -6,5 +6,5 @@ export const Dying = defineComponent(
   z.object({
     killerId: z.number().optional(),
     reason: z.string().optional(),
-  })
+  }),
 );

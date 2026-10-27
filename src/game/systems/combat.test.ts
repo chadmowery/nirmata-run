@@ -4,7 +4,16 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { createCombatSystem } from './combat';
-import { Attack, Defense, Health, Position, Heat, AttackIntent, Dying, DamageIntent } from '@shared/components';
+import {
+  Attack,
+  Defense,
+  Health,
+  Position,
+  Heat,
+  AttackIntent,
+  Dying,
+  DamageIntent,
+} from '@shared/components';
 import { Phase } from '@engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
 import { ComponentRegistry } from '@engine/entity/types';
@@ -48,11 +57,13 @@ describe('CombatSystem', () => {
 
     const health = world.getComponent(defender, Health);
     expect(health?.current).toBe(7); // 10 - (5 - 2)
-    expect(damageDealtSpy).toHaveBeenCalledWith(expect.objectContaining({
-      attackerId: attacker,
-      defenderId: defender,
-      amount: 3,
-    }));
+    expect(damageDealtSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attackerId: attacker,
+        defenderId: defender,
+        amount: 3,
+      }),
+    );
     expect(world.hasComponent(attacker, AttackIntent)).toBe(false); // Should be cleared
   });
 
@@ -73,11 +84,13 @@ describe('CombatSystem', () => {
 
     const health = world.getComponent(defender, Health);
     expect(health?.current).toBe(7); // 10 - (5 - 2)
-    expect(damageDealtSpy).toHaveBeenCalledWith(expect.objectContaining({
-      attackerId: requester,
-      defenderId: defender,
-      amount: 3,
-    }));
+    expect(damageDealtSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attackerId: requester,
+        defenderId: defender,
+        amount: 3,
+      }),
+    );
     expect(world.hasComponent(requester, DamageIntent)).toBe(false); // Should be cleared
   });
 
@@ -103,7 +116,13 @@ describe('CombatSystem', () => {
     const defender = world.createEntity();
     world.addComponent(defender, Health, { current: 10, max: 10, isAlive: true });
     world.addComponent(defender, Defense, { armor: 10 });
-    world.addComponent(defender, Heat, { current: 50, maxSafe: 100, isVenting: true, baseDissipation: 1, ventPercentage: 0.5 });
+    world.addComponent(defender, Heat, {
+      current: 50,
+      maxSafe: 100,
+      isVenting: true,
+      baseDissipation: 1,
+      ventPercentage: 0.5,
+    });
 
     world.addComponent(attacker, AttackIntent, { targetId: defender });
     world.executeSystems(Phase.REACTION);
@@ -134,9 +153,11 @@ describe('CombatSystem', () => {
     expect(world.hasComponent(defender, Dying)).toBe(true);
     expect(world.getComponent(defender, Dying)?.killerId).toBe(attacker);
 
-    expect(diedSpy).toHaveBeenCalledWith(expect.objectContaining({
-      entityId: defender,
-      killerId: attacker,
-    }));
+    expect(diedSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityId: defender,
+        killerId: attacker,
+      }),
+    );
   });
 });

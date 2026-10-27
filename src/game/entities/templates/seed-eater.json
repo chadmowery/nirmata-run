@@ -9,7 +9,13 @@
     "aiState": { "behavior": "idle", "sightRadius": 6, "behaviorType": "seed_eater" },
     "fovAwareness": { "canSeePlayer": false },
     "blocksMovement": {},
-    "corruptionState": { "corruptionWave": 1, "corruptedTileKeys": [], "tilesPerTurn": 2, "spawnFrequency": 3, "turnsSinceLastSpawn": 0 },
+    "corruptionState": {
+      "corruptionWave": 1,
+      "corruptedTileKeys": [],
+      "tilesPerTurn": 2,
+      "spawnFrequency": 3,
+      "turnsSinceLastSpawn": 0
+    },
     "statusEffects": { "effects": [] },
     "lootTable": {
       "tier": 2,

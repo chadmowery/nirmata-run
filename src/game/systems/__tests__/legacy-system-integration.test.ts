@@ -4,7 +4,19 @@ import { EventBus } from '@engine/events/event-bus';
 import { Grid } from '@engine/grid/grid';
 import { createFirmwareSystem } from '../firmware';
 import { createAugmentSystem } from '../augment';
-import { AbilityDef, Health, Heat, AugmentSlots, AugmentData, AugmentState, Position, FirmwareSlots, FirmwareActivatedThisTurn, HeatIntent, ApplyStatusEffectIntent } from '@shared/components';
+import {
+  AbilityDef,
+  Health,
+  Heat,
+  AugmentSlots,
+  AugmentData,
+  AugmentState,
+  Position,
+  FirmwareSlots,
+  FirmwareActivatedThisTurn,
+  HeatIntent,
+  ApplyStatusEffectIntent,
+} from '@shared/components';
 import { GameEvents } from '../../events/types';
 
 describe('Legacy System Integration', () => {
@@ -20,27 +32,37 @@ describe('Legacy System Integration', () => {
 
   it('submits double heat cost for legacy firmware via HeatIntent', () => {
     const fwSystem = createFirmwareSystem(world, grid, eventBus);
-    
+
     const playerId = world.createEntity();
     world.addComponent(playerId, Position, { x: 0, y: 0 });
-    
-    const abilityId = world.createEntity();
-    world.addComponent(abilityId, AbilityDef, AbilityDef.schema.parse({
-      name: 'Test',
-      heatCost: 10,
-      isLegacy: true,
-      effectType: 'dash',
-      dashDistance: 1,
-      damageAmount: 0,
-      range: 0,
-      isActive: false
-    }));
 
-    world.addComponent(playerId, Heat, { current: 0, maxSafe: 100, baseDissipation: 5, ventPercentage: 0.5, isVenting: false });
+    const abilityId = world.createEntity();
+    world.addComponent(
+      abilityId,
+      AbilityDef,
+      AbilityDef.schema.parse({
+        name: 'Test',
+        heatCost: 10,
+        isLegacy: true,
+        effectType: 'dash',
+        dashDistance: 1,
+        damageAmount: 0,
+        range: 0,
+        isActive: false,
+      }),
+    );
+
+    world.addComponent(playerId, Heat, {
+      current: 0,
+      maxSafe: 100,
+      baseDissipation: 5,
+      ventPercentage: 0.5,
+      isVenting: false,
+    });
     world.addComponent(playerId, FirmwareSlots, { equipped: [abilityId] });
 
     fwSystem.activateAbility(playerId, 0, 1, 0);
-    
+
     // Check for HeatIntent
     const intent = world.getComponent(playerId, HeatIntent);
     expect(intent).toBeDefined();
@@ -49,22 +71,32 @@ describe('Legacy System Integration', () => {
 
   it('halves payload magnitude for legacy augments via ApplyStatusEffectIntent', () => {
     const augmentSystem = createAugmentSystem(world, eventBus);
-    
+
     const playerId = world.createEntity();
     const augmentId = world.createEntity();
-    
+
     world.addComponent(augmentId, AugmentData, {
       name: 'Shield Aug',
       isLegacy: true,
       trigger: { type: 'ON_ACTIVATION' },
       payloads: [{ type: 'SHIELD', magnitude: 10 }],
       maxTriggersPerTurn: 1,
-      cooldownTurns: 0
+      cooldownTurns: 0,
     });
 
     world.addComponent(playerId, AugmentSlots, { equipped: [augmentId] });
     world.addComponent(playerId, AugmentState, { activationsThisTurn: {}, cooldownsRemaining: {} });
-    world.addComponent(playerId, Heat, Heat.schema.parse({ current: 0, maxSafe: 100, baseDissipation: 5, ventPercentage: 0.5, isVenting: false }));
+    world.addComponent(
+      playerId,
+      Heat,
+      Heat.schema.parse({
+        current: 0,
+        maxSafe: 100,
+        baseDissipation: 5,
+        ventPercentage: 0.5,
+        isVenting: false,
+      }),
+    );
     world.addComponent(playerId, Health, Health.schema.parse({ current: 100, max: 100 }));
 
     world.addComponent(playerId, FirmwareActivatedThisTurn, { slotIndex: 0 });

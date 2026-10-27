@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { 
-  depositToOverflow, 
-  discardOverflowItem, 
-  sellOverflowItem, 
-  moveOverflowToVault, 
+import {
+  depositToOverflow,
+  discardOverflowItem,
+  sellOverflowItem,
+  moveOverflowToVault,
   hasOverflow,
 } from './vault-manager';
 import { VAULT_MAX_SLOTS, SELL_VALUES } from '@shared/vault';
@@ -27,7 +27,14 @@ describe('VaultManager', () => {
       (mockRepo.load as any).mockResolvedValue(mockProfile);
 
       const items = [
-        { entityId: 1, templateId: 'test.sh', rarityTier: 'common', itemType: 'firmware', extractedAtFloor: 1, extractedAtTimestamp: Date.now() }
+        {
+          entityId: 1,
+          templateId: 'test.sh',
+          rarityTier: 'common',
+          itemType: 'firmware',
+          extractedAtFloor: 1,
+          extractedAtTimestamp: Date.now(),
+        },
       ] as any;
 
       await depositToOverflow(mockRepo, sessionId, items);
@@ -40,9 +47,9 @@ describe('VaultManager', () => {
 
   describe('discardOverflowItem', () => {
     it('removes item from overflow and returns true', async () => {
-      const mockProfile = { 
-        sessionId, 
-        overflow: [{ entityId: 1 }, { entityId: 2 }] 
+      const mockProfile = {
+        sessionId,
+        overflow: [{ entityId: 1 }, { entityId: 2 }],
       } as any;
       (mockRepo.load as any).mockResolvedValue(mockProfile);
 
@@ -68,10 +75,10 @@ describe('VaultManager', () => {
 
   describe('sellOverflowItem', () => {
     it('removes item and adds scrap based on rarity', async () => {
-      const mockProfile = { 
-        sessionId, 
+      const mockProfile = {
+        sessionId,
         wallet: { scrap: 100 },
-        overflow: [{ entityId: 1, rarityTier: 'uncommon' }] 
+        overflow: [{ entityId: 1, rarityTier: 'uncommon' }],
       } as any;
       (mockRepo.load as any).mockResolvedValue(mockProfile);
 
@@ -85,10 +92,10 @@ describe('VaultManager', () => {
     });
 
     it('respects scrap cap', async () => {
-      const mockProfile = { 
-        sessionId, 
+      const mockProfile = {
+        sessionId,
         wallet: { scrap: 9990 },
-        overflow: [{ entityId: 1, rarityTier: 'legendary' }] 
+        overflow: [{ entityId: 1, rarityTier: 'legendary' }],
       } as any;
       (mockRepo.load as any).mockResolvedValue(mockProfile);
 
@@ -102,10 +109,10 @@ describe('VaultManager', () => {
 
   describe('moveOverflowToVault', () => {
     it('moves all items if vault has room', async () => {
-      const mockProfile = { 
-        sessionId, 
-        vault: [], 
-        overflow: [{ entityId: 1 }, { entityId: 2 }] 
+      const mockProfile = {
+        sessionId,
+        vault: [],
+        overflow: [{ entityId: 1 }, { entityId: 2 }],
       } as any;
       (mockRepo.load as any).mockResolvedValue(mockProfile);
 
@@ -120,12 +127,14 @@ describe('VaultManager', () => {
 
     it('moves partial items up to cap', async () => {
       const overflowItems = Array.from({ length: 10 }, (_, i) => ({ entityId: i }));
-      const vaultItems = Array.from({ length: VAULT_MAX_SLOTS - 2 }, (_, i) => ({ entityId: i + 100 }));
-      
-      const mockProfile = { 
-        sessionId, 
-        vault: vaultItems, 
-        overflow: overflowItems 
+      const vaultItems = Array.from({ length: VAULT_MAX_SLOTS - 2 }, (_, i) => ({
+        entityId: i + 100,
+      }));
+
+      const mockProfile = {
+        sessionId,
+        vault: vaultItems,
+        overflow: overflowItems,
       } as any;
       (mockRepo.load as any).mockResolvedValue(mockProfile);
 

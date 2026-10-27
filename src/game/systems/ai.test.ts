@@ -23,7 +23,7 @@ describe('AISystem', () => {
     eventBus = new EventBus<GameplayEvents>();
     world = new World<GameplayEvents>(eventBus);
     grid = new Grid(10, 10);
-    
+
     // Set all tiles to walkable and transparent by default
     for (let y = 0; y < 10; y++) {
       for (let x = 0; x < 10; x++) {
@@ -33,9 +33,7 @@ describe('AISystem', () => {
 
     const entityRegistry = new EntityRegistry();
     const entityFactory = new EntityFactory(entityRegistry);
-    const componentsMap = Object.fromEntries(
-      COMPONENTS_REGISTRY.map((c) => [c.key, c])
-    );
+    const componentsMap = Object.fromEntries(COMPONENTS_REGISTRY.map((c) => [c.key, c]));
     const componentRegistry = {
       get: (key: string) => componentsMap[key],
       has: (key: string) => !!componentsMap[key],
@@ -44,7 +42,10 @@ describe('AISystem', () => {
     aiSystem = createAISystem(world, grid, eventBus, entityFactory, componentRegistry);
   });
 
-  const setupEntities = (playerPos: { x: number, y: number }, enemyPos: { x: number, y: number }) => {
+  const setupEntities = (
+    playerPos: { x: number; y: number },
+    enemyPos: { x: number; y: number },
+  ) => {
     const playerId = world.createEntity();
     world.addComponent(playerId, Actor, { isPlayer: true });
     world.addComponent(playerId, Position, playerPos);
@@ -52,7 +53,11 @@ describe('AISystem', () => {
 
     const enemyId = world.createEntity();
     world.addComponent(enemyId, Position, enemyPos);
-    world.addComponent(enemyId, AIState, { behavior: AIBehavior.IDLE, sightRadius: 6, behaviorType: 'vanguard' });
+    world.addComponent(enemyId, AIState, {
+      behavior: AIBehavior.IDLE,
+      sightRadius: 6,
+      behaviorType: 'vanguard',
+    });
     world.addComponent(enemyId, FovAwareness, { canSeePlayer: false });
     grid.addEntity(enemyId, enemyPos.x, enemyPos.y);
 
@@ -62,7 +67,7 @@ describe('AISystem', () => {
   describe('FOV Awareness', () => {
     it('should detect player in clear line of sight', () => {
       const { enemyId } = setupEntities({ x: 5, y: 5 }, { x: 2, y: 2 });
-      
+
       aiSystem.processEnemyTurn(enemyId);
 
       const awareness = world.getComponent(enemyId, FovAwareness);
@@ -74,7 +79,7 @@ describe('AISystem', () => {
     it('should not detect player behind wall', () => {
       const { enemyId } = setupEntities({ x: 5, y: 5 }, { x: 2, y: 5 });
       grid.setTile(3, 5, { transparent: false });
-      
+
       aiSystem.processEnemyTurn(enemyId);
 
       const awareness = world.getComponent(enemyId, FovAwareness);
@@ -85,7 +90,7 @@ describe('AISystem', () => {
   describe('State Transitions', () => {
     it('should transition from IDLE to CHASING when player is spotted', () => {
       const { enemyId } = setupEntities({ x: 5, y: 5 }, { x: 2, y: 2 });
-      
+
       aiSystem.processEnemyTurn(enemyId);
 
       const aiState = world.getComponent(enemyId, AIState);

@@ -31,7 +31,7 @@ describe('gameStore', () => {
 
   it('should handle optimisticEquipItem', () => {
     const mockInventory = {
-      equipment: [{ entityId: 101 }, { entityId: 102 }]
+      equipment: [{ entityId: 101 }, { entityId: 102 }],
     };
     (window as any).gameContext = {
       playerId: 1,
@@ -41,8 +41,8 @@ describe('gameStore', () => {
             return mockInventory;
           }
           return null;
-        }
-      }
+        },
+      },
     };
 
     gameStore.getState().optimisticEquipItem(101, 'weapon');
@@ -53,10 +53,10 @@ describe('gameStore', () => {
   it('should handle optimisticUnequipItem', () => {
     const mockSlots = {
       weapon: 101,
-      armor: 102
+      armor: 102,
     };
     const mockInventory = {
-      equipment: []
+      equipment: [],
     };
     (window as any).gameContext = {
       playerId: 1,
@@ -69,8 +69,8 @@ describe('gameStore', () => {
             return mockInventory;
           }
           return null;
-        }
-      }
+        },
+      },
     };
 
     gameStore.getState().optimisticUnequipItem('weapon');
@@ -82,7 +82,7 @@ describe('gameStore', () => {
     gameStore.setState({
       optimisticWeapon: 101,
       optimisticArmor: 102,
-      optimisticInventoryEquipmentIds: [103]
+      optimisticInventoryEquipmentIds: [103],
     });
     gameStore.getState().clearOptimisticUpdates();
     expect(gameStore.getState().optimisticWeapon).toBe(undefined);

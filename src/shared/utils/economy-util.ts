@@ -13,7 +13,7 @@ export function calculatePityScrap(currentScrap: number): number {
  */
 export function calculateExtractionFluxBonus(floor: number): number {
   const { baseAmount, perFloorMultiplier } = economy.currencyDrops.flux.extractionBonus;
-  return baseAmount + (perFloorMultiplier * floor);
+  return baseAmount + perFloorMultiplier * floor;
 }
 
 /**
@@ -21,9 +21,9 @@ export function calculateExtractionFluxBonus(floor: number): number {
  */
 export function mapInventoryToVaultItems(
   softwareItems: Array<{ entityId: number; templateId: string; rarityTier: string }>,
-  floor: number
+  floor: number,
 ): VaultItem[] {
-  return softwareItems.map(item => ({
+  return softwareItems.map((item) => ({
     entityId: item.entityId,
     templateId: item.templateId,
     rarityTier: item.rarityTier,

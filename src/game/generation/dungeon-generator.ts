@@ -33,9 +33,7 @@ const MAX_ATTEMPTS = 10;
  * Get the depth band configuration for a given floor depth.
  */
 export function getDepthBand(depth: number) {
-  return depthConfig.depthBands.find(
-    band => depth >= band.range.min && depth <= band.range.max
-  );
+  return depthConfig.depthBands.find((band) => depth >= band.range.min && depth <= band.range.max);
 }
 
 /**
@@ -48,15 +46,15 @@ export function getDepthBand(depth: number) {
  */
 export function generateDungeon(config: DungeonConfig): DungeonResult {
   const depthBand = config.depth !== undefined ? getDepthBand(config.depth) : undefined;
-  
+
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const attemptSeed = attempt === 0 ? config.seed : `${config.seed}_${attempt}`;
-    
+
     // Merge BSP parameters from depth band if available
-    const attemptConfig = { 
-      ...config, 
+    const attemptConfig = {
+      ...config,
       seed: attemptSeed,
-      ...(depthBand ? depthBand.bspConfig : {})
+      ...(depthBand ? depthBand.bspConfig : {}),
     };
 
     // Run BSP algorithm
@@ -102,7 +100,7 @@ export function generateDungeon(config: DungeonConfig): DungeonResult {
       config.height,
       (x, y) => grid.isWalkable(x, y),
       playerSpawnRoom.centerX,
-      playerSpawnRoom.centerY
+      playerSpawnRoom.centerY,
     );
 
     if (connectivity.connected) {

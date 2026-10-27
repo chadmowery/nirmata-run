@@ -8,8 +8,5 @@
       "name": "Refined Plating"
     }
   },
-  "software": [
-    "kinetic-link",
-    "neural-feedback"
-  ]
+  "software": ["kinetic-link", "neural-feedback"]
 }

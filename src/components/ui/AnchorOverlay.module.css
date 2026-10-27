@@ -14,7 +14,7 @@
   max-width: 600px;
   width: 90%;
   padding: var(--space-2xl, 48px);
-  font-family: var(--font-body, "Arial Narrow", sans-serif);
+  font-family: var(--font-body, 'Arial Narrow', sans-serif);
   background: rgba(0, 0, 0, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
@@ -23,8 +23,8 @@
 .title {
   font-size: var(--font-size-display, 48px);
   font-weight: var(--font-weight-semibold, 600);
-  line-height: var(--line-height-display, 1.0);
-  color: var(--white, #FFFFFF);
+  line-height: var(--line-height-display, 1);
+  color: var(--white, #ffffff);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin: 0;
@@ -44,7 +44,7 @@
   padding: var(--space-md, 16px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   margin: var(--space-lg, 24px) 0;
-  color: var(--white, #FFFFFF);
+  color: var(--white, #ffffff);
   font-size: var(--font-size-body, 14px);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -80,7 +80,7 @@
 .categoryHeader {
   cursor: pointer;
   padding: var(--space-xs, 4px) 0;
-  color: var(--vibrant-cyan, #00F0FF);
+  color: var(--vibrant-cyan, #00f0ff);
   font-size: var(--font-size-body, 14px);
   text-transform: uppercase;
   font-weight: var(--font-weight-semibold, 600);
@@ -98,7 +98,8 @@
   margin-top: var(--space-lg, 24px);
 }
 
-.extractButton, .descendButton {
+.extractButton,
+.descendButton {
   flex: 1;
   padding: var(--space-md, 16px);
   font-family: var(--font-body, inherit);
@@ -112,22 +113,22 @@
 }
 
 .extractButton {
-  background: var(--vibrant-cyan, #00F0FF);
+  background: var(--vibrant-cyan, #00f0ff);
   color: var(--black, #000000);
 }
 
 .extractButton:hover {
-  box-shadow: 0 0 20px var(--vibrant-cyan, #00F0FF);
+  box-shadow: 0 0 20px var(--vibrant-cyan, #00f0ff);
   transform: translateY(-2px);
 }
 
 .descendButton {
-  background: var(--vibrant-pink, #FF0055);
-  color: var(--white, #FFFFFF);
+  background: var(--vibrant-pink, #ff0055);
+  color: var(--white, #ffffff);
 }
 
 .descendButton:hover:not(:disabled) {
-  box-shadow: 0 0 20px var(--vibrant-pink, #FF0055);
+  box-shadow: 0 0 20px var(--vibrant-pink, #ff0055);
   transform: translateY(-2px);
 }
 
@@ -152,19 +153,24 @@
 
 .errorText {
   font-size: 10px;
-  color: var(--vibrant-pink, #FF0055);
+  color: var(--vibrant-pink, #ff0055);
   margin-top: var(--space-xs, 4px);
   text-align: center;
   text-transform: uppercase;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-.extractButton:focus-visible, .descendButton:focus-visible {
-  outline: 2px solid var(--white, #FFFFFF);
+.extractButton:focus-visible,
+.descendButton:focus-visible {
+  outline: 2px solid var(--white, #ffffff);
   outline-offset: 2px;
 }
 
@@ -172,7 +178,8 @@
   .overlay {
     animation: none;
   }
-  .extractButton:hover, .descendButton:hover {
+  .extractButton:hover,
+  .descendButton:hover {
     transform: none;
   }
 }

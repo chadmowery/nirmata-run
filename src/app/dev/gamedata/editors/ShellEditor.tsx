@@ -27,10 +27,11 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
         .catch(() => setErrors(['Failed to load shell']));
     } else {
       setShellData({
-        id: '', name: '',
+        id: '',
+        name: '',
         baseStats: { speed: 0, stability: 0, armor: 0, maxHealth: 0 },
         basePorts: { maxFirmware: 0, maxAugment: 0, maxSoftware: 0 },
-        upgrades: []
+        upgrades: [],
       });
     }
   }, [id, isNew, cloneFrom]);
@@ -60,7 +61,11 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
       <div className={styles.editorHeader}>
         <h2 className={styles.editorTitle}>{isNew ? 'New Shell' : `Shell: ${id}`}</h2>
         <div className={styles.buttonRow}>
-          <button className={styles.saveButton} onClick={handleSave} disabled={saveStatus === 'saving'}>
+          <button
+            className={styles.saveButton}
+            onClick={handleSave}
+            disabled={saveStatus === 'saving'}
+          >
             {saveStatus === 'saving' ? 'SAVING...' : 'SAVE'}
           </button>
         </div>
@@ -68,30 +73,59 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
 
       <div className={styles.fieldRow}>
         <label className={styles.fieldLabel}>ID</label>
-        <input className={styles.fieldInput} value={shellData.id} onChange={(e) => setShellData({ ...shellData, id: e.target.value })} disabled={!isNew} />
+        <input
+          className={styles.fieldInput}
+          value={shellData.id}
+          onChange={(e) => setShellData({ ...shellData, id: e.target.value })}
+          disabled={!isNew}
+        />
       </div>
       <div className={styles.fieldRow}>
         <label className={styles.fieldLabel}>Name</label>
-        <input className={styles.fieldInput} value={shellData.name} onChange={(e) => setShellData({ ...shellData, name: e.target.value })} />
+        <input
+          className={styles.fieldInput}
+          value={shellData.name}
+          onChange={(e) => setShellData({ ...shellData, name: e.target.value })}
+        />
       </div>
 
       <div className={styles.fieldGroup}>
         <h3 className={styles.fieldGroupTitle}>Stats</h3>
-        {['speed', 'stability', 'armor', 'maxHealth'].map(stat => (
-            <div key={stat} className={styles.fieldRow}>
-                <label className={styles.fieldLabel}>{stat}</label>
-                <input type="number" className={styles.fieldInput} value={shellData.baseStats[stat]} onChange={(e) => setShellData({...shellData, baseStats: {...shellData.baseStats, [stat]: Number(e.target.value)}})} />
-            </div>
+        {['speed', 'stability', 'armor', 'maxHealth'].map((stat) => (
+          <div key={stat} className={styles.fieldRow}>
+            <label className={styles.fieldLabel}>{stat}</label>
+            <input
+              type="number"
+              className={styles.fieldInput}
+              value={shellData.baseStats[stat]}
+              onChange={(e) =>
+                setShellData({
+                  ...shellData,
+                  baseStats: { ...shellData.baseStats, [stat]: Number(e.target.value) },
+                })
+              }
+            />
+          </div>
         ))}
       </div>
 
       <div className={styles.fieldGroup}>
         <h3 className={styles.fieldGroupTitle}>Ports</h3>
-        {['maxFirmware', 'maxAugment', 'maxSoftware'].map(port => (
-            <div key={port} className={styles.fieldRow}>
-                <label className={styles.fieldLabel}>{port}</label>
-                <input type="number" className={styles.fieldInput} value={shellData.basePorts[port]} onChange={(e) => setShellData({...shellData, basePorts: {...shellData.basePorts, [port]: Number(e.target.value)}})} />
-            </div>
+        {['maxFirmware', 'maxAugment', 'maxSoftware'].map((port) => (
+          <div key={port} className={styles.fieldRow}>
+            <label className={styles.fieldLabel}>{port}</label>
+            <input
+              type="number"
+              className={styles.fieldInput}
+              value={shellData.basePorts[port]}
+              onChange={(e) =>
+                setShellData({
+                  ...shellData,
+                  basePorts: { ...shellData.basePorts, [port]: Number(e.target.value) },
+                })
+              }
+            />
+          </div>
         ))}
       </div>
     </div>

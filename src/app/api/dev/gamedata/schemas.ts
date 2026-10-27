@@ -4,7 +4,9 @@ const SpawnTemplateEntry = z.object({
   name: z.string().min(1),
   weight: z.number().int().positive(),
   isPack: z.boolean().optional(),
-  packSize: z.object({ min: z.number().int().positive(), max: z.number().int().positive() }).optional(),
+  packSize: z
+    .object({ min: z.number().int().positive(), max: z.number().int().positive() })
+    .optional(),
   maxPerFloor: z.number().int().positive().optional(),
   minDistanceFromPlayer: z.number().int().positive().optional(),
 });

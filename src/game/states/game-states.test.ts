@@ -1,11 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { GameState } from './types';
-import { 
-  GAME_TRANSITIONS, 
-  ACTIVE_PHASES, 
-  getActivePhases, 
-  createGameFSM 
-} from './game-states';
+import { GAME_TRANSITIONS, ACTIVE_PHASES, getActivePhases, createGameFSM } from './game-states';
 import { Phase } from '../../engine/ecs/types';
 
 describe('Game States', () => {

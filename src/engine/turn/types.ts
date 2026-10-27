@@ -48,4 +48,3 @@ export const DEFAULT_ACTION_COSTS: ActionCosts = {
  * Callback for player actions.
  */
 export type PlayerActionHandler = (action: string, entityId: EntityId) => void;
-

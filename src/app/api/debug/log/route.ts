@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     }
 
     const debugDir = path.join(process.cwd(), 'debug');
-    
+
     // Ensure the directory exists
     try {
       await fs.mkdir(debugDir, { recursive: true });
@@ -26,13 +26,16 @@ export async function POST(req: Request) {
     await fs.writeFile(jsonFile, JSON.stringify(events, null, 2), 'utf-8');
 
     // Write human-readable log
-    const logContent = events.map((e: { timestamp: number; origin: string; type: string; payload?: unknown }) => {
-      const ts = new Date(e.timestamp).toISOString();
-      const payload = e.payload && typeof e.payload === 'object' && Object.keys(e.payload as object).length > 0 
-        ? ` | Payload: ${JSON.stringify(e.payload)}` 
-        : '';
-      return `[${ts}] [${e.origin.toUpperCase()}] ${e.type}${payload}`;
-    }).join('\n');
+    const logContent = events
+      .map((e: { timestamp: number; origin: string; type: string; payload?: unknown }) => {
+        const ts = new Date(e.timestamp).toISOString();
+        const payload =
+          e.payload && typeof e.payload === 'object' && Object.keys(e.payload as object).length > 0
+            ? ` | Payload: ${JSON.stringify(e.payload)}`
+            : '';
+        return `[${ts}] [${e.origin.toUpperCase()}] ${e.type}${payload}`;
+      })
+      .join('\n');
 
     await fs.writeFile(logFile, logContent, 'utf-8');
 

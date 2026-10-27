@@ -23,7 +23,9 @@
   padding: var(--space-xs) var(--space-sm);
   letter-spacing: 0.1em;
   font-family: var(--font-body);
-  transition: color var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    color var(--transition-fast),
+    border-color var(--transition-fast);
   border-bottom: 2px solid transparent;
 }
 

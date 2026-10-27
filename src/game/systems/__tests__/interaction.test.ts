@@ -34,9 +34,11 @@ describe('Interaction Systems', () => {
     engine.turnManager.submitAction(GameAction.MOVE_NORTH);
 
     // Should show proximity message
-    expect(messageSpy).toHaveBeenCalledWith(expect.objectContaining({
-      text: expect.stringContaining('Staircase'),
-    }));
+    expect(messageSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining('Staircase'),
+      }),
+    );
 
     // Position should have updated to (10, 10)
     expect(world.getComponent(playerId, Position)!.y).toBe(10);
@@ -55,9 +57,11 @@ describe('Interaction Systems', () => {
     // Run a turn cycle to process intents
     engine.turnManager.submitAction(GameAction.WAIT);
 
-    expect(transitionSpy).toHaveBeenCalledWith(expect.objectContaining({
-      floorNumber: 2
-    }));
+    expect(transitionSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        floorNumber: 2,
+      }),
+    );
   });
 
   it('resolves extraction when ExtractionIntent is added', async () => {
@@ -73,8 +77,10 @@ describe('Interaction Systems', () => {
     // Run a turn cycle
     engine.turnManager.submitAction(GameAction.WAIT);
 
-    expect(runEndedSpy).toHaveBeenCalledWith(expect.objectContaining({
-      reason: 'extraction'
-    }));
+    expect(runEndedSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: 'extraction',
+      }),
+    );
   });
 });

@@ -6,11 +6,15 @@ import { RunInventory, RunCurrency, RunInventoryItem } from '../components/run-i
  * Pure utility functions for interacting with ECS-based Run Inventory components.
  */
 
-export function getCurrencyAmount<T extends EngineEvents>(world: World<T>, playerId: number, currencyType: 'scrap' | 'blueprint' | 'flux'): number {
+export function getCurrencyAmount<T extends EngineEvents>(
+  world: World<T>,
+  playerId: number,
+  currencyType: 'scrap' | 'blueprint' | 'flux',
+): number {
   const runCurrency = world.getComponent(playerId, RunCurrency);
   if (!runCurrency) return 0;
   return runCurrency.stacks
-    .filter(s => s.currencyType === currencyType)
+    .filter((s) => s.currencyType === currencyType)
     .reduce((sum, s) => sum + s.amount, 0);
 }
 
@@ -19,7 +23,7 @@ export function addCurrency<T extends EngineEvents>(
   playerId: number,
   currencyType: 'scrap' | 'blueprint' | 'flux',
   amount: number,
-  meta?: { blueprintId?: string, blueprintType?: 'firmware' | 'augment' }
+  meta?: { blueprintId?: string; blueprintType?: 'firmware' | 'augment' },
 ): boolean {
   const runCurrency = world.getComponent(playerId, RunCurrency);
   const runInventory = world.getComponent(playerId, RunInventory);
@@ -28,7 +32,7 @@ export function addCurrency<T extends EngineEvents>(
   const stacks = [...runCurrency.stacks];
 
   // Find existing stack
-  const existingIndex = stacks.findIndex(s => {
+  const existingIndex = stacks.findIndex((s) => {
     if (s.currencyType !== currencyType) return false;
     if (currencyType === 'blueprint') {
       return s.blueprintId === meta?.blueprintId;
@@ -40,7 +44,7 @@ export function addCurrency<T extends EngineEvents>(
     const updatedStacks = [...stacks];
     updatedStacks[existingIndex] = {
       ...updatedStacks[existingIndex],
-      amount: updatedStacks[existingIndex].amount + amount
+      amount: updatedStacks[existingIndex].amount + amount,
     };
     world.patchComponent(playerId, RunCurrency, { stacks: updatedStacks });
     return true;
@@ -55,7 +59,7 @@ export function addCurrency<T extends EngineEvents>(
     currencyType,
     amount,
     blueprintId: meta?.blueprintId,
-    blueprintType: meta?.blueprintType
+    blueprintType: meta?.blueprintType,
   });
   world.patchComponent(playerId, RunCurrency, { stacks });
   return true;
@@ -65,7 +69,7 @@ export function removeCurrency<T extends EngineEvents>(
   world: World<T>,
   playerId: number,
   currencyType: 'scrap' | 'blueprint' | 'flux',
-  amount: number
+  amount: number,
 ): boolean {
   const runCurrency = world.getComponent(playerId, RunCurrency);
   if (!runCurrency) return false;
@@ -99,25 +103,30 @@ export function removeCurrency<T extends EngineEvents>(
 export function addSoftware<T extends EngineEvents>(
   world: World<T>,
   playerId: number,
-  item: RunInventoryItem
+  item: RunInventoryItem,
 ): boolean {
   const runInventory = world.getComponent(playerId, RunInventory);
   const runCurrency = world.getComponent(playerId, RunCurrency);
   if (!runInventory || !runCurrency) return false;
 
-  if (runInventory.software.length + runInventory.equipment.length + runCurrency.stacks.length >= runInventory.maxSlots) {
+  if (
+    runInventory.software.length + runInventory.equipment.length + runCurrency.stacks.length >=
+    runInventory.maxSlots
+  ) {
     return false;
   }
 
   // Find first empty gridIndex
-  const usedIndices = new Set(runInventory.software.map(s => s.gridIndex).filter(i => i !== undefined));
+  const usedIndices = new Set(
+    runInventory.software.map((s) => s.gridIndex).filter((i) => i !== undefined),
+  );
   let gridIndex = 0;
   while (usedIndices.has(gridIndex)) {
     gridIndex++;
   }
 
   world.patchComponent(playerId, RunInventory, {
-    software: [...runInventory.software, { ...item, gridIndex }]
+    software: [...runInventory.software, { ...item, gridIndex }],
   });
   return true;
 }
@@ -125,25 +134,30 @@ export function addSoftware<T extends EngineEvents>(
 export function addEquipment<T extends EngineEvents>(
   world: World<T>,
   playerId: number,
-  item: RunInventoryItem
+  item: RunInventoryItem,
 ): boolean {
   const runInventory = world.getComponent(playerId, RunInventory);
   const runCurrency = world.getComponent(playerId, RunCurrency);
   if (!runInventory || !runCurrency) return false;
 
-  if (runInventory.software.length + runInventory.equipment.length + runCurrency.stacks.length >= runInventory.maxSlots) {
+  if (
+    runInventory.software.length + runInventory.equipment.length + runCurrency.stacks.length >=
+    runInventory.maxSlots
+  ) {
     return false;
   }
 
   // Find first empty gridIndex
-  const usedIndices = new Set(runInventory.equipment.map(s => s.gridIndex).filter(i => i !== undefined));
+  const usedIndices = new Set(
+    runInventory.equipment.map((s) => s.gridIndex).filter((i) => i !== undefined),
+  );
   let gridIndex = 0;
   while (usedIndices.has(gridIndex)) {
     gridIndex++;
   }
 
   world.patchComponent(playerId, RunInventory, {
-    equipment: [...runInventory.equipment, { ...item, gridIndex }]
+    equipment: [...runInventory.equipment, { ...item, gridIndex }],
   });
   return true;
 }
@@ -151,7 +165,7 @@ export function addEquipment<T extends EngineEvents>(
 export function removeSoftware<T extends EngineEvents>(
   world: World<T>,
   playerId: number,
-  index: number
+  index: number,
 ): RunInventoryItem | null {
   const runInventory = world.getComponent(playerId, RunInventory);
   if (!runInventory || index < 0 || index >= runInventory.software.length) {
@@ -168,7 +182,7 @@ export function removeSoftware<T extends EngineEvents>(
 export function removeEquipment<T extends EngineEvents>(
   world: World<T>,
   playerId: number,
-  index: number
+  index: number,
 ): RunInventoryItem | null {
   const runInventory = world.getComponent(playerId, RunInventory);
   if (!runInventory || index < 0 || index >= runInventory.equipment.length) {

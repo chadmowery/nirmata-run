@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
-import { 
-  RunInventory, SoftwareDef, EquipmentDef, TemplateId, RarityTier 
+import {
+  RunInventory,
+  SoftwareDef,
+  EquipmentDef,
+  TemplateId,
+  RarityTier,
 } from '@shared/components';
 import styles from './InventoryOverlay.module.css';
 import { InRunItemTooltip } from './InRunItemTooltip';
@@ -17,29 +21,32 @@ interface GameContext {
 
 export const BackpackGrid: React.FC = () => {
   const [hoveredEntityId, setHoveredEntityId] = useState<number | null>(null);
-  
+
   const gameContext = (window as unknown as { gameContext: GameContext }).gameContext;
-  
+
   // Connect to Zustand game store to subscribe to revisions and handle updates
   const inventoryRevision = useStore(gameStore, (s) => s.inventoryRevision);
-  const optimisticInventoryEquipmentIds = useStore(gameStore, (s) => s.optimisticInventoryEquipmentIds);
+  const optimisticInventoryEquipmentIds = useStore(
+    gameStore,
+    (s) => s.optimisticInventoryEquipmentIds,
+  );
 
   if (!gameContext) return null;
 
   const inv = gameContext.world.getComponent(gameContext.playerId, RunInventory);
-  
+
   // Construct the lists of items
   const softwareItems = inv?.software || [];
   let equipmentItems: Array<{ entityId: number; templateId: string; rarityTier: string }> = [];
 
   if (optimisticInventoryEquipmentIds !== null) {
-    equipmentItems = optimisticInventoryEquipmentIds.map(id => {
+    equipmentItems = optimisticInventoryEquipmentIds.map((id) => {
       const templateRef = gameContext.world.getComponent(id, TemplateId);
       const rarity = gameContext.world.getComponent(id, RarityTier);
       return {
         entityId: id,
         templateId: templateRef?.id || 'unknown',
-        rarityTier: rarity?.tier || 'v1.x'
+        rarityTier: rarity?.tier || 'v1.x',
       };
     });
   } else if (inv?.equipment) {
@@ -77,8 +84,8 @@ export const BackpackGrid: React.FC = () => {
           }
 
           return (
-            <div 
-              key={i} 
+            <div
+              key={i}
               className={`${styles.slot} ${entityId ? styles.slotFilled : ''}`}
               style={{
                 cursor: entityId ? 'grab' : 'default',
@@ -89,7 +96,7 @@ export const BackpackGrid: React.FC = () => {
                 fontSize: '11px',
                 padding: '4px',
                 textAlign: 'center',
-                position: 'relative'
+                position: 'relative',
               }}
               draggable={!!entityId}
               onDragStart={(e) => {
@@ -98,7 +105,7 @@ export const BackpackGrid: React.FC = () => {
                     source: 'inventory',
                     entityId,
                     itemType: isSoftware ? 'software' : 'equipment',
-                    inventoryIndex: isSoftware ? i : (i - softwareItems.length)
+                    inventoryIndex: isSoftware ? i : i - softwareItems.length,
                   };
                   e.dataTransfer.setData('application/json', JSON.stringify(dragData));
                   gameStore.getState().setDraggedRunItemEntityId(entityId);
@@ -132,15 +139,18 @@ export const BackpackGrid: React.FC = () => {
                   const swDef = gameContext.world.getComponent(entityId, SoftwareDef);
                   const isEq = gameContext.world.hasComponent(entityId, EquipmentDef);
                   const eqDef = gameContext.world.getComponent(entityId, EquipmentDef);
-                  
+
                   const eventBus = (window as any).gameContext?.eventBus;
                   if (isEq && eqDef) {
                     gameStore.getState().optimisticEquipItem(entityId, eqDef.slotType);
-                    eventBus?.emit('EQUIP_REQUESTED', { slotType: eqDef.slotType, itemEntityId: entityId });
+                    eventBus?.emit('EQUIP_REQUESTED', {
+                      slotType: eqDef.slotType,
+                      itemEntityId: entityId,
+                    });
                   } else if (isSw && swDef) {
-                    eventBus?.emit('BURN_SOFTWARE_REQUESTED', { 
-                      runInventoryIndex: isSoftware ? i : (i - softwareItems.length), 
-                      targetSlot: swDef.targetSlot 
+                    eventBus?.emit('BURN_SOFTWARE_REQUESTED', {
+                      runInventoryIndex: isSoftware ? i : i - softwareItems.length,
+                      targetSlot: swDef.targetSlot,
                     });
                   }
                 }
@@ -153,7 +163,9 @@ export const BackpackGrid: React.FC = () => {
                   <div style={{ fontWeight: 'bold' }}>{itemName}</div>
                   <div style={{ fontSize: '9px', opacity: 0.6 }}>{itemDetails}</div>
                 </div>
-              ) : ''}
+              ) : (
+                ''
+              )}
               {hoveredEntityId === entityId && entityId && <InRunItemTooltip entityId={entityId} />}
             </div>
           );

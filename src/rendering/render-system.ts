@@ -12,11 +12,29 @@ import { FirmwareSlots } from '@shared/components/firmware-slots';
 import { gameStore } from '../game/ui/store';
 import { WorldLayers } from './layers';
 import { TILE_SIZE, FOV_RADIUS } from './constants';
-import { computeFov, createExploredSet, isEntityVisible, getEntityVisibilityType, clearExplored } from './fov';
+import {
+  computeFov,
+  createExploredSet,
+  isEntityVisible,
+  getEntityVisibilityType,
+  clearExplored,
+} from './fov';
 import { computeCameraTarget, lerpCamera, getVisibleTileRange } from './camera';
 import { buildTilemap, clearTilemap } from './tilemap';
-import { createEntitySprite, destroyEntitySprite, getEntitySprite, clearAllSprites } from './sprite-map';
-import { tickAnimations, queueMoveTween, queueAttackAnimationWithDefender, queueDeathAnimation, clearAnimations, hasActiveAnimation } from './animations';
+import {
+  createEntitySprite,
+  destroyEntitySprite,
+  getEntitySprite,
+  clearAllSprites,
+} from './sprite-map';
+import {
+  tickAnimations,
+  queueMoveTween,
+  queueAttackAnimationWithDefender,
+  queueDeathAnimation,
+  clearAnimations,
+  hasActiveAnimation,
+} from './animations';
 import { applyPersistentGlitch, applyDamageDistortion } from './filters/glitch-effects';
 import { queueTypedDeathAnimation } from './filters/death-effects';
 import { AIState } from '@shared/components/ai-state';
@@ -24,25 +42,21 @@ import {
   applyGrayscaleToContainer,
   removeFiltersFromContainer,
   applyStabilityDesaturation,
-  disposeScreenEffects
+  disposeScreenEffects,
 } from './filters/screen-effects';
 import {
   applyHeatTierFilters,
   updateSpriteGhosting,
-  disposeHeatEffects
+  disposeHeatEffects,
 } from './filters/heat-visual-effects';
 import { getHeatTier } from '../game/config/heat-tiers';
 import {
   attachNeonEmitter,
   updateAllEmitters,
   cleanupEmitter,
-  disposeAllEmitters
+  disposeAllEmitters,
 } from './filters/particle-emitters';
-import {
-  spawnDamageText,
-  updateDamageTexts,
-  disposeDamageTexts
-} from './filters/damage-text';
+import { spawnDamageText, updateDamageTexts, disposeDamageTexts } from './filters/damage-text';
 
 export interface RenderSystemConfig {
   app: Application;
@@ -125,10 +139,22 @@ export function createRenderSystem(config: RenderSystemConfig) {
     }
   };
 
-  const handleEntityMoved = (payload: { entityId: EntityId; fromX: number; fromY: number; toX: number; toY: number }) => {
-    queueMoveTween(payload.entityId, payload.fromX, payload.fromY, payload.toX, payload.toY, getEntitySprite);
+  const handleEntityMoved = (payload: {
+    entityId: EntityId;
+    fromX: number;
+    fromY: number;
+    toX: number;
+    toY: number;
+  }) => {
+    queueMoveTween(
+      payload.entityId,
+      payload.fromX,
+      payload.fromY,
+      payload.toX,
+      payload.toY,
+      getEntitySprite,
+    );
   };
-
 
   const handleApplyWorldFilter = (payload: { filterType: string }) => {
     if (payload.filterType === 'grayscale') {
@@ -160,7 +186,13 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
   const updateCameraFrame = (ticker: Ticker) => {
     const deltaMs = ticker.deltaMS;
-    const newPos = lerpCamera(layers.worldContainer.x, layers.worldContainer.y, cameraTarget.x, cameraTarget.y, deltaMs);
+    const newPos = lerpCamera(
+      layers.worldContainer.x,
+      layers.worldContainer.y,
+      cameraTarget.x,
+      cameraTarget.y,
+      deltaMs,
+    );
     layers.worldContainer.x = newPos.x;
     layers.worldContainer.y = newPos.y;
 
@@ -216,7 +248,13 @@ export function createRenderSystem(config: RenderSystemConfig) {
         }
       }
 
-      const fovSet = computeFov(playerPos.x, playerPos.y, effectiveRadius, lightPasses, exploredSet);
+      const fovSet = computeFov(
+        playerPos.x,
+        playerPos.y,
+        effectiveRadius,
+        lightPasses,
+        exploredSet,
+      );
       eventBus.emit('FOV_UPDATED', { visibleSet: fovSet });
 
       // 1.5. Targeting UI Rendering
@@ -232,7 +270,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
           targetingCursor.drawCircle(
             playerPos.x * TILE_SIZE + TILE_SIZE / 2,
             playerPos.y * TILE_SIZE + TILE_SIZE / 2,
-            storeState.targetingRange * TILE_SIZE
+            storeState.targetingRange * TILE_SIZE,
           );
         }
 
@@ -373,6 +411,6 @@ export function createRenderSystem(config: RenderSystemConfig) {
       disposeHeatEffects();
       disposeAllEmitters();
       disposeDamageTexts();
-    }
+    },
   };
 }

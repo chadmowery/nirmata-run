@@ -16,7 +16,7 @@ describe('Targeting Manager', () => {
 
   it('startTargeting sets cursor to player position and active=true', () => {
     targetingManager.startTargeting(0, 10, 10, 5, 'dash');
-    
+
     const state = targetingManager.getState();
     expect(state.active).toBe(true);
     expect(state.cursorX).toBe(10);
@@ -28,7 +28,7 @@ describe('Targeting Manager', () => {
   it('moveCursor updates cursor coordinates', () => {
     targetingManager.startTargeting(0, 10, 10, 5, 'dash');
     targetingManager.moveCursor(1, -1);
-    
+
     const state = targetingManager.getState();
     expect(state.cursorX).toBe(11);
     expect(state.cursorY).toBe(9);
@@ -36,12 +36,12 @@ describe('Targeting Manager', () => {
 
   it('moveCursor respects range for ranged abilities (Manhattan)', () => {
     targetingManager.startTargeting(0, 10, 10, 2, 'ranged_attack');
-    
+
     // Move to (12, 10) - distance 2 (OK)
     targetingManager.moveCursor(1, 0);
     targetingManager.moveCursor(1, 0);
     expect(targetingManager.getState().cursorX).toBe(12);
-    
+
     // Try to move to (13, 10) - distance 3 (Too far)
     targetingManager.moveCursor(1, 0);
     expect(targetingManager.getState().cursorX).toBe(12);
@@ -51,7 +51,7 @@ describe('Targeting Manager', () => {
     targetingManager.startTargeting(1, 10, 10, 5, 'ranged_attack');
     targetingManager.moveCursor(2, 2);
     targetingManager.confirm();
-    
+
     expect(onConfirm).toHaveBeenCalledWith(1, 12, 12);
     expect(targetingManager.isActive()).toBe(false);
   });
@@ -59,21 +59,23 @@ describe('Targeting Manager', () => {
   it('cancel sets active to false', () => {
     targetingManager.startTargeting(0, 10, 10, 5, 'dash');
     targetingManager.cancel();
-    
+
     expect(targetingManager.isActive()).toBe(false);
   });
 
   it('emits TARGETING_STARTED on start', () => {
     const spy = vi.fn();
     eventBus.on('TARGETING_STARTED', spy);
-    
+
     targetingManager.startTargeting(2, 5, 5, 3, 'toggle_vision');
     eventBus.flush();
-    
-    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ 
-      firmwareSlotIndex: 2, 
-      range: 3, 
-      effectType: 'toggle_vision' 
-    }));
+
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        firmwareSlotIndex: 2,
+        range: 3,
+        effectType: 'toggle_vision',
+      }),
+    );
   });
 });

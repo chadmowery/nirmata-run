@@ -12,7 +12,7 @@ describe('EntityRegistry', () => {
   it('registers and retrieves a template', () => {
     const template: RawTemplate = {
       name: 'player',
-      components: { health: { current: 20, max: 20 } }
+      components: { health: { current: 20, max: 20 } },
     };
     registry.register(template);
     expect(registry.get('player')).toBe(template);

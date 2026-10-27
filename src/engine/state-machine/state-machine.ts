@@ -10,7 +10,7 @@ export class StateMachine<TState extends string, TContext = void> {
     initialState: TState,
     stateConfigs: Record<TState, StateConfig<TState, TContext>>,
     transitionTable: TransitionTable<TState>,
-    context?: TContext
+    context?: TContext,
   ) {
     this.currentState = initialState;
     this.stateConfigs = stateConfigs;

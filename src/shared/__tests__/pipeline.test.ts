@@ -4,7 +4,15 @@ import { Grid } from '../../engine/grid/grid';
 import { EventBus } from '../../engine/events/event-bus';
 import { GameplayEvents } from '../events/types';
 import { runActionPipeline } from '../pipeline';
-import { Position, Health, Hostile, Attack, Defense, Actor, EquipmentSlots } from '../../shared/components';
+import {
+  Position,
+  Health,
+  Hostile,
+  Attack,
+  Defense,
+  Actor,
+  EquipmentSlots,
+} from '../../shared/components';
 
 describe('ActionPipeline', () => {
   let world: World<GameplayEvents>;
@@ -17,7 +25,7 @@ describe('ActionPipeline', () => {
     eventBus = new EventBus();
     world = new World(eventBus);
     grid = new Grid(10, 10);
-    
+
     // Setup Player
     const pId = world.createEntity(); // Should be 1
     world.addComponent(pId, Position, { x: 5, y: 5 });
@@ -29,7 +37,11 @@ describe('ActionPipeline', () => {
 
   it('should process a MOVE action and update state', () => {
     const action = { type: 'MOVE' as const, dx: 1, dy: 0 };
-    const { world: newWorld, grid: newGrid, delta } = runActionPipeline(world, grid, PLAYER_ID, action);
+    const {
+      world: newWorld,
+      grid: newGrid,
+      delta,
+    } = runActionPipeline(world, grid, PLAYER_ID, action);
 
     // Verify new state
     const pos = newWorld.getComponent(PLAYER_ID, Position);
@@ -83,7 +95,12 @@ describe('ActionPipeline', () => {
     });
 
     it('should equip a weapon', () => {
-      const action = { type: 'EQUIP' as const, shellId: 'shell', slotType: 'weapon' as const, itemEntityId: 99 };
+      const action = {
+        type: 'EQUIP' as const,
+        shellId: 'shell',
+        slotType: 'weapon' as const,
+        itemEntityId: 99,
+      };
       const { world: newWorld } = runActionPipeline(world, grid, PLAYER_ID, action);
       const equipment = newWorld.getComponent(PLAYER_ID, EquipmentSlots);
       expect(equipment?.weapon).toBe(99);
@@ -98,7 +115,12 @@ describe('ActionPipeline', () => {
     });
 
     it('should equip armor', () => {
-      const action = { type: 'EQUIP' as const, shellId: 'shell', slotType: 'armor' as const, itemEntityId: 88 };
+      const action = {
+        type: 'EQUIP' as const,
+        shellId: 'shell',
+        slotType: 'armor' as const,
+        itemEntityId: 88,
+      };
       const { world: newWorld } = runActionPipeline(world, grid, PLAYER_ID, action);
       const equipment = newWorld.getComponent(PLAYER_ID, EquipmentSlots);
       expect(equipment?.armor).toBe(88);

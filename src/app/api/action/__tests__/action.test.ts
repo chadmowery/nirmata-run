@@ -50,17 +50,18 @@ describe('Action API Route', () => {
     world.addComponent(playerId, Health, { current: 10, max: 10, isAlive: true });
     grid.addEntity(playerId, 5, 5);
 
-    const dummyEntityRegistry = { create: vi.fn(), get: vi.fn(), has: vi.fn(), register: vi.fn(), getTemplate: vi.fn(), getAllTemplates: vi.fn() } as any;
+    const dummyEntityRegistry = {
+      create: vi.fn(),
+      get: vi.fn(),
+      has: vi.fn(),
+      register: vi.fn(),
+      getTemplate: vi.fn(),
+      getAllTemplates: vi.fn(),
+    } as any;
     const dummyEntityFactory = { create: vi.fn() } as any;
     const dummyComponentRegistry = { get: vi.fn(), has: vi.fn() } as any;
 
-    registerCoreSystems(
-      world,
-      grid,
-      eventBus,
-      dummyEntityFactory,
-      dummyComponentRegistry
-    );
+    registerCoreSystems(world, grid, eventBus, dummyEntityFactory, dummyComponentRegistry);
 
     turnManager.setPlayerActionHandler((action: string, entityId: number) => {
       const gameAction = action as GameAction;
@@ -76,7 +77,7 @@ describe('Action API Route', () => {
       playerId,
       turnManager,
       eventBus,
-      systems: {} as any
+      systems: {} as any,
     });
 
     // Mock turn manager start
@@ -93,7 +94,7 @@ describe('Action API Route', () => {
     });
 
     const response = await POST(req);
-    const data = await response.json() as any;
+    const data = (await response.json()) as any;
 
     expect(response.status).toBe(200);
     expect(data.payload).toBeDefined();
@@ -116,11 +117,11 @@ describe('Action API Route', () => {
     });
 
     const response = await POST(req);
-    const data = await response.json() as any;
+    const data = (await response.json()) as any;
 
     expect(response.status).toBe(200);
     expect(data.payload.turnNumber).toBeGreaterThan(0);
-    
+
     // Position should remain same
     const pos = world.getComponent(playerId, Position);
     expect(pos?.x).toBe(5);
@@ -163,15 +164,15 @@ describe('Action API Route', () => {
     world.addComponent(enemyId, Energy, { current: 1000, speed: 10, threshold: 1000 });
     world.addComponent(enemyId, Health, { current: 5, max: 5, isAlive: true });
     // AI system needs AIState and FovAwareness to act
-    world.addComponent(enemyId, AIState, { 
+    world.addComponent(enemyId, AIState, {
       behavior: AIBehavior.CHASING,
       behaviorType: AIBehaviorType.BASIC,
-      sightRadius: 10
+      sightRadius: 10,
     });
     world.addComponent(enemyId, FovAwareness, {
       canSeePlayer: true,
       lastKnownPlayerX: 5,
-      lastKnownPlayerY: 5
+      lastKnownPlayerY: 5,
     });
     grid.addEntity(enemyId, 7, 7);
 
@@ -185,7 +186,7 @@ describe('Action API Route', () => {
 
     const response = await POST(req);
     expect(response.status).toBe(200);
-    
+
     // Verify enemy moved somewhere (WANDER)
     const enemyPos = world.getComponent(enemyId, Position);
     expect(enemyPos?.x !== 7 || enemyPos?.y !== 7).toBe(true);

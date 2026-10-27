@@ -5,7 +5,7 @@ import { getCurrentDailySeed } from '@/app/persistence/seed-rotation';
 import fs from 'fs/promises';
 
 vi.mock('@/app/persistence/seed-rotation', async (importOriginal) => {
-  const actual = await importOriginal() as any;
+  const actual = (await importOriginal()) as any;
   return {
     ...actual,
     getCurrentDailySeed: vi.fn(),
@@ -23,7 +23,7 @@ describe('RunModeConfig', () => {
 
   it('should return daily config with shared seed', async () => {
     vi.mocked(getCurrentDailySeed).mockResolvedValue('daily123');
-    
+
     const config = await getRunModeConfig(RunMode.DAILY);
     expect(config.mode).toBe(RunMode.DAILY);
     expect(config.seed).toBe('daily123');

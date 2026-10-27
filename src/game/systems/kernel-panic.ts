@@ -14,10 +14,46 @@ export interface KernelPanicResult {
 }
 
 const KERNEL_PANIC_TABLE = [
-  { tier: 1, minPercent: 100, maxPercent: 120, baseChance: 0.15, effectName: 'HUD_GLITCH', duration: 2, magnitude: 1, severity: 'minor' },
-  { tier: 2, minPercent: 121, maxPercent: 140, baseChance: 0.25, effectName: 'INPUT_LAG', duration: 3, magnitude: 1, severity: 'moderate' },
-  { tier: 3, minPercent: 141, maxPercent: 160, baseChance: 0.50, effectName: 'FIRMWARE_LOCK', duration: 2, magnitude: 1, severity: 'severe' },
-  { tier: 4, minPercent: 161, maxPercent: Infinity, baseChance: 1.0, effectName: 'CRITICAL_REBOOT', duration: 3, magnitude: 1, severity: 'critical' },
+  {
+    tier: 1,
+    minPercent: 100,
+    maxPercent: 120,
+    baseChance: 0.15,
+    effectName: 'HUD_GLITCH',
+    duration: 2,
+    magnitude: 1,
+    severity: 'minor',
+  },
+  {
+    tier: 2,
+    minPercent: 121,
+    maxPercent: 140,
+    baseChance: 0.25,
+    effectName: 'INPUT_LAG',
+    duration: 3,
+    magnitude: 1,
+    severity: 'moderate',
+  },
+  {
+    tier: 3,
+    minPercent: 141,
+    maxPercent: 160,
+    baseChance: 0.5,
+    effectName: 'FIRMWARE_LOCK',
+    duration: 2,
+    magnitude: 1,
+    severity: 'severe',
+  },
+  {
+    tier: 4,
+    minPercent: 161,
+    maxPercent: Infinity,
+    baseChance: 1.0,
+    effectName: 'CRITICAL_REBOOT',
+    duration: 3,
+    magnitude: 1,
+    severity: 'critical',
+  },
 ] as const;
 
 /**
@@ -28,9 +64,11 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
   eventBus: EventBus<T>,
 ) {
   const getTier = (heatPercent: number) => {
-    return KERNEL_PANIC_TABLE.find(
-      (tier) => heatPercent >= tier.minPercent && heatPercent <= tier.maxPercent,
-    ) || null;
+    return (
+      KERNEL_PANIC_TABLE.find(
+        (tier) => heatPercent >= tier.minPercent && heatPercent <= tier.maxPercent,
+      ) || null
+    );
   };
 
   const checkOverclock = (entityId: EntityId): KernelPanicResult | null => {
@@ -42,13 +80,11 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
     }
 
     const heatPercent = (heat.current / heat.maxSafe) * 100;
-    
+
     if (heatPercent <= 100) return null;
 
     // Filter all tiers that are eligible at this heat level
-    const eligibleTiers = KERNEL_PANIC_TABLE.filter(
-      (tier) => heatPercent >= tier.minPercent
-    );
+    const eligibleTiers = KERNEL_PANIC_TABLE.filter((tier) => heatPercent >= tier.minPercent);
 
     if (eligibleTiers.length === 0) return null;
 
@@ -66,7 +102,7 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
 
       if (roll < effChance) {
         appliedEffectName = tier.effectName;
-        
+
         world.addComponent(entityId, ApplyStatusEffectIntent, {
           targetId: entityId,
           effect: {
@@ -75,12 +111,15 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
             magnitude: tier.magnitude,
             severity: tier.severity as any,
             source: 'kernel_panic',
-          }
+          },
         });
 
         triggeredTier = tier.tier;
 
-        logger.info(`Kernel Panic Triggered for entity ${entityId}: ${tier.effectName} (Tier: ${tier.tier}, Severity: ${tier.severity})`, 'SYSTEM');
+        logger.info(
+          `Kernel Panic Triggered for entity ${entityId}: ${tier.effectName} (Tier: ${tier.tier}, Severity: ${tier.severity})`,
+          'SYSTEM',
+        );
 
         if (tier.effectName === 'CRITICAL_REBOOT') {
           world.addComponent(entityId, VentIntent, {});
@@ -149,4 +188,6 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
   };
 }
 
-export type KernelPanicSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createKernelPanicSystem<T>>;
+export type KernelPanicSystem<T extends GameplayEvents = GameEvents> = ReturnType<
+  typeof createKernelPanicSystem<T>
+>;

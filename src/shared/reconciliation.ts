@@ -18,29 +18,34 @@ export function applyStateDelta<T extends GameplayEvents>(
   grid: Grid,
   turnManager: TurnManager<T>,
   eventBus: EventBus<T>,
-  payload: SyncPayload
+  payload: SyncPayload,
 ): number {
   // Set context to server for incoming truth events
   const previousOrigin = EventOriginContext.current;
   EventOriginContext.current = 'server';
 
   // 1. Authoritative World Update (Full State Always)
-  // This eliminates all TypeError: Cannot set properties of undefined crashes 
+  // This eliminates all TypeError: Cannot set properties of undefined crashes
   // by replacing the entire world state instead of patching it.
   world.loadSerializableState(payload.world);
-  
+
   // 2. Authoritative Grid Update
   if (payload.type === 'FULL') {
     grid.loadSerializableTiles(payload.grid.tiles);
-    
+
     // Emit DUNGEON_GENERATED to clear old sprites and reset camera
     const floorState = world.getComponent(payload.playerId, FloorState);
-    const floorSeed = floorState ? `${floorState.runSeed}_floor_${floorState.currentFloor}` : 'reconciled-seed';
+    const floorSeed = floorState
+      ? `${floorState.runSeed}_floor_${floorState.currentFloor}`
+      : 'reconciled-seed';
     eventBus.emit('DUNGEON_GENERATED' as any, { seed: floorSeed } as any);
   } else {
     // Grid still uses incremental diffs as it is a stable 1D array of primitives
     const currentGrid = serializeGrid(grid);
-    const patchedGrid = applyChangeset(currentGrid, (payload as DeltaPayload).grid) as SerializedGrid;
+    const patchedGrid = applyChangeset(
+      currentGrid,
+      (payload as DeltaPayload).grid,
+    ) as SerializedGrid;
     grid.loadSerializableTiles(patchedGrid.tiles);
   }
 

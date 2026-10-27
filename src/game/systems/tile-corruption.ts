@@ -19,9 +19,8 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
   grid: Grid,
   eventBus: EventBus<T>,
   entityFactory: EntityFactory,
-  componentRegistry: ComponentRegistry
+  componentRegistry: ComponentRegistry,
 ) {
-
   function getPlayerEntity(): { id: EntityId; x: number; y: number } | null {
     const actors = world.query(Actor, Position);
     for (const id of actors) {
@@ -34,7 +33,11 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
     return null;
   }
 
-  function getTilesAtDistance(startX: number, startY: number, distance: number): Array<{ x: number; y: number }> {
+  function getTilesAtDistance(
+    startX: number,
+    startY: number,
+    distance: number,
+  ): Array<{ x: number; y: number }> {
     const tiles: Array<{ x: number; y: number }> = [];
     const visited = new Set<string>();
     const queue: Array<{ x: number; y: number; d: number }> = [{ x: startX, y: startY, d: 0 }];
@@ -112,7 +115,9 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
     for (const n of neighbors) {
       if (grid.inBounds(n.x, n.y)) {
         const isTargetOfCorruption = n.x === corruptX && n.y === corruptY;
-        const willBeWalkable = isTargetOfCorruption ? !grid.isWalkable(n.x, n.y) : grid.isWalkable(n.x, n.y);
+        const willBeWalkable = isTargetOfCorruption
+          ? !grid.isWalkable(n.x, n.y)
+          : grid.isWalkable(n.x, n.y);
         if (willBeWalkable) {
           walkableCount++;
         }
@@ -128,14 +133,14 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
     if (!state || !pos) return;
 
     let ring = getTilesAtDistance(pos.x, pos.y, state.corruptionWave);
-    ring = ring.filter(t => !state.corruptedTileKeys.includes(`${t.x},${t.y}`));
+    ring = ring.filter((t) => !state.corruptedTileKeys.includes(`${t.x},${t.y}`));
 
     // If ring is empty, increase wave and try again once
     if (ring.length === 0) {
       const nextWave = state.corruptionWave + 1;
       world.patchComponent(seedEaterId, CorruptionState, { corruptionWave: nextWave });
       ring = getTilesAtDistance(pos.x, pos.y, nextWave);
-      ring = ring.filter(t => !state.corruptedTileKeys.includes(`${t.x},${t.y}`));
+      ring = ring.filter((t) => !state.corruptedTileKeys.includes(`${t.x},${t.y}`));
     }
 
     if (ring.length === 0) return;
@@ -148,7 +153,10 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
 
     const toCorrupt = ring.slice(0, state.tilesPerTurn);
 
-    logger.debug(`Seed Eater ${seedEaterId} corrupting ${toCorrupt.length} tiles at wave ${state.corruptionWave}`, 'SYSTEM');
+    logger.debug(
+      `Seed Eater ${seedEaterId} corrupting ${toCorrupt.length} tiles at wave ${state.corruptionWave}`,
+      'SYSTEM',
+    );
 
     for (const tile of toCorrupt) {
       // Safety check: don't trap player
@@ -165,12 +173,12 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
       grid.setTile(tile.x, tile.y, {
         terrain: newTerrain,
         walkable: newWalkable,
-        transparent: newTransparent
+        transparent: newTransparent,
       });
 
       const key = `${tile.x},${tile.y}`;
       world.patchComponent(seedEaterId, CorruptionState, {
-        corruptedTileKeys: [...state.corruptedTileKeys, key]
+        corruptedTileKeys: [...state.corruptedTileKeys, key],
       });
 
       // Displace entities if it became a wall
@@ -178,7 +186,7 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
         const entities = Array.from(grid.getEntitiesAt(tile.x, tile.y));
         for (const eid of entities) {
           if (eid === seedEaterId) continue; // Seed_Eater is immune
-          
+
           const target = findNearestWalkable(tile.x, tile.y);
           if (target) {
             const ePos = world.getComponent(eid, Position);
@@ -200,7 +208,7 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
     if (!pos) return;
 
     const templateName = Math.random() < 0.5 ? 'null-pointer' : 'buffer-overflow';
-    
+
     // Find walkable tile within 3 tiles
     const candidates: Array<{ x: number; y: number }> = [];
     for (let dx = -3; dx <= 3; dx++) {
@@ -217,14 +225,17 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
       const spawnPos = candidates[Math.floor(Math.random() * candidates.length)];
       try {
         const childId = entityFactory.create(world, templateName, componentRegistry, {
-          position: { x: spawnPos.x, y: spawnPos.y }
+          position: { x: spawnPos.x, y: spawnPos.y },
         });
         grid.addEntity(childId, spawnPos.x, spawnPos.y);
-        eventBus.emit('MESSAGE_EMITTED', { 
-          text: `Seed_Eater spawned a ${templateName}!`, 
-          type: 'combat' 
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `Seed_Eater spawned a ${templateName}!`,
+          type: 'combat',
         });
-        logger.info(`Seed Eater ${seedEaterId} spawned ${templateName} at (${spawnPos.x}, ${spawnPos.y})`, 'SYSTEM');
+        logger.info(
+          `Seed Eater ${seedEaterId} spawned ${templateName} at (${spawnPos.x}, ${spawnPos.y})`,
+          'SYSTEM',
+        );
       } catch (e) {
         logger.error(`Failed to spawn sub-process: ${templateName}`, 'SYSTEM', { error: e });
       }
@@ -246,9 +257,9 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
       const seedEaters = world.query(CorruptionState, Position);
       for (const id of seedEaters) {
         const state = world.getComponent(id, CorruptionState)!;
-        
+
         spreadCorruption(id);
-        
+
         const nextSpawnTurns = state.turnsSinceLastSpawn + 1;
         if (nextSpawnTurns >= state.spawnFrequency) {
           spawnSubProcess(id);
@@ -257,8 +268,10 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
           world.patchComponent(id, CorruptionState, { turnsSinceLastSpawn: nextSpawnTurns });
         }
       }
-    }
+    },
   };
 }
 
-export type TileCorruptionSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createTileCorruptionSystem<T>>;
+export type TileCorruptionSystem<T extends GameplayEvents = GameEvents> = ReturnType<
+  typeof createTileCorruptionSystem<T>
+>;

@@ -26,18 +26,24 @@ export const CurrencyStackSchema = z.object({
 /**
  * Component representing the player's run-scoped software inventory.
  */
-export const RunInventory = defineComponent('run_inventory', z.object({
-  maxSlots: z.number().int().default(5),
-  software: z.array(RunInventoryItemSchema).default([]),
-  equipment: z.array(RunInventoryItemSchema).default([]),
-}));
+export const RunInventory = defineComponent(
+  'run_inventory',
+  z.object({
+    maxSlots: z.number().int().default(5),
+    software: z.array(RunInventoryItemSchema).default([]),
+    equipment: z.array(RunInventoryItemSchema).default([]),
+  }),
+);
 
 /**
  * Component representing the player's run-scoped currency stacks.
  */
-export const RunCurrency = defineComponent('run_currency', z.object({
-  stacks: z.array(CurrencyStackSchema).default([]),
-}));
+export const RunCurrency = defineComponent(
+  'run_currency',
+  z.object({
+    stacks: z.array(CurrencyStackSchema).default([]),
+  }),
+);
 
 export type RunInventoryData = z.infer<typeof RunInventory.schema>;
 export type RunCurrencyData = z.infer<typeof RunCurrency.schema>;

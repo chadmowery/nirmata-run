@@ -3,7 +3,13 @@ import { GlitchFilter, RGBSplitFilter } from 'pixi-filters';
 import { EntityId } from '../engine/ecs/types';
 import { TILE_SIZE } from './constants';
 
-type DeathType = 'fade-out' | 'death-flicker' | 'death-explode' | 'death-crumble' | 'death-static' | 'death-collapse';
+type DeathType =
+  | 'fade-out'
+  | 'death-flicker'
+  | 'death-explode'
+  | 'death-crumble'
+  | 'death-static'
+  | 'death-collapse';
 
 interface TweenAnimation {
   entityId: EntityId;
@@ -23,7 +29,10 @@ let activeAnimations: TweenAnimation[] = [];
  * Updates all active animations.
  * Called every frame by the PixiJS ticker.
  */
-export function tickAnimations(deltaMs: number, getSprite: (id: EntityId) => Sprite | undefined): void {
+export function tickAnimations(
+  deltaMs: number,
+  getSprite: (id: EntityId) => Sprite | undefined,
+): void {
   for (let i = activeAnimations.length - 1; i >= 0; i--) {
     const anim = activeAnimations[i];
     anim.elapsed += deltaMs;
@@ -59,7 +68,9 @@ export function tickAnimations(deltaMs: number, getSprite: (id: EntityId) => Spr
         sprite.scale.set(1 + t * 0.5);
         sprite.alpha = 1 - t;
         // Search for existing RGBSplitFilter or add one
-        let explodeSplit = (sprite.filters || []).find(f => f instanceof RGBSplitFilter) as RGBSplitFilter;
+        let explodeSplit = (sprite.filters || []).find(
+          (f) => f instanceof RGBSplitFilter,
+        ) as RGBSplitFilter;
         if (!explodeSplit) {
           explodeSplit = new RGBSplitFilter();
           sprite.filters = [...(sprite.filters || []), explodeSplit];
@@ -70,7 +81,9 @@ export function tickAnimations(deltaMs: number, getSprite: (id: EntityId) => Spr
       }
       case 'death-crumble': {
         sprite.alpha = 1 - t;
-        let crumbleGlitch = (sprite.filters || []).find(f => f instanceof GlitchFilter) as GlitchFilter;
+        let crumbleGlitch = (sprite.filters || []).find(
+          (f) => f instanceof GlitchFilter,
+        ) as GlitchFilter;
         if (!crumbleGlitch) {
           crumbleGlitch = new GlitchFilter({ slices: 20 });
           sprite.filters = [...(sprite.filters || []), crumbleGlitch];
@@ -81,7 +94,9 @@ export function tickAnimations(deltaMs: number, getSprite: (id: EntityId) => Spr
       case 'death-static': {
         sprite.alpha = 1 - t;
         sprite.scale.set(1 - t * 0.5);
-        let staticGlitch = (sprite.filters || []).find(f => f instanceof GlitchFilter) as GlitchFilter;
+        let staticGlitch = (sprite.filters || []).find(
+          (f) => f instanceof GlitchFilter,
+        ) as GlitchFilter;
         if (!staticGlitch) {
           staticGlitch = new GlitchFilter();
           sprite.filters = [...(sprite.filters || []), staticGlitch];
@@ -93,7 +108,9 @@ export function tickAnimations(deltaMs: number, getSprite: (id: EntityId) => Spr
         sprite.alpha = 1 - t;
         sprite.scale.set(1 - t * 0.7);
         sprite.rotation += 0.05; // ~0.2 radians over 600ms
-        let collapseGlitch = (sprite.filters || []).find(f => f instanceof GlitchFilter) as GlitchFilter;
+        let collapseGlitch = (sprite.filters || []).find(
+          (f) => f instanceof GlitchFilter,
+        ) as GlitchFilter;
         if (!collapseGlitch) {
           collapseGlitch = new GlitchFilter({ slices: 5, offset: 8 });
           sprite.filters = [...(sprite.filters || []), collapseGlitch];
@@ -121,7 +138,7 @@ export function queueMoveTween(
   fromY: number,
   toX: number,
   toY: number,
-  getSprite?: (id: EntityId) => Sprite | undefined
+  getSprite?: (id: EntityId) => Sprite | undefined,
 ): void {
   const targetX = toX * TILE_SIZE;
   const targetY = toY * TILE_SIZE;
@@ -218,16 +235,16 @@ export function queueAttackAnimationWithDefender(
         elapsed: 0,
         duration: 75,
       });
-    }
+    },
   });
 
   // 3. Defender Tint
   const defenderSprite = getSprite(defenderId);
   if (defenderSprite && !defenderSprite.destroyed) {
-    defenderSprite.tint = 0xFF0000;
+    defenderSprite.tint = 0xff0000;
     setTimeout(() => {
       if (!defenderSprite.destroyed) {
-        defenderSprite.tint = 0xFFFFFF;
+        defenderSprite.tint = 0xffffff;
       }
     }, 150);
   }
@@ -239,7 +256,7 @@ export function queueAttackAnimationWithDefender(
 export function queueDeathAnimation(
   entityId: EntityId,
   onComplete: () => void,
-  type: DeathType = 'fade-out'
+  type: DeathType = 'fade-out',
 ): void {
   let duration = 300;
   if (type === 'death-flicker') duration = 600;
@@ -265,7 +282,7 @@ export function queueDeathAnimation(
  * Returns true if an entity has an active animation.
  */
 export function hasActiveAnimation(entityId: EntityId): boolean {
-  return activeAnimations.some(a => a.entityId === entityId);
+  return activeAnimations.some((a) => a.entityId === entityId);
 }
 
 /**

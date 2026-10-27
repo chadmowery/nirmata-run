@@ -27,11 +27,11 @@ describe('validateConnectivity', () => {
   it('should report disconnected grid as not connected', () => {
     // 5x5 grid with a wall barrier splitting it
     const grid = [
-      [true,  true,  false, true,  true],
-      [true,  true,  false, true,  true],
+      [true, true, false, true, true],
+      [true, true, false, true, true],
       [false, false, false, false, false],
-      [true,  true,  false, true,  true],
-      [true,  true,  false, true,  true],
+      [true, true, false, true, true],
+      [true, true, false, true, true],
     ];
 
     const result = validateConnectivity(5, 5, makeWalkable(grid), 0, 0);
@@ -54,7 +54,7 @@ describe('validateConnectivity', () => {
   it('should handle start position on wall', () => {
     const grid = [
       [false, true],
-      [true,  true],
+      [true, true],
     ];
     const result = validateConnectivity(2, 2, makeWalkable(grid), 0, 0);
 
@@ -66,11 +66,11 @@ describe('validateConnectivity', () => {
   it('should detect isolated room as unreachable region', () => {
     // Main connected area + isolated 2x2 room in corner
     const grid = [
-      [true,  true,  true,  false, false],
-      [true,  true,  true,  false, false],
-      [true,  true,  true,  false, false],
+      [true, true, true, false, false],
+      [true, true, true, false, false],
+      [true, true, true, false, false],
       [false, false, false, false, false],
-      [false, false, false, true,  true],
+      [false, false, false, true, true],
     ];
 
     const result = validateConnectivity(5, 5, makeWalkable(grid), 0, 0);

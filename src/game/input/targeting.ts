@@ -20,11 +20,11 @@ export interface TargetingState {
  */
 export interface TargetingManager {
   startTargeting(
-    slotIndex: number, 
-    playerX: number, 
-    playerY: number, 
-    range: number, 
-    effectType: string
+    slotIndex: number,
+    playerX: number,
+    playerY: number,
+    range: number,
+    effectType: string,
   ): void;
   moveCursor(dx: number, dy: number): void;
   confirm(): void;
@@ -40,7 +40,7 @@ export function createTargetingManager(
   eventBus: EventBus<GameEvents>,
   onConfirm: (slotIndex: number, targetX: number, targetY: number) => void,
   gridWidth: number = 100, // Default large bounds if not provided
-  gridHeight: number = 100
+  gridHeight: number = 100,
 ): TargetingManager {
   let state: TargetingState = {
     active: false,
@@ -50,7 +50,7 @@ export function createTargetingManager(
     playerX: 0,
     playerY: 0,
     range: 0,
-    effectType: ''
+    effectType: '',
   };
 
   return {
@@ -63,9 +63,9 @@ export function createTargetingManager(
         playerX,
         playerY,
         range,
-        effectType
+        effectType,
       };
-      
+
       eventBus.emit('TARGETING_STARTED', { ...state });
       eventBus.flush();
     },
@@ -78,7 +78,7 @@ export function createTargetingManager(
 
       // Range validation: Manhattan distance from player
       const dist = Math.abs(newX - state.playerX) + Math.abs(newY - state.playerY);
-      
+
       if (state.range > 0 && dist > state.range) {
         // Block movement if range is exceeded
         return;
@@ -96,12 +96,12 @@ export function createTargetingManager(
 
       const { firmwareSlotIndex, cursorX, cursorY } = state;
       state.active = false;
-      
+
       onConfirm(firmwareSlotIndex, cursorX, cursorY);
-      
-      eventBus.emit('TARGETING_CONFIRMED', { 
-        targetX: cursorX, 
-        targetY: cursorY 
+
+      eventBus.emit('TARGETING_CONFIRMED', {
+        targetX: cursorX,
+        targetY: cursorY,
       });
       eventBus.flush();
     },
@@ -119,6 +119,6 @@ export function createTargetingManager(
 
     getState() {
       return { ...state };
-    }
+    },
   };
 }

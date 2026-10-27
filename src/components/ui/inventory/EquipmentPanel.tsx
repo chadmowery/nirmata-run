@@ -15,9 +15,9 @@ interface GameContext {
 
 export const EquipmentPanel: React.FC = () => {
   const [hoveredEntityId, setHoveredEntityId] = useState<number | null>(null);
-  
+
   const gameContext = (window as unknown as { gameContext: GameContext }).gameContext;
-  
+
   // Connect to Zustand game store to subscribe to revisions and handle updates
   const inventoryRevision = useStore(gameStore, (s) => s.inventoryRevision);
   const draggedRunItemEntityId = useStore(gameStore, (s) => s.draggedRunItemEntityId);
@@ -35,7 +35,7 @@ export const EquipmentPanel: React.FC = () => {
 
   const renderSlot = (slotType: 'weapon' | 'armor', entityId: number | null | undefined) => {
     const isDraggedOver = dragOverSlot === slotType;
-    
+
     // Check compatibility of currently dragged item
     let isCompatible = false;
     if (draggedRunItemEntityId) {
@@ -43,14 +43,16 @@ export const EquipmentPanel: React.FC = () => {
       const swDef = gameContext.world.getComponent(draggedRunItemEntityId, SoftwareDef);
       const isEq = gameContext.world.hasComponent(draggedRunItemEntityId, EquipmentDef);
       const eqDef = gameContext.world.getComponent(draggedRunItemEntityId, EquipmentDef);
-      
+
       if (slotType === 'weapon') {
-        isCompatible = (isEq && eqDef.slotType === 'weapon') || (isSw && swDef.targetSlot === 'weapon');
+        isCompatible =
+          (isEq && eqDef.slotType === 'weapon') || (isSw && swDef.targetSlot === 'weapon');
       } else if (slotType === 'armor') {
-        isCompatible = (isEq && eqDef.slotType === 'armor') || (isSw && swDef.targetSlot === 'armor');
+        isCompatible =
+          (isEq && eqDef.slotType === 'armor') || (isSw && swDef.targetSlot === 'armor');
       }
     }
-    
+
     // Get item name and details if entityId is present
     let itemName = '';
     let isSoftwareItem = false;
@@ -69,7 +71,7 @@ export const EquipmentPanel: React.FC = () => {
         itemName = `Entity #${entityId}`;
       }
     }
-    
+
     // Class name based on drag states
     let borderStyle = {};
     if (isDraggedOver) {
@@ -77,9 +79,9 @@ export const EquipmentPanel: React.FC = () => {
         border: `2px solid ${isCompatible ? '#00F0FF' : '#FF0055'}`,
       };
     }
-    
+
     return (
-      <div 
+      <div
         className={`${styles.slot} ${entityId ? styles.slotFilled : ''}`}
         style={{
           ...borderStyle,
@@ -97,7 +99,10 @@ export const EquipmentPanel: React.FC = () => {
         draggable={!!entityId}
         onDragStart={(e) => {
           if (entityId) {
-            e.dataTransfer.setData('application/json', JSON.stringify({ source: 'equipment', slotType, entityId }));
+            e.dataTransfer.setData(
+              'application/json',
+              JSON.stringify({ source: 'equipment', slotType, entityId }),
+            );
             gameStore.getState().setDraggedRunItemEntityId(entityId);
           }
         }}
@@ -126,7 +131,7 @@ export const EquipmentPanel: React.FC = () => {
               const swDef = gameContext.world.getComponent(itemEntityId, SoftwareDef);
               const isEq = gameContext.world.hasComponent(itemEntityId, EquipmentDef);
               const eqDef = gameContext.world.getComponent(itemEntityId, EquipmentDef);
-              
+
               if (slotType === 'weapon') {
                 if (isEq && eqDef.slotType === 'weapon') {
                   gameStore.getState().optimisticEquipItem(itemEntityId, 'weapon');
@@ -134,10 +139,16 @@ export const EquipmentPanel: React.FC = () => {
                   eventBus?.emit('EQUIP_REQUESTED', { slotType: 'weapon', itemEntityId });
                 } else if (isSw && swDef.targetSlot === 'weapon') {
                   const eventBus = (window as any).gameContext?.eventBus;
-                  eventBus?.emit('BURN_SOFTWARE_REQUESTED', { runInventoryIndex: data.inventoryIndex, targetSlot: 'weapon' });
+                  eventBus?.emit('BURN_SOFTWARE_REQUESTED', {
+                    runInventoryIndex: data.inventoryIndex,
+                    targetSlot: 'weapon',
+                  });
                 } else {
                   const eventBus = (window as any).gameContext?.eventBus;
-                  eventBus?.emit('MESSAGE_EMITTED', { text: 'Invalid drop target. Must be a compatible slot.', type: 'error' });
+                  eventBus?.emit('MESSAGE_EMITTED', {
+                    text: 'Invalid drop target. Must be a compatible slot.',
+                    type: 'error',
+                  });
                 }
               } else if (slotType === 'armor') {
                 if (isEq && eqDef.slotType === 'armor') {
@@ -146,10 +157,16 @@ export const EquipmentPanel: React.FC = () => {
                   eventBus?.emit('EQUIP_REQUESTED', { slotType: 'armor', itemEntityId });
                 } else if (isSw && swDef.targetSlot === 'armor') {
                   const eventBus = (window as any).gameContext?.eventBus;
-                  eventBus?.emit('BURN_SOFTWARE_REQUESTED', { runInventoryIndex: data.inventoryIndex, targetSlot: 'armor' });
+                  eventBus?.emit('BURN_SOFTWARE_REQUESTED', {
+                    runInventoryIndex: data.inventoryIndex,
+                    targetSlot: 'armor',
+                  });
                 } else {
                   const eventBus = (window as any).gameContext?.eventBus;
-                  eventBus?.emit('MESSAGE_EMITTED', { text: 'Invalid drop target. Must be a compatible slot.', type: 'error' });
+                  eventBus?.emit('MESSAGE_EMITTED', {
+                    text: 'Invalid drop target. Must be a compatible slot.',
+                    type: 'error',
+                  });
                 }
               }
             }
@@ -171,7 +188,9 @@ export const EquipmentPanel: React.FC = () => {
           <div>
             <div style={{ fontWeight: 'bold' }}>{itemName}</div>
             <div style={{ fontSize: '10px', opacity: 0.8 }}>{detailText}</div>
-            <div style={{ fontSize: '9px', color: '#FF0055', marginTop: '4px' }}>Uninstall: Double-click to quick-uninstall.</div>
+            <div style={{ fontSize: '9px', color: '#FF0055', marginTop: '4px' }}>
+              Uninstall: Double-click to quick-uninstall.
+            </div>
           </div>
         ) : (
           <div>

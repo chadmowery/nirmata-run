@@ -7,9 +7,18 @@
 }
 
 @keyframes pulsePink {
-  0% { box-shadow: 0 0 5px rgba(255, 0, 85, 0.2); border-color: rgba(255, 0, 85, 0.5); }
-  50% { box-shadow: 0 0 15px rgba(255, 0, 85, 0.4); border-color: rgba(255, 0, 85, 1); }
-  100% { box-shadow: 0 0 5px rgba(255, 0, 85, 0.2); border-color: rgba(255, 0, 85, 0.5); }
+  0% {
+    box-shadow: 0 0 5px rgba(255, 0, 85, 0.2);
+    border-color: rgba(255, 0, 85, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(255, 0, 85, 0.4);
+    border-color: rgba(255, 0, 85, 1);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(255, 0, 85, 0.2);
+    border-color: rgba(255, 0, 85, 0.5);
+  }
 }
 
 .heading {
@@ -46,7 +55,8 @@
   gap: var(--space-sm);
 }
 
-.discardButton, .sellButton {
+.discardButton,
+.sellButton {
   background: transparent;
   border: 1px solid var(--vibrant-pink);
   color: var(--vibrant-pink);

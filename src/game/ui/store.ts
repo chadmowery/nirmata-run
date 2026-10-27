@@ -92,15 +92,15 @@ export interface UIState {
   gameStatus: GameStatus;
   visibleEntities: VisibleEntity[];
   stats: RunStats;
-  
+
   // Phase 12 stability & floor state
-  stability: number;       // 0-100
-  maxStability: number;    // 100
-  currentFloor: number;    // 1-15
-  depthBand: string;       // "CORRUPTED_DATA" | "STATIC_HORRORS" | "LOGIC_BREAKERS"
-  scrap: number;           // Current Scrap amount
-  walletScrap: number;     // Session-level persistent Scrap
-  
+  stability: number; // 0-100
+  maxStability: number; // 100
+  currentFloor: number; // 1-15
+  depthBand: string; // "CORRUPTED_DATA" | "STATIC_HORRORS" | "LOGIC_BREAKERS"
+  scrap: number; // Current Scrap amount
+  walletScrap: number; // Session-level persistent Scrap
+
   // Overlays
   anchorOverlayVisible: boolean;
   anchorData: AnchorOverlayData | null;
@@ -110,11 +110,11 @@ export interface UIState {
   runResults: RunResultsData | null;
   bsodVisible: boolean;
   bsodReason: string;
-  
+
   // Phase 16: Heat tiers
-  heatTier: number;         // 0-5 current visual tier
-  heatValue: number;        // raw Heat value for display
-  heatMaxSafe: number;      // maxSafe threshold
+  heatTier: number; // 0-5 current visual tier
+  heatValue: number; // raw Heat value for display
+  heatMaxSafe: number; // maxSafe threshold
 
   // Phase 15: Hub state
   activeTab: HubTab;
@@ -162,7 +162,7 @@ export interface UIState {
   optimisticEquipItem: (entityId: number, slot: 'weapon' | 'armor') => void;
   optimisticUnequipItem: (slot: 'weapon' | 'armor') => void;
   clearOptimisticUpdates: () => void;
-  
+
   // Phase 12 actions
   updateStability: (stability: number, max: number) => void;
   updateFloor: (floor: number, band: string) => void;
@@ -275,12 +275,12 @@ export const gameStore = createStore<UIState>((set) => ({
   heatValue: 0,
   heatMaxSafe: 100,
 
-  updatePlayerStats: (stats) => 
+  updatePlayerStats: (stats) =>
     set((state) => ({
       player: { ...state.player, ...stats },
     })),
 
-  updateStats: (stats: Partial<RunStats>) => 
+  updateStats: (stats: Partial<RunStats>) =>
     set((state) => ({
       stats: { ...state.stats, ...stats },
     })),
@@ -288,7 +288,7 @@ export const gameStore = createStore<UIState>((set) => ({
   addMessage: (text, type) =>
     set((state) => {
       const lastMessage = state.messages[0];
-      
+
       if (lastMessage && lastMessage.text === text && lastMessage.type === type) {
         // Update count of identical consecutive message
         const updatedMessages = [...state.messages];
@@ -327,17 +327,23 @@ export const gameStore = createStore<UIState>((set) => ({
   hideAnchorOverlay: () => set({ anchorOverlayVisible: false, anchorData: null }),
   makeAnchorDecision: (decision: 'extract' | 'descend') => {
     // In a real environment, we'd use a better bridge, but for now we use the global context
-    const context = (window as unknown as { gameContext: { eventBus: { emit: (event: string, payload: unknown) => void, flush: () => void } } }).gameContext;
+    const context = (
+      window as unknown as {
+        gameContext: {
+          eventBus: { emit: (event: string, payload: unknown) => void; flush: () => void };
+        };
+      }
+    ).gameContext;
     const state = gameStore.getState();
     if (context && state.anchorData) {
       const previousOrigin = EventOriginContext.current;
       EventOriginContext.current = 'ui';
 
-      context.eventBus.emit('ANCHOR_DECISION_MADE', { 
+      context.eventBus.emit('ANCHOR_DECISION_MADE', {
         decision,
         anchorId: state.anchorData.anchorId,
         descendCost: state.anchorData.descendCost,
-        floorNumber: state.anchorData.floorNumber
+        floorNumber: state.anchorData.floorNumber,
       });
       context.eventBus.flush();
 
@@ -349,16 +355,23 @@ export const gameStore = createStore<UIState>((set) => ({
   showStaircaseOverlay: (data) => set({ staircaseOverlayVisible: true, staircaseData: data }),
   hideStaircaseOverlay: () => set({ staircaseOverlayVisible: false, staircaseData: null }),
   makeStaircaseDecision: (confirmed) => {
-    const context = (window as unknown as { gameContext: { eventBus: { emit: (event: string, payload: unknown) => void, flush: () => void }, playerId: number } }).gameContext;
+    const context = (
+      window as unknown as {
+        gameContext: {
+          eventBus: { emit: (event: string, payload: unknown) => void; flush: () => void };
+          playerId: number;
+        };
+      }
+    ).gameContext;
     const state = gameStore.getState();
     if (context) {
       const previousOrigin = EventOriginContext.current;
       EventOriginContext.current = 'ui';
 
-      context.eventBus.emit('STAIRCASE_DECISION_MADE', { 
+      context.eventBus.emit('STAIRCASE_DECISION_MADE', {
         confirmed,
         targetFloor: state.staircaseData?.targetFloor ?? 0,
-        staircaseId: state.staircaseData?.staircaseId ?? 0
+        staircaseId: state.staircaseData?.staircaseId ?? 0,
       });
       context.eventBus.flush();
 
@@ -372,42 +385,44 @@ export const gameStore = createStore<UIState>((set) => ({
   showBSOD: (reason) => set({ bsodVisible: true, bsodReason: reason }),
   hideBSOD: () => set({ bsodVisible: false, bsodReason: '' }),
   addScrapToWallet: (amount) => set((state) => ({ walletScrap: state.walletScrap + amount })),
-  resetRunStats: () => set({
-    scrap: 0,
-    stats: { turns: 0, kills: 0 },
-    player: {
-      hp: 0,
-      maxHp: 0,
-      xp: 0,
-      level: 1,
-      statuses: [],
-      heat: 0,
-      maxHeat: 100,
-      shellName: 'None',
-      mods: [],
-    },
-    stability: 100,
-    currentFloor: 1,
-    runResults: null,
-    runResultsVisible: false,
-    bsodVisible: false,
-    bsodReason: '',
-    heatTier: 0,
-    heatValue: 0,
-    heatMaxSafe: 100,
-    inventoryVisible: false,
-    inventoryRevision: 0,
-    messages: [],
-  }),
+  resetRunStats: () =>
+    set({
+      scrap: 0,
+      stats: { turns: 0, kills: 0 },
+      player: {
+        hp: 0,
+        maxHp: 0,
+        xp: 0,
+        level: 1,
+        statuses: [],
+        heat: 0,
+        maxHeat: 100,
+        shellName: 'None',
+        mods: [],
+      },
+      stability: 100,
+      currentFloor: 1,
+      runResults: null,
+      runResultsVisible: false,
+      bsodVisible: false,
+      bsodReason: '',
+      heatTier: 0,
+      heatValue: 0,
+      heatMaxSafe: 100,
+      inventoryVisible: false,
+      inventoryRevision: 0,
+      messages: [],
+    }),
   clearMessages: () => set({ messages: [] }),
 
   // Phase 15: Hub actions
   setActiveTab: (tab) => set({ activeTab: tab }),
-  setPlayerProfile: (profile) => set({
-    playerProfile: profile,
-    hasOverflow: profile.overflow.length > 0,
-    overflowCount: profile.overflow.length,
-  }),
+  setPlayerProfile: (profile) =>
+    set({
+      playerProfile: profile,
+      hasOverflow: profile.overflow.length > 0,
+      overflowCount: profile.overflow.length,
+    }),
   setShellTemplates: (templates) => set({ shellTemplates: templates }),
   setProfileLoading: (loading) => set({ profileLoading: loading }),
   setProfileError: (error) => set({ profileError: error }),
@@ -420,99 +435,107 @@ export const gameStore = createStore<UIState>((set) => ({
   setRitualActive: (active) => set({ ritualActive: active }),
   setBootSequenceActive: (active) => set({ bootSequenceActive: active }),
   setLaunchConfig: (config) => set({ launchConfig: config }),
-  updateProfileOptimistic: (updater) => set((state) => {
-    if (!state.playerProfile) return {};
-    const updated = updater(state.playerProfile);
-    return {
-      playerProfile: updated,
-      hasOverflow: updated.overflow.length > 0,
-      overflowCount: updated.overflow.length,
-    };
-  }),
-  resetHubState: () => set({
-    playerProfile: null,
-    shellTemplates: [],
-    profileLoading: false,
-    profileError: null,
-    selectedShellIndex: 0,
-    draggedItem: null,
-    dragOverSlot: null,
-    compilingBlueprintId: null,
-    selectedRunMode: null,
-    modeAvailability: null,
-    ritualActive: false,
-    bootSequenceActive: false,
-  }),
+  updateProfileOptimistic: (updater) =>
+    set((state) => {
+      if (!state.playerProfile) return {};
+      const updated = updater(state.playerProfile);
+      return {
+        playerProfile: updated,
+        hasOverflow: updated.overflow.length > 0,
+        overflowCount: updated.overflow.length,
+      };
+    }),
+  resetHubState: () =>
+    set({
+      playerProfile: null,
+      shellTemplates: [],
+      profileLoading: false,
+      profileError: null,
+      selectedShellIndex: 0,
+      draggedItem: null,
+      dragOverSlot: null,
+      compilingBlueprintId: null,
+      selectedRunMode: null,
+      modeAvailability: null,
+      ritualActive: false,
+      bootSequenceActive: false,
+    }),
   setAbilities: (abilities) => set({ abilities }),
-  setTargeting: (active, slotIndex, range, x = 0, y = 0) => 
-    set({ 
-      targetingActive: active, 
-      targetingSlotIndex: slotIndex, 
+  setTargeting: (active, slotIndex, range, x = 0, y = 0) =>
+    set({
+      targetingActive: active,
+      targetingSlotIndex: slotIndex,
       targetingRange: range,
       targetingX: x,
-      targetingY: y
+      targetingY: y,
     }),
   updateTargetingCursor: (x, y) => set({ targetingX: x, targetingY: y }),
   toggleInventory: () => set((state) => ({ inventoryVisible: !state.inventoryVisible })),
-  incrementInventoryRevision: () => set((state) => ({ inventoryRevision: state.inventoryRevision + 1 })),
-  updateHeatTier: (tier, value, maxSafe) => set({ heatTier: tier, heatValue: value, heatMaxSafe: maxSafe }),
+  incrementInventoryRevision: () =>
+    set((state) => ({ inventoryRevision: state.inventoryRevision + 1 })),
+  updateHeatTier: (tier, value, maxSafe) =>
+    set({ heatTier: tier, heatValue: value, heatMaxSafe: maxSafe }),
   setDraggedRunItemEntityId: (entityId) => set({ draggedRunItemEntityId: entityId }),
-  optimisticEquipItem: (entityId, slot) => set((state) => {
-    const currentWeapon = slot === 'weapon' ? entityId : state.optimisticWeapon;
-    const currentArmor = slot === 'armor' ? entityId : state.optimisticArmor;
-    
-    const context = (window as any).gameContext;
-    let newEquipmentIds: number[] = [];
-    if (context && context.playerId) {
-      const inv = context.world.getComponent(context.playerId, RunInventory);
-      if (inv) {
-        newEquipmentIds = inv.equipment
-          .map((item: any) => item.entityId)
-          .filter((id: number) => id !== entityId);
+  optimisticEquipItem: (entityId, slot) =>
+    set((state) => {
+      const currentWeapon = slot === 'weapon' ? entityId : state.optimisticWeapon;
+      const currentArmor = slot === 'armor' ? entityId : state.optimisticArmor;
+
+      const context = (window as any).gameContext;
+      let newEquipmentIds: number[] = [];
+      if (context && context.playerId) {
+        const inv = context.world.getComponent(context.playerId, RunInventory);
+        if (inv) {
+          newEquipmentIds = inv.equipment
+            .map((item: any) => item.entityId)
+            .filter((id: number) => id !== entityId);
+        }
       }
-    }
-    
-    return {
-      optimisticWeapon: currentWeapon,
-      optimisticArmor: currentArmor,
-      optimisticInventoryEquipmentIds: newEquipmentIds,
-      inventoryRevision: state.inventoryRevision + 1
-    };
-  }),
-  optimisticUnequipItem: (slot) => set((state) => {
-    const context = (window as any).gameContext;
-    let unequippedEntityId: number | null = null;
-    if (context && context.playerId) {
-      const eq = context.world.getComponent(context.playerId, EquipmentSlots);
-      if (eq) {
-        unequippedEntityId = eq[slot];
+
+      return {
+        optimisticWeapon: currentWeapon,
+        optimisticArmor: currentArmor,
+        optimisticInventoryEquipmentIds: newEquipmentIds,
+        inventoryRevision: state.inventoryRevision + 1,
+      };
+    }),
+  optimisticUnequipItem: (slot) =>
+    set((state) => {
+      const context = (window as any).gameContext;
+      let unequippedEntityId: number | null = null;
+      if (context && context.playerId) {
+        const eq = context.world.getComponent(context.playerId, EquipmentSlots);
+        if (eq) {
+          unequippedEntityId = eq[slot];
+        }
       }
-    }
-    
-    const currentWeapon = slot === 'weapon' ? null : state.optimisticWeapon;
-    const currentArmor = slot === 'armor' ? null : state.optimisticArmor;
-    
-    let newEquipmentIds: number[] | null = state.optimisticInventoryEquipmentIds;
-    if (unequippedEntityId !== null && context && context.playerId) {
-      const inv = context.world.getComponent(context.playerId, RunInventory);
-      if (inv) {
-        const baseEquipmentIds = state.optimisticInventoryEquipmentIds !== null
-          ? state.optimisticInventoryEquipmentIds
-          : inv.equipment.map((item: any) => item.entityId);
-        newEquipmentIds = [...baseEquipmentIds, unequippedEntityId];
+
+      const currentWeapon = slot === 'weapon' ? null : state.optimisticWeapon;
+      const currentArmor = slot === 'armor' ? null : state.optimisticArmor;
+
+      let newEquipmentIds: number[] | null = state.optimisticInventoryEquipmentIds;
+      if (unequippedEntityId !== null && context && context.playerId) {
+        const inv = context.world.getComponent(context.playerId, RunInventory);
+        if (inv) {
+          const baseEquipmentIds =
+            state.optimisticInventoryEquipmentIds !== null
+              ? state.optimisticInventoryEquipmentIds
+              : inv.equipment.map((item: any) => item.entityId);
+          newEquipmentIds = [...baseEquipmentIds, unequippedEntityId];
+        }
       }
-    }
-    
-    return {
-      optimisticWeapon: currentWeapon,
-      optimisticArmor: currentArmor,
-      optimisticInventoryEquipmentIds: newEquipmentIds,
-      inventoryRevision: state.inventoryRevision + 1
-    };
-  }),
-  clearOptimisticUpdates: () => set({
-    optimisticWeapon: undefined,
-    optimisticArmor: undefined,
-    optimisticInventoryEquipmentIds: null,
-  }),
+
+      return {
+        optimisticWeapon: currentWeapon,
+        optimisticArmor: currentArmor,
+        optimisticInventoryEquipmentIds: newEquipmentIds,
+        inventoryRevision: state.inventoryRevision + 1,
+      };
+    }),
+  clearOptimisticUpdates: () =>
+    set({
+      optimisticWeapon: undefined,
+      optimisticArmor: undefined,
+      optimisticInventoryEquipmentIds: null,
+    }),
 }));

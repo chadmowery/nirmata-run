@@ -22,9 +22,12 @@ export async function POST(req: NextRequest) {
       success: true,
       moved: result.moved,
       remaining: result.remaining,
-      message: result.moved > 0 
-        ? `Successfully moved ${result.moved} items to Vault`
-        : result.remaining > 0 ? 'Vault is full' : 'Overflow is empty',
+      message:
+        result.moved > 0
+          ? `Successfully moved ${result.moved} items to Vault`
+          : result.remaining > 0
+            ? 'Vault is full'
+            : 'Overflow is empty',
     });
   } catch (error) {
     logger.error('[VaultMoveToVault] Error:', 'API', error);

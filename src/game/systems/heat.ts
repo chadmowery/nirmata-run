@@ -1,17 +1,22 @@
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityId, Phase } from '@engine/ecs/types';
-import { Heat, Shell, FirmwareSlots, AbilityDef, Actor, VentIntent, HeatIntent } from '@shared/components';
+import {
+  Heat,
+  Shell,
+  FirmwareSlots,
+  AbilityDef,
+  Actor,
+  VentIntent,
+  HeatIntent,
+} from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { logger } from '@engine/utils/logger';
 
 /**
  * Heat system that manages entity heat dissipation and venting.
  */
-export function createHeatSystem<T extends GameplayEvents>(
-  world: World<T>,
-  eventBus: EventBus<T>,
-) {
+export function createHeatSystem<T extends GameplayEvents>(world: World<T>, eventBus: EventBus<T>) {
   const dissipate = (entityId: EntityId) => {
     const heat = world.getComponent(entityId, Heat);
     const shell = world.getComponent(entityId, Shell);
@@ -39,7 +44,7 @@ export function createHeatSystem<T extends GameplayEvents>(
       logger.debug(`Dissipating Heat for ${entityId}: ${oldHeat} -> ${nextHeat}`, 'HEAT');
       world.patchComponent(entityId, Heat, {
         current: nextHeat,
-        isVenting: false
+        isVenting: false,
       });
 
       eventBus.emit('HEAT_CHANGED', {
@@ -81,7 +86,7 @@ export function createHeatSystem<T extends GameplayEvents>(
 
     world.patchComponent(entityId, Heat, {
       current: nextHeat,
-      isVenting: true
+      isVenting: true,
     });
 
     eventBus.emit('VENT_COMPLETED', {
@@ -104,7 +109,7 @@ export function createHeatSystem<T extends GameplayEvents>(
   };
 
   const updatePreTurn = (w: World<T>) => {
-    const players = w.query(Actor).filter(id => w.getComponent(id, Actor)?.isPlayer);
+    const players = w.query(Actor).filter((id) => w.getComponent(id, Actor)?.isPlayer);
     for (const playerId of players) {
       dissipate(playerId);
     }
@@ -152,4 +157,6 @@ export function createHeatSystem<T extends GameplayEvents>(
   };
 }
 
-export type HeatSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<typeof createHeatSystem<T>>;
+export type HeatSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<
+  typeof createHeatSystem<T>
+>;

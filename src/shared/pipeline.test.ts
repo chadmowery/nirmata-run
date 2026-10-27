@@ -24,18 +24,13 @@ describe('Pipeline - Core Systems Integration', () => {
     const dummyEntityRegistry = new EntityRegistry();
     const dummyEntityFactory = new EntityFactory(dummyEntityRegistry);
     const dummyComponentRegistry: ComponentRegistry = {
-      get: (key: string) => COMPONENTS_REGISTRY.find(c => c.key === key) as any,
-      has: (key: string) => COMPONENTS_REGISTRY.some(c => c.key === key),
+      get: (key: string) => COMPONENTS_REGISTRY.find((c) => c.key === key) as any,
+      has: (key: string) => COMPONENTS_REGISTRY.some((c) => c.key === key),
     };
 
-    registerCoreSystems(
-      world,
-      grid,
-      eventBus,
-      dummyEntityFactory,
-      dummyComponentRegistry,
-      { skipLoot: true }
-    );
+    registerCoreSystems(world, grid, eventBus, dummyEntityFactory, dummyComponentRegistry, {
+      skipLoot: true,
+    });
   });
 
   describe('Movement and Combat Resolution', () => {
@@ -46,7 +41,7 @@ describe('Pipeline - Core Systems Integration', () => {
       grid.addEntity(id, 5, 5);
 
       world.addComponent(id, MoveIntent, { dx: 1, dy: 0 });
-      
+
       world.executeSystems(Phase.ACTION);
 
       const pos = world.getComponent(id, Position);
@@ -65,7 +60,7 @@ describe('Pipeline - Core Systems Integration', () => {
       world.addComponent(defenderId, Health, { current: 10, max: 10, isAlive: true });
 
       world.addComponent(attackerId, AttackIntent, { targetId: defenderId });
-      
+
       world.executeSystems(Phase.REACTION);
 
       const health = world.getComponent(defenderId, Health);
@@ -86,14 +81,14 @@ describe('Pipeline - Core Systems Integration', () => {
       grid.addEntity(enemyId, 6, 5);
 
       world.addComponent(playerId, MoveIntent, { dx: 1, dy: 0 });
-      
+
       // Phase.ACTION should convert MoveIntent -> AttackIntent
       world.executeSystems(Phase.ACTION);
 
       expect(world.hasComponent(playerId, MoveIntent)).toBe(false);
       expect(world.hasComponent(playerId, AttackIntent)).toBe(true);
       expect(world.getComponent(playerId, AttackIntent)?.targetId).toBe(enemyId);
-      
+
       // Position should NOT have changed yet
       expect(world.getComponent(playerId, Position)).toEqual({ x: 5, y: 5 });
     });

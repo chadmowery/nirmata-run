@@ -22,11 +22,14 @@ export async function GET(req: Request) {
     return NextResponse.json({
       profile,
       shopStock,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
-    return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal Server Error', message: error.message },
+      { status: 500 },
+    );
   }
 }

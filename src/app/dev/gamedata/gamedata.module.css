@@ -62,7 +62,9 @@
   color: var(--white);
   font-size: 12px;
   font-family: 'Courier New', Courier, monospace;
-  transition: background 0.1s, color 0.1s;
+  transition:
+    background 0.1s,
+    color 0.1s;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -110,7 +112,9 @@
   font-size: 12px;
   font-family: 'Courier New', Courier, monospace;
   cursor: pointer;
-  transition: background 0.1s, border-color 0.1s;
+  transition:
+    background 0.1s,
+    border-color 0.1s;
 }
 
 .addButton:hover {

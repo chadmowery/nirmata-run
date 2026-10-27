@@ -101,7 +101,7 @@ describe('Firmware Templates', () => {
         heatCost: 10,
         range: 0,
         effectType: 'dash',
-        isLegacy: true
+        isLegacy: true,
       };
       const parsed = AbilityDef.schema.parse(data);
       expect(parsed.isLegacy).toBe(true);
@@ -112,7 +112,7 @@ describe('Firmware Templates', () => {
         name: 'New.sh',
         heatCost: 10,
         range: 0,
-        effectType: 'dash'
+        effectType: 'dash',
       };
       const parsed = AbilityDef.schema.parse(data);
       expect(parsed.isLegacy).toBe(false);

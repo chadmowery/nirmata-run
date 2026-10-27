@@ -1,7 +1,13 @@
 import { World } from '@engine/ecs/world';
 import { Phase } from '@engine/ecs/types';
 import { logger } from '@engine/utils/logger';
-import { MovedThisTurn, FirmwareActivatedThisTurn, DealtDamageThisTurn, FloorTransitioned, Acting } from '@shared/components';
+import {
+  MovedThisTurn,
+  FirmwareActivatedThisTurn,
+  DealtDamageThisTurn,
+  FloorTransitioned,
+  Acting,
+} from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 
 /**
@@ -33,8 +39,17 @@ export function createTagCleanupSystem<T extends GameplayEvents>(world: World<T>
       w.removeComponent(entityId, Acting);
     }
 
-    if (movers.length > 0 || activated.length > 0 || damageDealt.length > 0 || transitions.length > 0 || acting.length > 0) {
-      logger.debug(`Cleaning up transient tags: MovedThisTurn (${movers.length}), FirmwareActivatedThisTurn (${activated.length}), DealtDamageThisTurn (${damageDealt.length}), FloorTransitioned (${transitions.length}), Acting (${acting.length})`, 'ECS');
+    if (
+      movers.length > 0 ||
+      activated.length > 0 ||
+      damageDealt.length > 0 ||
+      transitions.length > 0 ||
+      acting.length > 0
+    ) {
+      logger.debug(
+        `Cleaning up transient tags: MovedThisTurn (${movers.length}), FirmwareActivatedThisTurn (${activated.length}), DealtDamageThisTurn (${damageDealt.length}), FloorTransitioned (${transitions.length}), Acting (${acting.length})`,
+        'ECS',
+      );
     }
   };
 

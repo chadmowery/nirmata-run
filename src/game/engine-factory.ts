@@ -104,7 +104,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   const entityFactory = new EntityFactory(entityRegistry);
 
   const componentsMap: Record<string, ComponentDef<unknown>> = Object.fromEntries(
-    COMPONENTS_REGISTRY.map((component) => [component.key, component])
+    COMPONENTS_REGISTRY.map((component) => [component.key, component]),
   );
   const componentRegistry: ComponentRegistry = {
     get: (key: string) => componentsMap[key],
@@ -116,21 +116,17 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     width: config.width,
     height: config.height,
     seed: config.seed,
-    depth: 1
+    depth: 1,
   });
 
   const grid = dungeonResult.grid;
 
   // Systems
   // Core Systems (Shared with Pipeline)
-  const coreSystems = registerCoreSystems(
-    world,
-    grid,
-    eventBus,
-    entityFactory,
-    componentRegistry,
-    { runMode: config.runMode, isClient: config.isClient }
-  );
+  const coreSystems = registerCoreSystems(world, grid, eventBus, entityFactory, componentRegistry, {
+    runMode: config.runMode,
+    isClient: config.isClient,
+  });
 
   const heatSystem = createHeatSystem(world, eventBus);
   const kernelPanicSystem = createKernelPanicSystem(world, eventBus);
@@ -151,11 +147,11 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
 
   // Prepare shell overrides
   const playerOverrides: Record<string, Record<string, unknown>> = {
-    'augmentSlots': { equipped: [] },
-    'augmentState': { activationsThisTurn: {}, cooldownsRemaining: {} },
-    'heat': { current: 0, maxSafe: 100, baseDissipation: 5, ventPercentage: 0.5, isVenting: false },
-    'stability': { current: 100, max: 100 },
-    'floorState': { currentFloor: 1, maxFloor: 15, runSeed: config.seed }
+    augmentSlots: { equipped: [] },
+    augmentState: { activationsThisTurn: {}, cooldownsRemaining: {} },
+    heat: { current: 0, maxSafe: 100, baseDissipation: 5, ventPercentage: 0.5, isVenting: false },
+    stability: { current: 100, max: 100 },
+    floorState: { currentFloor: 1, maxFloor: 15, runSeed: config.seed },
   };
 
   // If a profile is provided, populate slots from installed items
@@ -163,8 +159,8 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     const activeShellId = config.shellRecord ? config.shellRecord.id : null;
 
     // Filter installed items for this specific shell
-    const items = config.profile.installedItems.filter(item =>
-      !activeShellId || item.shellId === activeShellId
+    const items = config.profile.installedItems.filter(
+      (item) => !activeShellId || item.shellId === activeShellId,
     );
 
     const firmwareIds: number[] = [];
@@ -204,7 +200,8 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   }
 
   // Phase 16: Starter Loadout fallback (D-02, D-04)
-  const hasEquippedItems = ((playerOverrides['firmwareSlots'] as any)?.equipped?.length || 0) > 0 ||
+  const hasEquippedItems =
+    ((playerOverrides['firmwareSlots'] as any)?.equipped?.length || 0) > 0 ||
     ((playerOverrides['softwareSlots'] as any)?.equipped?.length || 0) > 0 ||
     ((playerOverrides['augmentSlots'] as any)?.equipped?.length || 0) > 0;
 
@@ -225,21 +222,28 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
 
   if (config.shellRecord) {
     const { currentStats, portConfig } = config.shellRecord;
-    playerOverrides['health'] = { max: currentStats.maxHealth, current: currentStats.maxHealth, isAlive: true } as unknown as Record<string, unknown>;
-    playerOverrides['defense'] = { armor: currentStats.armor } as unknown as Record<string, unknown>;
+    playerOverrides['health'] = {
+      max: currentStats.maxHealth,
+      current: currentStats.maxHealth,
+      isAlive: true,
+    } as unknown as Record<string, unknown>;
+    playerOverrides['defense'] = { armor: currentStats.armor } as unknown as Record<
+      string,
+      unknown
+    >;
     playerOverrides['energy'] = { speed: currentStats.speed } as unknown as Record<string, unknown>;
 
     // Core Shell Components
     playerOverrides['shell'] = {
       archetypeId: config.shellRecord.archetypeId,
-      ...currentStats
+      ...currentStats,
     } as unknown as Record<string, unknown>;
     playerOverrides['portConfig'] = portConfig as unknown as Record<string, unknown>;
 
     // Heat dissipation scales with shell stability
     playerOverrides['heat'] = {
       ...playerOverrides['heat'],
-      baseDissipation: 5 + (currentStats.stability * 0.1) // Every 10 stability adds 1 dissipation
+      baseDissipation: 5 + currentStats.stability * 0.1, // Every 10 stability adds 1 dissipation
     };
   }
 
@@ -251,7 +255,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     dungeonResult.rooms,
     dungeonResult.playerSpawnRoom,
     rng,
-    { playerOverrides, depth: 1 }
+    { playerOverrides, depth: 1 },
   );
 
   // Turn Manager Handlers
@@ -277,7 +281,11 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
       }
     } else if (action === GameAction.VENT) {
       world.addComponent(entityId, VentIntent, {});
-    } else if (action === GameAction.ANCHOR_DESCEND || action === GameAction.STAIRCASE_DESCEND || action === GameAction.ANCHOR_EXTRACT) {
+    } else if (
+      action === GameAction.ANCHOR_DESCEND ||
+      action === GameAction.STAIRCASE_DESCEND ||
+      action === GameAction.ANCHOR_EXTRACT
+    ) {
       // Intent already added by API, we just need to satisfy the turn cycle
     }
 
@@ -286,8 +294,8 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
 
   // Common shared handlers (pity, extraction bonus, etc.)
   // setupInternalHandlers(
-  //   world as unknown as World<GameplayEvents>, 
-  //   grid, 
+  //   world as unknown as World<GameplayEvents>,
+  //   grid,
   //   eventBus as unknown as EventBus<GameplayEvents>
   // );
 
@@ -303,7 +311,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
       ...coreSystems,
       heat: heatSystem,
       kernelPanic: kernelPanicSystem,
-    } as any
+    } as any,
   };
 }
 

@@ -37,11 +37,18 @@ export function registerCoreSystems<T extends GameplayEvents>(
   eventBus: EventBus<T>,
   entityFactory: EntityFactory,
   componentRegistry: ComponentRegistry,
-  options: { skipLoot?: boolean; runMode?: RunMode; isClient?: boolean } = {}
+  options: { skipLoot?: boolean; runMode?: RunMode; isClient?: boolean } = {},
 ) {
   const teleport = createTeleportSystem(world, grid, eventBus);
   const movement = createMovementSystem(world, grid, eventBus);
-  const combat = createCombatSystem(world, grid, eventBus, entityFactory, componentRegistry, options);
+  const combat = createCombatSystem(
+    world,
+    grid,
+    eventBus,
+    entityFactory,
+    componentRegistry,
+    options,
+  );
   const itemPickup = createItemPickupSystem(world, grid, eventBus);
   const stability = createStabilitySystem(world, eventBus);
   const deadZone = createDeadZoneSystem(world, grid, eventBus);
@@ -53,7 +60,13 @@ export function registerCoreSystems<T extends GameplayEvents>(
   const packCoordinator = createPackCoordinatorSystem(world, grid, eventBus);
   const ai = createAISystem(world, grid, eventBus, entityFactory, componentRegistry);
   const firmware = createFirmwareSystem(world, grid, eventBus);
-  const tileCorruption = createTileCorruptionSystem(world, grid, eventBus, entityFactory, componentRegistry);
+  const tileCorruption = createTileCorruptionSystem(
+    world,
+    grid,
+    eventBus,
+    entityFactory,
+    componentRegistry,
+  );
 
   // Floor manager is special but registered to cleanup
   const floorManager = createFloorManagerSystem(
@@ -62,7 +75,7 @@ export function registerCoreSystems<T extends GameplayEvents>(
     eventBus,
     entityFactory,
     componentRegistry,
-    options.isClient === true
+    options.isClient === true,
   );
 
   const anchorInteraction = createAnchorInteractionSystem(world, grid, eventBus);
@@ -90,7 +103,13 @@ export function registerCoreSystems<T extends GameplayEvents>(
 
   // Cleanup & Death Processing
   const gravedigger = createGravediggerSystem(world, grid);
-  const rewardDrop = createRewardDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
+  const rewardDrop = createRewardDropSystem(
+    world,
+    grid,
+    eventBus,
+    entityFactory,
+    componentRegistry,
+  );
   const runEnder = createRunEnderSystem(world, grid, eventBus, options.runMode);
 
   rewardDrop.init();
@@ -104,8 +123,26 @@ export function registerCoreSystems<T extends GameplayEvents>(
   tagCleanup.init();
 
   return {
-    movement, combat, itemPickup, gravedigger, rewardDrop, runEnder,
-    augment, tagCleanup, stability, deadZone, equipment, shellStats, floorManager, anchorInteraction,
-    statusEffect, packCoordinator, teleport, software, ai, firmware, tileCorruption
+    movement,
+    combat,
+    itemPickup,
+    gravedigger,
+    rewardDrop,
+    runEnder,
+    augment,
+    tagCleanup,
+    stability,
+    deadZone,
+    equipment,
+    shellStats,
+    floorManager,
+    anchorInteraction,
+    statusEffect,
+    packCoordinator,
+    teleport,
+    software,
+    ai,
+    firmware,
+    tileCorruption,
   };
 }

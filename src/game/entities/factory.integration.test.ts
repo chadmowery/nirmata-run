@@ -20,8 +20,14 @@ describe('EntityFactory', () => {
   const { Position, Health } = Components;
 
   const componentRegistry: ComponentRegistry = {
-    get: (key: string) => Object.values(Components).find(c => c && typeof c === 'object' && 'key' in c && (c as any).key === key) as any,
-    has: (key: string) => Object.values(Components).some(c => c && typeof c === 'object' && 'key' in c && (c as any).key === key)
+    get: (key: string) =>
+      Object.values(Components).find(
+        (c) => c && typeof c === 'object' && 'key' in c && (c as any).key === key,
+      ) as any,
+    has: (key: string) =>
+      Object.values(Components).some(
+        (c) => c && typeof c === 'object' && 'key' in c && (c as any).key === key,
+      ),
   };
 
   beforeEach(() => {
@@ -34,7 +40,7 @@ describe('EntityFactory', () => {
   it('creates an entity from a template', () => {
     registry.register({
       name: 'robot',
-      components: { position: { x: 1, y: 1 } }
+      components: { position: { x: 1, y: 1 } },
     });
 
     const id = factory.create(world, 'robot', componentRegistry);
@@ -45,11 +51,11 @@ describe('EntityFactory', () => {
   it('applies runtime overrides during creation', () => {
     registry.register({
       name: 'robot',
-      components: { position: { x: 1, y: 1 } }
+      components: { position: { x: 1, y: 1 } },
     });
 
     const id = factory.create(world, 'robot', componentRegistry, {
-      position: { x: 5, y: 10 }
+      position: { x: 5, y: 10 },
     });
     expect(world.getComponent(id, Position)).toEqual({ x: 5, y: 10 });
   });
@@ -65,13 +71,13 @@ describe('EntityFactory', () => {
 
     it('creates a player with correct components and overrides', () => {
       const id = factory.create(world, 'player', componentRegistry);
-      
+
       expect(world.hasComponent(id, Position)).toBe(true);
       expect(world.hasComponent(id, Health)).toBe(true);
-      
+
       // Inherited from physical mixin
       expect(world.getComponent(id, Position)).toEqual({ x: 0, y: 0 });
-      
+
       // Matches player.json overrides (180)
       expect(world.getComponent(id, Health)).toEqual({ current: 180, max: 180, isAlive: true });
     });
@@ -86,7 +92,7 @@ describe('EntityFactory', () => {
       // Manually register a malformed template to test validation integration
       registry.register({
         name: 'bad_bot',
-        components: { health: { current: -1, max: 0 } }
+        components: { health: { current: -1, max: 0 } },
       });
 
       expect(() => factory.create(world, 'bad_bot', componentRegistry)).toThrow(/too small/i);

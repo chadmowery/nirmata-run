@@ -7,9 +7,6 @@
       "slotType": "weapon",
       "name": "Refined Kinetic Rifle"
     },
-    "software": [
-      "basic-strike",
-      "neural-spike"
-    ]
+    "software": ["basic-strike", "neural-spike"]
   }
 }

@@ -39,7 +39,7 @@ describe('Currency Components', () => {
         currencyType: 'blueprint',
         amount: 1,
         blueprintId: 'Phase_Shift.sh',
-        blueprintType: 'firmware'
+        blueprintType: 'firmware',
       };
       expect(CurrencyItem.schema.parse(data)).toEqual(expect.objectContaining(data));
     });

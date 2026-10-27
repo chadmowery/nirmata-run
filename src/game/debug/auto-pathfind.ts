@@ -16,7 +16,7 @@ export class AutoPathfinder {
 
   constructor(
     sendActionToServer: (intent: ActionIntent | null) => Promise<void>,
-    getActionIntent: (action: GameAction) => ActionIntent | null
+    getActionIntent: (action: GameAction) => ActionIntent | null,
   ) {
     this.sendActionToServer = sendActionToServer;
     this.getActionIntent = getActionIntent;
@@ -55,7 +55,7 @@ export class AutoPathfinder {
   private async runLoop(): Promise<void> {
     while (this.isAutoPathing && this.context) {
       if (!this.context.turnManager.canAcceptInput() || !this.context.playerId) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise((resolve) => setTimeout(resolve, 100));
         continue;
       }
 
@@ -69,7 +69,7 @@ export class AutoPathfinder {
       // Find Anchor or Staircase
       const anchors = this.context.world.query(AnchorMarker, Position);
       const staircases = this.context.world.query(StaircaseMarker, Position);
-      let anchorPos: { x: number, y: number } | null = null;
+      let anchorPos: { x: number; y: number } | null = null;
 
       if (anchors.length > 0) {
         anchorPos = this.context.world.getComponent(anchors[0], Position)!;
@@ -84,11 +84,16 @@ export class AutoPathfinder {
       }
 
       // Pathfind
-      const astar = new AStar(anchorPos.x, anchorPos.y, (x, y) => {
-        if (x === playerPos.x && y === playerPos.y) return true;
-        if (x === anchorPos!.x && y === anchorPos!.y) return true;
-        return this.context!.grid.isWalkable(x, y);
-      }, { topology: 4 });
+      const astar = new AStar(
+        anchorPos.x,
+        anchorPos.y,
+        (x, y) => {
+          if (x === playerPos.x && y === playerPos.y) return true;
+          if (x === anchorPos!.x && y === anchorPos!.y) return true;
+          return this.context!.grid.isWalkable(x, y);
+        },
+        { topology: 4 },
+      );
 
       const path: [number, number][] = [];
       astar.compute(playerPos.x, playerPos.y, (x, y) => {
@@ -127,7 +132,7 @@ export class AutoPathfinder {
       }
 
       // Small delay to allow state to settle
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
 }

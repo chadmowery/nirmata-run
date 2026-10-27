@@ -2,7 +2,15 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
-import { Actor, Position, FloorState, RunInventory, RunCurrency, Dying, ExtractionIntent } from '../components';
+import {
+  Actor,
+  Position,
+  FloorState,
+  RunInventory,
+  RunCurrency,
+  Dying,
+  ExtractionIntent,
+} from '../components';
 import { Phase } from '@engine/ecs/types';
 import * as InventoryUtil from '../utils/inventory-util';
 import { GameplayEvents } from '../events/types';
@@ -19,7 +27,7 @@ describe('Death Pity and Extraction (RunEnderSystem)', () => {
     eventBus = new EventBus<GameplayEvents>();
     world = new World<GameplayEvents>(eventBus);
     grid = new Grid(10, 10);
-    
+
     playerId = world.createEntity();
     world.addComponent(playerId, Actor, { isPlayer: true });
     world.addComponent(playerId, Position, { x: 5, y: 5 });
@@ -42,7 +50,7 @@ describe('Death Pity and Extraction (RunEnderSystem)', () => {
     world.addComponent(playerId, Dying, { killerId: 999 });
     world.executeSystems(Phase.CLEANUP);
     eventBus.flush();
-    
+
     // Check that pity was awarded (100 * 0.25 = 25)
     expect(InventoryUtil.getCurrencyAmount(world, playerId, 'scrap')).toBe(25);
     expect(InventoryUtil.getCurrencyAmount(world, playerId, 'flux')).toBe(0);
@@ -61,31 +69,33 @@ describe('Death Pity and Extraction (RunEnderSystem)', () => {
 
     // Run inventory is cleared upon extraction (authoritative result is in event)
     expect(InventoryUtil.getCurrencyAmount(world, playerId, 'scrap')).toBe(0);
-    
+
     // Flux bonus for floor 1: 10 (base) + 2 (perFloor) * 1 = 12
     // Total: 10 (initial) + 12 = 22
-    expect(endSpy).toHaveBeenCalledWith(expect.objectContaining({
-      reason: 'extraction',
-      stats: expect.objectContaining({
-        scrapExtracted: 200,
-        fluxExtracted: 22
-      })
-    }));
+    expect(endSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: 'extraction',
+        stats: expect.objectContaining({
+          scrapExtracted: 200,
+          fluxExtracted: 22,
+        }),
+      }),
+    );
   });
 
   it('ENTITY_DIED (player) works even if entity destruction is pending in event queue', async () => {
-    // This test simulates the issue where entity destruction in pipeline.ts 
+    // This test simulates the issue where entity destruction in pipeline.ts
     // was happening before the RunEnderSystem could process the event.
-    
+
     InventoryUtil.addCurrency(world, playerId, 'scrap', 1000);
 
     // We manually simulate the pipeline's behavior: emit then destroy
     // We manually simulate the pipeline's behavior: mark as dying then execute cleanup
     world.addComponent(playerId, Dying, { killerId: 999 });
     world.executeSystems(Phase.CLEANUP);
-    
+
     eventBus.flush();
-    
+
     expect(InventoryUtil.getCurrencyAmount(world, playerId, 'scrap')).toBe(250);
   });
 });

@@ -13,7 +13,7 @@ export const PickupEffect = defineComponent(
   z.object({
     type: z.nativeEnum(EffectType),
     value: z.number(),
-  })
+  }),
 );
 
 export type PickupEffectData = z.infer<typeof PickupEffect.schema>;

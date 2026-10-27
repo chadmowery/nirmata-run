@@ -13,16 +13,25 @@ import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import economy from '@game/entities/templates/economy.json';
 import { handleServerDebugCommand } from '@game/debug/server-debug-handler';
 import { EventOriginContext } from '@engine/utils/event-context';
-import { ExtractionIntent, DescentIntent, EquipIntent, UnequipIntent, BurnSoftwareIntent, RunInventory } from '@shared/components';
+import {
+  ExtractionIntent,
+  DescentIntent,
+  EquipIntent,
+  UnequipIntent,
+  BurnSoftwareIntent,
+  RunInventory,
+} from '@shared/components';
 import { handleInventorySwap } from '@game/intent/inventory-intent';
 
 export async function POST(req: Request) {
-
   try {
     const body = await req.json();
     const result = ActionRequestSchema.safeParse(body);
     if (!result.success) {
-      return NextResponse.json({ error: 'Invalid request', details: result.error }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Invalid request', details: result.error },
+        { status: 400 },
+      );
     }
 
     const { sessionId, action } = result.data;
@@ -78,9 +87,9 @@ export async function POST(req: Request) {
         break;
 
       case 'STAIRCASE_DESCEND': {
-        world.addComponent(session.playerId, DescentIntent, { 
-          targetFloor: action.targetFloor, 
-          cost: 0 
+        world.addComponent(session.playerId, DescentIntent, {
+          targetFloor: action.targetFloor,
+          cost: 0,
         });
         actionKey = 'STAIRCASE_DESCEND';
         break;
@@ -88,9 +97,9 @@ export async function POST(req: Request) {
 
       case 'ANCHOR_DESCEND': {
         const floorState = world.getComponent(session.playerId, FloorState);
-        world.addComponent(session.playerId, DescentIntent, { 
-          targetFloor: (floorState?.currentFloor ?? 1) + 1, 
-          cost: action.cost 
+        world.addComponent(session.playerId, DescentIntent, {
+          targetFloor: (floorState?.currentFloor ?? 1) + 1,
+          cost: action.cost,
         });
         actionKey = 'ANCHOR_DESCEND';
         break;
@@ -102,7 +111,12 @@ export async function POST(req: Request) {
         break;
 
       case 'INVENTORY_SWAP': {
-        handleInventorySwap(world as any, session.playerId, action.sourceIndex, action.destinationIndex);
+        handleInventorySwap(
+          world as any,
+          session.playerId,
+          action.sourceIndex,
+          action.destinationIndex,
+        );
         actionKey = 'INVENTORY_SWAP';
         break;
       }
@@ -141,26 +155,33 @@ export async function POST(req: Request) {
       }
 
       case 'DEBUG_COMMAND':
-        handleServerDebugCommand(world, eventBus, session.playerId, sessionId, action.command, action.args, session.systems);
+        handleServerDebugCommand(
+          world,
+          eventBus,
+          session.playerId,
+          sessionId,
+          action.command,
+          action.args,
+          session.systems,
+        );
         break;
     }
 
     if (actionKey && turnManager.canAcceptInput()) {
       turnManager.submitAction(actionKey);
-    } 
-    
+    }
+
     // Always flush server events to process any immediate consequences
     eventBus.flush();
 
-
     // Stop capturing
     eventBus.offAny(eventCaptureHandler);
-    
+
     // 4. Handle Run Persistence
-    const runEndedEvent = capturedEvents.find(e => e.type === 'RUN_ENDED');
+    const runEndedEvent = capturedEvents.find((e) => e.type === 'RUN_ENDED');
     if (runEndedEvent) {
       const payload = runEndedEvent.payload as GameplayEvents['RUN_ENDED'];
-      
+
       let profile = await profileRepository.load(sessionId);
       if (!profile) {
         profile = createDefaultProfile(sessionId);
@@ -168,7 +189,7 @@ export async function POST(req: Request) {
 
       const finalScrap = (payload.stats.scrapExtracted as number) || 0;
       const finalFlux = (payload.stats.fluxExtracted as number) || 0;
-      
+
       profile.wallet.scrap = Math.min(economy.caps.scrap, profile.wallet.scrap + finalScrap);
       profile.wallet.flux = Math.min(economy.caps.flux, profile.wallet.flux + finalFlux);
 
@@ -178,9 +199,9 @@ export async function POST(req: Request) {
         const items = (payload.stats.itemsExtracted as VaultItem[]) || [];
         if (items.length > 0) {
           logger.info(`Processing extraction for ${sessionId}: ${items.length} items.`, 'API');
-          
+
           const VAULT_CAPACITY = 20;
-          
+
           for (const item of items) {
             if (profile.vault.length < VAULT_CAPACITY) {
               profile.vault.push(item);
@@ -199,17 +220,17 @@ export async function POST(req: Request) {
     const newGridState = serializeGrid(grid);
 
     // 6. Determine Sync Strategy
-    const isMassiveChange = capturedEvents.some(e => 
-      e.type === 'FLOOR_TRANSITION' || e.type === 'DUNGEON_GENERATED'
-    ) || turnManager.getTurnNumber() <= 1;
+    const isMassiveChange =
+      capturedEvents.some((e) => e.type === 'FLOOR_TRANSITION' || e.type === 'DUNGEON_GENERATED') ||
+      turnManager.getTurnNumber() <= 1;
 
     // Filter out internal request events that should not be replayed on the client
     const EXCLUDED_SYNC_EVENTS = new Set([
       'PLAYER_ACTION',
       'GAME_PAUSE_REQUESTED',
-      'GAME_RESUME_REQUESTED'
+      'GAME_RESUME_REQUESTED',
     ]);
-    const syncEvents = capturedEvents.filter(e => !EXCLUDED_SYNC_EVENTS.has(e.type));
+    const syncEvents = capturedEvents.filter((e) => !EXCLUDED_SYNC_EVENTS.has(e.type));
 
     let syncPayload: SyncPayload;
     if (isMassiveChange) {
@@ -234,7 +255,7 @@ export async function POST(req: Request) {
         playerId: session.playerId,
       };
     }
- 
+
     return NextResponse.json({
       sessionId,
       payload: syncPayload,
@@ -242,6 +263,9 @@ export async function POST(req: Request) {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     logger.error('API Error:', 'API', error);
-    return NextResponse.json({ error: 'Internal Server Error', message: errorMessage }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal Server Error', message: errorMessage },
+      { status: 500 },
+    );
   }
 }

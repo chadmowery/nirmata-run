@@ -17,7 +17,8 @@ export async function POST(req: Request) {
       return errorResponse('name field is required', 400);
     }
     const filePath = resolveFilePath(DIR, body.name);
-    if (!filePath) return errorResponse('Invalid template name. Use lowercase alphanumeric with hyphens.', 400);
+    if (!filePath)
+      return errorResponse('Invalid template name. Use lowercase alphanumeric with hyphens.', 400);
 
     // Check file doesn't already exist
     try {

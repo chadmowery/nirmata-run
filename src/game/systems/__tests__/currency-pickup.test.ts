@@ -31,26 +31,24 @@ describe('Currency Pickup System', () => {
       components: {
         item: { name: 'Raw Scrap' },
         currencyItem: { currencyType: 'scrap', amount: 10 },
-        position: { x: 0, y: 0 }
-      }
+        position: { x: 0, y: 0 },
+      },
     });
     registry.register({
       name: 'blueprint-locked',
       components: {
         item: { name: 'Locked File' },
         currencyItem: { currencyType: 'blueprint', amount: 1 },
-        position: { x: 0, y: 0 }
-      }
+        position: { x: 0, y: 0 },
+      },
     });
 
     entityFactory = new EntityFactory(registry);
 
-    const componentsMap = Object.fromEntries(
-      COMPONENTS_REGISTRY.map((c) => [c.key, c])
-    );
+    const componentsMap = Object.fromEntries(COMPONENTS_REGISTRY.map((c) => [c.key, c]));
     componentRegistry = {
       get: (key) => componentsMap[key],
-      has: (key) => !!componentsMap[key]
+      has: (key) => !!componentsMap[key],
     };
   });
 
@@ -66,7 +64,7 @@ describe('Currency Pickup System', () => {
 
     const scrapId = entityFactory.create(world, 'scrap', componentRegistry, {
       position: { x: 2, y: 1 },
-      currencyItem: { currencyType: 'scrap', amount: 15 }
+      currencyItem: { currencyType: 'scrap', amount: 15 },
     });
     grid.addEntity(scrapId, 2, 1);
     grid.addItem(scrapId, 2, 1);
@@ -100,13 +98,13 @@ describe('Currency Pickup System', () => {
         templateId: 'test',
         rarityTier: 'common',
         pickedUpAtFloor: 1,
-        pickedUpAtTimestamp: Date.now()
+        pickedUpAtTimestamp: Date.now(),
       });
     }
 
     const scrapId = entityFactory.create(world, 'scrap', componentRegistry, {
       position: { x: 2, y: 1 },
-      currencyItem: { currencyType: 'scrap', amount: 15 }
+      currencyItem: { currencyType: 'scrap', amount: 15 },
     });
     grid.addEntity(scrapId, 2, 1);
     grid.addItem(scrapId, 2, 1);
@@ -124,10 +122,12 @@ describe('Currency Pickup System', () => {
 
     expect(InventoryUtil.getCurrencyAmount(world, playerId, 'scrap')).toBe(0);
     expect(world.entityExists(scrapId)).toBe(true);
-    expect(messageSpy).toHaveBeenCalledWith(expect.objectContaining({
-      text: expect.stringContaining('Inventory full'),
-      type: 'error'
-    }));
+    expect(messageSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining('Inventory full'),
+        type: 'error',
+      }),
+    );
   });
 
   it('allows stacking currency even if software inventory is full', () => {
@@ -150,14 +150,14 @@ describe('Currency Pickup System', () => {
         templateId: 'test',
         rarityTier: 'common',
         pickedUpAtFloor: 1,
-        pickedUpAtTimestamp: Date.now()
+        pickedUpAtTimestamp: Date.now(),
       });
     }
     // Now we have 1 scrap stack + 4 software = 5 slots.
 
     const scrapId = entityFactory.create(world, 'scrap', componentRegistry, {
       position: { x: 2, y: 1 },
-      currencyItem: { currencyType: 'scrap', amount: 15 }
+      currencyItem: { currencyType: 'scrap', amount: 15 },
     });
     grid.addEntity(scrapId, 2, 1);
     grid.addItem(scrapId, 2, 1);

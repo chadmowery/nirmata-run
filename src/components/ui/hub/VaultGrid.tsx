@@ -10,7 +10,11 @@ interface VaultGridProps {
 }
 
 const VaultGrid: React.FC<VaultGridProps> = ({ items, onCellClick, onCellRightClick }) => {
-  const [hoveredItem, setHoveredItem] = React.useState<{ item: VaultItem; x: number; y: number } | null>(null);
+  const [hoveredItem, setHoveredItem] = React.useState<{
+    item: VaultItem;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const gridCells = Array(30).fill(null);
   items.slice(0, 30).forEach((item, index) => {
@@ -33,10 +37,14 @@ const VaultGrid: React.FC<VaultGridProps> = ({ items, onCellClick, onCellRightCl
 
   const getRarityColor = (rarity: string) => {
     switch (rarity.toLowerCase()) {
-      case 'uncommon': return 'var(--vibrant-cyan)';
-      case 'rare': return 'var(--vibrant-pink)';
-      case 'legendary': return 'var(--safety-orange)';
-      default: return 'rgba(255, 255, 255, 0.2)';
+      case 'uncommon':
+        return 'var(--vibrant-cyan)';
+      case 'rare':
+        return 'var(--vibrant-pink)';
+      case 'legendary':
+        return 'var(--safety-orange)';
+      default:
+        return 'rgba(255, 255, 255, 0.2)';
     }
   };
 
@@ -66,7 +74,10 @@ const VaultGrid: React.FC<VaultGridProps> = ({ items, onCellClick, onCellRightCl
               onMouseLeave={handleMouseLeave}
             >
               <span className={styles.initials}>{initials}</span>
-              <div className={styles.itemGlow} style={{ background: getRarityColor(item.rarityTier) }} />
+              <div
+                className={styles.itemGlow}
+                style={{ background: getRarityColor(item.rarityTier) }}
+              />
             </div>
           );
         })}

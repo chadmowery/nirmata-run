@@ -27,7 +27,7 @@ export function validateConnectivity(
   height: number,
   isWalkable: (x: number, y: number) => boolean,
   startX: number,
-  startY: number
+  startY: number,
 ): ConnectivityResult {
   const visited = new Set<string>();
 
@@ -50,8 +50,10 @@ export function validateConnectivity(
       for (const n of neighbors) {
         const key = `${n.x},${n.y}`;
         if (
-          n.x >= 0 && n.x < width &&
-          n.y >= 0 && n.y < height &&
+          n.x >= 0 &&
+          n.x < width &&
+          n.y >= 0 &&
+          n.y < height &&
           !visited.has(key) &&
           isWalkable(n.x, n.y)
         ) {
@@ -95,8 +97,10 @@ export function validateConnectivity(
           for (const n of regionNeighbors) {
             const nKey = `${n.x},${n.y}`;
             if (
-              n.x >= 0 && n.x < width &&
-              n.y >= 0 && n.y < height &&
+              n.x >= 0 &&
+              n.x < width &&
+              n.y >= 0 &&
+              n.y < height &&
               !globalVisited.has(nKey) &&
               isWalkable(n.x, n.y)
             ) {

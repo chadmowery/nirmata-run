@@ -8,7 +8,5 @@
       "name": "Standard Plating"
     }
   },
-  "software": [
-    "kinetic-link"
-  ]
+  "software": ["kinetic-link"]
 }

@@ -11,7 +11,7 @@ const HOTKEY_LABELS = ['[1]', '[2]', '[3]'];
 const ABILITY_ACTIONS = [
   GameAction.USE_FIRMWARE_0,
   GameAction.USE_FIRMWARE_1,
-  GameAction.USE_FIRMWARE_2
+  GameAction.USE_FIRMWARE_2,
 ];
 
 export const AbilityBar: React.FC = () => {
@@ -39,12 +39,13 @@ export const AbilityBar: React.FC = () => {
                 <span className={styles.abilityName}>{ability.name}</span>
               </div>
               <div className={styles.abilityStats}>
-                 <span className={styles.abilityHeatCost}>
-                   <Zap size={10} className="inline mr-1" />{ability.heatCost}
-                 </span>
-                 {ability.range > 0 && (
-                   <span className={styles.abilityRange}>R:{ability.range}</span>
-                 )}
+                <span className={styles.abilityHeatCost}>
+                  <Zap size={10} className="inline mr-1" />
+                  {ability.heatCost}
+                </span>
+                {ability.range > 0 && (
+                  <span className={styles.abilityRange}>R:{ability.range}</span>
+                )}
               </div>
               {isActive && <div className={styles.targetingPulse} />}
             </button>
@@ -53,10 +54,10 @@ export const AbilityBar: React.FC = () => {
         {/* Fill remaining slots if < 3 */}
         {Array.from({ length: 3 - abilities.length }).map((_, i) => (
           <div key={`empty-${i}`} className={`${styles.abilitySlot} ${styles.abilitySlotEmpty}`}>
-             <div className={styles.abilityLabel}>
-                <span className={styles.hotkeyPrefix}>{HOTKEY_LABELS[abilities.length + i]}</span>
-                <span className={styles.abilityName}>[EMPTY]</span>
-             </div>
+            <div className={styles.abilityLabel}>
+              <span className={styles.hotkeyPrefix}>{HOTKEY_LABELS[abilities.length + i]}</span>
+              <span className={styles.abilityName}>[EMPTY]</span>
+            </div>
           </div>
         ))}
       </div>

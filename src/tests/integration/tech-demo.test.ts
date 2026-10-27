@@ -19,7 +19,7 @@ describe('Tech Demo Integration', () => {
     const config = {
       gridWidth: 20,
       gridHeight: 20,
-      seed: 'test-seed'
+      seed: 'test-seed',
     };
 
     // 1. Initial state
@@ -29,7 +29,7 @@ describe('Tech Demo Integration', () => {
     const context = createGame(config);
     context.fsm.transition(GameState.Playing);
     context.eventBus.flush();
-    
+
     expect(gameStore.getState().gameStatus).toBe(GameState.Playing);
     expect(context.playerId).toBeDefined();
 
@@ -44,10 +44,10 @@ describe('Tech Demo Integration', () => {
       context.world.patchComponent(context.playerId!, Health, { current: 0 });
     }
 
-    // Trigger an event that causes death check if needed, 
+    // Trigger an event that causes death check if needed,
     // or just emit the event manually to see if UI reacts
     // Manually emit authoritative RUN_ENDED to bridge client-state in test environment (D-06 bridge)
-    context.eventBus.emit('RUN_ENDED', { 
+    context.eventBus.emit('RUN_ENDED', {
       reason: 'death',
       floorNumber: 1,
       stats: {
@@ -55,9 +55,9 @@ describe('Tech Demo Integration', () => {
         fluxExtracted: 0,
         softwareExtracted: 0,
         pityAwarded: false,
-        itemsExtracted: []
+        itemsExtracted: [],
       },
-      entityId: context.playerId!
+      entityId: context.playerId!,
     });
     context.eventBus.flush();
 

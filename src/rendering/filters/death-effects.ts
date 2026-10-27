@@ -10,9 +10,15 @@ export function queueTypedDeathAnimation(
   entityId: EntityId,
   behaviorType: AIBehaviorType,
   sprite: Sprite,
-  onComplete: () => void
+  onComplete: () => void,
 ): void {
-  let type: 'fade-out' | 'death-flicker' | 'death-explode' | 'death-crumble' | 'death-static' | 'death-collapse' = 'fade-out';
+  let type:
+    | 'fade-out'
+    | 'death-flicker'
+    | 'death-explode'
+    | 'death-crumble'
+    | 'death-static'
+    | 'death-collapse' = 'fade-out';
 
   switch (behaviorType) {
     case AIBehaviorType.NULL_POINTER:
@@ -35,7 +41,7 @@ export function queueTypedDeathAnimation(
       break;
   }
 
-  // We pass the type to queueDeathAnimation. 
+  // We pass the type to queueDeathAnimation.
   // We need to ensure queueDeathAnimation (in src/rendering/animations.ts)
   // supports these types.
   queueDeathAnimation(entityId, onComplete, type);

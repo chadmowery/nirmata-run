@@ -14,7 +14,7 @@ export function computeFov(
   playerY: number,
   radius: number,
   lightPasses: (x: number, y: number) => boolean,
-  exploredSet: Set<string>
+  exploredSet: Set<string>,
 ): Set<string> {
   const fov = new PreciseShadowcasting(lightPasses);
   const visibleSet = new Set<string>();
@@ -44,7 +44,7 @@ export function computeFovAlpha(
   y: number,
   playerX: number,
   playerY: number,
-  radius: number
+  radius: number,
 ): number {
   const dist = Math.sqrt((x - playerX) ** 2 + (y - playerY) ** 2);
   // alpha = Math.max(0.5, 1.0 - (dist / radius) * 0.5)
@@ -89,7 +89,10 @@ export type EntityVisibilityType = 'player' | 'enemy' | 'item';
  * @param hasActor True if the entity has an Actor component (usually an enemy).
  * @returns The corresponding EntityVisibilityType.
  */
-export function getEntityVisibilityType(isPlayer?: boolean, hasActor?: boolean): EntityVisibilityType {
+export function getEntityVisibilityType(
+  isPlayer?: boolean,
+  hasActor?: boolean,
+): EntityVisibilityType {
   if (isPlayer) return 'player';
   if (hasActor) return 'enemy';
   return 'item';
@@ -106,7 +109,7 @@ export function isEntityVisible(
   pos: { x: number; y: number },
   entityType: EntityVisibilityType,
   fovSet: Set<string>,
-  exploredSet: Set<string>
+  exploredSet: Set<string>,
 ): { visible: boolean; alpha: number } {
   const key = `${pos.x},${pos.y}`;
 

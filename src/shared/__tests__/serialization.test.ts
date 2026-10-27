@@ -29,7 +29,9 @@ describe('Serialization', () => {
 
       expect(newWorld.entityExists(entityId)).toBe(true);
       expect(newWorld.getComponent(entityId, Position)).toEqual({ x: 5, y: 5 });
-      expect(newWorld.getComponent(entityId, Health)).toEqual(expect.objectContaining({ current: 10, max: 10, isAlive: true }));
+      expect(newWorld.getComponent(entityId, Health)).toEqual(
+        expect.objectContaining({ current: 10, max: 10, isAlive: true }),
+      );
       expect(serializeWorld(newWorld)).toEqual(serialized);
     });
   });

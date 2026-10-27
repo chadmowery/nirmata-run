@@ -7,10 +7,6 @@
       "slotType": "weapon",
       "name": "Overclocked Kinetic Rifle"
     },
-    "software": [
-      "basic-strike",
-      "neural-spike",
-      "ghost-pulse"
-    ]
+    "software": ["basic-strike", "neural-spike", "ghost-pulse"]
   }
 }

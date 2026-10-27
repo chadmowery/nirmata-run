@@ -24,9 +24,9 @@ describe('FSProfileRepository', () => {
   it('saves and loads a profile', async () => {
     const profile = createDefaultProfile(sessionId);
     profile.wallet.scrap = 500;
-    
+
     await profileRepository.save(profile);
-    
+
     const loaded = await profileRepository.load(sessionId);
     expect(loaded).not.toBeNull();
     expect(loaded?.wallet.scrap).toBe(500);

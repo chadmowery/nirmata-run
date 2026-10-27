@@ -6,7 +6,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-body, "Arial Narrow", sans-serif);
+  font-family: var(--font-body, 'Arial Narrow', sans-serif);
   pointer-events: auto;
 }
 
@@ -20,7 +20,7 @@
 }
 
 .headingExtract {
-  color: var(--vibrant-cyan, #00F0FF);
+  color: var(--vibrant-cyan, #00f0ff);
   font-size: var(--font-size-heading, 24px);
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -28,7 +28,7 @@
 }
 
 .headingDeath {
-  color: var(--vibrant-pink, #FF0055);
+  color: var(--vibrant-pink, #ff0055);
   font-size: var(--font-size-heading, 24px);
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -36,7 +36,7 @@
 }
 
 .deathReason {
-  color: var(--vibrant-pink, #FF0055);
+  color: var(--vibrant-pink, #ff0055);
   font-size: var(--font-size-label, 12px);
   margin-top: calc(-1 * var(--space-lg, 24px));
   margin-bottom: var(--space-lg, 24px);
@@ -68,7 +68,7 @@
 
 .statValue {
   font-size: var(--font-size-body, 14px);
-  color: var(--white, #FFFFFF);
+  color: var(--white, #ffffff);
   font-weight: var(--font-weight-semibold, 600);
 }
 
@@ -96,7 +96,7 @@
 
 .score {
   font-size: var(--font-size-heading, 24px);
-  color: var(--white, #FFFFFF);
+  color: var(--white, #ffffff);
   margin: var(--space-xl, 32px) 0;
   letter-spacing: 0.1em;
   font-weight: var(--font-weight-semibold, 600);
@@ -105,8 +105,8 @@
 .reinitButton {
   padding: var(--space-md, 16px) var(--space-xl, 32px);
   background: transparent;
-  border: 1px solid var(--vibrant-cyan, #00F0FF);
-  color: var(--vibrant-cyan, #00F0FF);
+  border: 1px solid var(--vibrant-cyan, #00f0ff);
+  color: var(--vibrant-cyan, #00f0ff);
   cursor: pointer;
   text-transform: uppercase;
   font-family: var(--font-body, inherit);
@@ -116,18 +116,18 @@
 }
 
 .reinitButton:hover {
-  background: var(--vibrant-cyan, #00F0FF);
+  background: var(--vibrant-cyan, #00f0ff);
   color: var(--black, #000000);
-  box-shadow: 0 0 15px var(--vibrant-cyan, #00F0FF);
+  box-shadow: 0 0 15px var(--vibrant-cyan, #00f0ff);
 }
 
 .reinitButtonDeath {
-  border-color: var(--vibrant-pink, #FF0055);
-  color: var(--vibrant-pink, #FF0055);
+  border-color: var(--vibrant-pink, #ff0055);
+  color: var(--vibrant-pink, #ff0055);
 }
 
 .reinitButtonDeath:hover {
-  background: var(--vibrant-pink, #FF0055);
-  color: var(--white, #FFFFFF);
-  box-shadow: 0 0 15px var(--vibrant-pink, #FF0055);
+  background: var(--vibrant-pink, #ff0055);
+  color: var(--white, #ffffff);
+  box-shadow: 0 0 15px var(--vibrant-pink, #ff0055);
 }

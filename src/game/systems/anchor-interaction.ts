@@ -32,7 +32,7 @@ import { getCurrencyAmount } from '@shared/utils/inventory-util';
 export function createAnchorInteractionSystem<T extends GameplayEvents = GameEvents>(
   world: World<T>,
   grid: Grid,
-  eventBus: EventBus<T>
+  eventBus: EventBus<T>,
 ) {
   const getPlayerId = () => {
     const actors = world.query(Actor);
@@ -97,9 +97,13 @@ export function createAnchorInteractionSystem<T extends GameplayEvents = GameEve
     const stabilityPercent = (stabilityVal / stabilityMax) * 100;
 
     // Build inventory summary (names only)
-    const firmware = (fSlots?.equipped || []).map(id => world.getComponent(id, AbilityDef)?.name || 'Unknown');
-    const augments = (aSlots?.equipped || []).map(id => world.getComponent(id, AugmentData)?.name || 'Unknown');
-    const software = (inventory?.software || []).map(item => {
+    const firmware = (fSlots?.equipped || []).map(
+      (id) => world.getComponent(id, AbilityDef)?.name || 'Unknown',
+    );
+    const augments = (aSlots?.equipped || []).map(
+      (id) => world.getComponent(id, AugmentData)?.name || 'Unknown',
+    );
+    const software = (inventory?.software || []).map((item) => {
       const def = world.getComponent(item.entityId, SoftwareDef);
       return def?.name || 'Unknown';
     });
@@ -107,8 +111,8 @@ export function createAnchorInteractionSystem<T extends GameplayEvents = GameEve
 
     // Emit message log
     eventBus.emit('MESSAGE_EMITTED', {
-      text: "Reality Anchor active. Extract now?",
-      type: 'info'
+      text: 'Reality Anchor active. Extract now?',
+      type: 'info',
     });
 
     // Emit interaction event for UI modal
@@ -121,16 +125,19 @@ export function createAnchorInteractionSystem<T extends GameplayEvents = GameEve
         firmware,
         augments,
         software,
-        scrap
+        scrap,
       },
       descendCost: 0, // Calculated by server/FloorManager
       nextFloorEnemyTier: 'Standard',
-      estimatedStabilityAfterDescent: Math.max(0, stabilityPercent - 5)
+      estimatedStabilityAfterDescent: Math.max(0, stabilityPercent - 5),
     });
   };
 
   const handleStaircaseProximity = (playerId: EntityId, staircaseId: EntityId) => {
-    logger.info(`Staircase Proximity Triggered: Entity ${playerId} at Staircase ${staircaseId}`, 'SYSTEM');
+    logger.info(
+      `Staircase Proximity Triggered: Entity ${playerId} at Staircase ${staircaseId}`,
+      'SYSTEM',
+    );
     const floorState = world.getComponent(playerId, FloorState);
     const currentFloor = floorState?.currentFloor ?? 1;
     const nextFloor = currentFloor + 1;
@@ -138,14 +145,14 @@ export function createAnchorInteractionSystem<T extends GameplayEvents = GameEve
     // Emit message log
     eventBus.emit('MESSAGE_EMITTED', {
       text: `Staircase leads to Floor ${nextFloor}. Descend?`,
-      type: 'info'
+      type: 'info',
     });
 
     // Emit interaction event for UI modal
     eventBus.emit('STAIRCASE_INTERACTION', {
       entityId: playerId,
       staircaseId,
-      targetFloor: nextFloor
+      targetFloor: nextFloor,
     });
   };
 
@@ -160,4 +167,6 @@ export function createAnchorInteractionSystem<T extends GameplayEvents = GameEve
   };
 }
 
-export type AnchorInteractionSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createAnchorInteractionSystem<T>>;
+export type AnchorInteractionSystem<T extends GameplayEvents = GameEvents> = ReturnType<
+  typeof createAnchorInteractionSystem<T>
+>;

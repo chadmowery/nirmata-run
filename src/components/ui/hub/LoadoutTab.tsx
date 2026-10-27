@@ -21,7 +21,9 @@ export const LoadoutTab: React.FC = () => {
 
   // Local state for shell templates
   const [templates, setTemplates] = useState<ShellTemplate[]>([]);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'firmware' | 'augment' | 'software'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'firmware' | 'augment' | 'software'>(
+    'all',
+  );
 
   // Fetch shells (same as ShellTab)
   useEffect(() => {
@@ -48,7 +50,7 @@ export const LoadoutTab: React.FC = () => {
 
   // Compute equipped items for active shell
   const equippedItems = playerProfile.installedItems.filter(
-    (item) => item.shellId === activeShellId
+    (item) => item.shellId === activeShellId,
   );
 
   // Compute available vault items (those not equipped, though vault items are inherently unequipped)
@@ -68,7 +70,7 @@ export const LoadoutTab: React.FC = () => {
       itemType: item.type,
       rarityTier: 'common',
       extractedAtFloor: 0,
-      extractedAtTimestamp: -1 // Special marker for "dragging from slot"
+      extractedAtTimestamp: -1, // Special marker for "dragging from slot"
     });
   };
 
@@ -83,20 +85,23 @@ export const LoadoutTab: React.FC = () => {
 
     // Optimistic Update
     const previousProfile = { ...playerProfile };
-    
+
     updateProfileOptimistic((prev) => {
       // Only move if it's currently in the vault
-      const isInVault = prev.vault.some(item => item.entityId === entityId);
+      const isInVault = prev.vault.some((item) => item.entityId === entityId);
       if (!isInVault) return prev;
 
-      const newVault = prev.vault.filter(item => item.entityId !== entityId);
-      const newInstalled = [...prev.installedItems, {
-        entityId, // Preserve existing ID
-        blueprintId: draggedItem.templateId,
-        type: draggedItem.itemType as 'firmware' | 'augment' | 'software',
-        shellId,
-        isLegacy: false
-      }];
+      const newVault = prev.vault.filter((item) => item.entityId !== entityId);
+      const newInstalled = [
+        ...prev.installedItems,
+        {
+          entityId, // Preserve existing ID
+          blueprintId: draggedItem.templateId,
+          type: draggedItem.itemType as 'firmware' | 'augment' | 'software',
+          shellId,
+          isLegacy: false,
+        },
+      ];
       return { ...prev, vault: newVault, installedItems: newInstalled };
     });
 
@@ -104,7 +109,7 @@ export const LoadoutTab: React.FC = () => {
       const response = await fetch('/api/vault/equip-from-vault', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, entityId, shellId })
+        body: JSON.stringify({ sessionId, entityId, shellId }),
       });
 
       if (!response.ok) {
@@ -133,7 +138,7 @@ export const LoadoutTab: React.FC = () => {
     const previousProfile = { ...playerProfile };
     updateProfileOptimistic((prev) => {
       const newInstalled = prev.installedItems.filter(
-        i => !(i.entityId === entityId && i.shellId === shellId)
+        (i) => !(i.entityId === entityId && i.shellId === shellId),
       );
       // For unequip, move it back to vault preserving the real entityId
       const restoredItem: VaultItem = {
@@ -142,7 +147,7 @@ export const LoadoutTab: React.FC = () => {
         itemType: draggedItem.itemType as 'firmware' | 'augment' | 'software',
         rarityTier: 'common',
         extractedAtFloor: 1,
-        extractedAtTimestamp: Date.now()
+        extractedAtTimestamp: Date.now(),
       };
       return { ...prev, installedItems: newInstalled, vault: [...prev.vault, restoredItem] };
     });
@@ -152,7 +157,7 @@ export const LoadoutTab: React.FC = () => {
       const uninstallRes = await fetch('/api/economy/uninstall', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, blueprintId, shellId })
+        body: JSON.stringify({ sessionId, blueprintId, shellId }),
       });
 
       if (!uninstallRes.ok) throw new Error('Uninstall failed');
@@ -172,10 +177,15 @@ export const LoadoutTab: React.FC = () => {
   };
 
   return (
-    <div className={styles.loadoutRoot} onMouseUp={() => { if(draggedItem?.extractedAtTimestamp === -1) handleStashDrop(); }}>
+    <div
+      className={styles.loadoutRoot}
+      onMouseUp={() => {
+        if (draggedItem?.extractedAtTimestamp === -1) handleStashDrop();
+      }}
+    >
       <div className={styles.slotPanel}>
         <h2 className={styles.heading}>PORT_CONFIGURATION</h2>
-        <LoadoutSlotPanel 
+        <LoadoutSlotPanel
           portConfig={activeShellTemplate.basePorts}
           equippedItems={equippedItems}
           shellId={activeShellId}
@@ -186,7 +196,7 @@ export const LoadoutTab: React.FC = () => {
 
       <div className={styles.stashPanel}>
         <h2 className={styles.heading}>LOADOUT_MANAGEMENT</h2>
-        <StashItemList 
+        <StashItemList
           items={vaultItems}
           activeFilter={activeFilter}
           onFilterChange={(f) => setActiveFilter(f as 'all' | 'firmware' | 'augment' | 'software')}

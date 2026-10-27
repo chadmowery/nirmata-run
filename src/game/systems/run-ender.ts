@@ -6,7 +6,17 @@ import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
 import { AIState, AIBehaviorType } from '@shared/components/ai-state';
 import { FloorState } from '@shared/components/floor-state';
-import { RunInventory, EquipmentSlots, MovedThisTurn, Dying, FirmwareSlots, SoftwareSlots, AugmentSlots, Stability, ExtractionIntent } from '@shared/components';
+import {
+  RunInventory,
+  EquipmentSlots,
+  MovedThisTurn,
+  Dying,
+  FirmwareSlots,
+  SoftwareSlots,
+  AugmentSlots,
+  Stability,
+  ExtractionIntent,
+} from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { GameplayEvents } from '@shared/events/types';
 import { logger } from '@engine/utils/logger';
@@ -16,7 +26,7 @@ import { VaultItem } from '@shared/profile';
 import {
   calculatePityScrap,
   calculateExtractionFluxBonus,
-  mapInventoryToVaultItems
+  mapInventoryToVaultItems,
 } from '@shared/utils/economy-util';
 
 /**
@@ -26,7 +36,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
   eventBus: EventBus<T>,
-  runMode: RunMode = RunMode.SIMULATION
+  runMode: RunMode = RunMode.SIMULATION,
 ): RunEnderSystem<T> {
   let isEnding = false;
 
@@ -63,7 +73,6 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     let pityAwarded = false;
     let itemsExtracted: VaultItem[] = [];
 
-
     if (playerId) {
       // Clear equipment slots explicitly
       if (world.hasComponent(playerId, FirmwareSlots)) {
@@ -76,7 +85,10 @@ export function createRunEnderSystem<T extends GameplayEvents>(
         world.patchComponent(playerId, AugmentSlots, { equipped: [] });
       }
 
-      logger.info(`Processing run rewards for Player ${playerId} (isSuccess: ${isSuccess})`, 'SYSTEM');
+      logger.info(
+        `Processing run rewards for Player ${playerId} (isSuccess: ${isSuccess})`,
+        'SYSTEM',
+      );
       if (isSuccess) {
         // Authoritative extraction calculation (per D-06)
         finalScrap = InventoryUtil.getCurrencyAmount(world, playerId, 'scrap');
@@ -98,7 +110,10 @@ export function createRunEnderSystem<T extends GameplayEvents>(
       } else {
         const totalScrap = InventoryUtil.getCurrencyAmount(world, playerId, 'scrap');
         finalScrap = calculatePityScrap(totalScrap);
-        logger.info(`Failure Pity Calculation: ${totalScrap} scrap -> ${finalScrap} scrap (pity)`, 'SYSTEM');
+        logger.info(
+          `Failure Pity Calculation: ${totalScrap} scrap -> ${finalScrap} scrap (pity)`,
+          'SYSTEM',
+        );
         pityAwarded = true;
 
         InventoryUtil.clearInventory(world, playerId);
@@ -120,7 +135,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
         softwareExtracted: swCount,
         pityAwarded,
         itemsExtracted,
-      }
+      },
     } as unknown as T['RUN_ENDED']);
 
     const message = isSuccess
@@ -129,7 +144,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
 
     eventBus.emit('MESSAGE_EMITTED', {
       text: message,
-      type: isSuccess ? 'info' : 'error'
+      type: isSuccess ? 'info' : 'error',
     });
   }
 
@@ -175,7 +190,6 @@ export function createRunEnderSystem<T extends GameplayEvents>(
       }
     }
   };
-
 
   const updateCleanup = (w: World<T>) => {
     // 1. Check for manual extraction intent

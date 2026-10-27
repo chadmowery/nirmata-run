@@ -24,39 +24,47 @@ export async function GET(req: NextRequest) {
     const currentDay = Math.floor(now.getTime() / (24 * 60 * 60 * 1000));
     const currentWeek = Math.floor(now.getTime() / (7 * 24 * 60 * 60 * 1000));
 
-    const modes = await Promise.all(Object.values(RunMode).map(async (mode) => {
-      const config = await getRunModeConfig(mode);
-      let available = true;
-      let reason = null;
+    const modes = await Promise.all(
+      Object.values(RunMode).map(async (mode) => {
+        const config = await getRunModeConfig(mode);
+        let available = true;
+        let reason = null;
 
-      // Check overflow
-      if (profile.overflow.length > 0) {
-        available = false;
-        reason = 'VAULT_OVERFLOW';
-      }
-
-      // Check attempt tracking
-      if (mode === RunMode.WEEKLY) {
-        if (profile.attemptTracking.weekNumber === currentWeek && profile.attemptTracking.weeklyAttemptUsed) {
+        // Check overflow
+        if (profile.overflow.length > 0) {
           available = false;
-          reason = 'WEEKLY_ATTEMPT_USED';
+          reason = 'VAULT_OVERFLOW';
         }
-      } else if (mode === RunMode.DAILY) {
-        if (profile.attemptTracking.dayNumber === currentDay && profile.attemptTracking.dailyAttemptUsed) {
-          available = false;
-          reason = 'DAILY_ATTEMPT_USED';
-        }
-      }
 
-      return {
-        mode,
-        name: config.name,
-        description: config.description,
-        available,
-        reason,
-        attemptsRemaining: config.attemptsPerPeriod === null ? 'unlimited' : (available ? 1 : 0),
-      };
-    }));
+        // Check attempt tracking
+        if (mode === RunMode.WEEKLY) {
+          if (
+            profile.attemptTracking.weekNumber === currentWeek &&
+            profile.attemptTracking.weeklyAttemptUsed
+          ) {
+            available = false;
+            reason = 'WEEKLY_ATTEMPT_USED';
+          }
+        } else if (mode === RunMode.DAILY) {
+          if (
+            profile.attemptTracking.dayNumber === currentDay &&
+            profile.attemptTracking.dailyAttemptUsed
+          ) {
+            available = false;
+            reason = 'DAILY_ATTEMPT_USED';
+          }
+        }
+
+        return {
+          mode,
+          name: config.name,
+          description: config.description,
+          available,
+          reason,
+          attemptsRemaining: config.attemptsPerPeriod === null ? 'unlimited' : available ? 1 : 0,
+        };
+      }),
+    );
 
     return NextResponse.json({ modes });
   } catch (error) {

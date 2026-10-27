@@ -92,15 +92,17 @@ export function MixinEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
       <div className={styles.editorHeader}>
         <h2 className={styles.editorTitle}>{isNew ? 'New Mixin' : `Mixin: ${name}`}</h2>
         <div className={styles.buttonRow}>
-          <button className={styles.saveButton} onClick={handleSave} disabled={saveStatus === 'saving'}>
+          <button
+            className={styles.saveButton}
+            onClick={handleSave}
+            disabled={saveStatus === 'saving'}
+          >
             {saveStatus === 'saving' ? 'SAVING...' : 'SAVE'}
           </button>
         </div>
       </div>
 
-      {errors.length > 0 && (
-        <div className={styles.errorMessage}>{errors.join(', ')}</div>
-      )}
+      {errors.length > 0 && <div className={styles.errorMessage}>{errors.join(', ')}</div>}
 
       <div className={styles.fieldRow}>
         <label className={styles.fieldLabel}>Name</label>
@@ -131,9 +133,13 @@ export function MixinEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
         onChange={(e) => handleAddComponent(e.target.value)}
         value=""
       >
-        <option value="" disabled>+ Add Component</option>
+        <option value="" disabled>
+          + Add Component
+        </option>
         {componentSchemas.map((s) => (
-          <option key={s.key} value={s.key}>{s.key}</option>
+          <option key={s.key} value={s.key}>
+            {s.key}
+          </option>
         ))}
       </select>
     </div>

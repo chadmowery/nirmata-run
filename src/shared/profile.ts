@@ -30,24 +30,28 @@ export const VaultItemSchema = z.object({
   extractedAtTimestamp: z.number(),
 });
 
-export const AttemptTrackingSchema = z.object({
-  weekNumber: z.number().default(0),
-  weeklyAttemptUsed: z.boolean().default(false),
-  dayNumber: z.number().default(0),
-  dailyAttemptUsed: z.boolean().default(false),
-}).default({
-  weekNumber: 0,
-  weeklyAttemptUsed: false,
-  dayNumber: 0,
-  dailyAttemptUsed: false
-});
+export const AttemptTrackingSchema = z
+  .object({
+    weekNumber: z.number().default(0),
+    weeklyAttemptUsed: z.boolean().default(false),
+    dayNumber: z.number().default(0),
+    dailyAttemptUsed: z.boolean().default(false),
+  })
+  .default({
+    weekNumber: 0,
+    weeklyAttemptUsed: false,
+    dayNumber: 0,
+    dailyAttemptUsed: false,
+  });
 
 export const PlayerProfileSchema = z.object({
   sessionId: z.string(),
-  wallet: z.object({
-    scrap: z.number().int().min(0).default(0),
-    flux: z.number().int().min(0).default(0),
-  }).default({ scrap: 0, flux: 0 }),
+  wallet: z
+    .object({
+      scrap: z.number().int().min(0).default(0),
+      flux: z.number().int().min(0).default(0),
+    })
+    .default({ scrap: 0, flux: 0 }),
   blueprintLibrary: z.array(BlueprintEntrySchema).default([]),
   installedItems: z.array(InstalledItemSchema).default([]),
   shellUpgrades: z.record(z.string(), ShellUpgradesSchema).default({}),
@@ -80,28 +84,28 @@ export function createDefaultProfile(sessionId: string): PlayerProfile {
   const profile = PlayerProfileSchema.parse({ sessionId });
 
   const shellIds = ['striker-v1', 'bastion-v1', 'signal-v1'];
-  
+
   // Register blueprints so they are available to be "installed"
   profile.blueprintLibrary = [
     { blueprintId: 'neural-spike', type: 'firmware', compiledAt: Date.now() },
-    { blueprintId: 'phase-shift', type: 'firmware', compiledAt: Date.now() }
+    { blueprintId: 'phase-shift', type: 'firmware', compiledAt: Date.now() },
   ];
 
   // Pre-install on all starting shells
   shellIds.forEach((shellId, sIdx) => {
     profile.installedItems.push({
-      entityId: 20000 + (sIdx * 10),
+      entityId: 20000 + sIdx * 10,
       blueprintId: 'neural-spike',
       type: 'firmware',
       shellId,
-      isLegacy: false
+      isLegacy: false,
     });
     profile.installedItems.push({
-      entityId: 20001 + (sIdx * 10),
+      entityId: 20001 + sIdx * 10,
       blueprintId: 'phase-shift',
       type: 'firmware',
       shellId,
-      isLegacy: false
+      isLegacy: false,
     });
   });
 

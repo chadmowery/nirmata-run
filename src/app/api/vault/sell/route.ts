@@ -21,10 +21,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Item not found in overflow' }, { status: 404 });
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Item sold', 
-      scrapGained: result.scrapGained 
+    return NextResponse.json({
+      success: true,
+      message: 'Item sold',
+      scrapGained: result.scrapGained,
     });
   } catch (error) {
     logger.error('[VaultSell] Error selling item:', 'API', error);

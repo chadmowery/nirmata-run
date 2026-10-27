@@ -12,7 +12,7 @@ vi.mock('@/app/persistence/fs-profile-repository', () => ({
 describe('POST /api/admin/reset', () => {
   const sessionId = 'test-session';
   const newWeekSeed = 12345;
-  
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -22,23 +22,30 @@ describe('POST /api/admin/reset', () => {
       sessionId,
       wallet: { scrap: 50000, flux: 5000 },
       blueprintLibrary: [{ blueprintId: 'uninstalled', type: 'firmware', compiledAt: 1 }],
-      installedItems: [{ blueprintId: 'installed', type: 'augment', shellId: 's1', isLegacy: false }],
+      installedItems: [
+        { blueprintId: 'installed', type: 'augment', shellId: 's1', isLegacy: false },
+      ],
       overflow: [],
       vault: [],
-      shellUpgrades: { 's1': { speed: 5 } },
-      attemptTracking: { dayNumber: 0, weekNumber: 0, dailyAttemptUsed: false, weeklyAttemptUsed: false },
+      shellUpgrades: { s1: { speed: 5 } },
+      attemptTracking: {
+        dayNumber: 0,
+        weekNumber: 0,
+        dailyAttemptUsed: false,
+        weeklyAttemptUsed: false,
+      },
       weekSeed: 11111,
-      createdAt: Date.now()
+      createdAt: Date.now(),
     };
-    
+
     (profileRepository.load as any).mockResolvedValue(mockProfile);
-    
+
     const req = new Request('http://localhost/api/admin/reset', {
       method: 'POST',
       body: JSON.stringify({
         sessionId,
-        newWeekSeed
-      })
+        newWeekSeed,
+      }),
     });
 
     const response = await POST(req);
@@ -51,12 +58,14 @@ describe('POST /api/admin/reset', () => {
     expect(data.upgradesReset).toBe(1);
     expect(data.walletAfterCap.scrap).toBe(10000); // Capped
     expect(data.walletAfterCap.flux).toBe(1000); // Capped
-    
-    expect(profileRepository.save).toHaveBeenCalledWith(expect.objectContaining({
-      weekSeed: newWeekSeed,
-      shellUpgrades: {},
-      installedItems: [expect.objectContaining({ blueprintId: 'installed', isLegacy: true })]
-    }));
+
+    expect(profileRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        weekSeed: newWeekSeed,
+        shellUpgrades: {},
+        installedItems: [expect.objectContaining({ blueprintId: 'installed', isLegacy: true })],
+      }),
+    );
   });
 
   it('returns success but no reset if already reset for this seed', async () => {
@@ -68,19 +77,24 @@ describe('POST /api/admin/reset', () => {
       overflow: [],
       vault: [],
       shellUpgrades: {},
-      attemptTracking: { dayNumber: 0, weekNumber: 0, dailyAttemptUsed: false, weeklyAttemptUsed: false },
+      attemptTracking: {
+        dayNumber: 0,
+        weekNumber: 0,
+        dailyAttemptUsed: false,
+        weeklyAttemptUsed: false,
+      },
       weekSeed: newWeekSeed,
-      createdAt: Date.now()
+      createdAt: Date.now(),
     };
-    
+
     (profileRepository.load as any).mockResolvedValue(mockProfile);
-    
+
     const req = new Request('http://localhost/api/admin/reset', {
       method: 'POST',
       body: JSON.stringify({
         sessionId,
-        newWeekSeed
-      })
+        newWeekSeed,
+      }),
     });
 
     const response = await POST(req);

@@ -17,7 +17,7 @@ export function DevTerminal() {
       // Toggle on backtick (without shift)
       if (e.key === '`' && !e.shiftKey) {
         e.preventDefault();
-        setIsVisible(prev => !prev);
+        setIsVisible((prev) => !prev);
         return;
       }
 
@@ -49,9 +49,9 @@ export function DevTerminal() {
     if (!input.trim()) return;
 
     const cmd = input.trim();
-    setHistory(prev => [...prev, { text: cmd, type: 'command' }]);
+    setHistory((prev) => [...prev, { text: cmd, type: 'command' }]);
     setInput('');
-    
+
     parseCommand(cmd);
   };
 
@@ -73,7 +73,7 @@ export function DevTerminal() {
           window.__DEBUG__.triggerPanic(
             Number(args[1]) || 1,
             args[2] || 'low',
-            args.slice(3).join(' ') || 'Manual Panic'
+            args.slice(3).join(' ') || 'Manual Panic',
           );
           break;
         case '/hp':
@@ -103,16 +103,25 @@ export function DevTerminal() {
           setIsVisible(false);
           break;
         case '/list':
-          setHistory(prev => [
+          setHistory((prev) => [
             ...prev,
             { text: 'AVAILABLE COMMANDS:', type: 'output' },
             { text: '  /heat [amount] - Set player heat', type: 'output' },
-            { text: '  /panic [tier] [severity] [effect] - Trigger manual kernel panic', type: 'output' },
+            {
+              text: '  /panic [tier] [severity] [effect] - Trigger manual kernel panic',
+              type: 'output',
+            },
             { text: '  /hp [amount] - Set player health', type: 'output' },
             { text: '  /stability [amount] - Set player stability', type: 'output' },
             { text: '  /status [effect] [duration] - Apply status effect', type: 'output' },
-            { text: '  /give [scrap|flux|blueprint] [amount|id] - Grant currency or items', type: 'output' },
-            { text: '  /descend [count] - Force floor transition (descends [count] floors)', type: 'output' },
+            {
+              text: '  /give [scrap|flux|blueprint] [amount|id] - Grant currency or items',
+              type: 'output',
+            },
+            {
+              text: '  /descend [count] - Force floor transition (descends [count] floors)',
+              type: 'output',
+            },
             { text: '  /deadzone - Spawn deadzone at player position', type: 'output' },
             { text: '  /clearsessions - Clear all server sessions', type: 'output' },
             { text: '  /close - Close this terminal', type: 'output' },
@@ -120,15 +129,18 @@ export function DevTerminal() {
           ]);
           break;
         default:
-          setHistory(prev => [
+          setHistory((prev) => [
             ...prev,
             { text: `Unknown command: ${cmd}`, type: 'error' },
-            { text: 'Type /list to see available commands.', type: 'output' }
+            { text: 'Type /list to see available commands.', type: 'output' },
           ]);
       }
     } catch (err) {
       logger.error('[DevTerminal] Error executing command:', 'UI', err);
-      setHistory(prev => [...prev, { text: `EXEC_ERROR: ${err instanceof Error ? err.message : String(err)}`, type: 'error' }]);
+      setHistory((prev) => [
+        ...prev,
+        { text: `EXEC_ERROR: ${err instanceof Error ? err.message : String(err)}`, type: 'error' },
+      ]);
     }
   };
 
@@ -137,7 +149,7 @@ export function DevTerminal() {
   return (
     <div className="dev-terminal-overlay">
       <div className="dev-terminal-backdrop" onClick={() => setIsVisible(false)} />
-      
+
       <div className="dev-terminal-modal">
         {/* Header */}
         <div className="dev-terminal-header">
@@ -156,7 +168,9 @@ export function DevTerminal() {
             ) : (
               history.map((h, i) => (
                 <div key={i} className={`dev-terminal-history-item type-${h.type}`}>
-                  <span className="dev-terminal-history-index">[{i.toString().padStart(3, '0')}]</span>
+                  <span className="dev-terminal-history-index">
+                    [{i.toString().padStart(3, '0')}]
+                  </span>
                   <span className="dev-terminal-command">
                     {h.type === 'command' ? '> ' : ''}
                     {h.text}
@@ -184,9 +198,11 @@ export function DevTerminal() {
               />
             </form>
           </div>
-          
+
           <div className="dev-terminal-footer">
-            <span>SESSION_ID: {window.localStorage.getItem('nimrata_sessionId')?.slice(0,8) || 'ANON'}</span>
+            <span>
+              SESSION_ID: {window.localStorage.getItem('nimrata_sessionId')?.slice(0, 8) || 'ANON'}
+            </span>
             <span>SYSTEM_READY: OK</span>
           </div>
         </div>

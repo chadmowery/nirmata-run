@@ -19,10 +19,13 @@ export async function POST(req: Request) {
     const result = CompileRequestSchema.safeParse(body);
 
     if (!result.success) {
-      return NextResponse.json({
-        error: 'Invalid request',
-        details: result.error
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: 'Invalid request',
+          details: result.error,
+        },
+        { status: 400 },
+      );
     }
 
     const { sessionId, blueprintId, type, rarity } = result.data;
@@ -33,17 +36,20 @@ export async function POST(req: Request) {
     }
 
     // Check if already compiled
-    if (profile.blueprintLibrary.some(b => b.blueprintId === blueprintId)) {
+    if (profile.blueprintLibrary.some((b) => b.blueprintId === blueprintId)) {
       return NextResponse.json({ error: 'Blueprint already compiled' }, { status: 400 });
     }
 
     const cost = economy.costs.compilation[rarity];
     if (profile.wallet.flux < cost) {
-      return NextResponse.json({
-        error: 'Insufficient Flux',
-        required: cost,
-        current: profile.wallet.flux
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: 'Insufficient Flux',
+          required: cost,
+          current: profile.wallet.flux,
+        },
+        { status: 400 },
+      );
     }
 
     // Deduct and add
@@ -51,7 +57,7 @@ export async function POST(req: Request) {
     profile.blueprintLibrary.push({
       blueprintId,
       type,
-      compiledAt: Date.now()
+      compiledAt: Date.now(),
     });
 
     await profileRepository.save(profile);
@@ -59,11 +65,14 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       remainingFlux: profile.wallet.flux,
-      librarySize: profile.blueprintLibrary.length
+      librarySize: profile.blueprintLibrary.length,
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
-    return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal Server Error', message: error.message },
+      { status: 500 },
+    );
   }
 }

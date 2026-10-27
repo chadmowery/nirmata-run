@@ -27,7 +27,11 @@ describe('TurnManager', () => {
 
     playerEntity = world.createEntity();
     world.addComponent(playerEntity, Actor, { isPlayer: true });
-    world.addComponent(playerEntity, Energy, { current: 0, speed: 100, threshold: config.energyThreshold });
+    world.addComponent(playerEntity, Energy, {
+      current: 0,
+      speed: 100,
+      threshold: config.energyThreshold,
+    });
   });
 
   it('starts at AWAIT_INPUT phase after start()', () => {
@@ -50,17 +54,17 @@ describe('TurnManager', () => {
   it('gating: ignores submitAction when not in AWAIT_INPUT', () => {
     // Manually set phase to something else
     (turnManager as any).phase = TurnPhase.PLAYER_ACTION;
-    
+
     const handler = vi.fn();
     turnManager.setPlayerActionHandler(handler);
-    
+
     turnManager.submitAction('move');
     expect(handler).not.toHaveBeenCalled();
   });
 
   it('deducts energy and calls playerActionHandler on submitAction', () => {
-    turnManager.start(); 
-    
+    turnManager.start();
+
     const handler = vi.fn(() => {
       turnManager.pause();
     });
@@ -75,14 +79,14 @@ describe('TurnManager', () => {
 
   it('deducts half cost for wait action', () => {
     turnManager.start();
-    
+
     const energy = world.getComponent(playerEntity, Energy)!;
     world.addComponent(playerEntity, Energy, { ...energy, current: 1000 });
-    
+
     turnManager.setPlayerActionHandler(() => {
       turnManager.pause();
     });
-    
+
     turnManager.submitAction(GameAction.WAIT);
 
     const updatedEnergy = world.getComponent(playerEntity, Energy)!;
@@ -92,11 +96,19 @@ describe('TurnManager', () => {
   it('processes enemy turns deterministically (ID order)', () => {
     const enemy1 = world.createEntity(); // ID 2
     world.addComponent(enemy1, Actor, { isPlayer: false });
-    world.addComponent(enemy1, Energy, { current: 1000, speed: 100, threshold: config.energyThreshold });
+    world.addComponent(enemy1, Energy, {
+      current: 1000,
+      speed: 100,
+      threshold: config.energyThreshold,
+    });
 
     const enemy2 = world.createEntity(); // ID 3
     world.addComponent(enemy2, Actor, { isPlayer: false });
-    world.addComponent(enemy2, Energy, { current: 1000, speed: 100, threshold: config.energyThreshold });
+    world.addComponent(enemy2, Energy, {
+      current: 1000,
+      speed: 100,
+      threshold: config.energyThreshold,
+    });
 
     const playerEnergy = world.getComponent(playerEntity, Energy)!;
     world.addComponent(playerEntity, Energy, { ...playerEnergy, current: 1000 });
@@ -122,7 +134,11 @@ describe('TurnManager', () => {
   it('skips dead enemies', () => {
     const enemy = world.createEntity();
     world.addComponent(enemy, Actor, { isPlayer: false });
-    world.addComponent(enemy, Energy, { current: 1000, speed: 100, threshold: config.energyThreshold });
+    world.addComponent(enemy, Energy, {
+      current: 1000,
+      speed: 100,
+      threshold: config.energyThreshold,
+    });
     world.addComponent(enemy, Health, Health.schema.parse({ current: 0, max: 10, isAlive: false }));
 
     const playerEnergy = world.getComponent(playerEntity, Energy)!;
@@ -164,7 +180,7 @@ describe('TurnManager', () => {
       Phase.ACTION,
       Phase.REACTION,
       Phase.CLEANUP,
-      Phase.POST_TURN
+      Phase.POST_TURN,
     ]);
   });
 
@@ -173,7 +189,11 @@ describe('TurnManager', () => {
     // Enemy speed 200
     const fastEnemy = world.createEntity();
     world.addComponent(fastEnemy, Actor, { isPlayer: false });
-    world.addComponent(fastEnemy, Energy, { current: 0, speed: 200, threshold: config.energyThreshold });
+    world.addComponent(fastEnemy, Energy, {
+      current: 0,
+      speed: 200,
+      threshold: config.energyThreshold,
+    });
 
     let enemyActingCount = 0;
     const originalExecute = world.executeSystems.bind(world);
@@ -189,13 +209,13 @@ describe('TurnManager', () => {
     const playerEnergy = world.getComponent(playerEntity, Energy)!;
     world.addComponent(playerEntity, Energy, { ...playerEnergy, current: 0 });
 
-    turnManager.start(); 
+    turnManager.start();
     // Player speed 100, Enemy speed 200.
     // 5 ticks of 200 = 1000 for enemy. 5 ticks of 100 = 500 for player.
     // enemyActingCount should be 1 after start()
     expect(enemyActingCount).toBe(1);
 
-    turnManager.submitAction('move'); 
+    turnManager.submitAction('move');
     // AdvanceUntilPlayerReady will tick 10 times to reach 1000 for player.
     // Enemy reaches 1000 at tick 5 and tick 10.
     // enemyActingCount should be 1 (start) + 2 (during advanceUntilPlayerReady) = 3.

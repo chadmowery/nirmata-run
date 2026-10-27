@@ -88,7 +88,10 @@ const VaultTab: React.FC = () => {
   const isNearCapacity = capacity >= 25;
 
   return (
-    <div className={styles.tabRoot} onClick={() => setContextMenu({ ...contextMenu, visible: false })}>
+    <div
+      className={styles.tabRoot}
+      onClick={() => setContextMenu({ ...contextMenu, visible: false })}
+    >
       <header className={styles.header}>
         <div className={styles.titleGroup}>
           <h2 className={styles.heading}>VAULT_INVENTORY</h2>
@@ -107,9 +110,7 @@ const VaultTab: React.FC = () => {
       )}
 
       {profile.vault.length === 0 ? (
-        <div className={styles.emptyState}>
-          VAULT_EMPTY // NO_SECURED_ITEMS
-        </div>
+        <div className={styles.emptyState}>VAULT_EMPTY // NO_SECURED_ITEMS</div>
       ) : (
         <VaultGrid
           items={profile.vault}
@@ -124,10 +125,16 @@ const VaultTab: React.FC = () => {
           style={{ top: contextMenu.position.y, left: contextMenu.position.x }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button className={styles.menuItem} onClick={() => handleSell(contextMenu.item!.entityId)}>
+          <button
+            className={styles.menuItem}
+            onClick={() => handleSell(contextMenu.item!.entityId)}
+          >
             SELL_FOR_SCRAP
           </button>
-          <button className={styles.menuItem} onClick={() => handleDiscard(contextMenu.item!.entityId)}>
+          <button
+            className={styles.menuItem}
+            onClick={() => handleDiscard(contextMenu.item!.entityId)}
+          >
             DISCARD_ITEM
           </button>
         </div>

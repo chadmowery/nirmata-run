@@ -13,16 +13,21 @@ describe('Game Setup Integration', () => {
     // Basic config for tests
     context = createGame({ gridWidth: 10, gridHeight: 10 });
     // Mock fetch for action calls
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ payload: { 
-        type: 'DELTA', 
-        world: { nextId: 100, entities: [], stores: {} }, 
-        grid: [], 
-        events: [], 
-        turnNumber: 1 
-      } })
-    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          payload: {
+            type: 'DELTA',
+            world: { nextId: 100, entities: [], stores: {} },
+            grid: [],
+            events: [],
+            turnNumber: 1,
+          },
+        }),
+      }),
+    );
   });
 
   it('should initialize with all required modules', () => {
@@ -50,7 +55,7 @@ describe('Game Setup Integration', () => {
     // Need to go Loading -> MainMenu -> Playing to follow transition table
     context.fsm.transition(GameState.MainMenu);
     context.fsm.transition(GameState.Playing);
-    
+
     expect(context.fsm.getCurrentState()).toBe(GameState.Playing);
     expect(context.inputManager.isEnabled()).toBe(true);
   });
@@ -59,7 +64,7 @@ describe('Game Setup Integration', () => {
     context.fsm.transition(GameState.MainMenu);
     context.fsm.transition(GameState.Playing);
     context.fsm.transition(GameState.Paused);
-    
+
     expect(context.fsm.getCurrentState()).toBe(GameState.Paused);
     expect(context.inputManager.isEnabled()).toBe(false);
   });
@@ -70,11 +75,11 @@ describe('Game Setup Integration', () => {
     // 1. Get player from context
     const player = context.playerId;
     if (player === undefined) throw new Error('Player not found');
-    
+
     // Ensure floor is walkable
     grid.setTile(1, 1, { terrain: 'floor', walkable: true, transparent: true });
     grid.setTile(2, 1, { terrain: 'floor', walkable: true, transparent: true });
-    
+
     if (world.hasComponent(player, Position)) {
       world.patchComponent(player, Position, { x: 1, y: 1 });
     }
@@ -100,7 +105,7 @@ describe('Game Setup Integration', () => {
     const pos = world.getComponent(player, Position);
     expect(pos?.x).toBe(2);
     expect(pos?.y).toBe(1);
-    
+
     // 6. Verify energy deduction and replenishment (TurnManager auto-advances until ready)
     const energy = world.getComponent(player, Energy);
     expect(energy?.current).toBe(1000);
@@ -145,10 +150,13 @@ describe('Game Setup Integration', () => {
     actionHandler(GameAction.MOVE_EAST);
 
     // 5. Verify DAMAGE_DEALT event emitted
-    expect(emitSpy).toHaveBeenCalledWith('DAMAGE_DEALT', expect.objectContaining({
-      attackerId: player,
-      defenderId: enemy,
-    }));
+    expect(emitSpy).toHaveBeenCalledWith(
+      'DAMAGE_DEALT',
+      expect.objectContaining({
+        attackerId: player,
+        defenderId: enemy,
+      }),
+    );
 
     // 6. Verify player stayed in place
     const pos = world.getComponent(player, Position);
@@ -177,7 +185,7 @@ describe('Game Setup Integration', () => {
     // Wait, let's look at setup.ts:
     // if (action === GameAction.PAUSE) { ... return; }
     // It's outside the turnManager.canAcceptInput() check.
-    
+
     const actionHandler = (context.inputManager as any).handler;
     actionHandler(GameAction.PAUSE);
 

@@ -40,7 +40,9 @@ export function FormField({ meta, value, onChange, disabled }: FormFieldProps) {
           disabled={disabled}
         >
           {enumValues.map((v) => (
-            <option key={v} value={v}>{v}</option>
+            <option key={v} value={v}>
+              {v}
+            </option>
           ))}
         </select>
       </div>

@@ -8,7 +8,9 @@
   gap: var(--space-sm);
   cursor: grab;
   user-select: none;
-  transition: background var(--transition-fast), border-color var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
   position: relative;
   overflow: hidden;
 }
@@ -75,11 +77,25 @@
 }
 
 /* Rarity colors */
-.rarityCommon { border-left: 3px solid #ffffff; }
-.rarityUncommon { border-left: 3px solid var(--vibrant-cyan); }
-.rarityRare { border-left: 3px solid var(--vibrant-pink); }
-.rarityLegendary { border-left: 3px solid var(--safety-orange); }
+.rarityCommon {
+  border-left: 3px solid #ffffff;
+}
+.rarityUncommon {
+  border-left: 3px solid var(--vibrant-cyan);
+}
+.rarityRare {
+  border-left: 3px solid var(--vibrant-pink);
+}
+.rarityLegendary {
+  border-left: 3px solid var(--safety-orange);
+}
 
-.rarityUncommon .iconContainer { color: var(--vibrant-cyan); }
-.rarityRare .iconContainer { color: var(--vibrant-pink); }
-.rarityLegendary .iconContainer { color: var(--safety-orange); }
+.rarityUncommon .iconContainer {
+  color: var(--vibrant-cyan);
+}
+.rarityRare .iconContainer {
+  color: var(--vibrant-pink);
+}
+.rarityLegendary .iconContainer {
+  color: var(--safety-orange);
+}

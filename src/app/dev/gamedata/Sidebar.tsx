@@ -5,7 +5,8 @@ import { SECTIONS } from './types';
 import styles from './gamedata.module.css';
 
 export function Sidebar() {
-  const { expandedSections, toggleSection, selectedItem, selectItem, sectionItems } = useGamedataStore();
+  const { expandedSections, toggleSection, selectedItem, selectItem, sectionItems } =
+    useGamedataStore();
 
   return (
     <aside className={styles.sidebar}>
@@ -17,10 +18,7 @@ export function Sidebar() {
 
         return (
           <div key={section.id}>
-            <div
-              className={styles.sectionHeader}
-              onClick={() => toggleSection(section.id)}
-            >
+            <div className={styles.sectionHeader} onClick={() => toggleSection(section.id)}>
               {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
               <span>{section.label}</span>
               <span style={{ marginLeft: 'auto', opacity: 0.5, fontSize: '10px' }}>
@@ -41,7 +39,8 @@ export function Sidebar() {
                   </button>
                 )}
                 {items.map((name) => {
-                  const isActive = selectedItem?.section === section.id && selectedItem?.name === name;
+                  const isActive =
+                    selectedItem?.section === section.id && selectedItem?.name === name;
                   return (
                     <div
                       key={name}

@@ -37,7 +37,7 @@ export function getWinnersItem(weekIndex: number): string {
 export async function executeWeeklyReset(
   repo: ProfileRepository,
   sessionId: string,
-  newWeekSeed: number
+  newWeekSeed: number,
 ): Promise<ResetResult> {
   const profile = await repo.load(sessionId);
   if (!profile) {
@@ -65,13 +65,11 @@ export async function executeWeeklyReset(
   // Blueprint compilation gate means uninstalled ones are just library entries.
   // The plan says: "Weekly reset deletes all uninstalled Blueprints from library per BP-04"
   // So we keep blueprintIds that are in installedItems.
-  const installedBlueprintIds = new Set(
-    profile.installedItems.map(i => i.blueprintId)
-  );
+  const installedBlueprintIds = new Set(profile.installedItems.map((i) => i.blueprintId));
 
   const originalLibrarySize = profile.blueprintLibrary.length;
-  profile.blueprintLibrary = profile.blueprintLibrary.filter(b =>
-    installedBlueprintIds.has(b.blueprintId)
+  profile.blueprintLibrary = profile.blueprintLibrary.filter((b) =>
+    installedBlueprintIds.has(b.blueprintId),
   );
   const blueprintsDeleted = originalLibrarySize - profile.blueprintLibrary.length;
 
@@ -98,7 +96,10 @@ export async function executeWeeklyReset(
   const winnersItem = getWinnersItem(newWeekSeed);
 
   await repo.save(profile);
-  logger.info(`Weekly Reset Executed for session ${sessionId}: ${blueprintsDeleted} blueprints deleted, ${itemsLegacied} items legacied, ${upgradesReset} upgrades reset`, 'SYSTEM');
+  logger.info(
+    `Weekly Reset Executed for session ${sessionId}: ${blueprintsDeleted} blueprints deleted, ${itemsLegacied} items legacied, ${upgradesReset} upgrades reset`,
+    'SYSTEM',
+  );
 
   return {
     sessionId,

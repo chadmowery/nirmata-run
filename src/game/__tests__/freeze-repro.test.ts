@@ -15,7 +15,7 @@ describe('Engine Freeze Reproduction', () => {
       height: 45,
       seed: 'test-seed',
       isClient: true,
-      runMode: RunMode.SIMULATION
+      runMode: RunMode.SIMULATION,
     });
 
     const healthComp = engine.world.getComponent(engine.playerId, { key: 'health' } as any) as any;
@@ -24,13 +24,15 @@ describe('Engine Freeze Reproduction', () => {
 
     // Simulate first move
     engine.turnManager.submitAction(GameAction.MOVE_NORTH);
-    
-    const healthAfterMoveComp = engine.world.getComponent(engine.playerId, { key: 'health' } as any) as any;
+
+    const healthAfterMoveComp = engine.world.getComponent(engine.playerId, {
+      key: 'health',
+    } as any) as any;
     const healthAfterMove = healthAfterMoveComp?.current;
-    
+
     console.log('Initial Health:', initialHealth);
     console.log('Health after move:', healthAfterMove);
-    
+
     expect(healthAfterMove).toBe(initialHealth);
   });
 
@@ -40,7 +42,7 @@ describe('Engine Freeze Reproduction', () => {
       height: 45,
       seed: 'test-seed-stairs',
       isClient: true,
-      runMode: RunMode.SIMULATION
+      runMode: RunMode.SIMULATION,
     });
 
     const { world, grid, eventBus, playerId } = engine;
@@ -60,8 +62,10 @@ describe('Engine Freeze Reproduction', () => {
     engine.turnManager.submitAction(GameAction.MOVE_NORTH);
 
     // Assert: MESSAGE_EMITTED should have been called with staircase text
-    expect(messageSpy).toHaveBeenCalledWith(expect.objectContaining({
-      text: expect.stringContaining('Staircase'),
-    }));
+    expect(messageSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: expect.stringContaining('Staircase'),
+      }),
+    );
   });
 });

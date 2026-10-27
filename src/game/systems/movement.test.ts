@@ -21,7 +21,7 @@ describe('MovementSystem', () => {
     eventBus = new EventBus<GameplayEvents>();
     world = new World<GameplayEvents>(eventBus);
     grid = new Grid(10, 10);
-    
+
     // Set all tiles to walkable by default for testing
     for (let y = 0; y < 10; y++) {
       for (let x = 0; x < 10; x++) {
@@ -79,11 +79,11 @@ describe('MovementSystem', () => {
     // Should NOT move
     const pos = world.getComponent(playerId, Position);
     expect(pos).toEqual({ x: 5, y: 5 });
-    
+
     // Should ADD AttackIntent
     const attackIntent = world.getComponent(playerId, AttackIntent);
     expect(attackIntent).toEqual({ targetId: enemyId });
-    
+
     // Should CLEAR MoveIntent
     expect(world.hasComponent(playerId, MoveIntent)).toBe(false);
   });

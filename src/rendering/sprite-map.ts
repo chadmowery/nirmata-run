@@ -10,7 +10,11 @@ import { logger } from '../engine/utils/logger';
  * Creates a sprite for an entity and adds it to the specified container.
  * If a sprite already exists for this entity, it returns the existing one.
  */
-export function createEntitySprite(entityId: EntityId, spriteKey: string, container: Container): Sprite {
+export function createEntitySprite(
+  entityId: EntityId,
+  spriteKey: string,
+  container: Container,
+): Sprite {
   const existing = entitySprites.get(entityId);
   if (existing) {
     return existing;

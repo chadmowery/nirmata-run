@@ -12,8 +12,8 @@ describe('InRunItemTooltip', () => {
             return { name: 'Test Item', tier: 'Rare' };
           }
           return undefined;
-        })
-      }
+        }),
+      },
     };
     render(<InRunItemTooltip entityId={1} />);
     expect(screen.getByText('Test Item')).toBeDefined();
@@ -31,8 +31,8 @@ describe('InRunItemTooltip', () => {
             return { modifier: 'Fire Rate +5%' };
           }
           return undefined;
-        })
-      }
+        }),
+      },
     };
     render(<InRunItemTooltip entityId={1} />);
     fireEvent.keyDown(window, { key: 'Alt' });

@@ -60,7 +60,7 @@ const DEFAULT_PLACEMENT: PlacementConfig = {
   itemsPerRoom: { min: 0, max: 2 },
   enemyTemplates: ['goblin'],
   itemTemplates: ['health-potion'],
-  playerOverrides: {}
+  playerOverrides: {},
 };
 
 /**
@@ -76,18 +76,21 @@ import { EngineEvents } from '../../engine/events/types';
 
 function getTableForDepth(depth: number): DepthTable | undefined {
   return (depthDistribution.tables as unknown as DepthTable[]).find(
-    (table) => depth >= table.depthRange.min && depth <= table.depthRange.max
+    (table) => depth >= table.depthRange.min && depth <= table.depthRange.max,
   );
 }
 
 function getLootForDepth(depth: number): LootEntry[] | undefined {
   const band = (lootDistribution.depthBands as LootDepthBand[]).find(
-    (b) => depth >= b.depthRange.min && depth <= b.depthRange.max
+    (b) => depth >= b.depthRange.min && depth <= b.depthRange.max,
   );
   return band?.loot;
 }
 
-function selectWeightedTemplate<T extends { weight: number }>(templates: T[], rng: { random(): number }): T | undefined {
+function selectWeightedTemplate<T extends { weight: number }>(
+  templates: T[],
+  rng: { random(): number },
+): T | undefined {
   const totalWeight = templates.reduce((sum, t) => sum + t.weight, 0);
   let random = rng.random() * totalWeight;
   for (const template of templates) {
@@ -120,7 +123,7 @@ export function placeEntities<T extends EngineEvents>(
   rooms: Room[],
   spawnRoom: Room,
   rng: { random(): number },
-  config?: Partial<PlacementConfig>
+  config?: Partial<PlacementConfig>,
 ): PlacementResult {
   const cfg: PlacementConfig = { ...DEFAULT_PLACEMENT, ...config };
   const enemyIds: EntityId[] = [];
@@ -140,7 +143,10 @@ export function placeEntities<T extends EngineEvents>(
     // Place player at spawn room center
     const playerOverrides = {
       ...cfg.playerOverrides,
-      position: { x: spawnRoom.centerX, y: spawnRoom.centerY } as unknown as Record<string, unknown>,
+      position: { x: spawnRoom.centerX, y: spawnRoom.centerY } as unknown as Record<
+        string,
+        unknown
+      >,
     };
 
     playerId = factory.create(world, 'player', componentRegistry, playerOverrides);
@@ -175,7 +181,7 @@ export function placeEntities<T extends EngineEvents>(
     const staircaseId = factory.create(world, 'staircase', componentRegistry, {
       position: { x: furthestRoom.centerX, y: furthestRoom.centerY },
       staircaseMarker: { targetFloor: depth + 1 },
-      sprite: { key: 'staircase' }
+      sprite: { key: 'staircase' },
     });
     grid.addEntity(staircaseId, furthestRoom.centerX, furthestRoom.centerY);
   }
@@ -183,13 +189,13 @@ export function placeEntities<T extends EngineEvents>(
   // Place Anchor on floors 5, 10, 15 (D-15)
   let anchorRoom: Room | undefined;
   if (depth % 5 === 0 && depth > 0) {
-    const candidateRooms = rooms.filter(r => r !== spawnRoom && r !== furthestRoom);
+    const candidateRooms = rooms.filter((r) => r !== spawnRoom && r !== furthestRoom);
     if (candidateRooms.length > 0) {
       anchorRoom = candidateRooms[Math.floor(rng.random() * candidateRooms.length)];
       const anchorId = factory.create(world, 'anchor', componentRegistry, {
         position: { x: anchorRoom.centerX, y: anchorRoom.centerY },
         anchorMarker: { used: false },
-        sprite: { key: 'anchor' }
+        sprite: { key: 'anchor' },
       });
       grid.addEntity(anchorId, anchorRoom.centerX, anchorRoom.centerY);
     }
@@ -206,7 +212,10 @@ export function placeEntities<T extends EngineEvents>(
       const roll = rng.random();
       if (roll < bandConfig.specialRoomProbability.treasure) {
         isTreasureRoom = true;
-      } else if (roll < bandConfig.specialRoomProbability.treasure + bandConfig.specialRoomProbability.challenge) {
+      } else if (
+        roll <
+        bandConfig.specialRoomProbability.treasure + bandConfig.specialRoomProbability.challenge
+      ) {
         isChallengeRoom = true;
       }
       // Hazard room tagging TBD
@@ -225,7 +234,10 @@ export function placeEntities<T extends EngineEvents>(
       for (let i = 0; i < enemyCount && walkablePositions.length > 0; i++) {
         const entry = depthTable
           ? selectWeightedTemplate(depthTable.templates, rng)
-          : { name: cfg.enemyTemplates[Math.floor(rng.random() * cfg.enemyTemplates.length)], weight: 1 };
+          : {
+              name: cfg.enemyTemplates[Math.floor(rng.random() * cfg.enemyTemplates.length)],
+              weight: 1,
+            };
 
         if (!entry) continue;
 
@@ -282,9 +294,10 @@ export function placeEntities<T extends EngineEvents>(
       const posIdx = Math.floor(rng.random() * walkablePositions.length);
       const pos = walkablePositions.splice(posIdx, 1)[0];
 
-      const templateName = (lootTable && rng.random() > 0.3) // 70% chance to use depth-gated loot if available
-        ? selectWeightedTemplate(lootTable, rng)?.template || cfg.itemTemplates[0]
-        : cfg.itemTemplates[Math.floor(rng.random() * cfg.itemTemplates.length)];
+      const templateName =
+        lootTable && rng.random() > 0.3 // 70% chance to use depth-gated loot if available
+          ? selectWeightedTemplate(lootTable, rng)?.template || cfg.itemTemplates[0]
+          : cfg.itemTemplates[Math.floor(rng.random() * cfg.itemTemplates.length)];
 
       const itemId = factory.create(world, templateName, componentRegistry, {
         position: { x: pos.x, y: pos.y },

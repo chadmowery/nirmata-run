@@ -14,10 +14,13 @@ export async function POST(req: Request) {
     const result = ResetRequestSchema.safeParse(body);
 
     if (!result.success) {
-      return NextResponse.json({
-        error: 'Invalid request',
-        details: result.error
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: 'Invalid request',
+          details: result.error,
+        },
+        { status: 400 },
+      );
     }
 
     const { sessionId, newWeekSeed } = result.data;

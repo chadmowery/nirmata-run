@@ -17,7 +17,11 @@
         { "template": "bleed-v2", "weight": 10 },
         { "template": "auto-loader-v2", "weight": 10 },
         { "template": "vampire-v2", "weight": 10 },
-        { "template": "firmware-drop", "weight": 10, "note": "Firmware drops start at floor 5 per FLOOR-05" }
+        {
+          "template": "firmware-drop",
+          "weight": 10,
+          "note": "Firmware drops start at floor 5 per FLOOR-05"
+        }
       ]
     },
     {
@@ -30,7 +34,11 @@
         { "template": "auto-loader-v3", "weight": 10 },
         { "template": "vampire-v3", "weight": 10 },
         { "template": "firmware-drop", "weight": 15 },
-        { "template": "augment-drop", "weight": 10, "note": "Rare Augments start at floor 10 per FLOOR-05" }
+        {
+          "template": "augment-drop",
+          "weight": 10,
+          "note": "Rare Augments start at floor 10 per FLOOR-05"
+        }
       ]
     }
   ]

@@ -4,15 +4,11 @@ import { VaultItem } from '@/shared/profile';
 
 interface ItemTooltipProps {
   item: VaultItem | null;
-  position: { x: number, y: number };
+  position: { x: number; y: number };
   visible: boolean;
 }
 
-export const ItemTooltip: React.FC<ItemTooltipProps> = ({
-  item,
-  position,
-  visible
-}) => {
+export const ItemTooltip: React.FC<ItemTooltipProps> = ({ item, position, visible }) => {
   if (!item || !visible) return null;
 
   // Format templateId for display: "neural-spike" -> "NEURAL_SPIKE"
@@ -21,11 +17,11 @@ export const ItemTooltip: React.FC<ItemTooltipProps> = ({
   const displayRarity = item.rarityTier.toUpperCase();
 
   return (
-    <div 
-      className={styles.tooltip} 
-      style={{ 
-        left: `${position.x + 15}px`, 
-        top: `${position.y + 15}px` 
+    <div
+      className={styles.tooltip}
+      style={{
+        left: `${position.x + 15}px`,
+        top: `${position.y + 15}px`,
       }}
       aria-live="polite"
     >
@@ -33,7 +29,7 @@ export const ItemTooltip: React.FC<ItemTooltipProps> = ({
         <span className={styles.name}>{displayName}</span>
         <span className={styles.type}>{displayType}</span>
       </div>
-      
+
       <div className={styles.details}>
         <div className={styles.rarity}>RARITY: {displayRarity}</div>
         {item.extractedAtFloor !== undefined && (
@@ -48,7 +44,9 @@ export const ItemTooltip: React.FC<ItemTooltipProps> = ({
         </div>
         <div className={styles.statRow}>
           <span className={styles.statLabel}>TIMESTAMP</span>
-          <span className={styles.statValue}>{new Date(item.extractedAtTimestamp).toLocaleDateString()}</span>
+          <span className={styles.statValue}>
+            {new Date(item.extractedAtTimestamp).toLocaleDateString()}
+          </span>
         </div>
       </div>
 

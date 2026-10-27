@@ -8,10 +8,21 @@ import { serializeWorld, serializeGrid, deserializeWorld, deserializeGrid } from
 import { logger } from '@engine/utils/logger';
 
 import {
-  Position, RunInventory,
-  MoveIntent, AttackIntent, VentIntent, COMPONENTS_REGISTRY,
-  DescentIntent, ExtractionIntent, EquipIntent, UnequipIntent, ShellUpdateTag, MovedThisTurn,
-  BurnSoftwareIntent, FirmwareIntent, PickupIntent
+  Position,
+  RunInventory,
+  MoveIntent,
+  AttackIntent,
+  VentIntent,
+  COMPONENTS_REGISTRY,
+  DescentIntent,
+  ExtractionIntent,
+  EquipIntent,
+  UnequipIntent,
+  ShellUpdateTag,
+  MovedThisTurn,
+  BurnSoftwareIntent,
+  FirmwareIntent,
+  PickupIntent,
 } from './components';
 import { checkAutoLoader } from '../game/systems/software-effects';
 import { Phase } from '@engine/ecs/types';
@@ -30,7 +41,7 @@ export function runActionPipeline(
   grid: Grid,
   playerId: number,
   action: ActionIntent,
-  sessionId?: string
+  sessionId?: string,
 ): { world: World<GameplayEvents>; grid: Grid; delta: StateDelta } {
   logger.debug(`[PIPELINE] Processing action: ${action.type}`, 'PIPELINE', action);
   // 1. Snapshot initial state
@@ -49,8 +60,8 @@ export function runActionPipeline(
   const dummyEntityRegistry = new EntityRegistry();
   const dummyEntityFactory = new EntityFactory(dummyEntityRegistry);
   const dummyComponentRegistry: ComponentRegistry = {
-    get: (key: string) => COMPONENTS_REGISTRY.find(c => c.key === key) as any,
-    has: (key: string) => COMPONENTS_REGISTRY.some(c => c.key === key),
+    get: (key: string) => COMPONENTS_REGISTRY.find((c) => c.key === key) as any,
+    has: (key: string) => COMPONENTS_REGISTRY.some((c) => c.key === key),
   };
 
   registerCoreSystems(
@@ -59,7 +70,7 @@ export function runActionPipeline(
     localEventBus,
     dummyEntityFactory,
     dummyComponentRegistry,
-    { skipLoot: true, runMode: RunMode.SIMULATION }
+    { skipLoot: true, runMode: RunMode.SIMULATION },
   );
 
   // 5. Execute Core Phases
@@ -85,7 +96,14 @@ export function runActionPipeline(
   return { world: newWorld, grid: newGrid, delta };
 }
 
-function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: EventBus<GameplayEvents>, entityId: number, action: ActionIntent, sessionId?: string) {
+function processAction(
+  world: World<GameplayEvents>,
+  grid: Grid,
+  eventBus: EventBus<GameplayEvents>,
+  entityId: number,
+  action: ActionIntent,
+  sessionId?: string,
+) {
   switch (action.type) {
     case 'MOVE':
       world.addComponent(entityId, MoveIntent, { dx: action.dx, dy: action.dy });
@@ -102,7 +120,7 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
           fromX: pos.x,
           fromY: pos.y,
           toX: pos.x,
-          toY: pos.y
+          toY: pos.y,
         });
       }
       break;
@@ -112,10 +130,16 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
       world.addComponent(entityId, AttackIntent, { targetId: action.targetId });
       break;
     case 'EQUIP':
-      world.addComponent(entityId, EquipIntent, { slotType: action.slotType, itemEntityId: action.itemEntityId });
+      world.addComponent(entityId, EquipIntent, {
+        slotType: action.slotType,
+        itemEntityId: action.itemEntityId,
+      });
       break;
     case 'UNEQUIP':
-      world.addComponent(entityId, UnequipIntent, { slotType: action.slotType, slotIndex: action.slotIndex });
+      world.addComponent(entityId, UnequipIntent, {
+        slotType: action.slotType,
+        slotIndex: action.slotIndex,
+      });
       break;
     case 'BURN_SOFTWARE': {
       const inventory = world.getComponent(entityId, RunInventory);
@@ -177,7 +201,7 @@ function processAction(world: World<GameplayEvents>, grid: Grid, eventBus: Event
       // Use PickupIntent to follow the Phase-Driven pattern
       world.addComponent(entityId, PickupIntent, {
         actorId: entityId,
-        itemId: action.itemId
+        itemId: action.itemId,
       });
       break;
     }

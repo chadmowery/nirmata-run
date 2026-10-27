@@ -12,7 +12,7 @@ export const MovedThisTurn = defineComponent(
     fromY: z.number(),
     toX: z.number(),
     toY: z.number(),
-  })
+  }),
 );
 
 export type MovedThisTurnData = z.infer<typeof MovedThisTurn.schema>;

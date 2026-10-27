@@ -27,7 +27,10 @@ export async function POST(req: NextRequest) {
 
     // 1. Check Overflow (D-07)
     if (profile.overflow.length > 0) {
-      return NextResponse.json({ error: 'Vault overflow must be cleared before starting a new run' }, { status: 403 });
+      return NextResponse.json(
+        { error: 'Vault overflow must be cleared before starting a new run' },
+        { status: 403 },
+      );
     }
 
     // 2. Load Config
@@ -38,14 +41,26 @@ export async function POST(req: NextRequest) {
 
     // 3. Attempt Tracking (D-02, D-16)
     if (mode === RunMode.WEEKLY) {
-      if (profile.attemptTracking.weekNumber === currentWeek && profile.attemptTracking.weeklyAttemptUsed) {
-        return NextResponse.json({ error: 'Weekly One-Shot attempt already used' }, { status: 403 });
+      if (
+        profile.attemptTracking.weekNumber === currentWeek &&
+        profile.attemptTracking.weeklyAttemptUsed
+      ) {
+        return NextResponse.json(
+          { error: 'Weekly One-Shot attempt already used' },
+          { status: 403 },
+        );
       }
       profile.attemptTracking.weekNumber = currentWeek;
       profile.attemptTracking.weeklyAttemptUsed = true;
     } else if (mode === RunMode.DAILY) {
-      if (profile.attemptTracking.dayNumber === currentDay && profile.attemptTracking.dailyAttemptUsed) {
-        return NextResponse.json({ error: 'Daily Challenge attempt already used' }, { status: 403 });
+      if (
+        profile.attemptTracking.dayNumber === currentDay &&
+        profile.attemptTracking.dailyAttemptUsed
+      ) {
+        return NextResponse.json(
+          { error: 'Daily Challenge attempt already used' },
+          { status: 403 },
+        );
       }
       profile.attemptTracking.dayNumber = currentDay;
       profile.attemptTracking.dailyAttemptUsed = true;

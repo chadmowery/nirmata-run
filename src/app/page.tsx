@@ -35,18 +35,19 @@ export default function GamePage() {
   const renderSystemRef = useRef<any>(null);
   const tickerCallbackRef = useRef<(() => void) | null>(null);
 
-  const showCanvas = status === GameState.Playing || status === GameState.Paused || status === GameState.GameOver;
+  const showCanvas =
+    status === GameState.Playing || status === GameState.Paused || status === GameState.GameOver;
 
   // Separate initialization logic into a named function
   async function start() {
     if (!canvasRef.current || isInitializing.current || contextRef.current) return;
-    
+
     isInitializing.current = true;
     try {
       logger.info('--- STARTING ENGINE ---', 'SYSTEM');
       const store = gameStore.getState();
       const launchConfig = store.launchConfig;
-      
+
       // 1. Init PixiJS
       const app = await initRenderer(canvasRef.current!);
       await loadAssets();
@@ -70,8 +71,8 @@ export default function GamePage() {
           body: JSON.stringify({
             seed,
             width: DEFAULT_GRID_WIDTH,
-            height: DEFAULT_GRID_HEIGHT
-          })
+            height: DEFAULT_GRID_HEIGHT,
+          }),
         });
 
         if (sessionResponse.ok) {
@@ -79,7 +80,10 @@ export default function GamePage() {
           sessionId = sessionData.sessionId;
           logger.info(`Server session initialized: ${sessionId}`, 'NETWORK');
         } else {
-          logger.warn('Failed to initialize server session. Falling back to local only.', 'NETWORK');
+          logger.warn(
+            'Failed to initialize server session. Falling back to local only.',
+            'NETWORK',
+          );
         }
       }
 
@@ -89,7 +93,7 @@ export default function GamePage() {
         gridHeight: DEFAULT_GRID_HEIGHT,
         seed,
         sessionId,
-        runMode
+        runMode,
       });
       contextRef.current = context;
       // Expose for debugging
@@ -144,7 +148,7 @@ export default function GamePage() {
   useEffect(() => {
     if ((status === GameState.MainMenu || status === GameState.Hub) && contextRef.current) {
       logger.info('--- DESTROYING ENGINE (RETURN TO HUB/MENU) ---', 'SYSTEM');
-      
+
       // 1. Cleanup Render System
       if (renderSystemRef.current) {
         renderSystemRef.current.destroy();
@@ -156,7 +160,7 @@ export default function GamePage() {
       if (app && tickerCallbackRef.current) {
         app.ticker.remove(tickerCallbackRef.current);
         tickerCallbackRef.current = null;
-        
+
         // 3. Clear Stage - Important to remove the worldContainer
         app.stage.removeChildren();
       }
@@ -164,7 +168,7 @@ export default function GamePage() {
       // 4. Cleanup Game Engine
       destroyGame(contextRef.current);
       contextRef.current = null;
-      
+
       // Reset run-specific stats but keep walletScrap
       gameStore.getState().resetRunStats();
       useDebugStore.getState().clearTimeline();
@@ -201,7 +205,9 @@ export default function GamePage() {
           />
         )}
 
-        {(status === GameState.Playing || status === GameState.Paused || status === GameState.GameOver) && (
+        {(status === GameState.Playing ||
+          status === GameState.Paused ||
+          status === GameState.GameOver) && (
           <>
             {(status === GameState.Playing || status === GameState.Paused) && <HUDOverlay />}
             {anchorOverlayVisible && <AnchorOverlay />}
@@ -210,7 +216,7 @@ export default function GamePage() {
             {runResultsVisible && <RunResultsScreen />}
           </>
         )}
-        
+
         {process.env.NODE_ENV === 'development' && <DevTerminal />}
       </div>
     </main>

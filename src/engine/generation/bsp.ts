@@ -68,12 +68,7 @@ export function generateBSP(config: GeneratorConfig): GeneratorResult {
 /**
  * Recursively split a BSP node.
  */
-function splitNode(
-  node: BSPNode,
-  depth: number,
-  maxDepth: number,
-  minRoomSize: number
-): void {
+function splitNode(node: BSPNode, depth: number, maxDepth: number, minRoomSize: number): void {
   // Stop conditions
   if (depth >= maxDepth) return;
 
@@ -123,12 +118,7 @@ function splitNode(
 /**
  * Carve rooms in leaf nodes.
  */
-function carveRooms(
-  node: BSPNode,
-  rooms: Room[],
-  minRoomSize: number,
-  maxRoomSize: number
-): void {
+function carveRooms(node: BSPNode, rooms: Room[], minRoomSize: number, maxRoomSize: number): void {
   // If this is a leaf node (no children), carve a room
   if (!node.left && !node.right) {
     const minInterior = minRoomSize - 2; // 3 for default minRoomSize=5
@@ -170,11 +160,11 @@ function forceMoreRooms(
   rooms: Room[],
   minRooms: number,
   minRoomSize: number,
-  maxRoomSize: number
+  maxRoomSize: number,
 ): void {
   if (rooms.length >= minRooms) return;
 
-  const leaves = getLeaves(node).filter(n => !n.room);
+  const leaves = getLeaves(node).filter((n) => !n.room);
   for (const leaf of leaves) {
     if (rooms.length >= minRooms) break;
     // Try to carve a room in this leaf
@@ -344,7 +334,7 @@ function findDoors(rooms: Room[], corridors: Corridor[]): Array<{ x: number; y: 
           `${pt.x},${pt.y - 1}`,
           `${pt.x},${pt.y + 1}`,
         ];
-        if (neighbors.some(n => roomInterior.has(n))) {
+        if (neighbors.some((n) => roomInterior.has(n))) {
           doors.push({ x: pt.x, y: pt.y });
           doorSet.add(key);
         }

@@ -14,7 +14,7 @@ import { GameplayEvents } from '@shared/events/types';
 export function createTeleportSystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
-  eventBus: EventBus<T>
+  eventBus: EventBus<T>,
 ) {
   const update = (w: World<T>) => {
     const entities = w.query(TeleportIntent, Position);
@@ -38,18 +38,21 @@ export function createTeleportSystem<T extends GameplayEvents>(
       // 1. Update state
       w.patchComponent(entityId, Position, { x: targetX, y: targetY });
       grid.moveEntity(entityId, oldX, oldY, targetX, targetY);
-      logger.debug(`Entity ${entityId} teleported: (${oldX}, ${oldY}) -> (${targetX}, ${targetY})`, 'SYSTEM');
+      logger.debug(
+        `Entity ${entityId} teleported: (${oldX}, ${oldY}) -> (${targetX}, ${targetY})`,
+        'SYSTEM',
+      );
 
       // 2. Attach tag for reactive systems (like ItemPickupSystem)
       w.addComponent(entityId, MovedThisTurn, {
         fromX: oldX,
         fromY: oldY,
         toX: targetX,
-        toY: targetY
+        toY: targetY,
       });
 
       // 3. Emit event for UI/Rendering (or specialized ENEMY_TELEPORTED if needed)
-      // We use ENTITY_MOVED to ensure existing animation logic picks it up, 
+      // We use ENTITY_MOVED to ensure existing animation logic picks it up,
       // but systems can check for TeleportIntent presence if they need to distinguish.
       eventBus.emit('ENTITY_MOVED', {
         entityId,
@@ -75,4 +78,6 @@ export function createTeleportSystem<T extends GameplayEvents>(
   };
 }
 
-export type TeleportSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<typeof createTeleportSystem<T>>;
+export type TeleportSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<
+  typeof createTeleportSystem<T>
+>;

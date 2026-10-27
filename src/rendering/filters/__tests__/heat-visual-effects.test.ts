@@ -72,7 +72,7 @@ describe('Heat Visual Effects', () => {
       const container: any = { filters: null };
       applyHeatTierFilters(container, 0);
       expect(container.filters).toBeNull();
-      
+
       applyHeatTierFilters(container, 1);
       expect(container.filters).toBeNull();
 
@@ -97,7 +97,7 @@ describe('Heat Visual Effects', () => {
       const container: any = { filters: null };
       applyHeatTierFilters(container, 5);
       expect(container.filters).not.toBeNull();
-      
+
       clearHeatTierFilters(container);
       expect(container.filters).toBeNull();
     });

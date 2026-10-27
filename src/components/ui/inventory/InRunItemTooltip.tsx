@@ -36,10 +36,20 @@ export const InRunItemTooltip: React.FC<InRunItemTooltipProps> = ({ entityId }) 
   const itemName = equipment?.name || software?.name || itemComponent?.name || 'Unknown Item';
 
   return (
-    <div className="inventory-tooltip" style={{ position: 'fixed', zIndex: 1000, background: '#111', border: '1px solid #444', padding: '10px', pointerEvents: 'none' }}>
+    <div
+      className="inventory-tooltip"
+      style={{
+        position: 'fixed',
+        zIndex: 1000,
+        background: '#111',
+        border: '1px solid #444',
+        padding: '10px',
+        pointerEvents: 'none',
+      }}
+    >
       <h3>{itemName}</h3>
       <p>Tier: {equipment?.tier || 'N/A'}</p>
-      
+
       {showDeepStats && (
         <div className="deep-stats">
           <p>Deeper stats here...</p>
@@ -47,9 +57,9 @@ export const InRunItemTooltip: React.FC<InRunItemTooltipProps> = ({ entityId }) 
         </div>
       )}
       {!showDeepStats && <p className="hint">Hold Alt for deep stats</p>}
-      
+
       <div style={{ marginTop: '8px', color: '#00F0FF', fontSize: '11px', fontWeight: 'bold' }}>
-        {equipment ? 'Drag to Equip' : (software ? 'Drag to Install' : '')}
+        {equipment ? 'Drag to Equip' : software ? 'Drag to Install' : ''}
       </div>
     </div>
   );

@@ -32,7 +32,7 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
   eventBus: EventBus<T>,
   entityFactory: EntityFactory,
   componentRegistry: ComponentRegistry,
-  isClient: boolean = false
+  isClient: boolean = false,
 ) {
   const getPlayerId = () => {
     const actors = world.query(Actor);
@@ -60,12 +60,12 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
     const sSlots = world.getComponent(playerId, SoftwareSlots);
     const runInv = world.getComponent(playerId, RunInventory);
 
-    if (fSlots) fSlots.equipped.forEach(id => protectedEntities.add(id));
-    if (aSlots) aSlots.equipped.forEach(id => protectedEntities.add(id));
-    if (sSlots) sSlots.equipped.forEach(id => protectedEntities.add(id));
+    if (fSlots) fSlots.equipped.forEach((id) => protectedEntities.add(id));
+    if (aSlots) aSlots.equipped.forEach((id) => protectedEntities.add(id));
+    if (sSlots) sSlots.equipped.forEach((id) => protectedEntities.add(id));
     if (runInv) {
-      runInv.software.forEach(item => protectedEntities.add(item.entityId));
-      runInv.equipment.forEach(item => protectedEntities.add(item.entityId));
+      runInv.software.forEach((item) => protectedEntities.add(item.entityId));
+      runInv.equipment.forEach((item) => protectedEntities.add(item.entityId));
     }
 
     // 3. Mark all non-protected entities for destruction via the Dying pipeline
@@ -88,7 +88,7 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
       width: grid.width,
       height: grid.height,
       seed: floorSeed,
-      depth: newFloor
+      depth: newFloor,
     });
 
     // 6. Replace grid terrain
@@ -99,15 +99,19 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
           grid.setTile(x, y, {
             terrain: tile.terrain,
             walkable: tile.walkable,
-            transparent: tile.transparent
+            transparent: tile.transparent,
           });
         }
       }
     }
 
     // 7. Move player to new spawn room
-    const spawnX = Math.floor(dungeonResult.playerSpawnRoom.x + dungeonResult.playerSpawnRoom.width / 2);
-    const spawnY = Math.floor(dungeonResult.playerSpawnRoom.y + dungeonResult.playerSpawnRoom.height / 2);
+    const spawnX = Math.floor(
+      dungeonResult.playerSpawnRoom.x + dungeonResult.playerSpawnRoom.width / 2,
+    );
+    const spawnY = Math.floor(
+      dungeonResult.playerSpawnRoom.y + dungeonResult.playerSpawnRoom.height / 2,
+    );
 
     if (world.hasComponent(playerId, Position)) {
       world.patchComponent(playerId, Position, { x: spawnX, y: spawnY });
@@ -123,7 +127,7 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
       dungeonResult.rooms,
       dungeonResult.playerSpawnRoom,
       rng,
-      { depth: newFloor, skipPlayer: true }
+      { depth: newFloor, skipPlayer: true },
     );
 
     // 9. Update player FloorState and add FloorTransitioned tag
@@ -136,7 +140,7 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
     const band = getDepthBand(newFloor);
     eventBus.emit('FLOOR_TRANSITION', {
       floorNumber: newFloor,
-      depthBand: band ? band.label : 'Unknown'
+      depthBand: band ? band.label : 'Unknown',
     });
 
     // 11. Emit dungeon generated event for renderer/UI refresh
@@ -172,8 +176,10 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
   return {
     init,
     update,
-    descendToFloor
+    descendToFloor,
   };
 }
 
-export type FloorManagerSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createFloorManagerSystem<T>>;
+export type FloorManagerSystem<T extends GameplayEvents = GameEvents> = ReturnType<
+  typeof createFloorManagerSystem<T>
+>;

@@ -23,9 +23,7 @@ describe('Augment Templates', () => {
     entityFactory = new EntityFactory(entityRegistry);
 
     // Mock component registry
-    const components = new Map<string, any>([
-      ['augmentData', AugmentData],
-    ]);
+    const components = new Map<string, any>([['augmentData', AugmentData]]);
 
     componentRegistry = {
       get: (key: string) => components.get(key),

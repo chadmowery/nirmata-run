@@ -15,11 +15,13 @@ export const StashItemList: React.FC<StashItemListProps> = ({
   items,
   activeFilter,
   onFilterChange,
-  onDragStart
+  onDragStart,
 }) => {
-  const [hoveredItem, setHoveredItem] = useState<{ item: VaultItem; x: number; y: number } | null>(null);
+  const [hoveredItem, setHoveredItem] = useState<{ item: VaultItem; x: number; y: number } | null>(
+    null,
+  );
 
-  const filteredItems = items.filter(item => {
+  const filteredItems = items.filter((item) => {
     if (activeFilter === 'all') return true;
     return item.itemType === activeFilter;
   });
@@ -28,7 +30,7 @@ export const StashItemList: React.FC<StashItemListProps> = ({
     setHoveredItem({
       item,
       x: e.clientX,
-      y: e.clientY
+      y: e.clientY,
     });
   };
 
@@ -36,12 +38,17 @@ export const StashItemList: React.FC<StashItemListProps> = ({
     setHoveredItem(null);
   };
 
-  const filters: Array<'all' | 'firmware' | 'augment' | 'software'> = ['all', 'firmware', 'augment', 'software'];
+  const filters: Array<'all' | 'firmware' | 'augment' | 'software'> = [
+    'all',
+    'firmware',
+    'augment',
+    'software',
+  ];
 
   return (
     <div className={styles.container}>
       <div className={styles.filterRow}>
-        {filters.map(f => (
+        {filters.map((f) => (
           <button
             key={f}
             className={`${styles.filterTab} ${activeFilter === f ? styles.filterTabActive : ''}`}
@@ -54,24 +61,22 @@ export const StashItemList: React.FC<StashItemListProps> = ({
 
       <div className={styles.itemList}>
         {filteredItems.length > 0 ? (
-          filteredItems.map(item => (
-            <ItemCard 
-              key={item.entityId} 
-              item={item} 
+          filteredItems.map((item) => (
+            <ItemCard
+              key={item.entityId}
+              item={item}
               onDragStart={onDragStart}
               onHover={handleHover}
               onHoverEnd={handleHoverEnd}
             />
           ))
         ) : (
-          <div className={styles.emptyState}>
-            STASH_EMPTY // EXTRACT_TO_COLLECT
-          </div>
+          <div className={styles.emptyState}>STASH_EMPTY // EXTRACT_TO_COLLECT</div>
         )}
       </div>
 
       {hoveredItem && (
-        <ItemTooltip 
+        <ItemTooltip
           item={hoveredItem.item}
           position={{ x: hoveredItem.x, y: hoveredItem.y }}
           visible={true}

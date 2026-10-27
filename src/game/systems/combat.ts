@@ -3,7 +3,22 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityFactory } from '@engine/entity/factory';
 import { EntityId, Phase } from '@engine/ecs/types';
-import { Attack, Defense, Health, Actor, Heat, EquipmentSlots, Children, SoftwareDef, RarityTier, Dying, StatusEffects, AugmentSlots, AugmentData, DealtDamageThisTurn } from '@shared/components';
+import {
+  Attack,
+  Defense,
+  Health,
+  Actor,
+  Heat,
+  EquipmentSlots,
+  Children,
+  SoftwareDef,
+  RarityTier,
+  Dying,
+  StatusEffects,
+  AugmentSlots,
+  AugmentData,
+  DealtDamageThisTurn,
+} from '@shared/components';
 import { AttackIntent, DamageIntent, HealIntent } from '@shared/components/intents';
 import { createTriggerContext, evaluateCondition } from './augment-util';
 
@@ -13,9 +28,9 @@ import { logger } from '@engine/utils/logger';
 import { ComponentRegistry } from '@engine/entity/types';
 
 export interface DamageModifier {
-  source: string;       // e.g., 'software:bleed', 'augment:static-siphon'
-  type: 'additive';     // Per D-12: Software modifiers are additive only
-  value: number;        // Flat bonus after rarity scaling
+  source: string; // e.g., 'software:bleed', 'augment:static-siphon'
+  type: 'additive'; // Per D-12: Software modifiers are additive only
+  value: number; // Flat bonus after rarity scaling
   phase: 'pre_defense'; // Per D-11: Software + Augment modifiers apply before defense
 }
 
@@ -26,7 +41,7 @@ export interface DamageModifier {
 export function resolveDamage(
   baseAttack: number,
   modifiers: DamageModifier[],
-  defense: number
+  defense: number,
 ): number {
   let damage = baseAttack;
 
@@ -49,7 +64,7 @@ export function resolveDamage(
 export function getEffectiveArmor<T extends GameplayEvents>(
   world: World<T>,
   defenderId: EntityId,
-  isVenting: boolean
+  isVenting: boolean,
 ): number {
   if (isVenting) return 0;
   const baseDefense = world.getComponent(defenderId, Defense);
@@ -68,7 +83,7 @@ export function getEffectiveArmor<T extends GameplayEvents>(
  */
 export function collectDamageModifiers<T extends GameplayEvents>(
   world: World<T>,
-  attackerId: EntityId
+  attackerId: EntityId,
 ): DamageModifier[] {
   const modifiers: DamageModifier[] = [];
   const equipment = world.getComponent(attackerId, EquipmentSlots);
@@ -82,7 +97,13 @@ export function collectDamageModifiers<T extends GameplayEvents>(
       for (const childId of children.entityIds) {
         const softwareDef = world.getComponent(childId, SoftwareDef);
         const rarity = world.getComponent(childId, RarityTier);
-        if (softwareDef && rarity && softwareDef.effectType !== 'dot' && softwareDef.effectType !== 'action_economy' && softwareDef.effectType !== 'heal_on_kill') {
+        if (
+          softwareDef &&
+          rarity &&
+          softwareDef.effectType !== 'dot' &&
+          softwareDef.effectType !== 'action_economy' &&
+          softwareDef.effectType !== 'heal_on_kill'
+        ) {
           modifiers.push({
             source: `software:${softwareDef.type}`,
             type: 'additive',
@@ -142,7 +163,7 @@ export function createCombatSystem<T extends GameplayEvents>(
   eventBus: EventBus<T>,
   entityFactory: EntityFactory,
   componentRegistry: ComponentRegistry,
-  options: { skipLoot?: boolean } = {}
+  options: { skipLoot?: boolean } = {},
 ) {
   const handleDeath = (entityId: EntityId, killerId: EntityId) => {
     const actor = world.getComponent(entityId, Actor);
@@ -184,8 +205,11 @@ export function createCombatSystem<T extends GameplayEvents>(
       const oldHealth = defenderHealth.current;
       const newHealth = Math.max(0, oldHealth - damage);
 
-      logger.info(`Attack Resolved: ${attackerId} -> ${defenderId} | DMG: ${damage} (Health: ${oldHealth} -> ${newHealth})`, 'COMBAT');
-      
+      logger.info(
+        `Attack Resolved: ${attackerId} -> ${defenderId} | DMG: ${damage} (Health: ${oldHealth} -> ${newHealth})`,
+        'COMBAT',
+      );
+
       // Authoritative update
       w.patchComponent(defenderId, Health, { current: newHealth });
 
@@ -200,12 +224,12 @@ export function createCombatSystem<T extends GameplayEvents>(
       if (dealtDamage) {
         w.patchComponent(attackerId, DealtDamageThisTurn, {
           amount: dealtDamage.amount + damage,
-          targets: [...dealtDamage.targets, defenderId]
+          targets: [...dealtDamage.targets, defenderId],
         });
       } else {
         w.addComponent(attackerId, DealtDamageThisTurn, {
           amount: damage,
-          targets: [defenderId]
+          targets: [defenderId],
         });
       }
 
@@ -217,7 +241,7 @@ export function createCombatSystem<T extends GameplayEvents>(
 
       eventBus.emit('MESSAGE_EMITTED', {
         text: `${attackerName} hit ${defenderName} for ${damage} damage.`,
-        type: 'combat'
+        type: 'combat',
       });
 
       if (newHealth <= 0) {
@@ -250,7 +274,10 @@ export function createCombatSystem<T extends GameplayEvents>(
       const oldHealth = targetHealth.current;
       const newHealth = Math.max(0, oldHealth - finalDamage);
 
-      logger.info(`Damage Intent Resolved: ${requesterId} -> ${targetId} | DMG: ${finalDamage} (Health: ${oldHealth} -> ${newHealth})`, 'COMBAT');
+      logger.info(
+        `Damage Intent Resolved: ${requesterId} -> ${targetId} | DMG: ${finalDamage} (Health: ${oldHealth} -> ${newHealth})`,
+        'COMBAT',
+      );
 
       w.patchComponent(targetId, Health, { current: newHealth });
 
@@ -277,16 +304,19 @@ export function createCombatSystem<T extends GameplayEvents>(
       if (targetHealth) {
         const oldVal = targetHealth.current;
         const newVal = Math.min(targetHealth.max, oldVal + intent.amount);
-        
-        logger.info(`Heal Intent Resolved: ${targetId} | HP: ${oldVal} -> ${newVal} (+${intent.amount})`, 'COMBAT');
-        
+
+        logger.info(
+          `Heal Intent Resolved: ${targetId} | HP: ${oldVal} -> ${newVal} (+${intent.amount})`,
+          'COMBAT',
+        );
+
         w.patchComponent(targetId, Health, { current: newVal });
 
         eventBus.emit('HEALED', { entityId: targetId, amount: intent.amount });
 
         eventBus.emit('MESSAGE_EMITTED', {
           text: `Restored ${intent.amount} HP.`,
-          type: 'info'
+          type: 'info',
         });
       }
 
@@ -305,4 +335,6 @@ export function createCombatSystem<T extends GameplayEvents>(
   };
 }
 
-export type CombatSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<typeof createCombatSystem<T>>;
+export type CombatSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<
+  typeof createCombatSystem<T>
+>;

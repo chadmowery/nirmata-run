@@ -28,22 +28,26 @@ function getColorForBehavior(behaviorType: AIBehaviorType): number {
   switch (behaviorType) {
     case AIBehaviorType.NULL_POINTER:
     case AIBehaviorType.BUFFER_OVERFLOW:
-      return 0x00F0FF; // Cyan
+      return 0x00f0ff; // Cyan
     case AIBehaviorType.FRAGMENTER:
     case AIBehaviorType.LOGIC_LEAKER:
-      return 0xFF0055; // Pink
+      return 0xff0055; // Pink
     case AIBehaviorType.SYSTEM_ADMIN:
     case AIBehaviorType.SEED_EATER:
-      return 0xFFFFFF; // White
+      return 0xffffff; // White
     default:
-      return 0x00F0FF; // Cyan (T1)
+      return 0x00f0ff; // Cyan (T1)
   }
 }
 
 /**
  * Attaches a neon particle emitter to an enemy sprite.
  */
-export function attachNeonEmitter(sprite: Sprite, behaviorType: AIBehaviorType, effectsLayer: Container): void {
+export function attachNeonEmitter(
+  sprite: Sprite,
+  behaviorType: AIBehaviorType,
+  effectsLayer: Container,
+): void {
   if (emitters.has(sprite)) return;
 
   const container = new Container();
@@ -93,7 +97,7 @@ export function updateEmitter(sprite: Sprite, deltaMs: number): void {
   for (let i = state.particles.length - 1; i >= 0; i--) {
     const p = state.particles[i];
     p.life += deltaMs;
-    
+
     if (p.life >= p.maxLife) {
       p.graphics.destroy();
       state.particles.splice(i, 1);
@@ -109,16 +113,16 @@ export function updateEmitter(sprite: Sprite, deltaMs: number): void {
   state.spawnTimer += deltaMs;
   if (state.spawnTimer >= state.spawnRate && state.particles.length < state.maxParticles) {
     state.spawnTimer = 0;
-    
+
     const graphics = new Graphics();
     graphics.beginFill(state.color);
     graphics.drawRect(0, 0, 3, 3);
     graphics.endFill();
-    
+
     // Spawn at random edge of sprite (assumed 32x32)
     const angle = Math.random() * Math.PI * 2;
     const speed = 0.02 + Math.random() * 0.03;
-    
+
     const p: Particle = {
       graphics,
       vx: Math.cos(angle) * speed,
@@ -126,11 +130,11 @@ export function updateEmitter(sprite: Sprite, deltaMs: number): void {
       life: 0,
       maxLife: 600,
     };
-    
+
     // Offset from center
     graphics.x = (Math.random() - 0.5) * 16;
     graphics.y = (Math.random() - 0.5) * 16;
-    
+
     state.container.addChild(graphics);
     state.particles.push(p);
   }
@@ -142,7 +146,7 @@ export function updateEmitter(sprite: Sprite, deltaMs: number): void {
 export function cleanupEmitter(sprite: Sprite): void {
   const state = emitters.get(sprite);
   if (state) {
-    state.particles.forEach(p => p.graphics.destroy());
+    state.particles.forEach((p) => p.graphics.destroy());
     state.container.destroy();
     emitters.delete(sprite);
     activeSprites.delete(sprite);

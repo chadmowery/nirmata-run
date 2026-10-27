@@ -29,8 +29,8 @@ describe('PlayerHUD', () => {
           heat: 0,
           maxHeat: 100,
           shellName: 'VANGUARD-v1',
-          mods: []
-        }
+          mods: [],
+        },
       });
     });
 
@@ -45,7 +45,17 @@ describe('PlayerHUD', () => {
   it('updates when store changes', async () => {
     act(() => {
       gameStore.setState({
-        player: { hp: 5, maxHp: 10, xp: 0, level: 1, statuses: [], heat: 0, maxHeat: 100, shellName: 'VANGUARD-v1', mods: [] }
+        player: {
+          hp: 5,
+          maxHp: 10,
+          xp: 0,
+          level: 1,
+          statuses: [],
+          heat: 0,
+          maxHeat: 100,
+          shellName: 'VANGUARD-v1',
+          mods: [],
+        },
       });
     });
 
@@ -54,7 +64,17 @@ describe('PlayerHUD', () => {
 
     act(() => {
       gameStore.setState({
-        player: { hp: 2, maxHp: 10, xp: 0, level: 1, statuses: [], heat: 0, maxHeat: 100, shellName: 'VANGUARD-v1', mods: [] }
+        player: {
+          hp: 2,
+          maxHp: 10,
+          xp: 0,
+          level: 1,
+          statuses: [],
+          heat: 0,
+          maxHeat: 100,
+          shellName: 'VANGUARD-v1',
+          mods: [],
+        },
       });
     });
 

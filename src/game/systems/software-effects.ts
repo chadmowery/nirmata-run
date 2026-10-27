@@ -1,7 +1,13 @@
 import { World } from '@engine/ecs/world';
 import { EntityId } from '@engine/ecs/types';
 import { EventBus } from '@engine/events/event-bus';
-import { EquipmentSlots, SoftwareDef, RarityTier, HealIntent, ApplyStatusEffectIntent } from '@shared/components';
+import {
+  EquipmentSlots,
+  SoftwareDef,
+  RarityTier,
+  HealIntent,
+  ApplyStatusEffectIntent,
+} from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 
 /**
@@ -35,7 +41,7 @@ export function applyBleedOnHit<T extends GameplayEvents>(
       duration: 3,
       magnitude: scaledDamage,
       source: `software:bleed-${rarity.tier}`,
-    }
+    },
   });
 }
 
@@ -82,7 +88,7 @@ export function applyVampireOnKill<T extends GameplayEvents>(
   // Submit intent for heal resolution
   world.addComponent(killerId, HealIntent, {
     targetId: killerId,
-    amount: healAmount
+    amount: healAmount,
   });
 
   eventBus.emit('MESSAGE_EMITTED', {

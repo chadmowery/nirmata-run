@@ -33,15 +33,18 @@ describe('RewardDropSystem', () => {
   it('should use RNG.getUniform() instead of Math.random() for all drops', () => {
     const spy = vi.spyOn(Math, 'random');
     const system = createRewardDropSystem(world, grid, eventBus, entityFactory, componentRegistry);
-    
+
     const entityId = world.createEntity();
     world.addComponent(entityId, Position, { x: 0, y: 0 });
-    world.addComponent(entityId, LootTable, { tier: 1, drops: [{ template: 'test-item', chance: 0.5 }] });
+    world.addComponent(entityId, LootTable, {
+      tier: 1,
+      drops: [{ template: 'test-item', chance: 0.5 }],
+    });
     world.addComponent(entityId, Dying, { reason: 'combat' });
 
     // Force system update (assuming system logic)
     system.update(world);
-    
+
     // For now, I'll assume I can just test the logic inside.
     expect(spy).not.toHaveBeenCalled();
     expect(RNG.getUniform).toHaveBeenCalled();

@@ -10,7 +10,7 @@ import {
   Heat,
   Actor,
   FirmwareActivatedThisTurn,
-  HealIntent
+  HealIntent,
 } from '@shared/components';
 import { Phase } from '@engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
@@ -31,7 +31,12 @@ describe('AugmentSystem', () => {
     playerId = world.createEntity();
     world.addComponent(playerId, Actor, { isPlayer: true });
     world.addComponent(playerId, Health, { current: 10, max: 20 });
-    world.addComponent(playerId, Heat, { current: 0, maxSafe: 50, baseDissipation: 1, ventPercentage: 0.5 });
+    world.addComponent(playerId, Heat, {
+      current: 0,
+      maxSafe: 50,
+      baseDissipation: 1,
+      ventPercentage: 0.5,
+    });
     world.addComponent(playerId, AugmentSlots, { equipped: [] });
     world.addComponent(playerId, AugmentState, { activationsThisTurn: {}, cooldownsRemaining: {} });
   });
@@ -39,13 +44,27 @@ describe('AugmentSystem', () => {
   describe('evaluateCondition', () => {
     it('returns true for ON_ACTIVATION when firmwareActivated is true', () => {
       const node = { type: 'ON_ACTIVATION' } as const;
-      const ctx = { firmwareActivated: true, damageDealt: 0, killCount: 0, heatAboveMax: false, currentHeat: 0, hpPercent: 100 };
+      const ctx = {
+        firmwareActivated: true,
+        damageDealt: 0,
+        killCount: 0,
+        heatAboveMax: false,
+        currentHeat: 0,
+        hpPercent: 100,
+      };
       expect(augmentSystem.evaluateCondition(node, ctx)).toBe(true);
     });
 
     it('returns false for ON_ACTIVATION when firmwareActivated is false', () => {
       const node = { type: 'ON_ACTIVATION' } as const;
-      const ctx = { firmwareActivated: false, damageDealt: 0, killCount: 0, heatAboveMax: false, currentHeat: 0, hpPercent: 100 };
+      const ctx = {
+        firmwareActivated: false,
+        damageDealt: 0,
+        killCount: 0,
+        heatAboveMax: false,
+        currentHeat: 0,
+        hpPercent: 100,
+      };
       expect(augmentSystem.evaluateCondition(node, ctx)).toBe(false);
     });
 
@@ -60,7 +79,7 @@ describe('AugmentSystem', () => {
         trigger: { type: 'ON_ACTIVATION' },
         payloads: [{ type: 'HEAL', magnitude: 5 }],
         maxTriggersPerTurn: 1,
-        cooldownTurns: 0
+        cooldownTurns: 0,
       });
 
       const slots = world.getComponent(playerId, AugmentSlots);
@@ -88,7 +107,7 @@ describe('AugmentSystem', () => {
         trigger: { type: 'ON_ACTIVATION' },
         payloads: [{ type: 'HEAL', magnitude: 1 }],
         maxTriggersPerTurn: 1,
-        cooldownTurns: 0
+        cooldownTurns: 0,
       });
 
       const slots = world.getComponent(playerId, AugmentSlots);
@@ -117,7 +136,7 @@ describe('AugmentSystem', () => {
         trigger: { type: 'ON_ACTIVATION' },
         payloads: [{ type: 'HEAL', magnitude: 1 }],
         maxTriggersPerTurn: 1,
-        cooldownTurns: 2
+        cooldownTurns: 2,
       });
 
       const slots = world.getComponent(playerId, AugmentSlots);
@@ -153,7 +172,7 @@ describe('AugmentSystem', () => {
         trigger: { type: 'ON_ACTIVATION' },
         payloads: [{ type: 'HEAL', magnitude: 1 }],
         maxTriggersPerTurn: 1,
-        cooldownTurns: 0
+        cooldownTurns: 0,
       });
 
       const slots = world.getComponent(playerId, AugmentSlots);

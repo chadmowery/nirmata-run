@@ -16,7 +16,8 @@ export interface ComponentDef<T> {
 /**
  * Inferred data type for a component definition.
  */
-export type ComponentData<T extends ComponentDef<unknown>> = T extends ComponentDef<infer D> ? D : never;
+export type ComponentData<T extends ComponentDef<unknown>> =
+  T extends ComponentDef<infer D> ? D : never;
 
 /**
  * Factory function to create a typed component definition.

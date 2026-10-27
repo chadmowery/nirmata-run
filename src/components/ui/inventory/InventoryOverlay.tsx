@@ -6,7 +6,7 @@ import { BackpackGrid } from './BackpackGrid';
 export const InventoryOverlay: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   return (
     <div className={styles.overlayContainer} onClick={onClose}>
-      <div className={styles.splitLayout} onClick={e => e.stopPropagation()}>
+      <div className={styles.splitLayout} onClick={(e) => e.stopPropagation()}>
         <EquipmentPanel />
         <BackpackGrid />
       </div>

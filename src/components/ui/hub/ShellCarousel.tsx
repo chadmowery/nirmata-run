@@ -14,7 +14,7 @@ interface ShellCarouselProps {
 export const ShellCarousel: React.FC<ShellCarouselProps> = ({
   shells,
   selectedIndex,
-  onSelect
+  onSelect,
 }) => {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const playerProfile = useStore(gameStore, (s) => s.playerProfile);
@@ -43,7 +43,8 @@ export const ShellCarousel: React.FC<ShellCarouselProps> = ({
 
   const currentShell = shells[selectedIndex];
   const currentUpgrades = playerProfile?.shellUpgrades[currentShell.id];
-  const installedItems = playerProfile?.installedItems.filter(i => i.shellId === currentShell.id) || [];
+  const installedItems =
+    playerProfile?.installedItems.filter((i) => i.shellId === currentShell.id) || [];
 
   return (
     <div className={styles.carousel}>

@@ -2,7 +2,12 @@ import { World } from '@engine/ecs/world';
 import { InventorySwapIntent } from '@shared/components/inventory-intent';
 import { Energy } from '@shared/components/energy';
 
-export function handleInventorySwap(world: World, actorId: number, sourceIndex: number, destinationIndex: number) {
+export function handleInventorySwap(
+  world: World,
+  actorId: number,
+  sourceIndex: number,
+  destinationIndex: number,
+) {
   // 1. Add InventorySwapIntent to actor
   world.addComponent(actorId, InventorySwapIntent, {
     actorId,
@@ -17,7 +22,7 @@ export function handleInventorySwap(world: World, actorId: number, sourceIndex: 
     // should ideally handle energy consumption, but per instructions, we do it here.
     // Assuming 1 turn = 100 energy units based on common roguelike patterns
     world.patchComponent(actorId, Energy, {
-      current: Math.max(0, energy.current - 1000)
+      current: Math.max(0, energy.current - 1000),
     });
   }
 }

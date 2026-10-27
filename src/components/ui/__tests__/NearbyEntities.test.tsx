@@ -12,9 +12,7 @@ vi.mock('lucide-react', () => ({
 describe('NearbyEntities', () => {
   it('renders visible entities from store', () => {
     gameStore.setState({
-      visibleEntities: [
-        { id: 10, name: 'Orc', hp: 5, maxHp: 10 },
-      ],
+      visibleEntities: [{ id: 10, name: 'Orc', hp: 5, maxHp: 10 }],
     });
 
     render(<NearbyEntities />);

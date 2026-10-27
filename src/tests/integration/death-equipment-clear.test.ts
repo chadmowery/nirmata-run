@@ -34,7 +34,7 @@ describe('Death Equipment Clearing', () => {
     // Let's use ATTACK intent which leads to death if health is 1
     const { world: newWorld } = runActionPipeline(world, grid, enemyId, {
       type: 'ATTACK',
-      targetId: playerId
+      targetId: playerId,
     });
 
     // Player should be destroyed in ECS but let's check the component state if it was cleared before destruction
@@ -47,7 +47,7 @@ describe('Death Equipment Clearing', () => {
     // If I check the delta, it should show the slots being cleared.
     const { delta } = runActionPipeline(world, grid, enemyId, {
       type: 'ATTACK',
-      targetId: playerId
+      targetId: playerId,
     });
 
     // The entity is destroyed in CLEANUP.
@@ -55,7 +55,7 @@ describe('Death Equipment Clearing', () => {
     // We can verify that the player is no longer in the world.
     expect(newWorld.entityExists(playerId)).toBe(false);
 
-    // If we want to verify that the equipment slots WERE cleared before destruction, 
+    // If we want to verify that the equipment slots WERE cleared before destruction,
     // we would need to intercept the state between systems, which is hard here.
     // Given the entity is destroyed, the most important thing is that it's GONE.
 

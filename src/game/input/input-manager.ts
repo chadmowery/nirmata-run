@@ -48,8 +48,9 @@ export class InputManager {
     this.keydownHandler = (event: KeyboardEvent) => {
       // Ignore if event is repeating or if it's from an input element
       if (event.repeat) return;
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
-      
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
+        return;
+
       // Ignore if a request is pending
       if (this.isRequestPending) return;
 
@@ -63,7 +64,7 @@ export class InputManager {
       // Handle targeting mode interception
       if (this.targetingManager?.isActive()) {
         const action = this.bindings.get(event.code); // Target mode still uses raw codes for movement
-        
+
         // Map movement keys to cursor movement
         if (action && isMovementAction(action)) {
           const dir = DIRECTIONS[action];
@@ -73,7 +74,7 @@ export class InputManager {
             return;
           }
         }
-        
+
         // Confirm/Cancel targeting
         if (event.code === 'Enter' || event.code === 'Space') {
           event.preventDefault();
@@ -85,7 +86,7 @@ export class InputManager {
           this.targetingManager.cancel();
           return;
         }
-        
+
         // Ignore other keys while targeting
         return;
       }

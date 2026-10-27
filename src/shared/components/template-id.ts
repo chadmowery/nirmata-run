@@ -9,7 +9,7 @@ export const TemplateId = defineComponent(
   'templateId',
   z.object({
     id: z.string(),
-  })
+  }),
 );
 
 export type TemplateIdData = z.infer<typeof TemplateId.schema>;

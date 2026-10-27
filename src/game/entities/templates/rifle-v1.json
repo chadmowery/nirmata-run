@@ -7,8 +7,6 @@
       "slotType": "weapon",
       "name": "Standard Kinetic Rifle"
     },
-    "software": [
-      "basic-strike"
-    ]
+    "software": ["basic-strike"]
   }
 }

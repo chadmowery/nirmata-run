@@ -3,11 +3,7 @@ import { EventBus } from '../events/event-bus';
 import { EngineEvents } from '../events/types';
 import { EntityId, Phase } from '../ecs/types';
 import { logger } from '../utils/logger';
-import {
-  TurnPhase,
-  TurnManagerConfig,
-  PlayerActionHandler,
-} from './types';
+import { TurnPhase, TurnManagerConfig, PlayerActionHandler } from './types';
 import { Actor, Energy, Health, Acting } from '@shared/components';
 
 /**
@@ -22,8 +18,8 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
   constructor(
     private world: World<TEvents>,
     private eventBus: EventBus<TEvents>,
-    private config: TurnManagerConfig
-  ) { }
+    private config: TurnManagerConfig,
+  ) {}
 
   /**
    * Submit a player action. Only allowed during AWAIT_INPUT.
@@ -68,7 +64,9 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
 
     // 2. Resolve Player Action Sequence
     // The player's intent was already attached in submitAction via the playerActionHandler
-    const playerId = this.world.query(Actor).find(id => this.world.getComponent(id, Actor)?.isPlayer);
+    const playerId = this.world
+      .query(Actor)
+      .find((id) => this.world.getComponent(id, Actor)?.isPlayer);
     if (playerId !== undefined) {
       this.world.addComponent(playerId, Acting, {});
     }
@@ -129,13 +127,14 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
   private processEnemyTurns(): void {
     if (this._paused) return;
 
-    const enemies = this.world.query(Actor, Energy)
-      .filter(id => {
+    const enemies = this.world
+      .query(Actor, Energy)
+      .filter((id) => {
         const actor = this.world.getComponent(id, Actor);
         const energy = this.world.getComponent(id, Energy);
         return actor && !actor.isPlayer && energy && energy.current >= this.config.energyThreshold;
       })
-      .filter(id => this.isAlive(id));
+      .filter((id) => this.isAlive(id));
 
     if (enemies.length === 0) return;
 
@@ -146,9 +145,9 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
       logger.info(`Enemy Acting: ${enemyId}`, 'TURN');
       // Mark enemy as acting to trigger AI gathering intent
       this.world.addComponent(enemyId, Acting, {});
-      
+
       this.deductEnergy(enemyId, this.config.defaultActionCost);
-      
+
       // Resolve the enemy's intent (GATHER_INTENT -> ACTION -> REACTION -> CLEANUP)
       this.executeActionSequence();
 
@@ -181,7 +180,10 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
       // This prevents double-dipping when player and enemy reach threshold in same tick
       const updatedPlayerEnergy = this.world.getComponent(playerEntity, Energy);
       if (updatedPlayerEnergy && updatedPlayerEnergy.current < this.config.energyThreshold) {
-        logger.debug(`Player not ready (${updatedPlayerEnergy.current}/${this.config.energyThreshold}). Checking enemies...`, 'TURN');
+        logger.debug(
+          `Player not ready (${updatedPlayerEnergy.current}/${this.config.energyThreshold}). Checking enemies...`,
+          'TURN',
+        );
         this.processEnemyTurns();
       }
 
@@ -189,7 +191,10 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     }
 
     if (subTickCount >= MAX_SUB_TICKS) {
-      logger.error('Max sub-ticks reached in TurnManager. Check for degenerate speed values.', 'TURN');
+      logger.error(
+        'Max sub-ticks reached in TurnManager. Check for degenerate speed values.',
+        'TURN',
+      );
     }
   }
 
@@ -197,8 +202,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
    * Increment energy for all living actors based on their speed.
    */
   private tickEnergy(): void {
-    const actors = this.world.query(Actor, Energy)
-      .filter(id => this.isAlive(id));
+    const actors = this.world.query(Actor, Energy).filter((id) => this.isAlive(id));
 
     for (const id of actors) {
       const energy = this.world.getComponent(id, Energy);
@@ -265,11 +269,23 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
   }
 
   // Getters & Controls
-  getPhase(): TurnPhase { return this.phase; }
-  canAcceptInput(): boolean { return !this._paused && this.phase === TurnPhase.AWAIT_INPUT; }
-  getTurnNumber(): number { return this.turnNumber; }
+  getPhase(): TurnPhase {
+    return this.phase;
+  }
+  canAcceptInput(): boolean {
+    return !this._paused && this.phase === TurnPhase.AWAIT_INPUT;
+  }
+  getTurnNumber(): number {
+    return this.turnNumber;
+  }
 
-  pause(): void { this._paused = true; }
-  resume(): void { this._paused = false; }
-  get isPaused(): boolean { return this._paused; }
+  pause(): void {
+    this._paused = true;
+  }
+  resume(): void {
+    this._paused = false;
+  }
+  get isPaused(): boolean {
+    return this._paused;
+  }
 }

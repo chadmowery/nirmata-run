@@ -14,7 +14,7 @@
   max-width: 500px;
   width: 90%;
   padding: var(--space-2xl, 48px);
-  font-family: var(--font-body, "Arial Narrow", sans-serif);
+  font-family: var(--font-body, 'Arial Narrow', sans-serif);
   background: rgba(0, 0, 0, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
@@ -23,8 +23,8 @@
 .title {
   font-size: var(--font-size-display, 48px);
   font-weight: var(--font-weight-semibold, 600);
-  line-height: var(--line-height-display, 1.0);
-  color: var(--white, #FFFFFF);
+  line-height: var(--line-height-display, 1);
+  color: var(--white, #ffffff);
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin: 0;
@@ -43,7 +43,7 @@
   font-size: var(--font-size-body, 16px);
   line-height: 1.5;
   margin-bottom: var(--space-xl, 32px);
-  border-left: 2px solid var(--vibrant-pink, #FF0055);
+  border-left: 2px solid var(--vibrant-pink, #ff0055);
   padding-left: var(--space-md, 16px);
 }
 
@@ -52,7 +52,8 @@
   gap: var(--space-xl, 32px);
 }
 
-.confirmButton, .cancelButton {
+.confirmButton,
+.cancelButton {
   flex: 1;
   padding: var(--space-md, 16px);
   font-family: var(--font-body, inherit);
@@ -66,18 +67,18 @@
 }
 
 .confirmButton {
-  background: var(--vibrant-pink, #FF0055);
-  color: var(--white, #FFFFFF);
+  background: var(--vibrant-pink, #ff0055);
+  color: var(--white, #ffffff);
 }
 
 .confirmButton:hover {
-  box-shadow: 0 0 20px var(--vibrant-pink, #FF0055);
+  box-shadow: 0 0 20px var(--vibrant-pink, #ff0055);
   transform: translateY(-2px);
 }
 
 .cancelButton {
   background: rgba(255, 255, 255, 0.1);
-  color: var(--white, #FFFFFF);
+  color: var(--white, #ffffff);
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
@@ -87,6 +88,10 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }

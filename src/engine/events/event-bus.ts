@@ -57,17 +57,18 @@ export class EventBus<TEventMap extends Record<string, any>> {
   emit<K extends keyof TEventMap>(type: K, event: TEventMap[K]): void {
     // 1. Audit emission
     const isServer = typeof window === 'undefined';
-    const isDebugEnabled = isServer 
+    const isDebugEnabled = isServer
       ? process.env.DEBUG_EVENTS === 'true'
       : (window as any).DEBUG_EVENTS === true;
 
     if (isDebugEnabled || isServer) {
       const typeStr = type as string;
-      const isLifecycleEvent = typeStr === 'COMPONENT_ADDED' || 
-                              typeStr === 'COMPONENT_REMOVED' || 
-                              typeStr === 'ENTITY_CREATED' || 
-                              typeStr === 'ENTITY_DESTROYED';
-      
+      const isLifecycleEvent =
+        typeStr === 'COMPONENT_ADDED' ||
+        typeStr === 'COMPONENT_REMOVED' ||
+        typeStr === 'ENTITY_CREATED' ||
+        typeStr === 'ENTITY_DESTROYED';
+
       if (!isLifecycleEvent || (isServer && process.env.DEBUG_ECS_LIFECYCLE === 'true')) {
         logger.debug(`emit: ${typeStr}`, 'EventBus');
       }
@@ -90,11 +91,13 @@ export class EventBus<TEventMap extends Record<string, any>> {
     this.isFlushing = true;
 
     let depth = 0;
-// ... (rest of flush logic)
+    // ... (rest of flush logic)
     while (this.queue.length > 0) {
       if (depth >= this.MAX_FLUSH_DEPTH) {
         this.isFlushing = false;
-        throw new Error(`Max flush depth of ${this.MAX_FLUSH_DEPTH} exceeded. Check for circular event chains.`);
+        throw new Error(
+          `Max flush depth of ${this.MAX_FLUSH_DEPTH} exceeded. Check for circular event chains.`,
+        );
       }
 
       const currentQueue = [...this.queue];

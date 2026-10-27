@@ -11,7 +11,7 @@ describe('EquipmentPanel', () => {
         getComponent: () => ({ weapon: 101, armor: null }),
       },
     };
-    
+
     // Simplistic render test
     // Assuming React and testing-library are available
   });

@@ -17,10 +17,14 @@ const VaultOverflowBanner: React.FC<VaultOverflowBannerProps> = ({
 
   const getSellPrice = (rarity: string) => {
     switch (rarity.toLowerCase()) {
-      case 'uncommon': return 25;
-      case 'rare': return 50;
-      case 'legendary': return 150;
-      default: return 10;
+      case 'uncommon':
+        return 25;
+      case 'rare':
+        return 50;
+      case 'legendary':
+        return 150;
+      default:
+        return 10;
     }
   };
 
@@ -32,16 +36,10 @@ const VaultOverflowBanner: React.FC<VaultOverflowBannerProps> = ({
           <div key={item.entityId} className={styles.itemRow}>
             <span className={styles.itemName}>[{item.templateId}]</span>
             <div className={styles.actions}>
-              <button
-                className={styles.discardButton}
-                onClick={() => onDiscard(item.entityId)}
-              >
+              <button className={styles.discardButton} onClick={() => onDiscard(item.entityId)}>
                 DISCARD
               </button>
-              <button
-                className={styles.sellButton}
-                onClick={() => onSell(item.entityId)}
-              >
+              <button className={styles.sellButton} onClick={() => onSell(item.entityId)}>
                 SELL: {getSellPrice(item.rarityTier)} SCRAP
               </button>
             </div>

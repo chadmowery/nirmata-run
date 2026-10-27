@@ -22,7 +22,7 @@ export class EntityFactory {
     world: World<T>,
     templateName: string,
     componentRegistry: ComponentRegistry,
-    runtimeOverrides?: Record<string, Record<string, unknown>>
+    runtimeOverrides?: Record<string, Record<string, unknown>>,
   ): EntityId {
     const template = this.registry.get(templateName);
     if (!template) {
@@ -34,11 +34,18 @@ export class EntityFactory {
       ...template,
       overrides: {
         ...template.overrides,
-        ...runtimeOverrides
-      }
+        ...runtimeOverrides,
+      },
     };
 
     const resolvedComponents = resolveMixins(templateCopy, this.registry);
-    return buildEntity(world, templateName, resolvedComponents, componentRegistry, this.registry, templateCopy.children);
+    return buildEntity(
+      world,
+      templateName,
+      resolvedComponents,
+      componentRegistry,
+      this.registry,
+      templateCopy.children,
+    );
   }
 }

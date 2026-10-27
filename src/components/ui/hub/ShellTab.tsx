@@ -39,9 +39,9 @@ export const ShellTab: React.FC = () => {
   return (
     <div className={styles.container}>
       <h2 className={styles.heading}>SHELL_DIAGNOSTICS</h2>
-      
+
       <div className={styles.carouselWrapper}>
-        <ShellCarousel 
+        <ShellCarousel
           shells={templates}
           selectedIndex={selectedShellIndex}
           onSelect={setSelectedShellIndex}

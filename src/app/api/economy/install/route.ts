@@ -19,10 +19,13 @@ export async function POST(req: Request) {
     const result = InstallRequestSchema.safeParse(body);
 
     if (!result.success) {
-      return NextResponse.json({
-        error: 'Invalid request',
-        details: result.error
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: 'Invalid request',
+          details: result.error,
+        },
+        { status: 400 },
+      );
     }
 
     const { sessionId, blueprintId, shellId, type } = result.data;
@@ -33,17 +36,20 @@ export async function POST(req: Request) {
     }
 
     // Check if in library
-    if (!profile.blueprintLibrary.some(b => b.blueprintId === blueprintId)) {
+    if (!profile.blueprintLibrary.some((b) => b.blueprintId === blueprintId)) {
       return NextResponse.json({ error: 'Blueprint not compiled' }, { status: 400 });
     }
 
     const cost = economy.costs.installation[type];
     if (profile.wallet.scrap < cost) {
-      return NextResponse.json({
-        error: 'Insufficient Scrap',
-        required: cost,
-        current: profile.wallet.scrap
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: 'Insufficient Scrap',
+          required: cost,
+          current: profile.wallet.scrap,
+        },
+        { status: 400 },
+      );
     }
 
     // Deduct and install
@@ -53,18 +59,21 @@ export async function POST(req: Request) {
       blueprintId,
       type,
       shellId,
-      isLegacy: false
+      isLegacy: false,
     });
 
     await profileRepository.save(profile);
 
     return NextResponse.json({
       success: true,
-      remainingScrap: profile.wallet.scrap
+      remainingScrap: profile.wallet.scrap,
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
-    return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal Server Error', message: error.message },
+      { status: 500 },
+    );
   }
 }

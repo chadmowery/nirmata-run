@@ -16,11 +16,11 @@ function makeComponentRegistry(): ComponentRegistry {
   return {
     get: (key: string) =>
       Object.values(Components).find(
-        (c) => c && typeof c === 'object' && 'key' in c && (c as any).key === key
+        (c) => c && typeof c === 'object' && 'key' in c && (c as any).key === key,
       ) as any,
     has: (key: string) =>
       Object.values(Components).some(
-        (c) => c && typeof c === 'object' && 'key' in c && (c as any).key === key
+        (c) => c && typeof c === 'object' && 'key' in c && (c as any).key === key,
       ),
   };
 }
@@ -120,7 +120,14 @@ describe('placeEntities', () => {
     };
 
     const result = placeEntities(
-      world, grid, factory, componentRegistry, rooms, spawnRoom, rng, placementConfig
+      world,
+      grid,
+      factory,
+      componentRegistry,
+      rooms,
+      spawnRoom,
+      rng,
+      placementConfig,
     );
 
     // 2 non-spawn rooms, 1-2 enemies each → 2-4 total
@@ -161,7 +168,13 @@ describe('placeEntities', () => {
     const { grid, rooms, spawnRoom } = setupDungeon();
 
     const result1 = placeEntities(
-      world, grid, factory, componentRegistry, rooms, spawnRoom, createRng(99)
+      world,
+      grid,
+      factory,
+      componentRegistry,
+      rooms,
+      spawnRoom,
+      createRng(99),
     );
 
     // Reset world for second run
@@ -170,7 +183,13 @@ describe('placeEntities', () => {
     const { grid: grid2, rooms: rooms2, spawnRoom: spawnRoom2 } = setupDungeon();
 
     const result2 = placeEntities(
-      world2, grid2, factory, componentRegistry, rooms2, spawnRoom2, createRng(99)
+      world2,
+      grid2,
+      factory,
+      componentRegistry,
+      rooms2,
+      spawnRoom2,
+      createRng(99),
     );
 
     // Same number of enemies and items

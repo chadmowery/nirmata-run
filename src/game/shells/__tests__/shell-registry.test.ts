@@ -33,7 +33,10 @@ describe('ShellRegistry', () => {
     const registry = new ShellRegistry();
     registry.register(mockTemplate);
     registry.createRecord('instance-1', 'test-shell');
-    registry.update('instance-1', { level: 2, currentStats: { ...mockTemplate.baseStats, speed: 110 } });
+    registry.update('instance-1', {
+      level: 2,
+      currentStats: { ...mockTemplate.baseStats, speed: 110 },
+    });
 
     const record = registry.get('instance-1')!;
     expect(record.level).toBe(2);

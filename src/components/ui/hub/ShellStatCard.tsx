@@ -13,7 +13,7 @@ interface ShellStatCardProps {
 export const ShellStatCard: React.FC<ShellStatCardProps> = ({
   shell,
   upgrades,
-  installedItems
+  installedItems,
 }) => {
   const getStatTotal = (stat: 'speed' | 'stability' | 'armor' | 'maxHealth') => {
     const base = shell.baseStats[stat];
@@ -34,13 +34,16 @@ export const ShellStatCard: React.FC<ShellStatCardProps> = ({
     { label: 'MAX_HEALTH', key: 'maxHealth' as const },
   ];
 
-  const archetypeIcon = shell.id.includes('striker') ? '◆' : 
-                       shell.id.includes('bastion') ? '■' : '●';
+  const archetypeIcon = shell.id.includes('striker')
+    ? '◆'
+    : shell.id.includes('bastion')
+      ? '■'
+      : '●';
 
-  const firmwareSlots = installedItems.filter(i => i.type === 'firmware');
-  const augmentSlots = installedItems.filter(i => i.type === 'augment');
+  const firmwareSlots = installedItems.filter((i) => i.type === 'firmware');
+  const augmentSlots = installedItems.filter((i) => i.type === 'augment');
   // Software slots are virtual for now as per spec
-  const softwareSlots: any[] = []; 
+  const softwareSlots: any[] = [];
 
   return (
     <div className={styles.card}>
@@ -50,7 +53,7 @@ export const ShellStatCard: React.FC<ShellStatCardProps> = ({
       </div>
 
       <div className={styles.statsSection}>
-        {stats.map(s => {
+        {stats.map((s) => {
           const { base, upgrade, total } = getStatTotal(s.key);
           const percent = (total / 10) * 100;
           return (
@@ -62,10 +65,7 @@ export const ShellStatCard: React.FC<ShellStatCardProps> = ({
                 </span>
               </div>
               <div className={styles.statBar}>
-                <div 
-                  className={styles.statFill} 
-                  style={{ width: `${Math.min(percent, 100)}%` }} 
-                />
+                <div className={styles.statFill} style={{ width: `${Math.min(percent, 100)}%` }} />
               </div>
             </div>
           );
@@ -74,12 +74,12 @@ export const ShellStatCard: React.FC<ShellStatCardProps> = ({
 
       <div className={styles.portsSection}>
         <h3 className={styles.portsHeading}>PORT_CONFIGURATION</h3>
-        
+
         <div className={styles.portGroup}>
           <div className={styles.portLabel}>FIRMWARE</div>
           <div className={styles.slots}>
             {Array.from({ length: shell.basePorts.maxFirmware }).map((_, i) => (
-              <SlotBox 
+              <SlotBox
                 key={`fw-${i}`}
                 filled={i < firmwareSlots.length}
                 itemName={firmwareSlots[i]?.blueprintId}
@@ -94,7 +94,7 @@ export const ShellStatCard: React.FC<ShellStatCardProps> = ({
           <div className={styles.portLabel}>AUGMENT</div>
           <div className={styles.slots}>
             {Array.from({ length: shell.basePorts.maxAugment }).map((_, i) => (
-              <SlotBox 
+              <SlotBox
                 key={`aug-${i}`}
                 filled={i < augmentSlots.length}
                 itemName={augmentSlots[i]?.blueprintId}
@@ -109,7 +109,7 @@ export const ShellStatCard: React.FC<ShellStatCardProps> = ({
           <div className={styles.portLabel}>SOFTWARE</div>
           <div className={styles.slots}>
             {Array.from({ length: shell.basePorts.maxSoftware }).map((_, i) => (
-              <SlotBox 
+              <SlotBox
                 key={`sw-${i}`}
                 filled={i < softwareSlots.length}
                 itemName={softwareSlots[i]?.name}

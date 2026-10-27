@@ -14,7 +14,6 @@ import RNG from 'rot-js/lib/rng';
 
 const economy = economyRaw as unknown as EconomyConfig;
 
-
 /**
  * System that handles currency and equipment drops when entities die.
  * Also handles authoritative "On Kill" software effects.
@@ -24,7 +23,7 @@ export function createRewardDropSystem<T extends GameplayEvents>(
   grid: Grid,
   eventBus: EventBus<T>,
   entityFactory: EntityFactory,
-  componentRegistry: ComponentRegistry
+  componentRegistry: ComponentRegistry,
 ) {
   const update = (w: World<T>) => {
     const dyingEntities = w.query(Dying);
@@ -32,7 +31,6 @@ export function createRewardDropSystem<T extends GameplayEvents>(
       const actor = w.getComponent(entityId, Actor);
       const pos = w.getComponent(entityId, Position);
       const lootTable = w.getComponent(entityId, LootTable);
-
 
       // Drop logic: Skip if no position, if it's the player, or if it died due to pickup
       const dyingInfo = w.getComponent(entityId, Dying);
@@ -45,7 +43,7 @@ export function createRewardDropSystem<T extends GameplayEvents>(
       const name = isPlayer ? 'You' : 'The enemy';
       eventBus.emit('MESSAGE_EMITTED', {
         text: `${name} died!`,
-        type: 'combat'
+        type: 'combat',
       });
 
       if (isPlayer) {
@@ -60,12 +58,9 @@ export function createRewardDropSystem<T extends GameplayEvents>(
         if (tier >= 2 && drops.length > 0) {
           const guaranteedIndex = Math.floor(RNG.getUniform() * drops.length);
           const drop = drops[guaranteedIndex];
-          const itemId = entityFactory.create(
-            w,
-            drop.template,
-            componentRegistry,
-            { position: { x: pos.x, y: pos.y } }
-          );
+          const itemId = entityFactory.create(w, drop.template, componentRegistry, {
+            position: { x: pos.x, y: pos.y },
+          });
           grid.addItem(itemId, pos.x, pos.y);
           logger.info(`Entity ${entityId} dropped guaranteed loot: ${drop.template}`, 'SYSTEM');
           drops.splice(guaranteedIndex, 1);
@@ -73,12 +68,9 @@ export function createRewardDropSystem<T extends GameplayEvents>(
 
         for (const drop of drops) {
           if (RNG.getUniform() < drop.chance) {
-            const itemId = entityFactory.create(
-              w,
-              drop.template,
-              componentRegistry,
-              { position: { x: pos.x, y: pos.y } }
-            );
+            const itemId = entityFactory.create(w, drop.template, componentRegistry, {
+              position: { x: pos.x, y: pos.y },
+            });
             grid.addItem(itemId, pos.x, pos.y);
             logger.info(`Entity ${entityId} dropped loot: ${drop.template}`, 'SYSTEM');
           }
@@ -92,7 +84,8 @@ export function createRewardDropSystem<T extends GameplayEvents>(
       // Roll for Scrap
       const scrapConfig = economy.currencyDrops.scrap[tierKey];
       if (scrapConfig && RNG.getUniform() <= scrapConfig.chance) {
-        const amount = Math.floor(RNG.getUniform() * (scrapConfig.max - scrapConfig.min + 1)) + scrapConfig.min;
+        const amount =
+          Math.floor(RNG.getUniform() * (scrapConfig.max - scrapConfig.min + 1)) + scrapConfig.min;
         spawnCurrency(w, 'scrap', amount, pos.x, pos.y);
         logger.info(`Entity ${entityId} dropped scrap: ${amount}`, 'SYSTEM');
       }
@@ -100,13 +93,16 @@ export function createRewardDropSystem<T extends GameplayEvents>(
       // Roll for Flux
       const fluxConfig = economy.currencyDrops.flux[tierKey] as DropRateConfig | undefined;
       if (fluxConfig && RNG.getUniform() <= fluxConfig.chance) {
-        const amount = Math.floor(RNG.getUniform() * (fluxConfig.max - fluxConfig.min + 1)) + fluxConfig.min;
+        const amount =
+          Math.floor(RNG.getUniform() * (fluxConfig.max - fluxConfig.min + 1)) + fluxConfig.min;
         spawnCurrency(w, 'flux', amount, pos.x, pos.y);
         logger.info(`Entity ${entityId} dropped flux: ${amount}`, 'SYSTEM');
       }
 
       // Roll for Blueprint
-      const blueprintConfig = economy.currencyDrops.blueprint[tierKey] as BlueprintDropConfig | undefined;
+      const blueprintConfig = economy.currencyDrops.blueprint[tierKey] as
+        | BlueprintDropConfig
+        | undefined;
       if (blueprintConfig && RNG.getUniform() <= blueprintConfig.chance) {
         const blueprintPool = [
           'Phase_Shift.sh',
@@ -114,7 +110,7 @@ export function createRewardDropSystem<T extends GameplayEvents>(
           'Extended_Sight.sys',
           'Displacement_Venting.arc',
           'Static_Siphon.arc',
-          'Neural_Feedback.arc'
+          'Neural_Feedback.arc',
         ];
         const blueprintId = blueprintPool[Math.floor(RNG.getUniform() * blueprintPool.length)];
         const blueprintType = blueprintId.endsWith('.arc') ? 'augment' : 'firmware';
@@ -138,13 +134,13 @@ export function createRewardDropSystem<T extends GameplayEvents>(
     amount: number,
     x: number,
     y: number,
-    meta?: { blueprintId: string; blueprintType: 'firmware' | 'augment' }
+    meta?: { blueprintId: string; blueprintType: 'firmware' | 'augment' },
   ) => {
     const templateName = type === 'blueprint' ? 'blueprint-locked' : type;
 
     const overrides: Record<string, Record<string, unknown>> = {
       position: { x, y },
-      currencyItem: { currencyType: type, amount }
+      currencyItem: { currencyType: type, amount },
     };
 
     if (type === 'blueprint' && meta) {
@@ -159,8 +155,10 @@ export function createRewardDropSystem<T extends GameplayEvents>(
 
   return {
     init,
-    update
+    update,
   };
 }
 
-export type RewardDropSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createRewardDropSystem<T>>;
+export type RewardDropSystem<T extends GameplayEvents = GameEvents> = ReturnType<
+  typeof createRewardDropSystem<T>
+>;

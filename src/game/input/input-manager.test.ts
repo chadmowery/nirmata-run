@@ -53,7 +53,7 @@ describe('InputManager', () => {
   it('should support rebinding keys', () => {
     inputManager.enable();
     inputManager.rebind('KeyX', GameAction.WAIT);
-    
+
     const event = new KeyboardEvent('keydown', { code: 'KeyX' });
     document.dispatchEvent(event);
     expect(mockHandler).toHaveBeenCalledWith(GameAction.WAIT);
@@ -62,7 +62,7 @@ describe('InputManager', () => {
   it('should support unbinding keys', () => {
     inputManager.enable();
     inputManager.unbind('KeyW');
-    
+
     const event = new KeyboardEvent('keydown', { code: 'KeyW' });
     document.dispatchEvent(event);
     expect(mockHandler).not.toHaveBeenCalled();
@@ -77,7 +77,7 @@ describe('InputManager', () => {
   it('should stop dispatching when disabled', () => {
     inputManager.enable();
     inputManager.disable();
-    
+
     const event = new KeyboardEvent('keydown', { code: 'KeyW' });
     document.dispatchEvent(event);
     expect(mockHandler).not.toHaveBeenCalled();
@@ -87,7 +87,7 @@ describe('InputManager', () => {
     inputManager.enable();
     inputManager.disable();
     inputManager.enable();
-    
+
     const event = new KeyboardEvent('keydown', { code: 'KeyW' });
     document.dispatchEvent(event);
     expect(mockHandler).toHaveBeenCalledWith(GameAction.MOVE_NORTH);
@@ -96,7 +96,7 @@ describe('InputManager', () => {
   it('should avoid duplicate listeners on multiple enable() calls', () => {
     inputManager.enable();
     inputManager.enable();
-    
+
     const event = new KeyboardEvent('keydown', { code: 'KeyW' });
     document.dispatchEvent(event);
     expect(mockHandler).toHaveBeenCalledTimes(1);
@@ -117,7 +117,7 @@ describe('InputManager', () => {
 
     const event = new KeyboardEvent('keydown', { code: 'KeyW', bubbles: true });
     input.dispatchEvent(event);
-    
+
     expect(mockHandler).not.toHaveBeenCalled();
     document.body.removeChild(input);
   });

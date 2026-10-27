@@ -17,7 +17,10 @@ export function serializeWorld<T extends EngineEvents>(world: World<T>): Seriali
 /**
  * Deserializes a JSON-compatible object into an ECS World instance.
  */
-export function deserializeWorld<T extends GameplayEvents>(data: SerializedWorld, eventBus: EventBus<T>): World<T> {
+export function deserializeWorld<T extends GameplayEvents>(
+  data: SerializedWorld,
+  eventBus: EventBus<T>,
+): World<T> {
   const world = new World(eventBus as unknown as EventBus<EngineEvents>) as unknown as World<T>;
   world.loadSerializableState(data);
   return world;

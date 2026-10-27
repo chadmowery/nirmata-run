@@ -15,11 +15,11 @@ import { DamageIntent } from '@shared/components/intents';
  * Governs the dual drain (per-floor + per-turn) and degraded state damage.
  */
 export interface StabilityConfig {
-  initialStability: number;      // 100
-  perFloorChunkBase: number;     // 5 — base stability lost on entering a new floor
-  perFloorChunkScale: number;    // 0.5 — additional per-floor scaling
-  perTurnBleedBase: number;      // 0.5 — base stability lost per turn
-  perTurnBleedScale: number;     // 0.1 — additional per-floor scaling
+  initialStability: number; // 100
+  perFloorChunkBase: number; // 5 — base stability lost on entering a new floor
+  perFloorChunkScale: number; // 0.5 — additional per-floor scaling
+  perTurnBleedBase: number; // 0.5 — base stability lost per turn
+  perTurnBleedScale: number; // 0.1 — additional per-floor scaling
   degradedDamagePerTurn: number; // 2 — HP damage per turn when stability is 0
 }
 
@@ -35,13 +35,13 @@ export const DEFAULT_STABILITY_CONFIG: StabilityConfig = {
 
 /**
  * The StabilitySystem manages the Reality Stability of entities (primarily the player).
- * It handles stability decay over time and floor transitions, and deals damage 
+ * It handles stability decay over time and floor transitions, and deals damage
  * when stability is depleted.
  */
 export function createStabilitySystem<T extends GameplayEvents>(
   world: World<T>,
   eventBus: EventBus<T>,
-  config: StabilityConfig = DEFAULT_STABILITY_CONFIG
+  config: StabilityConfig = DEFAULT_STABILITY_CONFIG,
 ) {
   /**
    * Applies the stability penalty for entering a new floor.
@@ -60,10 +60,13 @@ export function createStabilitySystem<T extends GameplayEvents>(
       entityId,
       oldValue,
       newValue,
-      reason: 'floor_entry'
+      reason: 'floor_entry',
     } as unknown as T['STABILITY_CHANGED']);
 
-    logger.debug(`Stability Floor Drain for entity ${entityId}: ${oldValue.toFixed(2)} -> ${newValue.toFixed(2)}`, 'SYSTEM');
+    logger.debug(
+      `Stability Floor Drain for entity ${entityId}: ${oldValue.toFixed(2)} -> ${newValue.toFixed(2)}`,
+      'SYSTEM',
+    );
   };
 
   /**
@@ -83,10 +86,13 @@ export function createStabilitySystem<T extends GameplayEvents>(
       entityId,
       oldValue,
       newValue,
-      reason: 'turn_bleed'
+      reason: 'turn_bleed',
     } as unknown as T['STABILITY_CHANGED']);
 
-    logger.debug(`Stability Turn Bleed for entity ${entityId}: ${oldValue.toFixed(2)} -> ${newValue.toFixed(2)}`, 'SYSTEM');
+    logger.debug(
+      `Stability Turn Bleed for entity ${entityId}: ${oldValue.toFixed(2)} -> ${newValue.toFixed(2)}`,
+      'SYSTEM',
+    );
   };
 
   /**
@@ -101,15 +107,18 @@ export function createStabilitySystem<T extends GameplayEvents>(
     // Request damage via DamageIntent instead of direct patching
     world.addComponent(entityId, DamageIntent, {
       targetId: entityId,
-      amount: config.degradedDamagePerTurn
+      amount: config.degradedDamagePerTurn,
     });
 
     eventBus.emit('DEGRADED_DAMAGE', {
       entityId,
-      damage: config.degradedDamagePerTurn
+      damage: config.degradedDamagePerTurn,
     } as unknown as T['DEGRADED_DAMAGE']);
 
-    logger.info(`Degraded Damage applied to entity ${entityId}: ${config.degradedDamagePerTurn} HP`, 'SYSTEM');
+    logger.info(
+      `Degraded Damage applied to entity ${entityId}: ${config.degradedDamagePerTurn} HP`,
+      'SYSTEM',
+    );
   };
 
   const updatePreTurn = (w: World<T>) => {
@@ -139,8 +148,10 @@ export function createStabilitySystem<T extends GameplayEvents>(
     update: updatePreTurn,
     applyFloorDrain,
     applyTurnBleed,
-    applyDegradedDamage
+    applyDegradedDamage,
   };
 }
 
-export type StabilitySystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createStabilitySystem<T>>;
+export type StabilitySystem<T extends GameplayEvents = GameEvents> = ReturnType<
+  typeof createStabilitySystem<T>
+>;

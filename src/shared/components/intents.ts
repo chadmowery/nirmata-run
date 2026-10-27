@@ -9,7 +9,7 @@ export const MoveIntent = defineComponent(
   z.object({
     dx: z.number(),
     dy: z.number(),
-  })
+  }),
 );
 
 /**
@@ -19,16 +19,13 @@ export const AttackIntent = defineComponent(
   'attackIntent',
   z.object({
     targetId: z.number(),
-  })
+  }),
 );
 
 /**
  * Intent to vent heat.
  */
-export const VentIntent = defineComponent(
-  'ventIntent',
-  z.object({})
-);
+export const VentIntent = defineComponent('ventIntent', z.object({}));
 
 /**
  * Intent to deal direct damage to a target.
@@ -38,7 +35,7 @@ export const DamageIntent = defineComponent(
   z.object({
     targetId: z.number(),
     amount: z.number(), // Raw damage before defense
-  })
+  }),
 );
 
 /**
@@ -49,7 +46,7 @@ export const DescentIntent = defineComponent(
   z.object({
     targetFloor: z.number(),
     cost: z.number(),
-  })
+  }),
 );
 
 /**
@@ -59,7 +56,7 @@ export const ExtractionIntent = defineComponent(
   'extractionIntent',
   z.object({
     reason: z.string(),
-  })
+  }),
 );
 
 /**
@@ -70,7 +67,7 @@ export const EquipIntent = defineComponent(
   z.object({
     slotType: z.enum(['firmware', 'software', 'augment', 'weapon', 'armor']),
     itemEntityId: z.number(),
-  })
+  }),
 );
 
 /**
@@ -81,7 +78,7 @@ export const UnequipIntent = defineComponent(
   z.object({
     slotType: z.enum(['firmware', 'software', 'augment', 'weapon', 'armor']),
     slotIndex: z.number(),
-  })
+  }),
 );
 
 /**
@@ -92,7 +89,7 @@ export const TeleportIntent = defineComponent(
   z.object({
     x: z.number(),
     y: z.number(),
-  })
+  }),
 );
 
 /**
@@ -109,7 +106,7 @@ export const ApplyStatusEffectIntent = defineComponent(
       severity: z.string().optional(),
       source: z.string().optional(),
     }),
-  })
+  }),
 );
 
 /**
@@ -120,7 +117,7 @@ export const HealIntent = defineComponent(
   z.object({
     targetId: z.number(),
     amount: z.number(),
-  })
+  }),
 );
 
 /**
@@ -131,7 +128,7 @@ export const HeatIntent = defineComponent(
   z.object({
     targetId: z.number(),
     amount: z.number(), // positive for add, negative for remove
-  })
+  }),
 );
 
 /**
@@ -144,7 +141,7 @@ export const BurnSoftwareIntent = defineComponent(
     softwareEntityId: z.number(),
     targetSlot: z.enum(['weapon', 'armor']),
     inventoryIndex: z.number(),
-  })
+  }),
 );
 
 /**
@@ -157,24 +154,18 @@ export const FirmwareIntent = defineComponent(
     slotIndex: z.number(),
     targetX: z.number().optional(),
     targetY: z.number().optional(),
-  })
+  }),
 );
 
 /**
  * Tag indicating an entity is currently taking its turn.
  */
-export const Acting = defineComponent(
-  'acting',
-  z.object({})
-);
+export const Acting = defineComponent('acting', z.object({}));
 
 /**
  * Tag indicating that shell stats need to be re-synchronized.
  */
-export const ShellUpdateTag = defineComponent(
-  'shellUpdateTag',
-  z.object({})
-);
+export const ShellUpdateTag = defineComponent('shellUpdateTag', z.object({}));
 
 /**
  * Intent to pick up an item.
@@ -184,5 +175,5 @@ export const PickupIntent = defineComponent(
   z.object({
     actorId: z.number(),
     itemId: z.number(),
-  })
+  }),
 );

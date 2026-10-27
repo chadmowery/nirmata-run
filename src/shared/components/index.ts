@@ -38,9 +38,23 @@ import { AnchorMarker } from './anchor-marker';
 import { RunInventory, RunCurrency } from './run-inventory';
 import { TemplateId } from './template-id';
 import {
-  MoveIntent, AttackIntent, VentIntent, DamageIntent, DescentIntent, ExtractionIntent,
-  EquipIntent, UnequipIntent, ShellUpdateTag, TeleportIntent,
-  ApplyStatusEffectIntent, HealIntent, HeatIntent, BurnSoftwareIntent, FirmwareIntent, Acting, PickupIntent
+  MoveIntent,
+  AttackIntent,
+  VentIntent,
+  DamageIntent,
+  DescentIntent,
+  ExtractionIntent,
+  EquipIntent,
+  UnequipIntent,
+  ShellUpdateTag,
+  TeleportIntent,
+  ApplyStatusEffectIntent,
+  HealIntent,
+  HeatIntent,
+  BurnSoftwareIntent,
+  FirmwareIntent,
+  Acting,
+  PickupIntent,
 } from './intents';
 import { MovedThisTurn } from './moved-this-turn';
 import { Dying } from './dying';

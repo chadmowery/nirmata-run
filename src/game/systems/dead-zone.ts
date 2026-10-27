@@ -13,7 +13,7 @@ import { GameEvents } from '../events/types';
 export function createDeadZoneSystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
-  eventBus: EventBus<T>
+  eventBus: EventBus<T>,
 ) {
   /**
    * Ticks all dead zones: applies DoT and handles expiration.
@@ -60,7 +60,7 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
     y: number,
     duration: number,
     damagePerTick: number,
-    creatorId: EntityId
+    creatorId: EntityId,
   ) => {
     const entityId = world.createEntity();
     world.addComponent(entityId, Position, { x, y });
@@ -71,7 +71,10 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
     });
 
     grid.addEntity(entityId, x, y);
-    logger.info(`Dead Zone Created at (${x}, ${y}) by ${creatorId} (Duration: ${duration}, Damage: ${damagePerTick})`, 'SYSTEM');
+    logger.info(
+      `Dead Zone Created at (${x}, ${y}) by ${creatorId} (Duration: ${duration}, Damage: ${damagePerTick})`,
+      'SYSTEM',
+    );
   };
 
   return {
@@ -86,4 +89,6 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
   };
 }
 
-export type DeadZoneSystem<T extends GameplayEvents = GameEvents> = ReturnType<typeof createDeadZoneSystem<T>>;
+export type DeadZoneSystem<T extends GameplayEvents = GameEvents> = ReturnType<
+  typeof createDeadZoneSystem<T>
+>;

@@ -10,7 +10,7 @@ const SHELL_DIR = path.join(process.cwd(), 'src/game/shells/shared/templates');
 async function listJson(dir: string): Promise<string[]> {
   try {
     const files = await fs.readdir(dir);
-    return files.filter(f => f.endsWith('.json')).map(f => f.replace('.json', ''));
+    return files.filter((f) => f.endsWith('.json')).map((f) => f.replace('.json', ''));
   } catch {
     return [];
   }

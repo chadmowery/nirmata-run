@@ -18,9 +18,9 @@ describe('EventBus', () => {
     const handler = vi.fn();
     bus.on('TEST_EVENT', handler);
     bus.emit('TEST_EVENT', { data: 'hello' });
-    
+
     expect(handler).not.toHaveBeenCalled();
-    
+
     bus.flush();
     expect(handler).toHaveBeenCalledWith({ data: 'hello' });
   });
@@ -31,7 +31,7 @@ describe('EventBus', () => {
     bus.off('TEST_EVENT', handler);
     bus.emit('TEST_EVENT', { data: 'hello' });
     bus.flush();
-    
+
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -42,7 +42,7 @@ describe('EventBus', () => {
     bus.on('TEST_EVENT', handler2);
     bus.emit('TEST_EVENT', { data: 'hello' });
     bus.flush();
-    
+
     expect(handler1).toHaveBeenCalledWith({ data: 'hello' });
     expect(handler2).toHaveBeenCalledWith({ data: 'hello' });
   });
@@ -52,7 +52,7 @@ describe('EventBus', () => {
     const handler2 = vi.fn();
     bus.on('TEST_EVENT', handler1);
     bus.on('OTHER_EVENT', handler2);
-    
+
     bus.emit('TEST_EVENT', { data: 'hello' });
     bus.flush();
     expect(handler1).toHaveBeenCalled();
@@ -65,7 +65,7 @@ describe('EventBus', () => {
 
   it('should handle recursive flushes', () => {
     const sequence: number[] = [];
-    
+
     bus.on('RECURSIVE_EVENT', ({ count }) => {
       sequence.push(count);
       if (count > 0) {
@@ -94,9 +94,9 @@ describe('EventBus', () => {
     bus.emit('TEST_EVENT', { data: 'should not fire' });
     bus.clear();
     bus.flush();
-    
+
     expect(handler).not.toHaveBeenCalled();
-    
+
     bus.emit('TEST_EVENT', { data: 'still should not fire' });
     bus.flush();
     expect(handler).not.toHaveBeenCalled();

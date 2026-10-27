@@ -29,7 +29,7 @@ describe('Shell To Player Integration', () => {
     });
 
     const { world, playerId } = instance;
-    
+
     const health = world.getComponent(playerId, Health)!;
     expect(health.max).toBe(30);
     expect(health.current).toBe(30);

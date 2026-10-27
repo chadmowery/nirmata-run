@@ -53,13 +53,41 @@ export function GamedataTool({ initialData }: Props) {
 
     switch (item.section) {
       case 'entities':
-        return <EntityTemplateEditor key={item.name} name={item.name} isNew={isNew} cloneFrom={cloneFrom ?? undefined} />;
+        return (
+          <EntityTemplateEditor
+            key={item.name}
+            name={item.name}
+            isNew={isNew}
+            cloneFrom={cloneFrom ?? undefined}
+          />
+        );
       case 'mixins':
-        return <MixinEditor key={item.name} name={item.name} isNew={isNew} cloneFrom={cloneFrom ?? undefined} />;
+        return (
+          <MixinEditor
+            key={item.name}
+            name={item.name}
+            isNew={isNew}
+            cloneFrom={cloneFrom ?? undefined}
+          />
+        );
       case 'spawnTables':
-        return <SpawnTableEditor key={item.name} name={item.name} isNew={isNew} cloneFrom={cloneFrom ?? undefined} />;
+        return (
+          <SpawnTableEditor
+            key={item.name}
+            name={item.name}
+            isNew={isNew}
+            cloneFrom={cloneFrom ?? undefined}
+          />
+        );
       case 'shells':
-        return <ShellEditor key={item.name} id={item.name} isNew={isNew} cloneFrom={cloneFrom ?? undefined} />;
+        return (
+          <ShellEditor
+            key={item.name}
+            id={item.name}
+            isNew={isNew}
+            cloneFrom={cloneFrom ?? undefined}
+          />
+        );
       case 'componentSchemas':
         return <ComponentSchemaViewer key={item.name} name={item.name} />;
       default:

@@ -20,19 +20,14 @@ export const MainMenu: React.FC = () => {
       <div className={styles.titleContainer}>
         <h1 className={styles.mainTitle}>NIRMATA_RUNNER</h1>
         <p className={styles.subTitle}>v1.0.0 // NEURAL_LINK_ESTABLISHED</p>
-        <div className={styles.walletDisplay}>
-          CREDITS: {walletScrap.toLocaleString()}
-        </div>
+        <div className={styles.walletDisplay}>CREDITS: {walletScrap.toLocaleString()}</div>
       </div>
 
       <div className={styles.menuActions}>
-        <button 
-          className={styles.menuButton}
-          onClick={handleEnterDeck}
-        >
+        <button className={styles.menuButton} onClick={handleEnterDeck}>
           ENTER_NEURAL_DECK
         </button>
-        
+
         <button className={styles.menuButton} disabled>
           WEEKLY_RESET [STANDBY]
         </button>

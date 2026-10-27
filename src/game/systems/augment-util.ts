@@ -6,7 +6,7 @@ import {
   Heat,
   Dying,
   FirmwareActivatedThisTurn,
-  DealtDamageThisTurn
+  DealtDamageThisTurn,
 } from '@shared/components';
 
 export interface TriggerContext {
@@ -26,7 +26,7 @@ export function createTriggerContext(world: World<any>, entityId: EntityId): Tri
   const health = world.getComponent(entityId, Health);
   const firmware = world.getComponent(entityId, FirmwareActivatedThisTurn);
   const dealtDamage = world.getComponent(entityId, DealtDamageThisTurn);
-  
+
   // Count kills: find all Dying entities where killerId matches entityId
   const dyingEntities = world.query(Dying);
   let killCount = 0;
@@ -49,14 +49,18 @@ export function createTriggerContext(world: World<any>, entityId: EntityId): Tri
 /**
  * Evaluates a condition node against a trigger context.
  */
-export function evaluateCondition(node: ConditionNode, ctx: TriggerContext, depth: number = 0): boolean {
+export function evaluateCondition(
+  node: ConditionNode,
+  ctx: TriggerContext,
+  depth: number = 0,
+): boolean {
   if (depth > 10) return false;
 
   switch (node.type) {
     case 'AND':
-      return node.conditions?.every(c => evaluateCondition(c, ctx, depth + 1)) ?? true;
+      return node.conditions?.every((c) => evaluateCondition(c, ctx, depth + 1)) ?? true;
     case 'OR':
-      return node.conditions?.some(c => evaluateCondition(c, ctx, depth + 1)) ?? false;
+      return node.conditions?.some((c) => evaluateCondition(c, ctx, depth + 1)) ?? false;
     case 'NOT':
       return node.conditions?.[0] ? !evaluateCondition(node.conditions[0], ctx, depth + 1) : true;
     case 'ON_ACTIVATION':

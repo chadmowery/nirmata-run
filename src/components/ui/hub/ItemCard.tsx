@@ -10,31 +10,35 @@ interface ItemCardProps {
   onHoverEnd?: () => void;
 }
 
-export const ItemCard: React.FC<ItemCardProps> = ({
-  item,
-  onDragStart,
-  onHover,
-  onHoverEnd
-}) => {
+export const ItemCard: React.FC<ItemCardProps> = ({ item, onDragStart, onHover, onHoverEnd }) => {
   const [isDragging, setIsDragging] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const getTypeIcon = () => {
     switch (item.itemType) {
-      case 'firmware': return <Shield size={16} />;
-      case 'augment': return <Zap size={16} />;
-      case 'software': return <Code size={16} />;
-      default: return <Terminal size={16} />;
+      case 'firmware':
+        return <Shield size={16} />;
+      case 'augment':
+        return <Zap size={16} />;
+      case 'software':
+        return <Code size={16} />;
+      default:
+        return <Terminal size={16} />;
     }
   };
 
   const getRarityClass = () => {
     switch (item.rarityTier.toLowerCase()) {
-      case 'common': return styles.rarityCommon;
-      case 'uncommon': return styles.rarityUncommon;
-      case 'rare': return styles.rarityRare;
-      case 'legendary': return styles.rarityLegendary;
-      default: return styles.rarityCommon;
+      case 'common':
+        return styles.rarityCommon;
+      case 'uncommon':
+        return styles.rarityUncommon;
+      case 'rare':
+        return styles.rarityRare;
+      case 'legendary':
+        return styles.rarityLegendary;
+      default:
+        return styles.rarityCommon;
     }
   };
 
@@ -88,9 +92,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({
       onPointerEnter={(e) => onHover?.(item, e)}
       onPointerLeave={onHoverEnd}
     >
-      <div className={styles.iconContainer}>
-        {getTypeIcon()}
-      </div>
+      <div className={styles.iconContainer}>{getTypeIcon()}</div>
       <div className={styles.content}>
         <div className={styles.itemName}>{item.templateId}</div>
         <div className={styles.itemMeta}>
@@ -99,9 +101,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({
           <span className={styles.rarityText}>{item.rarityTier.toUpperCase()}</span>
         </div>
       </div>
-      {item.extractedAtFloor > 10 && (
-        <div className={styles.legacyTag}>LEGACY</div>
-      )}
+      {item.extractedAtFloor > 10 && <div className={styles.legacyTag}>LEGACY</div>}
     </div>
   );
 };

@@ -2,7 +2,15 @@ import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityId, Phase } from '@engine/ecs/types';
-import { Position, PackMember, Actor, MovedThisTurn, Dying, ApplyStatusEffectIntent, DamageIntent } from '@shared/components';
+import {
+  Position,
+  PackMember,
+  Actor,
+  MovedThisTurn,
+  Dying,
+  ApplyStatusEffectIntent,
+  DamageIntent,
+} from '@shared/components';
 import { logger } from '@engine/utils/logger';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
@@ -13,7 +21,7 @@ import { GameEvents } from '../events/types';
 export function createPackCoordinatorSystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
-  eventBus: EventBus<T>
+  eventBus: EventBus<T>,
 ): PackCoordinatorSystem<T> {
   const detonatedPacksThisTurn = new Set<string>();
 
@@ -62,7 +70,10 @@ export function createPackCoordinatorSystem<T extends GameplayEvents>(
       if (adjacentMembers.length >= 3) {
         detonatedPacksThisTurn.add(packId);
 
-        logger.info(`Pack Detonation Triggered: Pack ${packId} (Members: ${adjacentMembers.length})`, 'SYSTEM');
+        logger.info(
+          `Pack Detonation Triggered: Pack ${packId} (Members: ${adjacentMembers.length})`,
+          'SYSTEM',
+        );
 
         // Apply MOVEMENT_SLOW to player once per pack detonation
         // Request status effect via intent instead of direct patching
@@ -72,22 +83,21 @@ export function createPackCoordinatorSystem<T extends GameplayEvents>(
             name: 'MOVEMENT_SLOW',
             duration: 2,
             magnitude: 50,
-            source: 'buffer_overflow'
-          }
+            source: 'buffer_overflow',
+          },
         });
 
         eventBus.emit('MESSAGE_EMITTED', {
           text: 'A Buffer-Overflow pack detonates!',
-          type: 'combat'
+          type: 'combat',
         });
 
         // Process each detonating member
         for (const memberId of adjacentMembers) {
-
           // Request damage via DamageIntent instead of an unused event
           world.addComponent(memberId, DamageIntent, {
             targetId: player.id,
-            amount: 8
+            amount: 8,
           });
 
           // In a real implementation, we might want to deal damage to the player here too,

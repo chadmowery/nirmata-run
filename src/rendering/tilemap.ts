@@ -16,18 +16,18 @@ export interface BuildTilemapOptions {
 
 function tileTerrainToFrame(terrain: string): string {
   switch (terrain) {
-    case 'wall': return 'wall';
-    case 'floor': return 'floor';
-    case 'door': return 'door';
-    default: return 'floor';
+    case 'wall':
+      return 'wall';
+    case 'floor':
+      return 'floor';
+    case 'door':
+      return 'door';
+    default:
+      return 'floor';
   }
 }
 
-function computeAlpha(
-  x: number,
-  y: number,
-  options?: BuildTilemapOptions
-): number {
+function computeAlpha(x: number, y: number, options?: BuildTilemapOptions): number {
   if (!options || (!options.fovSet && !options.exploredSet)) {
     return 1.0;
   }
@@ -53,7 +53,7 @@ const spritePool: Map<string, Sprite> = new Map();
 export function buildTilemap(
   grid: Grid,
   container: Container,
-  options?: BuildTilemapOptions
+  options?: BuildTilemapOptions,
 ): void {
   const startX = Math.max(0, options?.visibleRange?.startX ?? 0);
   const startY = Math.max(0, options?.visibleRange?.startY ?? 0);

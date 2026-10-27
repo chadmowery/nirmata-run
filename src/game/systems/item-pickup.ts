@@ -28,9 +28,8 @@ export type ItemPickupSystem<T extends GameplayEvents = GameEvents> = {
 export function createItemPickupSystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
-  eventBus: EventBus<T>
+  eventBus: EventBus<T>,
 ): ItemPickupSystem<T> {
-
   function processItem(w: World<T>, entityId: number, itemId: number, x: number, y: number) {
     // Security check: ensure it actually has the Item component and isn't already dying/picked up
     if (!w.hasComponent(itemId, Item) || w.hasComponent(itemId, Dying)) {
@@ -50,7 +49,10 @@ export function createItemPickupSystem<T extends GameplayEvents>(
       const success = InventoryUtil.addCurrency(w, entityId, type, amount, meta);
 
       if (success) {
-        logger.info(`Entity ${entityId} picked up ${amount} ${type} (Blueprint: ${meta.blueprintId ?? 'none'})`, 'SYSTEM');
+        logger.info(
+          `Entity ${entityId} picked up ${amount} ${type} (Blueprint: ${meta.blueprintId ?? 'none'})`,
+          'SYSTEM',
+        );
         const message =
           type === 'blueprint'
             ? `+1 Locked File: ${meta.blueprintId}`
@@ -94,7 +96,10 @@ export function createItemPickupSystem<T extends GameplayEvents>(
         });
 
         if (added) {
-          logger.info(`Entity ${entityId} picked up equipment ${itemId} (Template: ${templateRef.id}, Name: ${eqDef.name})`, 'SYSTEM');
+          logger.info(
+            `Entity ${entityId} picked up equipment ${itemId} (Template: ${templateRef.id}, Name: ${eqDef.name})`,
+            'SYSTEM',
+          );
           eventBus.emit('MESSAGE_EMITTED', {
             text: `+ EQUIPMENT SECURED: ${eqDef.name} [${rarity?.tier || 'v1.x'}]`,
             type: 'info',
@@ -132,7 +137,10 @@ export function createItemPickupSystem<T extends GameplayEvents>(
         });
 
         if (added) {
-          logger.info(`Entity ${entityId} picked up software ${itemId} (Template: ${templateRef.id}, Name: ${swDef.name})`, 'SYSTEM');
+          logger.info(
+            `Entity ${entityId} picked up software ${itemId} (Template: ${templateRef.id}, Name: ${swDef.name})`,
+            'SYSTEM',
+          );
           eventBus.emit('MESSAGE_EMITTED', {
             text: `+ SOFTWARE SECURED: ${swDef.name} [${rarity?.tier || 'v1.x'}]`,
             type: 'info',
@@ -159,7 +167,7 @@ export function createItemPickupSystem<T extends GameplayEvents>(
       if (effect.type === EffectType.HEAL) {
         w.addComponent(entityId, HealIntent, {
           targetId: entityId,
-          amount: effect.value
+          amount: effect.value,
         });
       }
     }

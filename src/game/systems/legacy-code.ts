@@ -21,7 +21,7 @@ export function getLegacyMagnitude(baseMagnitude: number, isLegacy: boolean): nu
  * Called during weekly reset.
  */
 export function applyLegacyToProfile(profile: PlayerProfile): void {
-  profile.installedItems = profile.installedItems.map(item => ({
+  profile.installedItems = profile.installedItems.map((item) => ({
     ...item,
     isLegacy: true,
   }));
@@ -30,9 +30,13 @@ export function applyLegacyToProfile(profile: PlayerProfile): void {
 /**
  * Check if a specific blueprint is Legacy for a given profile.
  */
-export function isItemLegacy(profile: PlayerProfile, blueprintId: string, shellId: string): boolean {
+export function isItemLegacy(
+  profile: PlayerProfile,
+  blueprintId: string,
+  shellId: string,
+): boolean {
   const installed = profile.installedItems.find(
-    i => i.blueprintId === blueprintId && i.shellId === shellId
+    (i) => i.blueprintId === blueprintId && i.shellId === shellId,
   );
   return installed?.isLegacy ?? false;
 }

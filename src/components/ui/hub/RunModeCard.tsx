@@ -37,19 +37,15 @@ export const RunModeCard: React.FC<RunModeCardProps> = ({
             ? 'UNLIMITED_ACCESS'
             : `ATTEMPTS: ${availability.attemptsRemaining}`}
         </div>
-        
-        {isExhausted && (
-          <div className={styles.exhaustedBadge}>ATTEMPT_EXHAUSTED</div>
-        )}
-        
+
+        {isExhausted && <div className={styles.exhaustedBadge}>ATTEMPT_EXHAUSTED</div>}
+
         {!availability.available && availability.reason && !isExhausted && (
           <div className={styles.reason}>{availability.reason}</div>
         )}
 
         {!availability.available && !isExhausted && (
-          <div className={styles.countdown}>
-            RESET_IN: {availability.reason || 'WAITING'}
-          </div>
+          <div className={styles.countdown}>RESET_IN: {availability.reason || 'WAITING'}</div>
         )}
 
         <div className={styles.description}>{availability.description}</div>

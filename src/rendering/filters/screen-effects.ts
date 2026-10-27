@@ -22,13 +22,13 @@ export function removeFiltersFromContainer(container: Container): void {
   container.filters = null;
 }
 
-export function applyStabilityDesaturation(
-  container: Container,
-  stabilityPercent: number,
-): void {
+export function applyStabilityDesaturation(container: Container, stabilityPercent: number): void {
   if (stabilityPercent > 50) {
     // No desaturation above 50%
-    if (container.filters && (container.filters.includes(_desatFilter!) || container.filters.includes(_grayscaleFilter!))) {
+    if (
+      container.filters &&
+      (container.filters.includes(_desatFilter!) || container.filters.includes(_grayscaleFilter!))
+    ) {
       container.filters = null;
     }
     return;

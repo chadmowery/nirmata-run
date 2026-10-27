@@ -16,10 +16,13 @@ export async function POST(req: Request) {
     const result = UninstallRequestSchema.safeParse(body);
 
     if (!result.success) {
-      return NextResponse.json({
-        error: 'Invalid request',
-        details: result.error
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: 'Invalid request',
+          details: result.error,
+        },
+        { status: 400 },
+      );
     }
 
     const { sessionId, blueprintId, shellId } = result.data;
@@ -30,7 +33,7 @@ export async function POST(req: Request) {
     }
 
     const index = profile.installedItems.findIndex(
-      i => i.blueprintId === blueprintId && i.shellId === shellId
+      (i) => i.blueprintId === blueprintId && i.shellId === shellId,
     );
 
     if (index === -1) {
@@ -65,6 +68,9 @@ export async function POST(req: Request) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
-    return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal Server Error', message: error.message },
+      { status: 500 },
+    );
   }
 }

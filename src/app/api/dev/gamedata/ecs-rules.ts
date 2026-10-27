@@ -18,13 +18,17 @@ export const ECS_RULES: EcsRule[] = [
   {
     id: 'item-requires-pickup-effect',
     message: 'Item entities must have a "pickupEffect" component.',
-    validate: (components) =>
-      !('item' in components) || 'pickupEffect' in components,
+    validate: (components) => !('item' in components) || 'pickupEffect' in components,
   },
 ];
 
-export function validateEcsRules(components: Record<string, unknown>): { valid: boolean; errors: { id: string; message: string }[] } {
-  const errors = ECS_RULES.filter(rule => !rule.validate(components))
-    .map(rule => ({ id: rule.id, message: rule.message }));
+export function validateEcsRules(components: Record<string, unknown>): {
+  valid: boolean;
+  errors: { id: string; message: string }[];
+} {
+  const errors = ECS_RULES.filter((rule) => !rule.validate(components)).map((rule) => ({
+    id: rule.id,
+    message: rule.message,
+  }));
   return { valid: errors.length === 0, errors };
 }

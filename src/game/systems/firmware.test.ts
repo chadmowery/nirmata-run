@@ -2,14 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
-import {
-  AbilityDef,
-  FirmwareSlots,
-  Position,
-  Health,
-  Defense,
-  Heat
-} from '@shared/components';
+import { AbilityDef, FirmwareSlots, Position, Health, Defense, Heat } from '@shared/components';
 import { DamageIntent, HeatIntent } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
 import { Phase } from '@engine/ecs/types';
@@ -56,14 +49,18 @@ describe('FirmwareSystem', () => {
     const playerId = world.createEntity();
     const firmwareId = world.createEntity();
 
-    world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
-      name: 'Test Ability',
-      heatCost: 10,
-      range: 5,
-      effectType: 'ranged_attack',
-      damageAmount: 5,
-      cooldown: 0
-    }));
+    world.addComponent(
+      firmwareId,
+      AbilityDef,
+      AbilityDef.schema.parse({
+        name: 'Test Ability',
+        heatCost: 10,
+        range: 5,
+        effectType: 'ranged_attack',
+        damageAmount: 5,
+        cooldown: 0,
+      }),
+    );
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
     world.addComponent(playerId, Position, { x: 5, y: 5 });
@@ -88,14 +85,18 @@ describe('FirmwareSystem', () => {
     const playerId = world.createEntity();
     const firmwareId = world.createEntity();
 
-    world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
-      name: 'Dash',
-      heatCost: 5,
-      dashDistance: 3,
-      range: 0,
-      effectType: 'dash',
-      cooldown: 0
-    }));
+    world.addComponent(
+      firmwareId,
+      AbilityDef,
+      AbilityDef.schema.parse({
+        name: 'Dash',
+        heatCost: 5,
+        dashDistance: 3,
+        range: 0,
+        effectType: 'dash',
+        cooldown: 0,
+      }),
+    );
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
     world.addComponent(playerId, Position, { x: 5, y: 5 });
@@ -121,21 +122,29 @@ describe('FirmwareSystem', () => {
     const enemyId = world.createEntity();
     const firmwareId = world.createEntity();
 
-    world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
-      name: 'Neural Spike',
-      heatCost: 15,
-      range: 5,
-      effectType: 'ranged_attack',
-      damageAmount: 10,
-      cooldown: 0
-    }));
+    world.addComponent(
+      firmwareId,
+      AbilityDef,
+      AbilityDef.schema.parse({
+        name: 'Neural Spike',
+        heatCost: 15,
+        range: 5,
+        effectType: 'ranged_attack',
+        damageAmount: 10,
+        cooldown: 0,
+      }),
+    );
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
     world.addComponent(playerId, Position, { x: 2, y: 2 });
     world.addComponent(playerId, Heat, Heat.schema.parse({ current: 0, maxSafe: 100 }));
 
     world.addComponent(enemyId, Position, { x: 4, y: 4 });
-    world.addComponent(enemyId, Health, Health.schema.parse({ current: 20, max: 20, isAlive: true }));
+    world.addComponent(
+      enemyId,
+      Health,
+      Health.schema.parse({ current: 20, max: 20, isAlive: true }),
+    );
     world.addComponent(enemyId, Defense, { armor: 2 });
     grid.addEntity(enemyId, 4, 4);
 
@@ -154,15 +163,19 @@ describe('FirmwareSystem', () => {
     const playerId = world.createEntity();
     const firmwareId = world.createEntity();
 
-    world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
-      name: 'Extended Sight',
-      heatCost: 0,
-      range: 0,
-      effectType: 'toggle_vision',
-      isToggle: true,
-      isActive: false,
-      cooldown: 0
-    }));
+    world.addComponent(
+      firmwareId,
+      AbilityDef,
+      AbilityDef.schema.parse({
+        name: 'Extended Sight',
+        heatCost: 0,
+        range: 0,
+        effectType: 'toggle_vision',
+        isToggle: true,
+        isActive: false,
+        cooldown: 0,
+      }),
+    );
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
     world.addComponent(playerId, Position, { x: 5, y: 5 });
@@ -184,15 +197,19 @@ describe('FirmwareSystem', () => {
     const playerId = world.createEntity();
     const firmwareId = world.createEntity();
 
-    world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
-      name: 'Legacy Spike',
-      heatCost: 10,
-      range: 5,
-      effectType: 'ranged_attack',
-      damageAmount: 5,
-      isLegacy: true,
-      cooldown: 0
-    }));
+    world.addComponent(
+      firmwareId,
+      AbilityDef,
+      AbilityDef.schema.parse({
+        name: 'Legacy Spike',
+        heatCost: 10,
+        range: 5,
+        effectType: 'ranged_attack',
+        damageAmount: 5,
+        isLegacy: true,
+        cooldown: 0,
+      }),
+    );
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
     world.addComponent(playerId, Position, { x: 5, y: 5 });
@@ -212,14 +229,18 @@ describe('FirmwareSystem', () => {
     const playerId = world.createEntity();
     const firmwareId = world.createEntity();
 
-    world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
-      name: 'Test Ability',
-      heatCost: 10,
-      range: 5,
-      effectType: 'ranged_attack',
-      damageAmount: 5,
-      cooldown: 0
-    }));
+    world.addComponent(
+      firmwareId,
+      AbilityDef,
+      AbilityDef.schema.parse({
+        name: 'Test Ability',
+        heatCost: 10,
+        range: 5,
+        effectType: 'ranged_attack',
+        damageAmount: 5,
+        cooldown: 0,
+      }),
+    );
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
     world.addComponent(playerId, Position, { x: 5, y: 5 });
@@ -231,27 +252,33 @@ describe('FirmwareSystem', () => {
     firmwareSystem.activateAbility(playerId, 0, 6, 6);
     eventBus.flush();
 
-    expect(spy).toHaveBeenCalledWith(expect.objectContaining({
-      entityId: playerId,
-      slotIndex: 0,
-      targetX: 6,
-      targetY: 6,
-      abilityName: 'Test Ability'
-    }));
+    expect(spy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityId: playerId,
+        slotIndex: 0,
+        targetX: 6,
+        targetY: 6,
+        abilityName: 'Test Ability',
+      }),
+    );
   });
 
   it('activateAbility rejects target out of range', () => {
     const playerId = world.createEntity();
     const firmwareId = world.createEntity();
 
-    world.addComponent(firmwareId, AbilityDef, AbilityDef.schema.parse({
-      name: 'Short Range Spike',
-      heatCost: 10,
-      range: 2,
-      effectType: 'ranged_attack',
-      damageAmount: 5,
-      cooldown: 0
-    }));
+    world.addComponent(
+      firmwareId,
+      AbilityDef,
+      AbilityDef.schema.parse({
+        name: 'Short Range Spike',
+        heatCost: 10,
+        range: 2,
+        effectType: 'ranged_attack',
+        damageAmount: 5,
+        cooldown: 0,
+      }),
+    );
 
     world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
     world.addComponent(playerId, Position, { x: 5, y: 5 });

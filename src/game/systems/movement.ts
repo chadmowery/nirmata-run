@@ -18,7 +18,7 @@ import { GameplayEvents } from '@shared/events/types';
 export function createMovementSystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
-  eventBus: EventBus<T>
+  eventBus: EventBus<T>,
 ) {
   const update = (w: World<T>) => {
     const entities = w.query(MoveIntent, Position);
@@ -30,20 +30,20 @@ export function createMovementSystem<T extends GameplayEvents>(
       // 1. Check for status effects that impede movement
       const statusEffects = w.getComponent(entityId, StatusEffects);
       if (statusEffects) {
-        if (statusEffects.effects.some(e => e.name === 'CRITICAL_REBOOT')) {
+        if (statusEffects.effects.some((e) => e.name === 'CRITICAL_REBOOT')) {
           eventBus.emit('MESSAGE_EMITTED', {
             text: 'System is rebooting... Movement disabled!',
-            type: 'error'
+            type: 'error',
           });
           w.removeComponent(entityId, MoveIntent);
           continue;
         }
 
-        if (statusEffects.effects.some(e => e.name === 'INPUT_LAG')) {
+        if (statusEffects.effects.some((e) => e.name === 'INPUT_LAG')) {
           if (Math.random() < 0.5) {
             eventBus.emit('MESSAGE_EMITTED', {
               text: 'Input lag! Command dropped.',
-              type: 'warning'
+              type: 'warning',
             });
             w.removeComponent(entityId, MoveIntent);
             continue;
@@ -106,14 +106,17 @@ export function createMovementSystem<T extends GameplayEvents>(
 
       w.patchComponent(entityId, Position, { x: targetX, y: targetY });
       grid.moveEntity(entityId, oldX, oldY, targetX, targetY);
-      logger.debug(`Entity ${entityId} moved: (${oldX}, ${oldY}) -> (${targetX}, ${targetY})`, 'SYSTEM');
+      logger.debug(
+        `Entity ${entityId} moved: (${oldX}, ${oldY}) -> (${targetX}, ${targetY})`,
+        'SYSTEM',
+      );
 
       // Attach tag for reactive systems
       w.addComponent(entityId, MovedThisTurn, {
         fromX: oldX,
         fromY: oldY,
         toX: targetX,
-        toY: targetY
+        toY: targetY,
       });
 
       // Emit movement event for UI/Rendering
@@ -142,4 +145,6 @@ export function createMovementSystem<T extends GameplayEvents>(
   };
 }
 
-export type MovementSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<typeof createMovementSystem<T>>;
+export type MovementSystem<T extends GameplayEvents = GameplayEvents> = ReturnType<
+  typeof createMovementSystem<T>
+>;

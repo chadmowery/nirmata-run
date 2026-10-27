@@ -6,16 +6,16 @@ describe('UI Store', () => {
   beforeEach(() => {
     // Reset store state before each test
     gameStore.setState({
-      player: { 
-        hp: 0, 
-        maxHp: 0, 
-        xp: 0, 
-        level: 1, 
-        statuses: [], 
-        heat: 0, 
-        maxHeat: 100, 
-        shellName: 'None', 
-        mods: [] 
+      player: {
+        hp: 0,
+        maxHp: 0,
+        xp: 0,
+        level: 1,
+        statuses: [],
+        heat: 0,
+        maxHeat: 100,
+        shellName: 'None',
+        mods: [],
       },
       messages: [],
       gameStatus: GameState.Loading,
@@ -47,7 +47,7 @@ describe('UI Store', () => {
     gameStore.getState().addMessage('Ouch', 'combat');
     gameStore.getState().addMessage('Ouch', 'combat');
     gameStore.getState().addMessage('Ouch', 'combat');
-    
+
     const state = gameStore.getState();
     expect(state.messages).toHaveLength(1);
     expect(state.messages[0].text).toBe('Ouch');
@@ -57,7 +57,7 @@ describe('UI Store', () => {
   it('should not collapse different consecutive messages', () => {
     gameStore.getState().addMessage('Ouch', 'combat');
     gameStore.getState().addMessage('Critical!', 'combat');
-    
+
     const state = gameStore.getState();
     expect(state.messages).toHaveLength(2);
     expect(state.messages[0].text).toBe('Critical!');
@@ -68,7 +68,7 @@ describe('UI Store', () => {
     for (let i = 0; i < 60; i++) {
       gameStore.getState().addMessage(`Message ${i}`, 'info');
     }
-    
+
     const state = gameStore.getState();
     expect(state.messages).toHaveLength(50);
     expect(state.messages[0].text).toBe('Message 59');

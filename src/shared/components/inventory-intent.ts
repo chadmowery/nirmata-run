@@ -10,5 +10,5 @@ export const InventorySwapIntent = defineComponent(
     actorId: z.number(),
     sourceIndex: z.number(),
     destinationIndex: z.number(),
-  })
+  }),
 );

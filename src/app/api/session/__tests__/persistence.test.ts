@@ -29,11 +29,16 @@ vi.mock('@/app/persistence/fs-profile-repository', () => ({
       overflow: [],
       vault: [],
       shellUpgrades: {},
-      attemptTracking: { dayNumber: 0, weekNumber: 0, dailyAttemptUsed: false, weeklyAttemptUsed: false },
+      attemptTracking: {
+        dayNumber: 0,
+        weekNumber: 0,
+        dailyAttemptUsed: false,
+        weeklyAttemptUsed: false,
+      },
       weekSeed: 0,
-      createdAt: Date.now()
+      createdAt: Date.now(),
     }),
-  }
+  },
 }));
 
 vi.mock('@engine/session/SessionManager', () => ({
@@ -88,7 +93,7 @@ vi.mock('@shared/pipeline', () => ({
 vi.mock('@shared/serialization', () => ({
   serializeWorld: vi.fn(() => ({ entities: [], components: {} })),
   serializeGrid: vi.fn(() => ({ width: 10, height: 10, tiles: [] })),
-  deserializeWorld: vi.fn((data, bus) => ({ 
+  deserializeWorld: vi.fn((data, bus) => ({
     loadSerializableState: vi.fn(),
     getSerializableState: vi.fn(() => data),
     getComponent: vi.fn(),
@@ -122,7 +127,7 @@ describe('Profile Persistence Integration', () => {
 
       const req = new Request('http://localhost/api/session', {
         method: 'POST',
-        body: JSON.stringify({ seed: 'test-seed', width: 20, height: 20, sessionId })
+        body: JSON.stringify({ seed: 'test-seed', width: 20, height: 20, sessionId }),
       });
 
       const res = await initSession(req);
@@ -137,7 +142,7 @@ describe('Profile Persistence Integration', () => {
 
       const req = new Request('http://localhost/api/session', {
         method: 'POST',
-        body: JSON.stringify({ seed: 'test-seed', width: 20, height: 20 })
+        body: JSON.stringify({ seed: 'test-seed', width: 20, height: 20 }),
       });
 
       const res = await initSession(req);
@@ -150,59 +155,64 @@ describe('Profile Persistence Integration', () => {
 
   describe('POST /api/action with RUN_ENDED', () => {
     it('saves profile with extraction rewards', async () => {
-      const mockProfile = { 
-        sessionId, 
+      const mockProfile = {
+        sessionId,
         wallet: { scrap: 50, flux: 10 },
         blueprintLibrary: [],
         installedItems: [],
         overflow: [],
         vault: [],
         shellUpgrades: {},
-        attemptTracking: { dayNumber: 0, weekNumber: 0, dailyAttemptUsed: false, weeklyAttemptUsed: false },
+        attemptTracking: {
+          dayNumber: 0,
+          weekNumber: 0,
+          dailyAttemptUsed: false,
+          weeklyAttemptUsed: false,
+        },
         weekSeed: 0,
-        createdAt: Date.now()
+        createdAt: Date.now(),
       };
       (profileRepository.load as any).mockResolvedValue(mockProfile);
-      
+
       const eventBus = new EventBus<any>();
       const world = new World<any>(eventBus);
       // Mock behavior in API route expects entity 1 to exist
       world.createEntity(); // Ensure playerId exists (will be 1)
       const grid = new Grid(20, 20);
-      const turnManager = { 
-        canAcceptInput: () => true, 
-        submitAction: vi.fn(), 
+      const turnManager = {
+        canAcceptInput: () => true,
+        submitAction: vi.fn(),
         getTurnNumber: () => 1,
-        getPhase: () => 'PLAYER_TURN'
+        getPhase: () => 'PLAYER_TURN',
       };
-      
+
       (sessionManager.getSession as any).mockReturnValue({
         world,
         grid,
         eventBus,
         turnManager,
         playerId: 1,
-        systems: {}
+        systems: {},
       });
 
       const req = new Request('http://localhost/api/action', {
         method: 'POST',
         body: JSON.stringify({
           sessionId,
-          action: { type: 'ANCHOR_EXTRACT' }
-        })
+          action: { type: 'ANCHOR_EXTRACT' },
+        }),
       });
 
       // Simulate the RUN_ENDED event being emitted during the turn
       const originalFlush = eventBus.flush.bind(eventBus);
       eventBus.flush = () => {
-        eventBus.emit('RUN_ENDED', { 
-          reason: 'extraction', 
-          floorNumber: 5, 
+        eventBus.emit('RUN_ENDED', {
+          reason: 'extraction',
+          floorNumber: 5,
           stats: {
             scrapExtracted: 200,
-            fluxExtracted: 50
-          } 
+            fluxExtracted: 50,
+          },
         });
         originalFlush();
       };
@@ -214,12 +224,14 @@ describe('Profile Persistence Integration', () => {
       }
       expect(res.status).toBe(200);
 
-      expect(profileRepository.save).toHaveBeenCalledWith(expect.objectContaining({
-        wallet: {
-          scrap: 250, // 50 + 200
-          flux: 60    // 10 + 50
-        }
-      }));
+      expect(profileRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          wallet: {
+            scrap: 250, // 50 + 200
+            flux: 60, // 10 + 50
+          },
+        }),
+      );
     });
   });
 });

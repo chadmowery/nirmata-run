@@ -16,11 +16,13 @@ export function ComponentSchemaViewer({ name }: Props) {
       .then((data) => setComponents(data.items));
   }, []);
 
-  const filtered = name ? components.filter(c => c.key === name) : components;
+  const filtered = name ? components.filter((c) => c.key === name) : components;
 
   return (
     <div className={styles.editor}>
-      <h2 className={styles.editorTitle}>{name ? `Component: ${name}` : 'Component Schema Registry'}</h2>
+      <h2 className={styles.editorTitle}>
+        {name ? `Component: ${name}` : 'Component Schema Registry'}
+      </h2>
       {filtered.map((comp) => (
         <div key={comp.key} className={styles.fieldGroup}>
           <h3 className={styles.fieldGroupTitle}>{comp.key}</h3>

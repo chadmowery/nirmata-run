@@ -9,7 +9,7 @@ export const Item = defineComponent(
   z.object({
     name: z.string(),
     description: z.string().optional(),
-  })
+  }),
 );
 
 export type ItemData = z.infer<typeof Item.schema>;

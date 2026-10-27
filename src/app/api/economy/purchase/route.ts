@@ -17,10 +17,13 @@ export async function POST(req: Request) {
     const result = PurchaseRequestSchema.safeParse(body);
 
     if (!result.success) {
-      return NextResponse.json({
-        error: 'Invalid request',
-        details: result.error
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: 'Invalid request',
+          details: result.error,
+        },
+        { status: 400 },
+      );
     }
 
     const { sessionId, itemIndex, weekSeed } = result.data;
@@ -38,19 +41,25 @@ export async function POST(req: Request) {
     }
 
     if (profile.wallet.scrap < item.price) {
-      return NextResponse.json({
-        error: 'Insufficient Scrap',
-        required: item.price,
-        current: profile.wallet.scrap
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: 'Insufficient Scrap',
+          required: item.price,
+          current: profile.wallet.scrap,
+        },
+        { status: 400 },
+      );
     }
 
     // Check vault capacity per user requirement
     if (profile.vault.length >= VAULT_MAX_SLOTS) {
-      return NextResponse.json({ 
-        error: 'Vault is full', 
-        capacity: VAULT_MAX_SLOTS 
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          error: 'Vault is full',
+          capacity: VAULT_MAX_SLOTS,
+        },
+        { status: 400 },
+      );
     }
 
     // Deduct
@@ -75,11 +84,14 @@ export async function POST(req: Request) {
       success: true,
       purchased: item,
       vaultItem, // Return the official VaultItem with the server-generated ID
-      remainingScrap: profile.wallet.scrap
+      remainingScrap: profile.wallet.scrap,
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
-    return NextResponse.json({ error: 'Internal Server Error', message: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Internal Server Error', message: error.message },
+      { status: 500 },
+    );
   }
 }

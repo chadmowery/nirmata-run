@@ -76,7 +76,8 @@
   font-weight: var(--font-weight-semibold);
 }
 
-.loading, .empty {
+.loading,
+.empty {
   padding: var(--space-lg);
   text-align: center;
   font-size: var(--font-size-label);

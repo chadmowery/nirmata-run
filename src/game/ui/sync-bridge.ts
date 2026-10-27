@@ -25,7 +25,6 @@ export function syncEngineToStore(context: GameContext) {
 
   // Helper to update player stats from world state
   const refreshPlayerStats = () => {
-
     if (!context.playerId) return;
 
     const health = world.getComponent(context.playerId, Health);
@@ -61,12 +60,12 @@ export function syncEngineToStore(context: GameContext) {
         slotIndex: index,
         heatCost: def?.heatCost || 0,
         range: def?.range || 0,
-        effectType: def?.effectType || 'none'
+        effectType: def?.effectType || 'none',
       };
     });
 
     const statusEffects = world.getComponent(context.playerId, StatusEffects);
-    const statuses = statusEffects?.effects.map(e => e.name) || [];
+    const statuses = statusEffects?.effects.map((e) => e.name) || [];
 
     store.updatePlayerStats({
       hp: health?.current ?? 0,
@@ -98,7 +97,7 @@ export function syncEngineToStore(context: GameContext) {
   // Helper to update specific visible entity's health
   const updateVisibleEntityHealth = (entityId: number) => {
     const state = gameStore.getState();
-    const entityIndex = state.visibleEntities.findIndex(e => e.id === entityId);
+    const entityIndex = state.visibleEntities.findIndex((e) => e.id === entityId);
     if (entityIndex !== -1) {
       const health = world.getComponent(entityId, Health);
       if (health) {
@@ -166,7 +165,6 @@ export function syncEngineToStore(context: GameContext) {
 
   // Game Status
   eventBus.on('STATE_TRANSITION', (event) => {
-
     gameStore.getState().setGameStatus(event.newState as GameStatus);
     if (event.newState === GameState.Playing) {
       refreshPlayerStats();
@@ -181,14 +179,15 @@ export function syncEngineToStore(context: GameContext) {
 
   // FOV updates
   eventBus.on('FOV_UPDATED', (event) => {
-    const visibleEntities = world.query(Position)
-      .filter(id => {
+    const visibleEntities = world
+      .query(Position)
+      .filter((id) => {
         // Skip player and only include entities with a position in the visible set
         if (id === context.playerId) return false;
         const pos = world.getComponent(id, Position) as PositionData;
         return pos && event.visibleSet.has(`${pos.x},${pos.y}`);
       })
-      .map(id => {
+      .map((id) => {
         const health = world.getComponent(id, Health);
         const sprite = world.getComponent(id, SpriteComponent);
         const currentHp = health?.current ?? 0;
@@ -267,7 +266,7 @@ export function syncEngineToStore(context: GameContext) {
         descendCost: event.descendCost,
         nextFloorEnemyTier: event.nextFloorEnemyTier,
         estimatedStabilityAfterDescent: event.estimatedStabilityAfterDescent,
-        anchorId: event.anchorId
+        anchorId: event.anchorId,
       });
     }
   });
@@ -277,20 +276,16 @@ export function syncEngineToStore(context: GameContext) {
     if (event.entityId === context.playerId) {
       gameStore.getState().showStaircaseOverlay({
         targetFloor: event.targetFloor,
-        staircaseId: event.staircaseId
+        staircaseId: event.staircaseId,
       });
     }
   });
 
   // Targeting Listeners
   eventBus.on('TARGETING_STARTED', (event) => {
-    gameStore.getState().setTargeting(
-      true,
-      event.firmwareSlotIndex,
-      event.range,
-      event.playerX,
-      event.playerY
-    );
+    gameStore
+      .getState()
+      .setTargeting(true, event.firmwareSlotIndex, event.range, event.playerX, event.playerY);
   });
 
   eventBus.on('TARGETING_CURSOR_MOVED', (event) => {
@@ -340,9 +335,9 @@ export function syncEngineToStore(context: GameContext) {
         firmware: firmwareCount,
         augments: augmentCount,
         software: softwareCount,
-        scrap: runScrap
+        scrap: runScrap,
       },
-      score: (floorNumber * 100) + (gameStore.getState().stats.kills * 10) + runScrap
+      score: floorNumber * 100 + gameStore.getState().stats.kills * 10 + runScrap,
     };
 
     if (isExtraction) {
@@ -367,7 +362,6 @@ export function syncEngineToStore(context: GameContext) {
       // NOTE: We no longer trigger handleRunEnd here from local prediction.
       // Game-over is now server-authoritative via the RUN_ENDED event.
       // This prevents the client from ending the run while the server still thinks the player is alive.
-
     } else {
       // It was an enemy death (likely)
       const state = gameStore.getState();
@@ -375,7 +369,7 @@ export function syncEngineToStore(context: GameContext) {
       state.updateStats({ kills: currentKills + 1 });
 
       // Remove dead entity from visible threats
-      const updatedEntities = state.visibleEntities.filter(e => e.id !== event.entityId);
+      const updatedEntities = state.visibleEntities.filter((e) => e.id !== event.entityId);
       state.setVisibleEntities(updatedEntities);
     }
   });

@@ -19,17 +19,25 @@ const BlueprintPanel: React.FC = () => {
 
   // Items in vault that are firmware or augment and not in library
   const lockedFiles = profile.vault.filter(
-    (item) => (item.itemType === 'firmware' || item.itemType === 'augment') && !libraryIds.has(item.templateId)
+    (item) =>
+      (item.itemType === 'firmware' || item.itemType === 'augment') &&
+      !libraryIds.has(item.templateId),
   );
 
   // Group by templateId to avoid duplicates in the UI if multiple of same item in vault
-  const uniqueLockedFiles = Array.from(new Map(lockedFiles.map(item => [item.templateId, item])).values());
+  const uniqueLockedFiles = Array.from(
+    new Map(lockedFiles.map((item) => [item.templateId, item])).values(),
+  );
 
   const compiledLibrary = profile.blueprintLibrary;
 
-  const handleCompile = async (templateId: string, type: 'firmware' | 'augment', rarity: string) => {
+  const handleCompile = async (
+    templateId: string,
+    type: 'firmware' | 'augment',
+    rarity: string,
+  ) => {
     if (!profile) return;
-    
+
     const cost = (economyConfig.costs.compilation as any)[rarity] || 50;
     if (profile.wallet.flux < cost) return;
 
@@ -49,13 +57,13 @@ const BlueprintPanel: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        
+
         // Optimistic update
         updateProfileOptimistic((p) => ({
           ...p,
           wallet: {
             ...p.wallet,
-            flux: data.remainingFlux ?? (p.wallet.flux - cost),
+            flux: data.remainingFlux ?? p.wallet.flux - cost,
           },
           blueprintLibrary: [
             ...p.blueprintLibrary,
@@ -91,17 +99,25 @@ const BlueprintPanel: React.FC = () => {
               const isCompiling = compilingBlueprintId === item.templateId;
 
               return (
-                <div key={item.templateId} className={`${styles.item} ${isCompiling ? styles.sliding : ''}`}>
+                <div
+                  key={item.templateId}
+                  className={`${styles.item} ${isCompiling ? styles.sliding : ''}`}
+                >
                   <div className={styles.itemInfo}>
                     <span className={styles.itemName}>{item.templateId}</span>
-                    <span className={styles.itemType}>{item.itemType.toUpperCase()} • {item.rarityTier.toUpperCase()}</span>
+                    <span className={styles.itemType}>
+                      {item.itemType.toUpperCase()} • {item.rarityTier.toUpperCase()}
+                    </span>
                   </div>
                   <button
                     className={`${styles.compileButton} ${!canAfford ? styles.compileButtonDisabled : ''}`}
                     disabled={!canAfford || isCompiling}
-                    onClick={() => handleCompile(item.templateId, item.itemType as any, item.rarityTier)}
+                    onClick={() =>
+                      handleCompile(item.templateId, item.itemType as any, item.rarityTier)
+                    }
                   >
-                    COMPILE_BLUEPRINT: <span className={!canAfford ? styles.costInsufficient : ''}>{cost} FLUX</span>
+                    COMPILE_BLUEPRINT:{' '}
+                    <span className={!canAfford ? styles.costInsufficient : ''}>{cost} FLUX</span>
                   </button>
                 </div>
               );
@@ -117,8 +133,8 @@ const BlueprintPanel: React.FC = () => {
         ) : (
           <div className={styles.list}>
             {compiledLibrary.map((entry) => (
-              <div 
-                key={entry.blueprintId} 
+              <div
+                key={entry.blueprintId}
                 className={`${styles.item} ${lastCompiledId === entry.blueprintId ? styles.compileFlash : ''}`}
               >
                 <div className={styles.itemInfo}>

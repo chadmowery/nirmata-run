@@ -56,15 +56,15 @@ describe('World', () => {
     });
     it('should recursively destroy child entities when a parent is destroyed', () => {
       const Children = defineComponent('children', z.object({ entityIds: z.array(z.number()) }));
-      
+
       const parent = world.createEntity();
       const child1 = world.createEntity();
       const child2 = world.createEntity();
-      
+
       world.addComponent(parent, Children, { entityIds: [child1, child2] });
-      
+
       world.destroyEntity(parent);
-      
+
       expect(world.entityExists(parent)).toBe(false);
       expect(world.entityExists(child1)).toBe(false);
       expect(world.entityExists(child2)).toBe(false);
@@ -208,8 +208,8 @@ describe('World', () => {
     it('should support explicit system naming', () => {
       const system = vi.fn();
       world.registerSystem(Phase.ACTION, system, 'TestSystem');
-      
-      // We can't directly inspect systemNames as it's private, 
+
+      // We can't directly inspect systemNames as it's private,
       // but we can verify it doesn't crash and works normally.
       world.executeSystems(Phase.ACTION);
       expect(system).toHaveBeenCalled();

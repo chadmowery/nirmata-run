@@ -3,30 +3,29 @@ import { EngineEvents } from '@engine/events/types';
 import { VaultItem } from '../profile';
 
 /**
- * Gameplay-meaningful events that the authoritative pipeline and reconciliation 
+ * Gameplay-meaningful events that the authoritative pipeline and reconciliation
  * need to emit or consume. Shared between client & server.
  */
 export interface GameplayEvents extends EngineEvents {
   /** Queued when an entity deals damage to another. */
   DAMAGE_DEALT: { attackerId: EntityId; defenderId: EntityId; amount: number };
-  
+
   /** Queued when an entity's health reaches zero. */
   ENTITY_DIED: { entityId: EntityId; killerId: EntityId; isPlayer: boolean };
-  
+
   /** Queued when an entity picks up an item. */
   ITEM_PICKED_UP: { entityId: EntityId; itemId: EntityId };
-
 
   /** Queued when the player performs an action. */
   PLAYER_ACTION: { action: string; entityId: EntityId };
 
   /** Queued after an entity successfully moves. */
-  ENTITY_MOVED: { 
-    entityId: EntityId; 
-    fromX: number; 
-    fromY: number; 
-    toX: number; 
-    toY: number 
+  ENTITY_MOVED: {
+    entityId: EntityId;
+    fromX: number;
+    fromY: number;
+    toX: number;
+    toY: number;
   };
 
   /** Queued when an entity is healed. */
@@ -49,7 +48,6 @@ export interface GameplayEvents extends EngineEvents {
     reason: 'floor_entry' | 'turn_bleed' | 'anchor_refill';
   };
 
-
   /** Queued when an entity takes damage from a degraded Stability state. */
   DEGRADED_DAMAGE: { entityId: EntityId; damage: number };
 
@@ -63,7 +61,15 @@ export interface GameplayEvents extends EngineEvents {
   HEAT_CHANGED: { entityId: EntityId; oldHeat: number; newHeat: number; maxSafe: number };
 
   /** Queued when a Firmware ability is activated. */
-  FIRMWARE_ACTIVATED: { entityId: EntityId; firmwareEntityId: EntityId; slotIndex: number; abilityName: string; heatCost: number; targetX: number; targetY: number };
+  FIRMWARE_ACTIVATED: {
+    entityId: EntityId;
+    firmwareEntityId: EntityId;
+    slotIndex: number;
+    abilityName: string;
+    heatCost: number;
+    targetX: number;
+    targetY: number;
+  };
 
   /** Queued when an entity completes a Heat vent. */
   VENT_COMPLETED: { entityId: EntityId; oldHeat: number; newHeat: number };
@@ -108,9 +114,9 @@ export interface GameplayEvents extends EngineEvents {
   /** Queued when floor transition is confirmed. */
 
   /** Queued when player steps on anchor. */
-  ANCHOR_INTERACTION: { 
-    entityId: EntityId; 
-    anchorId: EntityId; 
+  ANCHOR_INTERACTION: {
+    entityId: EntityId;
+    anchorId: EntityId;
     floorNumber: number;
     stabilityPercent: number;
     inventory: {
@@ -129,13 +135,19 @@ export interface GameplayEvents extends EngineEvents {
 
   /** Queued when player chooses to descend at an anchor. */
   ANCHOR_DESCEND: { anchorId: EntityId; cost: number };
-  
+
   /** Queued when targeting mode starts. */
-  TARGETING_STARTED: { firmwareSlotIndex: number; range: number; playerX: number; playerY: number; effectType: string };
-  
+  TARGETING_STARTED: {
+    firmwareSlotIndex: number;
+    range: number;
+    playerX: number;
+    playerY: number;
+    effectType: string;
+  };
+
   /** Queued when targeting is confirmed. */
   TARGETING_CONFIRMED: { targetX: number; targetY: number };
-  
+
   /** Queued when targeting is cancelled. */
   TARGETING_CANCELLED: Record<string, never>;
 
@@ -178,7 +190,7 @@ export interface GameplayEvents extends EngineEvents {
   REMOVE_WORLD_FILTER: { filterType: 'grayscale' | 'desaturation' };
 
   /** Queued when the player makes a decision at an anchor (Extract or Descend). */
-  ANCHOR_DECISION_MADE: { 
+  ANCHOR_DECISION_MADE: {
     decision: 'extract' | 'descend';
     anchorId?: number;
     descendCost?: number;
@@ -193,7 +205,6 @@ export interface GameplayEvents extends EngineEvents {
 
   /** Queued when a system requests the game to resume. */
   GAME_RESUME_REQUESTED: Record<string, never>;
-
 }
 
 export interface RunEndedStats {

@@ -4,8 +4,14 @@ import { EventBus } from '@engine/events/event-bus';
 import { Phase } from '@engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
 import {
-  EquipmentSlots, RunInventory, RunCurrency, EquipIntent, UnequipIntent,
-  TemplateId, RarityTier, FloorState
+  EquipmentSlots,
+  RunInventory,
+  RunCurrency,
+  EquipIntent,
+  UnequipIntent,
+  TemplateId,
+  RarityTier,
+  FloorState,
 } from '@shared/components';
 import { createEquipmentSystem } from '../equipment';
 
@@ -35,13 +41,15 @@ describe('Equipment System — Inventory Integration', () => {
 
     // Add weapon to inventory
     world.patchComponent(playerId, RunInventory, {
-      equipment: [{
-        entityId: weaponEntity,
-        templateId: 'katana',
-        rarityTier: 'v1.x',
-        pickedUpAtFloor: 1,
-        pickedUpAtTimestamp: Date.now(),
-      }]
+      equipment: [
+        {
+          entityId: weaponEntity,
+          templateId: 'katana',
+          rarityTier: 'v1.x',
+          pickedUpAtFloor: 1,
+          pickedUpAtTimestamp: Date.now(),
+        },
+      ],
     });
 
     // Act: Equip weapon
@@ -67,13 +75,15 @@ describe('Equipment System — Inventory Integration', () => {
     // Initial state: old weapon equipped, new weapon in inventory
     world.patchComponent(playerId, EquipmentSlots, { weapon: oldWeapon, armor: null });
     world.patchComponent(playerId, RunInventory, {
-      equipment: [{
-        entityId: newWeapon,
-        templateId: 'new-blade',
-        rarityTier: 'v2.x',
-        pickedUpAtFloor: 1,
-        pickedUpAtTimestamp: Date.now(),
-      }]
+      equipment: [
+        {
+          entityId: newWeapon,
+          templateId: 'new-blade',
+          rarityTier: 'v2.x',
+          pickedUpAtFloor: 1,
+          pickedUpAtTimestamp: Date.now(),
+        },
+      ],
     });
 
     // Act: Equip new weapon

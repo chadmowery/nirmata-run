@@ -51,7 +51,7 @@ const ShellUpgradePanel: React.FC = () => {
   const handleUpgrade = async (stat: 'speed' | 'armor' | 'stability' | 'additionalPorts') => {
     let baseCost = 0;
     let multiplier = 1.0;
-    
+
     if (stat === 'speed') {
       baseCost = economyConfig.costs.shellUpgrade.speed.baseCost;
       multiplier = economyConfig.costs.shellUpgrade.speed.perLevelMultiplier;
@@ -83,7 +83,7 @@ const ShellUpgradePanel: React.FC = () => {
 
       if (response.ok) {
         const data = await response.json();
-        
+
         // Optimistic update
         updateProfileOptimistic((p) => {
           const newUpgrades = { ...p.shellUpgrades };
@@ -93,17 +93,17 @@ const ShellUpgradePanel: React.FC = () => {
             stability: 0,
             additionalPorts: 0,
           };
-          
+
           newUpgrades[activeShell.id] = {
             ...shellUpgrades,
-            [stat]: data.newLevel ?? (shellUpgrades[stat] + 1),
+            [stat]: data.newLevel ?? shellUpgrades[stat] + 1,
           };
 
           return {
             ...p,
             wallet: {
               ...p.wallet,
-              flux: data.remainingFlux ?? (p.wallet.flux - cost),
+              flux: data.remainingFlux ?? p.wallet.flux - cost,
             },
             shellUpgrades: newUpgrades,
           };
@@ -115,9 +115,27 @@ const ShellUpgradePanel: React.FC = () => {
   };
 
   const upgradeOptions = [
-    { id: 'speed', label: 'SPEED +1', baseValue: activeShell.baseStats.speed, currentBonus: upgrades.speed, key: 'speed' },
-    { id: 'armor', label: 'ARMOR +1', baseValue: activeShell.baseStats.armor, currentBonus: upgrades.armor, key: 'armor' },
-    { id: 'additionalPorts', label: 'NEW PORT: SOFTWARE', baseValue: activeShell.basePorts.maxSoftware, currentBonus: upgrades.additionalPorts, key: 'additionalPorts' },
+    {
+      id: 'speed',
+      label: 'SPEED +1',
+      baseValue: activeShell.baseStats.speed,
+      currentBonus: upgrades.speed,
+      key: 'speed',
+    },
+    {
+      id: 'armor',
+      label: 'ARMOR +1',
+      baseValue: activeShell.baseStats.armor,
+      currentBonus: upgrades.armor,
+      key: 'armor',
+    },
+    {
+      id: 'additionalPorts',
+      label: 'NEW PORT: SOFTWARE',
+      baseValue: activeShell.basePorts.maxSoftware,
+      currentBonus: upgrades.additionalPorts,
+      key: 'additionalPorts',
+    },
   ] as const;
 
   return (

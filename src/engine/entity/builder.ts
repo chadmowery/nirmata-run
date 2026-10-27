@@ -11,14 +11,14 @@ export function resolveMixins(
   template: RawTemplate,
   templateRegistry: EntityRegistry,
   maxDepth = 3,
-  seen: string[] = []
+  seen: string[] = [],
 ): Record<string, unknown> {
   if (seen.includes(template.name)) {
     throw new Error(`Circular mixin reference: ${seen.join(' → ')} → ${template.name}`);
   }
 
   if (seen.length >= maxDepth) {
-     throw new Error(`Mixin depth exceeded (max ${maxDepth}) for template '${template.name}'`);
+    throw new Error(`Mixin depth exceeded (max ${maxDepth}) for template '${template.name}'`);
   }
 
   const resolvedComponents: Record<string, unknown> = {};
@@ -32,12 +32,10 @@ export function resolveMixins(
         throw new Error(`Template '${template.name}' references unknown mixin: '${mixinName}'`);
       }
 
-      const mixinComponents = resolveMixins(
-        mixinTemplate,
-        templateRegistry,
-        maxDepth,
-        [...seen, template.name]
-      );
+      const mixinComponents = resolveMixins(mixinTemplate, templateRegistry, maxDepth, [
+        ...seen,
+        template.name,
+      ]);
 
       for (const [key, data] of Object.entries(mixinComponents)) {
         if (resolvedComponents[key] !== undefined) {
@@ -47,12 +45,14 @@ export function resolveMixins(
             sources.push(mixinName);
           }
           componentSources[key] = sources;
-          
+
           // Conflict if components from different mixins collide
-          // (They might collide if they inherit from same base, but resolveMixins currently 
-          // doesn't track origins perfectly. Let's stick to the strictly simpler logic 
+          // (They might collide if they inherit from same base, but resolveMixins currently
+          // doesn't track origins perfectly. Let's stick to the strictly simpler logic
           // mentioned in the plan: "Conflicting component across two mixins throws")
-          throw new Error(`Template '${template.name}': component '${key}' defined in multiple mixins [${sources.join(', ')}]. Use 'overrides' to resolve.`);
+          throw new Error(
+            `Template '${template.name}': component '${key}' defined in multiple mixins [${sources.join(', ')}]. Use 'overrides' to resolve.`,
+          );
         }
         resolvedComponents[key] = data;
         componentSources[key] = [mixinName];
@@ -72,7 +72,7 @@ export function resolveMixins(
         // Deep merge for overrideData onto resolvedComponents[key]
         resolvedComponents[key] = {
           ...(resolvedComponents[key] as object),
-          ...overrideData
+          ...overrideData,
         };
       } else {
         resolvedComponents[key] = overrideData;
@@ -94,7 +94,7 @@ export function buildEntity<T extends EngineEvents>(
   resolvedComponents: Record<string, unknown>,
   componentRegistry: ComponentRegistry,
   templateRegistry: EntityRegistry,
-  children?: RawTemplate['children']
+  children?: RawTemplate['children'],
 ): EntityId {
   const entityId = world.createEntity();
 
@@ -106,10 +106,12 @@ export function buildEntity<T extends EngineEvents>(
 
     const result = def.schema.safeParse(data);
     if (!result.success) {
-      const errorMsg = result.error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join(', ');
+      const errorMsg = result.error.issues
+        .map((e) => `${e.path.join('.')}: ${e.message}`)
+        .join(', ');
       throw new Error(`Template '${templateName}', component '${key}': ${errorMsg}`);
     }
-    // Deep clone the data to prevent state pollution across entities 
+    // Deep clone the data to prevent state pollution across entities
     // sharing the same template/mixin object references.
     const deepClonedData = JSON.parse(JSON.stringify(result.data));
     world.addComponent(entityId, def, deepClonedData);
@@ -122,13 +124,17 @@ export function buildEntity<T extends EngineEvents>(
     const childrenDef = componentRegistry.get('children');
 
     if (!parentDef || !childrenDef) {
-        throw new Error(`Template '${templateName}': parent or children component definition missing`);
+      throw new Error(
+        `Template '${templateName}': parent or children component definition missing`,
+      );
     }
 
     for (const child of children) {
       const childTemplate = templateRegistry.get(child.template);
       if (!childTemplate) {
-        throw new Error(`Template '${templateName}' references unknown child template: '${child.template}'`);
+        throw new Error(
+          `Template '${templateName}' references unknown child template: '${child.template}'`,
+        );
       }
 
       // Clone template to avoid mutating the original registry
@@ -138,12 +144,19 @@ export function buildEntity<T extends EngineEvents>(
       }
 
       const childComponents = resolveMixins(childTemplateCopy, templateRegistry);
-      const childId = buildEntity(world, child.template, childComponents, componentRegistry, templateRegistry, childTemplateCopy.children);
-      
+      const childId = buildEntity(
+        world,
+        child.template,
+        childComponents,
+        componentRegistry,
+        templateRegistry,
+        childTemplateCopy.children,
+      );
+
       world.addComponent(childId, parentDef, { entityId, slotComponent: child.slotComponent });
       childIds.push(childId);
     }
-    
+
     world.addComponent(entityId, childrenDef, { entityIds: childIds });
   }
 

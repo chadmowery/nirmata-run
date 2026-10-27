@@ -8,8 +8,8 @@ import economy from '../entities/templates/economy.json';
  */
 export async function depositToOverflow(
   repo: ProfileRepository,
-  sessionId: string, 
-  items: VaultItem[]
+  sessionId: string,
+  items: VaultItem[],
 ): Promise<void> {
   const profile = await repo.load(sessionId);
   if (!profile) return;
@@ -24,19 +24,22 @@ export async function depositToOverflow(
  */
 export async function discardOverflowItem(
   repo: ProfileRepository,
-  sessionId: string, 
-  entityId: number
+  sessionId: string,
+  entityId: number,
 ): Promise<boolean> {
   const profile = await repo.load(sessionId);
   if (!profile) return false;
 
   const initialLength = profile.overflow.length;
-  profile.overflow = profile.overflow.filter(item => item.entityId !== entityId);
-  
+  profile.overflow = profile.overflow.filter((item) => item.entityId !== entityId);
+
   const success = profile.overflow.length < initialLength;
   if (success) {
     await repo.save(profile);
-    logger.info(`Vault Manager: Discarded item ${entityId} from overflow for session ${sessionId}`, 'SYSTEM');
+    logger.info(
+      `Vault Manager: Discarded item ${entityId} from overflow for session ${sessionId}`,
+      'SYSTEM',
+    );
   }
   return success;
 }
@@ -47,13 +50,13 @@ export async function discardOverflowItem(
  */
 export async function sellOverflowItem(
   repo: ProfileRepository,
-  sessionId: string, 
-  entityId: number
+  sessionId: string,
+  entityId: number,
 ): Promise<{ success: boolean; scrapGained: number }> {
   const profile = await repo.load(sessionId);
   if (!profile) return { success: false, scrapGained: 0 };
 
-  const itemIndex = profile.overflow.findIndex(item => item.entityId === entityId);
+  const itemIndex = profile.overflow.findIndex((item) => item.entityId === entityId);
   if (itemIndex === -1) return { success: false, scrapGained: 0 };
 
   const item = profile.overflow[itemIndex];
@@ -67,7 +70,10 @@ export async function sellOverflowItem(
   profile.wallet.scrap = Math.min(profile.wallet.scrap + scrapGained, maxScrap);
 
   await repo.save(profile);
-  logger.info(`Vault Manager: Sold item ${entityId} for ${scrapGained} scrap for session ${sessionId}`, 'SYSTEM');
+  logger.info(
+    `Vault Manager: Sold item ${entityId} for ${scrapGained} scrap for session ${sessionId}`,
+    'SYSTEM',
+  );
   return { success: true, scrapGained };
 }
 
@@ -76,7 +82,7 @@ export async function sellOverflowItem(
  */
 export async function moveOverflowToVault(
   repo: ProfileRepository,
-  sessionId: string
+  sessionId: string,
 ): Promise<{ moved: number; remaining: number }> {
   const profile = await repo.load(sessionId);
   if (!profile) return { moved: 0, remaining: 0 };
@@ -90,7 +96,10 @@ export async function moveOverflowToVault(
   profile.vault.push(...itemsToMove);
 
   await repo.save(profile);
-  logger.info(`Vault Manager: Moved ${itemsToMove.length} items from overflow to vault for session ${sessionId}`, 'SYSTEM');
+  logger.info(
+    `Vault Manager: Moved ${itemsToMove.length} items from overflow to vault for session ${sessionId}`,
+    'SYSTEM',
+  );
   return { moved: itemsToMove.length, remaining: profile.overflow.length };
 }
 

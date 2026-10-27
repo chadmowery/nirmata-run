@@ -3,7 +3,20 @@ import { World } from '../../engine/ecs/world';
 import { Grid } from '../../engine/grid/grid';
 import { EventBus } from '../../engine/events/event-bus';
 import { createRunEnderSystem } from './run-ender';
-import { Actor, Position, FloorState, RunInventory, EquipmentSlots, MovedThisTurn, AIState, AIBehaviorType, AIBehavior, Dying, Stability, ExtractionIntent } from '@shared/components';
+import {
+  Actor,
+  Position,
+  FloorState,
+  RunInventory,
+  EquipmentSlots,
+  MovedThisTurn,
+  AIState,
+  AIBehaviorType,
+  AIBehavior,
+  Dying,
+  Stability,
+  ExtractionIntent,
+} from '@shared/components';
 import { Phase } from '../../engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
 
@@ -27,11 +40,13 @@ describe('RunEnderSystem', () => {
     world.executeSystems(Phase.CLEANUP);
     eventBus.flush();
 
-    expect(runEndedSpy).toHaveBeenCalledWith(expect.objectContaining({
-      reason: 'extraction',
-      entityId: playerId,
-      floorNumber: 5
-    }));
+    expect(runEndedSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: 'extraction',
+        entityId: playerId,
+        floorNumber: 5,
+      }),
+    );
   });
 
   it('should clear inventory and burned software on player death', () => {
@@ -69,10 +84,10 @@ describe('RunEnderSystem', () => {
     world.addComponent(playerId, Position, { x: 5, y: 5 });
 
     const adminId = world.createEntity();
-    world.addComponent(adminId, AIState, { 
+    world.addComponent(adminId, AIState, {
       behavior: AIBehavior.IDLE,
       behaviorType: AIBehaviorType.SYSTEM_ADMIN,
-      sightRadius: 6
+      sightRadius: 6,
     });
     world.addComponent(adminId, Position, { x: 6, y: 5 });
 
@@ -85,10 +100,12 @@ describe('RunEnderSystem', () => {
     system.update(world);
     eventBus.flush();
 
-    expect(runEndedSpy).toHaveBeenCalledWith(expect.objectContaining({
-      reason: 'FATAL: ADMIN_CONTACT',
-      entityId: playerId
-    }));
+    expect(runEndedSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: 'FATAL: ADMIN_CONTACT',
+        entityId: playerId,
+      }),
+    );
   });
 
   it('should end run when player stability reaches zero', () => {
@@ -109,9 +126,11 @@ describe('RunEnderSystem', () => {
     world.executeSystems(Phase.CLEANUP);
     eventBus.flush();
 
-    expect(runEndedSpy).toHaveBeenCalledWith(expect.objectContaining({
-      reason: 'FATAL: REALITY_ANCHOR_COLLAPSED',
-      entityId: playerId
-    }));
+    expect(runEndedSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: 'FATAL: REALITY_ANCHOR_COLLAPSED',
+        entityId: playerId,
+      }),
+    );
   });
 });

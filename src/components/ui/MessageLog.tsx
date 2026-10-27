@@ -34,9 +34,12 @@ export const MessageLog: React.FC = () => {
 
 function getMessageClass(type: string) {
   switch (type) {
-    case 'combat': return styles.msgCombat;
-    case 'error': return styles.msgError;
+    case 'combat':
+      return styles.msgCombat;
+    case 'error':
+      return styles.msgError;
     case 'info':
-    default: return styles.msgInfo;
+    default:
+      return styles.msgInfo;
   }
 }

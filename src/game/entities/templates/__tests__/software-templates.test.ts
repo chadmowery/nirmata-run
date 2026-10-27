@@ -37,7 +37,8 @@ describe('Software Templates', () => {
         it(`has correct scaleFactor for ${rarity}`, () => {
           const template = loadTemplate(templateName);
           const data = template.components.rarityTier;
-          const expectedFactor = RARITY_SCALE_FACTORS[TIER_MAP[rarity] as keyof typeof RARITY_SCALE_FACTORS];
+          const expectedFactor =
+            RARITY_SCALE_FACTORS[TIER_MAP[rarity] as keyof typeof RARITY_SCALE_FACTORS];
           expect(data.scaleFactor).toBe(expectedFactor);
         });
 
@@ -58,10 +59,10 @@ describe('Software Templates', () => {
 
   describe('rarity scaling rules', () => {
     it('v0.x scale=1.0, v1.x=1.5, v2.x=2.0, v3.x=3.0', () => {
-        expect(RARITY_SCALE_FACTORS['v0.x']).toBe(1.0);
-        expect(RARITY_SCALE_FACTORS['v1.x']).toBe(1.5);
-        expect(RARITY_SCALE_FACTORS['v2.x']).toBe(2.0);
-        expect(RARITY_SCALE_FACTORS['v3.x']).toBe(3.0);
+      expect(RARITY_SCALE_FACTORS['v0.x']).toBe(1.0);
+      expect(RARITY_SCALE_FACTORS['v1.x']).toBe(1.5);
+      expect(RARITY_SCALE_FACTORS['v2.x']).toBe(2.0);
+      expect(RARITY_SCALE_FACTORS['v3.x']).toBe(3.0);
     });
 
     it('v3.x templates have minFloor >= 10', () => {
@@ -76,7 +77,7 @@ describe('Software Templates', () => {
     it('Bleed and Auto-Loader target weapon slot', () => {
       const bleed = loadTemplate('bleed-v0');
       expect(bleed.components.softwareDef.targetSlot).toBe('weapon');
-      
+
       const autoloader = loadTemplate('auto-loader-v0');
       expect(autoloader.components.softwareDef.targetSlot).toBe('weapon');
     });

@@ -2,33 +2,37 @@
   position: fixed;
   inset: 0;
   z-index: 300;
-  background: #0000FF; /* Classic BSOD Blue */
+  background: #0000ff; /* Classic BSOD Blue */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-mono, "Courier New", monospace);
+  font-family: var(--font-mono, 'Courier New', monospace);
   padding: 40px;
 }
 
 .bsod::after {
-  content: " ";
+  content: ' ';
   display: block;
   position: absolute;
   top: 0;
   left: 0;
   bottom: 0;
   right: 0;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  background:
+    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%),
+    linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
   z-index: 2;
-  background-size: 100% 2px, 3px 100%;
+  background-size:
+    100% 2px,
+    3px 100%;
   pointer-events: none;
 }
 
 .title {
   font-size: var(--font-size-display, 48px);
   font-weight: var(--font-weight-bold, 700);
-  color: #FFFFFF;
+  color: #ffffff;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin: 0;
@@ -37,7 +41,7 @@
 
 .reason {
   font-size: var(--font-size-heading, 24px);
-  color: #FFFFFF;
+  color: #ffffff;
   margin-top: var(--space-lg, 24px);
   opacity: 0.9;
   text-transform: uppercase;
@@ -46,8 +50,12 @@
 }
 
 @keyframes bsodFade {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 .fadeOut {

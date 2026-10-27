@@ -19,7 +19,7 @@ export const LoadoutSlotPanel: React.FC<LoadoutSlotPanelProps> = ({
   equippedItems,
   shellId,
   onSlotDrop,
-  onSlotDragStart
+  onSlotDragStart,
 }) => {
   const draggedItem = useStore(gameStore, (s) => s.draggedItem);
   const dragOverSlot = useStore(gameStore, (s) => s.dragOverSlot);
@@ -27,18 +27,18 @@ export const LoadoutSlotPanel: React.FC<LoadoutSlotPanelProps> = ({
 
   const renderSlotGroup = (type: 'firmware' | 'augment' | 'software', max: number) => {
     const slots = [];
-    const typeEquipped = equippedItems.filter(i => i.type === type);
+    const typeEquipped = equippedItems.filter((i) => i.type === type);
 
     for (let i = 0; i < max; i++) {
       const item = typeEquipped[i];
       const slotId = `${type}-${i}`;
       const isOver = dragOverSlot === slotId;
 
-      const isCompatible = draggedItem ? (
-        (draggedItem.itemType === 'firmware' && type === 'firmware') ||
-        (draggedItem.itemType === 'augment' && type === 'augment') ||
-        (draggedItem.itemType === 'software' && type === 'software')
-      ) : false;
+      const isCompatible = draggedItem
+        ? (draggedItem.itemType === 'firmware' && type === 'firmware') ||
+          (draggedItem.itemType === 'augment' && type === 'augment') ||
+          (draggedItem.itemType === 'software' && type === 'software')
+        : false;
 
       const handlePointerEnter = () => {
         if (draggedItem && draggedItem.entityId !== -1) {
@@ -81,16 +81,14 @@ export const LoadoutSlotPanel: React.FC<LoadoutSlotPanelProps> = ({
             slotType={type}
             legacy={item?.isLegacy}
           />
-        </div>
+        </div>,
       );
     }
 
     return (
       <div className={styles.slotGroup} key={type}>
         <div className={styles.slotGroupLabel}>{type.toUpperCase()}</div>
-        <div className={styles.slotRow}>
-          {slots}
-        </div>
+        <div className={styles.slotRow}>{slots}</div>
       </div>
     );
   };

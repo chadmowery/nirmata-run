@@ -89,13 +89,13 @@ export class ShellRegistry {
   getAvailableShells(weekSeed?: string): ShellRecord[] {
     const templates = this.getTemplates();
     if (!weekSeed) {
-      return templates.map(t => ({
+      return templates.map((t) => ({
         id: `available-${t.id}`,
         archetypeId: t.id,
         level: 1,
         currentStats: { ...t.baseStats },
         portConfig: { ...t.basePorts },
-        starterLoadout: t.starterLoadout ? [...t.starterLoadout] : undefined
+        starterLoadout: t.starterLoadout ? [...t.starterLoadout] : undefined,
       }));
     }
 
@@ -105,25 +105,25 @@ export class ShellRegistry {
       hash = (hash << 5) - hash + weekSeed.charCodeAt(i);
       hash |= 0;
     }
-    
+
     // Sort templates to ensure stability before slicing
     const sorted = [...templates].sort((a, b) => a.id.localeCompare(b.id));
     const offset = Math.abs(hash) % sorted.length;
-    
+
     // Return a window of 2 archetypes
     const selected = [];
     for (let i = 0; i < 2 && i < sorted.length; i++) {
-        const idx = (offset + i) % sorted.length;
-        selected.push(sorted[idx]);
+      const idx = (offset + i) % sorted.length;
+      selected.push(sorted[idx]);
     }
 
-    return selected.map(t => ({
-        id: `available-${t.id}`,
-        archetypeId: t.id,
-        level: 1,
-        currentStats: { ...t.baseStats },
-        portConfig: { ...t.basePorts },
-        starterLoadout: t.starterLoadout ? [...t.starterLoadout] : undefined
-      }));
+    return selected.map((t) => ({
+      id: `available-${t.id}`,
+      archetypeId: t.id,
+      level: 1,
+      currentStats: { ...t.baseStats },
+      portConfig: { ...t.basePorts },
+      starterLoadout: t.starterLoadout ? [...t.starterLoadout] : undefined,
+    }));
   }
 }

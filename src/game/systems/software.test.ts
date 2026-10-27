@@ -7,7 +7,16 @@ import * as InventoryUtil from '../../shared/utils/inventory-util';
 import { World } from '../../engine/ecs/world';
 import { Grid } from '../../engine/grid/grid';
 import { runActionPipeline } from '../../shared/pipeline';
-import { Actor, Position, Health, SoftwareSlots, StatusEffects, Dying, HealIntent, ApplyStatusEffectIntent } from '../../shared/components';
+import {
+  Actor,
+  Position,
+  Health,
+  SoftwareSlots,
+  StatusEffects,
+  Dying,
+  HealIntent,
+  ApplyStatusEffectIntent,
+} from '../../shared/components';
 import { Phase } from '../../engine/ecs/types';
 import { createRunEnderSystem } from './run-ender';
 import { GameplayEvents } from '../../shared/events/types';
@@ -23,7 +32,7 @@ describe('Software System', () => {
 
     it('resolveDamage applies additive pre_defense modifiers correctly', () => {
       const modifiers: DamageModifier[] = [
-        { source: 'test', type: 'additive', value: 5, phase: 'pre_defense' }
+        { source: 'test', type: 'additive', value: 5, phase: 'pre_defense' },
       ];
       expect(resolveDamage(10, modifiers, 3)).toBe(12); // 10 + 5 - 3
     });
@@ -31,7 +40,7 @@ describe('Software System', () => {
     it('resolveDamage handles multiple pre_defense modifiers', () => {
       const modifiers: DamageModifier[] = [
         { source: 'test1', type: 'additive', value: 5, phase: 'pre_defense' },
-        { source: 'test2', type: 'additive', value: 3, phase: 'pre_defense' }
+        { source: 'test2', type: 'additive', value: 3, phase: 'pre_defense' },
       ];
       expect(resolveDamage(10, modifiers, 3)).toBe(15); // 10 + 5 + 3 - 3
     });
@@ -223,7 +232,7 @@ describe('Software System', () => {
     });
 
     it('removeSoftware removes by index and shifts remaining', () => {
-      const items = [0, 1, 2].map(i => ({
+      const items = [0, 1, 2].map((i) => ({
         entityId: i,
         templateId: `temp-${i}`,
         rarityTier: 'v0.x',
@@ -231,7 +240,7 @@ describe('Software System', () => {
         pickedUpAtTimestamp: Date.now(),
       }));
 
-      items.forEach(item => InventoryUtil.addSoftware(world, playerId, item));
+      items.forEach((item) => InventoryUtil.addSoftware(world, playerId, item));
 
       const removed = InventoryUtil.removeSoftware(world, playerId, 1);
       expect(removed?.entityId).toBe(1);
@@ -256,7 +265,11 @@ describe('Software System', () => {
       world.addComponent(playerId, Actor, { isPlayer: true });
       world.addComponent(playerId, Position, { x: 0, y: 0 });
       world.addComponent(playerId, Health, Health.schema.parse({ current: 10, max: 10 }));
-      world.addComponent(playerId, SoftwareSlots, { maxSlots: 3, allowedTypes: ['software'], equipped: [] });
+      world.addComponent(playerId, SoftwareSlots, {
+        maxSlots: 3,
+        allowedTypes: ['software'],
+        equipped: [],
+      });
       world.addComponent(playerId, RunInventory, { software: [], equipment: [], maxSlots: 5 });
       world.addComponent(playerId, RunCurrency, { stacks: [] });
     });
@@ -281,11 +294,17 @@ describe('Software System', () => {
         pickedUpAtTimestamp: Date.now(),
       });
 
-      const { world: newWorld } = runActionPipeline(world, grid, playerId, {
-        type: 'BURN_SOFTWARE',
-        runInventoryIndex: 0,
-        targetSlot: 'weapon',
-      }, sessionId);
+      const { world: newWorld } = runActionPipeline(
+        world,
+        grid,
+        playerId,
+        {
+          type: 'BURN_SOFTWARE',
+          runInventoryIndex: 0,
+          targetSlot: 'weapon',
+        },
+        sessionId,
+      );
 
       const burned = newWorld.getComponent(playerId, EquipmentSlots);
       expect(burned?.weapon).toBe(swEntity);
@@ -312,11 +331,17 @@ describe('Software System', () => {
         pickedUpAtTimestamp: Date.now(),
       });
 
-      const { world: newWorld } = runActionPipeline(world, grid, playerId, {
-        type: 'BURN_SOFTWARE',
-        runInventoryIndex: 0,
-        targetSlot: 'weapon',
-      }, sessionId);
+      const { world: newWorld } = runActionPipeline(
+        world,
+        grid,
+        playerId,
+        {
+          type: 'BURN_SOFTWARE',
+          runInventoryIndex: 0,
+          targetSlot: 'weapon',
+        },
+        sessionId,
+      );
 
       const burned = newWorld.getComponent(playerId, EquipmentSlots);
       expect(burned).toBeUndefined();
@@ -356,11 +381,17 @@ describe('Software System', () => {
         pickedUpAtTimestamp: Date.now(),
       });
 
-      const { world: newWorld } = runActionPipeline(world, grid, playerId, {
-        type: 'BURN_SOFTWARE',
-        runInventoryIndex: 0,
-        targetSlot: 'armor',
-      }, sessionId);
+      const { world: newWorld } = runActionPipeline(
+        world,
+        grid,
+        playerId,
+        {
+          type: 'BURN_SOFTWARE',
+          runInventoryIndex: 0,
+          targetSlot: 'armor',
+        },
+        sessionId,
+      );
 
       const burned = newWorld.getComponent(playerId, EquipmentSlots);
       expect(burned?.armor).toBe(null);
@@ -401,11 +432,17 @@ describe('Software System', () => {
         pickedUpAtTimestamp: Date.now(),
       });
 
-      const { world: newWorld } = runActionPipeline(world, grid, playerId, {
-        type: 'BURN_SOFTWARE',
-        runInventoryIndex: 0,
-        targetSlot: 'weapon',
-      }, sessionId);
+      const { world: newWorld } = runActionPipeline(
+        world,
+        grid,
+        playerId,
+        {
+          type: 'BURN_SOFTWARE',
+          runInventoryIndex: 0,
+          targetSlot: 'weapon',
+        },
+        sessionId,
+      );
 
       const burned = newWorld.getComponent(playerId, EquipmentSlots);
       expect(burned?.weapon).toBe(swNew);
@@ -478,21 +515,27 @@ describe('Software System', () => {
       world['eventBus'].on('ENTITY_MOVED', (e) => events.push({ type: 'ENTITY_MOVED', ...e }));
       world['eventBus'].on('PLAYER_ACTION', (e) => events.push({ type: 'PLAYER_ACTION', ...e }));
 
-      const { world: newWorld } = runActionPipeline(world, grid, playerId, {
-        type: 'MOVE_AND_USE_FIRMWARE',
-        dx: 1,
-        dy: 0,
-        firmwareSlotIndex: 0,
-        targetX: 2,
-        targetY: 0,
-      }, sessionId);
+      const { world: newWorld } = runActionPipeline(
+        world,
+        grid,
+        playerId,
+        {
+          type: 'MOVE_AND_USE_FIRMWARE',
+          dx: 1,
+          dy: 0,
+          firmwareSlotIndex: 0,
+          targetX: 2,
+          targetY: 0,
+        },
+        sessionId,
+      );
 
       const pos = newWorld.getComponent(playerId, Position);
       expect(pos?.x).toBe(1);
       expect(pos?.y).toBe(0);
 
       // In the pipeline, it should have emitted PLAYER_ACTION via USE_FIRMWARE delegation
-      // But we can't easily see local events emitted during runActionPipeline from here 
+      // But we can't easily see local events emitted during runActionPipeline from here
       // unless they result in state changes or we intercept them.
       // Since USE_FIRMWARE only emits an event for now, and runActionPipeline returns a new world,
       // we can't easily check the local event bus of the pipeline.
@@ -503,14 +546,20 @@ describe('Software System', () => {
     it('MOVE_AND_USE_FIRMWARE fails without Auto-Loader', () => {
       world.addComponent(playerId, EquipmentSlots, { weapon: null, armor: null });
 
-      const { world: newWorld } = runActionPipeline(world, grid, playerId, {
-        type: 'MOVE_AND_USE_FIRMWARE',
-        dx: 1,
-        dy: 0,
-        firmwareSlotIndex: 0,
-        targetX: 2,
-        targetY: 0,
-      }, sessionId);
+      const { world: newWorld } = runActionPipeline(
+        world,
+        grid,
+        playerId,
+        {
+          type: 'MOVE_AND_USE_FIRMWARE',
+          dx: 1,
+          dy: 0,
+          firmwareSlotIndex: 0,
+          targetX: 2,
+          targetY: 0,
+        },
+        sessionId,
+      );
 
       const pos = newWorld.getComponent(playerId, Position);
       expect(pos?.x).toBe(0); // Move did not happen
@@ -712,14 +761,26 @@ describe('Software System', () => {
       // Bleed on weapon
       const bleedSw = world.createEntity();
       world.addComponent(bleedSw, SoftwareDef, {
-        name: 'Bleed.exe', type: 'bleed', targetSlot: 'weapon', baseMagnitude: 2, effectType: 'dot', description: '...', purchaseCost: 0
+        name: 'Bleed.exe',
+        type: 'bleed',
+        targetSlot: 'weapon',
+        baseMagnitude: 2,
+        effectType: 'dot',
+        description: '...',
+        purchaseCost: 0,
       });
       world.addComponent(bleedSw, RarityTier, { tier: 'v0.x', scaleFactor: 1, minFloor: 0 });
 
       // Vampire on armor
       const vampireSw = world.createEntity();
       world.addComponent(vampireSw, SoftwareDef, {
-        name: 'Vampire.exe', type: 'vampire', targetSlot: 'armor', baseMagnitude: 5, effectType: 'heal_on_kill', description: '...', purchaseCost: 0
+        name: 'Vampire.exe',
+        type: 'vampire',
+        targetSlot: 'armor',
+        baseMagnitude: 5,
+        effectType: 'heal_on_kill',
+        description: '...',
+        purchaseCost: 0,
       });
       world.addComponent(vampireSw, RarityTier, { tier: 'v0.x', scaleFactor: 1, minFloor: 0 });
 
@@ -746,7 +807,13 @@ describe('Software System', () => {
 
       const swEntity = world.createEntity();
       world.addComponent(swEntity, SoftwareDef, {
-        name: 'Bleed.exe', type: 'bleed', targetSlot: 'weapon', baseMagnitude: 10, effectType: 'dot', description: '...', purchaseCost: 0
+        name: 'Bleed.exe',
+        type: 'bleed',
+        targetSlot: 'weapon',
+        baseMagnitude: 10,
+        effectType: 'dot',
+        description: '...',
+        purchaseCost: 0,
       });
       world.addComponent(swEntity, RarityTier, { tier: 'v1.x', scaleFactor: 1.5, minFloor: 0 });
       world.addComponent(attacker, EquipmentSlots, { weapon: swEntity, armor: null });

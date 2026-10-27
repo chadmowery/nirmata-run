@@ -79,7 +79,7 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
     }
 
     store.set(entityId, data);
-    
+
     if (isNew) {
       this.eventBus.emit('COMPONENT_ADDED', { entityId, componentKey: def.key });
     }
@@ -132,8 +132,8 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
 
     // Get all candidate stores
     const candidateStores = defs
-      .map(def => ({ key: def.key, store: this.stores.get(def.key) }))
-      .filter(entry => entry.store !== undefined);
+      .map((def) => ({ key: def.key, store: this.stores.get(def.key) }))
+      .filter((entry) => entry.store !== undefined);
 
     // If any component has no store, no entity can match all
     if (candidateStores.length < defs.length) return [];
@@ -222,7 +222,11 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
   /**
    * Loads state into the world.
    */
-  loadSerializableState(state: { nextId: number; entities: number[]; stores: Record<string, Record<number, unknown>> }): void {
+  loadSerializableState(state: {
+    nextId: number;
+    entities: number[];
+    stores: Record<string, Record<number, unknown>>;
+  }): void {
     this.nextId = state.nextId;
     this.entities = new Set(state.entities);
     this.stores = new Map();

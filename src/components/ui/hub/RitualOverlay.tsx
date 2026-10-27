@@ -31,12 +31,12 @@ export const RitualOverlay: React.FC = () => {
 
   if (!ritualActive || !playerProfile || !shellTemplates.length) return null;
 
-  const selectedModeData = modeAvailability?.find(m => m.mode === selectedRunMode);
+  const selectedModeData = modeAvailability?.find((m) => m.mode === selectedRunMode);
   const currentShell = shellTemplates[selectedShellIndex];
-  
+
   const handleConfirm = async () => {
     if (!selectedRunMode) return;
-    
+
     setIsDeploying(true);
     try {
       const response = await fetch('/api/run-mode/launch', {
@@ -69,12 +69,21 @@ export const RitualOverlay: React.FC = () => {
   };
 
   const isWeekly = selectedRunMode === RunMode.WEEKLY;
-  const installedOnCurrent = playerProfile.installedItems.filter((i: InstalledItem) => i.shellId === currentShell.id);
+  const installedOnCurrent = playerProfile.installedItems.filter(
+    (i: InstalledItem) => i.shellId === currentShell.id,
+  );
 
   return (
-    <div className={styles.overlay} role="dialog" aria-modal="true" aria-labelledby="ritual-heading">
+    <div
+      className={styles.overlay}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="ritual-heading"
+    >
       <div className={styles.content}>
-        <h2 id="ritual-heading" className={styles.heading}>DEPLOYMENT_REVIEW</h2>
+        <h2 id="ritual-heading" className={styles.heading}>
+          DEPLOYMENT_REVIEW
+        </h2>
 
         <div className={styles.section}>
           <h3 className={styles.sectionHeading}>ACTIVE_LOADOUT</h3>
@@ -111,11 +120,7 @@ export const RitualOverlay: React.FC = () => {
             <p className={styles.stakes}>
               STAKES: {isWeekly ? 'FULL_LOOT_LOSS + FACTORY_RESET' : 'STANDARD_DEATH_PENALTY'}
             </p>
-            {isWeekly && (
-              <p className={styles.weeklyWarning}>
-                ⚠ SHELL_FACTORY_RESET_ON_DEATH
-              </p>
-            )}
+            {isWeekly && <p className={styles.weeklyWarning}>⚠ SHELL_FACTORY_RESET_ON_DEATH</p>}
             <p className={styles.attempts}>
               ATTEMPT: {selectedModeData?.attemptsRemaining === 'unlimited' ? 'UNLIMITED' : 'FINAL'}
             </p>
@@ -129,9 +134,9 @@ export const RitualOverlay: React.FC = () => {
         >
           {isDeploying ? 'DEPLOYING...' : 'CONFIRM_INITIALIZATION'}
         </button>
-        
-        <button 
-          className={styles.cancelButton} 
+
+        <button
+          className={styles.cancelButton}
           onClick={() => setRitualActive(false)}
           disabled={isDeploying}
         >

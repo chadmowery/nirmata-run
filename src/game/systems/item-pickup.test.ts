@@ -38,7 +38,9 @@ describe('ItemPickupSystem', () => {
     eventBus = {
       on: vi.fn().mockImplementation((event, handler) => {
         eventHandlers[event] = handler;
-        return () => { delete eventHandlers[event]; };
+        return () => {
+          delete eventHandlers[event];
+        };
       }),
       emit: vi.fn(),
     } as unknown as EventBus<GameplayEvents>;
@@ -60,7 +62,11 @@ describe('ItemPickupSystem', () => {
 
     itemPickupSystem = createItemPickupSystem(world, grid, eventBus);
     itemPickupSystem.init();
-    expect(world.registerSystem).toHaveBeenCalledWith(Phase.REACTION, expect.any(Function), 'ItemPickupSystem');
+    expect(world.registerSystem).toHaveBeenCalledWith(
+      Phase.REACTION,
+      expect.any(Function),
+      'ItemPickupSystem',
+    );
   });
 
   it('should pick up an item when player moves onto its tile', () => {
@@ -79,7 +85,9 @@ describe('ItemPickupSystem', () => {
     grid.addItem(ITEM_ID, 6, 5);
 
     // Trigger ENTITY_MOVED
-    vi.mocked(world.query).mockImplementation((...args) => args.includes(MovedThisTurn) ? [PLAYER_ID] : []);
+    vi.mocked(world.query).mockImplementation((...args) =>
+      args.includes(MovedThisTurn) ? [PLAYER_ID] : [],
+    );
     vi.mocked(world.getComponent).mockImplementation((id, def) => {
       if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
       if (id === PLAYER_ID && def === MovedThisTurn) return { fromX: 5, fromY: 5, toX: 6, toY: 5 };
@@ -96,7 +104,11 @@ describe('ItemPickupSystem', () => {
       itemId: ITEM_ID,
     });
     expect(grid.getItemsAt(6, 5).has(ITEM_ID)).toBe(false);
-    expect(world.addComponent).toHaveBeenCalledWith(ITEM_ID, expect.anything(), expect.objectContaining({ reason: 'pickup' }));
+    expect(world.addComponent).toHaveBeenCalledWith(
+      ITEM_ID,
+      expect.anything(),
+      expect.objectContaining({ reason: 'pickup' }),
+    );
   });
 
   it('should apply heal effect when picking up a health potion', () => {
@@ -115,7 +127,9 @@ describe('ItemPickupSystem', () => {
     grid.addEntity(PLAYER_ID, 5, 5);
     grid.addItem(ITEM_ID, 6, 5);
 
-    vi.mocked(world.query).mockImplementation((...args) => args.includes(MovedThisTurn) ? [PLAYER_ID] : []);
+    vi.mocked(world.query).mockImplementation((...args) =>
+      args.includes(MovedThisTurn) ? [PLAYER_ID] : [],
+    );
     vi.mocked(world.getComponent).mockImplementation((id, def) => {
       if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
       if (id === PLAYER_ID && def === Health) return { current: 10, max: 20 };
@@ -130,7 +144,7 @@ describe('ItemPickupSystem', () => {
 
     expect(world.addComponent).toHaveBeenCalledWith(PLAYER_ID, HealIntent, {
       targetId: PLAYER_ID,
-      amount: 5
+      amount: 5,
     });
     expect(eventBus.emit).toHaveBeenCalledWith('ITEM_PICKED_UP', {
       entityId: PLAYER_ID,
@@ -153,7 +167,9 @@ describe('ItemPickupSystem', () => {
 
     grid.addItem(ITEM_ID, 6, 5);
 
-    vi.mocked(world.query).mockImplementation((...args) => args.includes(MovedThisTurn) ? [PLAYER_ID] : []);
+    vi.mocked(world.query).mockImplementation((...args) =>
+      args.includes(MovedThisTurn) ? [PLAYER_ID] : [],
+    );
     vi.mocked(world.getComponent).mockImplementation((id, def) => {
       if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
       if (id === PLAYER_ID && def === Health) return { current: 18, max: 20 };
@@ -168,7 +184,7 @@ describe('ItemPickupSystem', () => {
 
     expect(world.addComponent).toHaveBeenCalledWith(PLAYER_ID, HealIntent, {
       targetId: PLAYER_ID,
-      amount: 5
+      amount: 5,
     });
   });
 
@@ -181,7 +197,9 @@ describe('ItemPickupSystem', () => {
 
     grid.addItem(ITEM_ID, 6, 5);
 
-    vi.mocked(world.query).mockImplementation((...args) => args.includes(MovedThisTurn) ? [ENEMY_ID] : []);
+    vi.mocked(world.query).mockImplementation((...args) =>
+      args.includes(MovedThisTurn) ? [ENEMY_ID] : [],
+    );
     vi.mocked(world.getComponent).mockImplementation((id, def) => {
       if (id === ENEMY_ID && def === Actor) return { isPlayer: false };
       if (id === ENEMY_ID && def === MovedThisTurn) return { fromX: 5, fromY: 5, toX: 6, toY: 5 };
@@ -209,11 +227,12 @@ describe('ItemPickupSystem', () => {
       return undefined;
     });
 
-    vi.mocked(world.query).mockImplementation((...args) => args.includes(MovedThisTurn) ? [PLAYER_ID] : []);
+    vi.mocked(world.query).mockImplementation((...args) =>
+      args.includes(MovedThisTurn) ? [PLAYER_ID] : [],
+    );
 
     itemPickupSystem.update(world);
     grid.addItem(DECOR_ID, 6, 5);
-
 
     expect(eventBus.emit).not.toHaveBeenCalled();
     expect(grid.getItemsAt(6, 5).has(DECOR_ID)).toBe(true);
@@ -221,7 +240,7 @@ describe('ItemPickupSystem', () => {
 
   it('should handle multiple items on one tile', () => {
     const ITEM_ID_2 = 5;
-    
+
     vi.mocked(world.getComponent).mockImplementation((id, def) => {
       if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
       // Note: In a real world, the health would be updated between items.
@@ -239,7 +258,8 @@ describe('ItemPickupSystem', () => {
     });
 
     grid.addItem(ITEM_ID, 6, 5);
-    grid.addItem(ITEM_ID_2, 6, 5);    vi.mocked(world.getComponent).mockImplementation((id, def) => {
+    grid.addItem(ITEM_ID_2, 6, 5);
+    vi.mocked(world.getComponent).mockImplementation((id, def) => {
       if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
       if (id === PLAYER_ID && def === Health) return { current: 10, max: 20 };
       if (id === PLAYER_ID && def === MovedThisTurn) return { fromX: 5, fromY: 5, toX: 6, toY: 5 };
@@ -251,19 +271,28 @@ describe('ItemPickupSystem', () => {
       return undefined;
     });
 
-    vi.mocked(world.query).mockImplementation((...args) => args.includes(MovedThisTurn) ? [PLAYER_ID] : []);
+    vi.mocked(world.query).mockImplementation((...args) =>
+      args.includes(MovedThisTurn) ? [PLAYER_ID] : [],
+    );
 
     itemPickupSystem.update(world);
-
 
     // Since each pickup starts with health 10 in the mock:
     expect(world.addComponent).toHaveBeenCalledWith(PLAYER_ID, HealIntent, {
       targetId: PLAYER_ID,
-      amount: 5
+      amount: 5,
     });
     expect(eventBus.emit).toHaveBeenCalledTimes(2);
     expect(grid.getItemsAt(6, 5).size).toBe(0);
-    expect(world.addComponent).toHaveBeenCalledWith(ITEM_ID, expect.anything(), expect.objectContaining({ reason: 'pickup' }));
-    expect(world.addComponent).toHaveBeenCalledWith(ITEM_ID_2, expect.anything(), expect.objectContaining({ reason: 'pickup' }));
+    expect(world.addComponent).toHaveBeenCalledWith(
+      ITEM_ID,
+      expect.anything(),
+      expect.objectContaining({ reason: 'pickup' }),
+    );
+    expect(world.addComponent).toHaveBeenCalledWith(
+      ITEM_ID_2,
+      expect.anything(),
+      expect.objectContaining({ reason: 'pickup' }),
+    );
   });
 });
