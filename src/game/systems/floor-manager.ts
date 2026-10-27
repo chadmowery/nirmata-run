@@ -177,6 +177,7 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
     init,
     update,
     descendToFloor,
+    dispose,
   };
 }
 

@@ -6,6 +6,13 @@ import { RunMode } from '@/shared/run-mode';
 import { ShellTemplate } from '@/game/shells/shared';
 import { RunInventory } from '@shared/components/run-inventory';
 import { EquipmentSlots } from '@shared/components/equipment-slots';
+import type { GameContext } from '../types';
+
+declare global {
+  interface Window {
+    gameContext?: GameContext;
+  }
+}
 
 export type GameStatus = GameState;
 export type MessageType = 'info' | 'combat' | 'error' | 'warning';
@@ -481,13 +488,13 @@ export const gameStore = createStore<UIState>((set) => ({
       const currentWeapon = slot === 'weapon' ? entityId : state.optimisticWeapon;
       const currentArmor = slot === 'armor' ? entityId : state.optimisticArmor;
 
-      const context = (window as any).gameContext;
+      const context = typeof window !== 'undefined' ? window.gameContext : undefined;
       let newEquipmentIds: number[] = [];
       if (context && context.playerId) {
         const inv = context.world.getComponent(context.playerId, RunInventory);
         if (inv) {
           newEquipmentIds = inv.equipment
-            .map((item: any) => item.entityId)
+            .map((item: { entityId: number }) => item.entityId)
             .filter((id: number) => id !== entityId);
         }
       }
@@ -501,7 +508,7 @@ export const gameStore = createStore<UIState>((set) => ({
     }),
   optimisticUnequipItem: (slot) =>
     set((state) => {
-      const context = (window as any).gameContext;
+      const context = typeof window !== 'undefined' ? window.gameContext : undefined;
       let unequippedEntityId: number | null = null;
       if (context && context.playerId) {
         const eq = context.world.getComponent(context.playerId, EquipmentSlots);
@@ -520,7 +527,7 @@ export const gameStore = createStore<UIState>((set) => ({
           const baseEquipmentIds =
             state.optimisticInventoryEquipmentIds !== null
               ? state.optimisticInventoryEquipmentIds
-              : inv.equipment.map((item: any) => item.entityId);
+              : inv.equipment.map((item: { entityId: number }) => item.entityId);
           newEquipmentIds = [...baseEquipmentIds, unequippedEntityId];
         }
       }

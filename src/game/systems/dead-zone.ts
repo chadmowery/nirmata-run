@@ -1,6 +1,5 @@
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
-import { EventBus } from '@engine/events/event-bus';
 import { logger } from '@engine/utils/logger';
 import { EntityId, Phase } from '@engine/ecs/types';
 import { DeadZone, Position, Health, Dying, DamageIntent } from '@shared/components';
@@ -10,11 +9,7 @@ import { GameEvents } from '../events/types';
 /**
  * Dead zone system that manages creation, damage application, and expiration of Dead Zone tiles.
  */
-export function createDeadZoneSystem<T extends GameplayEvents>(
-  world: World<T>,
-  grid: Grid,
-  eventBus: EventBus<T>,
-) {
+export function createDeadZoneSystem<T extends GameplayEvents>(world: World<T>, grid: Grid) {
   /**
    * Ticks all dead zones: applies DoT and handles expiration.
    */
@@ -60,7 +55,7 @@ export function createDeadZoneSystem<T extends GameplayEvents>(
     y: number,
     duration: number,
     damagePerTick: number,
-    creatorId: EntityId,
+    creatorId?: EntityId,
   ) => {
     const entityId = world.createEntity();
     world.addComponent(entityId, Position, { x, y });

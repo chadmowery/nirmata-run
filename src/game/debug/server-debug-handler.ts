@@ -19,14 +19,38 @@ import { GameplayEvents } from '@shared/events/types';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { sessionManager } from '@server/session/session-manager';
 
+export interface ServerDebugCommandArgs {
+  amount?: number | string;
+  tier?: number | string;
+  effectName?: string;
+  type?: 'scrap' | 'flux' | 'blueprint';
+  blueprintId?: string;
+  duration?: number | string;
+  count?: number | string;
+  [key: string]: unknown;
+}
+
+export interface ServerDebugSystems {
+  deadZone?: {
+    createDeadZone: (
+      x: number,
+      y: number,
+      duration: number,
+      damagePerTick: number,
+      creatorId?: EntityId,
+    ) => void;
+  };
+  [key: string]: unknown;
+}
+
 export function handleServerDebugCommand(
-  world: World<any>,
+  world: World<GameplayEvents>,
   eventBus: EventBus<GameplayEvents>,
   playerId: EntityId,
   sessionId: string,
   command: string,
-  args: any = {},
-  systems?: any,
+  args: ServerDebugCommandArgs = {},
+  systems?: ServerDebugSystems,
 ) {
   if (process.env.NODE_ENV !== 'development') {
     logger.warn(
@@ -57,7 +81,7 @@ export function handleServerDebugCommand(
       logger.debug(`Triggering Panic for ${playerId}`, 'DEBUG');
       const tier = Number(args.tier) || 1;
       const effectName =
-        args.effectName ||
+        (args.effectName as string | undefined) ||
         (tier === 1
           ? 'HUD_GLITCH'
           : tier === 2
@@ -112,22 +136,22 @@ export function handleServerDebugCommand(
     }
 
     case 'GIVE_CURRENCY': {
-      const type = args.type || 'scrap';
+      const type = (args.type as 'scrap' | 'flux' | 'blueprint') || 'scrap';
       const amount = Number(args.amount) || 100;
-      InventoryUtil.addCurrency(world, playerId, type as any, amount, {
-        blueprintId: args.blueprintId,
+      InventoryUtil.addCurrency(world, playerId, type, amount, {
+        blueprintId: args.blueprintId as string | undefined,
       });
       eventBus.emit('CURRENCY_PICKED_UP', {
         entityId: playerId,
-        currencyType: type as any,
+        currencyType: type,
         amount,
-        blueprintId: args.blueprintId,
+        blueprintId: args.blueprintId as string | undefined,
       });
       break;
     }
 
     case 'STATUS': {
-      const effectName = args.effectName || 'burning';
+      const effectName = (args.effectName as string | undefined) || 'burning';
       const duration = Number(args.duration) || 5;
 
       world.addComponent(playerId, ApplyStatusEffectIntent, {
@@ -157,7 +181,7 @@ export function handleServerDebugCommand(
     case 'SPAWN_DEADZONE': {
       const pos = world.getComponent(playerId, Position);
       if (pos && systems?.deadZone) {
-        systems.deadZone.createDeadZone(pos.x, pos.y, Number(args.duration) || 5, playerId);
+        systems.deadZone.createDeadZone(pos.x, pos.y, Number(args.duration) || 5, 2, playerId);
       }
       break;
     }

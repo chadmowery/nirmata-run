@@ -51,9 +51,9 @@ export function registerCoreSystems<T extends GameplayEvents>(
   );
   const itemPickup = createItemPickupSystem(world, grid, eventBus);
   const stability = createStabilitySystem(world, eventBus);
-  const deadZone = createDeadZoneSystem(world, grid, eventBus);
+  const deadZone = createDeadZoneSystem(world, grid);
   const equipment = createEquipmentSystem(world, eventBus);
-  const shellStats = createShellStatsSystem(world, eventBus);
+  const shellStats = createShellStatsSystem(world);
   const statusEffect = createStatusEffectSystem(world, eventBus);
   const augment = createAugmentSystem(world, eventBus);
   const software = createSoftwareSystem(world, eventBus);

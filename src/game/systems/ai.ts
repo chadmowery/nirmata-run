@@ -110,6 +110,8 @@ export function createAISystem<T extends GameplayEvents>(
     return null;
   }
 
+  let updateHandler: ((w: World<T>) => void) | null = null;
+
   return {
     /**
      * Processes a single enemy's turn using basic behavior.
@@ -559,13 +561,13 @@ export function createAISystem<T extends GameplayEvents>(
     },
 
     init() {
-      const update = (w: World<T>) => this.update(w);
-      world.registerSystem(Phase.GATHER_INTENT, update, 'AISystem');
-      (this as any)._updateHandler = update;
+      updateHandler = (w: World<T>) => this.update(w);
+      world.registerSystem(Phase.GATHER_INTENT, updateHandler, 'AISystem');
     },
     dispose() {
-      if ((this as any)._updateHandler) {
-        world.unregisterSystem(Phase.GATHER_INTENT, (this as any)._updateHandler);
+      if (updateHandler) {
+        world.unregisterSystem(Phase.GATHER_INTENT, updateHandler);
+        updateHandler = null;
       }
     },
   };

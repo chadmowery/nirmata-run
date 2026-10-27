@@ -130,7 +130,7 @@ export function createPackCoordinatorSystem<T extends GameplayEvents>(
     }
   };
 
-  const preTurnUpdate = (w: World<T>) => {
+  const preTurnUpdate = () => {
     detonatedPacksThisTurn.clear();
   };
 

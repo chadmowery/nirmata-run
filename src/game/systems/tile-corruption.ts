@@ -242,15 +242,17 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
     }
   }
 
+  let tickHandler: (() => void) | null = null;
+
   return {
     init() {
-      const tick = () => this.tick();
-      world.registerSystem(Phase.POST_TURN, tick, 'TileCorruptionSystem');
-      (this as any)._tickHandler = tick;
+      tickHandler = () => this.tick();
+      world.registerSystem(Phase.POST_TURN, tickHandler, 'TileCorruptionSystem');
     },
     dispose() {
-      if ((this as any)._tickHandler) {
-        world.unregisterSystem(Phase.POST_TURN, (this as any)._tickHandler);
+      if (tickHandler) {
+        world.unregisterSystem(Phase.POST_TURN, tickHandler);
+        tickHandler = null;
       }
     },
     tick() {

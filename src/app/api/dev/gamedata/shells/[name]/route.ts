@@ -33,8 +33,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ name: st
     }
     await atomicWrite(filePath, body);
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return errorResponse(error.message, 500);
+  } catch (error) {
+    return errorResponse(error instanceof Error ? error.message : 'Internal server error', 500);
   }
 }
 

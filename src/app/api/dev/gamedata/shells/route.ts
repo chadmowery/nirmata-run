@@ -31,7 +31,7 @@ export async function POST(req: Request) {
 
     await atomicWrite(filePath, body);
     return NextResponse.json({ success: true, id: body.id }, { status: 201 });
-  } catch (error: any) {
-    return errorResponse(error.message, 500);
+  } catch (error) {
+    return errorResponse(error instanceof Error ? error.message : 'Internal server error', 500);
   }
 }

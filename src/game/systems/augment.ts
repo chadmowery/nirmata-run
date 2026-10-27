@@ -10,6 +10,7 @@ import {
   HeatIntent,
   ApplyStatusEffectIntent,
 } from '@shared/components';
+import { PayloadType } from '@shared/components/augment-data';
 import { GameplayEvents } from '@shared/events/types';
 import { getLegacyMagnitude } from './legacy-code';
 import { createTriggerContext, evaluateCondition } from './augment-util';
@@ -19,7 +20,11 @@ export function createAugmentSystem<T extends GameplayEvents>(
   world: World<T>,
   eventBus: EventBus<T>,
 ) {
-  const resolvePayloads = (entityId: EntityId, payloads: any[], isLegacy: boolean = false) => {
+  const resolvePayloads = (
+    entityId: EntityId,
+    payloads: PayloadType[],
+    isLegacy: boolean = false,
+  ) => {
     for (const payload of payloads) {
       const magnitude = getLegacyMagnitude(payload.magnitude ?? 0, isLegacy);
 

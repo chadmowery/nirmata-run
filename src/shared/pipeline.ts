@@ -25,7 +25,7 @@ import {
   PickupIntent,
 } from './components';
 import { checkAutoLoader } from '../game/systems/software-effects';
-import { Phase } from '@engine/ecs/types';
+import { Phase, ComponentDef } from '@engine/ecs/types';
 import { EntityRegistry } from '@engine/entity/registry';
 import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
@@ -43,6 +43,7 @@ export function runActionPipeline(
   action: ActionIntent,
   sessionId?: string,
 ): { world: World<GameplayEvents>; grid: Grid; delta: StateDelta } {
+  void sessionId;
   logger.debug(`[PIPELINE] Processing action: ${action.type}`, 'PIPELINE', action);
   // 1. Snapshot initial state
   const oldWorldState = serializeWorld(world);
@@ -54,13 +55,14 @@ export function runActionPipeline(
   const newGrid = deserializeGrid(oldGridState);
 
   // 3. Process Action (Attaches Intents)
-  processAction(newWorld, newGrid, localEventBus, playerId, action, sessionId);
+  processAction(newWorld, newGrid, localEventBus, playerId, action);
 
   // 4. Initialize Core Systems for simulation
   const dummyEntityRegistry = new EntityRegistry();
   const dummyEntityFactory = new EntityFactory(dummyEntityRegistry);
   const dummyComponentRegistry: ComponentRegistry = {
-    get: (key: string) => COMPONENTS_REGISTRY.find((c) => c.key === key) as any,
+    get: (key: string) =>
+      COMPONENTS_REGISTRY.find((c) => c.key === key) as ComponentDef<unknown> | undefined,
     has: (key: string) => COMPONENTS_REGISTRY.some((c) => c.key === key),
   };
 
@@ -102,7 +104,6 @@ function processAction(
   eventBus: EventBus<GameplayEvents>,
   entityId: number,
   action: ActionIntent,
-  sessionId?: string,
 ) {
   switch (action.type) {
     case 'MOVE':

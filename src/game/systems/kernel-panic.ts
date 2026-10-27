@@ -109,7 +109,7 @@ export function createKernelPanicSystem<T extends GameplayEvents>(
             name: tier.effectName,
             duration: tier.duration,
             magnitude: tier.magnitude,
-            severity: tier.severity as any,
+            severity: tier.severity,
             source: 'kernel_panic',
           },
         });

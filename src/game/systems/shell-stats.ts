@@ -1,13 +1,16 @@
 import { World } from '@engine/ecs/world';
+import { EngineEvents } from '@engine/events/types';
 import { EntityId, Phase } from '@engine/ecs/types';
 import { Shell, Health, Defense, Energy, ShellUpdateTag } from '@shared/components';
-import { EventBus } from '@engine/events/event-bus';
 import { GameplayEvents } from '@shared/events/types';
 
 /**
  * Syncs an entity's derived stats (Health, Defense, Energy) with its Shell component values.
  */
-export function propagateShellStats(world: World<any>, entityId: EntityId): void {
+export function propagateShellStats<T extends EngineEvents = EngineEvents>(
+  world: World<T>,
+  entityId: EntityId,
+): void {
   const shell = world.getComponent(entityId, Shell);
   if (!shell) return;
 
@@ -41,10 +44,7 @@ export function propagateShellStats(world: World<any>, entityId: EntityId): void
 /**
  * The ShellStatsSystem manages re-synchronizing derived stats when a shell is updated.
  */
-export function createShellStatsSystem<T extends GameplayEvents>(
-  world: World<T>,
-  eventBus: EventBus<T>,
-) {
+export function createShellStatsSystem<T extends GameplayEvents>(world: World<T>) {
   const update = (w: World<T>) => {
     const entities = w.query(ShellUpdateTag);
     for (const entityId of entities) {

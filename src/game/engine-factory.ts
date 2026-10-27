@@ -177,8 +177,6 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     const firmwareIds: number[] = [];
     const softwareIds: number[] = [];
     const augmentIds: number[] = [];
-    let weaponSoftwareId: number | null = null;
-    let armorSoftwareId: number | null = null;
 
     for (const item of items) {
       // Spawn the item entity (D-15/D-16 Fix)
@@ -188,12 +186,6 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
         firmwareIds.push(itemId);
       } else if (item.type === 'software') {
         softwareIds.push(itemId);
-        // Map burned components for passive resolution
-        if (!item.isLegacy) {
-          weaponSoftwareId = itemId;
-        } else {
-          armorSoftwareId = itemId;
-        }
       } else if (item.type === 'augment') {
         augmentIds.push(itemId);
       }
@@ -211,10 +203,14 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   }
 
   // Phase 16: Starter Loadout fallback (D-02, D-04)
+  type EquippedSlotsOverride = { equipped?: unknown[] };
   const hasEquippedItems =
-    ((playerOverrides['firmwareSlots'] as any)?.equipped?.length || 0) > 0 ||
-    ((playerOverrides['softwareSlots'] as any)?.equipped?.length || 0) > 0 ||
-    ((playerOverrides['augmentSlots'] as any)?.equipped?.length || 0) > 0;
+    ((playerOverrides['firmwareSlots'] as EquippedSlotsOverride | undefined)?.equipped?.length ||
+      0) > 0 ||
+    ((playerOverrides['softwareSlots'] as EquippedSlotsOverride | undefined)?.equipped?.length ||
+      0) > 0 ||
+    ((playerOverrides['augmentSlots'] as EquippedSlotsOverride | undefined)?.equipped?.length ||
+      0) > 0;
 
   if (!hasEquippedItems && config.shellRecord?.starterLoadout) {
     const firmwareIds: number[] = [];
@@ -322,7 +318,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
       ...coreSystems,
       heat: heatSystem,
       kernelPanic: kernelPanicSystem,
-    } as any,
+    } as EngineInstance<GameEvents>['systems'],
   };
 }
 

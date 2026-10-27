@@ -1,4 +1,5 @@
 import { World } from '@engine/ecs/world';
+import { EngineEvents } from '@engine/events/types';
 import { EntityId } from '@engine/ecs/types';
 import {
   ConditionNode,
@@ -21,7 +22,10 @@ export interface TriggerContext {
 /**
  * Creates a TriggerContext for an entity based on its current ECS state.
  */
-export function createTriggerContext(world: World<any>, entityId: EntityId): TriggerContext {
+export function createTriggerContext<T extends EngineEvents = EngineEvents>(
+  world: World<T>,
+  entityId: EntityId,
+): TriggerContext {
   const heat = world.getComponent(entityId, Heat);
   const health = world.getComponent(entityId, Health);
   const firmware = world.getComponent(entityId, FirmwareActivatedThisTurn);

@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { World } from '@engine/ecs/world';
 import { EntityId, Phase } from '@engine/ecs/types';
 import { EventBus } from '@engine/events/event-bus';
@@ -17,7 +18,12 @@ import {
   RarityTier,
   FloorState,
 } from '@shared/components';
+import { RunInventoryItemSchema } from '@shared/components/run-inventory';
 import * as InventoryUtil from '@shared/utils/inventory-util';
+
+type EquipIntentData = z.infer<typeof EquipIntent.schema>;
+type UnequipIntentData = z.infer<typeof UnequipIntent.schema>;
+type RunInventoryItem = z.infer<typeof RunInventoryItemSchema>;
 
 /**
  * System that processes equipment intent components.
@@ -44,16 +50,16 @@ export function createEquipmentSystem<T extends GameplayEvents>(
     }
   };
 
-  const handleEquip = (w: World<T>, entityId: EntityId, intent: any) => {
+  const handleEquip = (w: World<T>, entityId: EntityId, intent: EquipIntentData) => {
     if (intent.slotType === 'weapon' || intent.slotType === 'armor') {
       const equipment = w.getComponent(entityId, EquipmentSlots);
       if (!equipment) return;
 
       const runInventory = w.getComponent(entityId, RunInventory);
-      const slotKey = intent.slotType as 'weapon' | 'armor';
+      const slotKey = intent.slotType;
       const oldItemId = equipment[slotKey];
 
-      let removedItem: any = null;
+      let removedItem: RunInventoryItem | null = null;
       let removedIndex = -1;
 
       if (runInventory) {
@@ -89,23 +95,27 @@ export function createEquipmentSystem<T extends GameplayEvents>(
             }
           }
 
-          eventBus.emit('MESSAGE_EMITTED', {
+          (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
             text: `Inventory full — cannot equip ${intent.slotType}`,
             type: 'error',
-          } as any);
+          });
           return;
         }
       }
 
-      const patch: any = {};
-      patch[intent.slotType] = intent.itemEntityId;
+      const patch: Partial<z.infer<typeof EquipmentSlots.schema>> = {
+        [slotKey]: intent.itemEntityId,
+      };
       w.patchComponent(entityId, EquipmentSlots, patch);
 
-      eventBus.emit('EQUIPMENT_CHANGED', { entityId, slotType: intent.slotType } as any);
-      eventBus.emit('MESSAGE_EMITTED', {
+      (eventBus as unknown as EventBus<GameplayEvents>).emit('EQUIPMENT_CHANGED', {
+        entityId,
+        slotType: intent.slotType,
+      });
+      (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
         text: `${intent.slotType} equipped`,
         type: 'info',
-      } as any);
+      });
       logger.info(
         `Entity ${entityId} equipped ${intent.itemEntityId} to ${intent.slotType}`,
         'SYSTEM',
@@ -115,7 +125,10 @@ export function createEquipmentSystem<T extends GameplayEvents>(
 
     const portConfig = w.getComponent(entityId, PortConfig);
     if (!portConfig) {
-      eventBus.emit('MESSAGE_EMITTED', { text: 'Entity has no PortConfig', type: 'error' } as any);
+      (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
+        text: 'Entity has no PortConfig',
+        type: 'error',
+      });
       return;
     }
 
@@ -141,18 +154,18 @@ export function createEquipmentSystem<T extends GameplayEvents>(
 
     const slots = w.getComponent(entityId, slotComponent);
     if (!slots) {
-      eventBus.emit('MESSAGE_EMITTED', {
+      (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
         text: `Entity has no ${intent.slotType} slots`,
         type: 'error',
-      } as any);
+      });
       return;
     }
 
     if (slots.equipped.length >= maxSlots) {
-      eventBus.emit('MESSAGE_EMITTED', {
+      (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
         text: `No available ${intent.slotType} ports`,
         type: 'error',
-      } as any);
+      });
       return;
     }
 
@@ -160,23 +173,26 @@ export function createEquipmentSystem<T extends GameplayEvents>(
     const newEquipped = [...slots.equipped, intent.itemEntityId];
     w.patchComponent(entityId, slotComponent, { equipped: newEquipped });
 
-    eventBus.emit('EQUIPMENT_CHANGED', { entityId, slotType: intent.slotType } as any);
-    eventBus.emit('MESSAGE_EMITTED', {
+    (eventBus as unknown as EventBus<GameplayEvents>).emit('EQUIPMENT_CHANGED', {
+      entityId,
+      slotType: intent.slotType,
+    });
+    (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
       text: `Equipped item to ${intent.slotType} slot`,
       type: 'info',
-    } as any);
+    });
     logger.info(
       `Entity ${entityId} equipped item ${intent.itemEntityId} to ${intent.slotType} slot`,
       'SYSTEM',
     );
   };
 
-  const handleUnequip = (w: World<T>, entityId: EntityId, intent: any) => {
+  const handleUnequip = (w: World<T>, entityId: EntityId, intent: UnequipIntentData) => {
     if (intent.slotType === 'weapon' || intent.slotType === 'armor') {
       const equipment = w.getComponent(entityId, EquipmentSlots);
       if (!equipment) return;
 
-      const slotKey = intent.slotType as 'weapon' | 'armor';
+      const slotKey = intent.slotType;
       const oldItemId = equipment[slotKey];
       if (oldItemId === null) return;
 
@@ -195,23 +211,27 @@ export function createEquipmentSystem<T extends GameplayEvents>(
         });
 
         if (!added) {
-          eventBus.emit('MESSAGE_EMITTED', {
+          (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
             text: `Inventory full — cannot unequip ${intent.slotType}`,
             type: 'error',
-          } as any);
+          });
           return;
         }
       }
 
-      const patch: any = {};
-      patch[intent.slotType] = null;
+      const patch: Partial<z.infer<typeof EquipmentSlots.schema>> = {
+        [slotKey]: null,
+      };
       w.patchComponent(entityId, EquipmentSlots, patch);
 
-      eventBus.emit('EQUIPMENT_CHANGED', { entityId, slotType: intent.slotType } as any);
-      eventBus.emit('MESSAGE_EMITTED', {
+      (eventBus as unknown as EventBus<GameplayEvents>).emit('EQUIPMENT_CHANGED', {
+        entityId,
+        slotType: intent.slotType,
+      });
+      (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
         text: `${intent.slotType} unequipped`,
         type: 'info',
-      } as any);
+      });
       logger.info(`Entity ${entityId} unequipped ${intent.slotType}`, 'SYSTEM');
       return;
     }
@@ -233,10 +253,10 @@ export function createEquipmentSystem<T extends GameplayEvents>(
 
     const slots = w.getComponent(entityId, slotComponent);
     if (!slots || intent.slotIndex < 0 || intent.slotIndex >= slots.equipped.length) {
-      eventBus.emit('MESSAGE_EMITTED', {
+      (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
         text: `Invalid ${intent.slotType} slot index`,
         type: 'error',
-      } as any);
+      });
       return;
     }
 
@@ -245,11 +265,14 @@ export function createEquipmentSystem<T extends GameplayEvents>(
     newEquipped.splice(intent.slotIndex, 1);
     w.patchComponent(entityId, slotComponent, { equipped: newEquipped });
 
-    eventBus.emit('EQUIPMENT_CHANGED', { entityId, slotType: intent.slotType } as any);
-    eventBus.emit('MESSAGE_EMITTED', {
+    (eventBus as unknown as EventBus<GameplayEvents>).emit('EQUIPMENT_CHANGED', {
+      entityId,
+      slotType: intent.slotType,
+    });
+    (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
       text: `Unequipped item from ${intent.slotType} slot`,
       type: 'info',
-    } as any);
+    });
     logger.info(
       `Entity ${entityId} unequipped item at index ${intent.slotIndex} from ${intent.slotType} slot`,
       'SYSTEM',

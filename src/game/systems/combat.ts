@@ -1,8 +1,9 @@
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
-import { EntityFactory } from '@engine/entity/factory';
 import { EntityId, Phase } from '@engine/ecs/types';
+import { EntityFactory } from '@engine/entity/factory';
+import { ComponentRegistry } from '@engine/entity/types';
 import {
   Attack,
   Defense,
@@ -24,8 +25,6 @@ import { createTriggerContext, evaluateCondition } from './augment-util';
 
 import { GameplayEvents } from '@shared/events/types';
 import { logger } from '@engine/utils/logger';
-
-import { ComponentRegistry } from '@engine/entity/types';
 
 export interface DamageModifier {
   source: string; // e.g., 'software:bleed', 'augment:static-siphon'
@@ -161,10 +160,13 @@ export function createCombatSystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
   eventBus: EventBus<T>,
-  entityFactory: EntityFactory,
-  componentRegistry: ComponentRegistry,
+  entityFactory?: EntityFactory,
+  componentRegistry?: ComponentRegistry,
   options: { skipLoot?: boolean } = {},
 ) {
+  void entityFactory;
+  void componentRegistry;
+  void options;
   const handleDeath = (entityId: EntityId, killerId: EntityId) => {
     const actor = world.getComponent(entityId, Actor);
     const isPlayer = !!actor?.isPlayer;
@@ -190,7 +192,6 @@ export function createCombatSystem<T extends GameplayEvents>(
 
       const attackerAttack = w.getComponent(attackerId, Attack);
       const defenderHealth = w.getComponent(defenderId, Health);
-      const defenderDefense = w.getComponent(defenderId, Defense);
 
       if (!attackerAttack || !defenderHealth) {
         w.removeComponent(attackerId, AttackIntent);
@@ -258,14 +259,12 @@ export function createCombatSystem<T extends GameplayEvents>(
       const intent = w.getComponent(requesterId, DamageIntent)!;
       const targetId = intent.targetId;
       const targetHealth = w.getComponent(targetId, Health);
-      const targetDefense = w.getComponent(targetId, Defense);
 
       if (!targetHealth) {
         w.removeComponent(requesterId, DamageIntent);
         continue;
       }
 
-      const armor = targetDefense?.armor ?? 0;
       const targetHeat = w.getComponent(targetId, Heat);
       const effectiveArmor = getEffectiveArmor(w, targetId, targetHeat?.isVenting ?? false);
 

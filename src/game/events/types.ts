@@ -12,4 +12,22 @@ export interface GameEvents extends GameplayEvents {
     count: number;
     augmentNames: string[];
   };
+
+  /** Request from UI to equip an item. */
+  EQUIP_REQUESTED: {
+    slotType: 'firmware' | 'augment' | 'software' | 'weapon' | 'armor';
+    itemEntityId: number;
+  };
+
+  /** Request from UI to unequip a slot. */
+  UNEQUIP_REQUESTED: {
+    slotType: 'firmware' | 'augment' | 'software' | 'weapon' | 'armor';
+    slotIndex: number;
+  };
+
+  /** Request from UI to burn software. */
+  BURN_SOFTWARE_REQUESTED: {
+    runInventoryIndex: number;
+    targetSlot: 'weapon' | 'armor';
+  };
 }

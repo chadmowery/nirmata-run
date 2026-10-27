@@ -38,7 +38,9 @@ export function applyStateDelta<T extends GameplayEvents>(
     const floorSeed = floorState
       ? `${floorState.runSeed}_floor_${floorState.currentFloor}`
       : 'reconciled-seed';
-    eventBus.emit('DUNGEON_GENERATED' as any, { seed: floorSeed } as any);
+    (eventBus as unknown as EventBus<GameplayEvents>).emit('DUNGEON_GENERATED', {
+      seed: floorSeed,
+    });
   } else {
     // Grid still uses incremental diffs as it is a stable 1D array of primitives
     const currentGrid = serializeGrid(grid);

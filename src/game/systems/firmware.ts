@@ -28,6 +28,8 @@ export function createFirmwareSystem<T extends GameplayEvents>(
   grid: Grid,
   eventBus: EventBus<T>,
 ) {
+  let updateHandler: ((w: World<T>) => void) | null = null;
+
   return {
     /**
      * Activates a firmware ability in a specific slot.
@@ -192,14 +194,14 @@ export function createFirmwareSystem<T extends GameplayEvents>(
       }
     },
 
-    _updateHandler: null as any,
     init() {
-      this._updateHandler = (w: World<T>) => this.update(w);
-      world.registerSystem(Phase.ACTION, this._updateHandler, 'FirmwareSystem');
+      updateHandler = (w: World<T>) => this.update(w);
+      world.registerSystem(Phase.ACTION, updateHandler, 'FirmwareSystem');
     },
     dispose() {
-      if (this._updateHandler) {
-        world.unregisterSystem(Phase.ACTION, this._updateHandler);
+      if (updateHandler) {
+        world.unregisterSystem(Phase.ACTION, updateHandler);
+        updateHandler = null;
       }
     },
   };

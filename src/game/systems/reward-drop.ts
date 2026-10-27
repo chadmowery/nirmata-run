@@ -156,6 +156,7 @@ export function createRewardDropSystem<T extends GameplayEvents>(
   return {
     init,
     update,
+    dispose,
   };
 }
 

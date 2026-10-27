@@ -244,7 +244,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     }
   });
 
-  eventBus.on('EQUIP_REQUESTED' as any, async (payload: any) => {
+  eventBus.on('EQUIP_REQUESTED', async (payload) => {
     const { Shell } = await import('@shared/components/shell');
     const shell = world.getComponent(playerId, Shell);
     const shellId = shell?.archetypeId || 'player-shell-default';
@@ -259,7 +259,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     inputManager.setRequestPending(false);
   });
 
-  eventBus.on('UNEQUIP_REQUESTED' as any, async (payload: any) => {
+  eventBus.on('UNEQUIP_REQUESTED', async (payload) => {
     inputManager.setRequestPending(true);
     await sendActionToServer({
       type: 'UNEQUIP',
@@ -269,7 +269,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     inputManager.setRequestPending(false);
   });
 
-  eventBus.on('BURN_SOFTWARE_REQUESTED' as any, async (payload: any) => {
+  eventBus.on('BURN_SOFTWARE_REQUESTED', async (payload) => {
     inputManager.setRequestPending(true);
     await sendActionToServer({
       type: 'BURN_SOFTWARE',

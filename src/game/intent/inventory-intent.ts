@@ -1,9 +1,10 @@
 import { World } from '@engine/ecs/world';
+import { EngineEvents } from '@engine/events/types';
 import { InventorySwapIntent } from '@shared/components/inventory-intent';
 import { Energy } from '@shared/components/energy';
 
-export function handleInventorySwap(
-  world: World,
+export function handleInventorySwap<T extends EngineEvents = EngineEvents>(
+  world: World<T>,
   actorId: number,
   sourceIndex: number,
   destinationIndex: number,

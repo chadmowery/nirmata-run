@@ -111,12 +111,7 @@ export async function POST(req: Request) {
         break;
 
       case 'INVENTORY_SWAP': {
-        handleInventorySwap(
-          world as any,
-          session.playerId,
-          action.sourceIndex,
-          action.destinationIndex,
-        );
+        handleInventorySwap(world, session.playerId, action.sourceIndex, action.destinationIndex);
         actionKey = 'INVENTORY_SWAP';
         break;
       }

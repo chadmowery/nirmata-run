@@ -40,17 +40,23 @@ export async function POST(req: NextRequest) {
     const filePath = path.join(LEADERBOARD_DIR, `${periodId}.json`);
     await fs.mkdir(LEADERBOARD_DIR, { recursive: true });
 
-    let entries = [];
+    interface LeaderboardEntry {
+      sessionId: string;
+      score: number;
+      timestamp: number;
+      stats?: unknown;
+    }
+
+    let entries: LeaderboardEntry[] = [];
     try {
       const raw = await fs.readFile(filePath, 'utf-8');
       entries = JSON.parse(raw);
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (e) {
+    } catch {
       // New period
     }
 
     // 3. Update or Add Entry
-    const existingIndex = entries.findIndex((e: any) => e.sessionId === sessionId);
+    const existingIndex = entries.findIndex((e) => e.sessionId === sessionId);
     if (existingIndex !== -1) {
       // Only keep best score for the period
       if (score > entries[existingIndex].score) {
@@ -61,13 +67,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Sort and Save
-    entries.sort((a: any, b: any) => b.score - a.score);
+    entries.sort((a, b) => b.score - a.score);
     await fs.writeFile(filePath, JSON.stringify(entries, null, 2), 'utf-8');
 
     return NextResponse.json({
       success: true,
       score,
-      rank: entries.findIndex((e: any) => e.sessionId === sessionId) + 1,
+      rank: entries.findIndex((e) => e.sessionId === sessionId) + 1,
     });
   } catch (error) {
     logger.error('[LeaderboardSubmit] Error:', 'API', error);
