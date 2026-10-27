@@ -1,8 +1,9 @@
-import { World } from '../ecs/world';
-import { Grid } from '../grid/grid';
-import { TurnManager } from '../turn/turn-manager';
-import { EventBus } from '../events/event-bus';
+import { World } from '@engine/ecs/world';
+import { Grid } from '@engine/grid/grid';
+import { TurnManager } from '@engine/turn/turn-manager';
+import { EventBus } from '@engine/events/event-bus';
 import { EngineEvents } from '@engine/events/types';
+import { logger } from '@engine/utils/logger';
 
 /**
  * WorldState container for sessions.
@@ -15,8 +16,6 @@ export interface WorldState<T extends EngineEvents = EngineEvents, S = unknown> 
   playerId: number;
   systems?: S; // EngineInstance.systems
 }
-
-import { logger } from '../utils/logger';
 
 /**
  * High-level manager for game sessions.

@@ -48,3 +48,39 @@ export const DEFAULT_ACTION_COSTS: ActionCosts = {
  * Callback for player actions.
  */
 export type PlayerActionHandler = (action: string, entityId: EntityId) => void;
+
+/**
+ * Adapter interface allowing TurnManager to orchestrate actor initiative and turns
+ * without coupling the engine to specific gameplay components (Actor, Energy, Health, Acting).
+ */
+export interface TurnSchedulerAdapter<TActorId = EntityId> {
+  /** Get all candidate actor IDs eligible for turn scheduling. */
+  getCandidateActors(): TActorId[];
+
+  /** Check if an actor is still active / alive. */
+  isActorActive(actorId: TActorId): boolean;
+
+  /** Check if an actor has reached the energy threshold to act. */
+  canActorAct(actorId: TActorId, threshold: number): boolean;
+
+  /** Increment energy/initiative for an actor based on its speed. */
+  accumulateEnergy(actorId: TActorId): void;
+
+  /** Deduct action cost from the actor's energy. */
+  deductActionCost(actorId: TActorId, cost: number): void;
+
+  /** Check if an actor is the primary actor (e.g., player). */
+  isPrimaryActor(actorId: TActorId): boolean;
+
+  /** Get the primary actor ID, or null if none exists. */
+  getPrimaryActor(): TActorId | null;
+
+  /** Optional hook to calculate cost for a specific action. Defaults to waitActionCost or defaultActionCost if omitted. */
+  getActionCost?(actorId: TActorId, action: string): number;
+
+  /** Optional hook called immediately before an actor executes its action sequence. */
+  onBeforeActorAct?(actorId: TActorId): void;
+
+  /** Optional hook called immediately after an actor completes its action sequence. */
+  onAfterActorAct?(actorId: TActorId): void;
+}

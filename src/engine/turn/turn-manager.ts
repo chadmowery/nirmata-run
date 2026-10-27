@@ -3,11 +3,11 @@ import { EventBus } from '../events/event-bus';
 import { EngineEvents } from '../events/types';
 import { EntityId, Phase } from '../ecs/types';
 import { logger } from '../utils/logger';
-import { TurnPhase, TurnManagerConfig, PlayerActionHandler } from './types';
-import { Actor, Energy, Health, Acting } from '@shared/components';
+import { TurnPhase, TurnManagerConfig, PlayerActionHandler, TurnSchedulerAdapter } from './types';
 
 /**
- * Orchestrates the game turn loop using an energy-based system.
+ * Orchestrates the game turn loop using an energy-based scheduler.
+ * Completely agnostic of game rules and ECS components via TurnSchedulerAdapter.
  */
 export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
   private phase: TurnPhase = TurnPhase.AWAIT_INPUT;
@@ -19,6 +19,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     private world: World<TEvents>,
     private eventBus: EventBus<TEvents>,
     private config: TurnManagerConfig,
+    private adapter: TurnSchedulerAdapter<EntityId>,
   ) {}
 
   /**
@@ -29,15 +30,19 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
 
     logger.info(`Player submitting action: ${action}`, 'TURN');
     this.phase = TurnPhase.PLAYER_ACTION;
-    const playerEntity = this.getPlayerEntity();
-    if (playerEntity === null || !this.isAlive(playerEntity)) {
+    const playerEntity = this.adapter.getPrimaryActor();
+    if (playerEntity === null || !this.adapter.isActorActive(playerEntity)) {
       this.phase = TurnPhase.AWAIT_INPUT;
       return;
     }
 
     // Process player action
-    const cost = action === 'WAIT' ? this.config.waitActionCost : this.config.defaultActionCost;
-    this.deductEnergy(playerEntity, cost);
+    const cost = this.adapter.getActionCost
+      ? this.adapter.getActionCost(playerEntity, action)
+      : action === 'WAIT'
+        ? this.config.waitActionCost
+        : this.config.defaultActionCost;
+    this.adapter.deductActionCost(playerEntity, cost);
 
     if (this.playerActionHandler) {
       this.playerActionHandler(action, playerEntity);
@@ -64,17 +69,15 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
 
     // 2. Resolve Player Action Sequence
     // The player's intent was already attached in submitAction via the playerActionHandler
-    const playerId = this.world
-      .query(Actor)
-      .find((id) => this.world.getComponent(id, Actor)?.isPlayer);
-    if (playerId !== undefined) {
-      this.world.addComponent(playerId, Acting, {});
+    const playerId = this.adapter.getPrimaryActor();
+    if (playerId !== null) {
+      this.adapter.onBeforeActorAct?.(playerId);
     }
 
     this.executeActionSequence();
 
-    if (playerId !== undefined) {
-      this.world.removeComponent(playerId, Acting);
+    if (playerId !== null) {
+      this.adapter.onAfterActorAct?.(playerId);
     }
 
     if (this._paused) return;
@@ -127,32 +130,31 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
   private processEnemyTurns(): void {
     if (this._paused) return;
 
-    const enemies = this.world
-      .query(Actor, Energy)
-      .filter((id) => {
-        const actor = this.world.getComponent(id, Actor);
-        const energy = this.world.getComponent(id, Energy);
-        return actor && !actor.isPlayer && energy && energy.current >= this.config.energyThreshold;
-      })
-      .filter((id) => this.isAlive(id));
+    const candidates = this.adapter.getCandidateActors();
+    const readyEnemies = candidates
+      .filter((id) => !this.adapter.isPrimaryActor(id))
+      .filter((id) => this.adapter.isActorActive(id))
+      .filter((id) => this.adapter.canActorAct(id, this.config.energyThreshold));
 
-    if (enemies.length === 0) return;
+    if (readyEnemies.length === 0) return;
 
     // Deterministic order: entity ID ascending
-    enemies.sort((a, b) => a - b);
+    readyEnemies.sort((a, b) => Number(a) - Number(b));
 
-    for (const enemyId of enemies) {
+    for (const enemyId of readyEnemies) {
       logger.info(`Enemy Acting: ${enemyId}`, 'TURN');
-      // Mark enemy as acting to trigger AI gathering intent
-      this.world.addComponent(enemyId, Acting, {});
+      this.adapter.onBeforeActorAct?.(enemyId);
 
-      this.deductEnergy(enemyId, this.config.defaultActionCost);
+      const cost = this.adapter.getActionCost
+        ? this.adapter.getActionCost(enemyId, 'DEFAULT')
+        : this.config.defaultActionCost;
+      this.adapter.deductActionCost(enemyId, cost);
 
       // Resolve the enemy's intent (GATHER_INTENT -> ACTION -> REACTION -> CLEANUP)
       this.executeActionSequence();
 
       // Clear acting tag
-      this.world.removeComponent(enemyId, Acting);
+      this.adapter.onAfterActorAct?.(enemyId);
     }
   }
 
@@ -160,17 +162,16 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
    * Tick all actors' energy until the player is ready to act.
    */
   private advanceUntilPlayerReady(): void {
-    const playerEntity = this.getPlayerEntity();
-    if (playerEntity === null || !this.isAlive(playerEntity)) return;
+    const playerEntity = this.adapter.getPrimaryActor();
+    if (playerEntity === null || !this.adapter.isActorActive(playerEntity)) return;
 
     let subTickCount = 0;
     const MAX_SUB_TICKS = 10000;
 
     while (subTickCount < MAX_SUB_TICKS) {
-      if (this._paused || !this.isAlive(playerEntity)) break;
+      if (this._paused || !this.adapter.isActorActive(playerEntity)) break;
 
-      const playerEnergy = this.world.getComponent(playerEntity, Energy);
-      if (playerEnergy && playerEnergy.current >= this.config.energyThreshold) {
+      if (this.adapter.canActorAct(playerEntity, this.config.energyThreshold)) {
         break;
       }
 
@@ -178,12 +179,8 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
 
       // IMPORTANT: Only process enemies if the player is NOT yet ready
       // This prevents double-dipping when player and enemy reach threshold in same tick
-      const updatedPlayerEnergy = this.world.getComponent(playerEntity, Energy);
-      if (updatedPlayerEnergy && updatedPlayerEnergy.current < this.config.energyThreshold) {
-        logger.debug(
-          `Player not ready (${updatedPlayerEnergy.current}/${this.config.energyThreshold}). Checking enemies...`,
-          'TURN',
-        );
+      if (!this.adapter.canActorAct(playerEntity, this.config.energyThreshold)) {
+        logger.debug(`Player not ready. Checking enemies...`, 'TURN');
         this.processEnemyTurns();
       }
 
@@ -202,15 +199,10 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
    * Increment energy for all living actors based on their speed.
    */
   private tickEnergy(): void {
-    const actors = this.world.query(Actor, Energy).filter((id) => this.isAlive(id));
-
+    const actors = this.adapter.getCandidateActors();
     for (const id of actors) {
-      const energy = this.world.getComponent(id, Energy);
-      if (energy) {
-        // Need to update the component data since we're using a class based world with stores
-        const currentData = { ...energy };
-        currentData.current += currentData.speed;
-        this.world.addComponent(id, Energy, currentData);
+      if (this.adapter.isActorActive(id)) {
+        this.adapter.accumulateEnergy(id);
       }
     }
   }
@@ -222,37 +214,6 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     this.advanceUntilPlayerReady();
     this.phase = TurnPhase.AWAIT_INPUT;
     this.eventBus.flush(); // Initial flush
-  }
-
-  /**
-   * Check if an entity is alive.
-   */
-  private isAlive(id: EntityId): boolean {
-    const health = this.world.getComponent(id, Health);
-    return !health || health.isAlive;
-  }
-
-  /**
-   * Find the player entity ID.
-   */
-  private getPlayerEntity(): number | null {
-    const actors = this.world.query(Actor);
-    for (const id of actors) {
-      const actor = this.world.getComponent(id, Actor);
-      if (actor?.isPlayer) return id;
-    }
-    return null;
-  }
-
-  /**
-   * Deduct energy cost from an entity.
-   */
-  private deductEnergy(id: number, cost: number): void {
-    const energy = this.world.getComponent(id, Energy);
-    if (energy) {
-      const updatedData = { ...energy, current: energy.current - cost };
-      this.world.addComponent(id, Energy, updatedData);
-    }
   }
 
   /**

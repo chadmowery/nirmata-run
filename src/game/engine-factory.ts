@@ -2,6 +2,7 @@ import { World } from '../engine/ecs/world';
 import { Grid } from '../engine/grid/grid';
 import { EventBus } from '../engine/events/event-bus';
 import { TurnManager } from '../engine/turn/turn-manager';
+import { GameTurnAdapter } from './turn/game-turn-adapter';
 import { EntityRegistry } from '../engine/entity/registry';
 import { EntityFactory } from '../engine/entity/factory';
 import { COMPONENTS_REGISTRY } from '@shared/components';
@@ -96,7 +97,7 @@ export interface EngineInstance<T extends GameplayEvents = GameEvents> {
  */
 export function createEngineInstance(config: EngineInitConfig): EngineInstance<GameEvents> {
   const eventBus = new EventBus<GameEvents>();
-  const world = new World<GameEvents>(eventBus);
+  const world = new World<GameEvents>(eventBus, { childComponentKey: 'children' });
 
   // Entity pipeline
   const entityRegistry = new EntityRegistry();
@@ -135,11 +136,21 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   heatSystem.init();
   kernelPanicSystem.init();
 
-  const turnManager = new TurnManager<GameEvents>(world, eventBus, {
-    energyThreshold: 1000,
+  const turnAdapter = new GameTurnAdapter(world, {
     defaultActionCost: 1000,
     waitActionCost: 500,
   });
+
+  const turnManager = new TurnManager<GameEvents>(
+    world,
+    eventBus,
+    {
+      energyThreshold: 1000,
+      defaultActionCost: 1000,
+      waitActionCost: 500,
+    },
+    turnAdapter,
+  );
 
   // Entity Placement
   RNG.setSeed(hashSeedForPlacement(config.seed));

@@ -11,6 +11,7 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@engine': path.resolve(__dirname, './src/engine'),
+      '@server': path.resolve(__dirname, './src/server'),
       '@game': path.resolve(__dirname, './src/game'),
       '@shared': path.resolve(__dirname, './src/shared'),
       '@rendering': path.resolve(__dirname, './src/rendering'),

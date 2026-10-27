@@ -1,6 +1,5 @@
 import { EntityId } from '../ecs/types';
-import { Tile, createDefaultTile } from './types';
-import { SerializedTile } from '@shared/types';
+import { Tile, SerializedTile, createDefaultTile } from './types';
 
 /**
  * A 2D grid for managing spatial data, including terrain, entities, and items.

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ActionRequestSchema, SyncPayload } from '@shared/types';
-import { sessionManager } from '@engine/session/SessionManager';
+import { sessionManager } from '@server/session/session-manager';
 import { serializeWorld, serializeGrid } from '@shared/serialization';
 import { diff } from 'json-diff-ts';
 import { DIRECTIONS, GameAction } from '@game/input/actions';

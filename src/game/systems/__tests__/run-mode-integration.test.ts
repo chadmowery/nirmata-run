@@ -6,7 +6,7 @@ import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { NextRequest } from 'next/server';
 
 vi.mock('@/app/persistence/fs-profile-repository');
-vi.mock('@/engine/session/SessionManager', () => ({
+vi.mock('@server/session/session-manager', () => ({
   sessionManager: {
     createSession: vi.fn(),
   },

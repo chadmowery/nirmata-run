@@ -2,11 +2,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { POST as launchRoute } from '../launch/route';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { createEngineInstance } from '@/game/engine-factory';
-import { sessionManager } from '@/engine/session/SessionManager';
+import { sessionManager } from '@server/session/session-manager';
 import { NextRequest } from 'next/server';
 
 vi.mock('@/app/persistence/fs-profile-repository');
-vi.mock('@/engine/session/SessionManager', () => ({
+vi.mock('@server/session/session-manager', () => ({
   sessionManager: {
     createSession: vi.fn(),
   },

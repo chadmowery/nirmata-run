@@ -54,20 +54,35 @@ describe('World', () => {
       expect(handler).toHaveBeenNthCalledWith(1, { entityId: id });
       expect(handler).toHaveBeenNthCalledWith(2, { entityId: id });
     });
-    it('should recursively destroy child entities when a parent is destroyed', () => {
+    it('should recursively destroy child entities when a parent is destroyed if childComponentKey is configured', () => {
+      const worldWithChildren = new World(bus, { childComponentKey: 'children' });
+      const Children = defineComponent('children', z.object({ entityIds: z.array(z.number()) }));
+
+      const parent = worldWithChildren.createEntity();
+      const child1 = worldWithChildren.createEntity();
+      const child2 = worldWithChildren.createEntity();
+
+      worldWithChildren.addComponent(parent, Children, { entityIds: [child1, child2] });
+
+      worldWithChildren.destroyEntity(parent);
+
+      expect(worldWithChildren.entityExists(parent)).toBe(false);
+      expect(worldWithChildren.entityExists(child1)).toBe(false);
+      expect(worldWithChildren.entityExists(child2)).toBe(false);
+    });
+
+    it('does not recursively destroy child entities when childComponentKey is not configured', () => {
       const Children = defineComponent('children', z.object({ entityIds: z.array(z.number()) }));
 
       const parent = world.createEntity();
       const child1 = world.createEntity();
-      const child2 = world.createEntity();
 
-      world.addComponent(parent, Children, { entityIds: [child1, child2] });
+      world.addComponent(parent, Children, { entityIds: [child1] });
 
       world.destroyEntity(parent);
 
       expect(world.entityExists(parent)).toBe(false);
-      expect(world.entityExists(child1)).toBe(false);
-      expect(world.entityExists(child2)).toBe(false);
+      expect(world.entityExists(child1)).toBe(true);
     });
   });
 

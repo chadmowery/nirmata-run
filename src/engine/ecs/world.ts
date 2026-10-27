@@ -4,6 +4,17 @@ import { EngineEvents } from '../events/types';
 import { logger } from '../utils/logger';
 
 /**
+ * Configuration options for the ECS World.
+ */
+export interface WorldConfig {
+  /**
+   * Component key used to look up hierarchical child entities upon entity destruction.
+   * If omitted, World does not assume any child hierarchy component.
+   */
+  childComponentKey?: string;
+}
+
+/**
  * The World class is the central coordinator of the ECS.
  * It manages entities, components, and systems.
  */
@@ -14,9 +25,11 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
   private systems: Map<Phase, SystemFn[]> = new Map();
   private systemNames: Map<SystemFn, string> = new Map();
   private eventBus: EventBus<TEvents>;
+  private config: WorldConfig;
 
-  constructor(eventBus: EventBus<TEvents>) {
+  constructor(eventBus: EventBus<TEvents>, config?: WorldConfig) {
     this.eventBus = eventBus;
+    this.config = config ?? {};
   }
 
   /**
@@ -36,12 +49,16 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
   destroyEntity(id: EntityId): void {
     if (!this.entities.has(id)) return;
 
-    // Recursively destroy children first
-    const childrenStore = this.stores.get('children');
-    if (childrenStore && childrenStore.has(id)) {
-      const childrenData = childrenStore.get(id) as { entityIds: number[] };
-      for (const childId of childrenData.entityIds) {
-        this.destroyEntity(childId);
+    // Recursively destroy children first if a child component key is configured
+    if (this.config.childComponentKey) {
+      const childrenStore = this.stores.get(this.config.childComponentKey);
+      if (childrenStore && childrenStore.has(id)) {
+        const childrenData = childrenStore.get(id) as { entityIds: number[] };
+        if (childrenData && Array.isArray(childrenData.entityIds)) {
+          for (const childId of childrenData.entityIds) {
+            this.destroyEntity(childId);
+          }
+        }
       }
     }
 

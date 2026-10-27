@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createEngineInstance } from '@game/engine-factory';
-import { sessionManager } from '@engine/session/SessionManager';
+import { sessionManager } from '@server/session/session-manager';
 import { createDefaultProfile } from '@shared/profile';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT } from '@/shared/constants';

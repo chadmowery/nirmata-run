@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { RunMode, getRunModeConfig } from '@/game/systems/run-mode-config';
-import { sessionManager } from '@/engine/session/SessionManager';
+import { sessionManager } from '@server/session/session-manager';
 import { createEngineInstance } from '@/game/engine-factory';
 import { globalShellRegistry } from '@/game/shells/server';
 import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT } from '@/shared/constants';

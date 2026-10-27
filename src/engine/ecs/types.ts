@@ -33,6 +33,7 @@ export function defineComponent<T>(key: string, zodShape: ZodSchema<T>): Compone
  * Internal type for World to avoid circular dependency.
  * Systems are functions that take the World and perform logic.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type SystemFn = (world: any) => void;
 
 /**

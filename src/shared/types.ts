@@ -137,6 +137,10 @@ export const ActionRequestSchema = z.object({
 
 export type ActionRequest = z.infer<typeof ActionRequestSchema>;
 
+import { Changeset } from 'json-diff-ts';
+import { TurnPhase } from '@engine/turn/types';
+import { SerializedTile as EngineSerializedTile } from '@engine/grid/types';
+
 /**
  * Serialized World Schemas
  */
@@ -151,7 +155,7 @@ export type SerializedWorld = z.infer<typeof SerializedWorldSchema>;
 /**
  * Serialized Grid Schemas
  */
-export const SerializedTileSchema = z.object({
+export const SerializedTileSchema: z.ZodType<EngineSerializedTile> = z.object({
   terrain: z.string(),
   walkable: z.boolean(),
   transparent: z.boolean(),
@@ -159,7 +163,7 @@ export const SerializedTileSchema = z.object({
   items: z.array(z.number()),
 });
 
-export type SerializedTile = z.infer<typeof SerializedTileSchema>;
+export type SerializedTile = EngineSerializedTile;
 
 export const SerializedGridSchema = z.object({
   width: z.number(),
@@ -168,9 +172,6 @@ export const SerializedGridSchema = z.object({
 });
 
 export type SerializedGrid = z.infer<typeof SerializedGridSchema>;
-
-import { Changeset } from 'json-diff-ts';
-import { TurnPhase } from '@engine/turn/types';
 
 /**
  * Polymorphic payload for state synchronization.

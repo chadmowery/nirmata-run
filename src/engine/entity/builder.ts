@@ -1,7 +1,8 @@
 import { World } from '../ecs/world';
-import { RawTemplate, ComponentRegistry } from './types';
+import { RawTemplate, ComponentRegistry, HierarchyConfig, DEFAULT_HIERARCHY_CONFIG } from './types';
 import { EntityRegistry } from './registry';
 import { EntityId } from '../ecs/types';
+import { EngineEvents } from '../events/types';
 
 /**
  * Resolves mixins for a template recursively.
@@ -82,8 +83,6 @@ export function resolveMixins(
   return resolvedComponents;
 }
 
-import { EngineEvents } from '../events/types';
-
 /**
  * Validates and stamps an entity into the world.
  * @throws Error if a component is unknown or validation fails.
@@ -95,8 +94,12 @@ export function buildEntity<T extends EngineEvents>(
   componentRegistry: ComponentRegistry,
   templateRegistry: EntityRegistry,
   children?: RawTemplate['children'],
+  hierarchyConfig: HierarchyConfig = DEFAULT_HIERARCHY_CONFIG,
 ): EntityId {
   const entityId = world.createEntity();
+  const parentKey = hierarchyConfig.parentKey ?? DEFAULT_HIERARCHY_CONFIG.parentKey;
+  const childrenKey = hierarchyConfig.childrenKey ?? DEFAULT_HIERARCHY_CONFIG.childrenKey;
+  const templateIdKey = hierarchyConfig.templateIdKey ?? DEFAULT_HIERARCHY_CONFIG.templateIdKey;
 
   for (const [key, data] of Object.entries(resolvedComponents)) {
     const def = componentRegistry.get(key);
@@ -120,12 +123,12 @@ export function buildEntity<T extends EngineEvents>(
   // Process children recursively
   if (children && children.length > 0) {
     const childIds: number[] = [];
-    const parentDef = componentRegistry.get('parent');
-    const childrenDef = componentRegistry.get('children');
+    const parentDef = componentRegistry.get(parentKey);
+    const childrenDef = componentRegistry.get(childrenKey);
 
     if (!parentDef || !childrenDef) {
       throw new Error(
-        `Template '${templateName}': parent or children component definition missing`,
+        `Template '${templateName}': parent (${parentKey}) or children (${childrenKey}) component definition missing`,
       );
     }
 
@@ -151,6 +154,7 @@ export function buildEntity<T extends EngineEvents>(
         componentRegistry,
         templateRegistry,
         childTemplateCopy.children,
+        hierarchyConfig,
       );
 
       world.addComponent(childId, parentDef, { entityId, slotComponent: child.slotComponent });
@@ -161,7 +165,7 @@ export function buildEntity<T extends EngineEvents>(
   }
 
   // Stamp the template ID for tracking and persistence
-  const templateIdDef = componentRegistry.get('templateId');
+  const templateIdDef = componentRegistry.get(templateIdKey);
   if (templateIdDef) {
     world.addComponent(entityId, templateIdDef, { id: templateName });
   }

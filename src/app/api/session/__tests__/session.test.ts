@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { POST } from '../route';
-import { sessionManager } from '@engine/session/SessionManager';
+import { sessionManager } from '@server/session/session-manager';
 
 // Mock NextResponse
 vi.mock('next/server', () => ({

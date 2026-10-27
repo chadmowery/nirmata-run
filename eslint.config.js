@@ -38,6 +38,16 @@ export default tseslint.config(
             },
             {
               target: './src/engine/**',
+              from: './src/shared/**',
+              message: 'Engine must not import from shared layer',
+            },
+            {
+              target: './src/engine/**',
+              from: './src/server/**',
+              message: 'Engine must not import from server layer',
+            },
+            {
+              target: './src/engine/**',
               from: './src/rendering/**',
               message: 'Engine must not import from rendering layer',
             },

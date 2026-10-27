@@ -241,5 +241,51 @@ describe('Entity Builder', () => {
         /expected number/i,
       );
     });
+
+    it('supports custom hierarchy keys via HierarchyConfig', () => {
+      const CustomParent = defineComponent(
+        'custom_parent',
+        z.object({ entityId: z.number(), slotComponent: z.string().optional() }),
+      );
+      const CustomChildren = defineComponent(
+        'custom_children',
+        z.object({ entityIds: z.array(z.number()) }),
+      );
+      const CustomTemplateId = defineComponent('custom_templateId', z.object({ id: z.string() }));
+
+      const customRegistry: ComponentRegistry = {
+        get: (key: string) => {
+          if (key === 'position') return Position;
+          if (key === 'custom_parent') return CustomParent;
+          if (key === 'custom_children') return CustomChildren;
+          if (key === 'custom_templateId') return CustomTemplateId;
+          return undefined;
+        },
+        has: (key: string) =>
+          ['position', 'custom_parent', 'custom_children', 'custom_templateId'].includes(key),
+      };
+
+      registry.register({ name: 'child_item', components: { position: { x: 1, y: 1 } } });
+
+      const parentId = buildEntity(
+        world,
+        'custom_root',
+        { position: { x: 0, y: 0 } },
+        customRegistry,
+        registry,
+        [{ template: 'child_item', slotComponent: 'module' }],
+        {
+          parentKey: 'custom_parent',
+          childrenKey: 'custom_children',
+          templateIdKey: 'custom_templateId',
+        },
+      );
+
+      expect(world.hasComponent(parentId, CustomChildren)).toBe(true);
+      expect(world.hasComponent(parentId, CustomTemplateId)).toBe(true);
+      const childId = world.getComponent(parentId, CustomChildren)!.entityIds[0];
+      expect(world.hasComponent(childId, CustomParent)).toBe(true);
+      expect(world.getComponent(childId, CustomParent)!.entityId).toBe(parentId);
+    });
   });
 });

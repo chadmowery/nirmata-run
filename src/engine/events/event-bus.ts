@@ -59,7 +59,7 @@ export class EventBus<TEventMap extends Record<string, any>> {
     const isServer = typeof window === 'undefined';
     const isDebugEnabled = isServer
       ? process.env.DEBUG_EVENTS === 'true'
-      : (window as any).DEBUG_EVENTS === true;
+      : (window as unknown as { DEBUG_EVENTS?: boolean }).DEBUG_EVENTS === true;
 
     if (isDebugEnabled || isServer) {
       const typeStr = type as string;

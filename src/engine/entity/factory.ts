@@ -2,14 +2,17 @@ import { World } from '../ecs/world';
 import { EntityId } from '../ecs/types';
 import { EntityRegistry } from './registry';
 import { buildEntity, resolveMixins } from './builder';
-import { ComponentRegistry } from './types';
+import { ComponentRegistry, HierarchyConfig } from './types';
 import { EngineEvents } from '../events/types';
 
 /**
  * High-level factory for creating entities from templates.
  */
 export class EntityFactory {
-  constructor(private registry: EntityRegistry) {}
+  constructor(
+    private registry: EntityRegistry,
+    private hierarchyConfig?: HierarchyConfig,
+  ) {}
 
   /**
    * Create an entity by template name.
@@ -46,6 +49,7 @@ export class EntityFactory {
       componentRegistry,
       this.registry,
       templateCopy.children,
+      this.hierarchyConfig,
     );
   }
 }

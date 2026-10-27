@@ -3,15 +3,79 @@ import { World } from '../ecs/world';
 import { EventBus } from '../events/event-bus';
 import { EngineEvents } from '../events/types';
 import { TurnManager } from './turn-manager';
-import { TurnPhase, ENERGY_THRESHOLD } from './types';
-import { Actor, Energy, Health, Acting } from '@shared/components';
+import { TurnPhase, ENERGY_THRESHOLD, TurnSchedulerAdapter } from './types';
 import { Phase } from '../ecs/types';
-import { GameAction } from '../../game/input/actions';
 
-describe('TurnManager', () => {
+interface TestActorState {
+  id: number;
+  isPlayer: boolean;
+  isAlive: boolean;
+  energy: number;
+  speed: number;
+  acting: boolean;
+}
+
+class TestTurnSchedulerAdapter implements TurnSchedulerAdapter<number> {
+  public actors: Map<number, TestActorState> = new Map();
+
+  addActor(actor: TestActorState): void {
+    this.actors.set(actor.id, actor);
+  }
+
+  getCandidateActors(): number[] {
+    return Array.from(this.actors.keys());
+  }
+
+  isActorActive(actorId: number): boolean {
+    return this.actors.get(actorId)?.isAlive ?? false;
+  }
+
+  canActorAct(actorId: number, threshold: number): boolean {
+    const actor = this.actors.get(actorId);
+    return Boolean(actor && actor.energy >= threshold);
+  }
+
+  accumulateEnergy(actorId: number): void {
+    const actor = this.actors.get(actorId);
+    if (actor) {
+      actor.energy += actor.speed;
+    }
+  }
+
+  deductActionCost(actorId: number, cost: number): void {
+    const actor = this.actors.get(actorId);
+    if (actor) {
+      actor.energy -= cost;
+    }
+  }
+
+  isPrimaryActor(actorId: number): boolean {
+    return Boolean(this.actors.get(actorId)?.isPlayer);
+  }
+
+  getPrimaryActor(): number | null {
+    for (const actor of this.actors.values()) {
+      if (actor.isPlayer) return actor.id;
+    }
+    return null;
+  }
+
+  onBeforeActorAct(actorId: number): void {
+    const actor = this.actors.get(actorId);
+    if (actor) actor.acting = true;
+  }
+
+  onAfterActorAct(actorId: number): void {
+    const actor = this.actors.get(actorId);
+    if (actor) actor.acting = false;
+  }
+}
+
+describe('TurnManager (Generic Engine)', () => {
   let world: World;
   let eventBus: EventBus<EngineEvents>;
   let turnManager: TurnManager;
+  let adapter: TestTurnSchedulerAdapter;
   let playerEntity: number;
 
   const config = {
@@ -23,14 +87,17 @@ describe('TurnManager', () => {
   beforeEach(() => {
     eventBus = new EventBus<EngineEvents>();
     world = new World(eventBus);
-    turnManager = new TurnManager(world, eventBus, config);
+    adapter = new TestTurnSchedulerAdapter();
+    turnManager = new TurnManager(world, eventBus, config, adapter);
 
     playerEntity = world.createEntity();
-    world.addComponent(playerEntity, Actor, { isPlayer: true });
-    world.addComponent(playerEntity, Energy, {
-      current: 0,
+    adapter.addActor({
+      id: playerEntity,
+      isPlayer: true,
+      isAlive: true,
+      energy: 0,
       speed: 100,
-      threshold: config.energyThreshold,
+      acting: false,
     });
   });
 
@@ -41,18 +108,16 @@ describe('TurnManager', () => {
   });
 
   it('accumulates energy during start() if player not ready', () => {
-    const energy = world.getComponent(playerEntity, Energy)!;
-    world.addComponent(playerEntity, Energy, { ...energy, current: 0 });
+    const player = adapter.actors.get(playerEntity)!;
+    player.energy = 0;
 
     turnManager.start();
 
     // 10 ticks of 100 speed = 1000 threshold
-    const updatedEnergy = world.getComponent(playerEntity, Energy)!;
-    expect(updatedEnergy.current).toBeGreaterThanOrEqual(config.energyThreshold);
+    expect(player.energy).toBeGreaterThanOrEqual(config.energyThreshold);
   });
 
   it('gating: ignores submitAction when not in AWAIT_INPUT', () => {
-    // Manually set phase to something else
     (turnManager as any).phase = TurnPhase.PLAYER_ACTION;
 
     const handler = vi.fn();
@@ -73,53 +138,58 @@ describe('TurnManager', () => {
     turnManager.submitAction('move');
 
     expect(handler).toHaveBeenCalledWith('move', playerEntity);
-    const updatedEnergy = world.getComponent(playerEntity, Energy)!;
-    expect(updatedEnergy.current).toBe(0); // 1000 - 1000 cost
+    const player = adapter.actors.get(playerEntity)!;
+    expect(player.energy).toBe(0); // 1000 - 1000 cost
   });
 
   it('deducts half cost for wait action', () => {
     turnManager.start();
 
-    const energy = world.getComponent(playerEntity, Energy)!;
-    world.addComponent(playerEntity, Energy, { ...energy, current: 1000 });
+    const player = adapter.actors.get(playerEntity)!;
+    player.energy = 1000;
 
     turnManager.setPlayerActionHandler(() => {
       turnManager.pause();
     });
 
-    turnManager.submitAction(GameAction.WAIT);
+    turnManager.submitAction('WAIT');
 
-    const updatedEnergy = world.getComponent(playerEntity, Energy)!;
-    expect(updatedEnergy.current).toBe(500); // 1000 - 500 cost
+    expect(player.energy).toBe(500); // 1000 - 500 cost
   });
 
   it('processes enemy turns deterministically (ID order)', () => {
     const enemy1 = world.createEntity(); // ID 2
-    world.addComponent(enemy1, Actor, { isPlayer: false });
-    world.addComponent(enemy1, Energy, {
-      current: 1000,
+    adapter.addActor({
+      id: enemy1,
+      isPlayer: false,
+      isAlive: true,
+      energy: 1000,
       speed: 100,
-      threshold: config.energyThreshold,
+      acting: false,
     });
 
     const enemy2 = world.createEntity(); // ID 3
-    world.addComponent(enemy2, Actor, { isPlayer: false });
-    world.addComponent(enemy2, Energy, {
-      current: 1000,
+    adapter.addActor({
+      id: enemy2,
+      isPlayer: false,
+      isAlive: true,
+      energy: 1000,
       speed: 100,
-      threshold: config.energyThreshold,
+      acting: false,
     });
 
-    const playerEnergy = world.getComponent(playerEntity, Energy)!;
-    world.addComponent(playerEntity, Energy, { ...playerEnergy, current: 1000 });
+    const player = adapter.actors.get(playerEntity)!;
+    player.energy = 1000;
 
-    // Mock executeSystems to capture when enemies get the Acting tag
     const actingEnemies: number[] = [];
     const originalExecute = world.executeSystems.bind(world);
     vi.spyOn(world, 'executeSystems').mockImplementation((phase) => {
       if (phase === Phase.GATHER_INTENT) {
-        const acting = world.query(Acting);
-        actingEnemies.push(...acting);
+        for (const [id, actor] of adapter.actors.entries()) {
+          if (!actor.isPlayer && actor.acting) {
+            actingEnemies.push(id);
+          }
+        }
       }
       originalExecute(phase);
     });
@@ -133,22 +203,23 @@ describe('TurnManager', () => {
 
   it('skips dead enemies', () => {
     const enemy = world.createEntity();
-    world.addComponent(enemy, Actor, { isPlayer: false });
-    world.addComponent(enemy, Energy, {
-      current: 1000,
+    adapter.addActor({
+      id: enemy,
+      isPlayer: false,
+      isAlive: false,
+      energy: 1000,
       speed: 100,
-      threshold: config.energyThreshold,
+      acting: false,
     });
-    world.addComponent(enemy, Health, Health.schema.parse({ current: 0, max: 10, isAlive: false }));
 
-    const playerEnergy = world.getComponent(playerEntity, Energy)!;
-    world.addComponent(playerEntity, Energy, { ...playerEnergy, current: 1000 });
+    const player = adapter.actors.get(playerEntity)!;
+    player.energy = 1000;
 
     let actingEnemyFound = false;
     const originalExecute = world.executeSystems.bind(world);
     vi.spyOn(world, 'executeSystems').mockImplementation((phase) => {
       if (phase === Phase.GATHER_INTENT) {
-        if (world.hasComponent(enemy, Acting)) {
+        if (adapter.actors.get(enemy)?.acting) {
           actingEnemyFound = true;
         }
       }
@@ -167,13 +238,12 @@ describe('TurnManager', () => {
       order.push(phase);
     });
 
-    const playerEnergy = world.getComponent(playerEntity, Energy)!;
-    world.addComponent(playerEntity, Energy, { ...playerEnergy, current: 1000 });
+    const player = adapter.actors.get(playerEntity)!;
+    player.energy = 1000;
 
     turnManager.start();
     turnManager.submitAction('move');
 
-    // pre-turn -> gather-intent -> action -> reaction -> cleanup -> post-turn
     expect(order).toEqual([
       Phase.PRE_TURN,
       Phase.GATHER_INTENT,
@@ -185,40 +255,34 @@ describe('TurnManager', () => {
   });
 
   it('handles fast enemies with sub-tick processing', () => {
-    // Player speed 100
-    // Enemy speed 200
     const fastEnemy = world.createEntity();
-    world.addComponent(fastEnemy, Actor, { isPlayer: false });
-    world.addComponent(fastEnemy, Energy, {
-      current: 0,
+    adapter.addActor({
+      id: fastEnemy,
+      isPlayer: false,
+      isAlive: true,
+      energy: 0,
       speed: 200,
-      threshold: config.energyThreshold,
+      acting: false,
     });
 
     let enemyActingCount = 0;
     const originalExecute = world.executeSystems.bind(world);
     vi.spyOn(world, 'executeSystems').mockImplementation((phase) => {
       if (phase === Phase.GATHER_INTENT) {
-        if (world.hasComponent(fastEnemy, Acting)) {
+        if (adapter.actors.get(fastEnemy)?.acting) {
           enemyActingCount++;
         }
       }
       originalExecute(phase);
     });
 
-    const playerEnergy = world.getComponent(playerEntity, Energy)!;
-    world.addComponent(playerEntity, Energy, { ...playerEnergy, current: 0 });
+    const player = adapter.actors.get(playerEntity)!;
+    player.energy = 0;
 
     turnManager.start();
-    // Player speed 100, Enemy speed 200.
-    // 5 ticks of 200 = 1000 for enemy. 5 ticks of 100 = 500 for player.
-    // enemyActingCount should be 1 after start()
     expect(enemyActingCount).toBe(1);
 
     turnManager.submitAction('move');
-    // AdvanceUntilPlayerReady will tick 10 times to reach 1000 for player.
-    // Enemy reaches 1000 at tick 5 and tick 10.
-    // enemyActingCount should be 1 (start) + 2 (during advanceUntilPlayerReady) = 3.
     expect(enemyActingCount).toBe(3);
   });
 

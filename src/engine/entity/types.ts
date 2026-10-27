@@ -49,3 +49,18 @@ export interface ComponentRegistry {
    */
   has(key: string): boolean;
 }
+
+/**
+ * Configuration options for entity hierarchy and template identification keys.
+ */
+export interface HierarchyConfig {
+  parentKey?: string;
+  childrenKey?: string;
+  templateIdKey?: string;
+}
+
+export const DEFAULT_HIERARCHY_CONFIG: Required<HierarchyConfig> = {
+  parentKey: 'parent',
+  childrenKey: 'children',
+  templateIdKey: 'templateId',
+};

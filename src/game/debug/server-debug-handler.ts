@@ -17,7 +17,7 @@ import {
 import { EntityId } from '@engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
 import * as InventoryUtil from '@shared/utils/inventory-util';
-import { sessionManager } from '@engine/session/SessionManager';
+import { sessionManager } from '@server/session/session-manager';
 
 export function handleServerDebugCommand(
   world: World<any>,

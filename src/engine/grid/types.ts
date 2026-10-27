@@ -17,6 +17,17 @@ export interface Tile {
 }
 
 /**
+ * Plain-object serializable representation of a tile.
+ */
+export interface SerializedTile {
+  terrain: string;
+  walkable: boolean;
+  transparent: boolean;
+  entities: EntityId[];
+  items: EntityId[];
+}
+
+/**
  * Configuration for initializing a grid.
  */
 export interface GridConfig {

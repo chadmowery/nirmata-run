@@ -25,6 +25,9 @@
       "@engine/*": [
         "./src/engine/*"
       ],
+      "@server/*": [
+        "./src/server/*"
+      ],
       "@game/*": [
         "./src/game/*"
       ],

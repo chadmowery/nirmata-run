@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { POST } from '../route';
-import { sessionManager } from '@engine/session/SessionManager';
+import { sessionManager } from '@server/session/session-manager';
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { TurnManager } from '@engine/turn/turn-manager';
+import { GameTurnAdapter } from '@game/turn/game-turn-adapter';
 import { EventBus } from '@engine/events/event-bus';
 import { Actor, Position, Energy, Health } from '@shared/components';
 import { MoveIntent } from '@shared/components/intents';
@@ -36,11 +37,20 @@ describe('Action API Route', () => {
     eventBus = new EventBus<GameplayEvents>();
     world = new World(eventBus);
     grid = new Grid(10, 10);
-    turnManager = new TurnManager(world, eventBus, {
-      energyThreshold: 100,
+    const turnAdapter = new GameTurnAdapter(world, {
       defaultActionCost: 100,
       waitActionCost: 50,
     });
+    turnManager = new TurnManager(
+      world,
+      eventBus,
+      {
+        energyThreshold: 100,
+        defaultActionCost: 100,
+        waitActionCost: 50,
+      },
+      turnAdapter,
+    );
 
     // Setup player
     playerId = world.createEntity();
