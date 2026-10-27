@@ -1,14 +1,17 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { InRunItemTooltip } from './InRunItemTooltip';
+import { EquipmentDef, SoftwareDef } from '@shared/components';
 
 describe('InRunItemTooltip', () => {
   it('renders basic stats by default', () => {
     (window as any).gameContext = {
       world: {
-        getEntity: vi.fn().mockReturnValue({
-          name: 'Test Item',
-          getComponent: vi.fn().mockReturnValue({ tier: 'Rare' })
+        getComponent: vi.fn().mockImplementation((id, def) => {
+          if (def === EquipmentDef) {
+            return { name: 'Test Item', tier: 'Rare' };
+          }
+          return undefined;
         })
       }
     };
@@ -20,9 +23,14 @@ describe('InRunItemTooltip', () => {
   it('renders expanded deep stats when Alt is held', () => {
     (window as any).gameContext = {
       world: {
-        getEntity: vi.fn().mockReturnValue({
-          name: 'Test Item',
-          getComponent: vi.fn().mockReturnValue({ tier: 'Rare', modifier: 'Fire Rate +5%' })
+        getComponent: vi.fn().mockImplementation((id, def) => {
+          if (def === EquipmentDef) {
+            return { name: 'Test Item', tier: 'Rare' };
+          }
+          if (def === SoftwareDef) {
+            return { modifier: 'Fire Rate +5%' };
+          }
+          return undefined;
         })
       }
     };

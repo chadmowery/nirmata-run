@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { EquipmentDef, SoftwareDef, Item } from '@shared/components';
 
 interface InRunItemTooltipProps {
   entityId: number;
@@ -24,16 +25,19 @@ export const InRunItemTooltip: React.FC<InRunItemTooltipProps> = ({ entityId }) 
 
   // Accessing world from window.gameContext (mocked/available at runtime)
   const world = (window as any).gameContext?.world;
-  const entity = world?.getEntity(entityId);
+  if (!world) return null;
 
-  if (!entity) return null;
+  const equipment = world.getComponent(entityId, EquipmentDef);
+  const software = world.getComponent(entityId, SoftwareDef);
+  const itemComponent = world.getComponent(entityId, Item);
 
-  const equipment = entity.getComponent('EquipmentDef');
-  const software = entity.getComponent('SoftwareDef');
+  if (!equipment && !software && !itemComponent) return null;
+
+  const itemName = equipment?.name || software?.name || itemComponent?.name || 'Unknown Item';
 
   return (
     <div className="inventory-tooltip" style={{ position: 'fixed', zIndex: 1000, background: '#111', border: '1px solid #444', padding: '10px', pointerEvents: 'none' }}>
-      <h3>{entity.name || 'Unknown Item'}</h3>
+      <h3>{itemName}</h3>
       <p>Tier: {equipment?.tier || 'N/A'}</p>
       
       {showDeepStats && (

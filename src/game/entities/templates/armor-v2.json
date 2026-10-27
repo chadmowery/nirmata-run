@@ -1,15 +1,15 @@
 {
-  "id": "armor-v2",
-  "name": "Refined Plating",
+  "name": "armor-v2",
+  "displayName": "Refined Plating",
   "tier": 2,
   "components": {
     "equipmentDef": {
       "slotType": "armor",
       "name": "Refined Plating"
-    },
-    "software": [
-      "kinetic-link",
-      "neural-feedback"
-    ]
-  }
+    }
+  },
+  "software": [
+    "kinetic-link",
+    "neural-feedback"
+  ]
 }

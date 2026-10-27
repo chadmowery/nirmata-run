@@ -1,16 +1,16 @@
 {
-  "id": "armor-v3",
-  "name": "Overclocked Plating",
+  "name": "armor-v3",
+  "displayName": "Overclocked Plating",
   "tier": 3,
   "components": {
     "equipmentDef": {
       "slotType": "armor",
       "name": "Overclocked Plating"
-    },
-    "software": [
-      "kinetic-link",
-      "neural-feedback",
-      "phase-shift"
-    ]
-  }
+    }
+  },
+  "software": [
+    "kinetic-link",
+    "neural-feedback",
+    "phase-shift"
+  ]
 }

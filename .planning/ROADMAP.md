@@ -4,10 +4,10 @@
 
 ## Phases
 
-- [ ] **Phase 18: Hierarchical Entity Foundation** - Implement Items as full ECS entities capable of hosting Software.
-- [ ] **Phase 19: Combat Stat Pipeline & Turn Costs** - Implement dynamic stat calculation and turn-cost for gear changes.
-- [ ] **Phase 20: Tiered Loot Distribution** - Update enemy drop tables with tiered Weapons, Armor, and Software.
-- [ ] **Phase 21: Inventory & Item Tooltips** - Create the in-run inventory overlay and manual hover-tooltip system.
+- [x] **Phase 18: Hierarchical Entity Foundation** - Implement Items as full ECS entities capable of hosting Software. (completed 2026-05-25)
+- [x] **Phase 19: Combat Stat Pipeline & Turn Costs** - Implement dynamic stat calculation and turn-cost for gear changes. (completed 2026-05-29)
+- [x] **Phase 20: Tiered Loot Distribution** - Update enemy drop tables with tiered Weapons, Armor, and Software. (completed 2026-05-25)
+- [x] **Phase 21: Inventory & Item Tooltips** - Create the in-run inventory overlay and manual hover-tooltip system. (completed 2026-05-25)
 - [x] **Phase 22: Equipment Interaction (Drag & Drop)** - Implement manual drag-and-drop loadout management. (completed 2026-05-25)
 
 ## Phase Details

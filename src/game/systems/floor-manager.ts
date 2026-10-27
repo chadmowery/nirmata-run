@@ -10,6 +10,7 @@ import { Position } from '@shared/components/position';
 import { FirmwareSlots } from '@shared/components/firmware-slots';
 import { AugmentSlots } from '@shared/components/augment-slots';
 import { SoftwareSlots } from '@shared/components/software-slots';
+import { RunInventory } from '@shared/components/run-inventory';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 import { Actor } from '@shared/components/actor';
@@ -57,10 +58,15 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
     const fSlots = world.getComponent(playerId, FirmwareSlots);
     const aSlots = world.getComponent(playerId, AugmentSlots);
     const sSlots = world.getComponent(playerId, SoftwareSlots);
+    const runInv = world.getComponent(playerId, RunInventory);
 
     if (fSlots) fSlots.equipped.forEach(id => protectedEntities.add(id));
     if (aSlots) aSlots.equipped.forEach(id => protectedEntities.add(id));
     if (sSlots) sSlots.equipped.forEach(id => protectedEntities.add(id));
+    if (runInv) {
+      runInv.software.forEach(item => protectedEntities.add(item.entityId));
+      runInv.equipment.forEach(item => protectedEntities.add(item.entityId));
+    }
 
     // 3. Mark all non-protected entities for destruction via the Dying pipeline
     for (const id of entities) {

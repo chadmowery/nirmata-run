@@ -1,14 +1,14 @@
 {
-  "id": "armor-v1",
-  "name": "Standard Plating",
+  "name": "armor-v1",
+  "displayName": "Standard Plating",
   "tier": 1,
   "components": {
     "equipmentDef": {
       "slotType": "armor",
       "name": "Standard Plating"
-    },
-    "software": [
-      "kinetic-link"
-    ]
-  }
+    }
+  },
+  "software": [
+    "kinetic-link"
+  ]
 }
