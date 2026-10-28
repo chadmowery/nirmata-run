@@ -6,6 +6,21 @@
     "equipmentDef": {
       "slotType": "armor",
       "name": "Standard Plating"
+    },
+    "defense": {
+      "armor": 2
+    },
+    "item": {
+      "name": "Standard Plating",
+      "description": "Standard kinetic armor plating"
+    },
+    "sprite": {
+      "key": "item_phase_shift"
+    },
+    "rarityTier": {
+      "tier": "v1.x",
+      "scaleFactor": 1.5,
+      "minFloor": 0
     }
   },
   "software": ["kinetic-link"]

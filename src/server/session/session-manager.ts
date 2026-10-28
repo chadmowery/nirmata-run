@@ -5,6 +5,8 @@ import { EventBus } from '@engine/events/event-bus';
 import { EngineEvents } from '@engine/events/types';
 import { logger } from '@engine/utils/logger';
 
+import { RunMode } from '@shared/run-mode';
+
 /**
  * WorldState container for sessions.
  */
@@ -15,6 +17,7 @@ export interface WorldState<T extends EngineEvents = EngineEvents, S = unknown> 
   eventBus: EventBus<T>;
   playerId: number;
   systems?: S; // EngineInstance.systems
+  runMode?: RunMode;
 }
 
 /**

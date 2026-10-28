@@ -68,6 +68,11 @@
 **Dungeon Generation Retry Limit:**
 - `src/game/generation/dungeon-generator.ts:30` — `MAX_ATTEMPTS = 10` with no fallback if all attempts fail.
 
+**Fragile Turn Processing & Server 500 Crash on Subsystem Runtime Errors:**
+- `src/app/api/action/route.ts:168-175` — if any system, loot drop, entity instantiation (`EntityFactory.create`), or AI logic throws an uncaught error during `turnManager.submitAction()`, `/api/action` crashes with a 500 Internal Server Error.
+- The session world is left partially modified, state sync fails, and the client receives no authoritative delta, leading to desync or freezing.
+- Future improvement: Implement system-level fault isolation, safe entity spawn fallbacks, pre-turn transactional rollback, and graceful client reconciliation responses.
+
 ## Security Concerns
 
 **No Authentication or Authorization on Admin Routes:**

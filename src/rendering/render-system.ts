@@ -26,6 +26,7 @@ import {
   destroyEntitySprite,
   getEntitySprite,
   clearAllSprites,
+  purgeOrphanedSprites,
 } from './sprite-map';
 import {
   tickAnimations,
@@ -57,6 +58,7 @@ import {
   disposeAllEmitters,
 } from './filters/particle-emitters';
 import { spawnDamageText, updateDamageTexts, disposeDamageTexts } from './filters/damage-text';
+import { EventOriginContext } from '../engine/utils/event-context';
 
 export interface RenderSystemConfig {
   app: Application;
@@ -106,7 +108,28 @@ export function createRenderSystem(config: RenderSystemConfig) {
     }
   };
 
+  // Track last predicted player move to avoid duplicate tweens when server reconciles
+  let lastPredictedPlayerMove: {
+    fromX: number;
+    fromY: number;
+    toX: number;
+    toY: number;
+  } | null = null;
+
+  // Deduplicate rapid damage visual pulses on the same defender in the same tick
+  let lastDamageProcessed: { defenderId: EntityId; timestamp: number } | null = null;
+
   const handleDamageDealt = (payload: { attackerId?: EntityId; defenderId: EntityId }) => {
+    const now = Date.now();
+    if (
+      lastDamageProcessed &&
+      lastDamageProcessed.defenderId === payload.defenderId &&
+      now - lastDamageProcessed.timestamp < 16
+    ) {
+      return;
+    }
+    lastDamageProcessed = { defenderId: payload.defenderId, timestamp: now };
+
     const sprite = getEntitySprite(payload.defenderId);
     if (sprite) {
       applyDamageDistortion(sprite);
@@ -146,6 +169,57 @@ export function createRenderSystem(config: RenderSystemConfig) {
     toX: number;
     toY: number;
   }) => {
+    const isPlayer = payload.entityId === getPlayerEntity();
+    const origin = EventOriginContext.current;
+
+    if (isPlayer) {
+      if (origin === 'client') {
+        // Record predicted player movement and queue visual tween
+        lastPredictedPlayerMove = {
+          fromX: payload.fromX,
+          fromY: payload.fromY,
+          toX: payload.toX,
+          toY: payload.toY,
+        };
+        queueMoveTween(
+          payload.entityId,
+          payload.fromX,
+          payload.fromY,
+          payload.toX,
+          payload.toY,
+          getEntitySprite,
+        );
+        return;
+      }
+
+      if (origin === 'server') {
+        // If this server event confirms our predicted move, skip duplicate tween
+        if (
+          lastPredictedPlayerMove &&
+          lastPredictedPlayerMove.fromX === payload.fromX &&
+          lastPredictedPlayerMove.fromY === payload.fromY &&
+          lastPredictedPlayerMove.toX === payload.toX &&
+          lastPredictedPlayerMove.toY === payload.toY
+        ) {
+          lastPredictedPlayerMove = null;
+          return;
+        }
+
+        // Misprediction correction or forced move from server
+        lastPredictedPlayerMove = null;
+        queueMoveTween(
+          payload.entityId,
+          payload.fromX,
+          payload.fromY,
+          payload.toX,
+          payload.toY,
+          getEntitySprite,
+        );
+        return;
+      }
+    }
+
+    // For all other entities (enemies, NPCs), always queue visual move tween
     queueMoveTween(
       payload.entityId,
       payload.fromX,
@@ -215,6 +289,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.on('STABILITY_CHANGED', handleStabilityChanged);
       eventBus.on('HEAT_CHANGED', handleHeatChanged);
       eventBus.on('DUNGEON_GENERATED', () => this.onDungeonGenerated());
+      eventBus.on('STATE_RECONCILED', () => this.reconcileSprites());
 
       app.ticker.add(updateCameraFrame);
 
@@ -226,6 +301,26 @@ export function createRenderSystem(config: RenderSystemConfig) {
         const sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
         sprite.x = pos.x * TILE_SIZE;
         sprite.y = pos.y * TILE_SIZE;
+      }
+    },
+
+    reconcileSprites() {
+      const activeEntities = new Set(world.query(SpriteComponent));
+      purgeOrphanedSprites(activeEntities);
+
+      // Instantiate sprites for any active entity missing its sprite
+      for (const entityId of activeEntities) {
+        if (!getEntitySprite(entityId)) {
+          const spriteComp = world.getComponent(entityId, SpriteComponent);
+          const pos = world.getComponent(entityId, Position);
+          if (spriteComp) {
+            const sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
+            if (pos) {
+              sprite.x = pos.x * TILE_SIZE;
+              sprite.y = pos.y * TILE_SIZE;
+            }
+          }
+        }
       }
     },
 

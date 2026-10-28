@@ -7,6 +7,18 @@
       "slotType": "weapon",
       "name": "Refined Kinetic Rifle"
     },
-    "software": ["basic-strike", "neural-spike"]
-  }
+    "item": {
+      "name": "Refined Kinetic Rifle",
+      "description": "Refined kinetic firearm"
+    },
+    "sprite": {
+      "key": "item_auto_loader"
+    },
+    "rarityTier": {
+      "tier": "v2.x",
+      "scaleFactor": 2.0,
+      "minFloor": 0
+    }
+  },
+  "software": ["basic-strike", "neural-spike"]
 }

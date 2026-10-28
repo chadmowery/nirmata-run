@@ -11,7 +11,10 @@ export class InputManager {
   private targetingManager: TargetingManager | null = null;
   private enabled: boolean = false;
   private keydownHandler: ((event: KeyboardEvent) => void) | null = null;
-  private isRequestPending: boolean = false;
+  private isProcessing: boolean = false;
+  private actionQueue: GameAction[] = [];
+  private maxQueueSize: number = 3;
+  private currentSeq: number = 0;
 
   constructor(bindings: Record<string, GameAction> = DEFAULT_BINDINGS) {
     this.bindings = new Map(Object.entries(bindings));
@@ -32,11 +35,87 @@ export class InputManager {
   }
 
   /**
-   * Sets whether a server request is currently pending.
-   * While pending, all mapped inputs are ignored.
+   * Sets whether an external request is currently pending.
+   * When pending becomes false, any buffered actions are drained.
    */
   setRequestPending(pending: boolean): void {
-    this.isRequestPending = pending;
+    this.isProcessing = pending;
+    if (!pending && this.actionQueue.length > 0 && this.enabled) {
+      const nextAction = this.actionQueue.shift()!;
+      this.processAction(nextAction);
+    }
+  }
+
+  /**
+   * Gets whether input processing is currently in flight.
+   */
+  getPendingStatus(): boolean {
+    return this.isProcessing;
+  }
+
+  /**
+   * Gets the current number of buffered actions in the queue.
+   */
+  getQueueLength(): number {
+    return this.actionQueue.length;
+  }
+
+  /**
+   * Gets the current monotonic action sequence counter.
+   */
+  getCurrentSeq(): number {
+    return this.currentSeq;
+  }
+
+  /**
+   * Clears all pending queued actions.
+   */
+  clearQueue(): void {
+    this.actionQueue = [];
+  }
+
+  private isImmediateAction(action: GameAction): boolean {
+    return (
+      action === GameAction.TOGGLE_INVENTORY ||
+      action === GameAction.PAUSE ||
+      action === GameAction.DEBUG_PATHFIND_ANCHOR ||
+      action === GameAction.DEBUG_TOGGLE_TIMELINE
+    );
+  }
+
+  private enqueueOrExecute(action: GameAction): void {
+    if (!this.handler) return;
+
+    if (this.isImmediateAction(action)) {
+      this.handler(action);
+      return;
+    }
+
+    if (this.isProcessing) {
+      if (this.actionQueue.length < this.maxQueueSize) {
+        this.actionQueue.push(action);
+      }
+      return;
+    }
+
+    this.processAction(action);
+  }
+
+  private async processAction(action: GameAction): Promise<void> {
+    if (!this.handler || !this.enabled) return;
+
+    this.isProcessing = true;
+    this.currentSeq++;
+
+    try {
+      await Promise.resolve(this.handler(action));
+    } finally {
+      this.isProcessing = false;
+      if (this.actionQueue.length > 0 && this.enabled) {
+        const nextAction = this.actionQueue.shift()!;
+        this.processAction(nextAction);
+      }
+    }
   }
 
   /**
@@ -50,9 +129,6 @@ export class InputManager {
       if (event.repeat) return;
       if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
         return;
-
-      // Ignore if a request is pending
-      if (this.isRequestPending) return;
 
       // Construct the lookup key including modifiers
       let lookupKey = event.code;
@@ -95,7 +171,7 @@ export class InputManager {
       if (action && this.handler) {
         // Prevent default browser behavior for mapped keys (e.g., arrow scrolling)
         event.preventDefault();
-        this.handler(action);
+        this.enqueueOrExecute(action);
       }
     };
 
@@ -112,6 +188,8 @@ export class InputManager {
     document.removeEventListener('keydown', this.keydownHandler);
     this.keydownHandler = null;
     this.enabled = false;
+    this.clearQueue();
+    this.isProcessing = false;
   }
 
   /**

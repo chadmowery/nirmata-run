@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { ActionRequestSchema, SyncPayload } from '@shared/types';
 import { sessionManager } from '@server/session/session-manager';
 import { serializeWorld, serializeGrid } from '@shared/serialization';
+import { createECSWorldDelta } from '@shared/ecs-delta';
+import { submitLeaderboardEntry } from '@/server/leaderboard/leaderboard-service';
+import { RunMode } from '@shared/run-mode';
 import { diff } from 'json-diff-ts';
 import { DIRECTIONS, GameAction } from '@game/input/actions';
 import { logger } from '@engine/utils/logger';
@@ -48,6 +51,7 @@ export async function POST(req: Request) {
     const { world, grid, turnManager, eventBus } = session;
 
     // 1. Snapshot initial state
+    const oldWorldState = serializeWorld(world);
     const oldGridState = serializeGrid(grid);
 
     // 2. Capture all events emitted during this tick
@@ -208,6 +212,16 @@ export async function POST(req: Request) {
       }
 
       await profileRepository.save(profile);
+
+      // Automatic Server-Side Leaderboard Submission (Phase 4)
+      if (session.runMode && session.runMode !== RunMode.SIMULATION) {
+        await submitLeaderboardEntry(sessionId, session.runMode, {
+          floorNumber: payload.floorNumber,
+          scrapExtracted: finalScrap,
+          softwareExtracted: (payload.stats.softwareExtracted as number) || 0,
+          fluxExtracted: finalFlux,
+        });
+      }
     }
 
     // 5. Snapshot final state
@@ -243,6 +257,7 @@ export async function POST(req: Request) {
       logger.info(`[API] Sending DELTA state sync.`, 'API');
       syncPayload = {
         type: 'DELTA',
+        worldDelta: createECSWorldDelta(oldWorldState, newWorldState),
         world: newWorldState,
         grid: diff(oldGridState, newGridState),
         events: syncEvents,

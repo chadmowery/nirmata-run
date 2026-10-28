@@ -6,6 +6,21 @@
     "equipmentDef": {
       "slotType": "armor",
       "name": "Overclocked Plating"
+    },
+    "defense": {
+      "armor": 6
+    },
+    "item": {
+      "name": "Overclocked Plating",
+      "description": "Overclocked kinetic armor plating"
+    },
+    "sprite": {
+      "key": "item_phase_shift"
+    },
+    "rarityTier": {
+      "tier": "v3.x",
+      "scaleFactor": 3.0,
+      "minFloor": 0
     }
   },
   "software": ["kinetic-link", "neural-feedback", "phase-shift"]

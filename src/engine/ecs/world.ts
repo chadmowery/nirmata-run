@@ -257,4 +257,59 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
       this.stores.set(key, store);
     }
   }
+
+  /**
+   * Applies an incremental, component-level delta to the world.
+   */
+  applyDelta(delta: {
+    nextId?: number;
+    entitiesAdded?: number[];
+    entitiesRemoved?: number[];
+    componentsSet?: Array<{ component: string; entityId: number; data: unknown }>;
+    componentsRemoved?: Array<{ component: string; entityId: number }>;
+  }): void {
+    if (delta.nextId !== undefined) {
+      this.nextId = Math.max(this.nextId, delta.nextId);
+    }
+
+    // 1. Add new entities
+    if (delta.entitiesAdded) {
+      for (const id of delta.entitiesAdded) {
+        this.entities.add(id);
+      }
+    }
+
+    // 2. Set / update component data
+    if (delta.componentsSet) {
+      for (const patch of delta.componentsSet) {
+        let store = this.stores.get(patch.component);
+        if (!store) {
+          store = new Map<EntityId, unknown>();
+          this.stores.set(patch.component, store);
+        }
+        store.set(patch.entityId, JSON.parse(JSON.stringify(patch.data)));
+        this.entities.add(patch.entityId);
+      }
+    }
+
+    // 3. Remove individual components
+    if (delta.componentsRemoved) {
+      for (const removal of delta.componentsRemoved) {
+        const store = this.stores.get(removal.component);
+        if (store) {
+          store.delete(removal.entityId);
+        }
+      }
+    }
+
+    // 4. Remove deleted entities and purge all their component data
+    if (delta.entitiesRemoved) {
+      for (const id of delta.entitiesRemoved) {
+        this.entities.delete(id);
+        for (const store of this.stores.values()) {
+          store.delete(id);
+        }
+      }
+    }
+  }
 }

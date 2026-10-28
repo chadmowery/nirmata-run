@@ -1,10 +1,8 @@
 import { RunMode, RunModeConfig } from '@shared/run-mode';
 import { logger } from '@engine/utils/logger';
 import { getCurrentDailySeed, getCurrentWeeklySeed } from '@/app/persistence/seed-rotation';
-import economyRaw from '../entities/templates/economy.json';
-import { EconomyConfig } from '@shared/economy-types';
-
-const economy = economyRaw as unknown as EconomyConfig;
+export { calculateScore } from '../scoring';
+export type { ScoreStats } from '../scoring';
 
 export { RunMode };
 export type { RunModeConfig };
@@ -76,23 +74,4 @@ export async function getRunModeConfig(mode: RunMode): Promise<RunModeConfig> {
 
   logger.info(`Run Mode Config Loaded: ${config.name} (Seed: ${config.seed})`, 'SYSTEM');
   return config;
-}
-
-/**
- * Calculates server-side score based on run stats.
- * D-21: Scores never client-submitted.
- */
-export function calculateScore(stats: {
-  floorNumber: number;
-  scrapExtracted: number;
-  softwareExtracted: number;
-  fluxExtracted: number;
-}): number {
-  const { scoring } = economy;
-  return (
-    stats.floorNumber * scoring.floorReached +
-    stats.scrapExtracted * scoring.scrapCollected +
-    stats.softwareExtracted * scoring.softwareExtracted +
-    stats.fluxExtracted * scoring.fluxExtracted
-  );
 }

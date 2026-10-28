@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
+import { globalShellRegistry } from '@/game/shells/server';
 
 import { logger } from '@engine/utils/logger';
 
@@ -36,16 +37,49 @@ export async function POST(req: NextRequest) {
     }
 
     const item = profile.vault[vaultIndex];
-    // 2. Add to installedItems
+    const itemType = item.itemType as 'firmware' | 'augment' | 'software';
+
+    // 2. Validate Shell Port Capacity (Phase 4)
+    let shellRecord = globalShellRegistry.get(shellId);
+    if (!shellRecord) {
+      try {
+        shellRecord = globalShellRegistry.createRecord(shellId, shellId);
+      } catch {
+        const template = globalShellRegistry.getTemplates().find((t) => t.id === shellId);
+        if (template) {
+          shellRecord = globalShellRegistry.createRecord(shellId, template.id);
+        }
+      }
+    }
+
+    if (shellRecord?.portConfig) {
+      const installedForShell = profile.installedItems.filter(
+        (installed) => installed.shellId === shellId && installed.type === itemType,
+      );
+
+      let maxLimit = Infinity;
+      if (itemType === 'firmware') maxLimit = shellRecord.portConfig.maxFirmware;
+      else if (itemType === 'augment') maxLimit = shellRecord.portConfig.maxAugment;
+      else if (itemType === 'software') maxLimit = shellRecord.portConfig.maxSoftware;
+
+      if (installedForShell.length >= maxLimit) {
+        return NextResponse.json(
+          { error: `Exceeded port capacity for ${itemType}. Max: ${maxLimit}` },
+          { status: 400 },
+        );
+      }
+    }
+
+    // 3. Add to installedItems
     profile.installedItems.push({
       entityId: item.entityId, // Preserve the authoritative entityId
       blueprintId: item.templateId, // Using templateId as blueprintId for now
-      type: item.itemType as 'firmware' | 'augment' | 'software',
+      type: itemType,
       shellId,
       isLegacy: false,
     });
 
-    // 3. Remove from Vault
+    // 4. Remove from Vault
     profile.vault.splice(vaultIndex, 1);
 
     await profileRepository.save(profile);

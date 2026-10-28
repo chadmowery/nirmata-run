@@ -30,4 +30,10 @@ export interface GameEvents extends GameplayEvents {
     runInventoryIndex: number;
     targetSlot: 'weapon' | 'armor';
   };
+
+  /** Emitted on the client when authoritative state reconciliation finishes. */
+  STATE_RECONCILED: {
+    turnNumber: number;
+    playerId: number;
+  };
 }

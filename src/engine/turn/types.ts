@@ -24,6 +24,7 @@ export interface TurnManagerConfig {
   energyThreshold: number;
   defaultActionCost: number;
   waitActionCost: number;
+  isClient?: boolean;
 }
 
 /**

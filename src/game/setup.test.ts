@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createGame } from './setup';
 import { GameState } from './states/types';
 import { GameAction } from './input/actions';
+import { serializeWorld } from '@shared/serialization';
 import * as Components from '@shared/components';
 const { Position, Actor, Energy, Hostile, Health, Attack } = Components;
 
@@ -111,7 +112,7 @@ describe('Game Setup Integration', () => {
     expect(energy?.current).toBe(1000);
   });
 
-  it('should handle bump-attack when moving into hostile', () => {
+  it('should handle bump-attack when moving into hostile', async () => {
     const { world, grid, fsm, inputManager, eventBus } = context;
     const emitSpy = vi.spyOn(eventBus, 'emit');
 
@@ -145,11 +146,32 @@ describe('Game Setup Integration', () => {
     fsm.transition(GameState.MainMenu);
     fsm.transition(GameState.Playing);
 
+    // Mock server response returning authoritative DAMAGE_DEALT
+    const currentWorld = serializeWorld(world);
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        payload: {
+          type: 'DELTA',
+          world: currentWorld,
+          grid: [],
+          events: [
+            {
+              type: 'DAMAGE_DEALT',
+              payload: { attackerId: player, defenderId: enemy, damage: 5 },
+            },
+          ],
+          turnNumber: 1,
+          playerId: player,
+        },
+      }),
+    } as any);
+
     // 4. Submit MOVE_EAST action
     const actionHandler = (inputManager as any).handler;
-    actionHandler(GameAction.MOVE_EAST);
+    await actionHandler(GameAction.MOVE_EAST);
 
-    // 5. Verify DAMAGE_DEALT event emitted
+    // 5. Verify DAMAGE_DEALT event emitted from server reconciliation
     expect(emitSpy).toHaveBeenCalledWith(
       'DAMAGE_DEALT',
       expect.objectContaining({

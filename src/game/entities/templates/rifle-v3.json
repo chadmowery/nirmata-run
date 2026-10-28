@@ -7,6 +7,18 @@
       "slotType": "weapon",
       "name": "Overclocked Kinetic Rifle"
     },
-    "software": ["basic-strike", "neural-spike", "ghost-pulse"]
-  }
+    "item": {
+      "name": "Overclocked Kinetic Rifle",
+      "description": "Overclocked kinetic firearm"
+    },
+    "sprite": {
+      "key": "item_auto_loader"
+    },
+    "rarityTier": {
+      "tier": "v3.x",
+      "scaleFactor": 3.0,
+      "minFloor": 0
+    }
+  },
+  "software": ["basic-strike", "neural-spike", "ghost-pulse"]
 }

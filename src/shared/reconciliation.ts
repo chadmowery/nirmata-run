@@ -24,10 +24,14 @@ export function applyStateDelta<T extends GameplayEvents>(
   const previousOrigin = EventOriginContext.current;
   EventOriginContext.current = 'server';
 
-  // 1. Authoritative World Update (Full State Always)
-  // This eliminates all TypeError: Cannot set properties of undefined crashes
-  // by replacing the entire world state instead of patching it.
-  world.loadSerializableState(payload.world);
+  // 1. Authoritative World Update
+  if (payload.type === 'FULL') {
+    world.loadSerializableState(payload.world);
+  } else if ((payload as DeltaPayload).worldDelta) {
+    world.applyDelta((payload as DeltaPayload).worldDelta!);
+  } else if ((payload as DeltaPayload).world) {
+    world.loadSerializableState((payload as DeltaPayload).world!);
+  }
 
   // 2. Authoritative Grid Update
   if (payload.type === 'FULL') {
@@ -64,6 +68,11 @@ export function applyStateDelta<T extends GameplayEvents>(
   }
 
   // 5. Finalize turn reconciliation
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (eventBus as any).emit('STATE_RECONCILED', {
+    turnNumber: payload.turnNumber,
+    playerId: payload.playerId,
+  });
   eventBus.flush();
   EventOriginContext.current = previousOrigin;
 

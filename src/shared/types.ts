@@ -173,14 +173,34 @@ export const SerializedGridSchema = z.object({
 
 export type SerializedGrid = z.infer<typeof SerializedGridSchema>;
 
+export interface ComponentPatch {
+  component: string;
+  entityId: number;
+  data: unknown;
+}
+
+export interface ComponentRemoval {
+  component: string;
+  entityId: number;
+}
+
+export interface ECSWorldDelta {
+  nextId: number;
+  entitiesAdded: number[];
+  entitiesRemoved: number[];
+  componentsSet: ComponentPatch[];
+  componentsRemoved: ComponentRemoval[];
+}
+
 /**
  * Polymorphic payload for state synchronization.
- * DELTA: Incremental changes using json-diff-ts. Best for small performance-critical updates.
+ * DELTA: Incremental changes. Sends fine-grained ECSWorldDelta and grid Changeset.
  * FULL: Complete state snapshot. Best for massive structural changes (e.g., floor transitions).
  */
 export type DeltaPayload = {
   type: 'DELTA';
-  world: SerializedWorld;
+  worldDelta?: ECSWorldDelta;
+  world?: SerializedWorld;
   grid: Changeset;
   events?: Array<{ type: string; payload: unknown }>;
   turnNumber: number;

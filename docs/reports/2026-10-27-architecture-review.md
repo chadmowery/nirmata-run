@@ -330,3 +330,68 @@ flowchart TD
    - In [`POST /api/vault/equip-from-vault`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/app/api/vault/equip-from-vault/route.ts), load the Shell archetype's [`PortConfig`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/shared/components/port-config.ts#L9) and reject installations exceeding slot capacity.
 3. **Deprecate Unauthenticated `/api/session` Endpoint**:
    - Require all runs to originate from [`POST /api/run-mode/launch`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/app/api/run-mode/launch/route.ts), enforcing daily and weekly attempt limits.
+
+---
+
+## 7. Future Improvements & Fault Tolerance: Server Runtime Error Resilience
+
+### 7.1 Problem Diagnosis & Vulnerability
+In the current implementation, any uncaught runtime exception thrown during authoritative action processing—such as an invalid/missing component in an entity template (e.g., [`buildEntity`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/engine/entity/builder.ts#L107)), bad loot parameters in [`RewardDropSystem`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/game/systems/reward-drop.ts#L71), pathfinding failures in [`AISystem`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/game/systems/ai.ts), or sub-tick overflow in [`TurnManager`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/engine/turn/turn-manager.ts)—bubbles directly up the call stack:
+```
+System Exception -> World.executeSystems -> TurnManager.executeActionSequence -> POST /api/action (500 Internal Server Error)
+```
+
+When this occurs:
+1. **HTTP 500 Crash**: The server abruptly crashes the request without returning a state sync payload.
+2. **Partial State Corruption**: The server's in-memory `World` for the session may be left in an inconsistent, half-executed state (e.g., player energy was deducted or health was modified, but drops or turn increments failed).
+3. **Client Desync & Lockup**: The client's optimistic prediction cannot reconcile because no valid state payload is returned, leading to visual freezing or a corrupted local world state.
+
+### 7.2 Proposed Fault-Tolerance Blueprint
+
+```mermaid
+flowchart TD
+    Action["POST /api/action Intent"] --> Snapshot["1. Create Pre-Turn Checkpoint"]
+    Snapshot --> Exec["2. Execute Action & Turn Cycle"]
+    
+    subgraph Isolated System Execution
+        Exec --> SysLoop["World.executeSystems()"]
+        SysLoop -->|Try System| RunSys["Run Individual System"]
+        RunSys -->|Success| NextSys["Next System"]
+        RunSys -->|Catches Non-Fatal Error| LogSys["Log Warning & Isolate Error"]
+        LogSys --> NextSys
+    end
+    
+    subgraph Entity Instantiation Safeguards
+        RunSys --> CreateEnt["EntityFactory.create()"]
+        CreateEnt -->|Try Build| BuildEnt["buildEntity()"]
+        BuildEnt -->|Unknown Component / Bad Schema| FallbackEnt["Log Diagnostic & Fallback (e.g., Scrap or Skip)"]
+    end
+    
+    NextSys --> Sync["3. Serialize World Delta & Return 200 OK"]
+    
+    Exec -->|Fatal Uncaught Exception| Rollback["4. Rollback to Pre-Turn Checkpoint"]
+    Rollback --> ErrorResponse["5. Return 200 OK with Rollback Delta & Action Rejection"]
+    ErrorResponse --> ClientReconcile["Client Rolls Back Prediction Cleanly"]
+```
+
+#### 1. System-Level Fault Isolation (Circuit Breakers in Systems Loop)
+- **Target**: [`src/engine/ecs/world.ts`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/engine/ecs/world.ts#L210) / [`src/engine/turn/turn-manager.ts`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/engine/turn/turn-manager.ts#L130).
+- **Strategy**: Wrap individual system executions in a fault boundary. Non-critical secondary systems (e.g., loot drops, ambient effects, tile decay, non-blocking AI steps) should catch and log errors using structured diagnostics (`logger.error`), allowing core gameplay (movement, turns, combat) to proceed without aborting the entire turn.
+
+#### 2. Defensive Entity Instantiation & Safe Fallbacks
+- **Target**: [`src/engine/entity/factory.ts`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/engine/entity/factory.ts#L24) and [`src/engine/entity/builder.ts`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/engine/entity/builder.ts#L90).
+- **Strategy**: 
+  - If a template references an unknown component or schema validation fails during dynamic runtime spawning (e.g., loot drop, enemy spawn), capture the error, log a critical telemetry alert, and spawn a safe fallback entity (e.g. `'scrap'` or drop placeholder) rather than crashing the turn submission.
+  - In development/testing environments, strict validation remains enabled to catch bugs early; in production runtime mode, fault isolation prevents session death.
+
+#### 3. Pre-Turn Snapshot & Transactional Rollback
+- **Target**: [`src/app/api/action/route.ts`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/app/api/action/route.ts#L160).
+- **Strategy**:
+  - Keep a shallow snapshot of component stores or serialize state prior to `turnManager.submitAction()`.
+  - If a fatal exception occurs during the turn sequence, restore the session world to the pre-turn state.
+  - Return a graceful `200 OK` response with a sync payload containing the restored state and a user-facing event (`ACTION_REJECTED` / message: `"Action could not be completed"`).
+  - This guarantees that client prediction reconciles cleanly back to the last valid authoritative state without desyncing or freezing the player's UI.
+
+#### 4. Client Graceful Degradation & Recovery
+- **Target**: [`src/game/setup.ts`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/game/setup.ts#L372).
+- **Strategy**: Ensure that if the server ever encounters a network or internal error, the client rolls back optimistic predictions, clears the pending input queue, unblocks input, and outputs an error message in the in-game HUD message log rather than freezing in place.

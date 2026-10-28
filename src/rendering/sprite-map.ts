@@ -81,6 +81,21 @@ export function getEntitySprites(): ReadonlyMap<EntityId, Sprite> {
 }
 
 /**
+ * Purges all sprites whose EntityId is no longer present in the active set.
+ * Returns the list of purged entity IDs.
+ */
+export function purgeOrphanedSprites(activeEntityIds: Set<EntityId>): EntityId[] {
+  const purged: EntityId[] = [];
+  for (const entityId of Array.from(entitySprites.keys())) {
+    if (!activeEntityIds.has(entityId)) {
+      destroyEntitySprite(entityId);
+      purged.push(entityId);
+    }
+  }
+  return purged;
+}
+
+/**
  * Clears all sprites from the map and destroys them.
  */
 export function clearAllSprites(): void {

@@ -37,12 +37,14 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     }
 
     // Process player action
-    const cost = this.adapter.getActionCost
-      ? this.adapter.getActionCost(playerEntity, action)
-      : action === 'WAIT'
-        ? this.config.waitActionCost
-        : this.config.defaultActionCost;
-    this.adapter.deductActionCost(playerEntity, cost);
+    if (!this.config.isClient) {
+      const cost = this.adapter.getActionCost
+        ? this.adapter.getActionCost(playerEntity, action)
+        : action === 'WAIT'
+          ? this.config.waitActionCost
+          : this.config.defaultActionCost;
+      this.adapter.deductActionCost(playerEntity, cost);
+    }
 
     if (this.playerActionHandler) {
       this.playerActionHandler(action, playerEntity);
@@ -81,6 +83,16 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     }
 
     if (this._paused) return;
+
+    if (this.config.isClient) {
+      // In client prediction mode, only the player's immediate movement was predicted.
+      // Skip enemy turns and energy catch-up simulation on the client.
+      this.phase = TurnPhase.AWAIT_INPUT;
+      logger.info(`COMPLETED PREDICTED TURN ${this.turnNumber}`, 'TURN');
+      this.eventBus.emit('TURN_END', { turnNumber: this.turnNumber });
+      this.eventBus.flush();
+      return;
+    }
 
     // 3. Enemy turns (for those already ready)
     this.phase = TurnPhase.ENEMY_TURNS;
@@ -211,7 +223,9 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
    * Start the turn manager, initializing energy levels.
    */
   start(): void {
-    this.advanceUntilPlayerReady();
+    if (!this.config.isClient) {
+      this.advanceUntilPlayerReady();
+    }
     this.phase = TurnPhase.AWAIT_INPUT;
     this.eventBus.flush(); // Initial flush
   }

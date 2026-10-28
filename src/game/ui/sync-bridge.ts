@@ -19,6 +19,7 @@ import { StatusEffects } from '@shared/components/status-effects';
 import { getDepthBand } from '../generation/dungeon-generator';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { getHeatTier } from '../config/heat-tiers';
+import { calculateScore } from '../scoring';
 
 export function syncEngineToStore(context: GameContext) {
   const { eventBus, world } = context;
@@ -301,7 +302,15 @@ export function syncEngineToStore(context: GameContext) {
   });
 
   // Helper to process run ending (Shared by extraction and death)
-  const handleRunEnd = (reason: string, floorNumber: number) => {
+  const handleRunEnd = (
+    reason: string,
+    floorNumber: number,
+    eventStats?: {
+      scrapExtracted?: number;
+      fluxExtracted?: number;
+      softwareExtracted?: number;
+    },
+  ) => {
     const player = context.playerId;
     let firmwareCount = 0;
     let augmentCount = 0;
@@ -317,13 +326,20 @@ export function syncEngineToStore(context: GameContext) {
       softwareCount = sSlots?.equipped.length ?? 0;
     }
 
-    const runScrap = gameStore.getState().scrap;
+    const runScrap = eventStats?.scrapExtracted ?? gameStore.getState().scrap;
     const isExtraction = reason.toLowerCase() === 'extraction';
 
     // Add scrap to wallet ON EXTRACTION
     if (isExtraction) {
       gameStore.getState().addScrapToWallet(runScrap);
     }
+
+    const calculatedScore = calculateScore({
+      floorNumber,
+      scrapExtracted: runScrap,
+      softwareExtracted: eventStats?.softwareExtracted ?? softwareCount,
+      fluxExtracted: eventStats?.fluxExtracted ?? 0,
+    });
 
     const results = {
       reason,
@@ -337,7 +353,7 @@ export function syncEngineToStore(context: GameContext) {
         software: softwareCount,
         scrap: runScrap,
       },
-      score: floorNumber * 100 + gameStore.getState().stats.kills * 10 + runScrap,
+      score: calculatedScore,
     };
 
     if (isExtraction) {
@@ -353,7 +369,7 @@ export function syncEngineToStore(context: GameContext) {
 
   // Run End handler
   eventBus.on('RUN_ENDED', (event) => {
-    handleRunEnd(event.reason, event.floorNumber);
+    handleRunEnd(event.reason, event.floorNumber, event.stats);
   });
 
   // Entity Death

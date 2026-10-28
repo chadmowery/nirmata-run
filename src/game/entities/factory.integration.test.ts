@@ -97,5 +97,42 @@ describe('EntityFactory', () => {
 
       expect(() => factory.create(world, 'bad_bot', componentRegistry)).toThrow(/too small/i);
     });
+
+    it('creates rifle-v1 through rifle-v3 and armor-v1 through armor-v3 without errors', () => {
+      const equipmentTemplates = [
+        'rifle-v1',
+        'rifle-v2',
+        'rifle-v3',
+        'armor-v1',
+        'armor-v2',
+        'armor-v3',
+      ];
+      for (const tName of equipmentTemplates) {
+        const id = factory.create(world, tName, componentRegistry);
+        expect(world.hasComponent(id, Components.EquipmentDef)).toBe(true);
+        expect(world.hasComponent(id, Components.Item)).toBe(true);
+        expect(world.hasComponent(id, Components.SpriteComponent)).toBe(true);
+        expect(world.hasComponent(id, Components.RarityTier)).toBe(true);
+      }
+    });
+
+    it('creates dead-zone successfully', () => {
+      const id = factory.create(world, 'dead-zone', componentRegistry);
+      expect(world.hasComponent(id, Components.DeadZone)).toBe(true);
+      expect(world.hasComponent(id, Components.SpriteComponent)).toBe(true);
+    });
+
+    it('successfully creates all registered game templates without unknown component errors', () => {
+      // Test all templates that don't require non-standard runtime overrides
+      const templates = (registry as any).templates as Map<string, any>;
+      for (const [name, template] of templates.entries()) {
+        // Skip mixins
+        if (name === 'physical' || name === 'combatant') continue;
+
+        expect(() => {
+          factory.create(world, name, componentRegistry);
+        }).not.toThrow();
+      }
+    });
   });
 });

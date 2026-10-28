@@ -7,6 +7,18 @@
       "slotType": "weapon",
       "name": "Standard Kinetic Rifle"
     },
-    "software": ["basic-strike"]
-  }
+    "item": {
+      "name": "Standard Kinetic Rifle",
+      "description": "Standard kinetic firearm"
+    },
+    "sprite": {
+      "key": "item_auto_loader"
+    },
+    "rarityTier": {
+      "tier": "v1.x",
+      "scaleFactor": 1.5,
+      "minFloor": 0
+    }
+  },
+  "software": ["basic-strike"]
 }

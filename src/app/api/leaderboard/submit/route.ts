@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
-import { calculateScore, RunMode } from '@/game/systems/run-mode-config';
-
-const LEADERBOARD_DIR = path.join(process.cwd(), 'data', 'leaderboards');
-
+import { RunMode } from '@/game/systems/run-mode-config';
+import { submitLeaderboardEntry } from '@/server/leaderboard/leaderboard-service';
 import { logger } from '@engine/utils/logger';
 
 export async function POST(req: NextRequest) {
@@ -22,58 +18,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 1. Calculate Score Server-Side (D-21)
-    const score = calculateScore({
-      floorNumber: stats.floorNumber || 0,
-      scrapExtracted: stats.scrapExtracted || 0,
-      softwareExtracted: stats.softwareExtracted || 0,
-      fluxExtracted: stats.fluxExtracted || 0,
-    });
-
-    // 2. Determine Period File
-    const now = new Date();
-    const periodId =
-      mode === RunMode.DAILY
-        ? `daily-${Math.floor(now.getTime() / (24 * 60 * 60 * 1000))}`
-        : `weekly-${Math.floor(now.getTime() / (7 * 24 * 60 * 60 * 1000))}`;
-
-    const filePath = path.join(LEADERBOARD_DIR, `${periodId}.json`);
-    await fs.mkdir(LEADERBOARD_DIR, { recursive: true });
-
-    interface LeaderboardEntry {
-      sessionId: string;
-      score: number;
-      timestamp: number;
-      stats?: unknown;
+    const result = await submitLeaderboardEntry(sessionId, mode, stats);
+    if (!result) {
+      return NextResponse.json({ error: 'Failed to record leaderboard entry' }, { status: 500 });
     }
-
-    let entries: LeaderboardEntry[] = [];
-    try {
-      const raw = await fs.readFile(filePath, 'utf-8');
-      entries = JSON.parse(raw);
-    } catch {
-      // New period
-    }
-
-    // 3. Update or Add Entry
-    const existingIndex = entries.findIndex((e) => e.sessionId === sessionId);
-    if (existingIndex !== -1) {
-      // Only keep best score for the period
-      if (score > entries[existingIndex].score) {
-        entries[existingIndex] = { sessionId, score, timestamp: Date.now(), stats };
-      }
-    } else {
-      entries.push({ sessionId, score, timestamp: Date.now(), stats });
-    }
-
-    // Sort and Save
-    entries.sort((a, b) => b.score - a.score);
-    await fs.writeFile(filePath, JSON.stringify(entries, null, 2), 'utf-8');
 
     return NextResponse.json({
       success: true,
-      score,
-      rank: entries.findIndex((e) => e.sessionId === sessionId) + 1,
+      score: result.score,
+      rank: result.rank,
     });
   } catch (error) {
     logger.error('[LeaderboardSubmit] Error:', 'API', error);

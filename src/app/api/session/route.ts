@@ -4,6 +4,7 @@ import { sessionManager } from '@server/session/session-manager';
 import { createDefaultProfile } from '@shared/profile';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT } from '@/shared/constants';
+import { RunMode } from '@shared/run-mode';
 import { logger } from '@engine/utils/logger';
 
 export async function POST(req: Request) {
@@ -11,7 +12,14 @@ export async function POST(req: Request) {
     const body = await req.json();
     const width = body.width || DEFAULT_GRID_WIDTH;
     const height = body.height || DEFAULT_GRID_HEIGHT;
-    const { seed, sessionId: providedSessionId } = body;
+    const { seed, sessionId: providedSessionId, mode } = body;
+
+    if (mode === RunMode.WEEKLY || mode === RunMode.DAILY) {
+      return NextResponse.json(
+        { error: 'Competitive modes (weekly/daily) must be launched via /api/run-mode/launch' },
+        { status: 403 },
+      );
+    }
 
     if (!seed) {
       return NextResponse.json({ error: 'Missing required parameter: seed' }, { status: 400 });
@@ -25,7 +33,14 @@ export async function POST(req: Request) {
       profile = createDefaultProfile(sessionId);
     }
 
-    const instance = createEngineInstance({ seed, width, height, profile, sessionId });
+    const instance = createEngineInstance({
+      seed,
+      width,
+      height,
+      profile,
+      sessionId,
+      runMode: RunMode.SIMULATION,
+    });
 
     instance.turnManager.start();
 
@@ -36,6 +51,7 @@ export async function POST(req: Request) {
       turnManager: instance.turnManager,
       eventBus: instance.eventBus,
       systems: instance.systems,
+      runMode: RunMode.SIMULATION,
     });
 
     logger.info(`Session created: ${sessionId} (seed: ${seed})`, 'API');

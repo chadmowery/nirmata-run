@@ -80,26 +80,33 @@ export function registerCoreSystems<T extends GameplayEvents>(
 
   const anchorInteraction = createAnchorInteractionSystem(world, grid, eventBus);
 
+  const isClient = options.isClient === true;
+
   // Initialize systems in phased order
   // Pre-turn phase
   shellStats.init();
-  stability.init();
+  if (!isClient) {
+    stability.init();
+  }
 
   // Action / Reaction
   teleport.init();
   movement.init();
   equipment.init();
-  combat.init();
-  itemPickup.init();
-  deadZone.init();
+  anchorInteraction.init();
   augment.init();
   software.init();
-  statusEffect.init();
-  packCoordinator.init();
-  anchorInteraction.init();
-  ai.init();
   firmware.init();
-  tileCorruption.init();
+
+  if (!isClient) {
+    combat.init();
+    itemPickup.init();
+    deadZone.init();
+    statusEffect.init();
+    packCoordinator.init();
+    ai.init();
+    tileCorruption.init();
+  }
 
   // Cleanup & Death Processing
   const gravedigger = createGravediggerSystem(world, grid);
@@ -112,12 +119,14 @@ export function registerCoreSystems<T extends GameplayEvents>(
   );
   const runEnder = createRunEnderSystem(world, grid, eventBus, options.runMode);
 
-  rewardDrop.init();
-  runEnder.init();
-  floorManager.init();
+  if (!isClient) {
+    rewardDrop.init();
+    runEnder.init();
+    floorManager.init();
 
-  // Gravedigger MUST be last in Phase.CLEANUP
-  gravedigger.init();
+    // Gravedigger MUST be last in Phase.CLEANUP
+    gravedigger.init();
+  }
 
   const tagCleanup = createTagCleanupSystem(world);
   tagCleanup.init();

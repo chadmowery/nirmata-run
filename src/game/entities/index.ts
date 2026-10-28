@@ -46,6 +46,7 @@ import armor_v3 from './templates/armor-v3.json';
 import rifle_v1 from './templates/rifle-v1.json';
 import rifle_v2 from './templates/rifle-v2.json';
 import rifle_v3 from './templates/rifle-v3.json';
+import dead_zone from './templates/dead-zone.json';
 
 /**
  * Registers all game entity templates and mixins.
@@ -99,4 +100,5 @@ export function registerGameTemplates(registry: EntityRegistry): void {
   registry.register(rifle_v1 as unknown as RawTemplate);
   registry.register(rifle_v2 as unknown as RawTemplate);
   registry.register(rifle_v3 as unknown as RawTemplate);
+  registry.register(dead_zone as unknown as RawTemplate);
 }

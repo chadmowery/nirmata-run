@@ -132,9 +132,11 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   const heatSystem = createHeatSystem(world, eventBus);
   const kernelPanicSystem = createKernelPanicSystem(world, eventBus);
 
-  // Initialize systems not in core
-  heatSystem.init();
-  kernelPanicSystem.init();
+  // Initialize systems not in core (server only)
+  if (!config.isClient) {
+    heatSystem.init();
+    kernelPanicSystem.init();
+  }
 
   const turnAdapter = new GameTurnAdapter(world, {
     defaultActionCost: 1000,
@@ -148,6 +150,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
       energyThreshold: 1000,
       defaultActionCost: 1000,
       waitActionCost: 500,
+      isClient: config.isClient,
     },
     turnAdapter,
   );
