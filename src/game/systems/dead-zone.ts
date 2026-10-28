@@ -70,6 +70,7 @@ export function createDeadZoneSystem<T extends GameplayEvents>(world: World<T>, 
       `Dead Zone Created at (${x}, ${y}) by ${creatorId} (Duration: ${duration}, Damage: ${damagePerTick})`,
       'SYSTEM',
     );
+    return entityId;
   };
 
   return {

@@ -12,6 +12,7 @@ import { GameplayEvents } from '@shared/events/types';
 import { EngineInstance } from '@game/engine-factory';
 import { FloorState } from '@shared/components/floor-state';
 import { createDefaultProfile, VaultItem } from '@shared/profile';
+import { VAULT_MAX_SLOTS } from '@shared/vault';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import economy from '@game/entities/templates/economy.json';
 import { handleServerDebugCommand } from '@game/debug/server-debug-handler';
@@ -199,10 +200,8 @@ export async function POST(req: Request) {
         if (items.length > 0) {
           logger.info(`Processing extraction for ${sessionId}: ${items.length} items.`, 'API');
 
-          const VAULT_CAPACITY = 20;
-
           for (const item of items) {
-            if (profile.vault.length < VAULT_CAPACITY) {
+            if (profile.vault.length < VAULT_MAX_SLOTS) {
               profile.vault.push(item);
             } else {
               profile.overflow.push(item);

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { buildTilemap, clearTilemap } from './tilemap';
-import { TILE_SIZE } from './constants';
+import { buildTilemap, clearTilemap } from '../../src/rendering/tilemap';
+import { TILE_SIZE } from '../../src/rendering/constants';
 
 // Mock PixiJS
 vi.mock('pixi.js', () => {

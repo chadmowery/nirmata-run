@@ -180,5 +180,4 @@ export const COMPONENTS_REGISTRY = [
   Parent,
   Children,
   EquipmentDef,
-  SoftwareSlots,
 ] as const;

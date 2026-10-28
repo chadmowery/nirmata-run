@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { World } from '../../engine/ecs/world';
-import { Grid } from '../../engine/grid/grid';
-import { EventBus } from '../../engine/events/event-bus';
-import { GameplayEvents } from '../events/types';
-import { runActionPipeline } from '../pipeline';
+import { World } from '@engine/ecs/world';
+import { Grid } from '@engine/grid/grid';
+import { EventBus } from '@engine/events/event-bus';
+import { GameplayEvents } from '@shared/events/types';
+import { runActionPipeline } from '@game/pipeline/action-pipeline';
 import {
   Position,
   Health,
@@ -12,7 +12,14 @@ import {
   Defense,
   Actor,
   EquipmentSlots,
-} from '../../shared/components';
+  RunInventory,
+  DescentIntent,
+  ExtractionIntent,
+  FirmwareIntent,
+  VentIntent,
+  BurnSoftwareIntent,
+  PickupIntent,
+} from '@shared/components';
 
 describe('ActionPipeline', () => {
   let world: World<GameplayEvents>;
@@ -69,7 +76,7 @@ describe('ActionPipeline', () => {
     grid.addEntity(eId, 6, 5);
 
     const action = { type: 'MOVE' as const, dx: 1, dy: 0 };
-    const { world: newWorld, delta } = runActionPipeline(world, grid, PLAYER_ID, action);
+    const { world: newWorld } = runActionPipeline(world, grid, PLAYER_ID, action);
 
     // Verify combat result
     const enemyHealth = newWorld.getComponent(ENEMY_ID, Health);
@@ -132,6 +139,74 @@ describe('ActionPipeline', () => {
       const { world: newWorld } = runActionPipeline(world, grid, PLAYER_ID, action);
       const equipment = newWorld.getComponent(PLAYER_ID, EquipmentSlots);
       expect(equipment?.armor).toBe(null);
+    });
+  });
+
+  describe('Extended Action Intents', () => {
+    it('should process explicit ATTACK intent', () => {
+      const eId = world.createEntity();
+      world.addComponent(eId, Position, { x: 7, y: 7 });
+      world.addComponent(eId, Health, Health.schema.parse({ current: 10, max: 10 }));
+      world.addComponent(eId, Hostile, {});
+      grid.addEntity(eId, 7, 7);
+
+      const action = { type: 'ATTACK' as const, targetId: eId };
+      const { world: newWorld } = runActionPipeline(world, grid, PLAYER_ID, action);
+      const enemyHealth = newWorld.getComponent(eId, Health);
+      expect(enemyHealth?.current).toBe(7); // 10 - 3 power = 7
+    });
+
+    it('should process VENT intent', () => {
+      const action = { type: 'VENT' as const };
+      const { world: newWorld } = runActionPipeline(world, grid, PLAYER_ID, action);
+      expect(newWorld.hasComponent(PLAYER_ID, VentIntent)).toBe(true);
+    });
+
+    it('should process ANCHOR_DESCEND intent', () => {
+      const action = { type: 'ANCHOR_DESCEND' as const, anchorId: 1, cost: 10 };
+      const { world: newWorld } = runActionPipeline(world, grid, PLAYER_ID, action);
+      expect(newWorld.getComponent(PLAYER_ID, Position)).toBeDefined();
+    });
+
+    it('should process ANCHOR_EXTRACT intent', () => {
+      const action = { type: 'ANCHOR_EXTRACT' as const };
+      const { world: newWorld } = runActionPipeline(world, grid, PLAYER_ID, action);
+      expect(newWorld.getComponent(PLAYER_ID, Position)).toBeDefined();
+    });
+
+    it('should process PICKUP_CURRENCY intent', () => {
+      const action = {
+        type: 'PICKUP_CURRENCY' as const,
+        itemId: 50,
+        currencyType: 'scrap' as const,
+        amount: 10,
+      };
+      const { world: newWorld } = runActionPipeline(world, grid, PLAYER_ID, action);
+      expect(newWorld.getComponent(PLAYER_ID, Position)).toBeDefined();
+    });
+
+    it('should process BURN_SOFTWARE intent when software exists in inventory', () => {
+      world.addComponent(PLAYER_ID, RunInventory, {
+        software: [
+          {
+            entityId: 42,
+            templateId: 'overclock',
+            rarityTier: 'rare',
+            pickedUpAtFloor: 1,
+            pickedUpAtTimestamp: 1000,
+          },
+        ],
+        equipment: [],
+        maxSlots: 5,
+      });
+
+      const action = {
+        type: 'BURN_SOFTWARE' as const,
+        runInventoryIndex: 0,
+        targetSlot: 'weapon' as const,
+      };
+      const { world: newWorld } = runActionPipeline(world, grid, PLAYER_ID, action);
+      expect(newWorld.getComponent(PLAYER_ID, Position)).toBeDefined();
     });
   });
 });

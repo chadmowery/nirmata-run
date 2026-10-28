@@ -389,4 +389,7 @@ export function syncEngineToStore(context: GameContext) {
       state.setVisibleEntities(updatedEntities);
     }
   });
+
+  // Initial synchronization of player state
+  refreshPlayerStats();
 }

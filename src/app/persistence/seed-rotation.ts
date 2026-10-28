@@ -11,8 +11,22 @@ export interface SeedRotation {
 const ROTATION_FILE = path.join(process.cwd(), 'data', 'seeds', 'rotation.json');
 
 /**
+ * Computes calendar day index aligned with UTC midnight boundaries.
+ */
+export function getDailyPeriodId(timestamp = Date.now()): number {
+  return Math.floor(timestamp / (24 * 60 * 60 * 1000));
+}
+
+/**
+ * Computes calendar week index aligned with UTC weekly boundaries.
+ */
+export function getWeeklyPeriodId(timestamp = Date.now()): number {
+  return Math.floor(timestamp / (7 * 24 * 60 * 60 * 1000));
+}
+
+/**
  * Loads the current seed rotation from disk.
- * Returns defaults if file not found.
+ * Returns defaults and persists them if file not found.
  */
 export async function loadSeedRotation(): Promise<SeedRotation> {
   try {
@@ -20,13 +34,18 @@ export async function loadSeedRotation(): Promise<SeedRotation> {
     return JSON.parse(raw);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (error) {
-    // If folder doesn't exist, it will be created on save
-    return {
+    const defaultRotation: SeedRotation = {
       currentDailySeed: Math.random().toString(36).substring(2, 10),
       currentWeeklySeed: Math.random().toString(36).substring(2, 10),
       lastDailyUpdate: Date.now(),
       lastWeeklyUpdate: Date.now(),
     };
+    try {
+      await saveSeedRotation(defaultRotation);
+    } catch {
+      // Ignore save errors on read-only environments
+    }
+    return defaultRotation;
   }
 }
 
@@ -39,14 +58,12 @@ export async function saveSeedRotation(rotation: SeedRotation): Promise<void> {
 }
 
 /**
- * Gets the current daily seed, rotating if 24h have passed.
+ * Gets the current daily seed, rotating when the UTC calendar day advances.
  */
-export async function getCurrentDailySeed(): Promise<string> {
+export async function getCurrentDailySeed(now = Date.now()): Promise<string> {
   const rotation = await loadSeedRotation();
-  const now = Date.now();
-  const ONE_DAY = 24 * 60 * 60 * 1000;
 
-  if (now - rotation.lastDailyUpdate >= ONE_DAY) {
+  if (getDailyPeriodId(now) !== getDailyPeriodId(rotation.lastDailyUpdate)) {
     rotation.currentDailySeed = Math.random().toString(36).substring(2, 10);
     rotation.lastDailyUpdate = now;
     await saveSeedRotation(rotation);
@@ -56,14 +73,12 @@ export async function getCurrentDailySeed(): Promise<string> {
 }
 
 /**
- * Gets the current weekly seed, rotating if 7 days have passed.
+ * Gets the current weekly seed, rotating when the UTC calendar week advances.
  */
-export async function getCurrentWeeklySeed(): Promise<string> {
+export async function getCurrentWeeklySeed(now = Date.now()): Promise<string> {
   const rotation = await loadSeedRotation();
-  const now = Date.now();
-  const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
 
-  if (now - rotation.lastWeeklyUpdate >= ONE_WEEK) {
+  if (getWeeklyPeriodId(now) !== getWeeklyPeriodId(rotation.lastWeeklyUpdate)) {
     rotation.currentWeeklySeed = Math.random().toString(36).substring(2, 10);
     rotation.lastWeeklyUpdate = now;
     await saveSeedRotation(rotation);

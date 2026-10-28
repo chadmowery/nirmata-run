@@ -81,15 +81,6 @@ vi.mock('@game/engine-factory', () => ({
   })),
 }));
 
-vi.mock('@shared/pipeline', () => ({
-  runActionPipeline: vi.fn(() => ({
-    world: {},
-    grid: {},
-    delta: { world: [], grid: [] },
-  })),
-  setupInternalHandlers: vi.fn(),
-}));
-
 vi.mock('@shared/serialization', () => ({
   serializeWorld: vi.fn(() => ({ entities: [], components: {} })),
   serializeGrid: vi.fn(() => ({ width: 10, height: 10, tiles: [] })),

@@ -6,7 +6,7 @@ import { RunInventory, RunCurrency } from '../../shared/components/run-inventory
 import * as InventoryUtil from '../../shared/utils/inventory-util';
 import { World } from '../../engine/ecs/world';
 import { Grid } from '../../engine/grid/grid';
-import { runActionPipeline } from '../../shared/pipeline';
+import { runActionPipeline } from '../pipeline/action-pipeline';
 import {
   Actor,
   Position,

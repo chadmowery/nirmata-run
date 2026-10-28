@@ -13,6 +13,23 @@ import { GameplayEvents } from '@shared/events/types';
 import { registerCoreSystems } from '@game/systems/registration';
 import { AIState, FovAwareness } from '@shared/components';
 import { AIBehaviorType, AIBehavior } from '@shared/components/ai-state';
+import { EquipIntent, UnequipIntent, DescentIntent, ExtractionIntent, EquipmentSlots } from '@shared/components';
+import { profileRepository } from '@/app/persistence/fs-profile-repository';
+import { submitLeaderboardEntry } from '@/server/leaderboard/leaderboard-service';
+import { RunMode } from '@shared/run-mode';
+import { VAULT_MAX_SLOTS } from '@shared/vault';
+import { createDefaultProfile } from '@shared/profile';
+
+vi.mock('@/app/persistence/fs-profile-repository', () => ({
+  profileRepository: {
+    load: vi.fn(),
+    save: vi.fn(),
+  },
+}));
+
+vi.mock('@/server/leaderboard/leaderboard-service', () => ({
+  submitLeaderboardEntry: vi.fn(),
+}));
 
 // Mock NextResponse
 vi.mock('next/server', () => ({
@@ -200,5 +217,138 @@ describe('Action API Route', () => {
     // Verify enemy moved somewhere (WANDER)
     const enemyPos = world.getComponent(enemyId, Position);
     expect(enemyPos?.x !== 7 || enemyPos?.y !== 7).toBe(true);
+  });
+
+  describe('Complex Action Intents', () => {
+    it('processes EQUIP and UNEQUIP intents on player', async () => {
+      world.addComponent(playerId, EquipmentSlots, { weapon: null, armor: null });
+
+      const equipReq = new Request('http://localhost/api/action', {
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId,
+          action: {
+            type: 'EQUIP',
+            shellId: 'vanguard-v1',
+            slotType: 'weapon',
+            itemEntityId: 99,
+          },
+        }),
+      });
+
+      const equipRes = await POST(equipReq);
+      expect(equipRes.status).toBe(200);
+
+      const unequipReq = new Request('http://localhost/api/action', {
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId,
+          action: { type: 'UNEQUIP', slotType: 'weapon', slotIndex: 0 },
+        }),
+      });
+
+      const unequipRes = await POST(unequipReq);
+      expect(unequipRes.status).toBe(200);
+    });
+
+    it('attaches DescentIntent on ANCHOR_DESCEND action', async () => {
+      const req = new Request('http://localhost/api/action', {
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId,
+          action: { type: 'ANCHOR_DESCEND', anchorId: 10, cost: 15 },
+        }),
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+    });
+
+    it('attaches ExtractionIntent on ANCHOR_EXTRACT action', async () => {
+      const req = new Request('http://localhost/api/action', {
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId,
+          action: { type: 'ANCHOR_EXTRACT' },
+        }),
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+    });
+  });
+
+  describe('Run-End Persistence & Leaderboard Integration', () => {
+    it('handles RUN_ENDED with extraction: saves wallet, routes to vault/overflow, and submits score', async () => {
+      const mockProfile = {
+        ...createDefaultProfile(sessionId),
+        currentShellId: 'vanguard-v1',
+        wallet: { scrap: 100, flux: 10 },
+        vault: [],
+        overflow: [],
+      };
+      vi.mocked(profileRepository.load).mockResolvedValue(mockProfile);
+
+      // Configure session with competitive run mode
+      const session = sessionManager.getSession(sessionId);
+      if (session) {
+        session.runMode = RunMode.DAILY;
+      }
+
+      // Intercept action to emit RUN_ENDED
+      turnManager.setPlayerActionHandler(() => {
+        const items = Array.from({ length: VAULT_MAX_SLOTS + 5 }, (_, i) => ({
+          entityId: 100 + i,
+          templateId: `item-${i}`,
+          rarityTier: 'rare' as const,
+          itemType: 'software' as const,
+          extractedAtFloor: 5,
+          extractedAtTimestamp: Date.now(),
+        }));
+
+        eventBus.emit('RUN_ENDED', {
+          reason: 'extraction',
+          floorNumber: 5,
+          stats: {
+            scrapExtracted: 250,
+            fluxExtracted: 50,
+            softwareExtracted: 3,
+            pityAwarded: false,
+            itemsExtracted: items,
+          },
+          entityId: playerId,
+        });
+      });
+
+      const req = new Request('http://localhost/api/action', {
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId,
+          action: { type: 'WAIT' },
+        }),
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+
+      expect(profileRepository.save).toHaveBeenCalled();
+      expect(mockProfile.wallet.scrap).toBe(350);
+      expect(mockProfile.wallet.flux).toBe(60);
+
+      // Vault capped at VAULT_MAX_SLOTS, overflow gets remaining 5
+      expect(mockProfile.vault).toHaveLength(VAULT_MAX_SLOTS);
+      expect(mockProfile.overflow).toHaveLength(5);
+
+      // Automatic server-side leaderboard submission
+      expect(submitLeaderboardEntry).toHaveBeenCalledWith(
+        sessionId,
+        RunMode.DAILY,
+        expect.objectContaining({
+          floorNumber: 5,
+          scrapExtracted: 250,
+          fluxExtracted: 50,
+        }),
+      );
+    });
   });
 });

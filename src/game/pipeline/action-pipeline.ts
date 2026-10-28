@@ -2,9 +2,9 @@ import { diff } from 'json-diff-ts';
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
-import { GameplayEvents } from './events/types';
-import { ActionIntent, StateDelta } from './types';
-import { serializeWorld, serializeGrid, deserializeWorld, deserializeGrid } from './serialization';
+import { GameplayEvents } from '@shared/events/types';
+import { ActionIntent, StateDelta } from '@shared/types';
+import { serializeWorld, serializeGrid, deserializeWorld, deserializeGrid } from '@shared/serialization';
 import { logger } from '@engine/utils/logger';
 
 import {
@@ -23,14 +23,15 @@ import {
   BurnSoftwareIntent,
   FirmwareIntent,
   PickupIntent,
-} from './components';
-import { checkAutoLoader } from '../game/systems/software-effects';
+} from '@shared/components';
+import { checkAutoLoader } from '../systems/software-effects';
 import { Phase, ComponentDef } from '@engine/ecs/types';
 import { EntityRegistry } from '@engine/entity/registry';
 import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
-import { registerCoreSystems } from '../game/systems/registration';
-import { RunMode } from './run-mode';
+import { registerCoreSystems } from '../systems/registration';
+import { registerGameTemplates } from '../entities';
+import { RunMode } from '@shared/run-mode';
 
 /**
  * Runs a game action against a world/grid state and returns the new state and delta.
@@ -59,6 +60,7 @@ export function runActionPipeline(
 
   // 4. Initialize Core Systems for simulation
   const dummyEntityRegistry = new EntityRegistry();
+  registerGameTemplates(dummyEntityRegistry);
   const dummyEntityFactory = new EntityFactory(dummyEntityRegistry);
   const dummyComponentRegistry: ComponentRegistry = {
     get: (key: string) =>
@@ -98,7 +100,7 @@ export function runActionPipeline(
   return { world: newWorld, grid: newGrid, delta };
 }
 
-function processAction(
+export function processAction(
   world: World<GameplayEvents>,
   grid: Grid,
   eventBus: EventBus<GameplayEvents>,

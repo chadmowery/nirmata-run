@@ -1,18 +1,47 @@
-import economy from '../../game/entities/templates/economy.json';
 import { VaultItem } from '../profile';
+
+export interface EconomyConfig {
+  pity: { deathScrapPercent: number };
+  currencyDrops: {
+    flux: {
+      extractionBonus: {
+        baseAmount: number;
+        perFloorMultiplier: number;
+      };
+    };
+  };
+}
+
+export const DEFAULT_ECONOMY_CONFIG: EconomyConfig = {
+  pity: { deathScrapPercent: 0.25 },
+  currencyDrops: {
+    flux: {
+      extractionBonus: {
+        baseAmount: 10,
+        perFloorMultiplier: 2,
+      },
+    },
+  },
+};
 
 /**
  * Calculates the amount of scrap to return as "pity" upon death/failure.
  */
-export function calculatePityScrap(currentScrap: number): number {
-  return Math.floor(currentScrap * economy.pity.deathScrapPercent);
+export function calculatePityScrap(
+  currentScrap: number,
+  config: EconomyConfig = DEFAULT_ECONOMY_CONFIG,
+): number {
+  return Math.floor(currentScrap * config.pity.deathScrapPercent);
 }
 
 /**
  * Calculates the flux bonus rewarded upon successful extraction.
  */
-export function calculateExtractionFluxBonus(floor: number): number {
-  const { baseAmount, perFloorMultiplier } = economy.currencyDrops.flux.extractionBonus;
+export function calculateExtractionFluxBonus(
+  floor: number,
+  config: EconomyConfig = DEFAULT_ECONOMY_CONFIG,
+): number {
+  const { baseAmount, perFloorMultiplier } = config.currencyDrops.flux.extractionBonus;
   return baseAmount + perFloorMultiplier * floor;
 }
 

@@ -45,9 +45,14 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
 
   /**
    * Destroy an entity and remove all its components.
+   * Safe against cyclic child entity hierarchies.
    */
-  destroyEntity(id: EntityId): void {
+  destroyEntity(id: EntityId, visited?: Set<EntityId>): void {
     if (!this.entities.has(id)) return;
+
+    const visitedSet = visited ?? new Set<EntityId>();
+    if (visitedSet.has(id)) return;
+    visitedSet.add(id);
 
     // Recursively destroy children first if a child component key is configured
     if (this.config.childComponentKey) {
@@ -56,7 +61,7 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
         const childrenData = childrenStore.get(id) as { entityIds: number[] };
         if (childrenData && Array.isArray(childrenData.entityIds)) {
           for (const childId of childrenData.entityIds) {
-            this.destroyEntity(childId);
+            this.destroyEntity(childId, visitedSet);
           }
         }
       }

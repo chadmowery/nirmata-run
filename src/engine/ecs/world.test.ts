@@ -84,6 +84,26 @@ describe('World', () => {
       expect(world.entityExists(parent)).toBe(false);
       expect(world.entityExists(child1)).toBe(true);
     });
+
+    it('guards against cyclic child entity hierarchies without stack overflow', () => {
+      const worldWithChildren = new World(bus, { childComponentKey: 'children' });
+      const Children = defineComponent('children', z.object({ entityIds: z.array(z.number()) }));
+
+      const e1 = worldWithChildren.createEntity();
+      const e2 = worldWithChildren.createEntity();
+
+      // Cyclic reference: e1 -> e2, and e2 -> e1
+      worldWithChildren.addComponent(e1, Children, { entityIds: [e2] });
+      worldWithChildren.addComponent(e2, Children, { entityIds: [e1] });
+
+      // Must terminate cleanly without Maximum call stack size exceeded
+      expect(() => {
+        worldWithChildren.destroyEntity(e1);
+      }).not.toThrow();
+
+      expect(worldWithChildren.entityExists(e1)).toBe(false);
+      expect(worldWithChildren.entityExists(e2)).toBe(false);
+    });
   });
 
   describe('Component CRUD', () => {
@@ -228,6 +248,42 @@ describe('World', () => {
       // but we can verify it doesn't crash and works normally.
       world.executeSystems(Phase.ACTION);
       expect(system).toHaveBeenCalled();
+    });
+
+    it('should unregister a registered system', () => {
+      const system = vi.fn();
+      world.registerSystem(Phase.ACTION, system);
+      world.unregisterSystem(Phase.ACTION, system);
+
+      world.executeSystems(Phase.ACTION);
+      expect(system).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Serialization', () => {
+    it('serializes and reloads complete world state', () => {
+      const e1 = world.createEntity();
+      world.addComponent(e1, Position, { x: 12, y: 34 });
+      world.addComponent(e1, Health, { value: 75 });
+
+      const e2 = world.createEntity();
+      world.addComponent(e2, Position, { x: 56, y: 78 });
+
+      const state = world.getSerializableState();
+
+      expect(state.entities).toContain(e1);
+      expect(state.entities).toContain(e2);
+      expect(state.stores.Position[e1]).toEqual({ x: 12, y: 34 });
+
+      // Create fresh world and restore
+      const targetWorld = new World(bus);
+      targetWorld.loadSerializableState(state);
+
+      expect(targetWorld.entityExists(e1)).toBe(true);
+      expect(targetWorld.entityExists(e2)).toBe(true);
+      expect(targetWorld.getComponent(e1, Position)).toEqual({ x: 12, y: 34 });
+      expect(targetWorld.getComponent(e1, Health)).toEqual({ value: 75 });
+      expect(targetWorld.getComponent(e2, Position)).toEqual({ x: 56, y: 78 });
     });
   });
 });

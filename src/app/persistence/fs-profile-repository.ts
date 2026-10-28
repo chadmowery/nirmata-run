@@ -5,12 +5,20 @@ import { PlayerProfile, PlayerProfileSchema, ProfileRepository } from '@/shared/
 
 const PROFILES_DIR = path.join(process.cwd(), 'data', 'profiles');
 
+function sanitizeSessionId(sessionId: string): string {
+  if (!sessionId || !/^[a-zA-Z0-9_-]+$/.test(sessionId)) {
+    throw new Error(`Invalid sessionId: ${sessionId}`);
+  }
+  return sessionId;
+}
+
 export class FSProfileRepository implements ProfileRepository {
   /**
    * Loads a player profile from the filesystem.
    */
   async load(sessionId: string): Promise<PlayerProfile | null> {
-    const filePath = path.join(PROFILES_DIR, `${sessionId}.json`);
+    const cleanId = sanitizeSessionId(sessionId);
+    const filePath = path.join(PROFILES_DIR, `${cleanId}.json`);
     try {
       const raw = await fs.readFile(filePath, 'utf-8');
       return PlayerProfileSchema.parse(JSON.parse(raw));
@@ -24,8 +32,9 @@ export class FSProfileRepository implements ProfileRepository {
    * Saves a player profile to the filesystem.
    */
   async save(profile: PlayerProfile): Promise<void> {
+    const cleanId = sanitizeSessionId(profile.sessionId);
     await fs.mkdir(PROFILES_DIR, { recursive: true });
-    const filePath = path.join(PROFILES_DIR, `${profile.sessionId}.json`);
+    const filePath = path.join(PROFILES_DIR, `${cleanId}.json`);
     const tempPath = `${filePath}.${crypto.randomUUID()}.tmp`;
 
     try {

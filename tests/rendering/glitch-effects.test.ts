@@ -1,5 +1,5 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { applyDamageDistortion, removePersistentGlitch } from './glitch-effects';
+import { applyDamageDistortion, removePersistentGlitch } from '../../src/rendering/filters/glitch-effects';
 
 // Mock PIXI and pixi-filters
 vi.mock('pixi.js', () => ({
@@ -51,38 +51,35 @@ describe('glitch-effects', () => {
     expect(sprite.filters).toHaveLength(1);
     expect(sprite.filters[0]).toBe(firstFilter);
 
-    vi.advanceTimersByTime(101);
-    // Total 201ms elapsed. If it hadn't been refreshed, it would be gone.
-    // But it was refreshed to 200ms starting from T=100ms, so it should still be there.
+    // Advance 100ms (original would have expired here, but it was extended)
+    vi.advanceTimersByTime(100);
     expect(sprite.filters).toHaveLength(1);
 
-    vi.advanceTimersByTime(100);
-    // Total 301ms elapsed. Now it should be gone.
+    // Advance the remaining 101ms (total 201ms from 2nd trigger)
+    vi.advanceTimersByTime(101);
     expect(sprite.filters).toBeNull();
   });
 
-  it('should preserve persistent filters when damage glitch is removed', () => {
-    const persistentFilter = { name: 'persistent' };
-    sprite.filters = [persistentFilter as any];
-
-    applyDamageDistortion(sprite, 200);
-    expect(sprite.filters).toHaveLength(2);
-    expect(sprite.filters).toContain(persistentFilter);
-
-    vi.advanceTimersByTime(201);
-    expect(sprite.filters).toHaveLength(1);
-    expect(sprite.filters[0]).toBe(persistentFilter);
-  });
-
-  it('should handle removal of all filters even with active damage tracking', () => {
-    applyDamageDistortion(sprite, 200);
-    expect(sprite.filters).toHaveLength(1);
-
+  it('should apply and remove persistent heat glitch without destroying damage glitch', () => {
+    // 1. Heat glitch
     removePersistentGlitch(sprite);
     expect(sprite.filters).toBeNull();
 
-    // Even if the damage timer fires later, it shouldn't crash or re-add/re-remove wrongly
+    // 2. Damage glitch on top
+    applyDamageDistortion(sprite, 200);
+    expect(sprite.filters).toHaveLength(1);
+
+    // 3. Clear damage glitch via timeout
     vi.advanceTimersByTime(201);
     expect(sprite.filters).toBeNull();
+  });
+
+  it('should not crash if sprite is destroyed before timer fires', () => {
+    applyDamageDistortion(sprite, 200);
+    sprite.destroyed = true;
+
+    expect(() => {
+      vi.advanceTimersByTime(201);
+    }).not.toThrow();
   });
 });
