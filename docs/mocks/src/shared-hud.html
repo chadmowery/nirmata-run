@@ -1,0 +1,159 @@
+<div class="hud-shell" id="hudShellRoot">
+        
+        <!-- Top HUD Ribbon -->
+        <div class="hud-top-ribbon">
+          <div class="ribbon-run-info">
+            <div class="meta-chip">
+              <span class="meta-label">RUN MODE</span>
+              <span class="meta-val" id="hudRunMode">WEEKLY ONE-SHOT</span>
+            </div>
+            <div class="meta-chip">
+              <span class="meta-label">DEPTH / SEED</span>
+              <span class="meta-val" id="hudDepthSeed">FLOOR 07 // #W-4028</span>
+            </div>
+            <div class="meta-chip">
+              <span class="meta-label">CHRONO / TURN</span>
+              <span class="meta-val" id="hudChronoTurn">T-0142 // 04:18</span>
+            </div>
+            <div class="meta-chip">
+              <span class="meta-label">SCRAP RECOVERED</span>
+              <span class="meta-val" style="color: #ffaa00;" id="hudScrap">1,420 CR</span>
+            </div>
+          </div>
+
+          <!-- Stability Anchor Gauge -->
+          <div class="stability-gauge-block">
+            <div class="meta-chip" style="text-align: right;">
+              <span class="meta-label">REALITY STABILITY</span>
+              <span class="meta-val" style="color: var(--th-accent-secondary);" id="hudStabilityVal">88.4% [STABLE]</span>
+            </div>
+            <div class="stability-track">
+              <div class="stability-fill" id="hudStabilityBar" style="width: 88.4%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Left Column: Chassis Status & Heat -->
+        <aside class="panel-card hud-left-col">
+          <div class="panel-title-bar">
+            <span class="panel-title-text">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+              CHASSIS DIAGNOSTICS
+            </span>
+            <span class="panel-subtag" id="hudShellTag">VANGUARD-v1</span>
+          </div>
+
+          <div class="chassis-visual">
+            <div class="chassis-avatar">
+              <span>@</span>
+            </div>
+            <div style="flex: 1;">
+              <div style="font-size: 11px; font-weight: 800; color: var(--th-text);" id="hudShellName">VANGUARD-v1 (SKIRMISHER)</div>
+              <div style="font-size: 10px; color: var(--th-text-dim);">SPEED: 120 | ARMOR: 2 | STAB: 5</div>
+              <div style="font-size: 9px; color: var(--th-accent); margin-top: 2px;">PORTS: 2 FIRM / 1 AUG / 2 SOFT</div>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 0.85rem;">
+            <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 700;">
+              <span style="color: var(--th-danger);">HULL INTEGRITY</span>
+              <span id="hudHpText">18 / 20 HP</span>
+            </div>
+            <div class="segmented-meter" id="hudHpMeter"></div>
+          </div>
+
+          <div style="margin-bottom: 0.85rem;">
+            <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 700;">
+              <span style="color: var(--th-accent);" id="hudHeatLabel">NEURAL HEAT [TIER 1]</span>
+              <span id="hudHeatText">35 / 100 °C</span>
+            </div>
+            <div class="segmented-meter" id="hudHeatMeter"></div>
+          </div>
+
+          <div style="margin-top: auto; border-top: 1px solid var(--th-border); padding-top: 0.65rem;">
+            <div style="font-size: 10px; font-weight: 800; color: var(--th-text-dim); margin-bottom: 0.4rem; letter-spacing: 0.08em;">
+              ACTIVE AUGMENTS & MODS
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <div style="background: rgba(0, 240, 255, 0.08); border-left: 2px solid #00f0ff; padding: 4px 6px; font-size: 10px;">
+                <strong style="color: #00f0ff;">Displacement_Venting.arc</strong>
+                <div style="font-size: 9px; color: var(--th-text-dim);">ON_MOVE → Vents -15 Heat</div>
+              </div>
+              <div style="background: rgba(216, 255, 0, 0.08); border-left: 2px solid var(--th-accent); padding: 4px 6px; font-size: 10px;">
+                <strong style="color: var(--th-accent);">Static_Siphon.arc</strong>
+                <div style="font-size: 9px; color: var(--th-text-dim);">ON_HIT → +3 Shield / Scrap</div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Center Column: ASCII Tactical Dungeon Viewport -->
+        <section class="viewport-frame">
+          <div class="map-hud-overlay">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div style="background: rgba(0,0,0,0.65); padding: 2px 8px; font-size: 9px; border: 1px solid var(--th-border); color: var(--th-accent);">
+                GRID: X14 // Y08 [SECTOR 4A]
+              </div>
+              <div style="background: rgba(0,0,0,0.65); padding: 2px 8px; font-size: 9px; border: 1px solid var(--th-border); color: var(--th-accent-secondary);">
+                ANCHOR [Ω] EXTRACTION POINT
+              </div>
+            </div>
+          </div>
+
+          <div class="map-ascii-grid" id="asciiMapContainer"></div>
+        </section>
+
+        <!-- Right Column: Hostile Scan & Combat Log Stream -->
+        <aside class="panel-card hud-right-col">
+          <div class="panel-title-bar">
+            <span class="panel-title-text">PROXIMITY RADAR</span>
+            <span class="panel-subtag" style="color: var(--th-danger); border-color: var(--th-danger);">3 THREATS</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 1rem;" id="hudEntitiesList"></div>
+
+          <div class="panel-title-bar" style="margin-top: 0.5rem;">
+            <span class="panel-title-text">SYSTEM EVENT STREAM</span>
+            <span class="panel-subtag">LIVE TTY</span>
+          </div>
+
+          <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; font-size: 10px; max-height: 230px;" id="hudLogContainer"></div>
+        </aside>
+
+        <!-- Bottom Ability Bar Dock -->
+        <footer class="hud-bottom-dock">
+          <div class="ability-grid">
+            <button class="ability-btn" onclick="simCastAbility('phase_shift')">
+              <span class="ability-key">1</span>
+              <span class="ability-title">Phase_Shift.sh</span>
+              <span class="ability-heat-tag">+25 HEAT // MOBILITY</span>
+            </button>
+            <button class="ability-btn" onclick="simCastAbility('neural_spike')">
+              <span class="ability-key">2</span>
+              <span class="ability-title">Neural_Spike.exe</span>
+              <span class="ability-heat-tag">+35 HEAT // 4 DMG</span>
+            </button>
+            <button class="ability-btn" onclick="simCastAbility('basic_strike')">
+              <span class="ability-key">3</span>
+              <span class="ability-title">BASIC_STRIKE.exe</span>
+              <span class="ability-heat-tag">+5 HEAT // 3 DMG</span>
+            </button>
+            <button class="ability-btn" onclick="simCastAbility('extended_sight')">
+              <span class="ability-key">4</span>
+              <span class="ability-title">Extended_Sight.sys</span>
+              <span class="ability-heat-tag">+15 HEAT // REVEAL</span>
+            </button>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 0.75rem;">
+            <button class="sim-btn" style="padding: 7px 12px; font-weight: 700;" onclick="simWaitTurn()">
+              [Z] WAIT & VENT
+            </button>
+            <div style="font-size: 10px; color: var(--th-text-dim); text-align: right;">
+              <div>AUTHORITY: <span style="color: #00ff66;">SERVER</span></div>
+              <div>ECS TICK: 50ms</div>
+            </div>
+          </div>
+        </footer>
+
+      </div>
