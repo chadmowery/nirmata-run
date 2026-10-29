@@ -1,14 +1,29 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { logger } from '@engine/utils/logger';
+import { checkNonProductionOnly } from '@/server/security/env-gate';
 import { promises as fs } from 'fs';
 import path from 'path';
 
+const DebugEventSchema = z.object({
+  timestamp: z.number(),
+  origin: z.string(),
+  type: z.string(),
+  payload: z.unknown().optional(),
+});
+const DebugLogRequestSchema = z.array(DebugEventSchema);
+
 export async function POST(req: Request) {
+  const envBlocked = checkNonProductionOnly();
+  if (envBlocked) return envBlocked;
+
   try {
-    const events = await req.json();
-    if (!Array.isArray(events)) {
-      return NextResponse.json({ error: 'Invalid events' }, { status: 400 });
+    const raw = await req.json();
+    const result = DebugLogRequestSchema.safeParse(raw);
+    if (!result.success) {
+      return NextResponse.json({ error: 'Invalid events', details: result.error }, { status: 400 });
     }
+    const events = result.data;
 
     const debugDir = path.join(process.cwd(), 'debug');
 

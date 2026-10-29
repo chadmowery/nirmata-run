@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { moveOverflowToVault } from '@/game/systems/vault-manager';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
-
 import { logger } from '@engine/utils/logger';
+
+const MoveToVaultRequestSchema = z.object({
+  sessionId: z.string().min(1),
+});
 
 /**
  * POST /api/vault/move-to-vault
@@ -10,11 +14,16 @@ import { logger } from '@engine/utils/logger';
  */
 export async function POST(req: NextRequest) {
   try {
-    const { sessionId } = await req.json();
-
-    if (!sessionId) {
-      return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
+    const body = await req.json();
+    const parsed = MoveToVaultRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Missing sessionId', details: parsed.error },
+        { status: 400 },
+      );
     }
+
+    const { sessionId } = parsed.data;
 
     const result = await moveOverflowToVault(profileRepository, sessionId);
 

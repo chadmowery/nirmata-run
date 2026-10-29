@@ -16,6 +16,7 @@ import {
   AugmentSlots,
   Stability,
   ExtractionIntent,
+  RunCurrency,
 } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { GameplayEvents } from '@shared/events/types';
@@ -72,6 +73,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     let swCount = 0;
     let pityAwarded = false;
     let itemsExtracted: VaultItem[] = [];
+    const blueprintsExtracted: Array<{ blueprintId: string; type: 'firmware' | 'augment' }> = [];
 
     if (playerId) {
       // Clear equipment slots explicitly
@@ -99,8 +101,33 @@ export function createRunEnderSystem<T extends GameplayEvents>(
         const inventory = world.getComponent(playerId, RunInventory);
         swCount = inventory?.software.length || 0;
 
-        // Map software to VaultItems using unified utility
-        itemsExtracted = mapInventoryToVaultItems(inventory?.software || [], floorNumber);
+        // Map software and equipment to VaultItems using unified utility
+        const softwareExtracted = mapInventoryToVaultItems(
+          inventory?.software || [],
+          floorNumber,
+          'software',
+        );
+        const equipmentExtracted = mapInventoryToVaultItems(
+          inventory?.equipment || [],
+          floorNumber,
+          'equipment',
+        );
+        itemsExtracted = [...softwareExtracted, ...equipmentExtracted];
+
+        // Blueprints extracted
+        const runCurrency = world.getComponent(playerId, RunCurrency);
+        if (runCurrency?.stacks) {
+          for (const stack of runCurrency.stacks) {
+            if (stack.currencyType === 'blueprint' && stack.blueprintId) {
+              for (let i = 0; i < stack.amount; i++) {
+                blueprintsExtracted.push({
+                  blueprintId: stack.blueprintId,
+                  type: stack.blueprintType ?? 'firmware',
+                });
+              }
+            }
+          }
+        }
 
         // Finalize inventory (clear for extraction)
         InventoryUtil.clearInventory(world, playerId);
@@ -135,6 +162,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
         softwareExtracted: swCount,
         pityAwarded,
         itemsExtracted,
+        blueprintsExtracted,
       },
     } as unknown as T['RUN_ENDED']);
 

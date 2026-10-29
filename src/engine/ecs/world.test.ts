@@ -258,6 +258,39 @@ describe('World', () => {
       world.executeSystems(Phase.ACTION);
       expect(system).not.toHaveBeenCalled();
     });
+
+    it('isolates faults in non-critical systems, emitting SYSTEM_FAULT and continuing execution', () => {
+      const faultHandler = vi.fn();
+      bus.on('SYSTEM_FAULT', faultHandler);
+
+      const faultySystem = vi.fn(() => {
+        throw new Error('Simulated system failure');
+      });
+      const subsequentSystem = vi.fn();
+
+      world.registerSystem(Phase.ACTION, faultySystem, 'FaultySystem');
+      world.registerSystem(Phase.ACTION, subsequentSystem, 'SubsequentSystem');
+
+      expect(() => world.executeSystems(Phase.ACTION)).not.toThrow();
+
+      bus.flush();
+      expect(faultHandler).toHaveBeenCalledWith({
+        systemName: 'FaultySystem',
+        phase: Phase.ACTION,
+        error: 'Simulated system failure',
+      });
+      expect(subsequentSystem).toHaveBeenCalledWith(world);
+    });
+
+    it('propagates errors when a critical system throws', () => {
+      const criticalSystem = vi.fn(() => {
+        throw new Error('Fatal engine failure');
+      });
+
+      world.registerSystem(Phase.ACTION, criticalSystem, 'CriticalSystem', { critical: true });
+
+      expect(() => world.executeSystems(Phase.ACTION)).toThrow('Fatal engine failure');
+    });
   });
 
   describe('Serialization', () => {

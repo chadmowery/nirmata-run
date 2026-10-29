@@ -5,7 +5,7 @@ import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
 import { GameplayEvents } from '@shared/events/types';
 import { createMovementSystem } from './movement';
-import { createCombatSystem } from './combat';
+import { createCombatSystem, createHealSystem } from './combat';
 import { createItemPickupSystem } from './item-pickup';
 import { createGravediggerSystem } from './gravedigger';
 import { createRewardDropSystem } from './reward-drop';
@@ -49,6 +49,7 @@ export function registerCoreSystems<T extends GameplayEvents>(
     componentRegistry,
     options,
   );
+  const heal = createHealSystem(world, eventBus);
   const itemPickup = createItemPickupSystem(world, grid, eventBus);
   const stability = createStabilitySystem(world, eventBus);
   const deadZone = createDeadZoneSystem(world, grid);
@@ -94,12 +95,16 @@ export function registerCoreSystems<T extends GameplayEvents>(
   movement.init();
   equipment.init();
   anchorInteraction.init();
-  augment.init();
-  software.init();
   firmware.init();
 
   if (!isClient) {
     combat.init();
+  }
+  augment.init();
+  software.init();
+
+  if (!isClient) {
+    heal.init();
     itemPickup.init();
     deadZone.init();
     statusEffect.init();

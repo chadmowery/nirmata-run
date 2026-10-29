@@ -143,11 +143,13 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
     init() {
       world.registerSystem(Phase.PRE_TURN, update, 'StatusEffectTickSystem');
       world.registerSystem(Phase.PRE_TURN, updateIntents, 'StatusEffectIntentSystem');
+      world.registerSystem(Phase.REACTION, updateIntents, 'StatusEffectReactionIntentSystem');
     },
 
     dispose() {
       world.unregisterSystem(Phase.PRE_TURN, update);
       world.unregisterSystem(Phase.PRE_TURN, updateIntents);
+      world.unregisterSystem(Phase.REACTION, updateIntents);
     },
 
     update,

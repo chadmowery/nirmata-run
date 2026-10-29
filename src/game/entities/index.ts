@@ -47,6 +47,10 @@ import rifle_v1 from './templates/rifle-v1.json';
 import rifle_v2 from './templates/rifle-v2.json';
 import rifle_v3 from './templates/rifle-v3.json';
 import dead_zone from './templates/dead-zone.json';
+import phased_overdrive from './templates/phased-overdrive.json';
+import neural_recursion from './templates/neural-recursion.json';
+import static_collapse from './templates/static-collapse.json';
+import void_echo from './templates/void-echo.json';
 
 /**
  * Registers all game entity templates and mixins.
@@ -101,4 +105,8 @@ export function registerGameTemplates(registry: EntityRegistry): void {
   registry.register(rifle_v2 as unknown as RawTemplate);
   registry.register(rifle_v3 as unknown as RawTemplate);
   registry.register(dead_zone as unknown as RawTemplate);
+  registry.register(phased_overdrive as unknown as RawTemplate);
+  registry.register(neural_recursion as unknown as RawTemplate);
+  registry.register(static_collapse as unknown as RawTemplate);
+  registry.register(void_echo as unknown as RawTemplate);
 }

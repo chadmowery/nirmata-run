@@ -14,6 +14,8 @@ import {
   SoftwareSlots,
   RunInventory,
   FloorTransitioned,
+  Stability,
+  RunCurrency,
 } from '@shared/components';
 import { createFloorManagerSystem } from '../floor-manager';
 import { Phase } from '@engine/ecs/types';
@@ -147,5 +149,69 @@ describe('FloorManagerSystem Unit Tests', () => {
     // On client, floor manager should not regenerate dungeon or purge entities locally
     const floorState = world.getComponent(playerId, FloorState);
     expect(floorState?.currentFloor).toBe(1); // unchanged on client
+  });
+
+  it('deducts scrap and repairs 40% stability on anchor descent with cost', () => {
+    world.addComponent(playerId, Stability, { current: 30, max: 100 });
+    world.addComponent(playerId, RunCurrency, {
+      stacks: [{ currencyType: 'scrap', amount: 50 }],
+    });
+
+    const floorManager = createFloorManagerSystem(
+      world,
+      grid,
+      eventBus,
+      dummyEntityFactory,
+      dummyComponentRegistry,
+      false,
+    );
+    floorManager.init();
+
+    // Cost 45 scrap to descend
+    world.addComponent(playerId, DescentIntent, { targetFloor: 6, cost: 45 });
+    world.executeSystems(Phase.CLEANUP);
+
+    const floorState = world.getComponent(playerId, FloorState);
+    expect(floorState?.currentFloor).toBe(6);
+
+    // Stability: 30 + (100 * 0.4) = 70
+    const stability = world.getComponent(playerId, Stability);
+    expect(stability?.current).toBe(70);
+
+    // Scrap remaining: 50 - 45 = 5
+    const currency = world.getComponent(playerId, RunCurrency);
+    expect(currency?.stacks[0].amount).toBe(5);
+  });
+
+  it('cancels descent if player has insufficient scrap for anchor descent', () => {
+    world.addComponent(playerId, Stability, { current: 30, max: 100 });
+    world.addComponent(playerId, RunCurrency, {
+      stacks: [{ currencyType: 'scrap', amount: 20 }],
+    });
+
+    const floorManager = createFloorManagerSystem(
+      world,
+      grid,
+      eventBus,
+      dummyEntityFactory,
+      dummyComponentRegistry,
+      false,
+    );
+    floorManager.init();
+
+    // Cost 45 scrap to descend, but player only has 20
+    world.addComponent(playerId, DescentIntent, { targetFloor: 6, cost: 45 });
+    world.executeSystems(Phase.CLEANUP);
+
+    // Descent should be aborted
+    const floorState = world.getComponent(playerId, FloorState);
+    expect(floorState?.currentFloor).toBe(1);
+
+    // Scrap and stability unchanged
+    const currency = world.getComponent(playerId, RunCurrency);
+    expect(currency?.stacks[0].amount).toBe(20);
+
+    const stability = world.getComponent(playerId, Stability);
+    expect(stability?.current).toBe(30);
   });
 });

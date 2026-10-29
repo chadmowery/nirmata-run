@@ -21,4 +21,7 @@ export interface EngineEvents {
 
   /** Queued when a turn cycle ends. */
   TURN_END: { turnNumber: number };
+
+  /** Queued when a non-critical system faults during execution. */
+  SYSTEM_FAULT: { systemName: string; phase: string; error: string };
 }

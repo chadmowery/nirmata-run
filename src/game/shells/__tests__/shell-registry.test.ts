@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ShellRegistry } from '../server/shell-registry';
+import { ShellRegistry, applyShellUpgradesToRecord } from '../server/shell-registry';
 import { ShellTemplate } from '../server/types';
 
 describe('ShellRegistry', () => {
@@ -51,5 +51,30 @@ describe('ShellRegistry', () => {
   it('should throw when updating non-existent record', () => {
     const registry = new ShellRegistry();
     expect(() => registry.update('missing', { level: 2 })).toThrow();
+  });
+
+  it('applyShellUpgradesToRecord applies purchased upgrades to speed, armor, stability, and ports', () => {
+    const registry = new ShellRegistry();
+    registry.register(mockTemplate);
+    const record = registry.createRecord('inst-upgrades', 'test-shell');
+
+    const upgraded = applyShellUpgradesToRecord(record, {
+      speed: 15,
+      armor: 2,
+      stability: 10,
+      additionalPorts: 2,
+    });
+
+    expect(upgraded.currentStats.speed).toBe(115);
+    expect(upgraded.currentStats.armor).toBe(3);
+    expect(upgraded.currentStats.stability).toBe(15);
+    expect(upgraded.portConfig.maxSoftware).toBe(4);
+
+    // Guard against double application
+    const reapplied = applyShellUpgradesToRecord(upgraded, {
+      speed: 15,
+      armor: 2,
+    });
+    expect(reapplied.currentStats.speed).toBe(115);
   });
 });

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createEngineInstance } from '@game/engine-factory';
 import { sessionManager } from '@server/session/session-manager';
 import { createDefaultProfile } from '@shared/profile';
@@ -7,22 +8,34 @@ import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT } from '@/shared/constants';
 import { RunMode } from '@shared/run-mode';
 import { logger } from '@engine/utils/logger';
 
+const CreateSessionRequestSchema = z.object({
+  seed: z.string().min(1),
+  sessionId: z.string().optional(),
+  mode: z.string().optional(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+});
+
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const width = body.width || DEFAULT_GRID_WIDTH;
-    const height = body.height || DEFAULT_GRID_HEIGHT;
-    const { seed, sessionId: providedSessionId, mode } = body;
+    const rawBody = await req.json();
+    const parsed = CreateSessionRequestSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid request body', details: parsed.error },
+        { status: 400 },
+      );
+    }
+
+    const { seed, sessionId: providedSessionId, mode } = parsed.data;
+    const width = parsed.data.width || DEFAULT_GRID_WIDTH;
+    const height = parsed.data.height || DEFAULT_GRID_HEIGHT;
 
     if (mode === RunMode.WEEKLY || mode === RunMode.DAILY) {
       return NextResponse.json(
         { error: 'Competitive modes (weekly/daily) must be launched via /api/run-mode/launch' },
         { status: 403 },
       );
-    }
-
-    if (!seed) {
-      return NextResponse.json({ error: 'Missing required parameter: seed' }, { status: 400 });
     }
 
     const sessionId = providedSessionId || 'default-player-session';

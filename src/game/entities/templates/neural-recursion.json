@@ -1,0 +1,22 @@
+{
+  "name": "NEURAL_RECURSION",
+  "sprite": { "key": "item_neural_feedback" },
+  "components": {
+    "augmentData": {
+      "name": "NEURAL_RECURSION.arc",
+      "trigger": {
+        "type": "ON_ACTIVATION"
+      },
+      "payloads": [
+        { "type": "DAMAGE_BONUS", "magnitude": 30, "statusEffectDuration": 1 },
+        { "type": "VENT_HEAT", "magnitude": 10 }
+      ],
+      "maxTriggersPerTurn": 1,
+      "cooldownTurns": 1
+    },
+    "item": {
+      "name": "NEURAL_RECURSION.arc",
+      "description": "Architected winner's augment. Grants damage bonus and vents heat upon firmware activation."
+    }
+  }
+}

@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { globalShellRegistry } from '@/game/shells/server';
-
 import { logger } from '@engine/utils/logger';
+
+const EquipFromVaultRequestSchema = z.object({
+  sessionId: z.string().min(1),
+  shellId: z.string().min(1),
+  entityId: z.coerce.number().int(),
+});
 
 /**
  * POST /api/vault/equip-from-vault
@@ -10,13 +16,16 @@ import { logger } from '@engine/utils/logger';
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { sessionId, shellId } = body;
-    const entityId = Number(body.entityId);
-
-    if (!sessionId || isNaN(entityId) || !shellId) {
-      return NextResponse.json({ error: 'Missing or invalid required fields' }, { status: 400 });
+    const rawBody = await req.json();
+    const parsed = EquipFromVaultRequestSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Missing or invalid required fields', details: parsed.error },
+        { status: 400 },
+      );
     }
+
+    const { sessionId, shellId, entityId } = parsed.data;
 
     const profile = await profileRepository.load(sessionId);
     if (!profile) {

@@ -3,7 +3,7 @@ import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { AbilityDef, FirmwareSlots, Position, Health, Defense, Heat } from '@shared/components';
-import { DamageIntent, HeatIntent } from '@shared/components/intents';
+import { DamageIntent, HeatIntent, ApplyStatusEffectIntent } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
 import { Phase } from '@engine/ecs/types';
 import { createFirmwareSystem } from './firmware';
@@ -287,5 +287,77 @@ describe('FirmwareSystem', () => {
     const result = firmwareSystem.activateAbility(playerId, 0, 8, 8); // Distance 6
     eventBus.flush();
     expect(result).toBe(false);
+  });
+
+  it('activateAbility with vision_pulse emits FOV_UPDATED with reveal radius', () => {
+    const playerId = world.createEntity();
+    const firmwareId = world.createEntity();
+
+    world.addComponent(
+      firmwareId,
+      AbilityDef,
+      AbilityDef.schema.parse({
+        name: 'GHOST_PULSE.exe',
+        heatCost: 30,
+        range: 5,
+        effectType: 'vision_pulse',
+        visionRadius: 10,
+        cooldown: 0,
+      }),
+    );
+
+    world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
+    world.addComponent(playerId, Position, { x: 5, y: 5 });
+    world.addComponent(playerId, Heat, Heat.schema.parse({ current: 0, maxSafe: 100 }));
+
+    const fovHandler = vi.fn();
+    eventBus.on('FOV_UPDATED', fovHandler);
+
+    const result = firmwareSystem.activateAbility(playerId, 0, 5, 5);
+    eventBus.flush();
+
+    expect(result).toBe(true);
+    expect(fovHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        visibleSet: expect.any(Set),
+      }),
+    );
+    const visibleSet = fovHandler.mock.calls[0][0].visibleSet as Set<string>;
+    expect(visibleSet.has('5,5')).toBe(true);
+    expect(visibleSet.has('7,7')).toBe(true);
+  });
+
+  it('activateAbility with stun applies DISRUPT to target enemy', () => {
+    const playerId = world.createEntity();
+    const enemyId = world.createEntity();
+    const firmwareId = world.createEntity();
+
+    grid.addEntity(enemyId, 5, 7);
+
+    world.addComponent(
+      firmwareId,
+      AbilityDef,
+      AbilityDef.schema.parse({
+        name: 'LOGIC_JAM.exe',
+        heatCost: 20,
+        range: 3,
+        effectType: 'stun',
+        cooldown: 0,
+      }),
+    );
+
+    world.addComponent(playerId, FirmwareSlots, { equipped: [firmwareId] });
+    world.addComponent(playerId, Position, { x: 5, y: 5 });
+    world.addComponent(playerId, Heat, Heat.schema.parse({ current: 0, maxSafe: 100 }));
+
+    const result = firmwareSystem.activateAbility(playerId, 0, 5, 7);
+    eventBus.flush();
+
+    expect(result).toBe(true);
+    const intent = world.getComponent(playerId, ApplyStatusEffectIntent);
+    expect(intent).toBeDefined();
+    expect(intent?.targetId).toBe(enemyId);
+    expect(intent?.effect.name).toBe('DISRUPT');
+    expect(intent?.effect.duration).toBe(2);
   });
 });

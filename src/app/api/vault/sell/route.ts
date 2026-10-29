@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { sellOverflowItem } from '@/game/systems/vault-manager';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
-
 import { logger } from '@engine/utils/logger';
+
+const VaultSellRequestSchema = z.object({
+  sessionId: z.string().min(1),
+  entityId: z.number().int(),
+});
 
 /**
  * POST /api/vault/sell
@@ -10,11 +15,16 @@ import { logger } from '@engine/utils/logger';
  */
 export async function POST(req: NextRequest) {
   try {
-    const { sessionId, entityId } = await req.json();
-
-    if (!sessionId || entityId === undefined) {
-      return NextResponse.json({ error: 'Missing sessionId or entityId' }, { status: 400 });
+    const body = await req.json();
+    const parsed = VaultSellRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Missing sessionId or entityId', details: parsed.error },
+        { status: 400 },
+      );
     }
+
+    const { sessionId, entityId } = parsed.data;
 
     const result = await sellOverflowItem(profileRepository, sessionId, entityId);
     if (!result.success) {

@@ -25,7 +25,7 @@ export const VaultItemSchema = z.object({
   entityId: z.number(),
   templateId: z.string(),
   rarityTier: z.string(),
-  itemType: z.enum(['firmware', 'augment', 'software']),
+  itemType: z.enum(['firmware', 'augment', 'software', 'equipment', 'weapon', 'armor']),
   extractedAtFloor: z.number(),
   extractedAtTimestamp: z.number(),
 });
@@ -83,7 +83,7 @@ export interface ProfileRepository {
 export function createDefaultProfile(sessionId: string): PlayerProfile {
   const profile = PlayerProfileSchema.parse({ sessionId });
 
-  const shellIds = ['striker-v1', 'bastion-v1', 'signal-v1'];
+  const shellIds = ['vanguard-v1', 'bastion-v1', 'ghost-v1'];
 
   // Register blueprints so they are available to be "installed"
   profile.blueprintLibrary = [

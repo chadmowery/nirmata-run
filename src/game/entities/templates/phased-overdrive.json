@@ -1,0 +1,23 @@
+{
+  "name": "PHASED_OVERDRIVE",
+  "sprite": { "key": "item_phase_shift" },
+  "components": {
+    "abilityDef": {
+      "name": "PHASED_OVERDRIVE.exe",
+      "heatCost": 35,
+      "range": 0,
+      "effectType": "dash_attack",
+      "damageAmount": 20,
+      "dashDistance": 6,
+      "visionRadius": 0,
+      "heatPerTurn": 0,
+      "isToggle": false,
+      "isActive": false,
+      "isLegacy": false
+    },
+    "item": {
+      "name": "PHASED_OVERDRIVE.exe",
+      "description": "Architected winner's firmware. Long-range dash attack."
+    }
+  }
+}

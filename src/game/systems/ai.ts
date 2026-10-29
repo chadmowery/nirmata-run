@@ -208,6 +208,12 @@ export function createAISystem<T extends GameplayEvents>(
       const ai = world.getComponent(entityId, AIState);
       if (!ai) return;
 
+      const statusEffects = world.getComponent(entityId, StatusEffects);
+      if (statusEffects?.effects.some((e) => e.name === 'DISRUPT' || e.name === 'STUN')) {
+        logger.debug(`Entity ${entityId} is disrupted/stunned and skips turn`, 'AI');
+        return;
+      }
+
       logger.debug(`Turn processing started for entity ${entityId} (${ai.behaviorType})`, 'AI');
       switch (ai.behaviorType) {
         case AIBehaviorType.NULL_POINTER:
@@ -244,7 +250,7 @@ export function createAISystem<T extends GameplayEvents>(
 
       // 1. Check for DISRUPT status effect (stun)
       if (statusEffects) {
-        const isDisrupted = statusEffects.effects.some((e) => e.name === 'DISRUPT');
+        const isDisrupted = statusEffects.effects.some((e) => e.name === 'DISRUPT' || e.name === 'STUN');
         if (isDisrupted) {
           eventBus.emit('MESSAGE_EMITTED', {
             text: 'System_Admin is disrupted and cannot move!',

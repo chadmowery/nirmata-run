@@ -1,6 +1,7 @@
 import { EntityId } from '@engine/ecs/types';
 import { EngineEvents } from '@engine/events/types';
 import { VaultItem } from '../profile';
+import { RunMode } from '../run-mode';
 
 /**
  * Gameplay-meaningful events that the authoritative pipeline and reconciliation
@@ -213,4 +214,6 @@ export interface RunEndedStats {
   softwareExtracted: number;
   pityAwarded: boolean;
   itemsExtracted: VaultItem[];
+  blueprintsExtracted?: Array<{ blueprintId: string; type: 'firmware' | 'augment' }>;
+  runMode?: RunMode;
 }

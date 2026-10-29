@@ -16,47 +16,46 @@
 ## Workstream 1: Gameplay Bugs & Design Spec Alignment
 
 ### 1.1 Critical Gameplay Bugs (High Priority)
-- [ ] **[BUG-01] Fix Default Profile Shell IDs (`src/shared/profile.ts`)**
-  - [`createDefaultProfile`](../src/shared/profile.ts) initializes starter `installedItems` for legacy shell IDs `['striker-v1', 'bastion-v1', 'signal-v1']`. Update to match actual shell templates `['vanguard-v1', 'bastion-v1', 'ghost-v1']`.
-- [ ] **[BUG-02] Resolve Weapon/Armor vs. Software Slot Collision (`src/game/systems/software.ts`, `equipment.ts`, `combat.ts`)**
-  - In-run `BurnSoftwareIntent` in [`software.ts`](../src/game/systems/software.ts) overwrites `EquipmentSlots.weapon` or `EquipmentSlots.armor` with `softwareEntityId` (and marks the old entity `Dying`), colliding with physical Weapons (`rifle-v1..v3`) and Armor (`armor-v1..v3`) equipped via [`equipment.ts`](../src/game/systems/equipment.ts).
-  - Align `BurnSoftwareIntent` and `software-effects.ts` to attach Software as child entities (`Children` / `SoftwareSlots`) on equipped gear or Shell `SoftwareSlots` consistent with `combat.ts` (`collectDamageModifiers`).
-- [ ] **[BUG-03] Propagate `isLegacy` Flag to Spawned Entities (`src/game/engine-factory.ts`)**
-  - When [`createEngineInstance`](../src/game/engine-factory.ts) spawns `profile.installedItems`, it does not copy `item.isLegacy` onto the spawned entity's `AbilityDef` or `AugmentData` component, causing [`legacy-code.ts`](../src/game/systems/legacy-code.ts) penalties (2× Heat cost / 0.5× Augment magnitude) to never trigger in-run.
-- [ ] **[BUG-04] Apply Purchased Shell Upgrades at Run Launch (`src/app/api/run-mode/launch/route.ts`, `src/game/engine-factory.ts`)**
-  - Upgrades purchased via [`POST /api/economy/upgrade`](../src/app/api/economy/upgrade/route.ts) are stored in `profile.shellUpgrades[shellId]`, but `launch/route.ts` and `engine-factory.ts` use unmodified base stats from `shellRegistry`. Apply `profile.shellUpgrades` when constructing `shellRecord` for a run.
-- [ ] **[BUG-05] Enforce Profile Death Penalties by Run Mode (`src/app/api/action/route.ts`)**
-  - [`run-mode-config.ts`](../src/game/systems/run-mode-config.ts) defines `deathPenalty` (`loseInstalledItems: true`, and `resetShellUpgrades: true` in `WEEKLY`), but [`src/app/api/action/route.ts`](../src/app/api/action/route.ts) does not clear `profile.installedItems` or downgrade `profile.shellUpgrades` when `RUN_ENDED` has `reason !== 'extraction'`.
-- [ ] **[BUG-06] Persist Extracted Blueprints & Equipment (`src/game/systems/run-ender.ts`, `src/app/api/action/route.ts`)**
-  - Blueprints collected in-run (`blueprint-locked`) are never added to `profile.blueprintLibrary` on extraction, and `RunInventory.equipment` (looted weapons/armor) is omitted from `itemsExtracted` in [`run-ender.ts`](../src/game/systems/run-ender.ts).
+- [x] **[BUG-01] Fix Default Profile Shell IDs (`src/shared/profile.ts`)**
+  - [`createDefaultProfile`](../src/shared/profile.ts) initializes starter `installedItems` for shell templates `['vanguard-v1', 'bastion-v1', 'ghost-v1']`.
+- [x] **[BUG-02] Resolve Weapon/Armor vs. Software Slot Collision (`src/game/systems/software.ts`, `equipment.ts`, `combat.ts`)**
+  - In-run `BurnSoftwareIntent` attaches Software as permanent child entities (`Children`) on equipped physical gear, retaining burned software even if gear is unequipped, while falling back to player `SoftwareSlots` when burning without gear.
+- [x] **[BUG-03] Propagate `isLegacy` Flag to Spawned Entities (`src/game/engine-factory.ts`)**
+  - Patches `item.isLegacy` onto spawned entities (`AbilityDef` / `AugmentData`) so `legacy-code.ts` penalties trigger accurately in-run.
+- [x] **[BUG-04] Apply Purchased Shell Upgrades at Run Launch (`src/app/api/run-mode/launch/route.ts`, `src/game/engine-factory.ts`)**
+  - Applies `profile.shellUpgrades` to base stats and additional ports via `applyShellUpgradesToRecord` at run launch.
+- [x] **[BUG-05] Enforce Profile Death Penalties by Run Mode (`src/app/api/action/route.ts`)**
+  - Clears `profile.installedItems` for the active shell on run failure/death, and resets `profile.shellUpgrades` in `WEEKLY` mode.
+- [x] **[BUG-06] Persist Extracted Blueprints & Equipment (`src/game/systems/run-ender.ts`, `src/app/api/action/route.ts`)**
+  - Persists extracted blueprints to `profile.blueprintLibrary` (converting duplicates to 20 Flux), and extracts both software and physical weapons/armor into the vault.
 - [x] **[BUG-07] Align Vault Capacity Constant (`src/app/api/action/route.ts`)**
   - Updated `src/app/api/action/route.ts` to import `VAULT_MAX_SLOTS` from `@shared/vault` instead of hardcoding `20`.
-- [ ] **[BUG-08] Immediate Same-Turn Resolution for On-Kill `HealIntent` (`src/game/systems/software.ts`, `augment.ts`)**
-  - `SoftwareSystem` (`Vampire.exe`) and `AugmentSystem` run in `Phase.REACTION` *after* `CombatSystem`, so `HealIntent`s they attach on kill are not processed until the next actor's action sequence.
+- [x] **[BUG-08] Immediate Same-Turn Resolution for On-Kill `HealIntent` (`src/game/systems/software.ts`, `combat.ts`, `registration.ts`)**
+  - Registered dedicated `HealSystem` at tail of `Phase.REACTION` after `SoftwareEffectSystem` so `Vampire.exe` on-kill heals resolve immediately in the same turn.
 
 ### 1.2 Unimplemented Design Mechanics (Medium Priority)
-- [ ] **[DESIGN-01] Implement `GHOST_PULSE.exe` and `LOGIC_JAM.exe` Effects (`src/game/systems/firmware.ts`)**
-  - Add effect handlers in `FirmwareSystem` for `effectType: "vision_pulse"` (`ghost-pulse.json`, temporary area reveal) and `effectType: "stun"` (`logic-jam.json`, applying `STUN` / `DISRUPT` to target enemy).
-- [ ] **[DESIGN-02] Wire `DISRUPT` Status to Stun `System_Admin` (`src/game/systems/ai.ts`, `firmware.ts`)**
-  - [`ai.ts`](../src/game/systems/ai.ts) checks for `DISRUPT` on `System_Admin` to skip its turn, but no player Firmware or Software currently applies `DISRUPT`. Connect `LOGIC_JAM.exe` (or `Neural_Spike.exe`) to apply `DISRUPT`.
-- [ ] **[DESIGN-03] Wire `MOVEMENT_SLOW` into Turn/Movement Cost (`src/game/turn/game-turn-adapter.ts` or `movement.ts`)**
-  - `PackCoordinatorSystem` applies `MOVEMENT_SLOW` on `Buffer-Overflow` detonation, but neither `GameTurnAdapter` nor `MovementSystem` reads `MOVEMENT_SLOW`.
-- [ ] **[DESIGN-04] Apply `HUD_GLITCH` on `Null-Pointer` Hit (`src/game/systems/combat.ts` or `ai.ts`)**
-  - Per `ENEMY-HIERARCHY.md`, `Null-Pointer` attacks should apply `HUD_GLITCH` for 2 turns on hit.
-- [ ] **[DESIGN-05] Stability Anchor Descend Cost & Stability Refill (`src/game/systems/anchor-interaction.ts`, `floor-manager.ts`)**
-  - Implement configurable Scrap/Flux cost and 40% Stability repair when choosing `STABILIZE & DESCEND` at a Stability Anchor, differentiating Anchor descent from normal Staircase descent.
-- [ ] **[DESIGN-06] Fix `seed-eater.json` Loot Table Tier (`src/game/entities/templates/seed-eater.json`)**
-  - Update `lootTable.tier` on `seed-eater.json` from `2` to `3` to match its Tier 3 boss classification.
-- [ ] **[DESIGN-07] Author Entity Templates for Weekly Winner's Items (`src/game/entities/templates/economy.json`)**
-  - Create JSON entity templates for `PHASED_OVERDRIVE`, `NEURAL_RECURSION`, `STATIC_COLLAPSE`, and `VOID_ECHO` referenced in `economy.json`.
+- [x] **[DESIGN-01] Implement `GHOST_PULSE.exe` and `LOGIC_JAM.exe` Effects (`src/game/systems/firmware.ts`)**
+  - Handled `effectType: "vision_pulse"` (revealing area in radius 10 via `FOV_UPDATED`) and `effectType: "stun"` (applying `DISRUPT` for 2 turns via `ApplyStatusEffectIntent`).
+- [x] **[DESIGN-02] Wire `DISRUPT` Status to Stun `System_Admin` (`src/game/systems/ai.ts`, `firmware.ts`)**
+  - Wired `DISRUPT` and `STUN` checks into `AISystem.processEnemyTurn` and `processSystemAdminTurn` to skip enemy turns when stunned.
+- [x] **[DESIGN-03] Wire `MOVEMENT_SLOW` into Turn/Movement Cost (`src/game/turn/game-turn-adapter.ts`)**
+  - Scaled movement action costs by `(1 + magnitude / 100)` when afflicted by `MOVEMENT_SLOW` in `GameTurnAdapter.getActionCost`.
+- [x] **[DESIGN-04] Apply `HUD_GLITCH` on `Null-Pointer` Hit (`src/game/systems/combat.ts`)**
+  - Applied `HUD_GLITCH` (2 turns) via `ApplyStatusEffectIntent` on player hit by `Null-Pointer` in `CombatSystem`.
+- [x] **[DESIGN-05] Stability Anchor Descend Cost & Stability Refill (`src/game/systems/anchor-interaction.ts`, `floor-manager.ts`)**
+  - Configured `20 + currentFloor * 5` Scrap cost and +40% Reality Stability repair when descending at a Stability Anchor.
+- [x] **[DESIGN-06] Fix `seed-eater.json` Loot Table Tier (`src/game/entities/templates/seed-eater.json`)**
+  - Updated `lootTable.tier` on `seed-eater.json` to `3` with Tier 3 drops (`bleed-v3`, `vampire-v3`, `auto-loader-v3`, `rifle-v3`, `armor-v3`).
+- [x] **[DESIGN-07] Author Entity Templates for Weekly Winner's Items (`src/game/entities/templates/economy.json`)**
+  - Authored entity templates for `PHASED_OVERDRIVE`, `NEURAL_RECURSION`, `STATIC_COLLAPSE`, and `VOID_ECHO` and registered them in `EntityRegistry`.
 
 ---
 
 ## Workstream 2: Architecture, Fault Tolerance & Security
 
 ### 2.1 Server Runtime Resilience & Memory Management
-- [ ] **[ARCH-01] Pre-Turn Transactional Checkpoint & System Fault Isolation (`src/app/api/action/route.ts`, `src/engine/ecs/world.ts`)**
-  - Wrap non-critical system executions in fault boundaries and restore pre-turn `oldWorldState`/`oldGridState` if an uncaught exception occurs during `turnManager.submitAction()`, returning a clean rollback sync payload instead of an unhandled HTTP 500.
+- [x] **[ARCH-01] Pre-Turn Transactional Checkpoint & System Fault Isolation (`src/app/api/action/route.ts`, `src/engine/ecs/world.ts`)**
+  - Wrapped non-critical system executions in fault boundaries emitting `SYSTEM_FAULT` and restored pre-turn `oldWorldState`/`oldGridState` if an uncaught exception occurs during `turnManager.submitAction()`, returning a clean rollback `FULL` sync payload instead of an unhandled HTTP 500. Unit tested in `src/engine/ecs/world.test.ts` and `src/app/api/action/__tests__/action.test.ts`.
 - [x] **[ARCH-02] SessionManager TTL Eviction & Cleanup (`src/server/session/session-manager.ts`)**
   - Added sliding-window inactivity TTL (default 60 minutes), max capacity bounds (1000 sessions) with LRU eviction, and `pruneStaleSessions()`.
   - Removed insecure public `/api/leaderboard/submit` route and deleted legacy redundant re-export `src/server/session/SessionManager.ts`.
@@ -70,16 +69,16 @@
   - Zero imports from `@game` remain in `src/shared/`. Consolidated pipeline tests into `tests/game/action-pipeline.test.ts` and `tests/game/intent-resolution.test.ts`.
 - [x] **[ARCH-05] Realign Client-Only Events & Deduplicate Component Registry**
   - Deduplicated `SoftwareSlots` entry in [`src/shared/components/index.ts`](../src/shared/components/index.ts).
-- [ ] **[ARCH-06] Remove Auxiliary Scratch Directories (`tmp/`, `scratch/`, `debug/`, empty `config.json`)**
-  - Clean up untracked/legacy one-off scripts in `tmp/`, empty `scratch/`, root `config.json` (0 bytes), and add `debug/` to `.gitignore`.
+- [x] **[ARCH-06] Remove Auxiliary Scratch Directories (`tmp/`, `scratch/`, `debug/`, empty `config.json`)**
+  - Cleaned up untracked/legacy one-off scripts in `tmp/`, empty `scratch/`, root `config.json` (0 bytes), and added `debug/`, `scratch/`, `tmp/` to `.gitignore`.
 
 ### 2.3 API Security & Persistence Synchronization
 - [x] **[SEC-01] Sanitize `sessionId` Against Path Traversal (`src/app/persistence/fs-profile-repository.ts`)**
   - Added strict regex sanitization (`/^[a-zA-Z0-9_-]+$/`) preventing directory traversal (`..`) attacks on profile files.
-- [ ] **[SEC-02] Add Zod Request Validation to Remaining API Routes (`src/app/api/`)**
-  - Add strict Zod schemas to vault routes (`sell`, `discard`, `move-to-vault`, `equip-from-vault`, `overflow`), `run-mode` routes, and `admin` routes.
-- [ ] **[SEC-03] Gate `/api/admin/*` and `/api/debug/*` Routes by Environment**
-  - Restrict `/api/admin/*` and `/api/debug/log` when `process.env.NODE_ENV === 'production'`.
+- [x] **[SEC-02] Add Zod Request Validation to Remaining API Routes (`src/app/api/`)**
+  - Added strict Zod schemas to vault routes (`sell`, `discard`, `move-to-vault`, `equip-from-vault`, `overflow`), `run-mode` routes (`available`, `launch`), `admin` routes (`reset-attempts`, `seed-rotation`), `session`, and `profile`. Unit tested in `tests/api/security-and-validation.test.ts`.
+- [x] **[SEC-03] Gate `/api/admin/*` and `/api/debug/*` Routes by Environment**
+  - Restrict `/api/admin/*` and `/api/debug/log` when `process.env.NODE_ENV === 'production'`. Unit tested in `tests/api/security-and-validation.test.ts`.
 - [x] **[SEC-04] Align Seed Rotation with UTC Leaderboard Period IDs (`src/app/persistence/seed-rotation.ts`)**
   - Synchronized `seed-rotation.ts` with UTC calendar midnight boundaries for daily and weekly rotation, consistent with `leaderboard-service.ts`. Unit tested in `src/app/persistence/__tests__/seed-rotation.test.ts`.
 

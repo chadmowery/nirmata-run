@@ -1,16 +1,31 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { generateShopStock } from '../../../../game/systems/shop-rotation';
+import { checkNonProductionOnly } from '@/server/security/env-gate';
+
+const InspectQuerySchema = z.object({
+  sessionId: z.string().min(1),
+});
 
 export async function GET(req: Request) {
+  const envBlocked = checkNonProductionOnly();
+  if (envBlocked) return envBlocked;
+
   try {
     const { searchParams } = new URL(req.url);
-    const sessionId = searchParams.get('sessionId');
+    const parsed = InspectQuerySchema.safeParse({
+      sessionId: searchParams.get('sessionId'),
+    });
 
-    if (!sessionId) {
-      return NextResponse.json({ error: 'sessionId required' }, { status: 400 });
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'sessionId required', details: parsed.error },
+        { status: 400 },
+      );
     }
 
+    const { sessionId } = parsed.data;
     const profile = await profileRepository.load(sessionId);
 
     if (!profile) {

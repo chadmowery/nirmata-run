@@ -13,6 +13,10 @@ import {
   AttackIntent,
   Dying,
   DamageIntent,
+  AIState,
+  AIBehaviorType,
+  ApplyStatusEffectIntent,
+  Actor,
 } from '@shared/components';
 import { Phase } from '@engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
@@ -159,5 +163,30 @@ describe('CombatSystem', () => {
         killerId: attacker,
       }),
     );
+  });
+
+  it('should apply HUD_GLITCH on player when hit by Null-Pointer (DESIGN-04)', () => {
+    const attacker = world.createEntity();
+    world.addComponent(attacker, Attack, { power: 5 });
+    world.addComponent(attacker, AIState, {
+      behavior: 'chasing' as any,
+      behaviorType: AIBehaviorType.NULL_POINTER,
+      sightRadius: 8,
+    });
+
+    const player = world.createEntity();
+    world.addComponent(player, Actor, { isPlayer: true });
+    world.addComponent(player, Position, { x: 5, y: 5 });
+    world.addComponent(player, Health, { current: 30, max: 30, isAlive: true });
+    grid.addEntity(player, 5, 5);
+
+    world.addComponent(attacker, AttackIntent, { targetId: player });
+    world.executeSystems(Phase.REACTION);
+
+    const intent = world.getComponent(attacker, ApplyStatusEffectIntent);
+    expect(intent).toBeDefined();
+    expect(intent?.targetId).toBe(player);
+    expect(intent?.effect.name).toBe('HUD_GLITCH');
+    expect(intent?.effect.duration).toBe(2);
   });
 });

@@ -18,13 +18,13 @@
     },
     "statusEffects": { "effects": [] },
     "lootTable": {
-      "tier": 2,
+      "tier": 3,
       "drops": [
-        { "template": "bleed-v2", "chance": 0.4 },
-        { "template": "vampire-v2", "chance": 0.3 },
-        { "template": "auto-loader-v2", "chance": 0.3 },
-        { "template": "rifle-v2", "chance": 0.2 },
-        { "template": "armor-v2", "chance": 0.2 }
+        { "template": "bleed-v3", "chance": 0.4 },
+        { "template": "vampire-v3", "chance": 0.3 },
+        { "template": "auto-loader-v3", "chance": 0.3 },
+        { "template": "rifle-v3", "chance": 0.2 },
+        { "template": "armor-v3", "chance": 0.2 }
       ]
     }
   },

@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { RunMode, getRunModeConfig } from '@/game/systems/run-mode-config';
 import { sessionManager } from '@server/session/session-manager';
 import { createEngineInstance } from '@/game/engine-factory';
-import { globalShellRegistry } from '@/game/shells/server';
+import { globalShellRegistry, applyShellUpgradesToRecord } from '@/game/shells/server';
 import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT } from '@/shared/constants';
-
 import { logger } from '@engine/utils/logger';
+
+const LaunchRequestSchema = z.object({
+  sessionId: z.string().min(1),
+  mode: z.nativeEnum(RunMode),
+  shellId: z.string().optional(),
+});
 
 /**
  * POST /api/run-mode/launch
@@ -14,11 +20,16 @@ import { logger } from '@engine/utils/logger';
  */
 export async function POST(req: NextRequest) {
   try {
-    const { sessionId, mode, shellId } = await req.json();
-
-    if (!sessionId || !mode) {
-      return NextResponse.json({ error: 'Missing sessionId or mode' }, { status: 400 });
+    const rawBody = await req.json();
+    const parsed = LaunchRequestSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Missing or invalid required fields', details: parsed.error },
+        { status: 400 },
+      );
     }
+
+    const { sessionId, mode, shellId } = parsed.data;
 
     const profile = await profileRepository.load(sessionId);
     if (!profile) {
@@ -76,6 +87,9 @@ export async function POST(req: NextRequest) {
         // Fallback: create record if not found (starter shells)
         shellRecord = globalShellRegistry.createRecord(shellId, shellId);
       }
+      if (profile.shellUpgrades?.[shellId]) {
+        shellRecord = applyShellUpgradesToRecord(shellRecord, profile.shellUpgrades[shellId]);
+      }
     }
 
     // 5. Engine Initialization
@@ -98,6 +112,8 @@ export async function POST(req: NextRequest) {
       eventBus: engine.eventBus,
       playerId: engine.playerId,
       systems: engine.systems,
+      runMode: mode,
+      shellId: shellId || undefined,
     });
 
     return NextResponse.json({

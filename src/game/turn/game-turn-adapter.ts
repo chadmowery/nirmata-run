@@ -2,7 +2,7 @@ import { World } from '@engine/ecs/world';
 import { EntityId } from '@engine/ecs/types';
 import { TurnSchedulerAdapter } from '@engine/turn/types';
 import { EngineEvents } from '@engine/events/types';
-import { Actor, Energy, Health, Acting } from '@shared/components';
+import { Actor, Energy, Health, Acting, StatusEffects } from '@shared/components';
 
 export interface GameTurnAdapterConfig {
   defaultActionCost?: number;
@@ -66,11 +66,23 @@ export class GameTurnAdapter<
     return null;
   }
 
-  getActionCost(_actorId: EntityId, action: string): number {
+  getActionCost(actorId: EntityId, action: string): number {
     if (action === 'WAIT') {
       return this.config?.waitActionCost ?? 500;
     }
-    return this.config?.defaultActionCost ?? 1000;
+    let cost = this.config?.defaultActionCost ?? 1000;
+
+    // DESIGN-03: Wire MOVEMENT_SLOW into movement action cost
+    if (action.startsWith('MOVE') || action === 'MOVE') {
+      const statusEffects = this.world.getComponent(actorId, StatusEffects);
+      const slow = statusEffects?.effects.find((e) => e.name === 'MOVEMENT_SLOW');
+      if (slow) {
+        const magnitude = slow.magnitude || 50;
+        cost = Math.round(cost * (1 + magnitude / 100));
+      }
+    }
+
+    return cost;
   }
 
   onBeforeActorAct(actorId: EntityId): void {

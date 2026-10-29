@@ -16,7 +16,14 @@ import {
   Dying,
   HealIntent,
   ApplyStatusEffectIntent,
+  BurnSoftwareIntent,
+  EquipmentDef,
+  TemplateId,
+  UnequipIntent,
 } from '../../shared/components';
+import { createSoftwareSystem } from './software';
+import { createHealSystem } from './combat';
+import { createEquipmentSystem } from './equipment';
 import { Phase } from '../../engine/ecs/types';
 import { createRunEnderSystem } from './run-ender';
 import { GameplayEvents } from '../../shared/events/types';
@@ -822,6 +829,148 @@ describe('Software System', () => {
       applyBleedOnHit(world, eventBus, attacker, defender);
 
       expect(world.getComponent(attacker, ApplyStatusEffectIntent)?.effect.magnitude).toBe(15);
+    });
+  });
+
+  describe('Equipment Child Hierarchy & Burn Protocol (BUG-02, BUG-08)', () => {
+    it('BurnSoftwareIntent attaches software to physical weapon as child entity and preserves weapon', () => {
+      const eventBus = new EventBus<GameplayEvents>();
+      const world = new World<GameplayEvents>(eventBus);
+      const system = createSoftwareSystem(world, eventBus);
+      system.init();
+
+      const player = world.createEntity();
+      const rifle = world.createEntity();
+      world.addComponent(rifle, EquipmentDef, { name: 'Standard Kinetic Rifle', slotType: 'weapon' });
+      world.addComponent(player, EquipmentSlots, { weapon: rifle, armor: null });
+      world.addComponent(player, RunInventory, { maxSlots: 5, software: [], equipment: [] });
+      world.addComponent(player, RunCurrency, { stacks: [] });
+
+      const bleedSw = world.createEntity();
+      world.addComponent(bleedSw, SoftwareDef, {
+        name: 'Bleed.exe',
+        type: 'bleed',
+        targetSlot: 'weapon',
+        baseMagnitude: 2,
+        effectType: 'dot',
+        description: 'Applies bleed DoT',
+        purchaseCost: 0,
+      });
+      world.addComponent(bleedSw, RarityTier, { tier: 'v1.x', scaleFactor: 1.5, minFloor: 0 });
+
+      // Add to inventory so InventoryUtil can remove it
+      InventoryUtil.addSoftware(world, player, {
+        entityId: bleedSw,
+        templateId: 'bleed-v1',
+        rarityTier: 'v1.x',
+        pickedUpAtFloor: 1,
+        pickedUpAtTimestamp: Date.now(),
+      });
+
+      // Submit BurnSoftwareIntent
+      world.addComponent(player, BurnSoftwareIntent, {
+        actorId: player,
+        softwareEntityId: bleedSw,
+        targetSlot: 'weapon',
+        inventoryIndex: 0,
+      });
+
+      // Execute Action phase where software intents update
+      world.executeSystems(Phase.ACTION);
+
+      // Weapon must NOT be overwritten or marked Dying
+      const eq = world.getComponent(player, EquipmentSlots)!;
+      expect(eq.weapon).toBe(rifle);
+      expect(world.hasComponent(rifle, Dying)).toBe(false);
+
+      // Software should be attached to weapon's Children component
+      const children = world.getComponent(rifle, Children)!;
+      expect(children).toBeDefined();
+      expect(children.entityIds).toContain(bleedSw);
+
+      // Bleed on hit should detect it on weapon children
+      const enemy = world.createEntity();
+      world.addComponent(enemy, StatusEffects, { effects: [] });
+      applyBleedOnHit(world, eventBus, player, enemy);
+      expect(world.hasComponent(player, ApplyStatusEffectIntent)).toBe(true);
+    });
+
+    it('Unequipping weapon preserves burned software on the item entity', () => {
+      const eventBus = new EventBus<GameplayEvents>();
+      const world = new World<GameplayEvents>(eventBus);
+      const eqSystem = createEquipmentSystem(world, eventBus);
+      eqSystem.init();
+
+      const player = world.createEntity();
+      const rifle = world.createEntity();
+      world.addComponent(rifle, EquipmentDef, { name: 'Standard Kinetic Rifle', slotType: 'weapon' });
+      world.addComponent(player, EquipmentSlots, { weapon: rifle, armor: null });
+      world.addComponent(player, RunInventory, { maxSlots: 5, software: [], equipment: [] });
+      world.addComponent(player, RunCurrency, { stacks: [] });
+
+      const bleedSw = world.createEntity();
+      world.addComponent(rifle, Children, { entityIds: [bleedSw] });
+
+      // Unequip weapon
+      world.addComponent(player, UnequipIntent, {
+        slotType: 'weapon',
+        slotIndex: 0,
+      });
+
+      world.executeSystems(Phase.ACTION);
+
+      // Weapon slot is now empty
+      const eq = world.getComponent(player, EquipmentSlots)!;
+      expect(eq.weapon).toBeNull();
+
+      // Weapon in inventory still has its Children containing the burned software
+      const inv = world.getComponent(player, RunInventory)!;
+      expect(inv.equipment.some((e: any) => e.entityId === rifle)).toBe(true);
+      const rifleChildren = world.getComponent(rifle, Children)!;
+      expect(rifleChildren.entityIds).toContain(bleedSw);
+    });
+
+    it('resolves on-kill Vampire.exe HealIntent in the same turn via HealSystem', () => {
+      const eventBus = new EventBus<GameplayEvents>();
+      const world = new World<GameplayEvents>(eventBus);
+
+      // Initialize systems in proper reaction order
+      const softwareSys = createSoftwareSystem(world, eventBus);
+      const healSys = createHealSystem(world, eventBus);
+      softwareSys.init();
+      healSys.init();
+
+      const player = world.createEntity();
+      world.addComponent(player, Health, Health.schema.parse({ current: 5, max: 20 }));
+
+      const armor = world.createEntity();
+      world.addComponent(armor, EquipmentDef, { name: 'Standard Plating', slotType: 'armor' });
+      world.addComponent(player, EquipmentSlots, { weapon: null, armor });
+
+      const vampireSw = world.createEntity();
+      world.addComponent(vampireSw, SoftwareDef, {
+        name: 'Vampire.exe',
+        type: 'vampire',
+        targetSlot: 'armor',
+        baseMagnitude: 5,
+        effectType: 'heal_on_kill',
+        description: 'Heals on kill',
+        purchaseCost: 0,
+      });
+      world.addComponent(vampireSw, RarityTier, { tier: 'v0.x', scaleFactor: 1.0, minFloor: 0 });
+      world.addComponent(armor, Children, { entityIds: [vampireSw] });
+
+      // Simulate enemy dying killed by player
+      const enemy = world.createEntity();
+      world.addComponent(enemy, Dying, { killerId: player, reason: 'combat' });
+
+      // Execute REACTION phase where Software observes Dying and HealSystem resolves HealIntent
+      world.executeSystems(Phase.REACTION);
+
+      // Player health should be healed immediately in this same phase!
+      const playerHealth = world.getComponent(player, Health)!;
+      expect(playerHealth.current).toBe(10); // 5 + 5 base heal
+      expect(world.hasComponent(player, HealIntent)).toBe(false);
     });
   });
 });

@@ -1,18 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { RunMode, getRunModeConfig } from '@/game/systems/run-mode-config';
-
 import { logger } from '@engine/utils/logger';
+
+const AvailableRunModesQuerySchema = z.object({
+  sessionId: z.string().min(1),
+});
 
 /**
  * GET /api/run-mode/available
  * Returns availability and attempt status for all run modes.
  */
 export async function GET(req: NextRequest) {
-  const sessionId = req.nextUrl.searchParams.get('sessionId');
-  if (!sessionId) {
-    return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
+  const parsed = AvailableRunModesQuerySchema.safeParse({
+    sessionId: req.nextUrl.searchParams.get('sessionId'),
+  });
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Missing sessionId', details: parsed.error },
+      { status: 400 },
+    );
   }
+
+  const { sessionId } = parsed.data;
 
   try {
     const profile = await profileRepository.load(sessionId);

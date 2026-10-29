@@ -13,7 +13,7 @@ import { GameplayEvents } from '@shared/events/types';
 import { registerCoreSystems } from '@game/systems/registration';
 import { AIState, FovAwareness } from '@shared/components';
 import { AIBehaviorType, AIBehavior } from '@shared/components/ai-state';
-import { EquipIntent, UnequipIntent, DescentIntent, ExtractionIntent, EquipmentSlots } from '@shared/components';
+import { EquipIntent, UnequipIntent, DescentIntent, ExtractionIntent, EquipmentSlots, Shell } from '@shared/components';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { submitLeaderboardEntry } from '@/server/leaderboard/leaderboard-service';
 import { RunMode } from '@shared/run-mode';
@@ -349,6 +349,229 @@ describe('Action API Route', () => {
           fluxExtracted: 50,
         }),
       );
+    });
+
+    it('persists extracted blueprints and converts duplicates to flux on extraction (BUG-06)', async () => {
+      const mockProfile = {
+        ...createDefaultProfile(sessionId),
+        blueprintLibrary: [
+          { blueprintId: 'existing-bp', type: 'firmware' as const, compiledAt: 1000 },
+        ],
+        wallet: { scrap: 0, flux: 10 },
+      };
+      vi.mocked(profileRepository.load).mockResolvedValue(mockProfile);
+
+      turnManager.setPlayerActionHandler(() => {
+        eventBus.emit('RUN_ENDED', {
+          reason: 'extraction',
+          floorNumber: 5,
+          stats: {
+            scrapExtracted: 100,
+            fluxExtracted: 20,
+            softwareExtracted: 0,
+            pityAwarded: false,
+            itemsExtracted: [],
+            blueprintsExtracted: [
+              { blueprintId: 'new-bp', type: 'firmware' },
+              { blueprintId: 'existing-bp', type: 'firmware' }, // Duplicate!
+            ],
+          },
+          entityId: playerId,
+        });
+      });
+
+      const req = new Request('http://localhost/api/action', {
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId,
+          action: { type: 'WAIT' },
+        }),
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+
+      // New blueprint added
+      expect(mockProfile.blueprintLibrary).toEqual(
+        expect.arrayContaining([expect.objectContaining({ blueprintId: 'new-bp' })]),
+      );
+      // Duplicate converted to 20 Flux: 10 + 20 (base extracted) + 20 (duplicate bp) = 50
+      expect(mockProfile.wallet.flux).toBe(50);
+    });
+
+    it('clears installed items for active shell on run failure (BUG-05)', async () => {
+      world.addComponent(playerId, Shell, {
+        archetypeId: 'vanguard-v1',
+        speed: 100,
+        stability: 100,
+        armor: 10,
+        maxHealth: 100,
+      });
+
+      const mockProfile = {
+        ...createDefaultProfile(sessionId),
+        installedItems: [
+          {
+            entityId: 1,
+            blueprintId: 'neural-spike',
+            type: 'firmware' as const,
+            shellId: 'vanguard-v1',
+            isLegacy: false,
+          },
+          {
+            entityId: 2,
+            blueprintId: 'neural-spike',
+            type: 'firmware' as const,
+            shellId: 'bastion-v1',
+            isLegacy: false,
+          },
+        ],
+      };
+      vi.mocked(profileRepository.load).mockResolvedValue(mockProfile);
+
+      turnManager.setPlayerActionHandler(() => {
+        eventBus.emit('RUN_ENDED', {
+          reason: 'death',
+          floorNumber: 3,
+          stats: {
+            runMode: RunMode.SIMULATION,
+            scrapExtracted: 10,
+            fluxExtracted: 0,
+            softwareExtracted: 0,
+            pityAwarded: true,
+            itemsExtracted: [],
+          },
+          entityId: playerId,
+        });
+      });
+
+      const req = new Request('http://localhost/api/action', {
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId,
+          action: { type: 'WAIT' },
+        }),
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+
+      // Vanguard items should be removed; Bastion items should remain intact
+      expect(mockProfile.installedItems).toHaveLength(1);
+      expect(mockProfile.installedItems[0].shellId).toBe('bastion-v1');
+    });
+
+    it('resets shell upgrades on death in WEEKLY mode (BUG-05)', async () => {
+      const session = sessionManager.getSession(sessionId);
+      if (session) {
+        session.runMode = RunMode.WEEKLY;
+        session.shellId = 'ghost-v1';
+      }
+
+      const mockProfile = {
+        ...createDefaultProfile(sessionId),
+        shellUpgrades: {
+          'ghost-v1': { speed: 2, armor: 1, stability: 3, additionalPorts: 0 },
+        },
+        installedItems: [
+          {
+            entityId: 3,
+            blueprintId: 'ghost-pulse',
+            type: 'firmware' as const,
+            shellId: 'ghost-v1',
+            isLegacy: false,
+          },
+        ],
+      };
+      vi.mocked(profileRepository.load).mockResolvedValue(mockProfile);
+
+      turnManager.setPlayerActionHandler(() => {
+        eventBus.emit('RUN_ENDED', {
+          reason: 'death',
+          floorNumber: 8,
+          stats: {
+            runMode: RunMode.WEEKLY,
+            scrapExtracted: 0,
+            fluxExtracted: 0,
+            softwareExtracted: 0,
+            pityAwarded: true,
+            itemsExtracted: [],
+          },
+          entityId: playerId,
+        });
+      });
+
+      const req = new Request('http://localhost/api/action', {
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId,
+          action: { type: 'WAIT' },
+        }),
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+
+      // Shell upgrades should be reset to empty
+      expect(mockProfile.shellUpgrades).toEqual({});
+      // Installed items for ghost-v1 should be cleared
+      expect(mockProfile.installedItems).toEqual([]);
+    });
+  });
+
+  describe('Fault Isolation & Transactional Rollback (ARCH-01)', () => {
+    it('catches uncaught exceptions in turn execution, rolls back world and grid, and returns FULL sync rollback payload', async () => {
+      world.patchComponent(playerId, Position, { x: 5, y: 5 });
+
+      turnManager.setPlayerActionHandler(() => {
+        world.patchComponent(playerId, Position, { x: 9, y: 9 });
+        throw new Error('Uncaught critical system crash during turn execution');
+      });
+
+      const req = new Request('http://localhost/api/action', {
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId,
+          action: { type: 'MOVE', dx: 1, dy: 0 },
+        }),
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+
+      const data = await res.json();
+      expect(data.warning).toContain('Turn execution rolled back due to error: Uncaught critical system crash');
+      expect(data.payload.type).toBe('FULL');
+      expect(data.payload.world).toBeDefined();
+
+      // Ensure the world was rolled back to x: 5, y: 5
+      expect(world.getComponent(playerId, Position)?.x).toBe(5);
+      expect(world.getComponent(playerId, Position)?.y).toBe(5);
+
+      // Verify rollback payload events contain error message
+      const errorMsg = data.payload.events.find((e: any) => e.type === 'MESSAGE_EMITTED');
+      expect(errorMsg).toBeDefined();
+      expect(errorMsg.payload.text).toContain('FAULT ISOLATED: Action aborted');
+    });
+
+    it('purges transient intents when rolling back an aborted action', async () => {
+      turnManager.setPlayerActionHandler(() => {
+        throw new Error('Simulated failure during descent intent');
+      });
+
+      const req = new Request('http://localhost/api/action', {
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId,
+          action: { type: 'STAIRCASE_DESCEND', staircaseId: 10, targetFloor: 2 },
+        }),
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+
+      // Verify DescentIntent is not left dangling on player
+      expect(world.hasComponent(playerId, DescentIntent)).toBe(false);
     });
   });
 });

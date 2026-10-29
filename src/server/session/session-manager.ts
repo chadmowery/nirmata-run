@@ -18,6 +18,7 @@ export interface WorldState<T extends EngineEvents = EngineEvents, S = unknown> 
   playerId: number;
   systems?: S; // EngineInstance.systems
   runMode?: RunMode;
+  shellId?: string;
 }
 
 interface SessionEntry<T extends EngineEvents = EngineEvents, S = unknown> {

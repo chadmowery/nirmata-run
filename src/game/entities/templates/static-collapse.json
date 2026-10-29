@@ -1,0 +1,22 @@
+{
+  "name": "STATIC_COLLAPSE",
+  "sprite": { "key": "item_static_siphon" },
+  "components": {
+    "augmentData": {
+      "name": "STATIC_COLLAPSE.arc",
+      "trigger": {
+        "type": "ON_KILL"
+      },
+      "payloads": [
+        { "type": "SHIELD", "magnitude": 15, "statusEffectDuration": 2 },
+        { "type": "VENT_HEAT", "magnitude": 20 }
+      ],
+      "maxTriggersPerTurn": 1,
+      "cooldownTurns": 2
+    },
+    "item": {
+      "name": "STATIC_COLLAPSE.arc",
+      "description": "Architected winner's augment. Deploys shields and vents heat upon enemy termination."
+    }
+  }
+}

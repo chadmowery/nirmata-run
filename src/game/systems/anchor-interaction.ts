@@ -115,6 +115,10 @@ export function createAnchorInteractionSystem<T extends GameplayEvents = GameEve
       type: 'info',
     });
 
+    // Calculate anchor stabilize & descend cost (DESIGN-05)
+    const descendCost = 20 + currentFloor * 5;
+    const estimatedStabilityAfterDescent = Math.min(100, Math.round(stabilityPercent + 40));
+
     // Emit interaction event for UI modal
     eventBus.emit('ANCHOR_INTERACTION', {
       entityId: playerId,
@@ -127,9 +131,9 @@ export function createAnchorInteractionSystem<T extends GameplayEvents = GameEve
         software,
         scrap,
       },
-      descendCost: 0, // Calculated by server/FloorManager
+      descendCost,
       nextFloorEnemyTier: 'Standard',
-      estimatedStabilityAfterDescent: Math.max(0, stabilityPercent - 5),
+      estimatedStabilityAfterDescent,
     });
   };
 

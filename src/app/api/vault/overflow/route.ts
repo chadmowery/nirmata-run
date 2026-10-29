@@ -1,18 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { VAULT_MAX_SLOTS } from '@shared/vault';
-
 import { logger } from '@engine/utils/logger';
+
+const VaultOverflowQuerySchema = z.object({
+  sessionId: z.string().min(1),
+});
 
 /**
  * GET /api/vault/overflow
  * Returns the current overflow items for the session.
  */
 export async function GET(req: NextRequest) {
-  const sessionId = req.nextUrl.searchParams.get('sessionId');
-  if (!sessionId) {
-    return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
+  const parsed = VaultOverflowQuerySchema.safeParse({
+    sessionId: req.nextUrl.searchParams.get('sessionId'),
+  });
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: 'Missing sessionId', details: parsed.error },
+      { status: 400 },
+    );
   }
+
+  const { sessionId } = parsed.data;
 
   try {
     const profile = await profileRepository.load(sessionId);

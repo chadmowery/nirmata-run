@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
 import { EngineEvents } from '@engine/events/types';
-import { Actor, Energy, Health, Acting } from '@shared/components';
+import { Actor, Energy, Health, Acting, StatusEffects } from '@shared/components';
 import { GameTurnAdapter } from './game-turn-adapter';
 
 describe('GameTurnAdapter', () => {
@@ -104,6 +104,21 @@ describe('GameTurnAdapter', () => {
     const entity = world.createEntity();
     expect(adapter.getActionCost(entity, 'WAIT')).toBe(500);
     expect(adapter.getActionCost(entity, 'MOVE')).toBe(1000);
+    expect(adapter.getActionCost(entity, 'MOVE_NORTH')).toBe(1000);
+  });
+
+  it('scales movement action cost when afflicted with MOVEMENT_SLOW (DESIGN-03)', () => {
+    const entity = world.createEntity();
+    world.addComponent(entity, StatusEffects, {
+      effects: [{ name: 'MOVEMENT_SLOW', duration: 2, magnitude: 50 }],
+    });
+
+    // Wait action cost should not be affected by movement slow
+    expect(adapter.getActionCost(entity, 'WAIT')).toBe(500);
+
+    // Movement cost scales by +50%: 1000 * 1.5 = 1500
+    expect(adapter.getActionCost(entity, 'MOVE')).toBe(1500);
+    expect(adapter.getActionCost(entity, 'MOVE_EAST')).toBe(1500);
   });
 
   it('attaches Acting component before acting and removes it after acting', () => {

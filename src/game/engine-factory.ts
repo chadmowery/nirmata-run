@@ -10,7 +10,7 @@ import { ComponentRegistry } from '../engine/entity/types';
 import { ComponentDef } from '../engine/ecs/types';
 import { registerGameTemplates } from './entities';
 import { createMovementSystem } from './systems/movement';
-import { MoveIntent, VentIntent, FirmwareIntent } from '@shared/components';
+import { MoveIntent, VentIntent, FirmwareIntent, AbilityDef, AugmentData } from '@shared/components';
 import { createCombatSystem } from './systems/combat';
 import { createAISystem } from './systems/ai';
 import { registerCoreSystems } from './systems/registration';
@@ -42,6 +42,7 @@ import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from './events/types';
 
 import { ShellRecord } from './shells/shared';
+import { applyShellUpgradesToRecord } from './shells/server/shell-registry';
 import { PlayerProfile } from '@shared/profile';
 import { RunMode } from '@shared/run-mode';
 
@@ -185,6 +186,15 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
       // Spawn the item entity (D-15/D-16 Fix)
       const itemId = entityFactory.create(world, item.blueprintId, componentRegistry);
 
+      if (item.isLegacy) {
+        if (world.hasComponent(itemId, AbilityDef)) {
+          world.patchComponent(itemId, AbilityDef, { isLegacy: true });
+        }
+        if (world.hasComponent(itemId, AugmentData)) {
+          world.patchComponent(itemId, AugmentData, { isLegacy: true });
+        }
+      }
+
       if (item.type === 'firmware') {
         firmwareIds.push(itemId);
       } else if (item.type === 'software') {
@@ -231,7 +241,14 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   }
 
   if (config.shellRecord) {
-    const { currentStats, portConfig } = config.shellRecord;
+    let shellRecord = config.shellRecord;
+    const upgradeData =
+      config.profile?.shellUpgrades?.[shellRecord.id] ||
+      config.profile?.shellUpgrades?.[shellRecord.archetypeId];
+    if (upgradeData) {
+      shellRecord = applyShellUpgradesToRecord(shellRecord, upgradeData);
+    }
+    const { currentStats, portConfig } = shellRecord;
     playerOverrides['health'] = {
       max: currentStats.maxHealth,
       current: currentStats.maxHealth,

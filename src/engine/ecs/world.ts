@@ -24,6 +24,7 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
   private stores: Map<string, Map<EntityId, unknown>> = new Map();
   private systems: Map<Phase, SystemFn[]> = new Map();
   private systemNames: Map<SystemFn, string> = new Map();
+  private systemCriticality: Map<SystemFn, boolean> = new Map();
   private eventBus: EventBus<TEvents>;
   private config: WorldConfig;
 
@@ -185,7 +186,12 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
   /**
    * Register a system to be executed in a specific phase.
    */
-  registerSystem(phase: Phase, system: SystemFn, name?: string): void {
+  registerSystem(
+    phase: Phase,
+    system: SystemFn,
+    name?: string,
+    options?: { critical?: boolean },
+  ): void {
     let phaseSystems = this.systems.get(phase);
     if (!phaseSystems) {
       phaseSystems = [];
@@ -194,6 +200,9 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
     phaseSystems.push(system);
     if (name) {
       this.systemNames.set(system, name);
+    }
+    if (options?.critical) {
+      this.systemCriticality.set(system, true);
     }
   }
 
@@ -208,10 +217,14 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
         phaseSystems.splice(index, 1);
       }
     }
+    this.systemNames.delete(system);
+    this.systemCriticality.delete(system);
   }
 
   /**
    * Execute all systems registered for a phase.
+   * Non-critical systems are isolated within a fault boundary so an unhandled error
+   * does not crash the entire turn, but emits a SYSTEM_FAULT event.
    */
   executeSystems(phase: Phase): void {
     const phaseSystems = this.systems.get(phase);
@@ -220,7 +233,26 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
       for (const system of phaseSystems) {
         const systemName = this.systemNames.get(system) || system.name || 'anonymous';
         logger.debug(`Executing System: ${systemName}`, 'ECS');
-        system(this);
+        const isCritical = this.systemCriticality.get(system) ?? false;
+        if (isCritical) {
+          system(this);
+        } else {
+          try {
+            system(this);
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logger.error(
+              `[ECS] Fault in non-critical system '${systemName}' during phase ${phase}: ${errorMessage}`,
+              'ECS',
+              error,
+            );
+            this.eventBus.emit('SYSTEM_FAULT', {
+              systemName,
+              phase,
+              error: errorMessage,
+            } as unknown as TEvents['SYSTEM_FAULT']);
+          }
+        }
       }
     }
   }

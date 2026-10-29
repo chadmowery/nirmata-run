@@ -37,3 +37,8 @@ lerna-debug.log*
 
 # AI
 .claude
+
+# Debug and Scratch
+debug/
+scratch/
+tmp/

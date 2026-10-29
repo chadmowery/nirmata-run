@@ -127,3 +127,28 @@ export class ShellRegistry {
     }));
   }
 }
+
+/**
+ * Applies permanent profile shell upgrades onto a ShellRecord.
+ */
+export function applyShellUpgradesToRecord(
+  record: ShellRecord,
+  upgrades?: { speed?: number; armor?: number; stability?: number; additionalPorts?: number },
+): ShellRecord {
+  if (!upgrades || (record as unknown as Record<string, unknown>)._upgradesApplied) return record;
+
+  return {
+    ...record,
+    currentStats: {
+      ...record.currentStats,
+      speed: record.currentStats.speed + (upgrades.speed || 0),
+      armor: record.currentStats.armor + (upgrades.armor || 0),
+      stability: record.currentStats.stability + (upgrades.stability || 0),
+    },
+    portConfig: {
+      ...record.portConfig,
+      maxSoftware: record.portConfig.maxSoftware + (upgrades.additionalPorts || 0),
+    },
+    _upgradesApplied: true,
+  } as ShellRecord;
+}

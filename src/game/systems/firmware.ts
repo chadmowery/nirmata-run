@@ -14,6 +14,7 @@ import {
   TeleportIntent,
   FirmwareIntent,
   HeatIntent,
+  ApplyStatusEffectIntent,
 } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
@@ -104,6 +105,22 @@ export function createFirmwareSystem<T extends GameplayEvents>(
           );
           return false; // Strict range 1 for melee
         }
+      } else if (abilityDef.effectType === 'stun') {
+        if (distance > abilityDef.range) {
+          logger.warn(
+            `Activation failed: Target (${targetX}, ${targetY}) out of stun range (${distance} > ${abilityDef.range})`,
+            'FIRMWARE',
+          );
+          return false;
+        }
+      } else if (abilityDef.effectType === 'vision_pulse') {
+        if (distance > (abilityDef.range || 5)) {
+          logger.warn(
+            `Activation failed: Target (${targetX}, ${targetY}) out of vision pulse range (${distance} > ${abilityDef.range})`,
+            'FIRMWARE',
+          );
+          return false;
+        }
       }
 
       // 2. Heat cost
@@ -164,6 +181,49 @@ export function createFirmwareSystem<T extends GameplayEvents>(
         eventBus.emit('MESSAGE_EMITTED', {
           text: `${abilityDef.name} ${nextActive ? 'activated' : 'deactivated'}.`,
           type: 'info',
+        });
+      } else if (abilityDef.effectType === 'vision_pulse') {
+        const radius = abilityDef.visionRadius || 10;
+        const pulseCenterX = targetX || pos.x;
+        const pulseCenterY = targetY || pos.y;
+        const visibleSet = new Set<string>();
+
+        for (let x = pulseCenterX - radius; x <= pulseCenterX + radius; x++) {
+          for (let y = pulseCenterY - radius; y <= pulseCenterY + radius; y++) {
+            const dist = Math.sqrt((x - pulseCenterX) ** 2 + (y - pulseCenterY) ** 2);
+            if (dist <= radius && x >= 0 && x < grid.width && y >= 0 && y < grid.height) {
+              visibleSet.add(`${x},${y}`);
+            }
+          }
+        }
+
+        eventBus.emit('FOV_UPDATED', { visibleSet } as unknown as T['FOV_UPDATED']);
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `${abilityDef.name} activated! Sensor sweep reveals sector (radius ${radius}).`,
+          type: 'info',
+        });
+      } else if (abilityDef.effectType === 'stun') {
+        const targets = grid.getEntitiesAt(targetX, targetY);
+        let hit = false;
+        for (const targetId of targets) {
+          if (targetId === entityId) continue;
+          world.addComponent(entityId, ApplyStatusEffectIntent, {
+            targetId: targetId as EntityId,
+            effect: {
+              name: 'DISRUPT',
+              duration: 2,
+              magnitude: 1,
+              source: abilityDef.name,
+            },
+          });
+          hit = true;
+        }
+
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: hit
+            ? `${abilityDef.name} activated! Overloaded target logic circuits (DISRUPT applied for 2 turns).`
+            : `${abilityDef.name} discharged at (${targetX}, ${targetY}) with no target.`,
+          type: hit ? 'info' : 'warning',
         });
       }
 

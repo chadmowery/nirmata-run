@@ -5,9 +5,10 @@ import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
 import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
-import { AIState, AIBehavior } from '@shared/components/ai-state';
+import { AIState, AIBehavior, AIBehaviorType } from '@shared/components/ai-state';
 import { FovAwareness } from '@shared/components/fov-awareness';
 import { MoveIntent } from '@shared/components/intents';
+import { StatusEffects } from '@shared/components/status-effects';
 import { GameplayEvents } from '@shared/events/types';
 import { EntityFactory } from '@engine/entity/factory';
 import { EntityRegistry } from '@engine/entity/registry';
@@ -127,6 +128,46 @@ describe('AISystem', () => {
 
       const intent = world.getComponent(enemyId, MoveIntent);
       expect(intent).toEqual({ dx: 1, dy: 0 });
+    });
+
+    it('should skip enemy turn when afflicted with DISRUPT (DESIGN-02)', () => {
+      const { enemyId } = setupEntities({ x: 5, y: 5 }, { x: 3, y: 5 });
+      world.patchComponent(enemyId, AIState, { behavior: AIBehavior.CHASING });
+      world.addComponent(enemyId, StatusEffects, {
+        effects: [{ name: 'DISRUPT', duration: 2, magnitude: 1 }],
+      });
+
+      aiSystem.processEnemyTurn(enemyId);
+
+      // Should not attach MoveIntent because turn is skipped
+      expect(world.hasComponent(enemyId, MoveIntent)).toBe(false);
+    });
+
+    it('should skip enemy turn when afflicted with STUN (DESIGN-02)', () => {
+      const { enemyId } = setupEntities({ x: 5, y: 5 }, { x: 3, y: 5 });
+      world.patchComponent(enemyId, AIState, { behavior: AIBehavior.CHASING });
+      world.addComponent(enemyId, StatusEffects, {
+        effects: [{ name: 'STUN', duration: 1, magnitude: 1 }],
+      });
+
+      aiSystem.processEnemyTurn(enemyId);
+
+      expect(world.hasComponent(enemyId, MoveIntent)).toBe(false);
+    });
+
+    it('should prevent System_Admin movement when DISRUPTED (DESIGN-02)', () => {
+      const { enemyId } = setupEntities({ x: 5, y: 5 }, { x: 3, y: 5 });
+      world.patchComponent(enemyId, AIState, {
+        behavior: AIBehavior.CHASING,
+        behaviorType: AIBehaviorType.SYSTEM_ADMIN,
+      });
+      world.addComponent(enemyId, StatusEffects, {
+        effects: [{ name: 'DISRUPT', duration: 2, magnitude: 1 }],
+      });
+
+      aiSystem.processEnemyTurn(enemyId);
+
+      expect(world.hasComponent(enemyId, MoveIntent)).toBe(false);
     });
   });
 });

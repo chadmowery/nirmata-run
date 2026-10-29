@@ -2,13 +2,17 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { executeWeeklyReset } from '../../../../game/systems/weekly-reset';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
+import { checkNonProductionOnly } from '@/server/security/env-gate';
 
 const ResetRequestSchema = z.object({
-  sessionId: z.string(),
+  sessionId: z.string().min(1),
   newWeekSeed: z.number(),
 });
 
 export async function POST(req: Request) {
+  const envBlocked = checkNonProductionOnly();
+  if (envBlocked) return envBlocked;
+
   try {
     const body = await req.json();
     const result = ResetRequestSchema.safeParse(body);

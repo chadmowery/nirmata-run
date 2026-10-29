@@ -16,6 +16,7 @@ import {
   Dying,
   Stability,
   ExtractionIntent,
+  RunCurrency,
 } from '@shared/components';
 import { Phase } from '../../engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
@@ -132,5 +133,67 @@ describe('RunEnderSystem', () => {
         entityId: playerId,
       }),
     );
+  });
+
+  it('should extract software, equipment, and blueprints on successful extraction', () => {
+    const eventBus = new EventBus<GameplayEvents>();
+    const world = new World<GameplayEvents>(eventBus);
+    const grid = new Grid(10, 10);
+    const system = createRunEnderSystem(world, grid, eventBus);
+    system.init();
+
+    const playerId = world.createEntity();
+    world.addComponent(playerId, Actor, { isPlayer: true });
+    world.addComponent(playerId, Position, { x: 1, y: 1 });
+    world.addComponent(playerId, FloorState, { currentFloor: 3, maxFloor: 15, runSeed: 'test' });
+    world.addComponent(playerId, RunInventory, {
+      software: [
+        {
+          entityId: 101,
+          templateId: 'bleed-v1',
+          rarityTier: 'common',
+          pickedUpAtFloor: 2,
+          pickedUpAtTimestamp: 1000,
+        },
+      ],
+      equipment: [
+        {
+          entityId: 102,
+          templateId: 'rifle-v1',
+          rarityTier: 'common',
+          pickedUpAtFloor: 2,
+          pickedUpAtTimestamp: 1000,
+        },
+      ],
+      maxSlots: 5,
+    });
+    world.addComponent(playerId, RunCurrency, {
+      stacks: [
+        { currencyType: 'scrap', amount: 50 },
+        { currencyType: 'blueprint', amount: 1, blueprintId: 'ghost-pulse', blueprintType: 'firmware' },
+      ],
+    });
+
+    const runEndedSpy = vi.fn();
+    eventBus.on('RUN_ENDED', runEndedSpy);
+
+    world.addComponent(playerId, ExtractionIntent, { reason: 'manual' });
+    world.executeSystems(Phase.CLEANUP);
+    eventBus.flush();
+
+    expect(runEndedSpy).toHaveBeenCalledTimes(1);
+    const emittedStats = runEndedSpy.mock.calls[0][0].stats;
+
+    expect(emittedStats.scrapExtracted).toBe(50);
+    expect(emittedStats.itemsExtracted).toHaveLength(2);
+    expect(emittedStats.itemsExtracted).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ templateId: 'bleed-v1', itemType: 'software' }),
+        expect.objectContaining({ templateId: 'rifle-v1', itemType: 'equipment' }),
+      ]),
+    );
+    expect(emittedStats.blueprintsExtracted).toEqual([
+      { blueprintId: 'ghost-pulse', type: 'firmware' },
+    ]);
   });
 });

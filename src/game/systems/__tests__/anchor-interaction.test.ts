@@ -74,6 +74,8 @@ describe('AnchorInteractionSystem Unit Tests', () => {
         anchorId,
         floorNumber: 5,
         stabilityPercent: 75,
+        descendCost: 45,
+        estimatedStabilityAfterDescent: 100,
         inventory: expect.objectContaining({
           scrap: 120,
         }),

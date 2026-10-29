@@ -24,7 +24,9 @@ import {
   UnequipIntent,
   BurnSoftwareIntent,
   RunInventory,
+  Shell,
 } from '@shared/components';
+import { getRunModeConfig } from '@game/systems/run-mode-config';
 import { handleInventorySwap } from '@game/intent/inventory-intent';
 
 export async function POST(req: Request) {
@@ -167,15 +169,68 @@ export async function POST(req: Request) {
         break;
     }
 
-    if (actionKey && turnManager.canAcceptInput()) {
-      turnManager.submitAction(actionKey);
-    }
+    // Execute turn within a transactional checkpoint (ARCH-01)
+    let turnExecutionFailed = false;
+    let turnErrorMessage = '';
 
-    // Always flush server events to process any immediate consequences
-    eventBus.flush();
+    try {
+      if (actionKey && turnManager.canAcceptInput()) {
+        turnManager.submitAction(actionKey);
+      }
+
+      // Always flush server events to process any immediate consequences
+      eventBus.flush();
+    } catch (turnError: unknown) {
+      turnExecutionFailed = true;
+      turnErrorMessage = turnError instanceof Error ? turnError.message : String(turnError);
+      logger.error(
+        `[API] Exception during turn execution for session ${sessionId}. Restoring pre-turn checkpoint.`,
+        'API',
+        turnError,
+      );
+
+      // 1. Roll back World to pre-turn snapshot
+      world.loadSerializableState(oldWorldState);
+
+      // 2. Roll back Grid to pre-turn snapshot
+      grid.loadSerializableTiles(oldGridState.tiles);
+
+      // 3. Purge transient intents attached to player during this aborted action
+      world.removeComponent(session.playerId, DescentIntent);
+      world.removeComponent(session.playerId, ExtractionIntent);
+      world.removeComponent(session.playerId, EquipIntent);
+      world.removeComponent(session.playerId, UnequipIntent);
+      world.removeComponent(session.playerId, BurnSoftwareIntent);
+    }
 
     // Stop capturing
     eventBus.offAny(eventCaptureHandler);
+
+    if (turnExecutionFailed) {
+      const rollbackPayload: SyncPayload = {
+        type: 'FULL',
+        world: oldWorldState,
+        grid: oldGridState,
+        events: [
+          {
+            type: 'MESSAGE_EMITTED',
+            payload: {
+              text: `FAULT ISOLATED: Action aborted (${turnErrorMessage}). Game state rolled back safely.`,
+              type: 'error',
+            },
+          },
+        ],
+        turnNumber: turnManager.getTurnNumber(),
+        playerId: session.playerId,
+        phase: turnManager.getPhase(),
+      };
+
+      return NextResponse.json({
+        sessionId,
+        payload: rollbackPayload,
+        warning: `Turn execution rolled back due to error: ${turnErrorMessage}`,
+      });
+    }
 
     // 4. Handle Run Persistence
     const runEndedEvent = capturedEvents.find((e) => e.type === 'RUN_ENDED');
@@ -207,6 +262,61 @@ export async function POST(req: Request) {
               profile.overflow.push(item);
             }
           }
+        }
+
+        // Blueprints extraction (BUG-06)
+        const blueprints = payload.stats.blueprintsExtracted || [];
+        for (const bp of blueprints) {
+          const alreadyOwned = profile.blueprintLibrary.some(
+            (b) => b.blueprintId === bp.blueprintId,
+          );
+          if (alreadyOwned) {
+            const duplicateFlux = economy.conversion?.duplicateBlueprintToFlux ?? 20;
+            profile.wallet.flux = Math.min(economy.caps.flux, profile.wallet.flux + duplicateFlux);
+            logger.info(
+              `Duplicate blueprint ${bp.blueprintId} converted to ${duplicateFlux} Flux for ${sessionId}`,
+              'API',
+            );
+          } else {
+            profile.blueprintLibrary.push({
+              blueprintId: bp.blueprintId,
+              type: bp.type,
+              compiledAt: Date.now(),
+            });
+            logger.info(
+              `New blueprint ${bp.blueprintId} (${bp.type}) added to library for ${sessionId}`,
+              'API',
+            );
+          }
+        }
+      } else {
+        // Run FAILED / DEATH PENALTY (BUG-05)
+        const effectiveMode = session.runMode || payload.stats.runMode || RunMode.SIMULATION;
+        const modeConfig = await getRunModeConfig(effectiveMode);
+        const playerShell = world.getComponent(session.playerId, Shell);
+        const activeShellId = session.shellId || playerShell?.archetypeId;
+
+        if (modeConfig.deathPenalty.loseInstalledItems) {
+          if (activeShellId) {
+            profile.installedItems = profile.installedItems.filter(
+              (item) => item.shellId !== activeShellId,
+            );
+            logger.info(
+              `Death Penalty: Cleared installed items for shell ${activeShellId} on session ${sessionId}`,
+              'API',
+            );
+          } else {
+            profile.installedItems = [];
+            logger.info(
+              `Death Penalty: Cleared all installed items on session ${sessionId}`,
+              'API',
+            );
+          }
+        }
+
+        if (modeConfig.deathPenalty.resetShellUpgrades) {
+          profile.shellUpgrades = {};
+          logger.info(`Death Penalty: Reset shell upgrades on session ${sessionId}`, 'API');
         }
       }
 

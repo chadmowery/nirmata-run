@@ -1,0 +1,24 @@
+{
+  "name": "VOID_ECHO",
+  "sprite": { "key": "item_bleed" },
+  "components": {
+    "softwareDef": {
+      "name": "Void_Echo.exe",
+      "type": "bleed",
+      "targetSlot": "weapon",
+      "baseMagnitude": 4,
+      "effectType": "dot",
+      "description": "Architected winner's program. Deals heavy bleeding DoT.",
+      "purchaseCost": 500
+    },
+    "rarityTier": {
+      "tier": "v3.x",
+      "scaleFactor": 3.0,
+      "minFloor": 1
+    },
+    "item": {
+      "name": "Void_Echo.exe",
+      "description": "Architected winner's program. Deals heavy bleeding DoT."
+    }
+  }
+}

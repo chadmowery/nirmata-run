@@ -11,12 +11,16 @@ import { FirmwareSlots } from '@shared/components/firmware-slots';
 import { AugmentSlots } from '@shared/components/augment-slots';
 import { SoftwareSlots } from '@shared/components/software-slots';
 import { RunInventory } from '@shared/components/run-inventory';
+import { EquipmentSlots } from '@shared/components/equipment-slots';
+import { Stability } from '@shared/components/stability';
+import { Children } from '@shared/components/children';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 import { Actor } from '@shared/components/actor';
 import { Dying } from '@shared/components/dying';
 import { logger } from '@engine/utils/logger';
 import { DescentIntent } from '@shared/components/intents';
+import * as InventoryUtil from '@shared/utils/inventory-util';
 import { generateDungeon, getDepthBand } from '../generation/dungeon-generator';
 import { placeEntities } from '../generation/entity-placement';
 import { hashSeedForPlacement } from '../engine-factory';
@@ -53,19 +57,35 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
     const entities = [...world.query()];
 
     // 2. Identify and preserve player equipment entities (D-15 Equipment Persistence)
-    const protectedEntities = new Set<EntityId>([playerId]);
+    const protectedEntities = new Set<EntityId>();
+
+    const protectEntityAndChildren = (id: EntityId) => {
+      if (protectedEntities.has(id)) return;
+      protectedEntities.add(id);
+      const children = world.getComponent(id, Children);
+      if (children) {
+        children.entityIds.forEach((childId) => protectEntityAndChildren(childId));
+      }
+    };
+
+    protectEntityAndChildren(playerId);
 
     const fSlots = world.getComponent(playerId, FirmwareSlots);
     const aSlots = world.getComponent(playerId, AugmentSlots);
     const sSlots = world.getComponent(playerId, SoftwareSlots);
     const runInv = world.getComponent(playerId, RunInventory);
+    const eqSlots = world.getComponent(playerId, EquipmentSlots);
 
-    if (fSlots) fSlots.equipped.forEach((id) => protectedEntities.add(id));
-    if (aSlots) aSlots.equipped.forEach((id) => protectedEntities.add(id));
-    if (sSlots) sSlots.equipped.forEach((id) => protectedEntities.add(id));
+    if (fSlots) fSlots.equipped.forEach((id) => protectEntityAndChildren(id));
+    if (aSlots) aSlots.equipped.forEach((id) => protectEntityAndChildren(id));
+    if (sSlots) sSlots.equipped.forEach((id) => protectEntityAndChildren(id));
+    if (eqSlots) {
+      if (eqSlots.weapon !== null) protectEntityAndChildren(eqSlots.weapon);
+      if (eqSlots.armor !== null) protectEntityAndChildren(eqSlots.armor);
+    }
     if (runInv) {
-      runInv.software.forEach((item) => protectedEntities.add(item.entityId));
-      runInv.equipment.forEach((item) => protectedEntities.add(item.entityId));
+      runInv.software.forEach((item) => protectEntityAndChildren(item.entityId));
+      runInv.equipment.forEach((item) => protectEntityAndChildren(item.entityId));
     }
 
     // 3. Mark all non-protected entities for destruction via the Dying pipeline
@@ -159,6 +179,29 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
 
     const descent = w.getComponent(playerId, DescentIntent);
     if (descent) {
+      if (descent.cost > 0) {
+        const currentScrap = InventoryUtil.getCurrencyAmount(w, playerId, 'scrap');
+        if (currentScrap < descent.cost) {
+          logger.warn(
+            `Descent cancelled: Insufficient scrap (${currentScrap}/${descent.cost})`,
+            'SYSTEM',
+          );
+          w.removeComponent(playerId, DescentIntent);
+          return;
+        }
+        InventoryUtil.removeCurrency(w, playerId, 'scrap', descent.cost);
+        const stability = w.getComponent(playerId, Stability);
+        if (stability) {
+          const repairAmount = Math.round(stability.max * 0.4);
+          const repairedCurrent = Math.min(stability.max, stability.current + repairAmount);
+          w.patchComponent(playerId, Stability, { current: repairedCurrent });
+          logger.info(
+            `Anchor Stabilize: Repaired +${repairAmount} Stability (Now: ${repairedCurrent}/${stability.max}) for ${descent.cost} Scrap`,
+            'SYSTEM',
+          );
+        }
+      }
+
       const floorState = w.getComponent(playerId, FloorState);
       const runSeed = floorState?.runSeed ?? 'default';
       descendToFloor(playerId, descent.targetFloor, runSeed);

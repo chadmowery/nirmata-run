@@ -19,6 +19,9 @@ import {
   AugmentSlots,
   AugmentData,
   DealtDamageThisTurn,
+  AIState,
+  AIBehaviorType,
+  ApplyStatusEffectIntent,
 } from '@shared/components';
 import { AttackIntent, DamageIntent, HealIntent } from '@shared/components/intents';
 import { createTriggerContext, evaluateCondition } from './augment-util';
@@ -245,6 +248,20 @@ export function createCombatSystem<T extends GameplayEvents>(
         type: 'combat',
       });
 
+      // DESIGN-04: Null-Pointer attacks apply HUD_GLITCH (2 turns) on hit
+      const attackerAI = w.getComponent(attackerId, AIState);
+      if (attackerAI?.behaviorType === AIBehaviorType.NULL_POINTER && defenderActor?.isPlayer) {
+        w.addComponent(attackerId, ApplyStatusEffectIntent, {
+          targetId: defenderId,
+          effect: {
+            name: 'HUD_GLITCH',
+            duration: 2,
+            magnitude: 1,
+            source: 'null_pointer',
+          },
+        });
+      }
+
       if (newHealth <= 0) {
         handleDeath(defenderId, attackerId);
       }
@@ -294,38 +311,71 @@ export function createCombatSystem<T extends GameplayEvents>(
     }
 
     // 3. Process HealIntents
-    const healEntities = w.query(HealIntent);
-    for (const requesterId of healEntities) {
-      const intent = w.getComponent(requesterId, HealIntent)!;
-      const targetId = intent.targetId;
-      const targetHealth = w.getComponent(targetId, Health);
-
-      if (targetHealth) {
-        const oldVal = targetHealth.current;
-        const newVal = Math.min(targetHealth.max, oldVal + intent.amount);
-
-        logger.info(
-          `Heal Intent Resolved: ${targetId} | HP: ${oldVal} -> ${newVal} (+${intent.amount})`,
-          'COMBAT',
-        );
-
-        w.patchComponent(targetId, Health, { current: newVal });
-
-        eventBus.emit('HEALED', { entityId: targetId, amount: intent.amount });
-
-        eventBus.emit('MESSAGE_EMITTED', {
-          text: `Restored ${intent.amount} HP.`,
-          type: 'info',
-        });
-      }
-
-      w.removeComponent(requesterId, HealIntent);
-    }
+    resolveHealIntents(w, eventBus);
   };
 
   return {
     init() {
       world.registerSystem(Phase.REACTION, update, 'CombatSystem');
+    },
+    dispose() {
+      world.unregisterSystem(Phase.REACTION, update);
+    },
+    update,
+  };
+}
+
+/**
+ * Pure intent-driven resolver for HealIntent components.
+ */
+export function resolveHealIntents<T extends GameplayEvents>(
+  world: World<T>,
+  eventBus: EventBus<T>,
+): void {
+  const healEntities = world.query(HealIntent);
+  for (const requesterId of healEntities) {
+    const intent = world.getComponent(requesterId, HealIntent)!;
+    const targetId = intent.targetId;
+    const targetHealth = world.getComponent(targetId, Health);
+
+    if (targetHealth) {
+      const oldVal = targetHealth.current;
+      const newVal = Math.min(targetHealth.max, oldVal + intent.amount);
+
+      logger.info(
+        `Heal Intent Resolved: ${targetId} | HP: ${oldVal} -> ${newVal} (+${intent.amount})`,
+        'COMBAT',
+      );
+
+      world.patchComponent(targetId, Health, { current: newVal });
+
+      eventBus.emit('HEALED', { entityId: targetId, amount: intent.amount });
+
+      eventBus.emit('MESSAGE_EMITTED', {
+        text: `Restored ${intent.amount} HP.`,
+        type: 'info',
+      });
+    }
+
+    world.removeComponent(requesterId, HealIntent);
+  }
+}
+
+/**
+ * Dedicated system running at the tail of Phase.REACTION to resolve
+ * on-kill and reaction heal intents (e.g. Vampire.exe, heal augments) in the same turn.
+ */
+export function createHealSystem<T extends GameplayEvents>(
+  world: World<T>,
+  eventBus: EventBus<T>,
+) {
+  const update = (w: World<T>) => {
+    resolveHealIntents(w, eventBus);
+  };
+
+  return {
+    init() {
+      world.registerSystem(Phase.REACTION, update, 'HealSystem');
     },
     dispose() {
       world.unregisterSystem(Phase.REACTION, update);

@@ -7,8 +7,55 @@ import {
   RarityTier,
   HealIntent,
   ApplyStatusEffectIntent,
+  Children,
+  SoftwareSlots,
 } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
+
+/**
+ * Finds active software of a specific type either attached to equipped gear as a child entity,
+ * directly on the gear slot, or in the player's software slots.
+ */
+function findSoftwareEntity<T extends GameplayEvents>(
+  world: World<T>,
+  entityId: EntityId,
+  slot: 'weapon' | 'armor',
+  softwareType: string,
+): EntityId | null {
+  const eq = world.getComponent(entityId, EquipmentSlots);
+  const gearId = eq ? eq[slot] : null;
+
+  if (gearId !== null && gearId !== undefined) {
+    // 1. Check gear Children
+    const children = world.getComponent(gearId, Children);
+    if (children) {
+      for (const childId of children.entityIds) {
+        const swDef = world.getComponent(childId, SoftwareDef);
+        if (swDef && swDef.type === softwareType) {
+          return childId;
+        }
+      }
+    }
+    // 2. Direct SoftwareDef on gear (backward compatibility)
+    const directDef = world.getComponent(gearId, SoftwareDef);
+    if (directDef && directDef.type === softwareType) {
+      return gearId;
+    }
+  }
+
+  // 3. Fallback to player SoftwareSlots
+  const sSlots = world.getComponent(entityId, SoftwareSlots);
+  if (sSlots) {
+    for (const childId of sSlots.equipped) {
+      const swDef = world.getComponent(childId, SoftwareDef);
+      if (swDef && swDef.type === softwareType) {
+        return childId;
+      }
+    }
+  }
+
+  return null;
+}
 
 /**
  * Bleed.exe: Apply BLEED DoT status effect on physical attack hit.
@@ -21,15 +68,13 @@ export function applyBleedOnHit<T extends GameplayEvents>(
   attackerId: EntityId,
   defenderId: EntityId,
 ): void {
-  const burned = world.getComponent(attackerId, EquipmentSlots);
-  if (!burned?.weapon) return;
+  const softwareEntityId = findSoftwareEntity(world, attackerId, 'weapon', 'bleed');
+  if (softwareEntityId === null) return;
 
-  const softwareDef = world.getComponent(burned.weapon, SoftwareDef);
-  if (!softwareDef || softwareDef.type !== 'bleed') return;
+  const softwareDef = world.getComponent(softwareEntityId, SoftwareDef);
+  if (!softwareDef) return;
 
-  const rarity = world.getComponent(burned.weapon, RarityTier);
-  if (!rarity) return;
-
+  const rarity = world.getComponent(softwareEntityId, RarityTier) ?? { tier: 'v1.x', scaleFactor: 1.5 };
   const scaledDamage = softwareDef.baseMagnitude * rarity.scaleFactor;
   // baseMagnitude=2: v0.x→2, v1.x→3, v2.x→4, v3.x→6
 
@@ -55,11 +100,7 @@ export function checkAutoLoader<T extends GameplayEvents>(
   world: World<T>,
   entityId: EntityId,
 ): boolean {
-  const burned = world.getComponent(entityId, EquipmentSlots);
-  if (!burned?.weapon) return false;
-
-  const softwareDef = world.getComponent(burned.weapon, SoftwareDef);
-  return softwareDef?.type === 'auto-loader';
+  return findSoftwareEntity(world, entityId, 'weapon', 'auto-loader') !== null;
 }
 
 /**
@@ -73,15 +114,13 @@ export function applyVampireOnKill<T extends GameplayEvents>(
   eventBus: EventBus<T>,
   killerId: EntityId,
 ): void {
-  const burned = world.getComponent(killerId, EquipmentSlots);
-  if (!burned?.armor) return;
+  const softwareEntityId = findSoftwareEntity(world, killerId, 'armor', 'vampire');
+  if (softwareEntityId === null) return;
 
-  const softwareDef = world.getComponent(burned.armor, SoftwareDef);
-  if (!softwareDef || softwareDef.type !== 'vampire') return;
+  const softwareDef = world.getComponent(softwareEntityId, SoftwareDef);
+  if (!softwareDef) return;
 
-  const rarity = world.getComponent(burned.armor, RarityTier);
-  if (!rarity) return;
-
+  const rarity = world.getComponent(softwareEntityId, RarityTier) ?? { tier: 'v1.x', scaleFactor: 1.5 };
   const healAmount = Math.floor(softwareDef.baseMagnitude * rarity.scaleFactor);
   // baseMagnitude=5: v0.x→5, v1.x→7, v2.x→10, v3.x→15
 

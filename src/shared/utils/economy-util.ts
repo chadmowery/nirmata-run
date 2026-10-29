@@ -46,17 +46,18 @@ export function calculateExtractionFluxBonus(
 }
 
 /**
- * Maps run-scoped software inventory to permanent VaultItem format for extraction.
+ * Maps run-scoped inventory items to permanent VaultItem format for extraction.
  */
 export function mapInventoryToVaultItems(
-  softwareItems: Array<{ entityId: number; templateId: string; rarityTier: string }>,
+  items: Array<{ entityId: number; templateId: string; rarityTier: string }>,
   floor: number,
+  itemType: 'software' | 'equipment' | 'firmware' | 'augment' = 'software',
 ): VaultItem[] {
-  return softwareItems.map((item) => ({
+  return items.map((item) => ({
     entityId: item.entityId,
     templateId: item.templateId,
     rarityTier: item.rarityTier,
-    itemType: 'software', // Per D-06: Software is the primary extracted item type
+    itemType,
     extractedAtFloor: floor,
     extractedAtTimestamp: Date.now(),
   }));

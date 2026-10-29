@@ -8,6 +8,8 @@ import {
   SoftwareDef,
   EquipmentSlots,
   BurnSoftwareIntent,
+  Children,
+  EquipmentDef,
 } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 import { applyBleedOnHit, applyVampireOnKill } from './software-effects';
@@ -65,7 +67,7 @@ export function createSoftwareSystem<T extends GameplayEvents>(
         continue;
       }
 
-      // 2. Duplicate check
+      // 2. Equipment check
       let burned = w.getComponent(entityId, EquipmentSlots);
       if (!burned) {
         const newData = { weapon: null, armor: null };
@@ -73,35 +75,76 @@ export function createSoftwareSystem<T extends GameplayEvents>(
         burned = newData;
       }
 
-      const activeSoftwareIds = [burned.weapon, burned.armor].filter(
-        (id): id is number => id !== null,
-      );
-      let duplicate = false;
-      for (const activeId of activeSoftwareIds) {
-        const activeDef = w.getComponent(activeId, SoftwareDef);
-        if (activeDef && activeDef.type === swDef.type) {
+      const targetGearId = burned[targetSlot];
+      const isPhysicalGear = targetGearId !== null && w.hasComponent(targetGearId, EquipmentDef);
+
+      if (isPhysicalGear) {
+        // Physical weapon/armor is equipped: attach software as child in gear's Children
+        let children = w.getComponent(targetGearId, Children);
+        if (!children) {
+          const newChildren = { entityIds: [] };
+          w.addComponent(targetGearId, Children, newChildren);
+          children = newChildren;
+        }
+
+        // Duplicate check on gear
+        let duplicate = false;
+        for (const childId of children.entityIds) {
+          const activeDef = w.getComponent(childId, SoftwareDef);
+          if (activeDef && activeDef.type === swDef.type) {
+            duplicate = true;
+            break;
+          }
+        }
+        if (duplicate) {
           eventBus.emit('MESSAGE_EMITTED', {
-            text: `Software type ${swDef.type} is already active.`,
+            text: `Software type ${swDef.type} is already active on ${targetSlot}.`,
             type: 'error',
           });
-          duplicate = true;
-          break;
+          w.removeComponent(entityId, BurnSoftwareIntent);
+          continue;
         }
-      }
-      if (duplicate) {
-        w.removeComponent(entityId, BurnSoftwareIntent);
-        continue;
-      }
 
-      // 3. Overwrite/Burn: Mark old software as dying
-      const oldSoftwareId = burned[targetSlot];
-      if (oldSoftwareId !== null) {
-        w.addComponent(oldSoftwareId, Dying, { reason: 'overwritten' });
-      }
+        // Overwrite existing burned software on this gear: mark old software child as dying
+        for (const oldChildId of children.entityIds) {
+          w.addComponent(oldChildId, Dying, { reason: 'overwritten' });
+        }
 
-      w.patchComponent(entityId, EquipmentSlots, {
-        [targetSlot]: softwareEntityId,
-      });
+        w.patchComponent(targetGearId, Children, {
+          entityIds: [softwareEntityId],
+        });
+      } else {
+        // Bare slot or legacy bare software
+        const activeSoftwareIds = [burned.weapon, burned.armor].filter(
+          (id): id is number => id !== null,
+        );
+        let duplicate = false;
+        for (const activeId of activeSoftwareIds) {
+          const activeDef = w.getComponent(activeId, SoftwareDef);
+          if (activeDef && activeDef.type === swDef.type) {
+            eventBus.emit('MESSAGE_EMITTED', {
+              text: `Software type ${swDef.type} is already active.`,
+              type: 'error',
+            });
+            duplicate = true;
+            break;
+          }
+        }
+        if (duplicate) {
+          w.removeComponent(entityId, BurnSoftwareIntent);
+          continue;
+        }
+
+        // Overwrite/Burn: Mark old software as dying
+        const oldSoftwareId = burned[targetSlot];
+        if (oldSoftwareId !== null) {
+          w.addComponent(oldSoftwareId, Dying, { reason: 'overwritten' });
+        }
+
+        w.patchComponent(entityId, EquipmentSlots, {
+          [targetSlot]: softwareEntityId,
+        });
+      }
       InventoryUtil.removeSoftware(w, entityId, inventoryIndex);
 
       eventBus.emit('MESSAGE_EMITTED', {

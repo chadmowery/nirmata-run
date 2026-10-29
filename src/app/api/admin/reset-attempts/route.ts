@@ -1,19 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
-
+import { checkNonProductionOnly } from '@/server/security/env-gate';
 import { logger } from '@engine/utils/logger';
+
+const ResetAttemptsRequestSchema = z.object({
+  sessionId: z.string().min(1),
+  type: z.enum(['daily', 'weekly', 'all']),
+});
 
 /**
  * POST /api/admin/reset-attempts
  * Resets a player's attempt tracking status for daily/weekly modes.
  */
 export async function POST(req: NextRequest) {
-  try {
-    const { sessionId, type } = await req.json();
+  const envBlocked = checkNonProductionOnly();
+  if (envBlocked) return envBlocked;
 
-    if (!sessionId || !type) {
-      return NextResponse.json({ error: 'Missing sessionId or type' }, { status: 400 });
+  try {
+    const body = await req.json();
+    const result = ResetAttemptsRequestSchema.safeParse(body);
+    if (!result.success) {
+      return NextResponse.json(
+        { error: 'Invalid request', details: result.error },
+        { status: 400 },
+      );
     }
+
+    const { sessionId, type } = result.data;
 
     const profile = await profileRepository.load(sessionId);
     if (!profile) {
@@ -27,8 +41,6 @@ export async function POST(req: NextRequest) {
     } else if (type === 'all') {
       profile.attemptTracking.dailyAttemptUsed = false;
       profile.attemptTracking.weeklyAttemptUsed = false;
-    } else {
-      return NextResponse.json({ error: 'Invalid reset type' }, { status: 400 });
     }
 
     await profileRepository.save(profile);

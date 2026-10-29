@@ -1,14 +1,18 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
+import { checkNonProductionOnly } from '@/server/security/env-gate';
 
 const GrantRequestSchema = z.object({
-  sessionId: z.string(),
+  sessionId: z.string().min(1),
   currency: z.enum(['scrap', 'flux']),
   amount: z.number().int(),
 });
 
 export async function POST(req: Request) {
+  const envBlocked = checkNonProductionOnly();
+  if (envBlocked) return envBlocked;
+
   try {
     const body = await req.json();
     const result = GrantRequestSchema.safeParse(body);
