@@ -2,6 +2,9 @@
 
 A self-contained design showcase demonstrating **35 distinct visual styles and layout architectures** for *Nirmata Runner*, covering both the **In-Game HUD** and the **Out-of-Game Workshop**.
 
+> [!TIP]
+> For instructions on building 2D tilesets and spritesheets matching these mockup themes, see the [Tilemap & Tileset Creation Guide](../TILEMAP_GUIDE.md).
+
 ---
 
 ## 1. Quick Start
