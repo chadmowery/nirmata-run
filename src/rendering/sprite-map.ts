@@ -7,28 +7,32 @@ const entitySprites = new Map<EntityId, Sprite>();
 import { logger } from '../engine/utils/logger';
 
 /**
+ * Resolves a PixiJS Texture for a given sprite key from the tileset atlas or global cache.
+ */
+export function getTextureForSpriteKey(spriteKey: string): Texture {
+  const asset = Assets.get('tileset');
+  if (asset && asset.textures && asset.textures[spriteKey]) {
+    return asset.textures[spriteKey];
+  }
+  return Texture.from(spriteKey);
+}
+
+/**
  * Creates a sprite for an entity and adds it to the specified container.
- * If a sprite already exists for this entity, it returns the existing one.
+ * If a sprite already exists for this entity, it updates its texture if needed and returns the existing one.
  */
 export function createEntitySprite(
   entityId: EntityId,
   spriteKey: string,
   container: Container,
 ): Sprite {
+  const texture = getTextureForSpriteKey(spriteKey);
   const existing = entitySprites.get(entityId);
   if (existing) {
+    if (texture && texture !== Texture.EMPTY && existing.texture !== texture) {
+      existing.texture = texture;
+    }
     return existing;
-  }
-
-  let texture: Texture | undefined;
-
-  // 1. Try Assets.get (might return spritesheet or direct asset)
-  const asset = Assets.get('tileset');
-  if (asset && asset.textures && asset.textures[spriteKey]) {
-    texture = asset.textures[spriteKey];
-  } else {
-    // 2. Fallback to global Texture.from
-    texture = Texture.from(spriteKey);
   }
 
   if (!texture || texture.width === 1) {
@@ -38,8 +42,6 @@ export function createEntitySprite(
   const sprite = new Sprite(texture);
   sprite.width = TILE_SIZE;
   sprite.height = TILE_SIZE;
-
-  // Debug graphic removed
 
   container.addChild(sprite);
   entitySprites.set(entityId, sprite);

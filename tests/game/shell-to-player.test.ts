@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createEngineInstance } from '@game/engine-factory';
-import { Health, Defense, Energy, Shell, PortConfig } from '@shared/components';
+import { Health, Defense, Energy, Shell, PortConfig, SpriteComponent } from '@shared/components';
+import { globalShellRegistry } from '@/game/shells/client';
 
 describe('Shell To Player Integration', () => {
   it('should apply shell stats to the spawned player entity', () => {
@@ -101,5 +102,39 @@ describe('Shell To Player Integration', () => {
 
     const ports = world.getComponent(playerId, PortConfig)!;
     expect(ports.maxSoftware).toBe(4); // 2 base + 2 upgrade
+  });
+
+  it('assigns correct shell sprite when player launches with specified shell types', () => {
+    const testCases = [
+      { archetypeId: 'bastion-v1', expectedSprite: 'player_bastion' },
+      { archetypeId: 'ghost-v1', expectedSprite: 'player_ghost' },
+      { archetypeId: 'vanguard-v1', expectedSprite: 'player_vanguard' },
+    ];
+
+    for (const { archetypeId, expectedSprite } of testCases) {
+      const record = globalShellRegistry.get(archetypeId) || globalShellRegistry.createRecord(archetypeId, archetypeId);
+      const instance = createEngineInstance({
+        width: 20,
+        height: 20,
+        seed: `test-seed-${archetypeId}`,
+        shellRecord: record,
+      });
+
+      const sprite = instance.world.getComponent(instance.playerId, SpriteComponent);
+      expect(sprite).toBeDefined();
+      expect(sprite?.key).toBe(expectedSprite);
+    }
+  });
+
+  it('assigns default player sprite when launched without shellRecord', () => {
+    const instance = createEngineInstance({
+      width: 20,
+      height: 20,
+      seed: 'test-seed-default',
+    });
+
+    const sprite = instance.world.getComponent(instance.playerId, SpriteComponent);
+    expect(sprite).toBeDefined();
+    expect(sprite?.key).toBe('player');
   });
 });

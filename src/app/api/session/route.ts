@@ -7,6 +7,7 @@ import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT } from '@/shared/constants';
 import { RunMode } from '@shared/run-mode';
 import { logger } from '@engine/utils/logger';
+import { globalShellRegistry, applyShellUpgradesToRecord } from '@/game/shells/server';
 
 const CreateSessionRequestSchema = z.object({
   seed: z.string().min(1),
@@ -14,6 +15,7 @@ const CreateSessionRequestSchema = z.object({
   mode: z.string().optional(),
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
+  shellId: z.string().optional(),
 });
 
 export async function POST(req: Request) {
@@ -46,6 +48,19 @@ export async function POST(req: Request) {
       profile = createDefaultProfile(sessionId);
     }
 
+    // Shell resolution
+    let shellRecord = null;
+    const requestedShellId = parsed.data.shellId;
+    if (requestedShellId) {
+      shellRecord = globalShellRegistry.get(requestedShellId);
+      if (!shellRecord) {
+        shellRecord = globalShellRegistry.createRecord(requestedShellId, requestedShellId);
+      }
+      if (profile.shellUpgrades?.[requestedShellId]) {
+        shellRecord = applyShellUpgradesToRecord(shellRecord, profile.shellUpgrades[requestedShellId]);
+      }
+    }
+
     const instance = createEngineInstance({
       seed,
       width,
@@ -53,6 +68,7 @@ export async function POST(req: Request) {
       profile,
       sessionId,
       runMode: RunMode.SIMULATION,
+      shellRecord: shellRecord || undefined,
     });
 
     instance.turnManager.start();
@@ -65,6 +81,7 @@ export async function POST(req: Request) {
       eventBus: instance.eventBus,
       systems: instance.systems,
       runMode: RunMode.SIMULATION,
+      shellId: requestedShellId || undefined,
     });
 
     logger.info(`Session created: ${sessionId} (seed: ${seed})`, 'API');

@@ -139,7 +139,7 @@ export interface UIState {
   bootSequenceActive: boolean;
   hasOverflow: boolean;
   overflowCount: number;
-  launchConfig: { mode: RunMode; seed: string; sessionId: string } | null;
+  launchConfig: { mode: RunMode; seed: string; sessionId: string; shellId?: string } | null;
 
   // New gameplay feedback fields
   abilities: AbilityData[];
@@ -202,7 +202,9 @@ export interface UIState {
   setModeAvailability: (modes: ModeAvailability[]) => void;
   setRitualActive: (active: boolean) => void;
   setBootSequenceActive: (active: boolean) => void;
-  setLaunchConfig: (config: { mode: RunMode; seed: string; sessionId: string } | null) => void;
+  setLaunchConfig: (
+    config: { mode: RunMode; seed: string; sessionId: string; shellId?: string } | null,
+  ) => void;
   updateProfileOptimistic: (updater: (profile: PlayerProfile) => PlayerProfile) => void;
   resetHubState: () => void;
   setAbilities: (abilities: AbilityData[]) => void;

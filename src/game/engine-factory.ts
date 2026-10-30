@@ -272,6 +272,25 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
       ...playerOverrides['heat'],
       baseDissipation: 5 + currentStats.stability * 0.1, // Every 10 stability adds 1 dissipation
     };
+
+    // Shell operative sprite
+    const shellKey = (
+      shellRecord.sprite ||
+      shellRecord.archetypeId ||
+      shellRecord.id ||
+      ''
+    ).toLowerCase();
+    let spriteKey = 'player';
+    if (shellKey.includes('bastion')) {
+      spriteKey = 'player_bastion';
+    } else if (shellKey.includes('ghost')) {
+      spriteKey = 'player_ghost';
+    } else if (shellKey.includes('vanguard')) {
+      spriteKey = 'player_vanguard';
+    } else if (shellRecord.sprite) {
+      spriteKey = shellRecord.sprite;
+    }
+    playerOverrides['sprite'] = { key: spriteKey };
   }
 
   const placement = placeEntities(

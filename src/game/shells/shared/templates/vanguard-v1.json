@@ -1,6 +1,7 @@
 {
   "id": "vanguard-v1",
   "name": "VANGUARD-v1",
+  "sprite": "player_vanguard",
   "baseStats": {
     "speed": 120,
     "stability": 5,

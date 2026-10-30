@@ -49,10 +49,11 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
   // Fetch shell record for the player
   const shellId = config.shellId || 'player-shell-default';
-  const archetypeId = 'vanguard-v1'; // Phase 16: Updated to new starter archetype
-
   let shellRecord = globalShellRegistry.get(shellId);
   if (!shellRecord) {
+    const isKnownArchetype =
+      config.shellId && globalShellRegistry.getTemplates().some((t) => t.id === config.shellId);
+    const archetypeId = isKnownArchetype ? config.shellId! : 'vanguard-v1';
     shellRecord = globalShellRegistry.createRecord(shellId, archetypeId);
   }
 

@@ -90,7 +90,10 @@ Rendered onto `layers.entityLayer`:
 
 | Frame Key | Entity Template | Description |
 | :--- | :--- | :--- |
-| `player` | `player.json` | Active runner operative chassis |
+| `player` | `player.json` | Default runner operative chassis |
+| `player_bastion` | `bastion-v1.json` | Heavy fortified chassis with high armor and blast collar |
+| `player_ghost` | `ghost-v1.json` | Slender ceramic synthetic cyber-infiltrator chassis |
+| `player_vanguard` | `vanguard-v1.json` | High-mobility strike chassis with tactical high collar |
 
 ### 3.4 Enemies (Tiers 1–3)
 Rendered onto `layers.entityLayer` (with glitch shaders & neon particle emitters attached in `render-system.ts`):

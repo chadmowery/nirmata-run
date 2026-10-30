@@ -122,6 +122,7 @@ export async function POST(req: NextRequest) {
         mode: config.mode,
         seed: config.seed,
         name: config.name,
+        shellId: shellId || undefined,
       },
     });
   } catch (error) {

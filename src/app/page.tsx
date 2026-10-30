@@ -55,15 +55,20 @@ export default function GamePage() {
       let seed: string;
       let sessionId: string | undefined;
       let runMode: RunMode | undefined;
+      let shellId: string | undefined;
+
+      const fallbackShellId = store.shellTemplates[store.selectedShellIndex]?.id;
 
       if (launchConfig) {
         // Use pre-configured launch data from the Hub (Initialize Ritual)
         seed = launchConfig.seed;
         sessionId = launchConfig.sessionId;
         runMode = launchConfig.mode;
+        shellId = launchConfig.shellId || fallbackShellId;
         logger.info(`Using Hub launch configuration: ${JSON.stringify(launchConfig)}`, 'NETWORK');
       } else {
         // Fallback for legacy/direct play
+        shellId = fallbackShellId;
         seed = `run-${Date.now()}`;
         const sessionResponse = await fetch('/api/session', {
           method: 'POST',
@@ -72,6 +77,7 @@ export default function GamePage() {
             seed,
             width: DEFAULT_GRID_WIDTH,
             height: DEFAULT_GRID_HEIGHT,
+            shellId,
           }),
         });
 
@@ -94,6 +100,7 @@ export default function GamePage() {
         seed,
         sessionId,
         runMode,
+        shellId,
       });
       contextRef.current = context;
       // Expose for debugging

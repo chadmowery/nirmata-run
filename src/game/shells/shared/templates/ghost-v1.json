@@ -1,6 +1,7 @@
 {
   "id": "ghost-v1",
   "name": "GHOST-v1",
+  "sprite": "player_ghost",
   "baseStats": {
     "speed": 100,
     "stability": 8,

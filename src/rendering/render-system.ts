@@ -418,11 +418,9 @@ export function createRenderSystem(config: RenderSystemConfig) {
       for (const entityId of renderables) {
         let sprite = getEntitySprite(entityId);
 
-        // Lazy sprite creation for entities that missed their ENTITY_CREATED event (e.g. via factory)
-        if (!sprite) {
-          const spriteComp = world.getComponent(entityId, SpriteComponent)!;
-          sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
-        }
+        // Lazy sprite creation or texture sync
+        const spriteComp = world.getComponent(entityId, SpriteComponent)!;
+        sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
 
         const pos = world.getComponent(entityId, Position)!;
         const actor = world.getComponent(entityId, Actor);

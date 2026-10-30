@@ -472,10 +472,12 @@ async function main() {
   const floorImg = await loadImage(floorPath);
 
   const tiles = [
-    { key: 'player_bastion', render: renderBastion, title: 'Bastion Shell' },
-    { key: 'player_ghost', render: renderGhost, title: 'Ghost Shell' },
-    { key: 'player_vanguard', render: renderVanguard, title: 'Vanguard Shell' },
+    { key: 'player_bastion', alias: 'bastion-v1', render: renderBastion, title: 'Bastion Shell', x: 0, y: 224 },
+    { key: 'player_ghost', alias: 'ghost-v1', render: renderGhost, title: 'Ghost Shell', x: 32, y: 224 },
+    { key: 'player_vanguard', alias: 'vanguard-v1', render: renderVanguard, title: 'Vanguard Shell', x: 64, y: 224 },
   ];
+
+  const generatedCanvases = new Map();
 
   for (const t of tiles) {
     console.log(`Generating tile: ${t.key}...`);
@@ -484,6 +486,7 @@ async function main() {
     ctx.imageSmoothingEnabled = false;
 
     t.render(ctx);
+    generatedCanvases.set(t.key, canvas);
 
     const tileBuf = canvas.toBuffer('image/png');
     const tileOutPath = path.resolve(__dirname, `../public/assets/tiles/${t.key}.png`);
@@ -497,6 +500,48 @@ async function main() {
     fs.writeFileSync(previewOutPath, previewBuf);
     console.log(`Saved ${previewOutPath} (${previewBuf.length} bytes)`);
   }
+
+  // Composite generated tiles into master tileset
+  const tilesetPaths = [
+    path.resolve(__dirname, '../public/assets/tileset.png'),
+    path.resolve(__dirname, '../public/assets/tiles/tileset.png'),
+  ];
+  const tilesetJsonPath = path.resolve(__dirname, '../public/assets/tileset.json');
+
+  console.log(`Compositing shell tiles into master tileset: ${tilesetPaths[0]}...`);
+  const masterTileset = await loadImage(tilesetPaths[0]);
+  const sheetCanvas = createCanvas(masterTileset.width, masterTileset.height);
+  const sheetCtx = sheetCanvas.getContext('2d');
+  sheetCtx.imageSmoothingEnabled = false;
+  sheetCtx.drawImage(masterTileset, 0, 0);
+
+  for (const t of tiles) {
+    const tileCanvas = generatedCanvases.get(t.key);
+    sheetCtx.clearRect(t.x, t.y, 32, 32);
+    sheetCtx.drawImage(tileCanvas, t.x, t.y, 32, 32);
+  }
+
+  const masterBuf = sheetCanvas.toBuffer('image/png');
+  for (const tp of tilesetPaths) {
+    fs.writeFileSync(tp, masterBuf);
+    console.log(`Saved composite tileset to ${tp}`);
+  }
+
+  const jsonRaw = fs.readFileSync(tilesetJsonPath, 'utf-8');
+  const tilesetJson = JSON.parse(jsonRaw);
+  for (const t of tiles) {
+    const frameData = {
+      frame: { x: t.x, y: t.y, w: 32, h: 32 },
+      sourceSize: { w: 32, h: 32 },
+      spriteSourceSize: { x: 0, y: 0, w: 32, h: 32 },
+    };
+    tilesetJson.frames[t.key] = frameData;
+    if (t.alias) {
+      tilesetJson.frames[t.alias] = frameData;
+    }
+  }
+  fs.writeFileSync(tilesetJsonPath, JSON.stringify(tilesetJson, null, 2) + '\n');
+  console.log(`Updated ${tilesetJsonPath} with shell frames and aliases.`);
 
   console.log('All 3 shell tiles and preview sheets successfully generated!');
 }

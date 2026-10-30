@@ -1,6 +1,7 @@
 {
   "id": "bastion-v1",
   "name": "BASTION-v1",
+  "sprite": "player_bastion",
   "baseStats": {
     "speed": 80,
     "stability": 10,
