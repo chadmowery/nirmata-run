@@ -10,22 +10,53 @@ A self-contained design showcase demonstrating **35 distinct visual styles and l
 ## 1. Quick Start
 
 ### Viewing the Mockups
-Open [`index.html`](./index.html) directly in any web browser:
+Open [`index.html`](./index.html) or the new [**Mock #6 × #26 Mashup** (`mashup-6-26.html`)](./mashup-6-26.html) directly in any web browser:
 ```bash
 # macOS
 open docs/mocks/index.html
+open docs/mocks/mashup-6-26.html
 
 # Linux
 xdg-open docs/mocks/index.html
+xdg-open docs/mocks/mashup-6-26.html
 
 # Windows
 start docs/mocks/index.html
+start docs/mocks/mashup-6-26.html
 ```
 
 Or view via the local Next.js dev server if running:
 ```bash
 http://localhost:3000/docs/mocks/index.html
+http://localhost:3000/mashup-6-26.html
 ```
+
+---
+
+## 1.1 Special Feature: Mock #6 × #26 Full-Game Mashup (`mashup-6-26.html`)
+
+> [!IMPORTANT]
+> For the full engineering specification, CSS design tokens, React component mapping, and future UI style guide, see **[`docs/design/UI-DESIGN-SYSTEM.md`](../design/UI-DESIGN-SYSTEM.md)**.
+
+A complete, standalone full-game interactive design mashup combining:
+- **Layout Architecture**: Leaning heavily into **Mock #6 (Solaris Vector)** — 3-column tactical workstation grid, top HUD telemetry ribbon, live 1px oscilloscope vector canvas viewport with coordinate navigation, radar envelopes, and multi-column hub workshops.
+- **Stylistic DNA & Typography**: Inherited from **Mock #26 (Taikoku Industrial Manifest)** — `Space Grotesk`, `Noto Sans JP`, and `JetBrains Mono` fonts, inverted stark ivory placards (`#f4f4f0` / black), bilingual Japanese kanji branding (`対空重工業`), crimson inspection stamp badges (`[検査済 // CERTIFIED]`), vertical SVG barcode ladders, dotted leader manifest tables, and heavy mechanical dock levers.
+- **Complete Screen Coverage**: Interactive implementation of **all 15 screens and modals in the game**:
+  1. Title / Main Menu Gateway
+  2. Hub — Shell Chassis Diagnostics (with 3D rotating vector wireframe hologram)
+  3. Hub — Loadout & Firmware Socket Matrix
+  4. Hub — Blueprint Compilation & Hardware Workshop
+  5. Hub — 48-Slot Persistent Vault & Stash (with Vault Overflow Alert)
+  6. Hub — Initialize / Deployment Protocol (Simulation, Daily, Weekly One-Shot)
+  7. Hub — Global Leaderboards & Operator Records
+  8. Modal — Pre-Flight Deployment Ritual Review
+  9. Boot Sequence — CRT Vector Kernel Diagnostic Ticker
+  10. In-Game Tactical HUD (Playing) — 1px oscilloscope room grid, runner `@`, enemies (`m`, `b`, `F`), WASD movement, turn stepping, heat venting
+  11. In-Game Modal — Tactical Inventory & 4x5 Backpack Grid
+  12. In-Game Modal — Stability Anchor Emergency Extraction Terminal
+  13. In-Game Modal — Airlock Staircase Transition
+  14. End-of-Run — Fatal BSOD Exception Crash Screen
+  15. End-of-Run — Post-Mission Bill of Lading Manifest (Extraction Success vs. Operator KIA)
 
 ---
 
@@ -36,6 +67,8 @@ Everything needed for the visual mockups is self-contained within this directory
 ```
 docs/mocks/
 ├── index.html            # Standalone single-file interactive viewer (all 35 styles)
+├── mashup-6-26.html      # Standalone Full-Game Interactive Mashup (Mock #6 x #26)
+├── generate-mashup.cjs   # Generator script for mashup-6-26.html
 ├── build.cjs             # Standalone compiler script (rebuilds index.html)
 ├── README.md             # This document
 ├── src/                  # Modular source components used by build.cjs
