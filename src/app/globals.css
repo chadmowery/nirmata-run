@@ -368,31 +368,79 @@ canvas {
 }
 
 /* Hold-To-Confirm Progress Bar Fill (2s Confirmation) */
+.btn-lever[data-hold-button="true"] {
+  overflow: hidden;
+}
+
+.btn-lever[data-hold-button="true"]:hover:not(:disabled) {
+  background: #0d1420;
+  color: #ffffff;
+  border-color: var(--c-accent);
+  box-shadow: 0 0 10px rgba(216, 255, 0, 0.25);
+}
+
+.btn-lever[data-hold-button="true"]:hover:not(:disabled)::before {
+  background: var(--c-accent);
+  width: 5px;
+}
+
+.btn-lever.cyan[data-hold-button="true"]:hover:not(:disabled) {
+  background: #0d1420;
+  color: #ffffff;
+  border-color: var(--c-accent-secondary);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.25);
+}
+
+.btn-lever.cyan[data-hold-button="true"]:hover:not(:disabled)::before {
+  background: var(--c-accent-secondary);
+  width: 5px;
+}
+
+.btn-lever.danger[data-hold-button="true"]:hover:not(:disabled) {
+  background: #0d1420;
+  color: #ffffff;
+  border-color: var(--c-danger);
+  box-shadow: 0 0 10px rgba(255, 42, 75, 0.35);
+}
+
+.btn-lever.danger[data-hold-button="true"]:hover:not(:disabled)::before {
+  background: var(--c-danger);
+  width: 5px;
+}
+
+.btn-lever[data-hold-button="true"]:active {
+  background: #070c14;
+}
+
 .btn-lever-hold-progress {
   position: absolute;
   left: 0;
   top: 0;
   bottom: 0;
-  background: rgba(216, 255, 0, 0.4);
-  box-shadow: 2px 0 8px rgba(216, 255, 0, 0.6);
+  background: linear-gradient(90deg, rgba(216, 255, 0, 0.35) 0%, rgba(216, 255, 0, 0.9) 100%);
+  border-right: 2px solid #ffffff;
+  box-shadow: 0 0 12px rgba(216, 255, 0, 0.8), 2px 0 6px #ffffff;
   pointer-events: none;
   z-index: 1;
-  transition: width 0.04s linear;
+  transition: width 0.03s linear;
 }
 
 .btn-lever-hold-progress.cyan {
-  background: rgba(0, 240, 255, 0.4);
-  box-shadow: 2px 0 8px rgba(0, 240, 255, 0.6);
+  background: linear-gradient(90deg, rgba(0, 240, 255, 0.35) 0%, rgba(0, 240, 255, 0.9) 100%);
+  border-right: 2px solid #ffffff;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.8), 2px 0 6px #ffffff;
 }
 
 .btn-lever-hold-progress.danger {
-  background: rgba(255, 42, 75, 0.45);
-  box-shadow: 2px 0 8px rgba(255, 42, 75, 0.7);
+  background: linear-gradient(90deg, rgba(255, 42, 75, 0.4) 0%, rgba(255, 42, 75, 0.95) 100%);
+  border-right: 2px solid #ffffff;
+  box-shadow: 0 0 12px rgba(255, 42, 75, 0.8), 2px 0 6px #ffffff;
 }
 
 .btn-lever.holding {
   border-color: #ffffff !important;
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.5) !important;
+  background: #070c14 !important;
 }
 
 /* Utility Tool Button (.tool-btn) */
