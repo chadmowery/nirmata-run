@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { EquipmentDef, SoftwareDef, Item, Children, TemplateId, RarityTier } from '@shared/components';
 import type { ComponentDef } from '@engine/ecs/types';
 import { getSoftwareModificationInfo } from '../hub/item-metadata';
@@ -16,7 +17,17 @@ interface InRunItemTooltipProps {
 }
 
 export const InRunItemTooltip: React.FC<InRunItemTooltipProps> = ({ entityId, position }) => {
+  const [mounted, setMounted] = useState(false);
   const [showDeepStats, setShowDeepStats] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [coords, setCoords] = useState<{ x: number; y: number }>({
+    x: position ? position.x + 16 : 16,
+    y: position ? position.y + 16 : 16,
+  });
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -32,6 +43,38 @@ export const InRunItemTooltip: React.FC<InRunItemTooltipProps> = ({ entityId, po
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, []);
+
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined' || !position) return;
+
+    const el = tooltipRef.current;
+    const width = el ? el.offsetWidth : 280;
+    const height = el ? el.offsetHeight : 220;
+    const margin = 16;
+
+    let targetX = position.x + margin;
+    let targetY = position.y + margin;
+
+    // Flip horizontally if overflowing right edge
+    if (targetX + width > window.innerWidth - margin) {
+      targetX = position.x - width - margin;
+    }
+
+    // Flip vertically if overflowing bottom edge
+    if (targetY + height > window.innerHeight - margin) {
+      targetY = position.y - height - margin;
+    }
+
+    // Hard clamp to ensure never cut off
+    const maxX = Math.max(margin, window.innerWidth - width - margin);
+    const maxY = Math.max(margin, window.innerHeight - height - margin);
+    targetX = Math.max(margin, Math.min(targetX, maxX));
+    targetY = Math.max(margin, Math.min(targetY, maxY));
+
+    setCoords({ x: targetX, y: targetY });
+  }, [position?.x, position?.y]);
+
+  if (!mounted) return null;
 
   // Access world from window.gameContext (mocked/available at runtime)
   const world = (window as unknown as { gameContext?: GameContext }).gameContext?.world;
@@ -87,8 +130,8 @@ export const InRunItemTooltip: React.FC<InRunItemTooltipProps> = ({ entityId, po
   const stylePosition: React.CSSProperties = position
     ? {
         position: 'fixed',
-        left: `${Math.min(position.x + 16, typeof window !== 'undefined' ? window.innerWidth - 300 : 800)}px`,
-        top: `${Math.min(position.y + 16, typeof window !== 'undefined' ? window.innerHeight - 240 : 600)}px`,
+        left: `${coords.x}px`,
+        top: `${coords.y}px`,
       }
     : {
         position: 'fixed',
@@ -96,8 +139,11 @@ export const InRunItemTooltip: React.FC<InRunItemTooltipProps> = ({ entityId, po
         bottom: '16px',
       };
 
-  return (
+  const tooltipElement = (
     <div
+      ref={tooltipRef}
+      role="tooltip"
+      aria-live="polite"
       className="inventory-tooltip"
       style={{
         ...stylePosition,
@@ -108,6 +154,8 @@ export const InRunItemTooltip: React.FC<InRunItemTooltipProps> = ({ entityId, po
         padding: '10px 14px',
         minWidth: '240px',
         maxWidth: '300px',
+        maxHeight: 'calc(100vh - 32px)',
+        overflowY: 'auto',
         pointerEvents: 'none',
         fontFamily: 'var(--font-mono, monospace)',
         color: '#ffffff',
@@ -177,4 +225,6 @@ export const InRunItemTooltip: React.FC<InRunItemTooltipProps> = ({ entityId, po
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(tooltipElement, document.body) : tooltipElement;
 };

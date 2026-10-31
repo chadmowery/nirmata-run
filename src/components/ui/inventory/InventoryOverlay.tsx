@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { ChassisTelemetrySidebar } from './ChassisTelemetrySidebar';
 import { EquipmentPanel } from './EquipmentPanel';
 import { BackpackGrid } from './BackpackGrid';
 import { TaikokuPlacard } from '../atomic';
@@ -39,6 +40,7 @@ export const InventoryOverlay: React.FC<{ onClose: () => void }> = ({ onClose })
         />
 
         <div className={styles.splitLayout}>
+          <ChassisTelemetrySidebar />
           <EquipmentPanel />
           <BackpackGrid />
         </div>

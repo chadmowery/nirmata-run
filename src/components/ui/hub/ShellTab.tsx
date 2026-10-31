@@ -8,7 +8,7 @@ import { ShellTemplate } from '@/game/shells/shared';
 import { PanelCard, DottedSpecRow } from '../atomic';
 import { ShellUpgradePanel } from './ShellUpgradePanel';
 import { ItemTooltip } from './ItemTooltip';
-import { ItemMetadata, ItemSpec, resolveItemMetadata } from './item-metadata';
+import { ItemMetadata, resolveItemMetadata, SHELL_STAT_DEFINITIONS } from './item-metadata';
 import styles from './ShellTab.module.css';
 
 interface ArchetypeMeta {
@@ -162,77 +162,6 @@ const SHELL_MODELS: Record<string, WireframeModel> = {
   },
 };
 
-const SHELL_STAT_DEFINITIONS: Record<
-  string,
-  {
-    name: string;
-    kanjiSub: string;
-    typeLabel: string;
-    description: string;
-    specs: ItemSpec[];
-  }
-> = {
-  'BASE SPEED': {
-    name: 'LOCOMOTION VELOCITY // 行動速度',
-    kanjiSub: '機動力 // SPEED METRICS',
-    typeLabel: 'CHASSIS MOBILITY TELEMETRY',
-    description:
-      'Determines the chassis movement rate and turn-action recovery time. Higher velocity allows the runner to outpace hostile entities, reposition before hazards trigger, and act with priority in turn resolution.',
-    specs: [
-      { label: 'MECHANICAL ROLE', value: 'ACTION RECOVERY & MOBILITY', color: 'var(--c-accent)' },
-      { label: 'ENERGY RECOVERY', value: 'PROPORTIONAL TO T/SEC' },
-      { label: 'TACTICAL IMPACT', value: 'EVASION & ENGAGEMENT INITIATIVE' },
-    ],
-  },
-  'ARMOR RATING': {
-    name: 'DAMAGE REDUCTION THRESHOLD // 装甲強度',
-    kanjiSub: '防壁装甲 // ARMOR RATING',
-    typeLabel: 'CHASSIS BALLISTIC DEFENSE',
-    description:
-      'Sub-dermal titanium-composite plating that mitigates kinetic and thermal impact. Incoming damage from enemy attacks and environmental hazards is reduced by this flat threshold (minimum 1 DMG taken).',
-    specs: [
-      { label: 'MECHANICAL ROLE', value: 'FLAT DAMAGE MITIGATION', color: 'var(--c-accent-secondary)' },
-      { label: 'MINIMUM DAMAGE', value: '1 DMG [UNBLOCKABLE CEILING]' },
-      { label: 'TACTICAL IMPACT', value: 'HIGH VALUE VS FAST MULTI-HIT MOBS' },
-    ],
-  },
-  'MAX HEALTH': {
-    name: 'CORE STRUCTURAL INTEGRITY // 耐久上限',
-    kanjiSub: '機体耐久 // MAX HEALTH',
-    typeLabel: 'CHASSIS STRUCTURAL CAPACITY',
-    description:
-      'The maximum structural tolerance of the chassis frame before catastrophic failure. Reaching 0 HP causes fatal core zeroing, instantly terminating the neural link and triggering operator desync (KIA).',
-    specs: [
-      { label: 'MECHANICAL ROLE', value: 'SURVIVAL THRESHOLD', color: 'var(--c-danger)' },
-      { label: 'CRITICAL FAILURE', value: '0 HP = FATAL OPERATOR KIA' },
-      { label: 'TACTICAL IMPACT', value: 'BUFFER FOR ERROR & EXPLOSIVE HAZARDS' },
-    ],
-  },
-  'STABILITY RETENTION': {
-    name: 'REALITY ANCHOR COHERENCE // 現実維持率',
-    kanjiSub: '空間固定 // STABILITY RETENTION',
-    typeLabel: 'QUANTUM ANCHOR STABILIZATION',
-    description:
-      'Counteracts void-induced entropy and background reality decay. Higher retention slows environmental reality distortion, suppresses void anomalies, and extends safe exploration time before reality collapse.',
-    specs: [
-      { label: 'MECHANICAL ROLE', value: 'ENTROPY RESISTANCE', color: 'var(--c-accent)' },
-      { label: 'DECAY MITIGATION', value: 'REDUCES REALITY FLUX PER FLOOR' },
-      { label: 'TACTICAL IMPACT', value: 'PREVENTS RUNAWAY ANOMALY HAZARDS' },
-    ],
-  },
-  'SOCKET PORTS': {
-    name: 'SUBROUTINE EXPANSION BUS // 拡張ポート',
-    kanjiSub: '拡張母線 // SOCKET PORTS',
-    typeLabel: 'MODULAR HARDWARE BUS ARCHITECTURE',
-    description:
-      'Defines the maximum simultaneous capacity for active firmware abilities (FW) and passive neuro-augments (AG). More socket ports allow complex synergies between tactical programs, auto-loaders, and software mods.',
-    specs: [
-      { label: 'MECHANICAL ROLE', value: 'EQUIPMENT SYNERGY CAPACITY', color: 'var(--c-accent-secondary)' },
-      { label: 'FIRMWARE (FW)', value: 'ACTIVE COOLDOWN ABILITIES' },
-      { label: 'AUGMENTS (AG)', value: 'PASSIVE STATS & COMBAT TRIGGERS' },
-    ],
-  },
-};
 
 export const ShellTab: React.FC = () => {
   const [templates, setTemplates] = useState<ShellTemplate[]>([]);

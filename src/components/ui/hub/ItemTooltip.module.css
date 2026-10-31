@@ -2,7 +2,9 @@
   position: fixed;
   z-index: 99999;
   width: 320px;
-  max-width: 90vw;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
   background: rgba(5, 7, 10, 0.98);
   border: 1px solid var(--c-accent);
   box-shadow:

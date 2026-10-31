@@ -109,4 +109,55 @@ describe('ItemTooltip Component', () => {
     expect(screen.getAllByText(/BLEED\.EXE V2/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/Inflicts \+5 DoT Bleed damage/i).length).toBeGreaterThanOrEqual(1);
   });
+
+  it('clamps tooltip position within screen bounds when hovering near bottom-right edge', () => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 768 });
+
+    const meta = resolveItemMetadata({ templateId: 'phase-shift' });
+
+    render(
+      <ItemTooltip
+        metadata={meta}
+        position={{ x: 1010, y: 750 }}
+        visible={true}
+      />,
+    );
+
+    const tooltip = screen.getByRole('tooltip');
+    expect(tooltip).toBeDefined();
+
+    const leftPx = parseInt(tooltip.style.left, 10);
+    const topPx = parseInt(tooltip.style.top, 10);
+
+    // Left should flip or be clamped inside screen width (320px width + 16px margin => <= 1024 - 320 - 16 = 688)
+    expect(leftPx).toBeLessThanOrEqual(1024 - 320 - 16);
+    expect(leftPx).toBeGreaterThanOrEqual(16);
+
+    // Top should flip or be clamped inside screen height (280px height + 16px margin => <= 768 - 280 - 16 = 472)
+    expect(topPx).toBeLessThanOrEqual(768 - 280 - 16);
+    expect(topPx).toBeGreaterThanOrEqual(16);
+  });
+
+  it('clamps tooltip position when coordinates are near top-left edge', () => {
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 1024 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 768 });
+
+    const meta = resolveItemMetadata({ templateId: 'phase-shift' });
+
+    render(
+      <ItemTooltip
+        metadata={meta}
+        position={{ x: -10, y: -10 }}
+        visible={true}
+      />,
+    );
+
+    const tooltip = screen.getByRole('tooltip');
+    const leftPx = parseInt(tooltip.style.left, 10);
+    const topPx = parseInt(tooltip.style.top, 10);
+
+    expect(leftPx).toBeGreaterThanOrEqual(16);
+    expect(topPx).toBeGreaterThanOrEqual(16);
+  });
 });

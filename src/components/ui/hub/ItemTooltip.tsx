@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { VaultItem } from '@/shared/profile';
 import { DottedSpecRow, TaikokuStamp } from '../atomic';
@@ -23,6 +23,7 @@ export const ItemTooltip: React.FC<ItemTooltipProps> = ({
   onDismiss,
 }) => {
   const [mounted, setMounted] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
   const [coords, setCoords] = useState<{ x: number; y: number }>({
     x: position.x + 16,
     y: position.y + 16,
@@ -46,21 +47,32 @@ export const ItemTooltip: React.FC<ItemTooltipProps> = ({
   useLayoutEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const tooltipWidth = 320;
-    const tooltipHeight = 280;
+    const el = tooltipRef.current;
+    const tooltipWidth = el ? el.offsetWidth : 320;
+    const tooltipHeight = el ? el.offsetHeight : 280;
+    const margin = 16;
 
-    let targetX = position.x + 16;
-    let targetY = position.y + 16;
+    let targetX = position.x + margin;
+    let targetY = position.y + margin;
 
-    if (targetX + tooltipWidth > window.innerWidth - 12) {
-      targetX = Math.max(12, position.x - tooltipWidth - 12);
+    // Flip horizontally if overflow on right
+    if (targetX + tooltipWidth > window.innerWidth - margin) {
+      targetX = position.x - tooltipWidth - margin;
     }
-    if (targetY + tooltipHeight > window.innerHeight - 12) {
-      targetY = Math.max(12, window.innerHeight - tooltipHeight - 12);
+
+    // Flip vertically if overflow on bottom
+    if (targetY + tooltipHeight > window.innerHeight - margin) {
+      targetY = position.y - tooltipHeight - margin;
     }
+
+    // Hard clamp to ensure the tooltip is never cut off by viewport edges
+    const maxX = Math.max(margin, window.innerWidth - tooltipWidth - margin);
+    const maxY = Math.max(margin, window.innerHeight - tooltipHeight - margin);
+    targetX = Math.max(margin, Math.min(targetX, maxX));
+    targetY = Math.max(margin, Math.min(targetY, maxY));
 
     setCoords({ x: targetX, y: targetY });
-  }, [position.x, position.y]);
+  }, [position.x, position.y, providedMetadata, item]);
 
   if (!mounted || !visible) return null;
 
@@ -81,6 +93,7 @@ export const ItemTooltip: React.FC<ItemTooltipProps> = ({
 
   const tooltipElement = (
     <div
+      ref={tooltipRef}
       role="tooltip"
       aria-live="polite"
       className={styles.tooltipRoot}
