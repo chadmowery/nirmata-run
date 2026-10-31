@@ -31,6 +31,37 @@
   box-shadow: 0 0 10px rgba(216, 255, 0, 0.3);
 }
 
+.defaultAbilityCard {
+  background: #090e17;
+  border: 1px solid #1c2738;
+  border-left: 3px solid var(--c-accent);
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.defaultAbilityCard:hover,
+.defaultAbilityCard:focus-visible {
+  border-color: var(--c-accent);
+  background: #111a28;
+  outline: none;
+}
+
+.abilityTag {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  padding: 2px 4px;
+  background: rgba(0, 240, 255, 0.1);
+  color: var(--c-accent-secondary);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  white-space: nowrap;
+}
+
 .wireframeView {
   position: relative;
   height: 380px;

@@ -4,6 +4,8 @@ import { createGame } from './setup';
 import { GameState } from './states/types';
 import { GameAction } from './input/actions';
 import { serializeWorld } from '@shared/serialization';
+import { createDefaultProfile } from '@shared/profile';
+import { gameStore } from './ui/store';
 import * as Components from '@shared/components';
 const { Position, Actor, Energy, Hostile, Health, Attack } = Components;
 
@@ -213,5 +215,47 @@ describe('Game Setup Integration', () => {
 
     expect(context.fsm.getCurrentState()).toBe(GameState.Playing);
     expect(context.inputManager.isEnabled()).toBe(true);
+  });
+
+  it('should close inventory instead of pausing when inventory is visible and PAUSE action is received', () => {
+    context.fsm.transition(GameState.MainMenu);
+    context.fsm.transition(GameState.Playing);
+
+    gameStore.setState({ inventoryVisible: true });
+    expect(gameStore.getState().inventoryVisible).toBe(true);
+
+    const actionHandler = (context.inputManager as any).handler;
+    actionHandler(GameAction.PAUSE);
+
+    expect(gameStore.getState().inventoryVisible).toBe(false);
+    expect(context.fsm.getCurrentState()).toBe(GameState.Playing);
+    expect(context.inputManager.isEnabled()).toBe(true);
+  });
+
+  it('should equip starter abilities when profile is passed to createGame', () => {
+    const profile = createDefaultProfile('test-session-setup');
+    const customContext = createGame({
+      gridWidth: 10,
+      gridHeight: 10,
+      profile,
+      shellId: 'vanguard-v1',
+    });
+
+    const player = customContext.playerId;
+    expect(player).toBeDefined();
+    const firmwareSlots = customContext.world.getComponent(player!, Components.FirmwareSlots);
+    expect(firmwareSlots).toBeDefined();
+    expect(firmwareSlots?.equipped.length).toBe(2);
+
+    const ability0 = customContext.world.getComponent(
+      firmwareSlots!.equipped[0],
+      Components.AbilityDef,
+    );
+    const ability1 = customContext.world.getComponent(
+      firmwareSlots!.equipped[1],
+      Components.AbilityDef,
+    );
+    expect(ability0?.name).toBe('BASIC_STRIKE.exe');
+    expect(ability1?.name).toBe('KINETIC_LINK.exe');
   });
 });

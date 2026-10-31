@@ -13,5 +13,6 @@
     "maxAugment": 1,
     "maxSoftware": 1
   },
-  "upgrades": []
+  "upgrades": [],
+  "starterLoadout": ["neural-spike"]
 }

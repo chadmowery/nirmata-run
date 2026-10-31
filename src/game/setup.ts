@@ -19,6 +19,7 @@ import { createTargetingManager } from './input/targeting';
 import { AbilityDef, FirmwareSlots, Position, MoveIntent, VentIntent } from '@shared/components';
 import { ActionIntent } from '@shared/types';
 import { RunMode } from '@shared/run-mode';
+import { PlayerProfile } from '@shared/profile';
 import { logger } from '@engine/utils/logger';
 import { AutoPathfinder } from './debug/auto-pathfind';
 import { useDebugStore } from './debug/debug-store';
@@ -37,6 +38,7 @@ export interface GameConfig {
   seed?: string;
   shellId?: string;
   runMode?: RunMode;
+  profile?: PlayerProfile;
 }
 
 import { globalShellRegistry } from './shells/client';
@@ -63,6 +65,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     seed,
     isClient: true,
     shellRecord,
+    profile: config.profile,
     sessionId: config.sessionId,
     runMode: config.runMode,
   });
@@ -311,6 +314,10 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     }
 
     if (action === GameAction.PAUSE) {
+      if (gameStore.getState().inventoryVisible) {
+        gameStore.getState().toggleInventory();
+        return;
+      }
       const currentState = fsm.getCurrentState();
       if (currentState === GameState.Playing) {
         fsm.transition(GameState.Paused);

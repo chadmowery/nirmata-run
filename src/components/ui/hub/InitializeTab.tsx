@@ -90,8 +90,13 @@ export const InitializeTab: React.FC = () => {
                 {selectedModeData.description}
               </div>
 
-              <div style={{ display: 'flex', gap: '24px', marginTop: '8px' }}>
+              <div style={{ display: 'flex', gap: '24px', marginTop: '8px', flexWrap: 'wrap' }}>
                 <DottedSpecRow label="ACTIVE CHASSIS" value={activeShell.name} style={{ width: '220px' }} />
+                <DottedSpecRow
+                  label="CHASSIS FIRMWARE"
+                  value={activeShell.starterLoadout?.join(', ') || 'DEFAULT SUBSYSTEM'}
+                  style={{ width: '280px' }}
+                />
                 <DottedSpecRow label="REWARD MULTIPLIER" value={selectedRunMode === RunMode.WEEKLY ? '4.0x' : '1.0x'} style={{ width: '200px' }} />
               </div>
             </div>

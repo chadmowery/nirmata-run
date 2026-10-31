@@ -216,28 +216,32 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
   }
 
   // Phase 16: Starter Loadout fallback (D-02, D-04)
-  type EquippedSlotsOverride = { equipped?: unknown[] };
-  const hasEquippedItems =
-    ((playerOverrides['firmwareSlots'] as EquippedSlotsOverride | undefined)?.equipped?.length ||
-      0) > 0 ||
-    ((playerOverrides['softwareSlots'] as EquippedSlotsOverride | undefined)?.equipped?.length ||
-      0) > 0 ||
-    ((playerOverrides['augmentSlots'] as EquippedSlotsOverride | undefined)?.equipped?.length ||
-      0) > 0;
+  // If the shell has no equipped firmware abilities, automatically equip its default starterLoadout
+  type EquippedSlotsOverride = { equipped?: number[] };
+  const currentEquippedFirmware =
+    (playerOverrides['firmwareSlots'] as EquippedSlotsOverride | undefined)?.equipped || [];
 
-  if (!hasEquippedItems && config.shellRecord?.starterLoadout) {
+  if (currentEquippedFirmware.length === 0 && config.shellRecord?.starterLoadout) {
     const firmwareIds: number[] = [];
+    const augmentIds: number[] = [
+      ...(((playerOverrides['augmentSlots'] as EquippedSlotsOverride | undefined)?.equipped as number[]) || []),
+    ];
 
     for (const itemBlueprintId of config.shellRecord.starterLoadout) {
       // Spawn the starter item
       const itemId = entityFactory.create(world, itemBlueprintId, componentRegistry);
 
-      // For now, starter items are assumed to be firmware (per PRD archetypes)
-      // but we could check the template type if needed.
-      firmwareIds.push(itemId);
+      if (world.hasComponent(itemId, AugmentData)) {
+        augmentIds.push(itemId);
+      } else {
+        firmwareIds.push(itemId);
+      }
     }
 
     playerOverrides['firmwareSlots'] = { equipped: firmwareIds };
+    playerOverrides['augmentSlots'] = { equipped: augmentIds };
+  } else if (!playerOverrides['firmwareSlots']) {
+    playerOverrides['firmwareSlots'] = { equipped: [] };
   }
 
   if (config.shellRecord) {

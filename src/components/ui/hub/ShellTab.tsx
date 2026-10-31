@@ -7,6 +7,8 @@ import { gameStore } from '@/game/ui/store';
 import { ShellTemplate } from '@/game/shells/shared';
 import { PanelCard, DottedSpecRow } from '../atomic';
 import { ShellUpgradePanel } from './ShellUpgradePanel';
+import { ItemTooltip } from './ItemTooltip';
+import { ItemMetadata, resolveItemMetadata } from './item-metadata';
 import styles from './ShellTab.module.css';
 
 interface ArchetypeMeta {
@@ -26,6 +28,12 @@ export const ShellTab: React.FC = () => {
   const selectedShellIndex = useStore(gameStore, (s) => s.selectedShellIndex);
   const setSelectedShellIndex = useStore(gameStore, (s) => s.setSelectedShellIndex);
   const setShellTemplates = useStore(gameStore, (s) => s.setShellTemplates);
+
+  const [hoveredAbility, setHoveredAbility] = useState<{
+    metadata: ItemMetadata;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isRotating, setIsRotating] = useState(true);
@@ -138,12 +146,30 @@ export const ShellTab: React.FC = () => {
     };
   }, [isRotating]);
 
+  const handleFocus = (metadata: ItemMetadata, e: React.FocusEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHoveredAbility({
+      metadata,
+      x: rect.right,
+      y: rect.top,
+    });
+  };
+
   if (loading) {
     return <div className={styles.loading}>DIAGNOSTICS_RUNNING // QUERYING SHELL REPOSITORY...</div>;
   }
 
   const activeShell = templates[selectedShellIndex] || templates[0];
   const meta = activeShell ? ARCHETYPE_INFO[activeShell.id] || { subtitle: 'Standard Operator', kanjiArchetype: '標準型' } : null;
+
+  const starterLoadout = activeShell?.starterLoadout || [];
+  const starterAbilities = starterLoadout.map((blueprintId) =>
+    resolveItemMetadata({
+      templateId: blueprintId,
+      status: 'DEFAULT CHASSIS FIRMWARE',
+      statusVariant: 'cyan',
+    }),
+  );
 
   return (
     <div className="three-col-grid">
@@ -199,6 +225,94 @@ export const ShellTab: React.FC = () => {
             value={`FW:${activeShell?.basePorts?.maxFirmware ?? 2} / AG:${activeShell?.basePorts?.maxAugment ?? 2}`}
           />
         </div>
+
+        {/* Default / Starter Firmware Subsystem Suite */}
+        <div style={{ marginTop: '14px', paddingTop: '10px', borderTop: '1px solid rgba(0, 240, 255, 0.2)' }}>
+          <div
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '10px',
+              color: 'var(--c-accent)',
+              fontWeight: 800,
+              letterSpacing: '0.08em',
+              marginBottom: '8px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <span>DEFAULT FIRMWARE LOADOUT</span>
+            <span style={{ color: 'var(--c-text-dim)', fontSize: '8px' }}>[初期装備]</span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {starterAbilities.length === 0 ? (
+              <div
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '9px',
+                  color: 'var(--c-text-muted)',
+                  textAlign: 'center',
+                  padding: '6px',
+                }}
+              >
+                NO DEFAULT FIRMWARE // SOCKET FROM VAULT
+              </div>
+            ) : (
+              starterAbilities.map((itemMeta, idx) => (
+                <div
+                  key={`${itemMeta.id}-${idx}`}
+                  className={styles.defaultAbilityCard}
+                  tabIndex={0}
+                  onPointerEnter={(e) =>
+                    setHoveredAbility({ metadata: itemMeta, x: e.clientX, y: e.clientY })
+                  }
+                  onPointerMove={(e) => {
+                    if (hoveredAbility?.metadata.id === itemMeta.id) {
+                      setHoveredAbility({ metadata: itemMeta, x: e.clientX, y: e.clientY });
+                    }
+                  }}
+                  onPointerLeave={() => setHoveredAbility(null)}
+                  onFocus={(e) => handleFocus(itemMeta, e)}
+                  onBlur={() => setHoveredAbility(null)}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '9px',
+                        fontWeight: 900,
+                        color: 'var(--c-accent)',
+                      }}
+                    >
+                      [FW {idx + 1}]
+                    </span>
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-header)',
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        color: '#ffffff',
+                      }}
+                    >
+                      {itemMeta.name}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className={styles.abilityTag}>
+                      {itemMeta.specs.find((s) => s.label.includes('HEAT'))?.value || '+HEAT'}
+                    </span>
+                    <span className={styles.abilityTag}>
+                      {itemMeta.specs.find((s) => s.label.includes('RANGE') || s.label.includes('ENGAGEMENT'))
+                        ?.value || 'TACTICAL'}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </PanelCard>
 
       {/* Column 2: 1px Vector Wireframe Hologram View */}
@@ -236,6 +350,18 @@ export const ShellTab: React.FC = () => {
       <div>
         <ShellUpgradePanel />
       </div>
+
+      {/* Hover Tooltip for Default Abilities */}
+      {hoveredAbility && (
+        <ItemTooltip
+          metadata={hoveredAbility.metadata}
+          position={{ x: hoveredAbility.x, y: hoveredAbility.y }}
+          visible={true}
+          onDismiss={() => setHoveredAbility(null)}
+        />
+      )}
     </div>
   );
 };
+
+export default ShellTab;

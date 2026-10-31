@@ -83,31 +83,35 @@ export interface ProfileRepository {
 export function createDefaultProfile(sessionId: string): PlayerProfile {
   const profile = PlayerProfileSchema.parse({ sessionId });
 
-  const shellIds = ['vanguard-v1', 'bastion-v1', 'ghost-v1'];
+  const shellLoadouts: Record<string, string[]> = {
+    'vanguard-v1': ['basic-strike', 'kinetic-link'],
+    'bastion-v1': ['neural-spike'],
+    'ghost-v1': ['ghost-pulse', 'logic-jam'],
+  };
 
-  // Register blueprints so they are available to be "installed"
+  // Register starter blueprints so they are available to be inspected and swapped in the Workshop/Loadout
   profile.blueprintLibrary = [
+    { blueprintId: 'basic-strike', type: 'firmware', compiledAt: Date.now() },
+    { blueprintId: 'kinetic-link', type: 'firmware', compiledAt: Date.now() },
     { blueprintId: 'neural-spike', type: 'firmware', compiledAt: Date.now() },
     { blueprintId: 'phase-shift', type: 'firmware', compiledAt: Date.now() },
+    { blueprintId: 'ghost-pulse', type: 'firmware', compiledAt: Date.now() },
+    { blueprintId: 'logic-jam', type: 'firmware', compiledAt: Date.now() },
   ];
 
-  // Pre-install on all starting shells
-  shellIds.forEach((shellId, sIdx) => {
-    profile.installedItems.push({
-      entityId: 20000 + sIdx * 10,
-      blueprintId: 'neural-spike',
-      type: 'firmware',
-      shellId,
-      isLegacy: false,
-    });
-    profile.installedItems.push({
-      entityId: 20001 + sIdx * 10,
-      blueprintId: 'phase-shift',
-      type: 'firmware',
-      shellId,
-      isLegacy: false,
-    });
-  });
+  // Pre-install each shell's thematic default abilities
+  let entityIdSeq = 20000;
+  for (const [shellId, loadout] of Object.entries(shellLoadouts)) {
+    for (const blueprintId of loadout) {
+      profile.installedItems.push({
+        entityId: entityIdSeq++,
+        blueprintId,
+        type: 'firmware',
+        shellId,
+        isLegacy: false,
+      });
+    }
+  }
 
   return profile;
 }

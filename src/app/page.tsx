@@ -101,6 +101,7 @@ export default function GamePage() {
         sessionId,
         runMode,
         shellId,
+        profile: store.playerProfile || undefined,
       });
       contextRef.current = context;
       // Expose for debugging

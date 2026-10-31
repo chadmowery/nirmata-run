@@ -76,10 +76,14 @@ export const RitualOverlay: React.FC = () => {
     (i: InstalledItem) => i.shellId === currentShell.id,
   );
 
-  const firmwareList = installedOnCurrent
-    .filter((i: InstalledItem) => i.type === 'firmware')
-    .map((i: InstalledItem) => i.blueprintId)
-    .join(', ') || 'NONE SOCKETED';
+  const firmwareList =
+    installedOnCurrent
+      .filter((i: InstalledItem) => i.type === 'firmware')
+      .map((i: InstalledItem) => i.blueprintId)
+      .join(', ') ||
+    (currentShell.starterLoadout && currentShell.starterLoadout.length > 0
+      ? `${currentShell.starterLoadout.join(', ')} [DEFAULT]`
+      : 'NONE SOCKETED');
 
   const augmentList = installedOnCurrent
     .filter((i: InstalledItem) => i.type === 'augment')

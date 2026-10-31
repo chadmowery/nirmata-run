@@ -7,6 +7,18 @@ import { TaikokuPlacard } from '../atomic';
 import styles from './InventoryOverlay.module.css';
 
 export const InventoryOverlay: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [onClose]);
+
   return (
     <div
       className={styles.inventoryContainer}
