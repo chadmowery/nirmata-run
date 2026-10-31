@@ -26,6 +26,7 @@ import {
   RunInventory,
   Shell,
 } from '@shared/components';
+import { Dying } from '@shared/components/dying';
 import { getRunModeConfig } from '@game/systems/run-mode-config';
 import { handleInventorySwap } from '@game/intent/inventory-intent';
 
@@ -166,6 +167,14 @@ export async function POST(req: Request) {
           action.args,
           session.systems,
         );
+        break;
+
+      case 'ABORT_RUN':
+        world.addComponent(session.playerId, Dying, {
+          killerId: session.playerId,
+          reason: 'OPERATOR_MANUAL_DESYNC',
+        });
+        actionKey = 'ABORT_RUN';
         break;
     }
 

@@ -307,6 +307,22 @@ export const BtnLever: React.FC<BtnLeverProps> = ({
       : `HOLD ${Math.round(holdProgress)}%`
     : rightSlot;
 
+  const fillColor =
+    variant === 'cyan'
+      ? 'rgba(0, 240, 255, 0.55)'
+      : variant === 'danger'
+        ? 'rgba(255, 42, 75, 0.65)'
+        : 'rgba(216, 255, 0, 0.55)';
+  const emptyColor = '#070c14';
+
+  const dynamicBackgroundStyle: React.CSSProperties =
+    holdToConfirm && isHolding && holdProgress > 0
+      ? {
+          backgroundImage: `linear-gradient(90deg, ${fillColor} 0%, ${fillColor} ${holdProgress}%, ${emptyColor} ${holdProgress}%, ${emptyColor} 100%)`,
+          transition: 'none',
+        }
+      : {};
+
   return (
     <button
       ref={buttonRef}
@@ -316,6 +332,10 @@ export const BtnLever: React.FC<BtnLeverProps> = ({
       data-hold-button={holdToConfirm ? 'true' : undefined}
       data-holding={isHolding}
       data-hold-progress={Math.round(holdProgress)}
+      style={{
+        ...rest.style,
+        ...dynamicBackgroundStyle,
+      }}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerMove={handlePointerMove}
@@ -338,7 +358,9 @@ export const BtnLever: React.FC<BtnLeverProps> = ({
           aria-hidden="true"
         />
       )}
-      <span style={{ position: 'relative', zIndex: 2 }}>{children}</span>
+      <span style={{ position: 'relative', zIndex: 2, textShadow: '0 1px 3px rgba(0, 0, 0, 0.85)' }}>
+        {children}
+      </span>
       {displaySlot !== undefined && displaySlot !== null && (
         <span
           style={{
@@ -346,6 +368,7 @@ export const BtnLever: React.FC<BtnLeverProps> = ({
             fontSize: '10px',
             position: 'relative',
             zIndex: 2,
+            textShadow: '0 1px 3px rgba(0, 0, 0, 0.85)',
           }}
         >
           {displaySlot}

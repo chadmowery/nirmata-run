@@ -18,6 +18,7 @@ import { AnchorOverlay } from '@/components/ui/AnchorOverlay';
 import { StaircaseOverlay } from '@/components/ui/StaircaseOverlay';
 import { BSODScreen } from '@/components/ui/BSODScreen';
 import { RunResultsScreen } from '@/components/ui/RunResultsScreen';
+import { AbortMissionDialog } from '@/components/ui/AbortMissionDialog';
 import { HubLayout } from '@/components/ui/hub/HubLayout';
 import { DevTerminal } from '@/components/ui/DevTerminal';
 import { GameContext } from '@/game/types';
@@ -31,6 +32,7 @@ export default function GamePage() {
   const staircaseOverlayVisible = useStore(gameStore, (s) => s.staircaseOverlayVisible);
   const bsodVisible = useStore(gameStore, (s) => s.bsodVisible);
   const runResultsVisible = useStore(gameStore, (s) => s.runResultsVisible);
+  const abortDialogVisible = useStore(gameStore, (s) => s.abortDialogVisible);
   const isInitializing = useRef(false);
   const renderSystemRef = useRef<ReturnType<typeof createRenderSystem> | null>(null);
   const tickerCallbackRef = useRef<(() => void) | null>(null);
@@ -220,6 +222,7 @@ export default function GamePage() {
             {(status === GameState.Playing || status === GameState.Paused) && <HUDOverlay />}
             {anchorOverlayVisible && <AnchorOverlay />}
             {staircaseOverlayVisible && <StaircaseOverlay />}
+            {abortDialogVisible && <AbortMissionDialog />}
             {bsodVisible && <BSODScreen />}
             {runResultsVisible && <RunResultsScreen />}
           </>

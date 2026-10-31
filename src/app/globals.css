@@ -440,7 +440,8 @@ canvas {
 .btn-lever.holding {
   border-color: #ffffff !important;
   box-shadow: 0 0 16px rgba(255, 255, 255, 0.5) !important;
-  background: #070c14 !important;
+  background: #070c14;
+  color: #ffffff !important;
 }
 
 /* Utility Tool Button (.tool-btn) */

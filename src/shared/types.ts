@@ -107,6 +107,10 @@ export const InventorySwapActionSchema = z.object({
   destinationIndex: z.number().int(),
 });
 
+export const AbortRunActionSchema = z.object({
+  type: z.literal('ABORT_RUN'),
+});
+
 export const ActionIntentSchema = z.discriminatedUnion('type', [
   MoveActionSchema,
   AttackActionSchema,
@@ -126,6 +130,7 @@ export const ActionIntentSchema = z.discriminatedUnion('type', [
   PickupCurrencyActionSchema,
   DebugActionSchema,
   InventorySwapActionSchema,
+  AbortRunActionSchema,
 ]);
 
 export type ActionIntent = z.infer<typeof ActionIntentSchema>;

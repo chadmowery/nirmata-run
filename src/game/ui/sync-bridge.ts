@@ -12,7 +12,7 @@ import { AugmentSlots } from '@shared/components/augment-slots';
 import { SoftwareSlots } from '@shared/components/software-slots';
 import { Heat } from '@shared/components/heat';
 import { Shell } from '@shared/components/shell';
-import { EquipmentSlots } from '@shared/components';
+import { EquipmentSlots, TemplateId } from '@shared/components';
 import { AbilityDef } from '@shared/components/ability-def';
 import { SoftwareDef } from '@shared/components/software-def';
 import { StatusEffects } from '@shared/components/status-effects';
@@ -56,12 +56,19 @@ export function syncEngineToStore(context: GameContext) {
     // Map Abilities
     const abilities = (fSlots?.equipped || []).map((id, index) => {
       const def = world.getComponent(id, AbilityDef);
+      const tmpl = world.getComponent(id, TemplateId);
       return {
-        name: def?.name || 'Unknown',
+        name: def?.name || tmpl?.id || 'Unknown',
         slotIndex: index,
         heatCost: def?.heatCost || 0,
         range: def?.range || 0,
         effectType: def?.effectType || 'none',
+        templateId: tmpl?.id || '',
+        damageAmount: def?.damageAmount || 0,
+        dashDistance: def?.dashDistance || 0,
+        visionRadius: def?.visionRadius || 0,
+        isToggle: def?.isToggle || false,
+        isActive: def?.isActive || false,
       };
     });
 

@@ -53,6 +53,13 @@ export interface AbilityData {
   heatCost: number;
   range: number;
   effectType: string;
+  templateId?: string;
+  description?: string;
+  damageAmount?: number;
+  dashDistance?: number;
+  visionRadius?: number;
+  isToggle?: boolean;
+  isActive?: boolean;
 }
 
 export interface VisibleEntity {
@@ -150,6 +157,7 @@ export interface UIState {
   targetingY: number;
   inventoryVisible: boolean;
   inventoryRevision: number;
+  abortDialogVisible: boolean;
 
   // Drag and drop / optimistic updates state
   draggedRunItemEntityId: number | null;
@@ -207,6 +215,7 @@ export interface UIState {
   ) => void;
   updateProfileOptimistic: (updater: (profile: PlayerProfile) => PlayerProfile) => void;
   resetHubState: () => void;
+  setAbortDialogVisible: (visible: boolean) => void;
   setAbilities: (abilities: AbilityData[]) => void;
   setTargeting: (active: boolean, slotIndex: number, range: number, x?: number, y?: number) => void;
   updateTargetingCursor: (x: number, y: number) => void;
@@ -298,6 +307,7 @@ export const gameStore = createStore<UIState>((set, get) => ({
   targetingY: 0,
   inventoryVisible: false,
   inventoryRevision: 0,
+  abortDialogVisible: false,
   draggedRunItemEntityId: null,
   optimisticWeapon: undefined,
   optimisticArmor: undefined,
@@ -442,6 +452,7 @@ export const gameStore = createStore<UIState>((set, get) => ({
       heatMaxSafe: 100,
       inventoryVisible: false,
       inventoryRevision: 0,
+      abortDialogVisible: false,
       messages: [],
     }),
   clearMessages: () => set({ messages: [] }),
@@ -542,6 +553,7 @@ export const gameStore = createStore<UIState>((set, get) => ({
     }),
   updateTargetingCursor: (x, y) => set({ targetingX: x, targetingY: y }),
   toggleInventory: () => set((state) => ({ inventoryVisible: !state.inventoryVisible })),
+  setAbortDialogVisible: (visible) => set({ abortDialogVisible: visible }),
   incrementInventoryRevision: () =>
     set((state) => ({ inventoryRevision: state.inventoryRevision + 1 })),
   updateHeatTier: (tier, value, maxSafe) =>

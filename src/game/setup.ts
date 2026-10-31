@@ -320,8 +320,15 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
       }
       const currentState = fsm.getCurrentState();
       if (currentState === GameState.Playing) {
-        fsm.transition(GameState.Paused);
+        const currentAbort = gameStore.getState().abortDialogVisible;
+        if (currentAbort) {
+          gameStore.getState().setAbortDialogVisible(false);
+        } else {
+          gameStore.getState().setAbortDialogVisible(true);
+          fsm.transition(GameState.Paused);
+        }
       } else if (currentState === GameState.Paused) {
+        gameStore.getState().setAbortDialogVisible(false);
         fsm.transition(GameState.Playing);
       }
       return;

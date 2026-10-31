@@ -126,4 +126,25 @@ describe('ShellTab UI & Hologram Viewer', () => {
     const resetBtn = screen.getByRole('button', { name: /RESET CAM/i });
     fireEvent.click(resetBtn);
   });
+
+  it('displays detailed stat tooltip when hovering over a chassis stat', async () => {
+    render(<ShellTab />);
+
+    await waitFor(() => {
+      expect(screen.getByText('BASE SPEED')).toBeDefined();
+    });
+
+    const speedRow = screen.getByText('BASE SPEED');
+    fireEvent.pointerEnter(speedRow, { clientX: 150, clientY: 200 });
+
+    await waitFor(() => {
+      expect(screen.getByText(/LOCOMOTION VELOCITY \/\/ 行動速度/i)).toBeDefined();
+      expect(screen.getByText(/CHASSIS MOBILITY TELEMETRY/i)).toBeDefined();
+    });
+
+    fireEvent.pointerLeave(speedRow);
+    await waitFor(() => {
+      expect(screen.queryByText(/LOCOMOTION VELOCITY \/\/ 行動速度/i)).toBeNull();
+    });
+  });
 });
