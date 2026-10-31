@@ -16,18 +16,20 @@ export const ShellUpgradesSchema = z.object({
 export const InstalledItemSchema = z.object({
   entityId: z.number(),
   blueprintId: z.string(),
-  type: z.enum(['firmware', 'augment', 'software']),
+  type: z.enum(['firmware', 'augment', 'software', 'weapon', 'armor', 'backpack']),
   shellId: z.string(),
   isLegacy: z.boolean().default(false),
+  socketedSoftware: z.array(z.string()).optional(),
 });
 
 export const VaultItemSchema = z.object({
   entityId: z.number(),
   templateId: z.string(),
   rarityTier: z.string(),
-  itemType: z.enum(['firmware', 'augment', 'software', 'equipment', 'weapon', 'armor']),
+  itemType: z.enum(['firmware', 'augment', 'software', 'equipment', 'weapon', 'armor', 'backpack']),
   extractedAtFloor: z.number(),
   extractedAtTimestamp: z.number(),
+  socketedSoftware: z.array(z.string()).optional(),
 });
 
 export const AttemptTrackingSchema = z

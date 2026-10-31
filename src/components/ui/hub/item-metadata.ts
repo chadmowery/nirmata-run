@@ -35,6 +35,7 @@ export interface ResolveItemParams {
   statusVariant?: StampVariant;
   coord?: string;
   compiledAt?: number;
+  socketedSoftware?: string[];
 }
 
 interface KnownTemplateDefinition {
@@ -633,6 +634,13 @@ export function resolveItemMetadata(params: ResolveItemParams): ItemMetadata {
       label: 'SERIAL NUMBER',
       value: `TK-VLT-${entityId.toString().slice(-6)}`,
       color: 'var(--c-text-dim)',
+    });
+  }
+  if (params.socketedSoftware && params.socketedSoftware.length > 0) {
+    specs.push({
+      label: 'LOADED SOFTWARE',
+      value: params.socketedSoftware.map((s) => s.toUpperCase()).join(', '),
+      color: 'var(--c-accent-secondary)',
     });
   }
 

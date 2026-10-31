@@ -6,6 +6,13 @@ import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import VaultOverflowBanner from './VaultOverflowBanner';
 import { VaultItem } from '@/shared/profile';
+import {
+  isWeaponItem,
+  isArmorItem,
+  isSoftwareItem,
+  canSocketSoftware,
+  getSoftwareTargetSlot,
+} from '@/shared/utils/equipment-util';
 import { PanelCard, DottedSpecRow, BtnLever, TaikokuStamp, ItemIcon } from '../atomic';
 import { ItemTooltip } from './ItemTooltip';
 import { ItemMetadata, resolveItemMetadata } from './item-metadata';
@@ -15,6 +22,8 @@ export const VaultTab: React.FC = () => {
   const profile = useStore(gameStore, (s) => s.playerProfile);
   const updateProfileOptimistic = useStore(gameStore, (s) => s.updateProfileOptimistic);
   const [selectedItem, setSelectedItem] = useState<VaultItem | null>(null);
+  const [draggedVaultItem, setDraggedVaultItem] = useState<VaultItem | null>(null);
+  const [dragOverEntityId, setDragOverEntityId] = useState<number | null>(null);
 
   const [hoveredSlot, setHoveredSlot] = useState<{
     metadata: ItemMetadata;
@@ -77,6 +86,58 @@ export const VaultTab: React.FC = () => {
     }
   };
 
+  const handleSocketSoftware = async (targetEntityId: number, softwareEntityId: number) => {
+    logger.debug(`[Vault] Socketing software ${softwareEntityId} onto gear ${targetEntityId}`, 'UI');
+    const previousProfile = { ...profile };
+    const softwareItem = profile.vault.find((i) => i.entityId === softwareEntityId);
+    if (!softwareItem) return;
+
+    // Optimistic UI update
+    updateProfileOptimistic((p) => {
+      const newVault = p.vault
+        .filter((i) => i.entityId !== softwareEntityId)
+        .map((i) =>
+          i.entityId === targetEntityId
+            ? { ...i, socketedSoftware: [softwareItem.templateId] }
+            : i,
+        );
+      return { ...p, vault: newVault };
+    });
+
+    if (selectedItem && selectedItem.entityId === targetEntityId) {
+      setSelectedItem({
+        ...selectedItem,
+        socketedSoftware: [softwareItem.templateId],
+      });
+    }
+
+    try {
+      const response = await fetch('/api/vault/socket-software', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: profile.sessionId,
+          targetEntityId,
+          softwareEntityId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to socket software');
+      }
+      const data = await response.json();
+      if (data.profile) {
+        gameStore.getState().setPlayerProfile(data.profile);
+      }
+    } catch (error) {
+      logger.error('Socket software error:', 'UI', error);
+      updateProfileOptimistic(() => previousProfile);
+    } finally {
+      setDraggedVaultItem(null);
+      setDragOverEntityId(null);
+    }
+  };
+
   const capacity = profile.vault.length;
   const maxSlots = 48;
   const gridCells = Array(maxSlots).fill(null);
@@ -93,6 +154,8 @@ export const VaultTab: React.FC = () => {
   const getTagClass = (type: string) => {
     if (type === 'firmware') return styles.slotTagFirm;
     if (type === 'augment') return styles.slotTagAug;
+    if (type === 'weapon') return styles.slotTagFirm;
+    if (type === 'armor') return styles.slotTagAug;
     return styles.slotTagSoft;
   };
 
@@ -104,6 +167,27 @@ export const VaultTab: React.FC = () => {
       y: rect.top,
     });
   };
+
+  // Inspect compatibility
+  const isSelectedGear =
+    selectedItem && (isWeaponItem(selectedItem) || isArmorItem(selectedItem));
+
+  const compatibleSoftwareInVault = isSelectedGear
+    ? profile.vault.filter(
+        (v) =>
+          isSoftwareItem(v) &&
+          canSocketSoftware(v.templateId, selectedItem.templateId, selectedItem.itemType),
+      )
+    : [];
+
+  const isSelectedSoftware = selectedItem && isSoftwareItem(selectedItem);
+  const compatibleGearInVault = isSelectedSoftware
+    ? profile.vault.filter(
+        (v) =>
+          (isWeaponItem(v) || isArmorItem(v)) &&
+          canSocketSoftware(selectedItem.templateId, v.templateId, v.itemType),
+      )
+    : [];
 
   return (
     <div>
@@ -137,6 +221,13 @@ export const VaultTab: React.FC = () => {
 
               const item = cell as VaultItem;
               const isSelected = selectedItem?.entityId === item.entityId;
+              const isDraggedOver = dragOverEntityId === item.entityId;
+
+              const isDropTargetValid =
+                draggedVaultItem &&
+                isSoftwareItem(draggedVaultItem) &&
+                (isWeaponItem(item) || isArmorItem(item)) &&
+                canSocketSoftware(draggedVaultItem.templateId, item.templateId, item.itemType);
 
               const meta = resolveItemMetadata({
                 templateId: item.templateId,
@@ -145,6 +236,7 @@ export const VaultTab: React.FC = () => {
                 entityId: item.entityId,
                 floor: item.extractedAtFloor,
                 coord,
+                socketedSoftware: item.socketedSoftware,
                 status: `BAY ${coord} // SECURED`,
                 statusVariant: 'secured',
               });
@@ -152,8 +244,33 @@ export const VaultTab: React.FC = () => {
               return (
                 <div
                   key={item.entityId}
-                  className={`${styles.vaultSlot} ${isSelected ? styles.selected : ''}`}
+                  className={`
+                    ${styles.vaultSlot} 
+                    ${isSelected ? styles.selected : ''}
+                    ${isDraggedOver && isDropTargetValid ? styles.dropValid : ''}
+                  `}
                   tabIndex={0}
+                  draggable={true}
+                  onDragStart={() => setDraggedVaultItem(item)}
+                  onDragEnd={() => {
+                    setDraggedVaultItem(null);
+                    setDragOverEntityId(null);
+                  }}
+                  onDragOver={(e) => {
+                    if (isDropTargetValid) e.preventDefault();
+                  }}
+                  onDragEnter={() => {
+                    if (isDropTargetValid) setDragOverEntityId(item.entityId);
+                  }}
+                  onDragLeave={() => {
+                    if (dragOverEntityId === item.entityId) setDragOverEntityId(null);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (draggedVaultItem && isDropTargetValid) {
+                      handleSocketSoftware(item.entityId, draggedVaultItem.entityId);
+                    }
+                  }}
                   onClick={() => setSelectedItem(item)}
                   onPointerEnter={(e) =>
                     setHoveredSlot({ metadata: meta, x: e.clientX, y: e.clientY })
@@ -176,7 +293,9 @@ export const VaultTab: React.FC = () => {
                     style={{ margin: '2px 0' }}
                   />
                   <span className={`${styles.slotTag} ${getTagClass(item.itemType)}`}>
-                    {item.itemType.substring(0, 4).toUpperCase()}
+                    {item.socketedSoftware && item.socketedSoftware.length > 0
+                      ? 'SW+'
+                      : item.itemType.substring(0, 4).toUpperCase()}
                   </span>
                 </div>
               );
@@ -249,7 +368,114 @@ export const VaultTab: React.FC = () => {
                     valueColor="var(--c-scrap)"
                   />
                   <DottedSpecRow label="INTEGRITY STATUS" value="SEALED CONTAINER" />
+
+                  {isSelectedGear && (
+                    <DottedSpecRow
+                      label="LOADED SOFTWARE"
+                      value={
+                        selectedItem.socketedSoftware && selectedItem.socketedSoftware.length > 0
+                          ? selectedItem.socketedSoftware.join(', ').toUpperCase()
+                          : 'NONE // EMPTY'
+                      }
+                      valueColor={
+                        selectedItem.socketedSoftware && selectedItem.socketedSoftware.length > 0
+                          ? 'var(--c-accent-secondary)'
+                          : undefined
+                      }
+                    />
+                  )}
+
+                  {isSelectedSoftware && (
+                    <DottedSpecRow
+                      label="TARGET SOCKET"
+                      value={getSoftwareTargetSlot(selectedItem.templateId)?.toUpperCase() || 'UNKNOWN'}
+                      valueColor="var(--c-accent)"
+                    />
+                  )}
                 </div>
+
+                {/* Software Socketing Actions */}
+                {isSelectedGear && (
+                  <div style={{ marginTop: '14px', borderTop: '1px solid #1f2b3e', paddingTop: '10px' }}>
+                    <div
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '9px',
+                        color: 'var(--c-accent)',
+                        marginBottom: '6px',
+                        fontWeight: 800,
+                      }}
+                    >
+                      LOAD SOFTWARE SUBROUTINE ({compatibleSoftwareInVault.length} IN VAULT):
+                    </div>
+                    {compatibleSoftwareInVault.length === 0 ? (
+                      <div
+                        style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '9px',
+                          color: 'var(--c-text-muted)',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        NO COMPATIBLE SOFTWARE CORES IN VAULT
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
+                        {compatibleSoftwareInVault.map((sw) => (
+                          <BtnLever
+                            key={sw.entityId}
+                            variant="cyan"
+                            onClick={() => handleSocketSoftware(selectedItem.entityId, sw.entityId)}
+                            rightSlot="LOAD"
+                          >
+                            {sw.templateId.toUpperCase()}
+                          </BtnLever>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {isSelectedSoftware && (
+                  <div style={{ marginTop: '14px', borderTop: '1px solid #1f2b3e', paddingTop: '10px' }}>
+                    <div
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '9px',
+                        color: 'var(--c-accent)',
+                        marginBottom: '6px',
+                        fontWeight: 800,
+                      }}
+                    >
+                      SOCKET ONTO GEAR ({compatibleGearInVault.length} IN VAULT):
+                    </div>
+                    {compatibleGearInVault.length === 0 ? (
+                      <div
+                        style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '9px',
+                          color: 'var(--c-text-muted)',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        NO COMPATIBLE WEAPON/ARMOR IN VAULT
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
+                        {compatibleGearInVault.map((gear) => (
+                          <BtnLever
+                            key={gear.entityId}
+                            variant="cyan"
+                            onClick={() => handleSocketSoftware(gear.entityId, selectedItem.entityId)}
+                            rightSlot="ATTACH"
+                          >
+                            {gear.templateId.toUpperCase()}
+                          </BtnLever>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <div className={styles.inspectorEmpty}>

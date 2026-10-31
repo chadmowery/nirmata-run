@@ -17,6 +17,9 @@ import {
   Stability,
   ExtractionIntent,
   RunCurrency,
+  Children,
+  TemplateId,
+  RarityTier,
 } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { GameplayEvents } from '@shared/events/types';
@@ -107,12 +110,75 @@ export function createRunEnderSystem<T extends GameplayEvents>(
           floorNumber,
           'software',
         );
-        const equipmentExtracted = mapInventoryToVaultItems(
-          inventory?.equipment || [],
-          floorNumber,
-          'equipment',
-        );
-        itemsExtracted = [...softwareExtracted, ...equipmentExtracted];
+        const equipmentExtracted = (inventory?.equipment || []).map((item) => {
+          const children = world.getComponent(item.entityId, Children);
+          const swList: string[] = [];
+          if (children) {
+            for (const cId of children.entityIds) {
+              const cTmpl = world.getComponent(cId, TemplateId);
+              if (cTmpl?.id) swList.push(cTmpl.id);
+            }
+          }
+          return {
+            entityId: item.entityId,
+            templateId: item.templateId,
+            rarityTier: item.rarityTier,
+            itemType: 'equipment' as const,
+            extractedAtFloor: floorNumber,
+            extractedAtTimestamp: Date.now(),
+            socketedSoftware: swList.length > 0 ? swList : undefined,
+          };
+        });
+
+        // Also extract equipped weapon and armor
+        const eqSlots = world.getComponent(playerId, EquipmentSlots);
+        const equippedExtracted: VaultItem[] = [];
+        if (eqSlots?.weapon) {
+          const wId = eqSlots.weapon;
+          const tmpl = world.getComponent(wId, TemplateId);
+          const rarity = world.getComponent(wId, RarityTier);
+          const children = world.getComponent(wId, Children);
+          const swList: string[] = [];
+          if (children) {
+            for (const cId of children.entityIds) {
+              const cTmpl = world.getComponent(cId, TemplateId);
+              if (cTmpl?.id) swList.push(cTmpl.id);
+            }
+          }
+          equippedExtracted.push({
+            entityId: wId,
+            templateId: tmpl?.id || 'rifle-v1',
+            rarityTier: rarity?.tier || 'common',
+            itemType: 'weapon',
+            extractedAtFloor: floorNumber,
+            extractedAtTimestamp: Date.now(),
+            socketedSoftware: swList.length > 0 ? swList : undefined,
+          });
+        }
+        if (eqSlots?.armor) {
+          const aId = eqSlots.armor;
+          const tmpl = world.getComponent(aId, TemplateId);
+          const rarity = world.getComponent(aId, RarityTier);
+          const children = world.getComponent(aId, Children);
+          const swList: string[] = [];
+          if (children) {
+            for (const cId of children.entityIds) {
+              const cTmpl = world.getComponent(cId, TemplateId);
+              if (cTmpl?.id) swList.push(cTmpl.id);
+            }
+          }
+          equippedExtracted.push({
+            entityId: aId,
+            templateId: tmpl?.id || 'armor-v1',
+            rarityTier: rarity?.tier || 'common',
+            itemType: 'armor',
+            extractedAtFloor: floorNumber,
+            extractedAtTimestamp: Date.now(),
+            socketedSoftware: swList.length > 0 ? swList : undefined,
+          });
+        }
+
+        itemsExtracted = [...softwareExtracted, ...equipmentExtracted, ...equippedExtracted];
 
         // Blueprints extracted
         const runCurrency = world.getComponent(playerId, RunCurrency);

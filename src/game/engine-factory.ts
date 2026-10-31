@@ -10,7 +10,16 @@ import { ComponentRegistry } from '../engine/entity/types';
 import { ComponentDef } from '../engine/ecs/types';
 import { registerGameTemplates } from './entities';
 import { createMovementSystem } from './systems/movement';
-import { MoveIntent, VentIntent, FirmwareIntent, AbilityDef, AugmentData } from '@shared/components';
+import {
+  MoveIntent,
+  VentIntent,
+  FirmwareIntent,
+  AbilityDef,
+  AugmentData,
+  Children,
+  SoftwareDef,
+  RarityTier,
+} from '@shared/components';
 import { createCombatSystem } from './systems/combat';
 import { createAISystem } from './systems/ai';
 import { registerCoreSystems } from './systems/registration';
@@ -181,6 +190,10 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     const firmwareIds: number[] = [];
     const softwareIds: number[] = [];
     const augmentIds: number[] = [];
+    let weaponId: number | null = null;
+    let armorId: number | null = null;
+    const backpackSoftware: Array<{ entityId: number; templateId: string; rarityTier: string }> = [];
+    const backpackEquipment: Array<{ entityId: number; templateId: string; rarityTier: string }> = [];
 
     for (const item of items) {
       // Spawn the item entity (D-15/D-16 Fix)
@@ -195,12 +208,34 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
         }
       }
 
+      // If socketed software attached, spawn software entities and link in Children component
+      if (item.socketedSoftware && item.socketedSoftware.length > 0) {
+        const swEntityIds: number[] = [];
+        for (const swBlueprint of item.socketedSoftware) {
+          const swEntityId = entityFactory.create(world, swBlueprint, componentRegistry);
+          swEntityIds.push(swEntityId);
+        }
+        world.addComponent(itemId, Children, { entityIds: swEntityIds });
+      }
+
       if (item.type === 'firmware') {
         firmwareIds.push(itemId);
       } else if (item.type === 'software') {
         softwareIds.push(itemId);
       } else if (item.type === 'augment') {
         augmentIds.push(itemId);
+      } else if (item.type === 'weapon') {
+        weaponId = itemId;
+      } else if (item.type === 'armor') {
+        armorId = itemId;
+      } else if (item.type === 'backpack') {
+        const isSw = world.hasComponent(itemId, SoftwareDef);
+        const rarity = world.getComponent(itemId, RarityTier)?.tier || 'common';
+        if (isSw) {
+          backpackSoftware.push({ entityId: itemId, templateId: item.blueprintId, rarityTier: rarity });
+        } else {
+          backpackEquipment.push({ entityId: itemId, templateId: item.blueprintId, rarityTier: rarity });
+        }
       }
     }
 
@@ -210,9 +245,17 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
 
     // Populate "EquipmentSlots" component
     playerOverrides['equipmentSlots'] = {
-      weapon: null,
-      armor: null,
+      weapon: weaponId,
+      armor: armorId,
     };
+
+    if (backpackSoftware.length > 0 || backpackEquipment.length > 0) {
+      playerOverrides['run_inventory'] = {
+        maxSlots: 30,
+        software: backpackSoftware,
+        equipment: backpackEquipment,
+      };
+    }
   }
 
   // Phase 16: Starter Loadout fallback (D-02, D-04)

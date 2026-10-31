@@ -66,14 +66,18 @@ export const InitializeTab: React.FC = () => {
   const installedFirmware = installedOnCurrent.filter((i) => i.type === 'firmware');
   const installedAugments = installedOnCurrent.filter((i) => i.type === 'augment');
   const installedSoftware = installedOnCurrent.filter((i) => i.type === 'software');
+  const installedWeapons = installedOnCurrent.filter((i) => i.type === 'weapon');
+  const installedArmor = installedOnCurrent.filter((i) => i.type === 'armor');
+  const installedBackpack = installedOnCurrent.filter((i) => i.type === 'backpack');
 
   interface LoadoutEntry {
     id: string;
     templateId: string;
-    type: 'firmware' | 'augment' | 'software';
+    type: 'firmware' | 'augment' | 'software' | 'weapon' | 'armor' | 'backpack';
     rarity: string;
     isDefault: boolean;
     slotLabel: string;
+    socketedSoftware?: string[];
   }
 
   const effectiveFirmware: LoadoutEntry[] =
@@ -85,6 +89,7 @@ export const InitializeTab: React.FC = () => {
           rarity: 'common',
           isDefault: false,
           slotLabel: `FIRMWARE [${idx + 1}]`,
+          socketedSoftware: i.socketedSoftware,
         }))
       : (activeShell.starterLoadout || []).map((tId, idx) => ({
           id: `fw-default-${tId}`,
@@ -102,6 +107,7 @@ export const InitializeTab: React.FC = () => {
     rarity: 'uncommon',
     isDefault: false,
     slotLabel: `AUGMENT [${idx + 1}]`,
+    socketedSoftware: i.socketedSoftware,
   }));
 
   const effectiveSoftware: LoadoutEntry[] = installedSoftware.map((i, idx) => ({
@@ -111,12 +117,46 @@ export const InitializeTab: React.FC = () => {
     rarity: 'common',
     isDefault: false,
     slotLabel: `SOFTWARE [${idx + 1}]`,
+    socketedSoftware: i.socketedSoftware,
+  }));
+
+  const effectiveWeapons: LoadoutEntry[] = installedWeapons.map((i) => ({
+    id: `wp-${i.entityId}`,
+    templateId: i.blueprintId,
+    type: 'weapon',
+    rarity: 'common',
+    isDefault: false,
+    slotLabel: 'PRIMARY WEAPON',
+    socketedSoftware: i.socketedSoftware,
+  }));
+
+  const effectiveArmor: LoadoutEntry[] = installedArmor.map((i) => ({
+    id: `ar-${i.entityId}`,
+    templateId: i.blueprintId,
+    type: 'armor',
+    rarity: 'common',
+    isDefault: false,
+    slotLabel: 'TACTICAL ARMOR',
+    socketedSoftware: i.socketedSoftware,
+  }));
+
+  const effectiveBackpack: LoadoutEntry[] = installedBackpack.map((i, idx) => ({
+    id: `bp-${i.entityId}`,
+    templateId: i.blueprintId,
+    type: 'backpack',
+    rarity: 'common',
+    isDefault: false,
+    slotLabel: `BACKPACK [${idx + 1}]`,
+    socketedSoftware: i.socketedSoftware,
   }));
 
   const deploymentLoadout: LoadoutEntry[] = [
     ...effectiveFirmware,
     ...effectiveAugments,
     ...effectiveSoftware,
+    ...effectiveWeapons,
+    ...effectiveArmor,
+    ...effectiveBackpack,
   ];
 
   const hasAtRiskItems = deploymentLoadout.some((i) => !i.isDefault);
@@ -217,6 +257,7 @@ export const InitializeTab: React.FC = () => {
                     templateId: item.templateId,
                     type: item.type,
                     rarity: item.rarity,
+                    socketedSoftware: item.socketedSoftware,
                     status: item.isDefault
                       ? 'CHASSIS DEFAULT // SAFE'
                       : 'CUSTOM LOADOUT // AT RISK ON LOSS',

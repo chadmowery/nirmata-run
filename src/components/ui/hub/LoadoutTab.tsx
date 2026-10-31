@@ -6,9 +6,15 @@ import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import { ShellTemplate } from '@/game/shells/shared';
 import { VaultItem, InstalledItem } from '@/shared/profile';
+import {
+  isWeaponItem,
+  isArmorItem,
+  isSoftwareItem,
+  canSocketSoftware,
+} from '@/shared/utils/equipment-util';
 import { LoadoutSlotPanel } from './LoadoutSlotPanel';
-import { StashItemList } from './StashItemList';
-import { PanelCard, DottedSpecRow, TaikokuStamp } from '../atomic';
+import { StashItemList, StashFilter } from './StashItemList';
+import { PanelCard, DottedSpecRow, TaikokuStamp, BtnLever } from '../atomic';
 import styles from './LoadoutTab.module.css';
 
 export const LoadoutTab: React.FC = () => {
@@ -20,14 +26,16 @@ export const LoadoutTab: React.FC = () => {
   const updateProfileOptimistic = useStore(gameStore, (s) => s.updateProfileOptimistic);
 
   const [templates, setTemplates] = useState<ShellTemplate[]>([]);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'firmware' | 'augment' | 'software'>('all');
+  const [activeFilter, setActiveFilter] = useState<StashFilter>('all');
   const [inspectedItem, setInspectedItem] = useState<{
+    entityId?: number;
     name: string;
     type: string;
     description: string;
     cooldown?: number;
     heat?: number;
     rarity?: string;
+    socketedSoftware?: string[];
   } | null>(null);
 
   useEffect(() => {
@@ -61,12 +69,14 @@ export const LoadoutTab: React.FC = () => {
   const handleDragStartFromStash = (item: VaultItem) => {
     setDraggedItem(item);
     setInspectedItem({
+      entityId: item.entityId,
       name: item.templateId.toUpperCase(),
       type: item.itemType.toUpperCase(),
       description: `Reserve hardware asset recovered from Sector ${item.extractedAtFloor}.`,
       rarity: item.rarityTier.toUpperCase(),
       cooldown: 3,
       heat: 15,
+      socketedSoftware: item.socketedSoftware,
     });
   };
 
@@ -78,14 +88,17 @@ export const LoadoutTab: React.FC = () => {
       rarityTier: 'common',
       extractedAtFloor: 0,
       extractedAtTimestamp: -1,
+      socketedSoftware: item.socketedSoftware,
     });
     setInspectedItem({
+      entityId: item.entityId,
       name: item.blueprintId.toUpperCase(),
       type: item.type.toUpperCase(),
       description: `Installed system socketed into ${activeShellTemplate.name} hardware bus.`,
       rarity: 'SOCKETED',
       cooldown: 2,
       heat: 10,
+      socketedSoftware: item.socketedSoftware,
     });
   };
 
@@ -98,6 +111,7 @@ export const LoadoutTab: React.FC = () => {
     const shellId = activeShellId;
     const previousProfile = { ...playerProfile };
 
+    // Optimistic UI update
     updateProfileOptimistic((prev) => {
       const isInVault = prev.vault.some((item) => item.entityId === entityId);
       if (!isInVault) return prev;
@@ -108,9 +122,10 @@ export const LoadoutTab: React.FC = () => {
         {
           entityId,
           blueprintId: draggedItem.templateId,
-          type: draggedItem.itemType as 'firmware' | 'augment' | 'software',
+          type: slotType as 'firmware' | 'augment' | 'software' | 'weapon' | 'armor' | 'backpack',
           shellId,
           isLegacy: false,
+          socketedSoftware: draggedItem.socketedSoftware || [],
         },
       ];
       return { ...prev, vault: newVault, installedItems: newInstalled };
@@ -120,14 +135,55 @@ export const LoadoutTab: React.FC = () => {
       const response = await fetch('/api/vault/equip-from-vault', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, entityId, shellId }),
+        body: JSON.stringify({ sessionId, entityId, shellId, targetSlotType: slotType }),
       });
 
       if (!response.ok) {
         throw new Error('Failed to equip item');
       }
+      const data = await response.json();
+      if (data.profile) {
+        gameStore.getState().setPlayerProfile(data.profile);
+      }
     } catch (error) {
       logger.error('Equip error:', 'UI', error);
+      updateProfileOptimistic(() => previousProfile);
+    } finally {
+      setDraggedItem(null);
+      setDragOverSlot(null);
+    }
+  };
+
+  const handleSoftwareSocket = async (targetEntityId: number, softwareEntityId: number) => {
+    logger.debug(`[Loadout] Socketing software ${softwareEntityId} onto ${targetEntityId}`, 'UI');
+    const sessionId = playerProfile.sessionId;
+    const previousProfile = { ...playerProfile };
+    const softwareItem = playerProfile.vault.find((i) => i.entityId === softwareEntityId);
+    if (!softwareItem) return;
+
+    updateProfileOptimistic((prev) => {
+      const newVault = prev.vault.filter((i) => i.entityId !== softwareEntityId);
+      const newInstalled = prev.installedItems.map((i) =>
+        i.entityId === targetEntityId
+          ? { ...i, socketedSoftware: [softwareItem.templateId] }
+          : i,
+      );
+      return { ...prev, vault: newVault, installedItems: newInstalled };
+    });
+
+    try {
+      const res = await fetch('/api/vault/socket-software', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, targetEntityId, softwareEntityId }),
+      });
+      if (!res.ok) throw new Error('Socket software failed');
+      const data = await res.json();
+      if (data.profile) {
+        gameStore.getState().setPlayerProfile(data.profile);
+      }
+    } catch (err) {
+      logger.error('Socket software error:', 'UI', err);
       updateProfileOptimistic(() => previousProfile);
     } finally {
       setDraggedItem(null);
@@ -151,10 +207,13 @@ export const LoadoutTab: React.FC = () => {
       const restoredItem: VaultItem = {
         entityId: entityId,
         templateId: blueprintId,
-        itemType: draggedItem.itemType as 'firmware' | 'augment' | 'software',
+        itemType: (draggedItem.itemType === 'backpack'
+          ? 'software'
+          : draggedItem.itemType) as VaultItem['itemType'],
         rarityTier: 'common',
         extractedAtFloor: 1,
         extractedAtTimestamp: Date.now(),
+        socketedSoftware: draggedItem.socketedSoftware || [],
       };
       return { ...prev, installedItems: newInstalled, vault: [...prev.vault, restoredItem] };
     });
@@ -163,9 +222,13 @@ export const LoadoutTab: React.FC = () => {
       const uninstallRes = await fetch('/api/economy/uninstall', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, blueprintId, shellId }),
+        body: JSON.stringify({ sessionId, blueprintId, entityId, shellId }),
       });
       if (!uninstallRes.ok) throw new Error('Uninstall failed');
+      const data = await uninstallRes.json();
+      if (data.profile) {
+        gameStore.getState().setPlayerProfile(data.profile);
+      }
     } catch (error) {
       logger.error('Unequip error:', 'UI', error);
       updateProfileOptimistic(() => previousProfile);
@@ -174,6 +237,25 @@ export const LoadoutTab: React.FC = () => {
       setDragOverSlot(null);
     }
   };
+
+  // Check if inspected item can receive software
+  const canSocketOnInspected =
+    inspectedItem?.entityId !== undefined &&
+    (inspectedItem.type === 'WEAPON' ||
+      inspectedItem.type === 'ARMOR' ||
+      isWeaponItem({ templateId: inspectedItem.name.toLowerCase(), itemType: inspectedItem.type.toLowerCase() }) ||
+      isArmorItem({ templateId: inspectedItem.name.toLowerCase(), itemType: inspectedItem.type.toLowerCase() }));
+
+  const compatibleStashSoftware = canSocketOnInspected
+    ? vaultItems.filter((v) =>
+        isSoftwareItem(v) &&
+        canSocketSoftware(
+          v.templateId,
+          inspectedItem!.name.toLowerCase(),
+          inspectedItem!.type.toLowerCase(),
+        ),
+      )
+    : [];
 
   return (
     <div
@@ -190,6 +272,7 @@ export const LoadoutTab: React.FC = () => {
           shellId={activeShellId}
           onSlotDrop={handleSlotDrop}
           onSlotDragStart={handleDragStartFromSlot}
+          onSoftwareSocket={handleSoftwareSocket}
         />
       </PanelCard>
 
@@ -228,13 +311,60 @@ export const LoadoutTab: React.FC = () => {
                   value="100% NOMINAL"
                   valueColor="var(--c-accent)"
                 />
+                <DottedSpecRow
+                  label="LOADED SOFTWARE"
+                  value={
+                    inspectedItem.socketedSoftware && inspectedItem.socketedSoftware.length > 0
+                      ? inspectedItem.socketedSoftware.join(', ').toUpperCase()
+                      : 'NONE // EMPTY'
+                  }
+                  valueColor={
+                    inspectedItem.socketedSoftware && inspectedItem.socketedSoftware.length > 0
+                      ? 'var(--c-accent-secondary)'
+                      : undefined
+                  }
+                />
               </div>
+
+              {canSocketOnInspected && (
+                <div style={{ marginTop: '14px', borderTop: '1px solid #1f2b3e', paddingTop: '10px' }}>
+                  <div
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '9px',
+                      color: 'var(--c-accent)',
+                      marginBottom: '6px',
+                      fontWeight: 800,
+                    }}
+                  >
+                    LOAD SOFTWARE SUBROUTINE ({compatibleStashSoftware.length} AVAILABLE):
+                  </div>
+                  {compatibleStashSoftware.length === 0 ? (
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--c-text-muted)' }}>
+                      NO COMPATIBLE SOFTWARE CORES IN VAULT
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {compatibleStashSoftware.map((sw) => (
+                        <BtnLever
+                          key={sw.entityId}
+                          variant="cyan"
+                          onClick={() => handleSoftwareSocket(inspectedItem.entityId!, sw.entityId)}
+                          rightSlot="LOAD"
+                        >
+                          {sw.templateId.toUpperCase()}
+                        </BtnLever>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className={styles.schematicEmpty}>
               <span>[ SELECT OR DRAG ANY MODULE TO INSPECT TELEMETRY ]</span>
               <span style={{ fontSize: '9px', marginTop: '8px', color: 'var(--c-text-dim)' }}>
-                FIRMWARE // AUGMENT // SOFTWARE CHIPSET
+                FIRMWARE // AUGMENT // SOFTWARE // WEAPON // ARMOR
               </span>
             </div>
           )}
@@ -246,10 +376,12 @@ export const LoadoutTab: React.FC = () => {
         <StashItemList
           items={vaultItems}
           activeFilter={activeFilter}
-          onFilterChange={(f) => setActiveFilter(f as 'all' | 'firmware' | 'augment' | 'software')}
+          onFilterChange={(f) => setActiveFilter(f)}
           onDragStart={handleDragStartFromStash}
         />
       </PanelCard>
     </div>
   );
 };
+
+export default LoadoutTab;

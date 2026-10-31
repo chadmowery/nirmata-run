@@ -3,16 +3,21 @@ import { z } from 'zod';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { globalShellRegistry } from '@/game/shells/server';
 import { logger } from '@engine/utils/logger';
+import { VaultItem } from '@/shared/profile';
+import { isWeaponItem, isArmorItem } from '@/shared/utils/equipment-util';
 
 const EquipFromVaultRequestSchema = z.object({
   sessionId: z.string().min(1),
   shellId: z.string().min(1),
   entityId: z.coerce.number().int(),
+  targetSlotType: z
+    .enum(['firmware', 'augment', 'software', 'weapon', 'armor', 'backpack'])
+    .optional(),
 });
 
 /**
  * POST /api/vault/equip-from-vault
- * Pre-run Ritual: Equips an item (Firmware/Augment) from Vault onto a Shell.
+ * Pre-run Ritual: Equips an item (Firmware, Augment, Software, Weapon, Armor, or Backpack) from Vault onto a Shell.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -25,7 +30,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { sessionId, shellId, entityId } = parsed.data;
+    const { sessionId, shellId, entityId, targetSlotType } = parsed.data;
 
     const profile = await profileRepository.load(sessionId);
     if (!profile) {
@@ -34,11 +39,6 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Find item in Vault
-    logger.debug(
-      `[VaultEquipFromVault] Vault contents:`,
-      'API',
-      profile.vault.map((i) => ({ id: i.entityId, type: i.itemType })),
-    );
     const vaultIndex = profile.vault.findIndex((item) => item.entityId === entityId);
     if (vaultIndex === -1) {
       logger.warn(`[VaultEquipFromVault] Item not found in Vault: ${entityId}`, 'API');
@@ -46,56 +46,149 @@ export async function POST(req: NextRequest) {
     }
 
     const item = profile.vault[vaultIndex];
-    const itemType = item.itemType as 'firmware' | 'augment' | 'software';
 
-    // 2. Validate Shell Port Capacity (Phase 4)
-    let shellRecord = globalShellRegistry.get(shellId);
-    if (!shellRecord) {
-      try {
-        shellRecord = globalShellRegistry.createRecord(shellId, shellId);
-      } catch {
-        const template = globalShellRegistry.getTemplates().find((t) => t.id === shellId);
-        if (template) {
-          shellRecord = globalShellRegistry.createRecord(shellId, template.id);
-        }
-      }
+    // Determine target slot
+    let resolvedSlot = targetSlotType;
+    if (!resolvedSlot) {
+      if (isWeaponItem(item)) resolvedSlot = 'weapon';
+      else if (isArmorItem(item)) resolvedSlot = 'armor';
+      else resolvedSlot = item.itemType as 'firmware' | 'augment' | 'software';
     }
 
-    if (shellRecord?.portConfig) {
-      const installedForShell = profile.installedItems.filter(
-        (installed) => installed.shellId === shellId && installed.type === itemType,
+    // 2. Validate and handle slot assignment
+    if (resolvedSlot === 'weapon') {
+      if (!isWeaponItem(item)) {
+        return NextResponse.json({ error: 'Item cannot be equipped as a weapon' }, { status: 400 });
+      }
+      // Unequip existing weapon if present
+      const existingIdx = profile.installedItems.findIndex(
+        (i) => i.shellId === shellId && i.type === 'weapon',
       );
+      if (existingIdx !== -1) {
+        const old = profile.installedItems[existingIdx];
+        profile.installedItems.splice(existingIdx, 1);
+        const restored: VaultItem = {
+          entityId: old.entityId,
+          templateId: old.blueprintId,
+          rarityTier: 'common',
+          itemType: 'weapon',
+          extractedAtFloor: 0,
+          extractedAtTimestamp: Date.now(),
+          socketedSoftware: old.socketedSoftware || [],
+        };
+        profile.vault.push(restored);
+      }
 
-      let maxLimit = Infinity;
-      if (itemType === 'firmware') maxLimit = shellRecord.portConfig.maxFirmware;
-      else if (itemType === 'augment') maxLimit = shellRecord.portConfig.maxAugment;
-      else if (itemType === 'software') maxLimit = shellRecord.portConfig.maxSoftware;
+      profile.installedItems.push({
+        entityId: item.entityId,
+        blueprintId: item.templateId,
+        type: 'weapon',
+        shellId,
+        isLegacy: false,
+        socketedSoftware: item.socketedSoftware || [],
+      });
+      profile.vault.splice(vaultIndex, 1);
+    } else if (resolvedSlot === 'armor') {
+      if (!isArmorItem(item)) {
+        return NextResponse.json({ error: 'Item cannot be equipped as armor' }, { status: 400 });
+      }
+      // Unequip existing armor if present
+      const existingIdx = profile.installedItems.findIndex(
+        (i) => i.shellId === shellId && i.type === 'armor',
+      );
+      if (existingIdx !== -1) {
+        const old = profile.installedItems[existingIdx];
+        profile.installedItems.splice(existingIdx, 1);
+        const restored: VaultItem = {
+          entityId: old.entityId,
+          templateId: old.blueprintId,
+          rarityTier: 'common',
+          itemType: 'armor',
+          extractedAtFloor: 0,
+          extractedAtTimestamp: Date.now(),
+          socketedSoftware: old.socketedSoftware || [],
+        };
+        profile.vault.push(restored);
+      }
 
-      if (installedForShell.length >= maxLimit) {
+      profile.installedItems.push({
+        entityId: item.entityId,
+        blueprintId: item.templateId,
+        type: 'armor',
+        shellId,
+        isLegacy: false,
+        socketedSoftware: item.socketedSoftware || [],
+      });
+      profile.vault.splice(vaultIndex, 1);
+    } else if (resolvedSlot === 'backpack') {
+      const backpackItems = profile.installedItems.filter(
+        (i) => i.shellId === shellId && i.type === 'backpack',
+      );
+      if (backpackItems.length >= 5) {
         return NextResponse.json(
-          { error: `Exceeded port capacity for ${itemType}. Max: ${maxLimit}` },
+          { error: 'Backpack loadout capacity reached (max 5)' },
           { status: 400 },
         );
       }
+
+      profile.installedItems.push({
+        entityId: item.entityId,
+        blueprintId: item.templateId,
+        type: 'backpack',
+        shellId,
+        isLegacy: false,
+        socketedSoftware: item.socketedSoftware || [],
+      });
+      profile.vault.splice(vaultIndex, 1);
+    } else {
+      // Standard Firmware / Augment / Software ports
+      let shellRecord = globalShellRegistry.get(shellId);
+      if (!shellRecord) {
+        try {
+          shellRecord = globalShellRegistry.createRecord(shellId, shellId);
+        } catch {
+          const template = globalShellRegistry.getTemplates().find((t) => t.id === shellId);
+          if (template) {
+            shellRecord = globalShellRegistry.createRecord(shellId, template.id);
+          }
+        }
+      }
+
+      if (shellRecord?.portConfig) {
+        const installedForShell = profile.installedItems.filter(
+          (installed) => installed.shellId === shellId && installed.type === resolvedSlot,
+        );
+
+        let maxLimit = Infinity;
+        if (resolvedSlot === 'firmware') maxLimit = shellRecord.portConfig.maxFirmware;
+        else if (resolvedSlot === 'augment') maxLimit = shellRecord.portConfig.maxAugment;
+        else if (resolvedSlot === 'software') maxLimit = shellRecord.portConfig.maxSoftware;
+
+        if (installedForShell.length >= maxLimit) {
+          return NextResponse.json(
+            { error: `Exceeded port capacity for ${resolvedSlot}. Max: ${maxLimit}` },
+            { status: 400 },
+          );
+        }
+      }
+
+      profile.installedItems.push({
+        entityId: item.entityId,
+        blueprintId: item.templateId,
+        type: resolvedSlot as 'firmware' | 'augment' | 'software',
+        shellId,
+        isLegacy: false,
+        socketedSoftware: item.socketedSoftware || [],
+      });
+      profile.vault.splice(vaultIndex, 1);
     }
-
-    // 3. Add to installedItems
-    profile.installedItems.push({
-      entityId: item.entityId, // Preserve the authoritative entityId
-      blueprintId: item.templateId, // Using templateId as blueprintId for now
-      type: itemType,
-      shellId,
-      isLegacy: false,
-    });
-
-    // 4. Remove from Vault
-    profile.vault.splice(vaultIndex, 1);
 
     await profileRepository.save(profile);
 
     return NextResponse.json({
       success: true,
-      message: `Equipped ${item.templateId} from Vault to ${shellId}`,
+      message: `Equipped ${item.templateId} from Vault to ${shellId} (${resolvedSlot})`,
+      profile,
     });
   } catch (error) {
     logger.error('[VaultEquipFromVault] Error:', 'API', error);

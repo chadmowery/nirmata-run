@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { VaultItem } from '@/shared/profile';
-import { Shield, Zap, Code, Terminal } from 'lucide-react';
+import { Shield, Zap, Code, Terminal, Crosshair } from 'lucide-react';
 import styles from './ItemCard.module.css';
 
 interface ItemCardProps {
@@ -22,6 +22,10 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onDragStart, onHover, 
         return <Zap size={16} />;
       case 'software':
         return <Code size={16} />;
+      case 'weapon':
+        return <Crosshair size={16} />;
+      case 'armor':
+        return <Shield size={16} />;
       default:
         return <Terminal size={16} />;
     }

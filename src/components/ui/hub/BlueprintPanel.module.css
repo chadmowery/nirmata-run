@@ -59,3 +59,49 @@
   padding: 1rem 0;
   text-align: center;
 }
+
+.rawCoresList {
+  max-height: 280px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 4px;
+}
+
+.rawCoresList::-webkit-scrollbar {
+  width: 4px;
+}
+
+.rawCoresList::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.rawCoresList::-webkit-scrollbar-thumb {
+  background: var(--c-accent);
+  border-radius: 2px;
+}
+
+.compiledList {
+  max-height: 220px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 4px;
+}
+
+.compiledList::-webkit-scrollbar {
+  width: 4px;
+}
+
+.compiledList::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.compiledList::-webkit-scrollbar-thumb {
+  background: var(--c-accent-secondary);
+  border-radius: 2px;
+}

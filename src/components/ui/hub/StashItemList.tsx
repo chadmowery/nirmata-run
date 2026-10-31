@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { VaultItem } from '@/shared/profile';
+import { isWeaponItem, isArmorItem } from '@/shared/utils/equipment-util';
 import { ItemCard } from './ItemCard';
 import { ItemTooltip } from './ItemTooltip';
 import styles from './StashItemList.module.css';
 
+export type StashFilter = 'all' | 'firmware' | 'augment' | 'software' | 'weapon' | 'armor';
+
 interface StashItemListProps {
   items: VaultItem[];
-  activeFilter: 'all' | 'firmware' | 'augment' | 'software';
-  onFilterChange: (filter: string) => void;
+  activeFilter: StashFilter;
+  onFilterChange: (filter: StashFilter) => void;
   onDragStart: (item: VaultItem) => void;
 }
 
@@ -23,6 +26,8 @@ export const StashItemList: React.FC<StashItemListProps> = ({
 
   const filteredItems = items.filter((item) => {
     if (activeFilter === 'all') return true;
+    if (activeFilter === 'weapon') return isWeaponItem(item);
+    if (activeFilter === 'armor') return isArmorItem(item);
     return item.itemType === activeFilter;
   });
 
@@ -38,12 +43,7 @@ export const StashItemList: React.FC<StashItemListProps> = ({
     setHoveredItem(null);
   };
 
-  const filters: Array<'all' | 'firmware' | 'augment' | 'software'> = [
-    'all',
-    'firmware',
-    'augment',
-    'software',
-  ];
+  const filters: StashFilter[] = ['all', 'firmware', 'augment', 'software', 'weapon', 'armor'];
 
   return (
     <div className={styles.container}>

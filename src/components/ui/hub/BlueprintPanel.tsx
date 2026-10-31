@@ -112,44 +112,46 @@ export const BlueprintPanel: React.FC = () => {
         >
           COMPILED BLUEPRINTS ({compiledLibrary.length})
         </div>
-        {compiledLibrary.length === 0 ? (
-          <div className={styles.emptyState}>NO COMPILED ARCHIVES // FABRICATE FROM VAULT</div>
-        ) : (
-          compiledLibrary.map((bp) => {
-            const meta = resolveItemMetadata({
-              templateId: bp.blueprintId,
-              type: bp.type,
-              compiledAt: bp.compiledAt,
-              status: 'COMPILED // READY',
-              statusVariant: 'secured',
-            });
+        <div className={styles.compiledList}>
+          {compiledLibrary.length === 0 ? (
+            <div className={styles.emptyState}>NO COMPILED ARCHIVES // FABRICATE FROM VAULT</div>
+          ) : (
+            compiledLibrary.map((bp) => {
+              const meta = resolveItemMetadata({
+                templateId: bp.blueprintId,
+                type: bp.type,
+                compiledAt: bp.compiledAt,
+                status: 'COMPILED // READY',
+                statusVariant: 'secured',
+              });
 
-            return (
-              <div
-                key={bp.blueprintId}
-                className={`${styles.blueprintEntry} ${styles.compiled}`}
-                tabIndex={0}
-                onPointerEnter={(e) =>
-                  setHoveredItem({ metadata: meta, x: e.clientX, y: e.clientY })
-                }
-                onPointerMove={(e) => {
-                  if (hoveredItem?.metadata.id === bp.blueprintId) {
-                    setHoveredItem({ metadata: meta, x: e.clientX, y: e.clientY });
+              return (
+                <div
+                  key={bp.blueprintId}
+                  className={`${styles.blueprintEntry} ${styles.compiled}`}
+                  tabIndex={0}
+                  onPointerEnter={(e) =>
+                    setHoveredItem({ metadata: meta, x: e.clientX, y: e.clientY })
                   }
-                }}
-                onPointerLeave={() => setHoveredItem(null)}
-                onFocus={(e) => handleFocus(meta, e)}
-                onBlur={() => setHoveredItem(null)}
-              >
-                <div className={styles.blueprintMeta}>
-                  <span className={styles.blueprintName}>{bp.blueprintId}</span>
-                  <span className={styles.blueprintType}>TYPE: {bp.type.toUpperCase()} // READY</span>
+                  onPointerMove={(e) => {
+                    if (hoveredItem?.metadata.id === bp.blueprintId) {
+                      setHoveredItem({ metadata: meta, x: e.clientX, y: e.clientY });
+                    }
+                  }}
+                  onPointerLeave={() => setHoveredItem(null)}
+                  onFocus={(e) => handleFocus(meta, e)}
+                  onBlur={() => setHoveredItem(null)}
+                >
+                  <div className={styles.blueprintMeta}>
+                    <span className={styles.blueprintName}>{bp.blueprintId}</span>
+                    <span className={styles.blueprintType}>TYPE: {bp.type.toUpperCase()} // READY</span>
+                  </div>
+                  <TaikokuStamp variant="secured">COMPILED // OK</TaikokuStamp>
                 </div>
-                <TaikokuStamp variant="secured">COMPILED // OK</TaikokuStamp>
-              </div>
-            );
-          })
-        )}
+              );
+            })
+          )}
+        </div>
       </div>
 
       {/* 2. Raw Data Cores Awaiting Compilation */}
@@ -165,70 +167,72 @@ export const BlueprintPanel: React.FC = () => {
         >
           RAW DATA CORES AWAITING COMPILATION ({uniqueLockedFiles.length})
         </div>
-        {uniqueLockedFiles.length === 0 ? (
-          <div className={styles.emptyState}>NO UNCOMPILED CORES IN VAULT</div>
-        ) : (
-          uniqueLockedFiles.map((item) => {
-            const cost =
-              (economyConfig.costs.compilation as Record<string, number>)[item.rarityTier] || 50;
-            const canAfford = profile.wallet.flux >= cost;
-            const isCompiling = compilingBlueprintId === item.templateId;
+        <div className={styles.rawCoresList}>
+          {uniqueLockedFiles.length === 0 ? (
+            <div className={styles.emptyState}>NO UNCOMPILED CORES IN VAULT</div>
+          ) : (
+            uniqueLockedFiles.map((item) => {
+              const cost =
+                (economyConfig.costs.compilation as Record<string, number>)[item.rarityTier] || 50;
+              const canAfford = profile.wallet.flux >= cost;
+              const isCompiling = compilingBlueprintId === item.templateId;
 
-            const meta = resolveItemMetadata({
-              templateId: item.templateId,
-              type: item.itemType,
-              rarity: item.rarityTier,
-              cost,
-              costCurrency: 'FLX',
-              floor: item.extractedAtFloor,
-              entityId: item.entityId,
-              status: 'RAW DATA CORE',
-              statusVariant: 'amber',
-            });
+              const meta = resolveItemMetadata({
+                templateId: item.templateId,
+                type: item.itemType,
+                rarity: item.rarityTier,
+                cost,
+                costCurrency: 'FLX',
+                floor: item.extractedAtFloor,
+                entityId: item.entityId,
+                status: 'RAW DATA CORE',
+                statusVariant: 'amber',
+              });
 
-            return (
-              <div
-                key={item.templateId}
-                className={`${styles.blueprintEntry} ${styles.available}`}
-                tabIndex={0}
-                onPointerEnter={(e) =>
-                  setHoveredItem({ metadata: meta, x: e.clientX, y: e.clientY })
-                }
-                onPointerMove={(e) => {
-                  if (hoveredItem?.metadata.id === item.templateId) {
-                    setHoveredItem({ metadata: meta, x: e.clientX, y: e.clientY });
+              return (
+                <div
+                  key={item.templateId}
+                  className={`${styles.blueprintEntry} ${styles.available}`}
+                  tabIndex={0}
+                  onPointerEnter={(e) =>
+                    setHoveredItem({ metadata: meta, x: e.clientX, y: e.clientY })
                   }
-                }}
-                onPointerLeave={() => setHoveredItem(null)}
-                onFocus={(e) => handleFocus(meta, e)}
-                onBlur={() => setHoveredItem(null)}
-              >
-                <div className={styles.blueprintMeta}>
-                  <span className={styles.blueprintName}>{item.templateId}</span>
-                  <span className={styles.blueprintType}>
-                    TIER: {item.rarityTier.toUpperCase()} // COST: {cost} FLX
-                  </span>
-                </div>
-
-                <BtnLever
-                  variant="primary"
-                  disabled={!canAfford || isCompiling}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleCompile(
-                      item.templateId,
-                      item.itemType as 'firmware' | 'augment',
-                      item.rarityTier,
-                    );
+                  onPointerMove={(e) => {
+                    if (hoveredItem?.metadata.id === item.templateId) {
+                      setHoveredItem({ metadata: meta, x: e.clientX, y: e.clientY });
+                    }
                   }}
-                  rightSlot={`${cost} FLX`}
+                  onPointerLeave={() => setHoveredItem(null)}
+                  onFocus={(e) => handleFocus(meta, e)}
+                  onBlur={() => setHoveredItem(null)}
                 >
-                  {isCompiling ? 'COMPILING...' : 'COMPILE'}
-                </BtnLever>
-              </div>
-            );
-          })
-        )}
+                  <div className={styles.blueprintMeta}>
+                    <span className={styles.blueprintName}>{item.templateId}</span>
+                    <span className={styles.blueprintType}>
+                      TIER: {item.rarityTier.toUpperCase()} // COST: {cost} FLX
+                    </span>
+                  </div>
+
+                  <BtnLever
+                    variant="primary"
+                    disabled={!canAfford || isCompiling}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCompile(
+                        item.templateId,
+                        item.itemType as 'firmware' | 'augment',
+                        item.rarityTier,
+                      );
+                    }}
+                    rightSlot={`${cost} FLX`}
+                  >
+                    {isCompiling ? 'COMPILING...' : 'COMPILE'}
+                  </BtnLever>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
 
       {/* Floating Hover Tooltip */}

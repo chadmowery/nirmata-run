@@ -5,7 +5,8 @@ interface SlotBoxProps {
   filled: boolean;
   legacy?: boolean;
   itemName?: string;
-  slotType: 'firmware' | 'augment' | 'software';
+  slotType: 'firmware' | 'augment' | 'software' | 'weapon' | 'armor' | 'backpack';
+  socketedSoftware?: string[];
   onHover?: (name: string) => void;
   onHoverEnd?: () => void;
 }
@@ -15,6 +16,7 @@ export const SlotBox: React.FC<SlotBoxProps> = ({
   legacy = false,
   itemName,
   slotType,
+  socketedSoftware,
   onHover,
   onHoverEnd,
 }) => {
@@ -32,7 +34,7 @@ export const SlotBox: React.FC<SlotBoxProps> = ({
         ${styles.slotBox} 
         ${filled ? styles.filled : styles.empty} 
         ${legacy ? styles.legacy : ''}
-        ${styles[slotType]}
+        ${styles[slotType] || ''}
       `}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={onHoverEnd}
@@ -45,6 +47,11 @@ export const SlotBox: React.FC<SlotBoxProps> = ({
           <span className={styles.emptyIcon}>□</span>
         )}
       </div>
+      {socketedSoftware && socketedSoftware.length > 0 && (
+        <div className={styles.swTag} title={`Loaded: ${socketedSoftware.join(', ')}`}>
+          SW
+        </div>
+      )}
       {legacy && <div className={styles.legacyTag}>LEGACY</div>}
       {filled && legacy && <div className={styles.legacyOverlay} />}
     </div>
