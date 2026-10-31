@@ -4,9 +4,25 @@
   border: 1px solid var(--c-border);
   padding: 1.5rem;
   min-height: 380px;
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+}
+
+.schematicBox::-webkit-scrollbar {
+  width: 4px;
+}
+
+.schematicBox::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.schematicBox::-webkit-scrollbar-thumb {
+  background: var(--c-accent);
+  border-radius: 2px;
 }
 
 .schematicEmpty {
@@ -44,6 +60,41 @@
   color: var(--c-text-dim);
   line-height: 1.5;
   margin-bottom: 16px;
+}
+
+.socketSoftwareList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+.socketSoftwareList::-webkit-scrollbar {
+  width: 4px;
+}
+
+.socketSoftwareList::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.socketSoftwareList::-webkit-scrollbar-thumb {
+  background: var(--c-accent-secondary);
+  border-radius: 2px;
+}
+
+.stashCard {
+  height: 100%;
+}
+
+.stashBody {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .loading {

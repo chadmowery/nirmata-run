@@ -77,6 +77,46 @@
   flex-direction: column;
   justify-content: space-between;
   min-height: 380px;
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.inspectorBox::-webkit-scrollbar {
+  width: 4px;
+}
+
+.inspectorBox::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.inspectorBox::-webkit-scrollbar-thumb {
+  background: var(--c-accent);
+  border-radius: 2px;
+}
+
+.actionList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+.actionList::-webkit-scrollbar {
+  width: 4px;
+}
+
+.actionList::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.actionList::-webkit-scrollbar-thumb {
+  background: var(--c-accent-secondary);
+  border-radius: 2px;
 }
 
 .inspectorEmpty {

@@ -89,34 +89,36 @@ export const LeaderboardPanel: React.FC<LeaderboardPanelProps> = ({ mode }) => {
             QUERYING VERIFIED OPERATOR ARCHIVES // VEC-OS 1.0.4...
           </div>
         ) : entries.length > 0 ? (
-          <table className={styles.leaderboardTable}>
-            <thead>
-              <tr>
-                <th>RANK</th>
-                <th>CALLSIGN</th>
-                <th>DEPTH</th>
-                <th>SCORE</th>
-                <th>RECORD TIMESTAMP</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((entry, index) => (
-                <tr key={`${entry.playerName}-${index}`}>
-                  <td className={getRankClass(index)}>
-                    #{String(index + 1).padStart(2, '0')}
-                  </td>
-                  <td style={{ fontWeight: 800 }}>{entry.playerName}</td>
-                  <td>FLOOR {String(entry.floor).padStart(2, '0')}</td>
-                  <td style={{ fontWeight: 900, color: 'var(--c-accent)' }}>
-                    {entry.score.toLocaleString()} PTS
-                  </td>
-                  <td style={{ color: 'var(--c-text-dim)' }}>
-                    {new Date(entry.timestamp).toLocaleDateString()}
-                  </td>
+          <div className={styles.tableWrapper}>
+            <table className={styles.leaderboardTable}>
+              <thead>
+                <tr>
+                  <th>RANK</th>
+                  <th>CALLSIGN</th>
+                  <th>DEPTH</th>
+                  <th>SCORE</th>
+                  <th>RECORD TIMESTAMP</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {entries.map((entry, index) => (
+                  <tr key={`${entry.playerName}-${index}`}>
+                    <td className={getRankClass(index)}>
+                      #{String(index + 1).padStart(2, '0')}
+                    </td>
+                    <td style={{ fontWeight: 800 }}>{entry.playerName}</td>
+                    <td>FLOOR {String(entry.floor).padStart(2, '0')}</td>
+                    <td style={{ fontWeight: 900, color: 'var(--c-accent)' }}>
+                      {entry.score.toLocaleString()} PTS
+                    </td>
+                    <td style={{ color: 'var(--c-text-dim)' }}>
+                      {new Date(entry.timestamp).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <div className={styles.empty}>
             NO CERTIFIED OPERATOR LOGS RECORDED FOR ACTIVE ROTATION PERIOD

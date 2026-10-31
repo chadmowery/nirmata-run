@@ -89,6 +89,23 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+.loadoutGrid::-webkit-scrollbar {
+  width: 4px;
+}
+
+.loadoutGrid::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.loadoutGrid::-webkit-scrollbar-thumb {
+  background: var(--c-accent-secondary);
+  border-radius: 2px;
 }
 
 .loadoutCard {

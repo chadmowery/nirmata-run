@@ -1,7 +1,25 @@
 .panelContainer {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--space-md);
+  max-height: calc(100vh - 280px);
+  min-height: 480px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+.panelContainer::-webkit-scrollbar {
+  width: 4px;
+}
+
+.panelContainer::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.panelContainer::-webkit-scrollbar-thumb {
+  background: var(--c-accent);
+  border-radius: 2px;
 }
 
 .slotGroup {

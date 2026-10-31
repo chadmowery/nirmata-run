@@ -8,6 +8,23 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: 480px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+.stockList::-webkit-scrollbar {
+  width: 4px;
+}
+
+.stockList::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.stockList::-webkit-scrollbar-thumb {
+  background: var(--c-scrap);
+  border-radius: 2px;
 }
 
 .card {

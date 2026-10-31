@@ -420,7 +420,7 @@ export const VaultTab: React.FC = () => {
                         NO COMPATIBLE SOFTWARE CORES IN VAULT
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
+                      <div className={styles.actionList}>
                         {compatibleSoftwareInVault.map((sw) => (
                           <BtnLever
                             key={sw.entityId}
@@ -461,7 +461,7 @@ export const VaultTab: React.FC = () => {
                         NO COMPATIBLE WEAPON/ARMOR IN VAULT
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '8px' }}>
+                      <div className={styles.actionList}>
                         {compatibleGearInVault.map((gear) => (
                           <BtnLever
                             key={gear.entityId}

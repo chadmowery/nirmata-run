@@ -32,6 +32,23 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+.itemList::-webkit-scrollbar {
+  width: 4px;
+}
+
+.itemList::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.itemList::-webkit-scrollbar-thumb {
+  background: #ffffff;
+  border-radius: 2px;
 }
 
 .itemRow {

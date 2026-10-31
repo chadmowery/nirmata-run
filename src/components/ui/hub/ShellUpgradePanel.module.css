@@ -2,6 +2,23 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  max-height: 480px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+.upgradeRoot::-webkit-scrollbar {
+  width: 4px;
+}
+
+.upgradeRoot::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.upgradeRoot::-webkit-scrollbar-thumb {
+  background: var(--c-accent);
+  border-radius: 2px;
 }
 
 .upgradeRow {

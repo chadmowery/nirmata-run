@@ -20,6 +20,21 @@
   box-shadow: 0 0 50px rgba(0, 0, 0, 0.95);
   display: flex;
   flex-direction: column;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+.modalContent::-webkit-scrollbar {
+  width: 4px;
+}
+
+.modalContent::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.modalContent::-webkit-scrollbar-thumb {
+  background: var(--c-accent);
+  border-radius: 2px;
 }
 
 .splitLayout {
@@ -40,6 +55,23 @@
   grid-template-columns: repeat(5, 1fr);
   gap: 8px;
   margin-top: 10px;
+  max-height: 380px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+.gridContainer::-webkit-scrollbar {
+  width: 4px;
+}
+
+.gridContainer::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.gridContainer::-webkit-scrollbar-thumb {
+  background: var(--c-accent-secondary);
+  border-radius: 2px;
 }
 
 .slot {

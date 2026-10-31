@@ -344,7 +344,7 @@ export const LoadoutTab: React.FC = () => {
                       NO COMPATIBLE SOFTWARE CORES IN VAULT
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div className={styles.socketSoftwareList}>
                       {compatibleStashSoftware.map((sw) => (
                         <BtnLever
                           key={sw.entityId}
@@ -372,7 +372,12 @@ export const LoadoutTab: React.FC = () => {
       </PanelCard>
 
       {/* Column 3: Reserve Hardware Stash */}
-      <PanelCard title="RESERVE HARDWARE STASH" badge={`${vaultItems.length} ITEMS`}>
+      <PanelCard
+        title="RESERVE HARDWARE STASH"
+        badge={`${vaultItems.length} ITEMS`}
+        className={styles.stashCard}
+        bodyClassName={styles.stashBody}
+      >
         <StashItemList
           items={vaultItems}
           activeFilter={activeFilter}
