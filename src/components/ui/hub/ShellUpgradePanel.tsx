@@ -24,6 +24,7 @@ export const ShellUpgradePanel: React.FC = () => {
         if (response.ok) {
           const data = await response.json();
           setShells(data.templates);
+          gameStore.getState().setShellTemplates(data.templates);
         }
       } catch (error) {
         logger.error('Failed to fetch shells:', 'UI', error);
@@ -51,7 +52,53 @@ export const ShellUpgradePanel: React.FC = () => {
     return Math.floor(baseCost * Math.pow(multiplier, currentLevel));
   };
 
+  const upgradeDefs: {
+    stat: 'speed' | 'armor' | 'stability' | 'additionalPorts';
+    name: string;
+    description: string;
+    baseCost: number;
+    multiplier: number;
+    maxLevel: number;
+  }[] = [
+    {
+      stat: 'speed',
+      name: 'LOCOMOTION COILS',
+      description: '+5 T/SEC BASE RUN VELOCITY',
+      baseCost: economyConfig.costs.shellUpgrade.speed.baseCost,
+      multiplier: economyConfig.costs.shellUpgrade.speed.perLevelMultiplier,
+      maxLevel: 5,
+    },
+    {
+      stat: 'armor',
+      name: 'TITANIUM COMPOSITE PLATING',
+      description: '+1 DAMAGE REDUCTION THRESHOLD',
+      baseCost: economyConfig.costs.shellUpgrade.armor.baseCost,
+      multiplier: economyConfig.costs.shellUpgrade.armor.perLevelMultiplier,
+      maxLevel: 5,
+    },
+    {
+      stat: 'stability',
+      name: 'REALITY TETHER STABILIZER',
+      description: '+10 MAX REALITY STABILITY RETENTION',
+      baseCost: 35,
+      multiplier: 1.5,
+      maxLevel: 5,
+    },
+    {
+      stat: 'additionalPorts',
+      name: 'SUBROUTINE BUS EXPANSION',
+      description: '+1 FIRMWARE / AUGMENT SOCKET PORT',
+      baseCost: economyConfig.costs.shellUpgrade.additionalPort.baseCost,
+      multiplier: economyConfig.costs.shellUpgrade.additionalPort.perPortMultiplier,
+      maxLevel: 3,
+    },
+  ];
+
   const handleUpgrade = async (stat: 'speed' | 'armor' | 'stability' | 'additionalPorts') => {
+    const def = upgradeDefs.find((d) => d.stat === stat);
+    const currentLevel = upgrades[stat] || 0;
+    if (def && currentLevel >= def.maxLevel) return;
+
     let baseCost = 0;
     let multiplier = 1.0;
 
@@ -69,7 +116,7 @@ export const ShellUpgradePanel: React.FC = () => {
       multiplier = 1.5;
     }
 
-    const cost = calculateCost(baseCost, multiplier, upgrades[stat] || 0);
+    const cost = calculateCost(baseCost, multiplier, currentLevel);
     if ((profile.wallet?.flux || 0) < cost) return;
 
     try {
@@ -115,50 +162,14 @@ export const ShellUpgradePanel: React.FC = () => {
     }
   };
 
-  const upgradeDefs: {
-    stat: 'speed' | 'armor' | 'stability' | 'additionalPorts';
-    name: string;
-    description: string;
-    baseCost: number;
-    multiplier: number;
-  }[] = [
-    {
-      stat: 'speed',
-      name: 'LOCOMOTION COILS',
-      description: '+5 T/SEC BASE RUN VELOCITY',
-      baseCost: economyConfig.costs.shellUpgrade.speed.baseCost,
-      multiplier: economyConfig.costs.shellUpgrade.speed.perLevelMultiplier,
-    },
-    {
-      stat: 'armor',
-      name: 'TITANIUM COMPOSITE PLATING',
-      description: '+1 DAMAGE REDUCTION THRESHOLD',
-      baseCost: economyConfig.costs.shellUpgrade.armor.baseCost,
-      multiplier: economyConfig.costs.shellUpgrade.armor.perLevelMultiplier,
-    },
-    {
-      stat: 'stability',
-      name: 'REALITY TETHER STABILIZER',
-      description: '+10 MAX REALITY STABILITY RETENTION',
-      baseCost: 35,
-      multiplier: 1.5,
-    },
-    {
-      stat: 'additionalPorts',
-      name: 'SUBROUTINE BUS EXPANSION',
-      description: '+1 FIRMWARE / AUGMENT SOCKET PORT',
-      baseCost: economyConfig.costs.shellUpgrade.additionalPort.baseCost,
-      multiplier: economyConfig.costs.shellUpgrade.additionalPort.perPortMultiplier,
-    },
-  ];
-
   return (
     <PanelCard title="HARDWARE UPGRADE DOCK" badge="FLUX SINK">
       <div className={styles.upgradeRoot}>
         {upgradeDefs.map((def) => {
           const currentLevel = upgrades[def.stat] || 0;
+          const isMaxed = currentLevel >= def.maxLevel;
           const cost = calculateCost(def.baseCost, def.multiplier, currentLevel);
-          const canAfford = (profile.wallet?.flux || 0) >= cost;
+          const canAfford = !isMaxed && (profile.wallet?.flux || 0) >= cost;
 
           return (
             <div key={def.stat} className={styles.upgradeRow}>
@@ -167,16 +178,48 @@ export const ShellUpgradePanel: React.FC = () => {
                 <div style={{ fontSize: '10px', color: 'var(--c-text-dim)' }}>
                   {def.description}
                 </div>
-                <div className={styles.upgradeLevel}>LEVEL: MK-{currentLevel + 1}</div>
+
+                {/* Progress Bar & Max Upgrade Meter */}
+                <div className={styles.progressContainer}>
+                  <div className={styles.progressMeta}>
+                    <span className={styles.progressLabel}>
+                      LEVEL MK-{currentLevel} / MK-{def.maxLevel}
+                    </span>
+                    {isMaxed && <span className={styles.maxBadge}>[MAXED]</span>}
+                  </div>
+                  <div
+                    className={styles.progressTrack}
+                    role="progressbar"
+                    aria-valuenow={currentLevel}
+                    aria-valuemin={0}
+                    aria-valuemax={def.maxLevel}
+                  >
+                    {Array.from({ length: def.maxLevel }).map((_, idx) => {
+                      const isFilled = idx < currentLevel;
+                      return (
+                        <div
+                          key={idx}
+                          className={`${styles.segmentPip} ${
+                            isFilled
+                              ? isMaxed
+                                ? styles.segmentPipMaxed
+                                : styles.segmentPipFilled
+                              : ''
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
 
               <BtnLever
                 variant="primary"
                 disabled={!canAfford}
-                onClick={() => handleUpgrade(def.stat)}
-                rightSlot={`${cost} FLX`}
+                onClick={() => !isMaxed && handleUpgrade(def.stat)}
+                rightSlot={isMaxed ? 'MAXED' : `${cost} FLX`}
               >
-                UPGRADE
+                {isMaxed ? 'MAXED' : 'UPGRADE'}
               </BtnLever>
             </div>
           );

@@ -54,6 +54,64 @@
   font-weight: 700;
 }
 
+.progressContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.progressMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progressLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--c-accent);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.maxBadge {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 900;
+  color: var(--c-accent-secondary);
+  background: rgba(0, 255, 157, 0.12);
+  border: 1px solid var(--c-accent-secondary);
+  padding: 1px 4px;
+  letter-spacing: 0.08em;
+}
+
+.progressTrack {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.segmentPip {
+  width: 18px;
+  height: 6px;
+  background: rgba(0, 240, 255, 0.08);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  transition: all 0.2s ease;
+}
+
+.segmentPipFilled {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+  box-shadow: 0 0 6px rgba(0, 240, 255, 0.5);
+}
+
+.segmentPipMaxed {
+  background: var(--c-accent-secondary);
+  border-color: var(--c-accent-secondary);
+  box-shadow: 0 0 6px rgba(0, 255, 157, 0.6);
+}
+
 .loading {
   font-family: var(--font-mono);
   font-size: 11px;

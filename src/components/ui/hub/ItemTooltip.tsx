@@ -73,6 +73,7 @@ export const ItemTooltip: React.FC<ItemTooltipProps> = ({
           rarity: item.rarityTier,
           floor: item.extractedAtFloor,
           entityId: item.entityId,
+          socketedSoftware: item.socketedSoftware,
         })
       : null);
 
@@ -105,6 +106,23 @@ export const ItemTooltip: React.FC<ItemTooltipProps> = ({
 
       {/* Description Box */}
       <div className={styles.descriptionBox}>{metadata.description}</div>
+
+      {/* Loaded Software Subroutine Modifiers Box */}
+      {metadata.socketedSoftwareDetails && metadata.socketedSoftwareDetails.length > 0 && (
+        <div className={styles.softwareModBox}>
+          <div className={styles.modBoxHeader}>LOADED SOFTWARE SUBROUTINE // MODIFIERS</div>
+          {metadata.socketedSoftwareDetails.map((sw) => (
+            <div key={sw.id} className={styles.modEntry}>
+              <div className={styles.modHeader}>
+                <span className={styles.modIcon}>⚡</span>
+                <span className={styles.modName}>{sw.name}</span>
+                <span className={styles.modSlot}>[{sw.targetSlot.toUpperCase()}]</span>
+              </div>
+              <div className={styles.modEffect}>{sw.effect}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Specs Matrix */}
       {metadata.specs.length > 0 && (

@@ -7,6 +7,7 @@ import {
   EquipmentDef,
   TemplateId,
   RarityTier,
+  Children,
 } from '@shared/components';
 import type { ComponentDef } from '@engine/ecs/types';
 import type { EventBus } from '@engine/events/event-bus';
@@ -26,6 +27,7 @@ interface GameContext {
 
 export const BackpackGrid: React.FC = () => {
   const [hoveredEntityId, setHoveredEntityId] = useState<number | null>(null);
+  const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const gameContext = (window as unknown as { gameContext: GameContext }).gameContext;
 
@@ -76,6 +78,7 @@ export const BackpackGrid: React.FC = () => {
           let itemTemplateId = '';
           let itemRarity = 'common';
           let itemType = 'software';
+          let hasSocketedSoftware = false;
 
           if (entityId) {
             const sw = gameContext.world.getComponent(entityId, SoftwareDef);
@@ -92,6 +95,12 @@ export const BackpackGrid: React.FC = () => {
             } else if (eq) {
               itemName = eq.name;
               itemType = eq.slotType;
+
+              // Check if gear has software in children
+              const children = gameContext.world.getComponent(entityId, Children);
+              if (children && children.entityIds.length > 0) {
+                hasSocketedSoftware = true;
+              }
             } else {
               itemName = `Entity #${entityId}`;
             }
@@ -169,11 +178,17 @@ export const BackpackGrid: React.FC = () => {
                   }
                 }
               }}
-              onMouseEnter={() => entityId && setHoveredEntityId(entityId)}
+              onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}
+              onMouseEnter={(e) => {
+                if (entityId) {
+                  setMousePos({ x: e.clientX, y: e.clientY });
+                  setHoveredEntityId(entityId);
+                }
+              }}
               onMouseLeave={() => setHoveredEntityId(null)}
             >
               {entityId ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', width: '100%', position: 'relative' }}>
                   <ItemIcon
                     templateId={itemTemplateId}
                     name={itemName}
@@ -181,6 +196,25 @@ export const BackpackGrid: React.FC = () => {
                     rarityTier={itemRarity}
                     size="sm"
                   />
+                  {hasSocketedSoftware && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '-2px',
+                        right: '-2px',
+                        background: 'var(--c-accent-secondary, #00ff9d)',
+                        color: '#000000',
+                        fontSize: '7px',
+                        fontWeight: 900,
+                        padding: '0 2px',
+                        borderRadius: '1px',
+                        lineHeight: '9px',
+                      }}
+                      title="Loaded Software Subroutine"
+                    >
+                      SW
+                    </div>
+                  )}
                   <div
                     style={{
                       fontWeight: 'bold',
@@ -199,7 +233,9 @@ export const BackpackGrid: React.FC = () => {
               ) : (
                 ''
               )}
-              {hoveredEntityId === entityId && entityId && <InRunItemTooltip entityId={entityId} />}
+              {hoveredEntityId === entityId && entityId && (
+                <InRunItemTooltip entityId={entityId} position={mousePos} />
+              )}
             </div>
           );
         })}

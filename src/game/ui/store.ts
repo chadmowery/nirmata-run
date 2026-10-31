@@ -215,7 +215,29 @@ export interface UIState {
 
 const MAX_MESSAGES = 50;
 
-export const gameStore = createStore<UIState>((set) => ({
+function getSavedShellIndex(templates?: ShellTemplate[]): number {
+  if (typeof window !== 'undefined') {
+    try {
+      const savedId = localStorage.getItem('nirmata_last_selected_shell');
+      if (savedId && templates && templates.length > 0) {
+        const idx = templates.findIndex((t) => t.id === savedId);
+        if (idx !== -1) return idx;
+      }
+      const savedIndex = localStorage.getItem('nirmata_last_selected_shell_index');
+      if (savedIndex !== null) {
+        const parsed = parseInt(savedIndex, 10);
+        if (!isNaN(parsed) && parsed >= 0) {
+          if (!templates || parsed < templates.length) return parsed;
+        }
+      }
+    } catch {
+      // Ignore storage errors in private browsing/SSR
+    }
+  }
+  return 0;
+}
+
+export const gameStore = createStore<UIState>((set, get) => ({
   player: {
     hp: 0,
     maxHp: 0,
@@ -257,7 +279,7 @@ export const gameStore = createStore<UIState>((set) => ({
   shellTemplates: [],
   profileLoading: false,
   profileError: null,
-  selectedShellIndex: 0,
+  selectedShellIndex: getSavedShellIndex(),
   draggedItem: null,
   dragOverSlot: null,
   compilingBlueprintId: null,
@@ -432,10 +454,50 @@ export const gameStore = createStore<UIState>((set) => ({
       hasOverflow: profile.overflow.length > 0,
       overflowCount: profile.overflow.length,
     }),
-  setShellTemplates: (templates) => set({ shellTemplates: templates }),
+  setShellTemplates: (templates) => {
+    let targetIndex = get().selectedShellIndex;
+    if (typeof window !== 'undefined') {
+      try {
+        const savedId = localStorage.getItem('nirmata_last_selected_shell');
+        if (savedId) {
+          const idx = templates.findIndex((t) => t.id === savedId);
+          if (idx !== -1) {
+            targetIndex = idx;
+          }
+        } else {
+          const savedIndex = localStorage.getItem('nirmata_last_selected_shell_index');
+          if (savedIndex !== null) {
+            const parsed = parseInt(savedIndex, 10);
+            if (!isNaN(parsed) && parsed >= 0 && parsed < templates.length) {
+              targetIndex = parsed;
+            }
+          }
+        }
+      } catch {
+        // Ignore storage errors in private browsing/SSR
+      }
+    }
+    if (targetIndex >= templates.length) {
+      targetIndex = Math.max(0, templates.length - 1);
+    }
+    set({ shellTemplates: templates, selectedShellIndex: targetIndex });
+  },
   setProfileLoading: (loading) => set({ profileLoading: loading }),
   setProfileError: (error) => set({ profileError: error }),
-  setSelectedShellIndex: (index) => set({ selectedShellIndex: index }),
+  setSelectedShellIndex: (index) => {
+    set({ selectedShellIndex: index });
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('nirmata_last_selected_shell_index', String(index));
+        const shell = get().shellTemplates[index];
+        if (shell?.id) {
+          localStorage.setItem('nirmata_last_selected_shell', shell.id);
+        }
+      } catch {
+        // Ignore storage errors in private browsing/SSR
+      }
+    }
+  },
   setDraggedItem: (item) => set({ draggedItem: item }),
   setDragOverSlot: (slot) => set({ dragOverSlot: slot }),
   setCompilingBlueprintId: (id) => set({ compilingBlueprintId: id }),
@@ -460,7 +522,7 @@ export const gameStore = createStore<UIState>((set) => ({
       shellTemplates: [],
       profileLoading: false,
       profileError: null,
-      selectedShellIndex: 0,
+      selectedShellIndex: getSavedShellIndex(get().shellTemplates),
       draggedItem: null,
       dragOverSlot: null,
       compilingBlueprintId: null,

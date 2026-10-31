@@ -84,4 +84,29 @@ describe('ItemTooltip Component', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onDismiss).toHaveBeenCalledTimes(1);
   });
+
+  it('renders loaded software modifiers preview when item has socketed software', () => {
+    const vaultItem: VaultItem = {
+      entityId: 90022,
+      templateId: 'rifle-v1',
+      rarityTier: 'common',
+      itemType: 'equipment',
+      extractedAtFloor: 2,
+      extractedAtTimestamp: Date.now(),
+      socketedSoftware: ['bleed-v2'],
+    };
+
+    render(
+      <ItemTooltip
+        item={vaultItem}
+        position={{ x: 100, y: 100 }}
+        visible={true}
+      />,
+    );
+
+    expect(screen.getByText('Standard Kinetic Rifle')).toBeDefined();
+    expect(screen.getByText(/LOADED SOFTWARE SUBROUTINE \/\/ MODIFIERS/i)).toBeDefined();
+    expect(screen.getAllByText(/BLEED\.EXE V2/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Inflicts \+5 DoT Bleed damage/i).length).toBeGreaterThanOrEqual(1);
+  });
 });

@@ -108,6 +108,7 @@ export const LoadoutSlotPanel: React.FC<LoadoutSlotPanelProps> = ({
           onPointerLeave={handlePointerLeave}
           onPointerUp={handlePointerUp}
           onPointerDown={item ? handleDragStart : undefined}
+          onClick={item ? () => onSlotDragStart(item) : undefined}
         >
           <SlotBox
             filled={!!item}

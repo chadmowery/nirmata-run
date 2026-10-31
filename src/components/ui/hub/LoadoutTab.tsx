@@ -15,6 +15,8 @@ import {
 import { LoadoutSlotPanel } from './LoadoutSlotPanel';
 import { StashItemList, StashFilter } from './StashItemList';
 import { PanelCard, DottedSpecRow, TaikokuStamp, BtnLever } from '../atomic';
+import { ItemTooltip } from './ItemTooltip';
+import { ItemMetadata, resolveItemMetadata, getSoftwareModificationInfo } from './item-metadata';
 import styles from './LoadoutTab.module.css';
 
 export const LoadoutTab: React.FC = () => {
@@ -23,10 +25,16 @@ export const LoadoutTab: React.FC = () => {
   const draggedItem = useStore(gameStore, (s) => s.draggedItem);
   const setDraggedItem = useStore(gameStore, (s) => s.setDraggedItem);
   const setDragOverSlot = useStore(gameStore, (s) => s.setDragOverSlot);
+  const setShellTemplates = useStore(gameStore, (s) => s.setShellTemplates);
   const updateProfileOptimistic = useStore(gameStore, (s) => s.updateProfileOptimistic);
 
   const [templates, setTemplates] = useState<ShellTemplate[]>([]);
   const [activeFilter, setActiveFilter] = useState<StashFilter>('all');
+  const [hoveredSoftware, setHoveredSoftware] = useState<{
+    metadata: ItemMetadata;
+    x: number;
+    y: number;
+  } | null>(null);
   const [inspectedItem, setInspectedItem] = useState<{
     entityId?: number;
     name: string;
@@ -45,13 +53,14 @@ export const LoadoutTab: React.FC = () => {
         if (response.ok) {
           const data = await response.json();
           setTemplates(data.templates);
+          setShellTemplates(data.templates);
         }
       } catch (error) {
         logger.error('Failed to fetch shells:', 'UI', error);
       }
     };
     fetchShells();
-  }, []);
+  }, [setShellTemplates]);
 
   if (!playerProfile || templates.length === 0) {
     return <div className={styles.loading}>INITIALIZING_LOADOUT_SYSTEM // VEC-OS 1.0.4...</div>;
@@ -324,6 +333,60 @@ export const LoadoutTab: React.FC = () => {
                       : undefined
                   }
                 />
+
+                {/* Rich Software Modification Preview */}
+                {inspectedItem.socketedSoftware && inspectedItem.socketedSoftware.length > 0 && (
+                  <div
+                    style={{
+                      marginTop: '8px',
+                      padding: '8px',
+                      background: 'rgba(0, 240, 255, 0.04)',
+                      border: '1px solid rgba(0, 240, 255, 0.25)',
+                      borderLeft: '3px solid var(--c-accent-secondary)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '8px',
+                        color: 'var(--c-accent-secondary)',
+                        fontWeight: 800,
+                        letterSpacing: '0.06em',
+                        marginBottom: '4px',
+                      }}
+                    >
+                      ACTIVE SOFTWARE SUBROUTINE MODIFIERS:
+                    </div>
+                    {inspectedItem.socketedSoftware.map((swId) => {
+                      const info = getSoftwareModificationInfo(swId);
+                      return (
+                        <div key={swId} style={{ marginTop: '4px' }}>
+                          <div
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '10px',
+                              color: '#ffffff',
+                              fontWeight: 700,
+                            }}
+                          >
+                            ⚡ {info.name.toUpperCase()} [{info.targetSlot.toUpperCase()}]
+                          </div>
+                          <div
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '9px',
+                              color: 'var(--c-accent-secondary)',
+                              marginTop: '2px',
+                              lineHeight: 1.3,
+                            }}
+                          >
+                            MOD EFFECT: {info.effect}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {canSocketOnInspected && (
@@ -345,16 +408,37 @@ export const LoadoutTab: React.FC = () => {
                     </div>
                   ) : (
                     <div className={styles.socketSoftwareList}>
-                      {compatibleStashSoftware.map((sw) => (
-                        <BtnLever
-                          key={sw.entityId}
-                          variant="cyan"
-                          onClick={() => handleSoftwareSocket(inspectedItem.entityId!, sw.entityId)}
-                          rightSlot="LOAD"
-                        >
-                          {sw.templateId.toUpperCase()}
-                        </BtnLever>
-                      ))}
+                      {compatibleStashSoftware.map((sw) => {
+                        const swMeta = resolveItemMetadata({
+                          templateId: sw.templateId,
+                          type: sw.itemType,
+                          rarity: sw.rarityTier,
+                          entityId: sw.entityId,
+                          floor: sw.extractedAtFloor,
+                        });
+                        return (
+                          <div
+                            key={sw.entityId}
+                            onPointerEnter={(e) =>
+                              setHoveredSoftware({ metadata: swMeta, x: e.clientX, y: e.clientY })
+                            }
+                            onPointerMove={(e) => {
+                              if (hoveredSoftware?.metadata.id === sw.templateId) {
+                                setHoveredSoftware({ metadata: swMeta, x: e.clientX, y: e.clientY });
+                              }
+                            }}
+                            onPointerLeave={() => setHoveredSoftware(null)}
+                          >
+                            <BtnLever
+                              variant="cyan"
+                              onClick={() => handleSoftwareSocket(inspectedItem.entityId!, sw.entityId)}
+                              rightSlot="LOAD"
+                            >
+                              {sw.templateId.toUpperCase()}
+                            </BtnLever>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -385,6 +469,16 @@ export const LoadoutTab: React.FC = () => {
           onDragStart={handleDragStartFromStash}
         />
       </PanelCard>
+
+      {/* Floating Hover Tooltip for Software Subroutines */}
+      {hoveredSoftware && (
+        <ItemTooltip
+          metadata={hoveredSoftware.metadata}
+          position={{ x: hoveredSoftware.x, y: hoveredSoftware.y }}
+          visible={true}
+          onDismiss={() => setHoveredSoftware(null)}
+        />
+      )}
     </div>
   );
 };

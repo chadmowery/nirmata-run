@@ -109,4 +109,42 @@ describe('resolveItemMetadata', () => {
     expect(meta.description).toContain('Taikoku Vector database');
     expect(meta.specs.length).toBeGreaterThan(0);
   });
+
+  it('resolves socketed software details and modifies specs accordingly', () => {
+    const meta = resolveItemMetadata({
+      templateId: 'rifle-v1',
+      type: 'weapon',
+      socketedSoftware: ['bleed-v1'],
+    });
+
+    expect(meta.socketedSoftwareDetails).toHaveLength(1);
+    expect(meta.socketedSoftwareDetails![0].name).toBe('Bleed.exe v1');
+    expect(meta.socketedSoftwareDetails![0].effect).toContain('+3 DoT Bleed');
+    expect(meta.socketedSoftwareDetails![0].targetSlot).toBe('weapon');
+
+    const swSpec = meta.specs.find((s) => s.label === 'LOADED SOFTWARE');
+    expect(swSpec?.value).toBe('Bleed.exe v1');
+
+    const effectSpec = meta.specs.find((s) => s.label === 'MODIFICATION EFFECT');
+    expect(effectSpec?.value).toContain('+3 DoT Bleed');
+  });
+
+  it('correctly maps various software subroutines to modification effects', () => {
+    const vampMeta = resolveItemMetadata({
+      templateId: 'armor-v1',
+      type: 'armor',
+      socketedSoftware: ['vampire-v2'],
+    });
+
+    expect(vampMeta.socketedSoftwareDetails![0].effect).toContain('+12 HP');
+    expect(vampMeta.socketedSoftwareDetails![0].targetSlot).toBe('armor');
+
+    const loaderMeta = resolveItemMetadata({
+      templateId: 'rifle-v2',
+      type: 'weapon',
+      socketedSoftware: ['auto-loader-v0'],
+    });
+
+    expect(loaderMeta.socketedSoftwareDetails![0].effect).toContain('Move and execute Firmware');
+  });
 });

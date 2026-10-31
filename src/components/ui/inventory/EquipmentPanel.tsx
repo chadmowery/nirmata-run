@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
-import { EquipmentSlots, SoftwareDef, EquipmentDef, TemplateId, RarityTier } from '@shared/components';
+import { EquipmentSlots, SoftwareDef, EquipmentDef, TemplateId, RarityTier, Children } from '@shared/components';
 import type { ComponentDef } from '@engine/ecs/types';
 import type { EventBus } from '@engine/events/event-bus';
 import type { GameEvents } from '@/game/events/types';
 import styles from './InventoryOverlay.module.css';
 import { InRunItemTooltip } from './InRunItemTooltip';
 import { ItemIcon } from '../atomic';
+import { getSoftwareModificationInfo } from '../hub/item-metadata';
 
 interface GameContext {
   playerId: number;
@@ -20,6 +21,7 @@ interface GameContext {
 
 export const EquipmentPanel: React.FC = () => {
   const [hoveredEntityId, setHoveredEntityId] = useState<number | null>(null);
+  const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const gameContext = (window as unknown as { gameContext: GameContext }).gameContext;
 
@@ -63,6 +65,8 @@ export const EquipmentPanel: React.FC = () => {
     let detailText = '';
     let itemTemplateId = '';
     let itemRarity = 'common';
+    let socketedSwName = '';
+    let socketedSwEffect = '';
 
     if (entityId) {
       const sw = gameContext.world.getComponent(entityId, SoftwareDef);
@@ -79,6 +83,29 @@ export const EquipmentPanel: React.FC = () => {
       } else if (eqItem) {
         itemName = eqItem.name;
         detailText = `[${slotType.toUpperCase()}]`;
+
+        // Check for attached software subroutines
+        const children = gameContext.world.getComponent(entityId, Children);
+        if (children) {
+          for (const childId of children.entityIds) {
+            const cSw = gameContext.world.getComponent(childId, SoftwareDef);
+            const cTmpl = gameContext.world.getComponent(childId, TemplateId);
+            if (cSw) {
+              socketedSwName = cSw.name;
+              const info = getSoftwareModificationInfo(cTmpl?.id || cSw.type);
+              socketedSwEffect = info.effect;
+              break;
+            }
+          }
+        }
+        if (!socketedSwName) {
+          const direct = gameContext.world.getComponent(entityId, SoftwareDef);
+          if (direct) {
+            socketedSwName = direct.name;
+            const info = getSoftwareModificationInfo(direct.type);
+            socketedSwEffect = info.effect;
+          }
+        }
       } else {
         itemName = `Entity #${entityId}`;
       }
@@ -188,7 +215,13 @@ export const EquipmentPanel: React.FC = () => {
             eventBus?.emit('UNEQUIP_REQUESTED', { slotType, slotIndex: 0 });
           }
         }}
-        onMouseEnter={() => entityId && setHoveredEntityId(entityId)}
+        onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}
+        onMouseEnter={(e) => {
+          if (entityId) {
+            setMousePos({ x: e.clientX, y: e.clientY });
+            setHoveredEntityId(entityId);
+          }
+        }}
         onMouseLeave={() => setHoveredEntityId(null)}
       >
         {entityId ? (
@@ -207,6 +240,11 @@ export const EquipmentPanel: React.FC = () => {
               <div style={{ fontSize: '10px', color: 'var(--c-text-dim)', marginTop: '2px' }}>
                 {detailText}
               </div>
+              {socketedSwName && (
+                <div style={{ fontSize: '9px', color: 'var(--c-accent-secondary)', marginTop: '3px', fontWeight: 700 }}>
+                  ⚡ MOD: {socketedSwName.toUpperCase()} — {socketedSwEffect}
+                </div>
+              )}
               <div style={{ fontSize: '9px', color: 'var(--c-danger)', marginTop: '4px' }}>
                 Uninstall: Double-click to quick-uninstall.
               </div>
@@ -218,7 +256,9 @@ export const EquipmentPanel: React.FC = () => {
             <div style={{ fontSize: '9px', opacity: 0.6 }}>Drag an item here to equip.</div>
           </div>
         )}
-        {hoveredEntityId === entityId && entityId && <InRunItemTooltip entityId={entityId} />}
+        {hoveredEntityId === entityId && entityId && (
+          <InRunItemTooltip entityId={entityId} position={mousePos} />
+        )}
       </div>
     );
   };

@@ -15,7 +15,7 @@ import {
 } from '@/shared/utils/equipment-util';
 import { PanelCard, DottedSpecRow, BtnLever, TaikokuStamp, ItemIcon } from '../atomic';
 import { ItemTooltip } from './ItemTooltip';
-import { ItemMetadata, resolveItemMetadata } from './item-metadata';
+import { ItemMetadata, resolveItemMetadata, getSoftwareModificationInfo } from './item-metadata';
 import styles from './VaultTab.module.css';
 
 export const VaultTab: React.FC = () => {
@@ -385,6 +385,62 @@ export const VaultTab: React.FC = () => {
                     />
                   )}
 
+                  {/* Rich Software Modification Preview for Gear */}
+                  {isSelectedGear &&
+                    selectedItem.socketedSoftware &&
+                    selectedItem.socketedSoftware.length > 0 && (
+                      <div
+                        style={{
+                          marginTop: '8px',
+                          padding: '8px',
+                          background: 'rgba(0, 240, 255, 0.04)',
+                          border: '1px solid rgba(0, 240, 255, 0.25)',
+                          borderLeft: '3px solid var(--c-accent-secondary)',
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '8px',
+                            color: 'var(--c-accent-secondary)',
+                            fontWeight: 800,
+                            letterSpacing: '0.06em',
+                            marginBottom: '4px',
+                          }}
+                        >
+                          ACTIVE SOFTWARE SUBROUTINE MODIFIERS:
+                        </div>
+                        {selectedItem.socketedSoftware.map((swId) => {
+                          const info = getSoftwareModificationInfo(swId);
+                          return (
+                            <div key={swId} style={{ marginTop: '4px' }}>
+                              <div
+                                style={{
+                                  fontFamily: 'var(--font-mono)',
+                                  fontSize: '10px',
+                                  color: '#ffffff',
+                                  fontWeight: 700,
+                                }}
+                              >
+                                ⚡ {info.name.toUpperCase()} [{info.targetSlot.toUpperCase()}]
+                              </div>
+                              <div
+                                style={{
+                                  fontFamily: 'var(--font-mono)',
+                                  fontSize: '9px',
+                                  color: 'var(--c-accent-secondary)',
+                                  marginTop: '2px',
+                                  lineHeight: 1.3,
+                                }}
+                              >
+                                MOD EFFECT: {info.effect}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
                   {isSelectedSoftware && (
                     <DottedSpecRow
                       label="TARGET SOCKET"
@@ -421,16 +477,39 @@ export const VaultTab: React.FC = () => {
                       </div>
                     ) : (
                       <div className={styles.actionList}>
-                        {compatibleSoftwareInVault.map((sw) => (
-                          <BtnLever
-                            key={sw.entityId}
-                            variant="cyan"
-                            onClick={() => handleSocketSoftware(selectedItem.entityId, sw.entityId)}
-                            rightSlot="LOAD"
-                          >
-                            {sw.templateId.toUpperCase()}
-                          </BtnLever>
-                        ))}
+                        {compatibleSoftwareInVault.map((sw) => {
+                          const swMeta = resolveItemMetadata({
+                            templateId: sw.templateId,
+                            type: sw.itemType,
+                            rarity: sw.rarityTier,
+                            entityId: sw.entityId,
+                            floor: sw.extractedAtFloor,
+                          });
+                          return (
+                            <div
+                              key={sw.entityId}
+                              onPointerEnter={(e) =>
+                                setHoveredSlot({ metadata: swMeta, x: e.clientX, y: e.clientY })
+                              }
+                              onPointerMove={(e) => {
+                                if (hoveredSlot?.metadata.id === sw.templateId) {
+                                  setHoveredSlot({ metadata: swMeta, x: e.clientX, y: e.clientY });
+                                }
+                              }}
+                              onPointerLeave={() => setHoveredSlot(null)}
+                              onFocus={(e) => handleFocus(swMeta, e)}
+                              onBlur={() => setHoveredSlot(null)}
+                            >
+                              <BtnLever
+                                variant="cyan"
+                                onClick={() => handleSocketSoftware(selectedItem.entityId, sw.entityId)}
+                                rightSlot="LOAD"
+                              >
+                                {sw.templateId.toUpperCase()}
+                              </BtnLever>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>

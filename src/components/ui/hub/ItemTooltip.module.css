@@ -104,6 +104,61 @@
   border-left: 2px solid var(--c-accent);
 }
 
+.softwareModBox {
+  margin-bottom: 10px;
+  background: rgba(0, 240, 255, 0.04);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-left: 3px solid var(--c-accent-secondary);
+  padding: 6px 8px;
+}
+
+.modBoxHeader {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--c-accent-secondary);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.modEntry {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.modHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.modIcon {
+  color: var(--c-accent);
+}
+
+.modName {
+  letter-spacing: 0.04em;
+}
+
+.modSlot {
+  font-size: 8px;
+  color: var(--c-text-dim);
+}
+
+.modEffect {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--c-accent-secondary);
+  line-height: 1.3;
+  padding-left: 14px;
+}
+
 .specsList {
   display: flex;
   flex-direction: column;

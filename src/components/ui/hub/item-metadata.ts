@@ -8,6 +8,15 @@ export type ItemType = 'firmware' | 'augment' | 'software' | 'equipment' | 'item
 
 export type StampVariant = 'danger' | 'cyan' | 'secured' | 'amber';
 
+export interface SoftwareModificationInfo {
+  id: string;
+  name: string;
+  kanjiSub: string;
+  targetSlot: 'weapon' | 'armor';
+  effect: string;
+  description: string;
+}
+
 export interface ItemMetadata {
   id: string;
   name: string;
@@ -21,6 +30,7 @@ export interface ItemMetadata {
   statusVariant: StampVariant;
   specs: ItemSpec[];
   footerText?: string;
+  socketedSoftwareDetails?: SoftwareModificationInfo[];
 }
 
 export interface ResolveItemParams {
@@ -572,6 +582,52 @@ function inferItemType(templateId: string, explicitType?: string): ItemType {
 }
 
 /**
+ * Returns canonical modification info for any software subroutine.
+ */
+export function getSoftwareModificationInfo(softwareTemplateId: string): SoftwareModificationInfo {
+  const normId = softwareTemplateId.toLowerCase().trim();
+  const known = KNOWN_TEMPLATES[normId];
+
+  let targetSlot: 'weapon' | 'armor' = 'weapon';
+  let effect = 'Custom kernel tactical subroutine modification.';
+
+  if (normId.includes('bleed')) {
+    targetSlot = 'weapon';
+    if (normId.includes('v0')) effect = 'Inflicts +2 DoT Bleed damage for 3 turns on hit';
+    else if (normId.includes('v1')) effect = 'Inflicts +3 DoT Bleed damage for 3 turns on hit';
+    else if (normId.includes('v2')) effect = 'Inflicts +5 DoT Bleed damage for 3 turns on hit';
+    else if (normId.includes('v3')) effect = 'Inflicts +8 DoT Bleed damage for 4 turns on hit';
+    else effect = 'Inflicts continuous Bleed DoT damage on hit';
+  } else if (normId.includes('void-echo')) {
+    targetSlot = 'weapon';
+    effect = 'Inflicts +4 Resonant Bleed damage for 3 turns on hit';
+  } else if (normId.includes('auto-loader') || normId.includes('loader')) {
+    targetSlot = 'weapon';
+    if (normId.includes('v0')) effect = 'Action Economy: Move and execute Firmware in same turn';
+    else if (normId.includes('v1')) effect = 'Action Economy: Move and execute Firmware in same turn (Zero latency)';
+    else if (normId.includes('v2')) effect = 'Action Economy: Move and execute Firmware in same turn (-15% latency)';
+    else if (normId.includes('v3')) effect = 'Action Economy: Flawless concurrent motion and Firmware execution';
+    else effect = 'Action Economy: Move and execute Firmware in same turn';
+  } else if (normId.includes('vampire')) {
+    targetSlot = 'armor';
+    if (normId.includes('v0')) effect = 'Chassis Repair: Restores +5 HP on any enemy elimination';
+    else if (normId.includes('v1')) effect = 'Chassis Repair: Restores +8 HP on any enemy elimination';
+    else if (normId.includes('v2')) effect = 'Chassis Repair: Restores +12 HP on any enemy elimination';
+    else if (normId.includes('v3')) effect = 'Chassis Repair: Restores +18 HP total reconstitution on kill';
+    else effect = 'Chassis Repair: Restores HP on confirmed enemy elimination';
+  }
+
+  return {
+    id: normId,
+    name: known?.name || formatGenericName(normId),
+    kanjiSub: known?.kanjiSub || '補助機能 // SOFTWARE SUBROUTINE',
+    targetSlot,
+    effect,
+    description: known?.description || effect,
+  };
+}
+
+/**
  * Resolves full constructivist metadata and specifications for any item in the game.
  */
 export function resolveItemMetadata(params: ResolveItemParams): ItemMetadata {
@@ -636,12 +692,21 @@ export function resolveItemMetadata(params: ResolveItemParams): ItemMetadata {
       color: 'var(--c-text-dim)',
     });
   }
+  let socketedSoftwareDetails: SoftwareModificationInfo[] | undefined;
   if (params.socketedSoftware && params.socketedSoftware.length > 0) {
-    specs.push({
-      label: 'LOADED SOFTWARE',
-      value: params.socketedSoftware.map((s) => s.toUpperCase()).join(', '),
-      color: 'var(--c-accent-secondary)',
-    });
+    socketedSoftwareDetails = params.socketedSoftware.map(getSoftwareModificationInfo);
+    for (const sw of socketedSoftwareDetails) {
+      specs.push({
+        label: 'LOADED SOFTWARE',
+        value: sw.name,
+        color: 'var(--c-accent)',
+      });
+      specs.push({
+        label: 'MODIFICATION EFFECT',
+        value: sw.effect,
+        color: 'var(--c-accent-secondary)',
+      });
+    }
   }
 
   // Derive status badge & variant
@@ -678,5 +743,6 @@ export function resolveItemMetadata(params: ResolveItemParams): ItemMetadata {
     statusVariant,
     specs,
     footerText: 'TAIKOKU LOGISTICS // TELEMETRY LINK ACTIVE',
+    socketedSoftwareDetails,
   };
 }

@@ -173,4 +173,25 @@ describe('UI gameStore Comprehensive Tests', () => {
       expect(gameStore.getState().optimisticInventoryEquipmentIds).toBe(null);
     });
   });
+
+  describe('Shell Selection Persistence', () => {
+    it('persists selected shell index and id to localStorage and restores it', () => {
+      const mockTemplates = [
+        { id: 'vanguard-v1', name: 'Vanguard' } as any,
+        { id: 'bastion-v1', name: 'Bastion' } as any,
+        { id: 'ghost-v1', name: 'Ghost' } as any,
+      ];
+
+      gameStore.getState().setShellTemplates(mockTemplates);
+      gameStore.getState().setSelectedShellIndex(2);
+
+      expect(localStorage.getItem('nirmata_last_selected_shell')).toBe('ghost-v1');
+      expect(localStorage.getItem('nirmata_last_selected_shell_index')).toBe('2');
+      expect(gameStore.getState().selectedShellIndex).toBe(2);
+
+      // Simulate re-fetching templates on reload: should restore index 2 matching ghost-v1
+      gameStore.getState().setShellTemplates(mockTemplates);
+      expect(gameStore.getState().selectedShellIndex).toBe(2);
+    });
+  });
 });

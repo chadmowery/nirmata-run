@@ -41,6 +41,25 @@ export async function POST(req: Request) {
 
     const upgrades = profile.shellUpgrades[shellId];
     const currentLevel = upgrades[stat as keyof ShellUpgrades];
+
+    const MAX_LEVELS: Record<string, number> = {
+      speed: 5,
+      armor: 5,
+      stability: 5,
+      additionalPorts: 3,
+    };
+    const maxLevel = MAX_LEVELS[stat] ?? 5;
+    if (currentLevel >= maxLevel) {
+      return NextResponse.json(
+        {
+          error: 'Maximum upgrade level reached',
+          currentLevel,
+          maxLevel,
+        },
+        { status: 400 },
+      );
+    }
+
     let cost = 0;
 
     if (stat === 'additionalPorts') {
