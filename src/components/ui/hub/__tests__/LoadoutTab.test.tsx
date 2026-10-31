@@ -111,4 +111,33 @@ describe('LoadoutTab UI', () => {
     expect(screen.getByText(/RIFLE-V2/i)).toBeDefined();
     expect(screen.queryByText(/BLEED-V1/i)).toBeNull();
   });
+
+  it('renders all reserve stash items in scroll container when ALL filter is selected', async () => {
+    // Add 10 items to vault
+    const extraVault = Array.from({ length: 10 }, (_, i) => ({
+      entityId: 99000 + i,
+      templateId: `item-${i}`,
+      itemType: 'software' as const,
+      rarityTier: 'common',
+      extractedAtFloor: 1,
+      extractedAtTimestamp: 1000,
+    }));
+
+    gameStore.getState().updateProfileOptimistic((prev) => ({
+      ...prev,
+      vault: [...prev.vault, ...extraVault],
+    }));
+
+    render(<LoadoutTab />);
+
+    await waitFor(() => {
+      expect(screen.getByText('RESERVE HARDWARE STASH')).toBeDefined();
+    });
+
+    // Check that items are rendered
+    expect(screen.getByText(/bleed-v1/i)).toBeDefined();
+    expect(screen.getByText(/rifle-v2/i)).toBeDefined();
+    expect(screen.getByText(/item-0/i)).toBeDefined();
+    expect(screen.getByText(/item-9/i)).toBeDefined();
+  });
 });
