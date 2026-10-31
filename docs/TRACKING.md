@@ -1,7 +1,7 @@
 # Nirmata Runner — Project Tracking & Future Work
 
-> **Last Updated:** 2026-10-28  
-> **Baseline State:** v2.1 (Post-Phase 22 + Engine Decoupling `abc80f73` + Server Authority Remediation `3266693a`)
+> **Last Updated:** 2026-10-31  
+> **Baseline State:** v2.2 (Post-UI-Overhaul `ui-overhaul-taikoku-vector` — 136 test files, 813 tests passing)
 
 ---
 
@@ -134,4 +134,16 @@
   - Aligned [`PlayerHUD.tsx`](../src/components/ui/PlayerHUD.tsx), [`NearbyEntities.tsx`](../src/components/ui/NearbyEntities.tsx), [`MessageLog.tsx`](../src/components/ui/MessageLog.tsx), and [`AbilityBar.tsx`](../src/components/ui/AbilityBar.tsx) with Taikoku Vector styling while maintaining 100% test compatibility.
 - [x] **[UI-05] Tactical & Ritual Modals (Paradigm C)**
   - Upgraded [`RitualOverlay.tsx`](../src/components/ui/hub/RitualOverlay.tsx), [`InventoryOverlay.tsx`](../src/components/ui/inventory/InventoryOverlay.tsx), [`AnchorOverlay.tsx`](../src/components/ui/AnchorOverlay.tsx), and [`StaircaseOverlay.tsx`](../src/components/ui/StaircaseOverlay.tsx) with centered backdrop framing and mechanical levers.
+- [x] **[UI-06] Interactive Levers, Hologram Viewer & Hold-To-Confirm Progression**
+  - Implemented 2-second hold-to-confirm progress bar fill with dynamic linear gradient in [`BtnLever.tsx`](../src/components/ui/atomic/BtnLever.tsx) and `.btn-lever.holding` for consequence-heavy operations (install, purchase, currency conversion, software burn).
+  - Added double-click fast equip/inventory placement in [`LoadoutTab.tsx`](../src/components/ui/hub/LoadoutTab.tsx).
+  - Built interactive 1px vector wireframe hologram shell card dock with azimuth/elevation rotation in [`ShellTab.tsx`](../src/components/ui/hub/ShellTab.tsx).
+  - Implemented Scrap-to-Flux compression button wired to `/api/economy/compress`.
+  - Added dynamic overflow scrollbars across all lists (`StashItemList`, `SoftwareShop`, `BlueprintPanel`).
+  - Added multi-criteria item sorting (rarity, type, value) and colorized item icons with 2-letter abbreviation badges ([`ItemIcon.tsx`](../src/components/ui/atomic/ItemIcon.tsx)).
+- [x] **[UI-07] Mission Abort Dialog, Tactical Inventory Telemetry Sidebar & Viewport Bounds Tooltip Clamping**
+  - Added ESC key mission abort modal dialog ([`AbortMissionDialog.tsx`](../src/components/ui/AbortMissionDialog.tsx)) handling `ABORT_RUN` action, triggering BSOD and autopsy sequence.
+  - Implemented in-run tactical inventory telemetry sidebar ([`ChassisTelemetrySidebar.tsx`](../src/components/ui/inventory/ChassisTelemetrySidebar.tsx)) displaying current shell archetype, subsystem metrics (Speed, Armor, Health, Stability, Heat), active firmware abilities, and operational states with interactive tooltips.
+  - Implemented screen bounds collision detection and dynamic clamping for all tooltips ([`ItemTooltip.tsx`](../src/components/ui/hub/ItemTooltip.tsx), [`InRunItemTooltip.tsx`](../src/components/ui/inventory/InRunItemTooltip.tsx)), preventing viewport cutoffs across all screen dimensions.
+
 
