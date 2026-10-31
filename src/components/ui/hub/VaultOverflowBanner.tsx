@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { VaultItem } from '@/shared/profile';
+import { BtnLever } from '../atomic';
 import { ItemTooltip } from './ItemTooltip';
 import { ItemMetadata, resolveItemMetadata } from './item-metadata';
 import styles from './VaultOverflowBanner.module.css';
@@ -81,24 +82,29 @@ const VaultOverflowBanner: React.FC<VaultOverflowBannerProps> = ({
             >
               <span className={styles.itemName}>[{item.templateId}]</span>
               <div className={styles.actions}>
-                <button
-                  className={styles.discardButton}
+                <BtnLever
+                  variant="danger"
+                  holdToConfirm={true}
                   onClick={(e) => {
                     e.stopPropagation();
                     onDiscard(item.entityId);
                   }}
+                  style={{ padding: '3px 8px', fontSize: '10px' }}
                 >
                   DISCARD
-                </button>
-                <button
-                  className={styles.sellButton}
+                </BtnLever>
+                <BtnLever
+                  variant="cyan"
+                  holdToConfirm={true}
                   onClick={(e) => {
                     e.stopPropagation();
                     onSell(item.entityId);
                   }}
+                  style={{ padding: '3px 8px', fontSize: '10px' }}
+                  rightSlot={`${getSellPrice(item.rarityTier)} CR`}
                 >
-                  SELL: {getSellPrice(item.rarityTier)} SCRAP
-                </button>
+                  SELL
+                </BtnLever>
               </div>
             </div>
           );

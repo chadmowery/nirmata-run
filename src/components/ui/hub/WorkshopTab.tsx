@@ -153,6 +153,7 @@ export const WorkshopTab: React.FC = () => {
             <BtnLever
               variant="cyan"
               disabled={scrapWallet < 100 || fluxWallet >= 1000 || isCompressing}
+              holdToConfirm={true}
               onClick={handleCompress}
               rightSlot={isCompressing ? 'SYNTHESIZING...' : '100 CR'}
             >

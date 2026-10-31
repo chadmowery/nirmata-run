@@ -124,6 +124,7 @@ export const SoftwareShop: React.FC = () => {
               <BtnLever
                 variant="primary"
                 disabled={!canAfford}
+                holdToConfirm={true}
                 onClick={(e) => {
                   e.stopPropagation();
                   handlePurchase(index, item.price, item.templateId, item.rarity);

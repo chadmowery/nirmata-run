@@ -216,6 +216,7 @@ export const ShellUpgradePanel: React.FC = () => {
               <BtnLever
                 variant="primary"
                 disabled={!canAfford}
+                holdToConfirm={!isMaxed}
                 onClick={() => !isMaxed && handleUpgrade(def.stat)}
                 rightSlot={isMaxed ? 'MAXED' : `${cost} FLX`}
               >

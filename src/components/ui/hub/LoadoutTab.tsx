@@ -111,30 +111,28 @@ export const LoadoutTab: React.FC = () => {
     });
   };
 
-  const handleSlotDrop = async (slotType: string, slotIndex: number) => {
-    logger.debug(`[Loadout] Dropping into ${slotType}:${slotIndex}`, 'UI');
-    if (!draggedItem || draggedItem.extractedAtTimestamp === -1) return;
-
+  const handleEquipItem = async (item: VaultItem, targetSlotType: string) => {
+    logger.debug(`[Loadout] Equipping ${item.templateId} into ${targetSlotType}`, 'UI');
     const sessionId = playerProfile.sessionId;
-    const entityId = draggedItem.entityId;
+    const entityId = item.entityId;
     const shellId = activeShellId;
     const previousProfile = { ...playerProfile };
 
     // Optimistic UI update
     updateProfileOptimistic((prev) => {
-      const isInVault = prev.vault.some((item) => item.entityId === entityId);
+      const isInVault = prev.vault.some((i) => i.entityId === entityId);
       if (!isInVault) return prev;
 
-      const newVault = prev.vault.filter((item) => item.entityId !== entityId);
+      const newVault = prev.vault.filter((i) => i.entityId !== entityId);
       const newInstalled = [
         ...prev.installedItems,
         {
           entityId,
-          blueprintId: draggedItem.templateId,
-          type: slotType as 'firmware' | 'augment' | 'software' | 'weapon' | 'armor' | 'backpack',
+          blueprintId: item.templateId,
+          type: targetSlotType as 'firmware' | 'augment' | 'software' | 'weapon' | 'armor' | 'backpack',
           shellId,
           isLegacy: false,
-          socketedSoftware: draggedItem.socketedSoftware || [],
+          socketedSoftware: item.socketedSoftware || [],
         },
       ];
       return { ...prev, vault: newVault, installedItems: newInstalled };
@@ -144,7 +142,7 @@ export const LoadoutTab: React.FC = () => {
       const response = await fetch('/api/vault/equip-from-vault', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, entityId, shellId, targetSlotType: slotType }),
+        body: JSON.stringify({ sessionId, entityId, shellId, targetSlotType }),
       });
 
       if (!response.ok) {
@@ -160,6 +158,46 @@ export const LoadoutTab: React.FC = () => {
     } finally {
       setDraggedItem(null);
       setDragOverSlot(null);
+    }
+  };
+
+  const handleSlotDrop = async (slotType: string) => {
+    logger.debug(`[Loadout] Dropping into ${slotType}`, 'UI');
+    if (!draggedItem || draggedItem.extractedAtTimestamp === -1) return;
+    await handleEquipItem(draggedItem, slotType);
+  };
+
+  const handleDoubleClickFromStash = (item: VaultItem) => {
+    logger.debug(`[Loadout] Double clicked item from stash: ${item.templateId}`, 'UI');
+    // Determine primary slot type
+    let primarySlotType: 'weapon' | 'armor' | 'firmware' | 'augment' | 'software' | null = null;
+    if (isWeaponItem(item)) primarySlotType = 'weapon';
+    else if (isArmorItem(item)) primarySlotType = 'armor';
+    else if (item.itemType === 'firmware') primarySlotType = 'firmware';
+    else if (item.itemType === 'augment') primarySlotType = 'augment';
+    else if (item.itemType === 'software') primarySlotType = 'software';
+
+    if (!primarySlotType) return;
+
+    const typeEquippedCount = equippedItems.filter((i) => i.type === primarySlotType).length;
+    let maxForType = 1;
+    if (primarySlotType === 'firmware') maxForType = activeShellTemplate.basePorts.maxFirmware;
+    else if (primarySlotType === 'augment') maxForType = activeShellTemplate.basePorts.maxAugment;
+    else if (primarySlotType === 'software') maxForType = activeShellTemplate.basePorts.maxSoftware;
+
+    let targetSlot: string | null = null;
+    if (typeEquippedCount < maxForType) {
+      targetSlot = primarySlotType;
+    } else {
+      // Primary shell slot full: check if backpack has room (< 5 slots)
+      const backpackEquippedCount = equippedItems.filter((i) => i.type === 'backpack').length;
+      if (backpackEquippedCount < 5) {
+        targetSlot = 'backpack';
+      }
+    }
+
+    if (targetSlot) {
+      handleEquipItem(item, targetSlot);
     }
   };
 
@@ -431,6 +469,7 @@ export const LoadoutTab: React.FC = () => {
                           >
                             <BtnLever
                               variant="cyan"
+                              holdToConfirm={true}
                               onClick={() => handleSoftwareSocket(inspectedItem.entityId!, sw.entityId)}
                               rightSlot="LOAD"
                             >
@@ -467,6 +506,7 @@ export const LoadoutTab: React.FC = () => {
           activeFilter={activeFilter}
           onFilterChange={(f) => setActiveFilter(f)}
           onDragStart={handleDragStartFromStash}
+          onDoubleClick={handleDoubleClickFromStash}
         />
       </PanelCard>
 

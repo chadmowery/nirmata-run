@@ -12,6 +12,7 @@ interface StashItemListProps {
   activeFilter: StashFilter;
   onFilterChange: (filter: StashFilter) => void;
   onDragStart: (item: VaultItem) => void;
+  onDoubleClick?: (item: VaultItem) => void;
 }
 
 export const StashItemList: React.FC<StashItemListProps> = ({
@@ -19,6 +20,7 @@ export const StashItemList: React.FC<StashItemListProps> = ({
   activeFilter,
   onFilterChange,
   onDragStart,
+  onDoubleClick,
 }) => {
   const [hoveredItem, setHoveredItem] = useState<{ item: VaultItem; x: number; y: number } | null>(
     null,
@@ -68,6 +70,7 @@ export const StashItemList: React.FC<StashItemListProps> = ({
               onDragStart={onDragStart}
               onHover={handleHover}
               onHoverEnd={handleHoverEnd}
+              onDoubleClick={onDoubleClick}
             />
           ))
         ) : (

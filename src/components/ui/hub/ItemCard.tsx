@@ -8,9 +8,16 @@ interface ItemCardProps {
   onDragStart: (item: VaultItem) => void;
   onHover?: (item: VaultItem, e: React.PointerEvent) => void;
   onHoverEnd?: () => void;
+  onDoubleClick?: (item: VaultItem) => void;
 }
 
-export const ItemCard: React.FC<ItemCardProps> = ({ item, onDragStart, onHover, onHoverEnd }) => {
+export const ItemCard: React.FC<ItemCardProps> = ({
+  item,
+  onDragStart,
+  onHover,
+  onHoverEnd,
+  onDoubleClick,
+}) => {
   const [isDragging, setIsDragging] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
@@ -78,6 +85,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onDragStart, onHover, 
       onPointerDown={handlePointerDown}
       onPointerEnter={(e) => onHover?.(item, e)}
       onPointerLeave={onHoverEnd}
+      onDoubleClick={() => onDoubleClick?.(item)}
     >
       <div className={styles.iconContainer}>
         <ItemIcon

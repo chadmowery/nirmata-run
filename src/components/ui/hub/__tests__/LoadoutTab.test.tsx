@@ -140,4 +140,88 @@ describe('LoadoutTab UI', () => {
     expect(screen.getByText(/item-0/i)).toBeDefined();
     expect(screen.getByText(/item-9/i)).toBeDefined();
   });
+
+  it('double clicking an equipable item equips to shell if slot open, or otherwise places in backpack', async () => {
+    // Add an augment to vault
+    mockProfile.vault.push({
+      entityId: 203,
+      templateId: 'static-siphon',
+      itemType: 'augment',
+      rarityTier: 'rare',
+      extractedAtFloor: 1,
+      extractedAtTimestamp: 1000,
+    });
+    gameStore.getState().setPlayerProfile(mockProfile);
+
+    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(async (url: string | URL | Request) => {
+      const urlStr = url.toString();
+      if (urlStr.includes('/api/shells')) {
+        return {
+          ok: true,
+          json: async () => ({
+            templates: [
+              {
+                id: 'vanguard-v1',
+                name: 'Vanguard V1',
+                baseStats: { maxHealth: 100, armor: 5, speed: 10, stability: 100 },
+                basePorts: { maxFirmware: 2, maxAugment: 2, maxSoftware: 2 },
+                upgrades: [],
+                starterLoadout: [],
+              },
+            ],
+          }),
+        } as unknown as Response;
+      }
+      if (urlStr.includes('/api/vault/equip-from-vault')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+          }),
+        } as unknown as Response;
+      }
+      return { ok: true, json: async () => ({}) } as unknown as Response;
+    });
+
+    render(<LoadoutTab />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/static-siphon/i)).toBeDefined();
+    });
+
+    // Case 1: Augment slot is open (0/2 equipped) -> double clicking equips to 'augment' slot on shell
+    const augmentCard = screen.getByText(/static-siphon/i).closest('div');
+    fireEvent.doubleClick(augmentCard!);
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/vault/equip-from-vault',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId: 'test-session',
+          entityId: 203,
+          shellId: 'vanguard-v1',
+          targetSlotType: 'augment',
+        }),
+      }),
+    );
+
+    // Case 2: Weapon slot is ALREADY FILLED (mockProfile has rifle-v1 in weapon slot)
+    // Double clicking rifle-v2 in vault should place it into 'backpack'!
+    const weaponCard = screen.getByText(/rifle-v2/i).closest('div');
+    fireEvent.doubleClick(weaponCard!);
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/vault/equip-from-vault',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId: 'test-session',
+          entityId: 202,
+          shellId: 'vanguard-v1',
+          targetSlotType: 'backpack',
+        }),
+      }),
+    );
+  });
 });

@@ -367,6 +367,34 @@ canvas {
   pointer-events: none;
 }
 
+/* Hold-To-Confirm Progress Bar Fill (2s Confirmation) */
+.btn-lever-hold-progress {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(216, 255, 0, 0.4);
+  box-shadow: 2px 0 8px rgba(216, 255, 0, 0.6);
+  pointer-events: none;
+  z-index: 1;
+  transition: width 0.04s linear;
+}
+
+.btn-lever-hold-progress.cyan {
+  background: rgba(0, 240, 255, 0.4);
+  box-shadow: 2px 0 8px rgba(0, 240, 255, 0.6);
+}
+
+.btn-lever-hold-progress.danger {
+  background: rgba(255, 42, 75, 0.45);
+  box-shadow: 2px 0 8px rgba(255, 42, 75, 0.7);
+}
+
+.btn-lever.holding {
+  border-color: #ffffff !important;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.35) !important;
+}
+
 /* Utility Tool Button (.tool-btn) */
 .tool-btn {
   background: #111620;

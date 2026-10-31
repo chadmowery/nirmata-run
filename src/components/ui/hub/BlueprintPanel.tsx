@@ -216,6 +216,7 @@ export const BlueprintPanel: React.FC = () => {
                   <BtnLever
                     variant="primary"
                     disabled={!canAfford || isCompiling}
+                    holdToConfirm={true}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleCompile(

@@ -647,6 +647,7 @@ export const VaultTab: React.FC = () => {
                             >
                               <BtnLever
                                 variant="cyan"
+                                holdToConfirm={true}
                                 onClick={() => handleSocketSoftware(selectedItem.entityId, sw.entityId)}
                                 rightSlot="LOAD"
                               >
@@ -690,6 +691,7 @@ export const VaultTab: React.FC = () => {
                           <BtnLever
                             key={gear.entityId}
                             variant="cyan"
+                            holdToConfirm={true}
                             onClick={() => handleSocketSoftware(gear.entityId, selectedItem.entityId)}
                             rightSlot="ATTACH"
                           >
@@ -728,6 +730,7 @@ export const VaultTab: React.FC = () => {
 
                 <BtnLever
                   variant="danger"
+                  holdToConfirm={true}
                   onClick={() => handleSell(selectedItem.entityId)}
                   rightSlot={`+${getVaultItemValue(selectedItem)} CR`}
                 >
