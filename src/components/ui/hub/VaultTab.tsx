@@ -6,6 +6,7 @@ import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import VaultOverflowBanner from './VaultOverflowBanner';
 import { VaultItem } from '@/shared/profile';
+import { getVaultItemValue } from '@/shared/vault';
 import {
   isWeaponItem,
   isArmorItem,
@@ -18,12 +19,97 @@ import { ItemTooltip } from './ItemTooltip';
 import { ItemMetadata, resolveItemMetadata, getSoftwareModificationInfo } from './item-metadata';
 import styles from './VaultTab.module.css';
 
+export { getVaultItemValue };
+
+export type VaultSortField = 'default' | 'rarity' | 'type' | 'value';
+export type VaultSortDirection = 'asc' | 'desc';
+
+export const RARITY_SORT_WEIGHT: Record<string, number> = {
+  legendary: 4,
+  rare: 3,
+  uncommon: 2,
+  common: 1,
+};
+
+export const TYPE_SORT_WEIGHT: Record<string, number> = {
+  weapon: 6,
+  armor: 5,
+  firmware: 4,
+  augment: 3,
+  software: 2,
+  equipment: 1,
+  backpack: 1,
+  item: 0,
+};
+
+export function sortVaultItems(
+  items: VaultItem[],
+  field: VaultSortField,
+  direction: VaultSortDirection,
+): VaultItem[] {
+  if (field === 'default') {
+    return [...items];
+  }
+
+  return [...items].sort((a, b) => {
+    if (field === 'rarity') {
+      const weightA = RARITY_SORT_WEIGHT[a.rarityTier?.toLowerCase()] ?? 0;
+      const weightB = RARITY_SORT_WEIGHT[b.rarityTier?.toLowerCase()] ?? 0;
+      const diff = direction === 'desc' ? weightB - weightA : weightA - weightB;
+      if (diff !== 0) return diff;
+      // Secondary tiebreaker: Value (desc)
+      const valDiff = getVaultItemValue(b) - getVaultItemValue(a);
+      if (valDiff !== 0) return valDiff;
+      // Tertiary tiebreaker: templateId
+      const tmplDiff = a.templateId.localeCompare(b.templateId);
+      if (tmplDiff !== 0) return tmplDiff;
+      return a.entityId - b.entityId;
+    }
+
+    if (field === 'type') {
+      const weightA = TYPE_SORT_WEIGHT[a.itemType?.toLowerCase()] ?? 0;
+      const weightB = TYPE_SORT_WEIGHT[b.itemType?.toLowerCase()] ?? 0;
+      const diff = direction === 'desc' ? weightB - weightA : weightA - weightB;
+      if (diff !== 0) return diff;
+      // Secondary tiebreaker: Rarity (desc)
+      const rarDiff =
+        (RARITY_SORT_WEIGHT[b.rarityTier?.toLowerCase()] ?? 0) -
+        (RARITY_SORT_WEIGHT[a.rarityTier?.toLowerCase()] ?? 0);
+      if (rarDiff !== 0) return rarDiff;
+      // Tertiary tiebreaker: templateId
+      const tmplDiff = a.templateId.localeCompare(b.templateId);
+      if (tmplDiff !== 0) return tmplDiff;
+      return a.entityId - b.entityId;
+    }
+
+    if (field === 'value') {
+      const valA = getVaultItemValue(a);
+      const valB = getVaultItemValue(b);
+      const diff = direction === 'desc' ? valB - valA : valA - valB;
+      if (diff !== 0) return diff;
+      // Secondary tiebreaker: Rarity (desc)
+      const rarDiff =
+        (RARITY_SORT_WEIGHT[b.rarityTier?.toLowerCase()] ?? 0) -
+        (RARITY_SORT_WEIGHT[a.rarityTier?.toLowerCase()] ?? 0);
+      if (rarDiff !== 0) return rarDiff;
+      // Tertiary tiebreaker: templateId
+      const tmplDiff = a.templateId.localeCompare(b.templateId);
+      if (tmplDiff !== 0) return tmplDiff;
+      return a.entityId - b.entityId;
+    }
+
+    return 0;
+  });
+}
+
 export const VaultTab: React.FC = () => {
   const profile = useStore(gameStore, (s) => s.playerProfile);
   const updateProfileOptimistic = useStore(gameStore, (s) => s.updateProfileOptimistic);
   const [selectedItem, setSelectedItem] = useState<VaultItem | null>(null);
   const [draggedVaultItem, setDraggedVaultItem] = useState<VaultItem | null>(null);
   const [dragOverEntityId, setDragOverEntityId] = useState<number | null>(null);
+  const [sortField, setSortField] = useState<VaultSortField>('default');
+  const [sortDirection, setSortDirection] = useState<VaultSortDirection>('desc');
 
   const [hoveredSlot, setHoveredSlot] = useState<{
     metadata: ItemMetadata;
@@ -138,10 +224,28 @@ export const VaultTab: React.FC = () => {
     }
   };
 
+  const handleSortClick = (field: 'rarity' | 'type' | 'value') => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'));
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
+  const handleResetSort = () => {
+    setSortField('default');
+    setSortDirection('desc');
+  };
+
+  const sortedVaultItems = React.useMemo(() => {
+    return sortVaultItems(profile.vault, sortField, sortDirection);
+  }, [profile.vault, sortField, sortDirection]);
+
   const capacity = profile.vault.length;
   const maxSlots = 48;
   const gridCells = Array(maxSlots).fill(null);
-  profile.vault.slice(0, maxSlots).forEach((item, idx) => {
+  sortedVaultItems.slice(0, maxSlots).forEach((item, idx) => {
     gridCells[idx] = item;
   });
 
@@ -206,6 +310,47 @@ export const VaultTab: React.FC = () => {
           title="CARGO BAYS [A-01 THROUGH F-08]"
           badge={`CAPACITY: ${capacity}/${maxSlots}`}
         >
+          {/* Sort Controls Toolbar */}
+          <div className={styles.sortToolbar}>
+            <span className={styles.sortLabel}>SORT CARGO:</span>
+            <div className={styles.sortButtons}>
+              <button
+                type="button"
+                className={`${styles.sortBtn} ${sortField === 'rarity' ? styles.sortBtnActive : ''}`}
+                onClick={() => handleSortClick('rarity')}
+                aria-label="Sort cargo by rarity"
+              >
+                RARITY {sortField === 'rarity' ? (sortDirection === 'desc' ? '▼' : '▲') : ''}
+              </button>
+              <button
+                type="button"
+                className={`${styles.sortBtn} ${sortField === 'type' ? styles.sortBtnActive : ''}`}
+                onClick={() => handleSortClick('type')}
+                aria-label="Sort cargo by type"
+              >
+                TYPE {sortField === 'type' ? (sortDirection === 'desc' ? '▼' : '▲') : ''}
+              </button>
+              <button
+                type="button"
+                className={`${styles.sortBtn} ${sortField === 'value' ? styles.sortBtnActive : ''}`}
+                onClick={() => handleSortClick('value')}
+                aria-label="Sort cargo by value"
+              >
+                VALUE {sortField === 'value' ? (sortDirection === 'desc' ? '▼' : '▲') : ''}
+              </button>
+              {sortField !== 'default' && (
+                <button
+                  type="button"
+                  className={styles.sortResetBtn}
+                  onClick={handleResetSort}
+                  aria-label="Reset cargo bay sort order"
+                >
+                  RESET
+                </button>
+              )}
+            </div>
+          </div>
+
           <div className={styles.vaultGridContainer}>
             {gridCells.map((cell, idx) => {
               const coord = getSectorCoord(idx);
@@ -364,7 +509,7 @@ export const VaultTab: React.FC = () => {
                   />
                   <DottedSpecRow
                     label="SCRAP SALVAGE VALUE"
-                    value="25 CR"
+                    value={`${getVaultItemValue(selectedItem)} CR`}
                     valueColor="var(--c-scrap)"
                   />
                   <DottedSpecRow label="INTEGRITY STATUS" value="SEALED CONTAINER" />
@@ -584,7 +729,7 @@ export const VaultTab: React.FC = () => {
                 <BtnLever
                   variant="danger"
                   onClick={() => handleSell(selectedItem.entityId)}
-                  rightSlot="+25 CR"
+                  rightSlot={`+${getVaultItemValue(selectedItem)} CR`}
                 >
                   SALVAGE FOR SCRAP
                 </BtnLever>

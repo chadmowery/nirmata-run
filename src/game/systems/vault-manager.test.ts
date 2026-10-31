@@ -61,6 +61,22 @@ describe('VaultManager', () => {
       expect(mockRepo.save).toHaveBeenCalledWith(mockProfile);
     });
 
+    it('removes item from vault if not in overflow', async () => {
+      const mockProfile = {
+        sessionId,
+        overflow: [{ entityId: 2 }],
+        vault: [{ entityId: 1 }],
+      } as any;
+      (mockRepo.load as any).mockResolvedValue(mockProfile);
+
+      const result = await discardOverflowItem(mockRepo, sessionId, 1);
+
+      expect(result).toBe(true);
+      expect(mockProfile.overflow).toHaveLength(1);
+      expect(mockProfile.vault).toHaveLength(0);
+      expect(mockRepo.save).toHaveBeenCalledWith(mockProfile);
+    });
+
     it('returns false if item not found', async () => {
       const mockProfile = { sessionId, overflow: [{ entityId: 2 }] } as any;
       (mockRepo.load as any).mockResolvedValue(mockProfile);
@@ -88,6 +104,25 @@ describe('VaultManager', () => {
       expect(result.scrapGained).toBe(SELL_VALUES.uncommon);
       expect(mockProfile.wallet.scrap).toBe(100 + SELL_VALUES.uncommon);
       expect(mockProfile.overflow).toHaveLength(0);
+      expect(mockRepo.save).toHaveBeenCalled();
+    });
+
+    it('removes item from vault if not in overflow and adds scrap with socketed software bonus', async () => {
+      const mockProfile = {
+        sessionId,
+        wallet: { scrap: 100 },
+        overflow: [],
+        vault: [{ entityId: 10, rarityTier: 'common', socketedSoftware: ['bleed-v2'] }],
+      } as any;
+      (mockRepo.load as any).mockResolvedValue(mockProfile);
+
+      const result = await sellOverflowItem(mockRepo, sessionId, 10);
+
+      expect(result.success).toBe(true);
+      // common base (15) + bleed-v2 (+40) = 55
+      expect(result.scrapGained).toBe(55);
+      expect(mockProfile.wallet.scrap).toBe(155);
+      expect(mockProfile.vault).toHaveLength(0);
       expect(mockRepo.save).toHaveBeenCalled();
     });
 

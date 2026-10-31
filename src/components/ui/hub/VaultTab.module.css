@@ -4,6 +4,85 @@
   gap: 14px;
 }
 
+.sortToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  background: rgba(13, 18, 28, 0.7);
+  border: 1px solid #1a2536;
+}
+
+.sortLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--c-text-muted);
+  white-space: nowrap;
+}
+
+.sortButtons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sortBtn {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  background: #0d121c;
+  border: 1px solid #202c3e;
+  color: var(--c-text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 1px;
+}
+
+.sortBtn:hover,
+.sortBtn:focus-visible {
+  border-color: var(--c-accent);
+  color: #ffffff;
+  outline: none;
+}
+
+.sortBtnActive {
+  border-color: var(--c-accent);
+  color: var(--c-accent);
+  background: rgba(216, 255, 0, 0.1);
+  box-shadow: 0 0 6px rgba(216, 255, 0, 0.25);
+}
+
+.sortResetBtn {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 3px 6px;
+  background: transparent;
+  border: 1px dashed #3a4b63;
+  color: var(--c-text-dim);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border-radius: 1px;
+}
+
+.sortResetBtn:hover,
+.sortResetBtn:focus-visible {
+  border-color: var(--c-danger);
+  color: var(--c-danger);
+  outline: none;
+}
+
 .vaultGridContainer {
   display: grid;
   grid-template-columns: repeat(8, 1fr);

@@ -10,6 +10,26 @@ export const SELL_VALUES: Record<string, number> = {
 };
 
 /**
+ * Calculates the scrap salvage value of a vault or overflow item.
+ * Includes base value from rarity tier plus bonus value from any socketed software.
+ */
+export function getVaultItemValue(
+  item: Pick<VaultItem, 'rarityTier'> & { socketedSoftware?: string[] },
+): number {
+  const baseValue = SELL_VALUES[item.rarityTier?.toLowerCase()] ?? 15;
+  let softwareBonus = 0;
+  if (item.socketedSoftware && item.socketedSoftware.length > 0) {
+    for (const sw of item.socketedSoftware) {
+      if (sw.includes('v3')) softwareBonus += 60;
+      else if (sw.includes('v2')) softwareBonus += 40;
+      else if (sw.includes('v1')) softwareBonus += 25;
+      else softwareBonus += 15;
+    }
+  }
+  return baseValue + softwareBonus;
+}
+
+/**
  * Infers item type from templateId.
  * Firmware: ends with .sh, .exe, .sys
  * Augment: ends with .arc

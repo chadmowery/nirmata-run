@@ -1,5 +1,5 @@
 import { VaultItem, ProfileRepository } from '@shared/profile';
-import { VAULT_MAX_SLOTS, SELL_VALUES } from '@shared/vault';
+import { VAULT_MAX_SLOTS, getVaultItemValue } from '@shared/vault';
 import { logger } from '@engine/utils/logger';
 import economy from '../entities/templates/economy.json';
 
@@ -19,7 +19,7 @@ export async function depositToOverflow(
 }
 
 /**
- * Removes an item from overflow by entityId.
+ * Removes an item from overflow or vault by entityId.
  * Returns true if item was found and removed.
  */
 export async function discardOverflowItem(
@@ -30,14 +30,24 @@ export async function discardOverflowItem(
   const profile = await repo.load(sessionId);
   if (!profile) return false;
 
-  const initialLength = profile.overflow.length;
-  profile.overflow = profile.overflow.filter((item) => item.entityId !== entityId);
+  const initialOverflowLength = profile.overflow?.length ?? 0;
+  if (profile.overflow) {
+    profile.overflow = profile.overflow.filter((item) => item.entityId !== entityId);
+  }
+  const removedFromOverflow = (profile.overflow?.length ?? 0) < initialOverflowLength;
 
-  const success = profile.overflow.length < initialLength;
+  let removedFromVault = false;
+  if (!removedFromOverflow && profile.vault) {
+    const initialVaultLength = profile.vault.length;
+    profile.vault = profile.vault.filter((item) => item.entityId !== entityId);
+    removedFromVault = profile.vault.length < initialVaultLength;
+  }
+
+  const success = removedFromOverflow || removedFromVault;
   if (success) {
     await repo.save(profile);
     logger.info(
-      `Vault Manager: Discarded item ${entityId} from overflow for session ${sessionId}`,
+      `Vault Manager: Discarded item ${entityId} from ${removedFromOverflow ? 'overflow' : 'vault'} for session ${sessionId}`,
       'SYSTEM',
     );
   }
@@ -45,7 +55,7 @@ export async function discardOverflowItem(
 }
 
 /**
- * Sells an item from overflow for Scrap.
+ * Sells an item from overflow or vault for Scrap.
  * Respects economy scrap cap.
  */
 export async function sellOverflowItem(
@@ -56,14 +66,23 @@ export async function sellOverflowItem(
   const profile = await repo.load(sessionId);
   if (!profile) return { success: false, scrapGained: 0 };
 
-  const itemIndex = profile.overflow.findIndex((item) => item.entityId === entityId);
+  let itemIndex = profile.overflow ? profile.overflow.findIndex((item) => item.entityId === entityId) : -1;
+  let inOverflow = true;
+  if (itemIndex === -1 && profile.vault) {
+    itemIndex = profile.vault.findIndex((item) => item.entityId === entityId);
+    inOverflow = false;
+  }
   if (itemIndex === -1) return { success: false, scrapGained: 0 };
 
-  const item = profile.overflow[itemIndex];
-  const scrapGained = SELL_VALUES[item.rarityTier.toLowerCase()] || 0;
+  const item = inOverflow ? profile.overflow[itemIndex] : profile.vault[itemIndex];
+  const scrapGained = getVaultItemValue(item);
 
   // Remove item
-  profile.overflow.splice(itemIndex, 1);
+  if (inOverflow) {
+    profile.overflow.splice(itemIndex, 1);
+  } else {
+    profile.vault.splice(itemIndex, 1);
+  }
 
   // Add scrap with cap
   const maxScrap = economy.caps.scrap;
@@ -71,7 +90,7 @@ export async function sellOverflowItem(
 
   await repo.save(profile);
   logger.info(
-    `Vault Manager: Sold item ${entityId} for ${scrapGained} scrap for session ${sessionId}`,
+    `Vault Manager: Sold item ${entityId} from ${inOverflow ? 'overflow' : 'vault'} for ${scrapGained} scrap for session ${sessionId}`,
     'SYSTEM',
   );
   return { success: true, scrapGained };
