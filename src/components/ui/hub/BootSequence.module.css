@@ -1,13 +1,14 @@
 .bootScreen {
   position: fixed;
   inset: 0;
-  background: var(--black);
+  background: rgba(4, 6, 9, 0.96);
+  backdrop-filter: blur(8px);
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: flex-start;
-  padding-left: 40%;
-  z-index: 2000;
+  align-items: center;
+  padding: 2rem 1rem;
+  z-index: 2500;
   transition: opacity 300ms ease-out;
 }
 
@@ -15,28 +16,71 @@
   opacity: 0;
 }
 
-.container {
+.terminalBox {
+  width: 100%;
+  max-width: 680px;
+  margin: auto;
+  background: var(--c-surface);
+  border: 3px solid var(--c-accent);
+  box-shadow: 0 0 40px rgba(216, 255, 0, 0.25);
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
 }
 
-.line {
-  font-family: 'Courier New', monospace;
-  font-size: var(--font-size-body);
-  color: var(--vibrant-cyan);
-  white-space: nowrap;
-  animation: lineAppear 100ms step-end forwards;
+.terminalHeader {
+  background: #0c121c;
+  border-bottom: 2px solid #1c2638;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--c-text);
+  text-transform: uppercase;
+}
+
+.terminalBody {
+  padding: 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #06090e;
+}
+
+.logLine {
+  color: var(--c-accent-secondary);
+  line-height: 1.5;
+  animation: lineAppear 80ms step-end forwards;
+}
+
+.logLine.accent {
+  color: var(--c-accent);
+  font-weight: 700;
+}
+
+.terminalFooter {
+  padding: 10px 14px;
+  background: #0c121c;
+  border-top: 1px solid #1c2638;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 @keyframes lineAppear {
   from {
     opacity: 0;
-    transform: translateX(-5px);
+    transform: translateY(2px);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0);
   }
 }
 
@@ -44,7 +88,7 @@
   .bootScreen {
     transition: none;
   }
-  .line {
+  .logLine {
     animation: none;
   }
 }

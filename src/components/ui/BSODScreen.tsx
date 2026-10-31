@@ -1,7 +1,9 @@
 'use client';
-import React, { useEffect } from 'react';
+
+import React, { useEffect, useCallback } from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
+import { TaikokuStamp, BtnLever } from './atomic';
 import styles from './BSODScreen.module.css';
 
 export const BSODScreen: React.FC = () => {
@@ -10,34 +12,56 @@ export const BSODScreen: React.FC = () => {
   const showRunResults = useStore(gameStore, (s) => s.showRunResults);
   const runResults = useStore(gameStore, (s) => s.runResults);
 
+  const handleAdvance = useCallback(() => {
+    hideBSOD();
+    if (runResults) {
+      showRunResults(runResults);
+    }
+  }, [hideBSOD, showRunResults, runResults]);
+
   useEffect(() => {
     // Respect prefers-reduced-motion
     const isReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const duration = isReduced ? 1000 : 2500;
+    const duration = isReduced ? 1200 : 3000;
 
     const timer = setTimeout(() => {
-      hideBSOD();
-      if (runResults) {
-        showRunResults(runResults);
-      }
+      handleAdvance();
     }, duration);
 
     return () => clearTimeout(timer);
-  }, [hideBSOD, showRunResults, runResults]);
+  }, [handleAdvance]);
 
   return (
-    <div className={styles.bsod}>
-      <div style={{ position: 'relative', zIndex: 3 }}>
-        <h1 className={styles.title}>FATAL_EXCEPTION</h1>
-        <p className={styles.reason}>{bsodReason || '0x00000000_NULL_POINTER'}</p>
+    <div className={styles.bsodOverlay}>
+      <div className={styles.bsodFrame}>
+        <div className={styles.headerRow}>
+          <div>
+            <div style={{ color: 'var(--c-accent-secondary)', fontSize: '10px', fontWeight: 800 }}>
+              非常事態 // CRITICAL KERNEL TRAP
+            </div>
+            <h1 className={styles.title}>*** FATAL_EXCEPTION: REALITY_COLLAPSE ***</h1>
+            <div className={styles.reasonText}>
+              TRIGGER: {bsodReason || '0x00000000_NULL_POINTER_EXCEPTION'}
+            </div>
+          </div>
+          <TaikokuStamp variant="cyan">STOP 0x0000007E</TaikokuStamp>
+        </div>
 
-        <div style={{ marginTop: '40px', opacity: 0.6, fontSize: '14px' }}>
-          <p>*** STOP: 0x0000007E (0xFFFFFFFFC0000005, 0xFFFFF80002E5A188)</p>
-          <p>*** nirmata_runner.sys - Address 0xFFFFF80002E5A188 base at 0xFFFFF80002E00000</p>
-          <p style={{ marginTop: '20px' }}>Collecting data for crash dump...</p>
-          <p>Initializing disk for crash dump...</p>
-          <p>Beginning dump of physical memory.</p>
-          <p>Dumping physical memory to disk: 100%</p>
+        <div className={styles.stackDump}>
+          <p>*** STOP: 0x0000007E (0xFFFFFFFFC0000005, 0xFFFFF80002E5A188, 0xFFFFF8800109A8F8)</p>
+          <p>*** ecs_delta.sys - Address 0xFFFFF80002E5A188 base at 0xFFFFF80002E00000</p>
+          <p>*** combat_system.sys - Call frame 0x4890A921 [IntentResolutionFailure]</p>
+          <p>*** gravedigger.sys - Entity destruction trap verified</p>
+          <p style={{ marginTop: '8px', color: 'var(--c-accent-secondary)' }}>
+            Physical memory image written to persistent ledger: 100% [SYNC COMPLETED]
+          </p>
+        </div>
+
+        <div className={styles.footerRow}>
+          <span>AUTO-ADVANCING TO POST-MORTEM AUTOPSY IN 3s...</span>
+          <BtnLever variant="cyan" onClick={handleAdvance} rightSlot="→">
+            PROCEED TO POST-MORTEM AUTOPSY [検視]
+          </BtnLever>
         </div>
       </div>
     </div>

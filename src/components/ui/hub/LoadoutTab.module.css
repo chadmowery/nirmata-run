@@ -1,41 +1,55 @@
-.loadoutRoot {
-  display: flex;
-  gap: var(--space-xl);
-  height: 100%;
-  padding: var(--space-lg);
-  color: var(--vibrant-cyan);
-}
-
-.slotPanel {
-  flex: 0 0 40%;
+.schematicBox {
+  position: relative;
+  background: #060a10;
+  border: 1px solid var(--c-border);
+  padding: 1.5rem;
+  min-height: 380px;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
 }
 
-.stashPanel {
-  flex: 0 0 60%;
+.schematicEmpty {
   display: flex;
   flex-direction: column;
-}
-
-.heading {
-  font-size: var(--font-size-heading);
-  font-weight: var(--font-weight-semibold);
-  color: var(--vibrant-cyan);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: var(--space-lg);
-  border-bottom: 1px solid rgba(0, 240, 255, 0.2);
-  padding-bottom: var(--space-xs);
-}
-
-.loading {
-  display: flex;
   align-items: center;
   justify-content: center;
   height: 100%;
+  color: var(--c-text-muted);
   font-family: var(--font-mono);
-  color: var(--vibrant-cyan);
-  font-size: var(--font-size-heading);
-  letter-spacing: 0.2em;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-align: center;
+  min-height: 280px;
+}
+
+.schematicHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.moduleTitle {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.moduleDescription {
+  font-size: 11px;
+  color: var(--c-text-dim);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.loading {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--c-accent-secondary);
+  padding: 2rem;
+  text-align: center;
 }

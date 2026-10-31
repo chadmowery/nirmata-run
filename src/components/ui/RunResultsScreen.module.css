@@ -1,133 +1,159 @@
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 250;
-  background: var(--overlay-bg, rgba(0, 0, 0, 0.9));
+  z-index: 2000;
+  background: rgba(3, 5, 8, 0.92);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-body, 'Arial Narrow', sans-serif);
-  pointer-events: auto;
+  padding: 2.5rem 1rem;
+  box-sizing: border-box;
+  overflow-y: auto;
 }
 
-.container {
-  max-width: 500px;
-  width: 90%;
-  padding: var(--space-2xl, 48px);
-  background: rgba(0, 0, 0, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  text-align: center;
+.manifestBill {
+  background: var(--c-surface-ivory);
+  color: #000000;
+  border: 4px solid #000000;
+  padding: 2rem;
+  font-family: var(--font-display);
+  width: 100%;
+  max-width: 920px;
+  margin: auto;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.headingExtract {
-  color: var(--vibrant-cyan, #00f0ff);
-  font-size: var(--font-size-heading, 24px);
+.billHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 3px solid #000000;
+  padding-bottom: 12px;
+}
+
+.billSubtitle {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  color: #555555;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-bottom: var(--space-lg, 24px);
 }
 
-.headingDeath {
-  color: var(--vibrant-pink, #ff0055);
-  font-size: var(--font-size-heading, 24px);
+.billTitle {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  line-height: 1.1;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-bottom: var(--space-lg, 24px);
+  margin-top: 4px;
 }
 
-.deathReason {
-  color: var(--vibrant-pink, #ff0055);
-  font-size: var(--font-size-label, 12px);
-  margin-top: calc(-1 * var(--space-lg, 24px));
-  margin-bottom: var(--space-lg, 24px);
-  opacity: 0.8;
+.titleExtract {
+  color: #000000;
+}
+
+.titleDeath {
+  color: var(--c-danger);
+}
+
+.deathReasonTag {
+  background: #000000;
+  color: var(--c-danger);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 8px;
+  display: inline-block;
+  margin-top: 6px;
   letter-spacing: 0.05em;
 }
 
-.statsGrid {
+.ledgerGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-md, 16px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: var(--space-md, 16px);
-  margin: var(--space-lg, 24px) 0;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
 }
 
-.statItem {
+.ledgerCell {
+  background: #ffffff;
+  border: 2px solid #000000;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  align-items: center;
 }
 
-.statLabel {
-  font-size: var(--font-size-label, 12px);
-  color: rgba(255, 255, 255, 0.5);
-  text-transform: uppercase;
-  margin-bottom: var(--space-xs, 4px);
-}
-
-.statValue {
-  font-size: var(--font-size-body, 14px);
-  color: var(--white, #ffffff);
-  font-weight: var(--font-weight-semibold, 600);
-}
-
-.sectionHeading {
-  font-size: var(--font-size-label, 12px);
-  color: rgba(255, 255, 255, 0.5);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  margin-bottom: var(--space-sm, 8px);
-}
-
-.manifestGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-sm, 8px);
+.ledgerLabel {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.8);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #666666;
   text-transform: uppercase;
 }
 
-.manifestItem {
-  padding: var(--space-xs, 4px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+.ledgerVal {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 900;
+  color: #000000;
+  margin-top: 4px;
 }
 
-.score {
-  font-size: var(--font-size-heading, 24px);
-  color: var(--white, #ffffff);
-  margin: var(--space-xl, 32px) 0;
+.cargoManifestBox {
+  background: #ffffff;
+  border: 2px solid #000000;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.manifestHeader {
+  font-size: 12px;
+  font-weight: 900;
   letter-spacing: 0.1em;
-  font-weight: var(--font-weight-semibold, 600);
-}
-
-.reinitButton {
-  padding: var(--space-md, 16px) var(--space-xl, 32px);
-  background: transparent;
-  border: 1px solid var(--vibrant-cyan, #00f0ff);
-  color: var(--vibrant-cyan, #00f0ff);
-  cursor: pointer;
+  color: #000000;
   text-transform: uppercase;
-  font-family: var(--font-body, inherit);
-  font-size: var(--font-size-body, 14px);
-  transition: all 200ms ease-out;
-  letter-spacing: 0.1em;
+  border-bottom: 1px solid #cccccc;
+  padding-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
 }
 
-.reinitButton:hover {
-  background: var(--vibrant-cyan, #00f0ff);
-  color: var(--black, #000000);
-  box-shadow: 0 0 15px var(--vibrant-cyan, #00f0ff);
+.manifestRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 12px;
+  padding: 4px 0;
+  border-bottom: 1px dotted #888888;
 }
 
-.reinitButtonDeath {
-  border-color: var(--vibrant-pink, #ff0055);
-  color: var(--vibrant-pink, #ff0055);
+.manifestRowLabel {
+  font-weight: 700;
+  color: #333333;
+  text-transform: uppercase;
 }
 
-.reinitButtonDeath:hover {
-  background: var(--vibrant-pink, #ff0055);
-  color: var(--white, #ffffff);
-  box-shadow: 0 0 15px var(--vibrant-pink, #ff0055);
+.manifestRowVal {
+  font-family: var(--font-mono);
+  font-weight: 900;
+  color: #000000;
+}
+
+.billFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 2px solid #000000;
+  padding-top: 14px;
+}
+
+@media (max-width: 768px) {
+  .ledgerGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }

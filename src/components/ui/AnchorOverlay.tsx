@@ -1,12 +1,15 @@
 'use client';
+
 import React from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
+import { TaikokuPlacard, DottedSpecRow, BtnLever } from './atomic';
 import styles from './AnchorOverlay.module.css';
 
 export const AnchorOverlay: React.FC = () => {
   const anchorData = useStore(gameStore, (s) => s.anchorData);
   const makeAnchorDecision = useStore(gameStore, (s) => s.makeAnchorDecision);
+  const hideAnchorOverlay = useStore(gameStore, (s) => s.hideAnchorOverlay);
 
   if (!anchorData) return null;
 
@@ -19,106 +22,86 @@ export const AnchorOverlay: React.FC = () => {
     makeAnchorDecision('descend');
   };
 
-  const hasItems =
-    anchorData.inventory.firmware.length > 0 ||
-    anchorData.inventory.augments.length > 0 ||
-    anchorData.inventory.software.length > 0 ||
-    anchorData.inventory.scrap > 0;
-
   const canDescend = anchorData.inventory.scrap >= anchorData.descendCost;
+  const totalItems =
+    anchorData.inventory.firmware.length +
+    anchorData.inventory.augments.length +
+    anchorData.inventory.software.length;
 
   return (
-    <div className={styles.overlay} role="dialog" aria-labelledby="anchor-title">
-      <div className={styles.modal}>
-        <h1 id="anchor-title" className={styles.title}>
-          ANCHOR_LINK_ESTABLISHED
-        </h1>
-        <h2 className={styles.subtitle}>SYSTEM_HANDSHAKE // EXTRACTION_PROTOCOL</h2>
+    <div
+      className={styles.modalOverlay}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="anchor-title"
+    >
+      <div className={styles.modalContent}>
+        <TaikokuPlacard
+          kanji="現実固定装置"
+          title="STABILITY ANCHOR TERMINAL // EXTRACTION PROTOCOL"
+          stampText="アンカー展開 // LOCK"
+          stampVariant="cyan"
+          onClose={hideAnchorOverlay}
+          closeLabel="✕ ABORT [ESC]"
+          style={{ marginBottom: 0, border: 'none', borderBottom: '3px solid #000000' }}
+        />
 
-        <div className={styles.statusBar}>
-          <span>CURRENT_FLOOR: {String(anchorData.floorNumber).padStart(2, '0')}</span>
-          <span>REALITY: {Math.round(anchorData.stabilityPercent)}%</span>
-        </div>
+        <div className={styles.modalBody}>
+          <div style={{ fontSize: '11px', color: 'var(--c-text-dim)', lineHeight: 1.5 }}>
+            Reality anchor deployed. Operators may extract immediately to guarantee 100% salvage
+            and persistent profile sync, or pay the tether cost to stabilize reality and proceed
+            deeper into the void.
+          </div>
 
-        <div className={styles.inventorySection}>
-          <h3 className={styles.sectionHeading}>UNSECURED_ITEMS</h3>
-          {!hasItems ? (
-            <div className={styles.emptyState}>NO_UNSECURED_ITEMS // ALL_EQUIPMENT_LOCKED</div>
-          ) : (
-            <div className={styles.manifest}>
-              {anchorData.inventory.firmware.length > 0 && (
-                <details open>
-                  <summary className={styles.categoryHeader}>
-                    FIRMWARE ({anchorData.inventory.firmware.length})
-                  </summary>
-                  {anchorData.inventory.firmware.map((item, i) => (
-                    <div key={i} className={styles.itemRow}>
-                      {item}
-                    </div>
-                  ))}
-                </details>
-              )}
-              {anchorData.inventory.augments.length > 0 && (
-                <details open>
-                  <summary className={styles.categoryHeader}>
-                    AUGMENTS ({anchorData.inventory.augments.length})
-                  </summary>
-                  {anchorData.inventory.augments.map((item, i) => (
-                    <div key={i} className={styles.itemRow}>
-                      {item}
-                    </div>
-                  ))}
-                </details>
-              )}
-              {anchorData.inventory.software.length > 0 && (
-                <details open>
-                  <summary className={styles.categoryHeader}>
-                    SOFTWARE ({anchorData.inventory.software.length})
-                  </summary>
-                  {anchorData.inventory.software.map((item, i) => (
-                    <div key={i} className={styles.itemRow}>
-                      {item}
-                    </div>
-                  ))}
-                </details>
-              )}
-              <details open>
-                <summary className={styles.categoryHeader}>CURRENCY</summary>
-                <div className={styles.itemRow}>Scrap: {anchorData.inventory.scrap}</div>
-              </details>
-            </div>
-          )}
-        </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <DottedSpecRow
+              label="CURRENT FLOOR DEPTH"
+              value={`SUB-LEVEL ${String(anchorData.floorNumber).padStart(2, '0')}`}
+            />
+            <DottedSpecRow
+              label="UNSECURED SCRAP RECOVERED"
+              value={`${anchorData.inventory.scrap.toLocaleString()} CR`}
+              valueColor="var(--c-scrap)"
+            />
+            <DottedSpecRow
+              label="UNSECURED ASSET CHIPS"
+              value={`${totalItems} MODULES`}
+            />
+            <DottedSpecRow
+              label="REALITY STABILITY INDEX"
+              value={`${Math.round(anchorData.stabilityPercent)}% [LOCKED]`}
+              valueColor="var(--c-accent-secondary)"
+            />
+            <DottedSpecRow
+              label="NEXT SUB-LEVEL ENEMY TIER"
+              value={anchorData.nextFloorEnemyTier}
+              valueColor="var(--c-danger)"
+            />
+            <DottedSpecRow
+              label="ESTIMATED STABILITY AFTER DESCENT"
+              value={`+40% -> ${anchorData.estimatedStabilityAfterDescent}%`}
+              valueColor="var(--c-accent)"
+            />
+          </div>
 
-        <div className={styles.buttonRow}>
-          <button
-            className={styles.extractButton}
-            onClick={handleExtract}
-            aria-label="De-rezz and Extract"
-          >
-            DE-REZZ & EXTRACT
-          </button>
-          <div className={styles.descendContainer}>
-            <button
-              className={styles.descendButton}
-              onClick={handleDescend}
+          <div className={styles.decisionRow}>
+            <BtnLever variant="primary" onClick={handleExtract} rightSlot="100% REWARD">
+              INITIATE EXTRACTION [離脱承認]
+            </BtnLever>
+
+            <BtnLever
+              variant="cyan"
               disabled={!canDescend}
-              aria-label="Stabilize and Descend"
+              onClick={handleDescend}
+              rightSlot={`${anchorData.descendCost} CR`}
             >
-              STABILIZE & DESCEND
-            </button>
-            <div className={styles.riskInfo}>
-              FLOOR {String(anchorData.floorNumber + 1).padStart(2, '0')} //{' '}
-              {anchorData.nextFloorEnemyTier} // {anchorData.descendCost} SCRAP
-            </div>
-            {!canDescend && (
-              <div className={styles.errorText}>
-                INSUFFICIENT_SCRAP // {anchorData.descendCost} REQUIRED
-              </div>
-            )}
+              PAY TETHER & DESCEND [降下]
+            </BtnLever>
           </div>
         </div>
       </div>
     </div>
   );
 };
+
+export default AnchorOverlay;

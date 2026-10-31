@@ -1,50 +1,78 @@
-.overlayContainer {
+.inventoryContainer {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 1500;
+  background: rgba(3, 5, 8, 0.88);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: rgba(0, 0, 0, 0.8);
+  padding: 1.5rem;
+  box-sizing: border-box;
+}
+
+.modalContent {
+  width: 100%;
+  max-width: 880px;
+  margin: auto;
+  background: #0a0e16;
+  border: 3px solid #f4f4f0;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.95);
+  display: flex;
+  flex-direction: column;
 }
 
 .splitLayout {
-  display: flex;
-  gap: 32px;
-  padding: 48px;
-  max-width: 1200px;
-  width: 100%;
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 16px;
+  padding: 1rem 1.5rem 1.5rem 1.5rem;
 }
 
 .panel {
-  flex: 1;
-  background-color: rgba(0, 20, 0, 0.85);
-  border: 1px solid #00ff41;
-  padding: 24px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  padding: 14px;
 }
 
 .gridContainer {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 8px;
+  margin-top: 10px;
 }
 
 .slot {
-  width: 64px;
-  height: 64px;
-  border: 1px solid #374151;
+  aspect-ratio: 1;
+  background: #0d121c;
+  border: 1px solid #202b3c;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  transition: all var(--transition-fast);
+  position: relative;
+  user-select: none;
+}
+
+.slot:hover {
+  border-color: var(--c-accent);
+  background: #141b27;
 }
 
 .slotFilled {
-  border: 1px solid #00f0ff;
-  color: #00f0ff;
+  border-color: var(--c-accent-secondary);
+  color: #ffffff;
 }
 
 .softwareIndicator {
   display: flex;
   gap: 2px;
   margin-top: 4px;
+}
+
+@media (max-width: 768px) {
+  .splitLayout {
+    grid-template-columns: 1fr;
+  }
 }

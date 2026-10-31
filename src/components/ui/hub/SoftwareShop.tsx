@@ -1,11 +1,14 @@
+'use client';
+
 import React, { useMemo } from 'react';
 import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import { generateShopStock } from '@/game/systems/shop-rotation';
+import { BtnLever } from '../atomic';
 import styles from './SoftwareShop.module.css';
 
-const SoftwareShop: React.FC = () => {
+export const SoftwareShop: React.FC = () => {
   const profile = useStore(gameStore, (s) => s.playerProfile);
   const updateProfileOptimistic = useStore(gameStore, (s) => s.updateProfileOptimistic);
 
@@ -38,7 +41,6 @@ const SoftwareShop: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
 
-        // Optimistic update using server data if available
         updateProfileOptimistic((p) => ({
           ...p,
           wallet: {
@@ -48,7 +50,7 @@ const SoftwareShop: React.FC = () => {
           vault: [
             ...p.vault,
             data.vaultItem || {
-              entityId: Date.now(), // Fallback (shouldn't happen with updated API)
+              entityId: Date.now(),
               templateId,
               rarityTier: rarity,
               itemType: 'software',
@@ -65,28 +67,26 @@ const SoftwareShop: React.FC = () => {
 
   return (
     <div className={styles.shopRoot}>
-      <h3 className={styles.heading}>SOFTWARE_REQUISITION</h3>
-      <div className={styles.stockRow}>
+      <div className={styles.stockList}>
         {shopStock.map((item, index) => {
           const canAfford = profile.wallet.scrap >= item.price;
           return (
             <div key={`${item.templateId}-${index}`} className={styles.card}>
-              <div className={styles.rarityBadge} data-rarity={item.rarity}>
-                {item.rarity.toUpperCase()}
-              </div>
-              <div className={styles.itemName}>{item.name}</div>
-              <div className={styles.price}>
-                <span className={!canAfford ? styles.priceInsufficient : ''}>
-                  {item.price} SCRAP
+              <div className={styles.info}>
+                <span className={styles.itemName}>{item.name}</span>
+                <span className={styles.rarity}>
+                  TIER: {item.rarity.toUpperCase()} // COST: {item.price} CR
                 </span>
               </div>
-              <button
-                className={`${styles.buyButton} ${!canAfford ? styles.buyButtonDisabled : ''}`}
+
+              <BtnLever
+                variant="primary"
                 disabled={!canAfford}
                 onClick={() => handlePurchase(index, item.price, item.templateId, item.rarity)}
+                rightSlot={`${item.price} CR`}
               >
-                ACQUIRE_SOFTWARE
-              </button>
+                ACQUIRE
+              </BtnLever>
             </div>
           );
         })}

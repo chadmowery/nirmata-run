@@ -3,34 +3,58 @@
 import React from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
+import { PanelCard } from './atomic';
 import styles from './styles.module.css';
-import { Eye } from 'lucide-react';
 
 export const NearbyEntities: React.FC = () => {
   const visibleEntities = useStore(gameStore, (s) => s.visibleEntities);
 
-  if (visibleEntities.length === 0) return null;
+  if (!visibleEntities || visibleEntities.length === 0) {
+    return null;
+  }
+
+  const getEntityGlyph = (name: string) => {
+    const firstChar = name.charAt(0);
+    return firstChar || 'E';
+  };
 
   return (
-    <div className={`${styles.terminalPanel} ${styles.entitiesPanel}`}>
-      <div className={styles.panelHeader}>
-        <Eye size={14} className="inline mr-1" /> Visible Threats
-      </div>
-      <div className={styles.scrollArea}>
-        {visibleEntities.map((entity) => (
-          <div key={entity.id} className={styles.entityItem}>
-            <div className={styles.entityName}>{entity.name}</div>
-            <div className={styles.entityHealthBar}>
-              <div
-                className={styles.entityHealthFill}
-                style={{
-                  width: `${entity.maxHp > 0 ? Math.max(0, (entity.hp / entity.maxHp) * 100) : 0}%`,
-                }}
-              />
+    <PanelCard
+      title="HOSTILES RADAR"
+      badge={`${visibleEntities.length} VISIBLE THREATS`}
+      className={styles.nearbyPanel}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        {visibleEntities.map((entity) => {
+          const hpPercent =
+            entity.maxHp > 0 ? (entity.hp / entity.maxHp) * 100 : 0;
+          return (
+            <div key={entity.id} className={styles.threatCard}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className={styles.threatGlyph}>{getEntityGlyph(entity.name)}</span>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span className={styles.threatName}>{entity.name}</span>
+                  <span className={styles.threatHp}>
+                    HP: {entity.hp} / {entity.maxHp}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ width: '60px', height: '4px', background: '#1c2638' }}>
+                <div
+                  style={{
+                    height: '100%',
+                    width: `${Math.min(100, hpPercent)}%`,
+                    background: 'var(--c-danger)',
+                  }}
+                />
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
-    </div>
+    </PanelCard>
   );
 };
+
+export default NearbyEntities;

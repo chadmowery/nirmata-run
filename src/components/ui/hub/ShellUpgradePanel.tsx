@@ -1,12 +1,15 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import economyConfig from '@/game/entities/templates/economy.json';
 import { ShellTemplate } from '@/game/shells/shared';
+import { PanelCard, BtnLever } from '../atomic';
 import styles from './ShellUpgradePanel.module.css';
 
-const ShellUpgradePanel: React.FC = () => {
+export const ShellUpgradePanel: React.FC = () => {
   const profile = useStore(gameStore, (s) => s.playerProfile);
   const selectedShellIndex = useStore(gameStore, (s) => s.selectedShellIndex);
   const updateProfileOptimistic = useStore(gameStore, (s) => s.updateProfileOptimistic);
@@ -37,7 +40,7 @@ const ShellUpgradePanel: React.FC = () => {
   const activeShell = shells[selectedShellIndex];
   if (!activeShell) return null;
 
-  const upgrades = profile.shellUpgrades[activeShell.id] || {
+  const upgrades = profile.shellUpgrades?.[activeShell.id] || {
     speed: 0,
     armor: 0,
     stability: 0,
@@ -62,13 +65,12 @@ const ShellUpgradePanel: React.FC = () => {
       baseCost = economyConfig.costs.shellUpgrade.additionalPort.baseCost;
       multiplier = economyConfig.costs.shellUpgrade.additionalPort.perPortMultiplier;
     } else {
-      // For stability, use average or fallback if not in economy.json
       baseCost = 35;
       multiplier = 1.5;
     }
 
-    const cost = calculateCost(baseCost, multiplier, upgrades[stat]);
-    if (profile.wallet.flux < cost) return;
+    const cost = calculateCost(baseCost, multiplier, upgrades[stat] || 0);
+    if ((profile.wallet?.flux || 0) < cost) return;
 
     try {
       const response = await fetch('/api/economy/upgrade', {
@@ -84,7 +86,6 @@ const ShellUpgradePanel: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
 
-        // Optimistic update
         updateProfileOptimistic((p) => {
           const newUpgrades = { ...p.shellUpgrades };
           const shellUpgrades = newUpgrades[activeShell.id] || {
@@ -96,95 +97,92 @@ const ShellUpgradePanel: React.FC = () => {
 
           newUpgrades[activeShell.id] = {
             ...shellUpgrades,
-            [stat]: data.newLevel ?? shellUpgrades[stat] + 1,
+            [stat]: data.newLevel ?? (shellUpgrades[stat] || 0) + 1,
           };
 
           return {
             ...p,
+            shellUpgrades: newUpgrades,
             wallet: {
               ...p.wallet,
               flux: data.remainingFlux ?? p.wallet.flux - cost,
             },
-            shellUpgrades: newUpgrades,
           };
         });
       }
-    } catch (error) {
-      logger.error('Upgrade failed:', 'UI', error);
+    } catch (err) {
+      logger.error('Failed to purchase shell upgrade:', 'UI', err);
     }
   };
 
-  const upgradeOptions = [
+  const upgradeDefs: {
+    stat: 'speed' | 'armor' | 'stability' | 'additionalPorts';
+    name: string;
+    description: string;
+    baseCost: number;
+    multiplier: number;
+  }[] = [
     {
-      id: 'speed',
-      label: 'SPEED +1',
-      baseValue: activeShell.baseStats.speed,
-      currentBonus: upgrades.speed,
-      key: 'speed',
+      stat: 'speed',
+      name: 'LOCOMOTION COILS',
+      description: '+5 T/SEC BASE RUN VELOCITY',
+      baseCost: economyConfig.costs.shellUpgrade.speed.baseCost,
+      multiplier: economyConfig.costs.shellUpgrade.speed.perLevelMultiplier,
     },
     {
-      id: 'armor',
-      label: 'ARMOR +1',
-      baseValue: activeShell.baseStats.armor,
-      currentBonus: upgrades.armor,
-      key: 'armor',
+      stat: 'armor',
+      name: 'TITANIUM COMPOSITE PLATING',
+      description: '+1 DAMAGE REDUCTION THRESHOLD',
+      baseCost: economyConfig.costs.shellUpgrade.armor.baseCost,
+      multiplier: economyConfig.costs.shellUpgrade.armor.perLevelMultiplier,
     },
     {
-      id: 'additionalPorts',
-      label: 'NEW PORT: SOFTWARE',
-      baseValue: activeShell.basePorts.maxSoftware,
-      currentBonus: upgrades.additionalPorts,
-      key: 'additionalPorts',
+      stat: 'stability',
+      name: 'REALITY TETHER STABILIZER',
+      description: '+10 MAX REALITY STABILITY RETENTION',
+      baseCost: 35,
+      multiplier: 1.5,
     },
-  ] as const;
+    {
+      stat: 'additionalPorts',
+      name: 'SUBROUTINE BUS EXPANSION',
+      description: '+1 FIRMWARE / AUGMENT SOCKET PORT',
+      baseCost: economyConfig.costs.shellUpgrade.additionalPort.baseCost,
+      multiplier: economyConfig.costs.shellUpgrade.additionalPort.perPortMultiplier,
+    },
+  ];
 
   return (
-    <div className={styles.upgradeRoot}>
-      <h3 className={styles.heading}>SHELL_UPGRADE_TERMINAL // {activeShell.name}</h3>
-      <div className={styles.upgradeList}>
-        {upgradeOptions.map((opt) => {
-          let baseCost = 0;
-          let multiplier = 1.0;
-          if (opt.key === 'speed') {
-            baseCost = economyConfig.costs.shellUpgrade.speed.baseCost;
-            multiplier = economyConfig.costs.shellUpgrade.speed.perLevelMultiplier;
-          } else if (opt.key === 'armor') {
-            baseCost = economyConfig.costs.shellUpgrade.armor.baseCost;
-            multiplier = economyConfig.costs.shellUpgrade.armor.perLevelMultiplier;
-          } else if (opt.key === 'additionalPorts') {
-            baseCost = economyConfig.costs.shellUpgrade.additionalPort.baseCost;
-            multiplier = economyConfig.costs.shellUpgrade.additionalPort.perPortMultiplier;
-          }
-
-          const cost = calculateCost(baseCost, multiplier, opt.currentBonus);
-          const canAfford = profile.wallet.flux >= cost;
+    <PanelCard title="HARDWARE UPGRADE DOCK" badge="FLUX SINK">
+      <div className={styles.upgradeRoot}>
+        {upgradeDefs.map((def) => {
+          const currentLevel = upgrades[def.stat] || 0;
+          const cost = calculateCost(def.baseCost, def.multiplier, currentLevel);
+          const canAfford = (profile.wallet?.flux || 0) >= cost;
 
           return (
-            <div key={opt.id} className={styles.upgradeRow}>
-              <div className={styles.statInfo}>
-                <span className={styles.statLabel}>{opt.label}</span>
-                <span className={styles.statValue}>
-                  {opt.baseValue + opt.currentBonus} → {opt.baseValue + opt.currentBonus + 1}
-                </span>
+            <div key={def.stat} className={styles.upgradeRow}>
+              <div className={styles.upgradeInfo}>
+                <div className={styles.upgradeName}>{def.name}</div>
+                <div style={{ fontSize: '10px', color: 'var(--c-text-dim)' }}>
+                  {def.description}
+                </div>
+                <div className={styles.upgradeLevel}>LEVEL: MK-{currentLevel + 1}</div>
               </div>
-              <div className={styles.dots} />
-              <div className={styles.costAction}>
-                <span className={`${styles.cost} ${!canAfford ? styles.costInsufficient : ''}`}>
-                  {cost} FLUX
-                </span>
-                <button
-                  className={`${styles.upgradeButton} ${!canAfford ? styles.upgradeButtonDisabled : ''}`}
-                  disabled={!canAfford}
-                  onClick={() => handleUpgrade(opt.key)}
-                >
-                  APPLY_UPGRADE
-                </button>
-              </div>
+
+              <BtnLever
+                variant="primary"
+                disabled={!canAfford}
+                onClick={() => handleUpgrade(def.stat)}
+                rightSlot={`${cost} FLX`}
+              >
+                UPGRADE
+              </BtnLever>
             </div>
           );
         })}
       </div>
-    </div>
+    </PanelCard>
   );
 };
 

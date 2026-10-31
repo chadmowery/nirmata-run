@@ -1,25 +1,18 @@
+'use client';
+
 import React, { useState } from 'react';
 import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
-import VaultGrid from './VaultGrid';
 import VaultOverflowBanner from './VaultOverflowBanner';
 import { VaultItem } from '@/shared/profile';
+import { PanelCard, DottedSpecRow, BtnLever, TaikokuStamp } from '../atomic';
 import styles from './VaultTab.module.css';
 
-const VaultTab: React.FC = () => {
+export const VaultTab: React.FC = () => {
   const profile = useStore(gameStore, (s) => s.playerProfile);
   const updateProfileOptimistic = useStore(gameStore, (s) => s.updateProfileOptimistic);
-
-  const [contextMenu, setContextMenu] = useState<{
-    visible: boolean;
-    position: { x: number; y: number };
-    item: VaultItem | null;
-  }>({
-    visible: false,
-    position: { x: 0, y: 0 },
-    item: null,
-  });
+  const [selectedItem, setSelectedItem] = useState<VaultItem | null>(null);
 
   if (!profile) return null;
 
@@ -45,11 +38,11 @@ const VaultTab: React.FC = () => {
           vault: p.vault.filter((item) => item.entityId !== entityId),
           overflow: p.overflow.filter((item) => item.entityId !== entityId),
         }));
+        if (selectedItem?.entityId === entityId) setSelectedItem(null);
       }
     } catch (error) {
       logger.error('Sell failed:', 'UI', error);
     }
-    setContextMenu({ ...contextMenu, visible: false });
   };
 
   const handleDiscard = async (entityId: number) => {
@@ -69,39 +62,36 @@ const VaultTab: React.FC = () => {
           vault: p.vault.filter((item) => item.entityId !== entityId),
           overflow: p.overflow.filter((item) => item.entityId !== entityId),
         }));
+        if (selectedItem?.entityId === entityId) setSelectedItem(null);
       }
     } catch (error) {
       logger.error('Discard failed:', 'UI', error);
     }
-    setContextMenu({ ...contextMenu, visible: false });
-  };
-
-  const onCellRightClick = (item: VaultItem, e: React.MouseEvent) => {
-    setContextMenu({
-      visible: true,
-      position: { x: e.clientX, y: e.clientY },
-      item,
-    });
   };
 
   const capacity = profile.vault.length;
-  const isNearCapacity = capacity >= 25;
+  const maxSlots = 48;
+  const gridCells = Array(maxSlots).fill(null);
+  profile.vault.slice(0, maxSlots).forEach((item, idx) => {
+    gridCells[idx] = item;
+  });
+
+  const getSectorCoord = (idx: number) => {
+    const rowChar = String.fromCharCode(65 + Math.floor(idx / 8));
+    const colNum = (idx % 8) + 1;
+    return `${rowChar}-0${colNum}`;
+  };
+
+  const getTagClass = (type: string) => {
+    if (type === 'firmware') return styles.slotTagFirm;
+    if (type === 'augment') return styles.slotTagAug;
+    return styles.slotTagSoft;
+  };
 
   return (
-    <div
-      className={styles.tabRoot}
-      onClick={() => setContextMenu({ ...contextMenu, visible: false })}
-    >
-      <header className={styles.header}>
-        <div className={styles.titleGroup}>
-          <h2 className={styles.heading}>VAULT_INVENTORY</h2>
-          <span className={`${styles.capacity} ${isNearCapacity ? styles.capacityWarn : ''}`}>
-            CAPACITY: {capacity}/30
-          </span>
-        </div>
-      </header>
-
-      {profile.overflow.length > 0 && (
+    <div>
+      {/* Overflow Banner */}
+      {profile.overflow?.length > 0 && (
         <VaultOverflowBanner
           overflowItems={profile.overflow}
           onSell={handleSell}
@@ -109,36 +99,105 @@ const VaultTab: React.FC = () => {
         />
       )}
 
-      {profile.vault.length === 0 ? (
-        <div className={styles.emptyState}>VAULT_EMPTY // NO_SECURED_ITEMS</div>
-      ) : (
-        <VaultGrid
-          items={profile.vault}
-          onCellClick={() => {}}
-          onCellRightClick={onCellRightClick}
-        />
-      )}
-
-      {contextMenu.visible && contextMenu.item && (
-        <div
-          className={styles.contextMenu}
-          style={{ top: contextMenu.position.y, left: contextMenu.position.x }}
-          onClick={(e) => e.stopPropagation()}
+      <div className={styles.vaultSplit}>
+        {/* Left: 8-Column Cargo Bay Matrix */}
+        <PanelCard
+          title="CARGO BAYS [A-01 THROUGH F-08]"
+          badge={`CAPACITY: ${capacity}/${maxSlots}`}
         >
-          <button
-            className={styles.menuItem}
-            onClick={() => handleSell(contextMenu.item!.entityId)}
-          >
-            SELL_FOR_SCRAP
-          </button>
-          <button
-            className={styles.menuItem}
-            onClick={() => handleDiscard(contextMenu.item!.entityId)}
-          >
-            DISCARD_ITEM
-          </button>
-        </div>
-      )}
+          <div className={styles.vaultGridContainer}>
+            {gridCells.map((cell, idx) => {
+              const coord = getSectorCoord(idx);
+              if (!cell) {
+                return (
+                  <div key={idx} className={styles.vaultSlot}>
+                    <span className={styles.slotCoord}>{coord}</span>
+                    <span style={{ color: 'var(--c-text-muted)', fontSize: '8px' }}>EMPTY</span>
+                    <span />
+                  </div>
+                );
+              }
+
+              const item = cell as VaultItem;
+              const isSelected = selectedItem?.entityId === item.entityId;
+
+              return (
+                <div
+                  key={item.entityId}
+                  className={`${styles.vaultSlot} ${isSelected ? styles.selected : ''}`}
+                  onClick={() => setSelectedItem(item)}
+                >
+                  <span className={styles.slotCoord}>{coord}</span>
+                  <span className={styles.slotGlyph}>
+                    {item.templateId.substring(0, 4).toUpperCase()}
+                  </span>
+                  <span className={`${styles.slotTag} ${getTagClass(item.itemType)}`}>
+                    {item.itemType.substring(0, 4).toUpperCase()}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </PanelCard>
+
+        {/* Right: Manifest Inspector */}
+        <PanelCard title="MANIFEST INSPECTOR" badge="ASSET TELEMETRY">
+          <div className={styles.inspectorBox}>
+            {selectedItem ? (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                  <div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--c-accent-secondary)' }}>
+                      SERIAL: TK-VLT-{selectedItem.entityId.toString().slice(-6)}
+                    </div>
+                    <h3 style={{ fontSize: '15px', fontWeight: 900, textTransform: 'uppercase', color: '#ffffff' }}>
+                      {selectedItem.templateId}
+                    </h3>
+                  </div>
+                  <TaikokuStamp variant="cyan">{selectedItem.rarityTier.toUpperCase()}</TaikokuStamp>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', margin: '14px 0' }}>
+                  <DottedSpecRow label="TYPE" value={selectedItem.itemType.toUpperCase()} />
+                  <DottedSpecRow label="HARVESTED AT" value={`SUB-LEVEL ${selectedItem.extractedAtFloor}`} />
+                  <DottedSpecRow
+                    label="SCRAP SALVAGE VALUE"
+                    value="25 CR"
+                    valueColor="var(--c-scrap)"
+                  />
+                  <DottedSpecRow label="INTEGRITY STATUS" value="SEALED CONTAINER" />
+                </div>
+              </div>
+            ) : (
+              <div className={styles.inspectorEmpty}>
+                <span>[ SELECT CARGO CONTAINER TO INSPECT TELEMETRY ]</span>
+              </div>
+            )}
+
+            {selectedItem && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto' }}>
+                <BtnLever
+                  variant="primary"
+                  onClick={() => {
+                    gameStore.getState().setActiveTab('loadout');
+                  }}
+                  rightSlot="→"
+                >
+                  TRANSFER TO LOADOUT
+                </BtnLever>
+
+                <BtnLever
+                  variant="danger"
+                  onClick={() => handleSell(selectedItem.entityId)}
+                  rightSlot="+25 CR"
+                >
+                  SALVAGE FOR SCRAP
+                </BtnLever>
+              </div>
+            )}
+          </div>
+        </PanelCard>
+      </div>
     </div>
   );
 };

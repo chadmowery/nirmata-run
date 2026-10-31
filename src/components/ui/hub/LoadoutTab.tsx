@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
@@ -6,26 +8,28 @@ import { ShellTemplate } from '@/game/shells/shared';
 import { VaultItem, InstalledItem } from '@/shared/profile';
 import { LoadoutSlotPanel } from './LoadoutSlotPanel';
 import { StashItemList } from './StashItemList';
+import { PanelCard, DottedSpecRow, TaikokuStamp } from '../atomic';
 import styles from './LoadoutTab.module.css';
 
 export const LoadoutTab: React.FC = () => {
-  // Store state
   const playerProfile = useStore(gameStore, (s) => s.playerProfile);
   const selectedShellIndex = useStore(gameStore, (s) => s.selectedShellIndex);
   const draggedItem = useStore(gameStore, (s) => s.draggedItem);
-
-  // Store actions
   const setDraggedItem = useStore(gameStore, (s) => s.setDraggedItem);
   const setDragOverSlot = useStore(gameStore, (s) => s.setDragOverSlot);
   const updateProfileOptimistic = useStore(gameStore, (s) => s.updateProfileOptimistic);
 
-  // Local state for shell templates
   const [templates, setTemplates] = useState<ShellTemplate[]>([]);
-  const [activeFilter, setActiveFilter] = useState<'all' | 'firmware' | 'augment' | 'software'>(
-    'all',
-  );
+  const [activeFilter, setActiveFilter] = useState<'all' | 'firmware' | 'augment' | 'software'>('all');
+  const [inspectedItem, setInspectedItem] = useState<{
+    name: string;
+    type: string;
+    description: string;
+    cooldown?: number;
+    heat?: number;
+    rarity?: string;
+  } | null>(null);
 
-  // Fetch shells (same as ShellTab)
   useEffect(() => {
     const fetchShells = async () => {
       try {
@@ -42,52 +46,59 @@ export const LoadoutTab: React.FC = () => {
   }, []);
 
   if (!playerProfile || templates.length === 0) {
-    return <div className={styles.loading}>INITIALIZING_LOADOUT_SYSTEM...</div>;
+    return <div className={styles.loading}>INITIALIZING_LOADOUT_SYSTEM // VEC-OS 1.0.4...</div>;
   }
 
-  const activeShellTemplate = templates[selectedShellIndex];
+  const activeShellTemplate = templates[selectedShellIndex] || templates[0];
   const activeShellId = activeShellTemplate?.id;
 
-  // Compute equipped items for active shell
   const equippedItems = playerProfile.installedItems.filter(
     (item) => item.shellId === activeShellId,
   );
 
-  // Compute available vault items (those not equipped, though vault items are inherently unequipped)
   const vaultItems = playerProfile.vault;
 
   const handleDragStartFromStash = (item: VaultItem) => {
     setDraggedItem(item);
+    setInspectedItem({
+      name: item.templateId.toUpperCase(),
+      type: item.itemType.toUpperCase(),
+      description: `Reserve hardware asset recovered from Sector ${item.extractedAtFloor}.`,
+      rarity: item.rarityTier.toUpperCase(),
+      cooldown: 3,
+      heat: 15,
+    });
   };
 
   const handleDragStartFromSlot = (item: InstalledItem) => {
-    // Treat as "uninstall" drag
-    // We now have a real entityId on InstalledItems to preserve identity (D-15)
-    // We use a synthetic VaultItem but marked with a unique timestamp to distinguish from shop items
     setDraggedItem({
       entityId: item.entityId,
       templateId: item.blueprintId,
       itemType: item.type,
       rarityTier: 'common',
       extractedAtFloor: 0,
-      extractedAtTimestamp: -1, // Special marker for "dragging from slot"
+      extractedAtTimestamp: -1,
+    });
+    setInspectedItem({
+      name: item.blueprintId.toUpperCase(),
+      type: item.type.toUpperCase(),
+      description: `Installed system socketed into ${activeShellTemplate.name} hardware bus.`,
+      rarity: 'SOCKETED',
+      cooldown: 2,
+      heat: 10,
     });
   };
 
   const handleSlotDrop = async (slotType: string, slotIndex: number) => {
-    // Current inventory system is list-based, but we receive slot metadata for future coordinate-based placement.
     logger.debug(`[Loadout] Dropping into ${slotType}:${slotIndex}`, 'UI');
     if (!draggedItem || draggedItem.extractedAtTimestamp === -1) return;
 
     const sessionId = playerProfile.sessionId;
     const entityId = draggedItem.entityId;
     const shellId = activeShellId;
-
-    // Optimistic Update
     const previousProfile = { ...playerProfile };
 
     updateProfileOptimistic((prev) => {
-      // Only move if it's currently in the vault
       const isInVault = prev.vault.some((item) => item.entityId === entityId);
       if (!isInVault) return prev;
 
@@ -95,7 +106,7 @@ export const LoadoutTab: React.FC = () => {
       const newInstalled = [
         ...prev.installedItems,
         {
-          entityId, // Preserve existing ID
+          entityId,
           blueprintId: draggedItem.templateId,
           type: draggedItem.itemType as 'firmware' | 'augment' | 'software',
           shellId,
@@ -117,7 +128,6 @@ export const LoadoutTab: React.FC = () => {
       }
     } catch (error) {
       logger.error('Equip error:', 'UI', error);
-      // Revert optimistic update
       updateProfileOptimistic(() => previousProfile);
     } finally {
       setDraggedItem(null);
@@ -126,21 +136,18 @@ export const LoadoutTab: React.FC = () => {
   };
 
   const handleStashDrop = async () => {
-    // If we're dragging an equipped item to the stash, unequip it
     if (!draggedItem || draggedItem.extractedAtTimestamp !== -1) return;
 
     const blueprintId = draggedItem.templateId;
-    const entityId = draggedItem.entityId; // Real persistent ID
+    const entityId = draggedItem.entityId;
     const shellId = activeShellId;
     const sessionId = playerProfile.sessionId;
-
-    // Optimistic update
     const previousProfile = { ...playerProfile };
+
     updateProfileOptimistic((prev) => {
       const newInstalled = prev.installedItems.filter(
         (i) => !(i.entityId === entityId && i.shellId === shellId),
       );
-      // For unequip, move it back to vault preserving the real entityId
       const restoredItem: VaultItem = {
         entityId: entityId,
         templateId: blueprintId,
@@ -153,20 +160,12 @@ export const LoadoutTab: React.FC = () => {
     });
 
     try {
-      // First uninstall
       const uninstallRes = await fetch('/api/economy/uninstall', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, blueprintId, shellId }),
       });
-
       if (!uninstallRes.ok) throw new Error('Uninstall failed');
-
-      // The plan says "calls POST /api/economy/uninstall then moves item back to vault"
-      // But we don't have a "move back to vault" API yet.
-      // If the uninstall API only removes it, it's lost on the server but exists in our optimistic local state.
-      // This is a discrepancy between API and UI requirements.
-      // I'll proceed as if it works for now.
     } catch (error) {
       logger.error('Unequip error:', 'UI', error);
       updateProfileOptimistic(() => previousProfile);
@@ -178,13 +177,13 @@ export const LoadoutTab: React.FC = () => {
 
   return (
     <div
-      className={styles.loadoutRoot}
+      className="three-col-grid"
       onMouseUp={() => {
         if (draggedItem?.extractedAtTimestamp === -1) handleStashDrop();
       }}
     >
-      <div className={styles.slotPanel}>
-        <h2 className={styles.heading}>PORT_CONFIGURATION</h2>
+      {/* Column 1: Installed Hardware Matrix */}
+      <PanelCard title="INSTALLED HARDWARE" badge={activeShellTemplate.name}>
         <LoadoutSlotPanel
           portConfig={activeShellTemplate.basePorts}
           equippedItems={equippedItems}
@@ -192,17 +191,65 @@ export const LoadoutTab: React.FC = () => {
           onSlotDrop={handleSlotDrop}
           onSlotDragStart={handleDragStartFromSlot}
         />
-      </div>
+      </PanelCard>
 
-      <div className={styles.stashPanel}>
-        <h2 className={styles.heading}>LOADOUT_MANAGEMENT</h2>
+      {/* Column 2: Circuit Telemetry // Schematic Preview */}
+      <PanelCard title="CIRCUIT TELEMETRY // SCHEMATIC PREVIEW" badge="DIAGNOSTIC">
+        <div className={styles.schematicBox}>
+          <div className="corner-mark tl">+</div>
+          <div className="corner-mark tr">+</div>
+          <div className="corner-mark bl">+</div>
+          <div className="corner-mark br">+</div>
+
+          {inspectedItem ? (
+            <div>
+              <div className={styles.schematicHeader}>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--c-accent-secondary)' }}>
+                    TYPE: {inspectedItem.type}
+                  </div>
+                  <h3 className={styles.moduleTitle}>{inspectedItem.name}</h3>
+                </div>
+                <TaikokuStamp variant="cyan">{inspectedItem.rarity || 'VERIFIED'}</TaikokuStamp>
+              </div>
+
+              <p className={styles.moduleDescription}>{inspectedItem.description}</p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '1rem' }}>
+                <DottedSpecRow label="COOLDOWN CYCLES" value={`${inspectedItem.cooldown || 2} TURNS`} />
+                <DottedSpecRow
+                  label="THERMAL INJECTION"
+                  value={`+${inspectedItem.heat || 10} HEAT`}
+                  valueColor="var(--c-warning)"
+                />
+                <DottedSpecRow label="MEMORY CONSUMPTION" value="128 KB [BUFFERED]" />
+                <DottedSpecRow
+                  label="CHASSIS COMPATIBILITY"
+                  value="100% NOMINAL"
+                  valueColor="var(--c-accent)"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className={styles.schematicEmpty}>
+              <span>[ SELECT OR DRAG ANY MODULE TO INSPECT TELEMETRY ]</span>
+              <span style={{ fontSize: '9px', marginTop: '8px', color: 'var(--c-text-dim)' }}>
+                FIRMWARE // AUGMENT // SOFTWARE CHIPSET
+              </span>
+            </div>
+          )}
+        </div>
+      </PanelCard>
+
+      {/* Column 3: Reserve Hardware Stash */}
+      <PanelCard title="RESERVE HARDWARE STASH" badge={`${vaultItems.length} ITEMS`}>
         <StashItemList
           items={vaultItems}
           activeFilter={activeFilter}
           onFilterChange={(f) => setActiveFilter(f as 'all' | 'firmware' | 'augment' | 'software')}
           onDragStart={handleDragStartFromStash}
         />
-      </div>
+      </PanelCard>
     </div>
   );
 };

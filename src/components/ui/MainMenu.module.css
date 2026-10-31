@@ -1,0 +1,78 @@
+.menuConstruct {
+  width: 100%;
+  max-width: 960px;
+  margin: auto;
+  border: 3px solid var(--c-surface-ivory);
+  background: #080c14;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.9), inset 0 0 40px rgba(0, 0, 0, 0.8);
+  position: relative;
+  overflow: hidden;
+}
+
+.menuMainGrid {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr) 220px;
+  min-height: 480px;
+}
+
+.menuLeftLadder {
+  background: #0d121c;
+  border-right: 2px solid #1f2a3c;
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.menuCenterHero {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  background: radial-gradient(circle at center, #0f1826 0%, #06090e 100%);
+}
+
+.menuHeroCanvas {
+  width: 100%;
+  height: 180px;
+  display: block;
+}
+
+.menuActionStack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 1.5rem;
+}
+
+.menuRightTelemetry {
+  background: #0d121c;
+  border-left: 2px solid #1f2a3c;
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  font-size: 11px;
+}
+
+.securityNotice {
+  border: 1px dashed var(--c-danger);
+  background: rgba(255, 42, 75, 0.08);
+  padding: 10px;
+  font-size: 10px;
+  color: var(--c-danger);
+  line-height: 1.4;
+  margin-top: auto;
+}
+
+@media (max-width: 900px) {
+  .menuMainGrid {
+    grid-template-columns: 1fr;
+  }
+  .menuLeftLadder,
+  .menuRightTelemetry {
+    display: none;
+  }
+}

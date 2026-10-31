@@ -3,43 +3,67 @@
 import React, { useEffect, useRef } from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
+import { PanelCard } from './atomic';
 import styles from './styles.module.css';
 
 export const MessageLog: React.FC = () => {
   const messages = useStore(gameStore, (s) => s.messages);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = 0; // Recent messages at top in store, but UI might want them at bottom?
-      // Actually, the store prepends messages (recent at [0]).
-      // If we want traditional bottom-to-top history, we should reverse them or just scroll to top if prepending.
-    }
+    bottomRef.current?.scrollIntoView?.({ behavior: 'smooth' });
   }, [messages]);
 
+  const getTag = (type: string) => {
+    switch (type) {
+      case 'combat':
+        return '[COMBAT]';
+      case 'error':
+        return '[KERNEL]';
+      case 'warning':
+        return '[ALERT]';
+      default:
+        return '[TELEMETRY]';
+    }
+  };
+
+  const getTagColor = (type: string) => {
+    switch (type) {
+      case 'combat':
+        return 'var(--c-danger)';
+      case 'error':
+        return 'var(--c-danger)';
+      case 'warning':
+        return 'var(--c-warning)';
+      default:
+        return 'var(--c-accent-secondary)';
+    }
+  };
+
   return (
-    <div className={`${styles.terminalPanel} ${styles.messageLogPanel}`}>
-      <div className={styles.panelHeader}>Message Log</div>
-      <div className={styles.scrollArea} ref={scrollRef}>
+    <PanelCard
+      title="COMBAT TELEMETRY"
+      badge="LIVE FEED"
+      className={styles.telemetryFeed}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto', flex: 1 }}>
         {messages.map((msg) => (
-          <div key={msg.id} className={`${styles.messageEntry} ${getMessageClass(msg.type)}`}>
-            {msg.text}
-            {msg.count > 1 && <span className={styles.msgCount}>(x{msg.count})</span>}
+          <div key={msg.id} className={styles.logItem}>
+            <span className={styles.logTag} style={{ color: getTagColor(msg.type) }}>
+              {getTag(msg.type)}
+            </span>
+            <span className={styles.logMsg}>{msg.text}</span>
+            {msg.count > 1 && (
+              <span style={{ color: 'var(--c-accent)', fontWeight: 800 }}>
+                (x{msg.count})
+              </span>
+            )}
           </div>
         ))}
+        <div ref={bottomRef} />
       </div>
-    </div>
+    </PanelCard>
   );
 };
 
-function getMessageClass(type: string) {
-  switch (type) {
-    case 'combat':
-      return styles.msgCombat;
-    case 'error':
-      return styles.msgError;
-    case 'info':
-    default:
-      return styles.msgInfo;
-  }
-}
+export default MessageLog;

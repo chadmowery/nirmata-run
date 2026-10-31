@@ -1,95 +1,43 @@
 .shopRoot {
   display: flex;
   flex-direction: column;
+  gap: 12px;
 }
 
-.heading {
-  font-size: var(--font-size-label);
-  color: var(--vibrant-cyan);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: var(--space-md);
-  border-bottom: 1px solid rgba(0, 240, 255, 0.2);
-  padding-bottom: var(--space-sm);
-}
-
-.stockRow {
+.stockList {
   display: flex;
-  gap: var(--space-md);
-  overflow-x: auto;
-  padding-bottom: var(--space-sm);
+  flex-direction: column;
+  gap: 8px;
 }
 
 .card {
-  min-width: 160px;
-  max-width: 160px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  padding: var(--space-md);
+  background: #0d121c;
+  border: 1px solid #1f2a3c;
+  border-left: 4px solid var(--c-scrap);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.info {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: var(--space-sm);
-  text-align: center;
-}
-
-.rarityBadge {
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--white);
-}
-
-.rarityBadge[data-rarity='uncommon'] {
-  background: rgba(0, 240, 255, 0.2);
-  color: var(--vibrant-cyan);
-}
-
-.rarityBadge[data-rarity='rare'] {
-  background: rgba(255, 0, 85, 0.2);
-  color: var(--vibrant-pink);
+  gap: 2px;
 }
 
 .itemName {
-  font-size: var(--font-size-body);
-  font-weight: 600;
-  height: 2.4em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.price {
-  font-size: var(--font-size-label);
-  color: var(--white);
-  font-weight: 600;
-}
-
-.priceInsufficient {
-  color: var(--vibrant-pink);
-}
-
-.buyButton {
-  width: 100%;
-  background: transparent;
-  border: 1px solid var(--vibrant-cyan);
-  color: var(--vibrant-cyan);
-  padding: var(--space-xs) var(--space-sm);
-  font-size: 10px;
-  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  transition: var(--transition-fast);
 }
 
-.buyButton:hover:not(:disabled) {
-  background: var(--vibrant-cyan);
-  color: var(--black);
-  box-shadow: 0 0 12px var(--vibrant-cyan);
-}
-
-.buyButtonDisabled {
-  border-color: rgba(255, 255, 255, 0.2);
-  color: var(--text-dim);
-  cursor: not-allowed;
+.rarity {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--c-scrap);
 }

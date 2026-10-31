@@ -13,12 +13,13 @@ export const TabBar: React.FC = () => {
   const hasOverflow = useStore(gameStore, (s) => s.hasOverflow);
   const overflowCount = useStore(gameStore, (s) => s.overflowCount);
 
-  const tabs: { id: HubTab; label: string }[] = [
-    { id: 'shell', label: 'SHELL' },
-    { id: 'loadout', label: 'LOADOUT' },
-    { id: 'workshop', label: 'WORKSHOP' },
-    { id: 'vault', label: 'VAULT' },
-    { id: 'initialize', label: 'INITIALIZE' },
+  const tabs: { id: HubTab; label: string; kanjiTag: string }[] = [
+    { id: 'shell', label: 'SHELL', kanjiTag: '機体' },
+    { id: 'loadout', label: 'LOADOUT', kanjiTag: '装備' },
+    { id: 'workshop', label: 'WORKSHOP', kanjiTag: '工房' },
+    { id: 'vault', label: 'VAULT', kanjiTag: '保管庫' },
+    { id: 'initialize', label: 'INITIALIZE', kanjiTag: '出撃' },
+    { id: 'leaderboards', label: 'LEADERBOARDS', kanjiTag: '順位' },
   ];
 
   const handleTabClick = (id: HubTab) => {
@@ -29,8 +30,8 @@ export const TabBar: React.FC = () => {
   const wallet = playerProfile?.wallet || { scrap: 0, flux: 0 };
 
   return (
-    <nav className={styles.tabBar} aria-label="Hub Navigation">
-      <div className={styles.tabs}>
+    <nav className={styles.hubNavigation} aria-label="Neural Deck Navigation">
+      <div className={styles.hubTabsRow}>
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           const isLocked = tab.id === 'initialize' && hasOverflow;
@@ -39,17 +40,20 @@ export const TabBar: React.FC = () => {
           return (
             <button
               key={tab.id}
-              className={`${styles.tab} ${isActive ? styles.activeTab : ''} ${isLocked ? styles.lockedTab : ''}`}
+              type="button"
+              className={`${styles.hubTabBtn} ${isActive ? styles.active : ''}`}
               onClick={() => handleTabClick(tab.id)}
               disabled={isLocked && activeTab !== tab.id}
-              aria-label={`${tab.label} ${isLocked ? '(Locked due to overflow)' : ''}`}
+              aria-label={`${tab.label} [${tab.kanjiTag}] ${isLocked ? '(Locked due to overflow)' : ''}`}
               aria-current={isActive ? 'page' : undefined}
             >
-              {isLocked && <Lock className={styles.lockIcon} size={12} />}
-              {tab.label}
+              {isLocked && <Lock size={12} style={{ marginRight: '4px' }} />}
+              <span>
+                {tab.label} [{tab.kanjiTag}]
+              </span>
               {showBadge && (
-                <span className={styles.badge} aria-label={`${overflowCount} items in overflow`}>
-                  {overflowCount}
+                <span className={styles.tabBadge} aria-label={`${overflowCount} items in overflow`}>
+                  ! {overflowCount}
                 </span>
               )}
             </button>
@@ -57,12 +61,18 @@ export const TabBar: React.FC = () => {
         })}
       </div>
 
-      <div className={styles.wallet}>
-        <div className={styles.scrap}>
-          SCRAP: <span className={styles.scrapValue}>{wallet.scrap.toLocaleString()}</span>
+      <div className={styles.hubWalletBar}>
+        <div className={styles.walletChip}>
+          <span className={styles.walletChipLabel}>META FLUX:</span>
+          <span className={styles.walletChipVal} style={{ color: 'var(--c-accent-secondary)' }}>
+            {wallet.flux.toLocaleString()} FLX
+          </span>
         </div>
-        <div className={styles.flux}>
-          // FLUX: <span className={styles.fluxValue}>{wallet.flux.toLocaleString()}</span>
+        <div className={styles.walletChip}>
+          <span className={styles.walletChipLabel}>RUN SCRAP:</span>
+          <span className={styles.walletChipVal} style={{ color: 'var(--c-scrap)' }}>
+            {wallet.scrap.toLocaleString()} CR
+          </span>
         </div>
       </div>
     </nav>

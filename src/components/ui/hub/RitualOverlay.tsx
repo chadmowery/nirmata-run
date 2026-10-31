@@ -1,10 +1,12 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
 import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import { RunMode } from '@/shared/run-mode';
 import { InstalledItem } from '@/shared/profile';
-import styles from './RitualOverlay.module.css';
+import { TaikokuPlacard, DottedSpecRow, BtnLever } from '../atomic';
 
 export const RitualOverlay: React.FC = () => {
   const ritualActive = useStore(gameStore, (s) => s.ritualActive);
@@ -32,7 +34,7 @@ export const RitualOverlay: React.FC = () => {
   if (!ritualActive || !playerProfile || !shellTemplates.length) return null;
 
   const selectedModeData = modeAvailability?.find((m) => m.mode === selectedRunMode);
-  const currentShell = shellTemplates[selectedShellIndex];
+  const currentShell = shellTemplates[selectedShellIndex] || shellTemplates[0];
 
   const handleConfirm = async () => {
     if (!selectedRunMode) return;
@@ -74,76 +76,81 @@ export const RitualOverlay: React.FC = () => {
     (i: InstalledItem) => i.shellId === currentShell.id,
   );
 
+  const firmwareList = installedOnCurrent
+    .filter((i: InstalledItem) => i.type === 'firmware')
+    .map((i: InstalledItem) => i.blueprintId)
+    .join(', ') || 'NONE SOCKETED';
+
+  const augmentList = installedOnCurrent
+    .filter((i: InstalledItem) => i.type === 'augment')
+    .map((i: InstalledItem) => i.blueprintId)
+    .join(', ') || 'NONE SOCKETED';
+
   return (
     <div
-      className={styles.overlay}
+      className="modal-backdrop-view"
       role="dialog"
       aria-modal="true"
       aria-labelledby="ritual-heading"
     >
-      <div className={styles.content}>
-        <h2 id="ritual-heading" className={styles.heading}>
-          DEPLOYMENT_REVIEW
-        </h2>
+      <div className="modal-box" style={{ maxWidth: '740px', padding: '1.5rem', gap: '14px' }}>
+        <TaikokuPlacard
+          kanji="出撃前点検"
+          title="PRE-FLIGHT HARDWARE VERIFICATION & LAUNCH RITUAL"
+          stampText="出荷前検査 // PRE-FLIGHT"
+          stampVariant={isWeekly ? 'danger' : 'cyan'}
+          onClose={() => setRitualActive(false)}
+          closeLabel="✕ ABORT [ESC]"
+        />
 
-        <div className={styles.section}>
-          <h3 className={styles.sectionHeading}>ACTIVE_LOADOUT</h3>
-          <div className={styles.loadoutGrid}>
-            <div className={styles.loadoutItem}>
-              <span className={styles.label}>SHELL:</span>
-              <span className={styles.value}>{currentShell.name}</span>
-            </div>
-            <div className={styles.loadoutItem}>
-              <span className={styles.label}>FIRMWARE:</span>
-              <span className={styles.value}>
-                {installedOnCurrent
-                  .filter((i: InstalledItem) => i.type === 'firmware')
-                  .map((i: InstalledItem) => i.blueprintId)
-                  .join(', ') || 'NONE'}
-              </span>
-            </div>
-            <div className={styles.loadoutItem}>
-              <span className={styles.label}>AUGMENTS:</span>
-              <span className={styles.value}>
-                {installedOnCurrent
-                  .filter((i: InstalledItem) => i.type === 'augment')
-                  .map((i: InstalledItem) => i.blueprintId)
-                  .join(', ') || 'NONE'}
-              </span>
-            </div>
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <DottedSpecRow label="SELECTED SHELL CHASSIS" value={currentShell.name} />
+          <DottedSpecRow label="EQUIPPED FIRMWARE" value={firmwareList} />
+          <DottedSpecRow label="EQUIPPED AUGMENT" value={augmentList} />
+          <DottedSpecRow
+            label="OPERATION MODE"
+            value={selectedModeData?.name?.toUpperCase() || 'STANDARD'}
+            valueColor={isWeekly ? 'var(--c-scrap)' : 'var(--c-accent-secondary)'}
+          />
+          <DottedSpecRow
+            label="PERMADEATH PENALTY"
+            value={isWeekly ? 'FULL HARDWARE PURGE' : 'STANDARD PROFILE PRESERVATION'}
+            valueColor={isWeekly ? 'var(--c-danger)' : 'var(--c-accent)'}
+          />
         </div>
 
-        <div className={styles.section}>
-          <h3 className={styles.sectionHeading}>RISK_ASSESSMENT</h3>
-          <div className={styles.riskInfo}>
-            <p className={styles.modeName}>MODE: {selectedModeData?.name || selectedRunMode}</p>
-            <p className={styles.stakes}>
-              STAKES: {isWeekly ? 'FULL_LOOT_LOSS + FACTORY_RESET' : 'STANDARD_DEATH_PENALTY'}
-            </p>
-            {isWeekly && <p className={styles.weeklyWarning}>⚠ SHELL_FACTORY_RESET_ON_DEATH</p>}
-            <p className={styles.attempts}>
-              ATTEMPT: {selectedModeData?.attemptsRemaining === 'unlimited' ? 'UNLIMITED' : 'FINAL'}
-            </p>
-          </div>
+        {/* Hazard Indemnity Notice */}
+        <div
+          style={{
+            border: '1px dashed var(--c-danger)',
+            background: 'rgba(255, 42, 75, 0.08)',
+            padding: '12px',
+            fontSize: '11px',
+            color: 'var(--c-danger)',
+            lineHeight: 1.5,
+          }}
+        >
+          <strong style={{ display: 'block', marginBottom: '4px', letterSpacing: '0.05em' }}>
+            HAZARD INDEMNITY NOTICE // 危険免責事項
+          </strong>
+          Physical hardware zeroing occurs upon neural link severance. Unsecured equipment not
+          extracted via Stability Anchor terminal will be permanently purged in sub-level void space.
         </div>
 
-        <button
-          className={`${styles.confirmButton} ${isWeekly ? styles.confirmPink : styles.confirmCyan}`}
+        <BtnLever
+          variant={isWeekly ? 'danger' : 'primary'}
+          disabled={isDeploying}
           onClick={handleConfirm}
-          disabled={isDeploying}
+          rightSlot="[発進承認] →"
+          style={{ width: '100%', padding: '12px 20px', marginTop: '6px' }}
         >
-          {isDeploying ? 'DEPLOYING...' : 'CONFIRM_INITIALIZATION'}
-        </button>
-
-        <button
-          className={styles.cancelButton}
-          onClick={() => setRitualActive(false)}
-          disabled={isDeploying}
-        >
-          ABORT_PROTOCOL
-        </button>
+          {isDeploying
+            ? 'ENGAGING NEURAL LINK...'
+            : 'AUTHORIZE LAUNCH // 発進承認 — ENGAGE NEURAL LINK'}
+        </BtnLever>
       </div>
     </div>
   );
 };
+
+export default RitualOverlay;

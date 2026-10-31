@@ -1,6 +1,9 @@
-import React, { useEffect, useState } from 'react';
+'use client';
+
+import React, { useEffect, useState, useCallback } from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
+import { BtnLever } from '../atomic';
 import styles from './BootSequence.module.css';
 
 interface BootSequenceProps {
@@ -15,6 +18,22 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ onComplete }) => {
   const [visibleLines, setVisibleLines] = useState(0);
   const [isFadingOut, setIsFadingOut] = useState(false);
 
+  const handleFinish = useCallback(() => {
+    setIsFadingOut(true);
+    setTimeout(() => {
+      setBootSequenceActive(false);
+      onComplete();
+    }, 250);
+  }, [setBootSequenceActive, onComplete]);
+
+  const lines = [
+    '[0.012s] TAIKOKU KERNEL BOOT INITIALIZED... VEC-OS 1.0.4',
+    '[0.084s] QUANTUM BUS SYNC: 1024-CHANNEL NEURAL ARRAY NOMINAL',
+    `[0.210s] SEED ROTATION: #${launchConfig?.seed || 'W-4028'} VERIFIED`,
+    `[0.450s] CHASSIS SYNC: ${launchConfig?.shellId || 'VANGUARD-v1'} LINKED [OK]`,
+    '[0.720s] NEURAL LINK ENGAGED. ENTERING SUB-STRUCTURE.',
+  ];
+
   useEffect(() => {
     if (!bootSequenceActive) {
       setVisibleLines(0);
@@ -24,46 +43,56 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ onComplete }) => {
 
     const timer = setInterval(() => {
       setVisibleLines((prev) => {
-        if (prev < 4) return prev + 1;
+        if (prev < lines.length) return prev + 1;
         clearInterval(timer);
         return prev;
       });
-    }, 250);
+    }, 200);
 
     return () => clearInterval(timer);
-  }, [bootSequenceActive]);
+  }, [bootSequenceActive, lines.length]);
 
   useEffect(() => {
-    if (visibleLines === 4) {
+    if (visibleLines === lines.length) {
       const holdTimer = setTimeout(() => {
-        setIsFadingOut(true);
-        const fadeTimer = setTimeout(() => {
-          setBootSequenceActive(false);
-          onComplete();
-        }, 300);
-        return () => clearTimeout(fadeTimer);
+        handleFinish();
       }, 500);
       return () => clearTimeout(holdTimer);
     }
-  }, [visibleLines, setBootSequenceActive, onComplete]);
+  }, [visibleLines, lines.length, handleFinish]);
 
   if (!bootSequenceActive) return null;
 
-  const lines = [
-    'INITIALIZING_SESSION...',
-    'LOADING_NEURAL_DECK...',
-    `SEED: ${launchConfig?.seed || 'UNKNOWN'}`,
-    'DEPLOYING_SHELL...',
-  ];
-
   return (
     <div className={`${styles.bootScreen} ${isFadingOut ? styles.fadeOut : ''}`}>
-      <div className={styles.container}>
-        {lines.slice(0, visibleLines).map((line, index) => (
-          <div key={index} className={styles.line}>
-            {line}
-          </div>
-        ))}
+      <div className={styles.terminalBox}>
+        <div className={styles.terminalHeader}>
+          <span>TAIKOKU KERNEL BOOT SEQUENCE // VEC-OS 1.0.4</span>
+          <span style={{ color: 'var(--c-accent)' }}>[STATUS: ACTIVE]</span>
+        </div>
+
+        <div className={styles.terminalBody}>
+          {lines.slice(0, visibleLines).map((line, idx) => {
+            const isLast = idx === lines.length - 1;
+            return (
+              <div
+                key={idx}
+                className={`${styles.logLine} ${isLast ? styles.accent : ''}`}
+              >
+                {line}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className={styles.terminalFooter}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--c-text-dim)' }}>
+            PRESS ESC OR SKIP TO ABBREVIATE SEQUENCE
+          </span>
+          <BtnLever variant="primary" onClick={handleFinish} rightSlot="→">
+            SKIP BOOT [出撃]
+          </BtnLever>
+        </div>
       </div>
     </div>
   );

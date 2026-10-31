@@ -17,7 +17,7 @@ declare global {
 export type GameStatus = GameState;
 export type MessageType = 'info' | 'combat' | 'error' | 'warning';
 
-export type HubTab = 'shell' | 'loadout' | 'workshop' | 'vault' | 'initialize';
+export type HubTab = 'shell' | 'loadout' | 'workshop' | 'vault' | 'initialize' | 'leaderboards';
 
 export interface ModeAvailability {
   mode: RunMode;

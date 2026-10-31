@@ -2,20 +2,68 @@
 
 import React, { useEffect } from 'react';
 import { useStore } from 'zustand';
-import { gameStore } from '@/game/ui/store';
+import { gameStore, HubTab } from '@/game/ui/store';
 import { TabBar } from './TabBar';
 import { ShellTab } from './ShellTab';
 import { LoadoutTab } from './LoadoutTab';
 import WorkshopTab from './WorkshopTab';
 import VaultTab from './VaultTab';
 import { InitializeTab } from './InitializeTab';
+import { LeaderboardPanel } from './LeaderboardPanel';
 import { RitualOverlay } from './RitualOverlay';
 import { BootSequence } from './BootSequence';
+import { TaikokuPlacard } from '../atomic';
 import styles from './HubLayout.module.css';
 
 interface HubLayoutProps {
   onLaunchComplete: () => void;
 }
+
+interface TabHeaderConfig {
+  kanji: string;
+  title: string;
+  stampText: string;
+  stampVariant: 'danger' | 'cyan' | 'secured';
+}
+
+const TAB_HEADER_MAP: Record<HubTab, TabHeaderConfig> = {
+  shell: {
+    kanji: '機体診断',
+    title: 'SHELL CHASSIS DIAGNOSTICS & HARDWARE MOD DOCK',
+    stampText: '認証完了 // DOCK ACTIVE',
+    stampVariant: 'cyan',
+  },
+  loadout: {
+    kanji: '装備換装',
+    title: 'LOADOUT CONFIGURATION & FIRMWARE SOCKET MATRIX',
+    stampText: '承認待 // SOCKET MATRIX',
+    stampVariant: 'danger',
+  },
+  workshop: {
+    kanji: '工作端末',
+    title: 'BLUEPRINT COMPILATION & HARDWARE WORKSHOP',
+    stampText: '製作可能 // FABRICATION',
+    stampVariant: 'cyan',
+  },
+  vault: {
+    kanji: '物資保管庫',
+    title: 'PERSISTENT SECURE VAULT // 48-CONTAINER CARGO MATRIX',
+    stampText: '封印済 // SEALED',
+    stampVariant: 'secured',
+  },
+  initialize: {
+    kanji: '出撃認可',
+    title: 'DEPLOYMENT PROTOCOL // MISSION PROFILE & RUN MUTATORS',
+    stampText: '出撃可能 // CLEAR TO LAUNCH',
+    stampVariant: 'cyan',
+  },
+  leaderboards: {
+    kanji: '戦績順位',
+    title: 'GLOBAL NEURAL RECON LEADERBOARD // CERTIFIED OPERATORS',
+    stampText: '認証済 // VERIFIED RUNS',
+    stampVariant: 'cyan',
+  },
+};
 
 export const HubLayout: React.FC<HubLayoutProps> = ({ onLaunchComplete }) => {
   const activeTab = useStore(gameStore, (s) => s.activeTab);
@@ -57,46 +105,65 @@ export const HubLayout: React.FC<HubLayoutProps> = ({ onLaunchComplete }) => {
 
     fetchProfile();
 
-    // Determine default tab (D-03)
     if (runResults) {
       setActiveTab('vault');
     } else {
       setActiveTab('shell');
     }
-  }, []);
+  }, [runResults, setActiveTab, setPlayerProfile, setProfileLoading, setProfileError]);
 
-  if (profileLoading) {
-    return (
-      <div className={styles.hubRoot}>
-        <div className={styles.loadingState}>INITIALIZING_NEURAL_LINK...</div>
-      </div>
-    );
-  }
-
-  if (profileError) {
-    return (
-      <div className={styles.hubRoot}>
-        <div className={styles.errorState}>
-          <p>LINK_ERROR: {profileError}</p>
-          <button onClick={() => window.location.reload()}>RETRY_CONNECTION</button>
-        </div>
-      </div>
-    );
-  }
+  const activeHeader = TAB_HEADER_MAP[activeTab] || TAB_HEADER_MAP.shell;
 
   return (
     <div className={styles.hubRoot}>
-      <TabBar />
-      <div className={styles.tabContent}>
-        {activeTab === 'shell' && <ShellTab />}
-        {activeTab === 'loadout' && <LoadoutTab />}
-        {activeTab === 'workshop' && <WorkshopTab />}
-        {activeTab === 'vault' && <VaultTab />}
-        {activeTab === 'initialize' && <InitializeTab />}
-      </div>
+      <div className={styles.hubContainer}>
+        {/* Dynamic Top Placard Header */}
+        <TaikokuPlacard
+          kanji={activeHeader.kanji}
+          title={activeHeader.title}
+          stampText={activeHeader.stampText}
+          stampVariant={activeHeader.stampVariant}
+          metaText="NEURAL DECK // HUB PROTOCOL"
+        />
 
-      {ritualActive && <RitualOverlay />}
-      {bootSequenceActive && <BootSequence onComplete={onLaunchComplete} />}
+        {/* 6-Tab Navigation Bar & Monospace Wallet Chip Bar */}
+        <TabBar />
+
+        {/* Active Workspace */}
+        {profileLoading && (
+          <div className={styles.loadingState}>
+            INITIALIZING_NEURAL_LINK // VEC-OS 1.0.4...
+          </div>
+        )}
+
+        {profileError && (
+          <div className={styles.errorState}>
+            <p>LINK_ERROR: {profileError}</p>
+            <button
+              type="button"
+              className="tool-btn"
+              onClick={() => window.location.reload()}
+              style={{ color: 'var(--c-danger)', borderColor: 'var(--c-danger)' }}
+            >
+              RETRY_CONNECTION
+            </button>
+          </div>
+        )}
+
+        {!profileLoading && !profileError && (
+          <div className={styles.tabContent}>
+            {activeTab === 'shell' && <ShellTab />}
+            {activeTab === 'loadout' && <LoadoutTab />}
+            {activeTab === 'workshop' && <WorkshopTab />}
+            {activeTab === 'vault' && <VaultTab />}
+            {activeTab === 'initialize' && <InitializeTab />}
+            {activeTab === 'leaderboards' && <LeaderboardPanel />}
+          </div>
+        )}
+
+        {ritualActive && <RitualOverlay />}
+        {bootSequenceActive && <BootSequence onComplete={onLaunchComplete} />}
+      </div>
     </div>
   );
 };

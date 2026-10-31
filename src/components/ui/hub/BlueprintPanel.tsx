@@ -1,30 +1,29 @@
-import React, { useState } from 'react';
+'use client';
+
+import React from 'react';
 import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import economyConfig from '@/game/entities/templates/economy.json';
+import { BtnLever, TaikokuStamp } from '../atomic';
 import styles from './BlueprintPanel.module.css';
 
-const BlueprintPanel: React.FC = () => {
+export const BlueprintPanel: React.FC = () => {
   const profile = useStore(gameStore, (s) => s.playerProfile);
   const updateProfileOptimistic = useStore(gameStore, (s) => s.updateProfileOptimistic);
   const setCompilingBlueprintId = useStore(gameStore, (s) => s.setCompilingBlueprintId);
   const compilingBlueprintId = useStore(gameStore, (s) => s.compilingBlueprintId);
 
-  const [lastCompiledId, setLastCompiledId] = useState<string | null>(null);
-
   if (!profile) return null;
 
   const libraryIds = new Set(profile.blueprintLibrary.map((b) => b.blueprintId));
 
-  // Items in vault that are firmware or augment and not in library
   const lockedFiles = profile.vault.filter(
     (item) =>
       (item.itemType === 'firmware' || item.itemType === 'augment') &&
       !libraryIds.has(item.templateId),
   );
 
-  // Group by templateId to avoid duplicates in the UI if multiple of same item in vault
   const uniqueLockedFiles = Array.from(
     new Map(lockedFiles.map((item) => [item.templateId, item])).values(),
   );
@@ -58,7 +57,6 @@ const BlueprintPanel: React.FC = () => {
       if (response.ok) {
         const data = await response.json();
 
-        // Optimistic update
         updateProfileOptimistic((p) => ({
           ...p,
           wallet: {
@@ -74,9 +72,6 @@ const BlueprintPanel: React.FC = () => {
             },
           ],
         }));
-
-        setLastCompiledId(templateId);
-        setTimeout(() => setLastCompiledId(null), 1000);
       }
     } catch (error) {
       logger.error('Compilation failed:', 'UI', error);
@@ -87,69 +82,64 @@ const BlueprintPanel: React.FC = () => {
 
   return (
     <div className={styles.panelRoot}>
-      <div className={styles.column}>
-        <h3 className={styles.columnHeading}>LOCKED_FILES</h3>
-        {uniqueLockedFiles.length === 0 ? (
-          <div className={styles.emptyState}>NO_LOCKED_FILES // RUN_DEEPER_TO_DISCOVER</div>
+      <div>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--c-accent-secondary)', marginBottom: '8px', fontWeight: 800 }}>
+          COMPILED BLUEPRINTS ({compiledLibrary.length})
+        </div>
+        {compiledLibrary.length === 0 ? (
+          <div className={styles.emptyState}>NO COMPILED ARCHIVES // FABRICATE FROM VAULT</div>
         ) : (
-          <div className={styles.list}>
-            {uniqueLockedFiles.map((item) => {
-              const cost =
-                (economyConfig.costs.compilation as Record<string, number>)[item.rarityTier] || 50;
-              const canAfford = profile.wallet.flux >= cost;
-              const isCompiling = compilingBlueprintId === item.templateId;
-
-              return (
-                <div
-                  key={item.templateId}
-                  className={`${styles.item} ${isCompiling ? styles.sliding : ''}`}
-                >
-                  <div className={styles.itemInfo}>
-                    <span className={styles.itemName}>{item.templateId}</span>
-                    <span className={styles.itemType}>
-                      {item.itemType.toUpperCase()} • {item.rarityTier.toUpperCase()}
-                    </span>
-                  </div>
-                  <button
-                    className={`${styles.compileButton} ${!canAfford ? styles.compileButtonDisabled : ''}`}
-                    disabled={!canAfford || isCompiling}
-                    onClick={() =>
-                      handleCompile(
-                        item.templateId,
-                        item.itemType as 'firmware' | 'augment',
-                        item.rarityTier,
-                      )
-                    }
-                  >
-                    COMPILE_BLUEPRINT:{' '}
-                    <span className={!canAfford ? styles.costInsufficient : ''}>{cost} FLUX</span>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+          compiledLibrary.map((bp) => (
+            <div key={bp.blueprintId} className={`${styles.blueprintEntry} ${styles.compiled}`}>
+              <div className={styles.blueprintMeta}>
+                <span className={styles.blueprintName}>{bp.blueprintId}</span>
+                <span className={styles.blueprintType}>TYPE: {bp.type.toUpperCase()} // READY</span>
+              </div>
+              <TaikokuStamp variant="secured">COMPILED // OK</TaikokuStamp>
+            </div>
+          ))
         )}
       </div>
 
-      <div className={styles.column}>
-        <h3 className={styles.columnHeading}>COMPILED_LIBRARY</h3>
-        {compiledLibrary.length === 0 ? (
-          <div className={styles.emptyState}>COMPILED_LIBRARY_EMPTY</div>
+      <div style={{ marginTop: '12px' }}>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--c-accent)', marginBottom: '8px', fontWeight: 800 }}>
+          RAW DATA CORES AWAITING COMPILATION ({uniqueLockedFiles.length})
+        </div>
+        {uniqueLockedFiles.length === 0 ? (
+          <div className={styles.emptyState}>NO UNCOMPILED CORES IN VAULT</div>
         ) : (
-          <div className={styles.list}>
-            {compiledLibrary.map((entry) => (
-              <div
-                key={entry.blueprintId}
-                className={`${styles.item} ${lastCompiledId === entry.blueprintId ? styles.compileFlash : ''}`}
-              >
-                <div className={styles.itemInfo}>
-                  <span className={styles.itemName}>{entry.blueprintId}</span>
-                  <span className={styles.itemType}>{entry.type.toUpperCase()} • COMPILED</span>
+          uniqueLockedFiles.map((item) => {
+            const cost =
+              (economyConfig.costs.compilation as Record<string, number>)[item.rarityTier] || 50;
+            const canAfford = profile.wallet.flux >= cost;
+            const isCompiling = compilingBlueprintId === item.templateId;
+
+            return (
+              <div key={item.templateId} className={`${styles.blueprintEntry} ${styles.available}`}>
+                <div className={styles.blueprintMeta}>
+                  <span className={styles.blueprintName}>{item.templateId}</span>
+                  <span className={styles.blueprintType}>
+                    TIER: {item.rarityTier.toUpperCase()} // COST: {cost} FLX
+                  </span>
                 </div>
-                <span className={styles.status}>AVAILABLE</span>
+
+                <BtnLever
+                  variant="primary"
+                  disabled={!canAfford || isCompiling}
+                  onClick={() =>
+                    handleCompile(
+                      item.templateId,
+                      item.itemType as 'firmware' | 'augment',
+                      item.rarityTier,
+                    )
+                  }
+                  rightSlot={`${cost} FLX`}
+                >
+                  {isCompiling ? 'COMPILING...' : 'COMPILE'}
+                </BtnLever>
               </div>
-            ))}
-          </div>
+            );
+          })
         )}
       </div>
     </div>

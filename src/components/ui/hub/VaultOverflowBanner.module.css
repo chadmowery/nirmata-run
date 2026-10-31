@@ -1,83 +1,77 @@
 .banner {
-  background: rgba(255, 0, 85, 0.15);
-  border: 1px solid var(--vibrant-pink);
-  padding: var(--space-md);
-  margin-bottom: var(--space-lg);
-  animation: pulsePink 1500ms ease-in-out infinite;
+  background: var(--c-danger);
+  color: #ffffff;
+  padding: 10px 16px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+  border: 2px solid #ffffff;
+  animation: pulseDanger 1.5s infinite;
 }
 
-@keyframes pulsePink {
-  0% {
-    box-shadow: 0 0 5px rgba(255, 0, 85, 0.2);
-    border-color: rgba(255, 0, 85, 0.5);
-  }
-  50% {
-    box-shadow: 0 0 15px rgba(255, 0, 85, 0.4);
-    border-color: rgba(255, 0, 85, 1);
-  }
-  100% {
-    box-shadow: 0 0 5px rgba(255, 0, 85, 0.2);
-    border-color: rgba(255, 0, 85, 0.5);
-  }
+@keyframes pulseDanger {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.85; }
 }
 
 .heading {
-  font-size: var(--font-size-label);
-  color: var(--vibrant-pink);
-  text-transform: uppercase;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 900;
   letter-spacing: 0.1em;
-  margin-bottom: var(--space-md);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .itemList {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
+  gap: 6px;
 }
 
 .itemRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(0, 0, 0, 0.3);
-  padding: var(--space-xs) var(--space-sm);
-  border: 1px solid rgba(255, 0, 85, 0.2);
+  background: rgba(0, 0, 0, 0.4);
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .itemName {
-  font-size: var(--font-size-body);
-  color: var(--white);
-  font-family: var(--font-mono, monospace);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .actions {
   display: flex;
-  gap: var(--space-sm);
+  gap: 8px;
 }
 
-.discardButton,
-.sellButton {
+.discardButton {
   background: transparent;
-  border: 1px solid var(--vibrant-pink);
-  color: var(--vibrant-pink);
-  padding: 2px 8px;
+  border: 1px solid #ffffff;
+  color: #ffffff;
+  font-family: var(--font-mono);
   font-size: 10px;
+  padding: 3px 8px;
   cursor: pointer;
-  text-transform: uppercase;
-  transition: var(--transition-fast);
-}
-
-.discardButton:hover {
-  background: var(--vibrant-pink);
-  color: var(--white);
+  font-weight: 700;
 }
 
 .sellButton {
-  border-color: var(--vibrant-cyan);
-  color: var(--vibrant-cyan);
-}
-
-.sellButton:hover {
-  background: var(--vibrant-cyan);
-  color: var(--black);
+  background: #ffffff;
+  border: 1px solid #ffffff;
+  color: #000000;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-weight: 800;
 }

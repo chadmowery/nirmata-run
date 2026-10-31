@@ -3,72 +3,89 @@
 import React from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
+import { PanelCard } from './atomic';
 import styles from './styles.module.css';
-import { Heart, Trophy, Zap, Coins } from 'lucide-react';
-import { dispatchUIAction } from '@/game/input/input-bridge';
-import { GameAction } from '@/game/input/actions';
-import { StabilityBar } from './StabilityBar';
-import { HeatBar } from './HeatBar';
-import { AbilityBar } from './AbilityBar';
 
 export const PlayerHUD: React.FC = () => {
   const player = useStore(gameStore, (s) => s.player);
   const scrap = useStore(gameStore, (s) => s.scrap);
+  const heatTier = useStore(gameStore, (s) => s.heatTier);
 
   const hpPercent = (player.maxHp > 0 ? (player.hp / player.maxHp) * 100 : 0) || 0;
-  const xpNextLevel = (player.level || 1) * 100; // Simple XP curve for now
+  const xpNextLevel = (player.level || 1) * 100;
   const xpPercent = (xpNextLevel > 0 ? (player.xp / xpNextLevel) * 100 : 0) || 0;
+  const heatPercent = (player.maxHeat > 0 ? (player.heat / player.maxHeat) * 100 : 0) || 0;
 
   const isGlitched = player.statuses.includes('HUD_GLITCH') || player.heat > player.maxHeat;
-  const panelClasses = `${styles.terminalPanel} ${styles.statsPanel} ${isGlitched ? styles.hudGlitch : ''}`;
 
   return (
-    <div className={panelClasses}>
-      <div className={styles.panelHeader}>{player.shellName} // RUNTIME_STATUS</div>
-
-      {/* HP Bar */}
-      <div className={styles.statRow}>
-        <span className={styles.statLabel}>
-          <Heart size={14} className="inline mr-1" /> HP
-        </span>
-        <span className={styles.statValue}>
-          {player.hp} / {player.maxHp}
-        </span>
+    <PanelCard
+      title="CHASSIS DIAGNOSTICS"
+      badge={player.shellName || 'VANGUARD-v1'}
+      className={`${styles.hudColLeft} ${isGlitched ? styles.hudGlitch : ''}`}
+    >
+      {/* Runner Identity Block */}
+      <div className={styles.runnerIdentityCard}>
+        <div className={styles.runnerAvatar}>@</div>
+        <div className={styles.runnerInfo}>
+          <span className={styles.runnerCallsign}>OPERATOR // RUNNER</span>
+          <span className={styles.runnerSub}>SYNC: 99.8% NOMINAL</span>
+        </div>
       </div>
-      <div className={styles.barContainer}>
-        <div className={`${styles.barFill} ${styles.hpBar}`} style={{ width: `${hpPercent}%` }} />
+
+      {/* HP Capacity Meter */}
+      <div className={styles.meterContainer} style={{ marginTop: '8px' }}>
+        <div className={styles.statRow}>
+          <span className={styles.statLabel}>HEALTH CAPACITY</span>
+          <span className={styles.statValue}>
+            {player.hp} / {player.maxHp}
+          </span>
+        </div>
+        <div className={styles.meterTrack}>
+          <div className={styles.meterFillHp} style={{ width: `${Math.min(100, hpPercent)}%` }} />
+        </div>
       </div>
 
       {/* Level & XP */}
       <div className={styles.statRow}>
-        <span className={styles.statLabel}>
-          <Trophy size={14} className="inline mr-1" /> LEVEL
-        </span>
+        <span className={styles.statLabel}>NEURAL LEVEL</span>
         <span className={styles.statValue}>{player.level}</span>
       </div>
       <div className={styles.statRow}>
-        <span className={styles.statLabel}>
-          <Zap size={14} className="inline mr-1" /> XP
-        </span>
+        <span className={styles.statLabel}>ACCUMULATED XP</span>
         <span className={styles.statValue}>
           {player.xp} / {xpNextLevel}
         </span>
       </div>
       <div className={styles.barContainer}>
-        <div className={`${styles.barFill} ${styles.xpBar}`} style={{ width: `${xpPercent}%` }} />
+        <div className={`${styles.barFill} ${styles.xpBar}`} style={{ width: `${Math.min(100, xpPercent)}%` }} />
       </div>
 
+      {/* Scrap Counter */}
       <div className={styles.statRow}>
-        <span className={styles.statLabel}>
-          <Coins size={14} className="inline mr-1" /> SCRAP
+        <span className={styles.statLabel}>RECOVERED SCRAP</span>
+        <span className={styles.statValue} style={{ color: 'var(--c-scrap)' }}>
+          {scrap.toLocaleString()} CR
         </span>
-        <span className={styles.statValue}>{scrap}</span>
       </div>
 
-      {/* Active Status Effects (D-16 Fix) */}
+      {/* Core Heat Dissipation Meter */}
+      <div className={styles.meterContainer} style={{ marginTop: '6px' }}>
+        <div className={styles.statRow}>
+          <span className={styles.statLabel}>CORE HEAT DISSIPATION</span>
+          <span className={styles.statValue} style={{ color: heatPercent > 70 ? 'var(--c-danger)' : 'var(--c-warning)' }}>
+            {Math.round(player.heat)} / {player.maxHeat} [TIER-{heatTier}]
+          </span>
+        </div>
+        <div className={styles.meterTrack}>
+          <div className={styles.meterFillHeat} style={{ width: `${Math.min(100, heatPercent)}%` }} />
+        </div>
+      </div>
+
+      {/* Active Status Effects */}
       {player.statuses.length > 0 && (
         <div className={styles.modsContainer}>
-          <div className={`${styles.modsHeader} text-red-400`}>ACTIVE_STATUS</div>
+          <div className={styles.modsHeader}>ACTIVE STATUS VECTOR</div>
           <div className={styles.modsList}>
             {player.statuses.map((status, i) => (
               <span key={i} className={`${styles.modBadge} ${styles.statusBadge}`}>
@@ -79,10 +96,10 @@ export const PlayerHUD: React.FC = () => {
         </div>
       )}
 
-      {/* Mods / Software Passive Effects */}
+      {/* Active Mods */}
       {player.mods.length > 0 && (
         <div className={styles.modsContainer}>
-          <div className={styles.modsHeader}>ACTIVE_MODS</div>
+          <div className={styles.modsHeader}>SOCKETED MODS</div>
           <div className={styles.modsList}>
             {player.mods.map((mod, i) => (
               <span key={i} className={styles.modBadge}>
@@ -92,26 +109,8 @@ export const PlayerHUD: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Heat Bar */}
-      <HeatBar />
-
-      {/* Stability Bar */}
-      <StabilityBar />
-
-      {/* Action Controls */}
-      <div className={styles.actionRow}>
-        <button
-          className={styles.hudButton}
-          onClick={() => dispatchUIAction(GameAction.WAIT)}
-          title="Skip turn and recover energy (Z)"
-        >
-          Wait
-        </button>
-      </div>
-
-      {/* Ability Bar */}
-      <AbilityBar />
-    </div>
+    </PanelCard>
   );
 };
+
+export default PlayerHUD;

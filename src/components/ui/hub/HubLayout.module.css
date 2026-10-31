@@ -1,63 +1,53 @@
 .hubRoot {
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
-  height: 100%;
-  background: var(--black);
+  min-height: 100vh;
+  background: var(--c-bg);
   display: flex;
   flex-direction: column;
-  font-family: var(--font-body);
-  color: var(--white);
+  overflow-x: hidden;
+  position: relative;
+}
+
+.hubContainer {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1rem;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 .tabContent {
   flex: 1;
-  overflow-y: auto;
-  padding: var(--space-lg);
-}
-
-.placeholder {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  font-size: var(--font-size-heading);
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  flex-direction: column;
+  min-height: 0;
 }
 
-.loadingState {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  font-size: var(--font-size-body);
-  color: var(--vibrant-cyan);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-
+.loadingState,
 .errorState {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  gap: var(--space-md);
-  color: var(--vibrant-pink);
-  text-transform: uppercase;
+  min-height: 50vh;
+  margin: auto;
+  gap: 16px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+}
+
+.loadingState {
+  color: var(--c-accent-secondary);
   letter-spacing: 0.1em;
 }
 
-.errorState button {
-  background: transparent;
-  border: 1px solid var(--vibrant-cyan);
-  color: var(--vibrant-cyan);
-  padding: var(--space-sm) var(--space-lg);
-  cursor: pointer;
-  font-family: var(--font-body);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.errorState {
+  color: var(--c-danger);
+  border: 2px solid var(--c-danger);
+  background: rgba(255, 42, 75, 0.08);
+  padding: 2rem;
+  max-width: 500px;
 }

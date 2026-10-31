@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useEffect } from 'react';
 import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
@@ -5,6 +7,7 @@ import { gameStore } from '@/game/ui/store';
 import { RunMode } from '@/shared/run-mode';
 import { RunModeCard } from './RunModeCard';
 import { LeaderboardPanel } from './LeaderboardPanel';
+import { PanelCard, BtnLever, DottedSpecRow } from '../atomic';
 import styles from './InitializeTab.module.css';
 
 export const InitializeTab: React.FC = () => {
@@ -15,6 +18,8 @@ export const InitializeTab: React.FC = () => {
   const setRitualActive = useStore(gameStore, (s) => s.setRitualActive);
   const hasOverflow = useStore(gameStore, (s) => s.hasOverflow);
   const playerProfile = useStore(gameStore, (s) => s.playerProfile);
+  const shellTemplates = useStore(gameStore, (s) => s.shellTemplates);
+  const selectedShellIndex = useStore(gameStore, (s) => s.selectedShellIndex);
 
   useEffect(() => {
     const fetchAvailability = async () => {
@@ -26,6 +31,9 @@ export const InitializeTab: React.FC = () => {
         if (response.ok) {
           const data = await response.json();
           setModeAvailability(data.modes);
+          if (!selectedRunMode && data.modes?.length > 0) {
+            setSelectedRunMode(data.modes[0].mode);
+          }
         }
       } catch (error) {
         logger.error('Failed to fetch mode availability:', 'UI', error);
@@ -33,7 +41,7 @@ export const InitializeTab: React.FC = () => {
     };
 
     fetchAvailability();
-  }, [playerProfile?.sessionId, setModeAvailability]);
+  }, [playerProfile?.sessionId, selectedRunMode, setModeAvailability, setSelectedRunMode]);
 
   const handleLaunch = () => {
     if (selectedRunMode) {
@@ -42,12 +50,12 @@ export const InitializeTab: React.FC = () => {
   };
 
   const selectedModeData = modeAvailability?.find((m) => m.mode === selectedRunMode);
+  const activeShell = shellTemplates[selectedShellIndex] || { name: 'VANGUARD-v1' };
 
   return (
-    <div className={styles.tab}>
-      <h2 className={styles.heading}>DEPLOYMENT_PROTOCOL</h2>
-
-      <div className={styles.modeContainer}>
+    <div className={styles.initRoot}>
+      {/* Top 3-Card Run Mode Grid */}
+      <div className={styles.runModeGrid}>
         {modeAvailability?.map((mode) => (
           <RunModeCard
             key={mode.mode}
@@ -60,35 +68,49 @@ export const InitializeTab: React.FC = () => {
 
         {hasOverflow && (
           <div className={styles.overflowOverlay}>
-            <div className={styles.overflowMessage}>VAULT_OVERFLOW // RESOLVE_BEFORE_LAUNCH</div>
+            <div className={styles.overflowMessage}>
+              ⚠️ 警告: VAULT OVERFLOW DETECTED // RESOLVE CARGO BAYS BEFORE DEPLOYMENT
+            </div>
           </div>
         )}
       </div>
 
+      {/* Selected Protocol Commitment Bar */}
       {selectedRunMode && selectedModeData && (
-        <div className={styles.detailsPanel}>
-          <div className={styles.rules}>
-            <h3 className={styles.rulesHeading}>PROTOCOL_SPECIFICATIONS</h3>
-            <p className={styles.rulesText}>{selectedModeData.description}</p>
+        <PanelCard
+          title="DEPLOYMENT PROTOCOL COMMITMENT"
+          badge={selectedRunMode.toUpperCase()}
+        >
+          <div className={styles.commitmentBar}>
+            <div className={styles.commitmentInfo}>
+              <div style={{ fontSize: '13px', fontWeight: 900, color: '#ffffff', textTransform: 'uppercase' }}>
+                {selectedModeData.name} // AUTHORIZATION READY
+              </div>
+              <div style={{ fontSize: '11px', color: 'var(--c-text-dim)', maxWidth: '600px' }}>
+                {selectedModeData.description}
+              </div>
 
-            <button
-              className={`${styles.launchButton} ${
-                selectedRunMode === RunMode.WEEKLY ? styles.launchWeekly : styles.launchStandard
-              }`}
+              <div style={{ display: 'flex', gap: '24px', marginTop: '8px' }}>
+                <DottedSpecRow label="ACTIVE CHASSIS" value={activeShell.name} style={{ width: '220px' }} />
+                <DottedSpecRow label="REWARD MULTIPLIER" value={selectedRunMode === RunMode.WEEKLY ? '4.0x' : '1.0x'} style={{ width: '200px' }} />
+              </div>
+            </div>
+
+            <BtnLever
+              variant={selectedRunMode === RunMode.WEEKLY ? 'danger' : 'primary'}
+              disabled={hasOverflow || !selectedModeData.available}
               onClick={handleLaunch}
+              rightSlot="[発進確認] →"
             >
-              {selectedRunMode === RunMode.SIMULATION && 'INITIALIZE_SIMULATION'}
-              {selectedRunMode === RunMode.DAILY && 'ENTER_DAILY_CHALLENGE'}
-              {selectedRunMode === RunMode.WEEKLY && (
-                <>
-                  <span className={styles.warningIcon}>⚠</span> COMMIT_TO_ONE-SHOT
-                </>
-              )}
-            </button>
+              COMMIT TO DEPLOYMENT RITUAL
+            </BtnLever>
           </div>
+        </PanelCard>
+      )}
 
-          <LeaderboardPanel mode={selectedRunMode} sessionId={playerProfile?.sessionId || ''} />
-        </div>
+      {/* Embedded Mode Leaderboard if Daily or Weekly */}
+      {selectedRunMode && selectedRunMode !== RunMode.SIMULATION && (
+        <LeaderboardPanel mode={selectedRunMode} sessionId={playerProfile?.sessionId || ''} />
       )}
     </div>
   );

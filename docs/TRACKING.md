@@ -111,3 +111,27 @@
   - Relocated `reconciliation.test.ts` to `tests/game/reconciliation.test.ts`.
   - Relocated `glitch-effects.test.ts` and `tilemap-build.test.ts` to `tests/rendering/`.
   - Consolidated redundant sprite tests into `tests/rendering/sprite-map.test.ts`.
+
+---
+
+## Workstream 4: UI/UX Modernization & Taikoku Vector Manifest Overhaul
+
+- [x] **[UI-01] Design Tokens, Typography & Atomic Component Foundation**
+  - Integrated Google Fonts (`Space Grotesk`, `Noto Sans JP`, `JetBrains Mono`, `Share Tech Mono`) in [`src/app/layout.tsx`](../src/app/layout.tsx).
+  - Replaced legacy matrix-green tokens in [`src/app/globals.css`](../src/app/globals.css) with canonical `--c-*` tokens and 7 atomic primitives (`.taikoku-placard`, `.taikoku-stamp`, `.panel-card`, `.btn-lever`, `.dotted-spec-row`, `.socket-row`, `.corner-mark`).
+  - Created reusable atomic components in [`src/components/ui/atomic/`](../src/components/ui/atomic/).
+- [x] **[UI-02] Gateway, Transitions & End-of-Run Screens (Paradigm A)**
+  - Refactored [`MainMenu.tsx`](../src/components/ui/MainMenu.tsx) with 3-column construct, rotating wireframe diamond/hexagon canvas, and barcode ladder.
+  - Modernized [`BootSequence.tsx`](../src/components/ui/hub/BootSequence.tsx) into centered terminal construct with skip lever.
+  - Implemented high-contrast cyan crash construct in [`BSODScreen.tsx`](../src/components/ui/BSODScreen.tsx).
+  - Overhauled [`RunResultsScreen.tsx`](../src/components/ui/RunResultsScreen.tsx) with Swiss-Japanese constructivist Bill of Lading layout.
+- [x] **[UI-03] Neural Deck Hub Suite Overhaul (Paradigm B)**
+  - Added 6th tab `LEADERBOARDS [順位]` to [`HubTab`](../src/game/ui/store.ts) and upgraded [`TabBar.tsx`](../src/components/ui/hub/TabBar.tsx) and [`HubLayout.tsx`](../src/components/ui/hub/HubLayout.tsx) with dynamic placards and wallet chips.
+  - Converted [`ShellTab.tsx`](../src/components/ui/hub/ShellTab.tsx) to 3-column workstation with 3D rotating polyhedral vector wireframe canvas and integrated `ShellUpgradePanel`.
+  - Rebuilt [`LoadoutTab.tsx`](../src/components/ui/hub/LoadoutTab.tsx), [`WorkshopTab.tsx`](../src/components/ui/hub/WorkshopTab.tsx), [`VaultTab.tsx`](../src/components/ui/hub/VaultTab.tsx), [`InitializeTab.tsx`](../src/components/ui/hub/InitializeTab.tsx), and [`LeaderboardPanel.tsx`](../src/components/ui/hub/LeaderboardPanel.tsx).
+- [x] **[UI-04] In-Game Tactical HUD Workstation (Paradigm B)**
+  - Redesigned [`HUDOverlay.tsx`](../src/components/ui/HUDOverlay.tsx) as a 3-row × 3-column `.hud-construct` framing the PixiJS canvas bay.
+  - Aligned [`PlayerHUD.tsx`](../src/components/ui/PlayerHUD.tsx), [`NearbyEntities.tsx`](../src/components/ui/NearbyEntities.tsx), [`MessageLog.tsx`](../src/components/ui/MessageLog.tsx), and [`AbilityBar.tsx`](../src/components/ui/AbilityBar.tsx) with Taikoku Vector styling while maintaining 100% test compatibility.
+- [x] **[UI-05] Tactical & Ritual Modals (Paradigm C)**
+  - Upgraded [`RitualOverlay.tsx`](../src/components/ui/hub/RitualOverlay.tsx), [`InventoryOverlay.tsx`](../src/components/ui/inventory/InventoryOverlay.tsx), [`AnchorOverlay.tsx`](../src/components/ui/AnchorOverlay.tsx), and [`StaircaseOverlay.tsx`](../src/components/ui/StaircaseOverlay.tsx) with centered backdrop framing and mechanical levers.
+
