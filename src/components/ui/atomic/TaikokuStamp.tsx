@@ -4,7 +4,7 @@ import React from 'react';
 
 export interface TaikokuStampProps {
   children: React.ReactNode;
-  variant?: 'danger' | 'cyan' | 'secured';
+  variant?: 'danger' | 'cyan' | 'secured' | 'amber';
   className?: string;
   style?: React.CSSProperties;
 }
@@ -15,7 +15,14 @@ export const TaikokuStamp: React.FC<TaikokuStampProps> = ({
   className = '',
   style,
 }) => {
-  const variantClass = variant === 'cyan' ? 'cyan' : variant === 'secured' ? 'secured' : '';
+  const variantClass =
+    variant === 'cyan'
+      ? 'cyan'
+      : variant === 'secured'
+        ? 'secured'
+        : variant === 'amber'
+          ? 'amber'
+          : '';
 
   return (
     <span className={`taikoku-stamp ${variantClass} ${className}`} style={style}>

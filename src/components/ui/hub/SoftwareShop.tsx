@@ -1,16 +1,24 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import { generateShopStock } from '@/game/systems/shop-rotation';
 import { BtnLever } from '../atomic';
+import { ItemTooltip } from './ItemTooltip';
+import { ItemMetadata, resolveItemMetadata } from './item-metadata';
 import styles from './SoftwareShop.module.css';
 
 export const SoftwareShop: React.FC = () => {
   const profile = useStore(gameStore, (s) => s.playerProfile);
   const updateProfileOptimistic = useStore(gameStore, (s) => s.updateProfileOptimistic);
+
+  const [hoveredItem, setHoveredItem] = useState<{
+    metadata: ItemMetadata;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const shopStock = useMemo(() => {
     if (!profile) return [];
@@ -65,13 +73,47 @@ export const SoftwareShop: React.FC = () => {
     }
   };
 
+  const handleFocus = (metadata: ItemMetadata, e: React.FocusEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHoveredItem({
+      metadata,
+      x: rect.right,
+      y: rect.top,
+    });
+  };
+
   return (
     <div className={styles.shopRoot}>
       <div className={styles.stockList}>
         {shopStock.map((item, index) => {
           const canAfford = profile.wallet.scrap >= item.price;
+          const meta = resolveItemMetadata({
+            templateId: item.templateId,
+            type: 'software',
+            rarity: item.rarity,
+            cost: item.price,
+            costCurrency: 'CR',
+            status: 'SHOP REQUISITION',
+            statusVariant: 'cyan',
+          });
+
           return (
-            <div key={`${item.templateId}-${index}`} className={styles.card}>
+            <div
+              key={`${item.templateId}-${index}`}
+              className={styles.card}
+              tabIndex={0}
+              onPointerEnter={(e) =>
+                setHoveredItem({ metadata: meta, x: e.clientX, y: e.clientY })
+              }
+              onPointerMove={(e) => {
+                if (hoveredItem?.metadata.id === item.templateId) {
+                  setHoveredItem({ metadata: meta, x: e.clientX, y: e.clientY });
+                }
+              }}
+              onPointerLeave={() => setHoveredItem(null)}
+              onFocus={(e) => handleFocus(meta, e)}
+              onBlur={() => setHoveredItem(null)}
+            >
               <div className={styles.info}>
                 <span className={styles.itemName}>{item.name}</span>
                 <span className={styles.rarity}>
@@ -82,7 +124,10 @@ export const SoftwareShop: React.FC = () => {
               <BtnLever
                 variant="primary"
                 disabled={!canAfford}
-                onClick={() => handlePurchase(index, item.price, item.templateId, item.rarity)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePurchase(index, item.price, item.templateId, item.rarity);
+                }}
                 rightSlot={`${item.price} CR`}
               >
                 ACQUIRE
@@ -91,6 +136,15 @@ export const SoftwareShop: React.FC = () => {
           );
         })}
       </div>
+
+      {hoveredItem && (
+        <ItemTooltip
+          metadata={hoveredItem.metadata}
+          position={{ x: hoveredItem.x, y: hoveredItem.y }}
+          visible={true}
+          onDismiss={() => setHoveredItem(null)}
+        />
+      )}
     </div>
   );
 };

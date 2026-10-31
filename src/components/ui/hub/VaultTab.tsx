@@ -7,12 +7,20 @@ import { gameStore } from '@/game/ui/store';
 import VaultOverflowBanner from './VaultOverflowBanner';
 import { VaultItem } from '@/shared/profile';
 import { PanelCard, DottedSpecRow, BtnLever, TaikokuStamp } from '../atomic';
+import { ItemTooltip } from './ItemTooltip';
+import { ItemMetadata, resolveItemMetadata } from './item-metadata';
 import styles from './VaultTab.module.css';
 
 export const VaultTab: React.FC = () => {
   const profile = useStore(gameStore, (s) => s.playerProfile);
   const updateProfileOptimistic = useStore(gameStore, (s) => s.updateProfileOptimistic);
   const [selectedItem, setSelectedItem] = useState<VaultItem | null>(null);
+
+  const [hoveredSlot, setHoveredSlot] = useState<{
+    metadata: ItemMetadata;
+    x: number;
+    y: number;
+  } | null>(null);
 
   if (!profile) return null;
 
@@ -88,6 +96,15 @@ export const VaultTab: React.FC = () => {
     return styles.slotTagSoft;
   };
 
+  const handleFocus = (metadata: ItemMetadata, e: React.FocusEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHoveredSlot({
+      metadata,
+      x: rect.right,
+      y: rect.top,
+    });
+  };
+
   return (
     <div>
       {/* Overflow Banner */}
@@ -121,11 +138,34 @@ export const VaultTab: React.FC = () => {
               const item = cell as VaultItem;
               const isSelected = selectedItem?.entityId === item.entityId;
 
+              const meta = resolveItemMetadata({
+                templateId: item.templateId,
+                type: item.itemType,
+                rarity: item.rarityTier,
+                entityId: item.entityId,
+                floor: item.extractedAtFloor,
+                coord,
+                status: `BAY ${coord} // SECURED`,
+                statusVariant: 'secured',
+              });
+
               return (
                 <div
                   key={item.entityId}
                   className={`${styles.vaultSlot} ${isSelected ? styles.selected : ''}`}
+                  tabIndex={0}
                   onClick={() => setSelectedItem(item)}
+                  onPointerEnter={(e) =>
+                    setHoveredSlot({ metadata: meta, x: e.clientX, y: e.clientY })
+                  }
+                  onPointerMove={(e) => {
+                    if (hoveredSlot?.metadata.id === item.templateId) {
+                      setHoveredSlot({ metadata: meta, x: e.clientX, y: e.clientY });
+                    }
+                  }}
+                  onPointerLeave={() => setHoveredSlot(null)}
+                  onFocus={(e) => handleFocus(meta, e)}
+                  onBlur={() => setHoveredSlot(null)}
                 >
                   <span className={styles.slotCoord}>{coord}</span>
                   <span className={styles.slotGlyph}>
@@ -145,21 +185,51 @@ export const VaultTab: React.FC = () => {
           <div className={styles.inspectorBox}>
             {selectedItem ? (
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    marginBottom: '12px',
+                  }}
+                >
                   <div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--c-accent-secondary)' }}>
+                    <div
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '9px',
+                        color: 'var(--c-accent-secondary)',
+                      }}
+                    >
                       SERIAL: TK-VLT-{selectedItem.entityId.toString().slice(-6)}
                     </div>
-                    <h3 style={{ fontSize: '15px', fontWeight: 900, textTransform: 'uppercase', color: '#ffffff' }}>
+                    <h3
+                      style={{
+                        fontSize: '15px',
+                        fontWeight: 900,
+                        textTransform: 'uppercase',
+                        color: '#ffffff',
+                      }}
+                    >
                       {selectedItem.templateId}
                     </h3>
                   </div>
                   <TaikokuStamp variant="cyan">{selectedItem.rarityTier.toUpperCase()}</TaikokuStamp>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', margin: '14px 0' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                    margin: '14px 0',
+                  }}
+                >
                   <DottedSpecRow label="TYPE" value={selectedItem.itemType.toUpperCase()} />
-                  <DottedSpecRow label="HARVESTED AT" value={`SUB-LEVEL ${selectedItem.extractedAtFloor}`} />
+                  <DottedSpecRow
+                    label="HARVESTED AT"
+                    value={`SUB-LEVEL ${selectedItem.extractedAtFloor}`}
+                  />
                   <DottedSpecRow
                     label="SCRAP SALVAGE VALUE"
                     value="25 CR"
@@ -175,7 +245,14 @@ export const VaultTab: React.FC = () => {
             )}
 
             {selectedItem && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  marginTop: 'auto',
+                }}
+              >
                 <BtnLever
                   variant="primary"
                   onClick={() => {
@@ -198,6 +275,16 @@ export const VaultTab: React.FC = () => {
           </div>
         </PanelCard>
       </div>
+
+      {/* Floating Hover Tooltip for Cargo Bay Slots */}
+      {hoveredSlot && (
+        <ItemTooltip
+          metadata={hoveredSlot.metadata}
+          position={{ x: hoveredSlot.x, y: hoveredSlot.y }}
+          visible={true}
+          onDismiss={() => setHoveredSlot(null)}
+        />
+      )}
     </div>
   );
 };

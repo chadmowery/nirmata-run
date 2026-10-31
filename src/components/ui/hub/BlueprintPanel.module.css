@@ -13,6 +13,14 @@
   justify-content: space-between;
   margin-bottom: 8px;
   transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.blueprintEntry:hover,
+.blueprintEntry:focus-visible {
+  border-color: var(--c-accent);
+  background: #141d2d;
+  outline: none;
 }
 
 .blueprintEntry.compiled {

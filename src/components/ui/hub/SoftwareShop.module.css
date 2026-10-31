@@ -19,6 +19,15 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.card:hover,
+.card:focus-visible {
+  border-color: var(--c-accent);
+  background: #141c2b;
+  outline: none;
 }
 
 .info {

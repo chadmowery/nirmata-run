@@ -30,9 +30,11 @@
   user-select: none;
 }
 
-.vaultSlot:hover {
+.vaultSlot:hover,
+.vaultSlot:focus-visible {
   border-color: var(--c-accent);
   background: #151d2c;
+  outline: none;
 }
 
 .vaultSlot.selected {

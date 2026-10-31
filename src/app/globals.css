@@ -221,6 +221,12 @@ canvas {
   box-shadow: none;
 }
 
+.taikoku-stamp.amber {
+  border-color: var(--c-warning);
+  color: var(--c-warning);
+  box-shadow: 0 0 8px rgba(255, 170, 0, 0.25);
+}
+
 /* 3. L-Bracket Framed Panel Card (.panel-card) */
 .panel-card {
   background: var(--c-surface);
