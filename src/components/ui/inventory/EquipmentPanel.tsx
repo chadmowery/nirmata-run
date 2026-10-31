@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
-import { EquipmentSlots, SoftwareDef, EquipmentDef } from '@shared/components';
+import { EquipmentSlots, SoftwareDef, EquipmentDef, TemplateId, RarityTier } from '@shared/components';
 import type { ComponentDef } from '@engine/ecs/types';
 import type { EventBus } from '@engine/events/event-bus';
 import type { GameEvents } from '@/game/events/types';
 import styles from './InventoryOverlay.module.css';
 import { InRunItemTooltip } from './InRunItemTooltip';
+import { ItemIcon } from '../atomic';
 
 interface GameContext {
   playerId: number;
@@ -60,9 +61,18 @@ export const EquipmentPanel: React.FC = () => {
     // Get item name and details if entityId is present
     let itemName = '';
     let detailText = '';
+    let itemTemplateId = '';
+    let itemRarity = 'common';
+
     if (entityId) {
       const sw = gameContext.world.getComponent(entityId, SoftwareDef);
       const eqItem = gameContext.world.getComponent(entityId, EquipmentDef);
+      const tmpl = gameContext.world.getComponent(entityId, TemplateId);
+      const rarity = gameContext.world.getComponent(entityId, RarityTier);
+
+      itemTemplateId = tmpl?.id || '';
+      itemRarity = rarity?.tier || 'common';
+
       if (sw) {
         itemName = sw.name;
         detailText = `[Software: ${sw.type}]`;
@@ -182,11 +192,24 @@ export const EquipmentPanel: React.FC = () => {
         onMouseLeave={() => setHoveredEntityId(null)}
       >
         {entityId ? (
-          <div>
-            <div style={{ fontWeight: 'bold' }}>{itemName}</div>
-            <div style={{ fontSize: '10px', opacity: 0.8 }}>{detailText}</div>
-            <div style={{ fontSize: '9px', color: '#FF0055', marginTop: '4px' }}>
-              Uninstall: Double-click to quick-uninstall.
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', textAlign: 'left' }}>
+            <ItemIcon
+              templateId={itemTemplateId}
+              name={itemName}
+              itemType={slotType}
+              rarityTier={itemRarity}
+              size="md"
+            />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: '13px', color: '#ffffff', textTransform: 'uppercase' }}>
+                {itemName}
+              </div>
+              <div style={{ fontSize: '10px', color: 'var(--c-text-dim)', marginTop: '2px' }}>
+                {detailText}
+              </div>
+              <div style={{ fontSize: '9px', color: 'var(--c-danger)', marginTop: '4px' }}>
+                Uninstall: Double-click to quick-uninstall.
+              </div>
             </div>
           </div>
         ) : (

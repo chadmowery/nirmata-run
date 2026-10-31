@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import { RunMode } from '@/shared/run-mode';
 import { RunModeCard } from './RunModeCard';
 import { LeaderboardPanel } from './LeaderboardPanel';
-import { PanelCard, BtnLever, DottedSpecRow } from '../atomic';
+import { PanelCard, BtnLever, DottedSpecRow, ItemIcon } from '../atomic';
+import { ItemTooltip } from './ItemTooltip';
+import { ItemMetadata, resolveItemMetadata } from './item-metadata';
 import styles from './InitializeTab.module.css';
 
 export const InitializeTab: React.FC = () => {
@@ -50,7 +52,74 @@ export const InitializeTab: React.FC = () => {
   };
 
   const selectedModeData = modeAvailability?.find((m) => m.mode === selectedRunMode);
-  const activeShell = shellTemplates[selectedShellIndex] || { name: 'VANGUARD-v1' };
+  const activeShell = shellTemplates[selectedShellIndex] || { name: 'VANGUARD-v1', id: 'vanguard-v1' };
+
+  const [hoveredItem, setHoveredItem] = useState<{
+    meta: ItemMetadata;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  // Resolve active loadout manifest
+  const installedOnCurrent =
+    playerProfile?.installedItems.filter((i) => i.shellId === activeShell.id) || [];
+  const installedFirmware = installedOnCurrent.filter((i) => i.type === 'firmware');
+  const installedAugments = installedOnCurrent.filter((i) => i.type === 'augment');
+  const installedSoftware = installedOnCurrent.filter((i) => i.type === 'software');
+
+  interface LoadoutEntry {
+    id: string;
+    templateId: string;
+    type: 'firmware' | 'augment' | 'software';
+    rarity: string;
+    isDefault: boolean;
+    slotLabel: string;
+  }
+
+  const effectiveFirmware: LoadoutEntry[] =
+    installedFirmware.length > 0
+      ? installedFirmware.map((i, idx) => ({
+          id: `fw-${i.entityId}`,
+          templateId: i.blueprintId,
+          type: 'firmware',
+          rarity: 'common',
+          isDefault: false,
+          slotLabel: `FIRMWARE [${idx + 1}]`,
+        }))
+      : (activeShell.starterLoadout || []).map((tId, idx) => ({
+          id: `fw-default-${tId}`,
+          templateId: tId,
+          type: 'firmware',
+          rarity: 'common',
+          isDefault: true,
+          slotLabel: `DEFAULT FW [${idx + 1}]`,
+        }));
+
+  const effectiveAugments: LoadoutEntry[] = installedAugments.map((i, idx) => ({
+    id: `aug-${i.entityId}`,
+    templateId: i.blueprintId,
+    type: 'augment',
+    rarity: 'uncommon',
+    isDefault: false,
+    slotLabel: `AUGMENT [${idx + 1}]`,
+  }));
+
+  const effectiveSoftware: LoadoutEntry[] = installedSoftware.map((i, idx) => ({
+    id: `sw-${i.entityId}`,
+    templateId: i.blueprintId,
+    type: 'software',
+    rarity: 'common',
+    isDefault: false,
+    slotLabel: `SOFTWARE [${idx + 1}]`,
+  }));
+
+  const deploymentLoadout: LoadoutEntry[] = [
+    ...effectiveFirmware,
+    ...effectiveAugments,
+    ...effectiveSoftware,
+  ];
+
+  const hasAtRiskItems = deploymentLoadout.some((i) => !i.isDefault);
 
   return (
     <div className={styles.initRoot}>
@@ -110,12 +179,126 @@ export const InitializeTab: React.FC = () => {
               COMMIT TO DEPLOYMENT RITUAL
             </BtnLever>
           </div>
+
+          {/* Active Deployment Loadout Manifest Preview */}
+          <div className={styles.loadoutSection}>
+            <div className={styles.loadoutHeader}>
+              <div className={styles.loadoutTitle}>
+                <span>DEPLOYED HARDWARE MANIFEST</span>
+                <span style={{ fontSize: '10px', color: 'var(--c-text-dim)' }}>
+                  [{deploymentLoadout.length} SUBSYSTEMS MOUNTED]
+                </span>
+              </div>
+              {hasAtRiskItems ? (
+                <div className={styles.riskNotice}>
+                  ⚠️ RISK NOTICE: UNSECURED HARDWARE FORFEITED ON TERMINATION
+                </div>
+              ) : (
+                <div
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '10px',
+                    color: 'var(--c-accent-secondary)',
+                  }}
+                >
+                  SECURED BASELINE LOADOUT // SAFE RETRIEVAL
+                </div>
+              )}
+            </div>
+
+            {deploymentLoadout.length === 0 ? (
+              <div className={styles.emptyLoadoutNote}>
+                NO ADDITIONAL SUBSYSTEMS MOUNTED // CHASSIS BASELINE RUN
+              </div>
+            ) : (
+              <div className={styles.loadoutGrid}>
+                {deploymentLoadout.map((item) => {
+                  const meta = resolveItemMetadata({
+                    templateId: item.templateId,
+                    type: item.type,
+                    rarity: item.rarity,
+                    status: item.isDefault
+                      ? 'CHASSIS DEFAULT // SAFE'
+                      : 'CUSTOM LOADOUT // AT RISK ON LOSS',
+                    statusVariant: item.isDefault ? 'cyan' : 'danger',
+                  });
+
+                  return (
+                    <div
+                      key={item.id}
+                      className={`${styles.loadoutCard} ${
+                        item.isDefault ? styles.loadoutCardDefault : styles.loadoutCardAtRisk
+                      }`}
+                      tabIndex={0}
+                      onPointerEnter={(e) =>
+                        setHoveredItem({ meta, x: e.clientX, y: e.clientY })
+                      }
+                      onPointerMove={(e) => {
+                        if (hoveredItem?.meta.id === meta.id) {
+                          setHoveredItem({ meta, x: e.clientX, y: e.clientY });
+                        }
+                      }}
+                      onPointerLeave={() => setHoveredItem(null)}
+                      onFocus={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setHoveredItem({ meta, x: rect.right + 10, y: rect.top });
+                      }}
+                      onBlur={() => setHoveredItem(null)}
+                    >
+                      <ItemIcon
+                        templateId={item.templateId}
+                        itemType={item.type}
+                        rarityTier={meta.rarityTier}
+                        size="sm"
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            fontSize: '8px',
+                            fontFamily: 'var(--font-mono)',
+                            color: item.isDefault
+                              ? 'var(--c-accent-secondary)'
+                              : 'var(--c-danger)',
+                            fontWeight: 800,
+                            letterSpacing: '0.05em',
+                          }}
+                        >
+                          {item.slotLabel} {item.isDefault ? '• SAFE' : '• AT RISK'}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 800,
+                            color: '#ffffff',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {meta.name}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </PanelCard>
       )}
 
       {/* Embedded Mode Leaderboard if Daily or Weekly */}
       {selectedRunMode && selectedRunMode !== RunMode.SIMULATION && (
         <LeaderboardPanel mode={selectedRunMode} sessionId={playerProfile?.sessionId || ''} />
+      )}
+
+      {/* Interactive Item Tooltip on Hover */}
+      {hoveredItem && (
+        <ItemTooltip
+          metadata={hoveredItem.meta}
+          position={{ x: hoveredItem.x, y: hoveredItem.y }}
+          visible={true}
+        />
       )}
     </div>
   );

@@ -13,6 +13,7 @@ import type { EventBus } from '@engine/events/event-bus';
 import type { GameEvents } from '@/game/events/types';
 import styles from './InventoryOverlay.module.css';
 import { InRunItemTooltip } from './InRunItemTooltip';
+import { ItemIcon } from '../atomic';
 
 interface GameContext {
   playerId: number;
@@ -72,16 +73,25 @@ export const BackpackGrid: React.FC = () => {
 
           // Get item name and details if entityId is present
           let itemName = '';
-          let itemDetails = '';
+          let itemTemplateId = '';
+          let itemRarity = 'common';
+          let itemType = 'software';
+
           if (entityId) {
             const sw = gameContext.world.getComponent(entityId, SoftwareDef);
             const eq = gameContext.world.getComponent(entityId, EquipmentDef);
+            const tmpl = gameContext.world.getComponent(entityId, TemplateId);
+            const rarity = gameContext.world.getComponent(entityId, RarityTier);
+
+            itemTemplateId = tmpl?.id || (equipmentItem?.templateId || '');
+            itemRarity = rarity?.tier || (equipmentItem?.rarityTier || 'common');
+
             if (sw) {
               itemName = sw.name;
-              itemDetails = '[Software]';
+              itemType = 'software';
             } else if (eq) {
               itemName = eq.name;
-              itemDetails = `[${eq.slotType.toUpperCase()}]`;
+              itemType = eq.slotType;
             } else {
               itemName = `Entity #${entityId}`;
             }
@@ -163,9 +173,28 @@ export const BackpackGrid: React.FC = () => {
               onMouseLeave={() => setHoveredEntityId(null)}
             >
               {entityId ? (
-                <div>
-                  <div style={{ fontWeight: 'bold' }}>{itemName}</div>
-                  <div style={{ fontSize: '9px', opacity: 0.6 }}>{itemDetails}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', width: '100%' }}>
+                  <ItemIcon
+                    templateId={itemTemplateId}
+                    name={itemName}
+                    itemType={itemType}
+                    rarityTier={itemRarity}
+                    size="sm"
+                  />
+                  <div
+                    style={{
+                      fontWeight: 'bold',
+                      fontSize: '9px',
+                      maxWidth: '52px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      color: '#ffffff',
+                    }}
+                    title={itemName}
+                  >
+                    {itemName}
+                  </div>
                 </div>
               ) : (
                 ''

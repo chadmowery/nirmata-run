@@ -6,7 +6,7 @@ import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import VaultOverflowBanner from './VaultOverflowBanner';
 import { VaultItem } from '@/shared/profile';
-import { PanelCard, DottedSpecRow, BtnLever, TaikokuStamp } from '../atomic';
+import { PanelCard, DottedSpecRow, BtnLever, TaikokuStamp, ItemIcon } from '../atomic';
 import { ItemTooltip } from './ItemTooltip';
 import { ItemMetadata, resolveItemMetadata } from './item-metadata';
 import styles from './VaultTab.module.css';
@@ -168,9 +168,13 @@ export const VaultTab: React.FC = () => {
                   onBlur={() => setHoveredSlot(null)}
                 >
                   <span className={styles.slotCoord}>{coord}</span>
-                  <span className={styles.slotGlyph}>
-                    {item.templateId.substring(0, 4).toUpperCase()}
-                  </span>
+                  <ItemIcon
+                    templateId={item.templateId}
+                    itemType={item.itemType}
+                    rarityTier={item.rarityTier}
+                    size="sm"
+                    style={{ margin: '2px 0' }}
+                  />
                   <span className={`${styles.slotTag} ${getTagClass(item.itemType)}`}>
                     {item.itemType.substring(0, 4).toUpperCase()}
                   </span>
@@ -193,26 +197,35 @@ export const VaultTab: React.FC = () => {
                     marginBottom: '12px',
                   }}
                 >
-                  <div>
-                    <div
-                      style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: '9px',
-                        color: 'var(--c-accent-secondary)',
-                      }}
-                    >
-                      SERIAL: TK-VLT-{selectedItem.entityId.toString().slice(-6)}
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <ItemIcon
+                      templateId={selectedItem.templateId}
+                      itemType={selectedItem.itemType}
+                      rarityTier={selectedItem.rarityTier}
+                      size="md"
+                    />
+                    <div>
+                      <div
+                        style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '9px',
+                          color: 'var(--c-accent-secondary)',
+                        }}
+                      >
+                        SERIAL: TK-VLT-{selectedItem.entityId.toString().slice(-6)}
+                      </div>
+                      <h3
+                        style={{
+                          fontSize: '15px',
+                          fontWeight: 900,
+                          textTransform: 'uppercase',
+                          color: '#ffffff',
+                          margin: 0,
+                        }}
+                      >
+                        {selectedItem.templateId}
+                      </h3>
                     </div>
-                    <h3
-                      style={{
-                        fontSize: '15px',
-                        fontWeight: 900,
-                        textTransform: 'uppercase',
-                        color: '#ffffff',
-                      }}
-                    >
-                      {selectedItem.templateId}
-                    </h3>
                   </div>
                   <TaikokuStamp variant="cyan">{selectedItem.rarityTier.toUpperCase()}</TaikokuStamp>
                 </div>

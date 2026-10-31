@@ -1,0 +1,92 @@
+.itemIconContainer {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: #0d121c;
+  box-sizing: border-box;
+  user-select: none;
+  font-family: var(--font-mono, 'Courier New', monospace);
+  font-weight: 800;
+  line-height: 1;
+  transition: all 0.15s ease-in-out;
+  border-radius: 2px;
+}
+
+.itemIconContainer:hover {
+  filter: brightness(1.15);
+}
+
+/* Size Variants */
+.sizeSm {
+  width: 32px;
+  height: 32px;
+  padding: 2px;
+}
+
+.sizeSm .iconGlyph {
+  width: 14px;
+  height: 14px;
+}
+
+.sizeSm .abbrev {
+  font-size: 8px;
+  margin-top: 2px;
+  letter-spacing: 0.5px;
+}
+
+.sizeMd {
+  width: 42px;
+  height: 42px;
+  padding: 3px;
+}
+
+.sizeMd .iconGlyph {
+  width: 18px;
+  height: 18px;
+}
+
+.sizeMd .abbrev {
+  font-size: 10px;
+  margin-top: 2px;
+  letter-spacing: 0.8px;
+}
+
+.sizeLg {
+  width: 56px;
+  height: 56px;
+  padding: 4px;
+}
+
+.sizeLg .iconGlyph {
+  width: 24px;
+  height: 24px;
+}
+
+.sizeLg .abbrev {
+  font-size: 12px;
+  margin-top: 4px;
+  letter-spacing: 1px;
+}
+
+.iconGlyph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.abbrev {
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+/* Corner indicator pip */
+.cornerPip {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 3px;
+  height: 3px;
+}
