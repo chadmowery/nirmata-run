@@ -145,4 +145,51 @@ export class DebugAPI {
     });
     logger.debug(`Requested session clear`, 'DEBUG');
   }
+
+  /**
+   * Gives 1 of every item type to player vault (up to max slots) and 1000 of every currency.
+   */
+  async grantAll(sessionId?: string) {
+    const sid =
+      sessionId ||
+      this.context.sessionId ||
+      (typeof window !== 'undefined'
+        ? window.localStorage?.getItem('nimrata_sessionId') || 'default-player-session'
+        : 'default-player-session');
+
+    try {
+      const res = await fetch('/api/admin/grant-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: sid }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const { gameStore } = await import('@/game/ui/store');
+        if (data.profile) {
+          gameStore.getState().setPlayerProfile(data.profile);
+        }
+        logger.info(
+          `[DebugAPI] GrantAll success: ${data.result.itemsGranted} items, scrap: ${data.wallet.scrap}, flux: ${data.wallet.flux}`,
+          'DEBUG',
+        );
+        return data;
+      }
+    } catch (err) {
+      logger.error('[DebugAPI] GrantAll failed:', 'DEBUG', err);
+    }
+
+    await this.sendAction({
+      type: 'DEBUG_COMMAND',
+      command: 'GRANT_ALL',
+      args: { sessionId: sid },
+    });
+  }
+
+  /**
+   * Alias for grantAll.
+   */
+  async seedVault(sessionId?: string) {
+    return this.grantAll(sessionId);
+  }
 }

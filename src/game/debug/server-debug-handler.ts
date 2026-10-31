@@ -191,6 +191,28 @@ export function handleServerDebugCommand(
       break;
     }
 
+    case 'GRANT_ALL':
+    case 'SEED_VAULT': {
+      const targetSessionId = (args.sessionId as string | undefined) || sessionId;
+      if (targetSessionId) {
+        import('@/app/persistence/fs-profile-repository').then(({ profileRepository }) => {
+          import('@shared/vault').then(({ grantDebugVaultAndCurrencies }) => {
+            profileRepository.load(targetSessionId).then((profile) => {
+              if (profile) {
+                grantDebugVaultAndCurrencies(profile);
+                profileRepository.save(profile);
+                logger.debug(
+                  `[SERVER DEBUG] Granted vault items and currency for session ${targetSessionId}`,
+                  'DEBUG',
+                );
+              }
+            });
+          });
+        });
+      }
+      break;
+    }
+
     default:
       logger.warn(`Unknown command: ${command}`, 'DEBUG');
   }

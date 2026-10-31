@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { logger } from '@engine/utils/logger';
+import { VAULT_MAX_SLOTS } from '@/shared/vault';
+import { gameStore } from '@/game/ui/store';
 
 interface TerminalLine {
   text: string;
@@ -11,6 +13,37 @@ export function DevTerminal() {
   const [input, setInput] = useState('');
   const [history, setHistory] = useState<TerminalLine[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const globalGrant = async (sessionId?: string) => {
+        const sid =
+          sessionId ||
+          gameStore.getState().playerProfile?.sessionId ||
+          window.localStorage?.getItem('nimrata_sessionId') ||
+          'default-player-session';
+
+        const res = await fetch('/api/admin/grant-all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: sid }),
+        });
+        const data = await res.json();
+        if (data.profile) {
+          gameStore.getState().setPlayerProfile(data.profile);
+        }
+        logger.info(
+          `[GLOBAL DEBUG] grantAll: ${data.result?.itemsGranted} items, scrap: ${data.wallet?.scrap}, flux: ${data.wallet?.flux}`,
+          'DEBUG',
+        );
+        return data;
+      };
+
+      (window as unknown as { grantAll: typeof globalGrant }).grantAll = globalGrant;
+      (window as unknown as { debugGrantAll: typeof globalGrant }).debugGrantAll = globalGrant;
+      (window as unknown as { seedVault: typeof globalGrant }).seedVault = globalGrant;
+    }
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -55,21 +88,96 @@ export function DevTerminal() {
     parseCommand(cmd);
   };
 
-  const parseCommand = (cmdStr: string) => {
-    if (!window.__DEBUG__) {
-      logger.warn('[DevTerminal] window.__DEBUG__ is not available.', 'UI');
-      return;
-    }
+  const executeGrantAll = async () => {
+    const sid =
+      gameStore.getState().playerProfile?.sessionId ||
+      (typeof window !== 'undefined'
+        ? window.localStorage?.getItem('nimrata_sessionId') || 'default-player-session'
+        : 'default-player-session');
 
+    try {
+      const response = await fetch('/api/admin/grant-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: sid }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.profile) {
+          gameStore.getState().setPlayerProfile(data.profile);
+        }
+        const { itemsGranted, vaultFull, scrapAdded, fluxAdded } = data.result;
+        const lines: TerminalLine[] = [];
+        if (itemsGranted > 0) {
+          lines.push({
+            text: `[OK] Granted ${itemsGranted} item(s) across all types to Vault (Total: ${data.vaultCount}/${VAULT_MAX_SLOTS})`,
+            type: 'output',
+          });
+        }
+        if (vaultFull) {
+          lines.push({
+            text: `[INFO] Vault reached max capacity (${data.vaultCount}/${VAULT_MAX_SLOTS}). Stopped granting items.`,
+            type: 'output',
+          });
+        }
+        lines.push({
+          text: `[OK] Added ${scrapAdded} Scrap and ${fluxAdded} Flux to Wallet (Scrap: ${data.wallet.scrap}, Flux: ${data.wallet.flux})`,
+          type: 'output',
+        });
+        setHistory((prev) => [...prev, ...lines]);
+        return data;
+      } else {
+        const err = await response.json().catch(() => ({}));
+        setHistory((prev) => [
+          ...prev,
+          { text: `[ERROR] Grant failed: ${err.error || response.statusText}`, type: 'error' },
+        ]);
+      }
+    } catch (err) {
+      setHistory((prev) => [
+        ...prev,
+        {
+          text: `[ERROR] Network error executing grant: ${err instanceof Error ? err.message : String(err)}`,
+          type: 'error',
+        },
+      ]);
+    }
+  };
+
+  const parseCommand = async (cmdStr: string) => {
     const args = cmdStr.split(' ');
     const cmd = args[0].toLowerCase();
 
     try {
       switch (cmd) {
+        case '/grantall':
+        case '/grant-all':
+        case '/seedvault':
+        case '/seed-vault':
+        case '/debug-vault':
+        case '/grant': {
+          await executeGrantAll();
+          break;
+        }
         case '/heat':
+          if (!window.__DEBUG__) {
+            setHistory((prev) => [
+              ...prev,
+              { text: '[WARN] /heat requires an active run session.', type: 'error' },
+            ]);
+            break;
+          }
           window.__DEBUG__.setHeat(Number(args[1]) || 0);
           break;
         case '/panic':
+          if (!window.__DEBUG__) {
+            setHistory((prev) => [
+              ...prev,
+              { text: '[WARN] /panic requires an active run session.', type: 'error' },
+            ]);
+            break;
+          }
           window.__DEBUG__.triggerPanic(
             Number(args[1]) || 1,
             args[2] || 'low',
@@ -77,26 +185,80 @@ export function DevTerminal() {
           );
           break;
         case '/hp':
+          if (!window.__DEBUG__) {
+            setHistory((prev) => [
+              ...prev,
+              { text: '[WARN] /hp requires an active run session.', type: 'error' },
+            ]);
+            break;
+          }
           window.__DEBUG__.setHp(Number(args[1]) || 100);
           break;
         case '/stability':
+          if (!window.__DEBUG__) {
+            setHistory((prev) => [
+              ...prev,
+              { text: '[WARN] /stability requires an active run session.', type: 'error' },
+            ]);
+            break;
+          }
           window.__DEBUG__.setStability(Number(args[1]) || 100);
           break;
         case '/status':
+          if (!window.__DEBUG__) {
+            setHistory((prev) => [
+              ...prev,
+              { text: '[WARN] /status requires an active run session.', type: 'error' },
+            ]);
+            break;
+          }
           window.__DEBUG__.status(args[1] || 'burning', Number(args[2]) || 5);
           break;
         case '/give':
-          if (args[1] === 'scrap') window.__DEBUG__.giveScrap(Number(args[2]) || 100);
-          else if (args[1] === 'flux') window.__DEBUG__.giveFlux(Number(args[2]) || 10);
-          else if (args[1] === 'blueprint') window.__DEBUG__.giveBlueprint(args[2]);
+          if (args[1] === 'vault' || args[1] === 'all') {
+            await executeGrantAll();
+          } else if (window.__DEBUG__) {
+            if (args[1] === 'scrap') window.__DEBUG__.giveScrap(Number(args[2]) || 100);
+            else if (args[1] === 'flux') window.__DEBUG__.giveFlux(Number(args[2]) || 10);
+            else if (args[1] === 'blueprint') window.__DEBUG__.giveBlueprint(args[2]);
+          } else {
+            setHistory((prev) => [
+              ...prev,
+              {
+                text: '[WARN] In-run /give [scrap|flux|blueprint] requires an active run session. Use /grant-all for persistent vault & currencies.',
+                type: 'error',
+              },
+            ]);
+          }
           break;
         case '/descend':
+          if (!window.__DEBUG__) {
+            setHistory((prev) => [
+              ...prev,
+              { text: '[WARN] /descend requires an active run session.', type: 'error' },
+            ]);
+            break;
+          }
           window.__DEBUG__.descend(Number(args[1]) || 1);
           break;
         case '/deadzone':
+          if (!window.__DEBUG__) {
+            setHistory((prev) => [
+              ...prev,
+              { text: '[WARN] /deadzone requires an active run session.', type: 'error' },
+            ]);
+            break;
+          }
           window.__DEBUG__.deadzone();
           break;
         case '/clearsessions':
+          if (!window.__DEBUG__) {
+            setHistory((prev) => [
+              ...prev,
+              { text: '[WARN] /clearsessions requires an active run session.', type: 'error' },
+            ]);
+            break;
+          }
           window.__DEBUG__.clearSessions();
           break;
         case '/close':
@@ -106,6 +268,10 @@ export function DevTerminal() {
           setHistory((prev) => [
             ...prev,
             { text: 'AVAILABLE COMMANDS:', type: 'output' },
+            {
+              text: '  /grant-all (or /seedvault) - Gives 1 of every item type to vault (up to max slots) + 1000 of every currency',
+              type: 'output',
+            },
             { text: '  /heat [amount] - Set player heat', type: 'output' },
             {
               text: '  /panic [tier] [severity] [effect] - Trigger manual kernel panic',
@@ -115,7 +281,7 @@ export function DevTerminal() {
             { text: '  /stability [amount] - Set player stability', type: 'output' },
             { text: '  /status [effect] [duration] - Apply status effect', type: 'output' },
             {
-              text: '  /give [scrap|flux|blueprint] [amount|id] - Grant currency or items',
+              text: '  /give [scrap|flux|blueprint|vault] [amount|id] - Grant currency or items',
               type: 'output',
             },
             {
@@ -178,7 +344,7 @@ export function DevTerminal() {
                 </div>
               ))
             )}
-            <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
+            <div ref={(el) => el?.scrollIntoView?.({ behavior: 'smooth' })} />
           </div>
 
           {/* Input Area */}
