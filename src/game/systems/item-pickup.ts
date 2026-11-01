@@ -39,7 +39,14 @@ export function createItemPickupSystem<T extends GameplayEvents>(
   grid: Grid,
   eventBus: EventBus<T>,
 ): ItemPickupSystem<T> {
-  function processItem(w: World<T>, entityId: number, itemId: number, x: number, y: number) {
+  function processItem(
+    w: World<T>,
+    entityId: number,
+    itemId: number,
+    x: number,
+    y: number,
+    isExplicitPickup = false,
+  ) {
     // Security check: ensure it actually has the Item component and isn't already dying/picked up
     if (!w.hasComponent(itemId, Item) || w.hasComponent(itemId, Dying)) {
       return;
@@ -327,9 +334,31 @@ export function createItemPickupSystem<T extends GameplayEvents>(
     const explicitPickups = w.query(PickupIntent);
     for (const requesterId of explicitPickups) {
       const intent = w.getComponent(requesterId, PickupIntent)!;
+      let targetX: number | undefined;
+      let targetY: number | undefined;
+
       const pos = w.getComponent(intent.itemId, Position);
       if (pos) {
-        processItem(w, intent.actorId, intent.itemId, pos.x, pos.y);
+        targetX = pos.x;
+        targetY = pos.y;
+      } else {
+        const actorPos = w.getComponent(intent.actorId, Position);
+        if (actorPos) {
+          for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+              if (grid.getItemsAt(actorPos.x + dx, actorPos.y + dy).has(intent.itemId)) {
+                targetX = actorPos.x + dx;
+                targetY = actorPos.y + dy;
+                break;
+              }
+            }
+            if (targetX !== undefined) break;
+          }
+        }
+      }
+
+      if (targetX !== undefined && targetY !== undefined) {
+        processItem(w, intent.actorId, intent.itemId, targetX, targetY, true);
       }
       w.removeComponent(requesterId, PickupIntent);
     }

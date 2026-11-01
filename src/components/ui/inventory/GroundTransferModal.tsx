@@ -17,6 +17,7 @@ import {
   Position,
   Item,
 } from '@shared/components';
+import { applyStateDelta } from '@shared/reconciliation';
 
 interface GroundTransferModalProps {
   onClose: () => void;
@@ -177,7 +178,7 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
   const handleTakeItem = async (itemId: number) => {
     const sessionId = getSessionId();
     try {
-      await fetch('/api/action', {
+      const res = await fetch('/api/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -188,16 +189,47 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
           },
         }),
       });
+      if (res.ok) {
+        const data = await res.json();
+        if (
+          data.payload &&
+          gameContext?.world &&
+          gameContext?.grid &&
+          gameContext?.turnManager &&
+          gameContext?.eventBus
+        ) {
+          if (data.payload.playerId) {
+            gameContext.playerId = data.payload.playerId;
+          }
+          applyStateDelta(
+            gameContext.world,
+            gameContext.grid,
+            gameContext.turnManager,
+            gameContext.eventBus,
+            data.payload,
+          );
+        }
+      }
       gameStore.getState().incrementInventoryRevision();
-      setTimeout(rescanNearby, 60);
+      rescanNearby();
     } catch (err) {
       console.error('Failed to take item:', err);
     }
   };
 
   const handleTakeAll = async () => {
-    for (const item of groundItems) {
-      if (backpackItems.length >= maxSlots) break;
+    const itemsToTake = [...groundItems];
+    for (const item of itemsToTake) {
+      let currentBackpackCount = 0;
+      let limit = 20;
+      if (gameContext?.world && gameContext?.playerId) {
+        const inv = gameContext.world.getComponent(gameContext.playerId, RunInventory);
+        if (inv) {
+          limit = inv.maxSlots || 20;
+          currentBackpackCount = inv.software.length + inv.equipment.length;
+        }
+      }
+      if (currentBackpackCount >= limit) break;
       await handleTakeItem(item.itemId);
     }
   };
@@ -205,7 +237,7 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
   const handleDropItem = async (itemEntityId: number) => {
     const sessionId = getSessionId();
     try {
-      await fetch('/api/action', {
+      const res = await fetch('/api/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -216,8 +248,29 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
           },
         }),
       });
+      if (res.ok) {
+        const data = await res.json();
+        if (
+          data.payload &&
+          gameContext?.world &&
+          gameContext?.grid &&
+          gameContext?.turnManager &&
+          gameContext?.eventBus
+        ) {
+          if (data.payload.playerId) {
+            gameContext.playerId = data.payload.playerId;
+          }
+          applyStateDelta(
+            gameContext.world,
+            gameContext.grid,
+            gameContext.turnManager,
+            gameContext.eventBus,
+            data.payload,
+          );
+        }
+      }
       gameStore.getState().incrementInventoryRevision();
-      setTimeout(rescanNearby, 60);
+      rescanNearby();
     } catch (err) {
       console.error('Failed to drop item:', err);
     }
