@@ -175,7 +175,15 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     augmentState: { activationsThisTurn: {}, cooldownsRemaining: {} },
     heat: { current: 0, maxSafe: 100, baseDissipation: 5, ventPercentage: 0.5, isVenting: false },
     stability: { current: 100, max: 100 },
-    floorState: { currentFloor: 1, maxFloor: 15, runSeed: config.seed },
+    floorState: {
+      currentFloor: 1,
+      maxFloor: 15,
+      runSeed: config.seed,
+      sectorCondition: dungeonResult.sectorCondition,
+      accessKeysHeld: 0,
+      vaultsBreached: 0,
+      trapsDisarmed: 0,
+    },
   };
 
   // If a profile is provided, populate slots from installed items
@@ -348,7 +356,15 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     dungeonResult.rooms,
     dungeonResult.playerSpawnRoom,
     rng,
-    { playerOverrides, depth: 1 },
+    {
+      playerOverrides,
+      depth: 1,
+      propAnchors: dungeonResult.propAnchors,
+      bespokeRooms: dungeonResult.bespokeRooms,
+      vaultFaradayBounds: dungeonResult.vaultFaradayBounds,
+      sectorCondition: dungeonResult.sectorCondition,
+      factionTheme: dungeonResult.factionTheme,
+    },
   );
 
   // Turn Manager Handlers
@@ -377,7 +393,9 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     } else if (
       action === GameAction.ANCHOR_DESCEND ||
       action === GameAction.STAIRCASE_DESCEND ||
-      action === GameAction.ANCHOR_EXTRACT
+      action === GameAction.ANCHOR_EXTRACT ||
+      action === 'INTERACT_PROP' ||
+      action === 'DEAD_DROP_ITEM'
     ) {
       // Intent already added by API, we just need to satisfy the turn cycle
     }

@@ -1,0 +1,17 @@
+{
+  "name": "prop-dead-drop",
+  "mixins": [],
+  "components": {
+    "position": { "x": 0, "y": 0 },
+    "prop": {
+      "propId": "dead_drop",
+      "faction": "traxus",
+      "propClass": "dead_drop_uplink",
+      "deadDropFluxCost": 25
+    },
+    "blocksMovement": {}
+  },
+  "overrides": {
+    "sprite": { "key": "prop_dead_drop_ready" }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "decon-airlock",
+  "name": "The Decontamination Airlock",
+  "faction": "sekiguchi",
+  "minFloor": 1,
+  "maxFloor": 15,
+  "width": 10,
+  "height": 10,
+  "layout": [
+    "##########",
+    "#...+....#",
+    "#..###...#",
+    "#........#",
+    "#.##..##.#",
+    "#........#",
+    "#..###...#",
+    "#........#",
+    "#...+....#",
+    "##########"
+  ],
+  "portals": [
+    { "x": 4, "y": 1, "direction": "north" },
+    { "x": 4, "y": 8, "direction": "south" }
+  ],
+  "propSpawns": [
+    { "x": 1, "y": 3, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop_biocabinet" },
+    { "x": 8, "y": 3, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop_biocabinet" },
+    { "x": 4, "y": 4, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop_cryo_vat" },
+    { "x": 5, "y": 4, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop_cryo_vat" },
+    { "x": 4, "y": 5, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop_cryo_vat" },
+    { "x": 5, "y": 5, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop_cryo_vat" }
+  ]
+}

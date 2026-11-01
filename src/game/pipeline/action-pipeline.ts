@@ -23,6 +23,7 @@ import {
   BurnSoftwareIntent,
   FirmwareIntent,
   PickupIntent,
+  InteractPropIntent,
 } from '@shared/components';
 import { checkAutoLoader } from '../systems/software-effects';
 import { Phase, ComponentDef } from '@engine/ecs/types';
@@ -205,6 +206,22 @@ export function processAction(
       world.addComponent(entityId, PickupIntent, {
         actorId: entityId,
         itemId: action.itemId,
+      });
+      break;
+    }
+    case 'INTERACT_PROP': {
+      world.addComponent(entityId, InteractPropIntent, {
+        targetPropId: action.targetPropId,
+        forceOverride: action.forceOverride,
+        deadDropSelectionId: action.deadDropSelectionId,
+      });
+      break;
+    }
+    case 'DEAD_DROP_ITEM': {
+      world.addComponent(entityId, InteractPropIntent, {
+        targetPropId: action.targetPropId,
+        forceOverride: false,
+        deadDropSelectionId: action.itemId,
       });
       break;
     }

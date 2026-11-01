@@ -1,0 +1,17 @@
+{
+  "name": "prop-stabilizer",
+  "mixins": [],
+  "components": {
+    "position": { "x": 0, "y": 0 },
+    "prop": {
+      "propId": "stabilizer",
+      "faction": "sekiguchi",
+      "propClass": "reality_stabilizer",
+      "stabilityRestoreAmount": 10
+    },
+    "blocksMovement": {}
+  },
+  "overrides": {
+    "sprite": { "key": "prop_stabilizer_active" }
+  }
+}

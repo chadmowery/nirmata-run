@@ -8,7 +8,15 @@ import { Hostile } from '@shared/components/hostile';
 import { Actor } from '@shared/components/actor';
 import { BlocksMovement } from '@shared/components/blocks-movement';
 import { StatusEffects } from '@shared/components/status-effects';
+import { Heat } from '@shared/components/heat';
 import { MoveIntent, AttackIntent, MovedThisTurn } from '@shared/components/index';
+import {
+  Prop,
+  SecurityLock,
+  CorruptedNode,
+  InteractPropIntent,
+} from '@shared/components/environment';
+import { playerHasAccessKey } from './prop-interaction';
 
 import { GameplayEvents } from '@shared/events/types';
 
@@ -86,6 +94,59 @@ export function createMovementSystem<T extends GameplayEvents>(
           w.addComponent(entityId, AttackIntent, { targetId: occupantId });
           combatTriggered = true;
           break;
+        }
+
+        // Two-Tier Bump-to-Loot Safeguard for player collisions with interactive props
+        if (isAttackerPlayer && w.hasComponent(occupantId, Prop)) {
+          const prop = w.getComponent(occupantId, Prop)!;
+
+          // Check CorruptedNode (Tier 2 Risk: Halt movement, 0 energy cost, warn & flush queue)
+          const corrupted = w.getComponent(occupantId, CorruptedNode);
+          if (corrupted && !corrupted.isDisarmed && !corrupted.triggered) {
+            eventBus.emit('MESSAGE_EMITTED', {
+              text: '[SECURITY FAULT]: Corrupted terminal detected (acoustic trap / EMP dump). Disarm with Logic_Jam or hack carefully.',
+              type: 'warning',
+            });
+            eventBus.emit('INPUT_BUFFER_CLEARED' as keyof T, {} as T[keyof T]);
+            blocked = true;
+            break;
+          }
+
+          // Check SecurityLock (Tier 2 Risk if locked without key)
+          const lock = w.getComponent(occupantId, SecurityLock);
+          if (lock && lock.isLocked) {
+            const hasKey = playerHasAccessKey(w, entityId);
+            if (!hasKey) {
+              const heat = w.getComponent(entityId, Heat);
+              const currentHeat = heat?.current ?? 0;
+              const cost = lock.overclockHeatCost ?? 35;
+
+              if (currentHeat + cost > 100) {
+                eventBus.emit('MESSAGE_EMITTED', {
+                  text: `[HEAT CRITICAL]: Overclocking would exceed 100 Heat (${currentHeat + cost}/100) and trigger Emergency Shutdown. Vent Heat first.`,
+                  type: 'error',
+                });
+              } else {
+                eventBus.emit('MESSAGE_EMITTED', {
+                  text: `[OVERCLOCK WARNING]: Overclocking blast lock costs +${cost} Heat and triggers an acoustic alert (radius ${lock.alertRadiusOnBypass ?? 12}). Safe bypass requires Access Key.`,
+                  type: 'warning',
+                });
+              }
+              eventBus.emit('INPUT_BUFFER_CLEARED' as keyof T, {} as T[keyof T]);
+              blocked = true;
+              break;
+            }
+          }
+
+          // Safe & Unsearched (or locked with valid key): Convert MoveIntent to InteractPropIntent
+          if (!prop.isSearched || (lock && lock.isLocked)) {
+            w.addComponent(entityId, InteractPropIntent, {
+              targetPropId: occupantId,
+              forceOverride: false,
+            });
+            blocked = true;
+            break;
+          }
         }
 
         // Check for non-hostile blocking entities

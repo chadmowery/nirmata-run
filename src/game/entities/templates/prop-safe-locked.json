@@ -1,0 +1,26 @@
+{
+  "name": "prop-safe-locked",
+  "mixins": [],
+  "components": {
+    "position": { "x": 0, "y": 0 },
+    "prop": {
+      "propId": "encrypted_safe",
+      "faction": "cyberacme",
+      "propClass": "encrypted_safe"
+    },
+    "securityLock": {
+      "isLocked": true,
+      "keyIdRequired": "access_key",
+      "overclockHeatCost": 35,
+      "alertRadiusOnBypass": 12
+    },
+    "container": {
+      "containerId": "encrypted_safe",
+      "capacity": 4
+    },
+    "blocksMovement": {}
+  },
+  "overrides": {
+    "sprite": { "key": "prop_safe_locked" }
+  }
+}

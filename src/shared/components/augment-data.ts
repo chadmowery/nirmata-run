@@ -11,7 +11,9 @@ export interface ConditionNode {
     | 'ON_OVERCLOCK'
     | 'ON_KILL'
     | 'HEAT_ABOVE'
-    | 'HP_BELOW_PERCENT';
+    | 'HP_BELOW_PERCENT'
+    | 'ON_HACK'
+    | 'ON_COVER_BROKEN';
   conditions?: ConditionNode[];
   value?: number;
 }
@@ -27,6 +29,8 @@ export const ConditionNodeSchema: z.ZodType<ConditionNode> = z.object({
     'ON_KILL',
     'HEAT_ABOVE',
     'HP_BELOW_PERCENT',
+    'ON_HACK',
+    'ON_COVER_BROKEN',
   ]),
   conditions: z.lazy(() => z.array(ConditionNodeSchema)).optional(),
   value: z.number().optional(),

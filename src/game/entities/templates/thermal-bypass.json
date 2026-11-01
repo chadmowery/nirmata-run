@@ -1,0 +1,22 @@
+{
+  "name": "thermal-bypass",
+  "sprite": { "key": "item_thermal_bypass" },
+  "components": {
+    "augmentData": {
+      "name": "Thermal_Bypass.arc",
+      "trigger": {
+        "type": "AND",
+        "conditions": [
+          { "type": "ON_HACK" },
+          { "type": "ON_OVERCLOCK" }
+        ]
+      },
+      "payloads": [
+        { "type": "VENT_HEAT", "magnitude": 25 },
+        { "type": "HEAL", "magnitude": 4 }
+      ],
+      "maxTriggersPerTurn": 1,
+      "cooldownTurns": 3
+    }
+  }
+}

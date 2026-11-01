@@ -22,9 +22,15 @@ import {
   AIState,
   AIBehaviorType,
   ApplyStatusEffectIntent,
+  Position,
+  InteractiveSurface,
+  CorruptedNode,
+  Shell,
+  Hostile,
 } from '@shared/components';
 import { AttackIntent, DamageIntent, HealIntent } from '@shared/components/intents';
 import { createTriggerContext, evaluateCondition } from './augment-util';
+import { applyStatusEffect } from './status-effects';
 
 import { GameplayEvents } from '@shared/events/types';
 import { logger } from '@engine/utils/logger';
@@ -157,6 +163,232 @@ export function collectDamageModifiers<T extends GameplayEvents>(
 }
 
 /**
+ * Checks if directional cover mitigates incoming ranged damage against defender.
+ */
+export function checkDirectionalCover<T extends GameplayEvents>(
+  world: World<T>,
+  attackerId: EntityId,
+  defenderId: EntityId,
+): { hasCover: boolean; reduction: number; coverId?: EntityId } {
+  if (world.hasComponent(defenderId, InteractiveSurface)) {
+    return { hasCover: false, reduction: 0 };
+  }
+
+  const attackerPos = world.getComponent(attackerId, Position);
+  const defenderPos = world.getComponent(defenderId, Position);
+  if (!attackerPos || !defenderPos) {
+    return { hasCover: false, reduction: 0 };
+  }
+
+  const distToAttacker =
+    Math.abs(attackerPos.x - defenderPos.x) + Math.abs(attackerPos.y - defenderPos.y);
+  if (distToAttacker <= 1) {
+    return { hasCover: false, reduction: 0 };
+  }
+
+  const surfaces = world.query(InteractiveSurface, Position);
+  for (const surfaceId of surfaces) {
+    if (surfaceId === defenderId || surfaceId === attackerId) continue;
+    if (world.hasComponent(surfaceId, Dying)) continue;
+
+    const surface = world.getComponent(surfaceId, InteractiveSurface);
+    if (!surface || surface.providesCover === false) continue;
+
+    const surfPos = world.getComponent(surfaceId, Position)!;
+    const distToDefender =
+      Math.abs(surfPos.x - defenderPos.x) + Math.abs(surfPos.y - defenderPos.y);
+    if (distToDefender !== 1) continue;
+
+    const distFromCoverToAttacker =
+      Math.abs(surfPos.x - attackerPos.x) + Math.abs(surfPos.y - attackerPos.y);
+    if (distFromCoverToAttacker < distToAttacker) {
+      const defenderShell = world.getComponent(defenderId, Shell);
+      const isBastion = defenderShell?.archetypeId?.toLowerCase().includes('bastion');
+      const reduction = isBastion ? 0.35 : (surface.coverDamageReduction ?? 0.25);
+      return { hasCover: true, reduction, coverId: surfaceId };
+    }
+  }
+
+  return { hasCover: false, reduction: 0 };
+}
+
+/**
+ * Handles destruction of props with InteractiveSurface, triggering hazard spills and cascade reactions.
+ */
+export function handlePropDestruction<T extends GameplayEvents>(
+  world: World<T>,
+  grid: Grid,
+  eventBus: EventBus<T>,
+  destroyedId: EntityId,
+  killerId: EntityId,
+  visited: Set<EntityId> = new Set(),
+): void {
+  if (visited.has(destroyedId)) return;
+  visited.add(destroyedId);
+
+  const surface = world.getComponent(destroyedId, InteractiveSurface);
+  const pos = world.getComponent(destroyedId, Position);
+
+  // Mark dying if not already marked
+  if (!world.hasComponent(destroyedId, Dying)) {
+    world.addComponent(destroyedId, Dying, {
+      killerId,
+      reason: 'environmental_destruction',
+    });
+    eventBus.emit('ENTITY_DIED', {
+      entityId: destroyedId,
+      killerId,
+      isPlayer: false,
+    });
+  }
+
+  if (!surface || !pos) return;
+
+  // 1. Cryo-Vat hazard footprint (3x3)
+  if (surface.hazardOnDestroy === 'cryo_spill') {
+    eventBus.emit('MESSAGE_EMITTED', {
+      text: '[CRYO SPILL]: Cryo-vat shattered into a cryogenic hazard!',
+      type: 'combat',
+    });
+
+    const allPositions = world.query(Position);
+    for (const eid of allPositions) {
+      if (eid === destroyedId || world.hasComponent(eid, Dying)) continue;
+      const ePos = world.getComponent(eid, Position)!;
+      if (Math.abs(ePos.x - pos.x) <= 1 && Math.abs(ePos.y - pos.y) <= 1) {
+        const h = world.getComponent(eid, Health);
+        if (h) {
+          const newH = Math.max(0, h.current - 4);
+          world.patchComponent(eid, Health, { current: newH });
+          eventBus.emit('DAMAGE_DEALT', {
+            attackerId: killerId,
+            defenderId: eid,
+            amount: 4,
+          });
+          if (newH <= 0) {
+            if (world.hasComponent(eid, InteractiveSurface)) {
+              handlePropDestruction(world, grid, eventBus, eid, killerId, visited);
+            } else {
+              world.addComponent(eid, Dying, { killerId, reason: 'environmental_destruction' });
+              eventBus.emit('ENTITY_DIED', {
+                entityId: eid,
+                killerId,
+                isPlayer: !!world.getComponent(eid, Actor)?.isPlayer,
+              });
+            }
+          }
+        }
+        applyStatusEffect(world, eventBus, eid, {
+          name: 'MOVEMENT_SLOW',
+          duration: 2,
+          magnitude: 50,
+          source: 'cryo_spill',
+        });
+      }
+    }
+  } else if (surface.hazardOnDestroy === 'emp_arc') {
+    eventBus.emit('MESSAGE_EMITTED', {
+      text: '[EMP ARC]: Capacitor bank discharged an electromagnetic shockwave!',
+      type: 'combat',
+    });
+
+    const allPositions = world.query(Position);
+    for (const eid of allPositions) {
+      if (eid === destroyedId || world.hasComponent(eid, Dying)) continue;
+      const ePos = world.getComponent(eid, Position)!;
+      const dist = Math.abs(ePos.x - pos.x) + Math.abs(ePos.y - pos.y);
+      if (dist <= 2) {
+        const h = world.getComponent(eid, Health);
+        if (h) {
+          const newH = Math.max(0, h.current - 10);
+          world.patchComponent(eid, Health, { current: newH });
+          eventBus.emit('DAMAGE_DEALT', {
+            attackerId: killerId,
+            defenderId: eid,
+            amount: 10,
+          });
+          if (newH <= 0) {
+            if (world.hasComponent(eid, InteractiveSurface)) {
+              handlePropDestruction(world, grid, eventBus, eid, killerId, visited);
+            } else {
+              world.addComponent(eid, Dying, { killerId, reason: 'environmental_destruction' });
+              eventBus.emit('ENTITY_DIED', {
+                entityId: eid,
+                killerId,
+                isPlayer: !!world.getComponent(eid, Actor)?.isPlayer,
+              });
+            }
+          }
+        }
+        const actor = world.getComponent(eid, Actor);
+        const hostile = world.getComponent(eid, Hostile);
+        if (hostile || (actor && !actor.isPlayer)) {
+          applyStatusEffect(world, eventBus, eid, {
+            name: 'DISRUPT',
+            duration: 2,
+            magnitude: 1,
+            source: 'emp_arc',
+          });
+        }
+      }
+    }
+  }
+
+  // 2. Cascade Chain Reaction Rule (15 structural damage within Manhattan distance <= 2)
+  if (surface.hazardOnDestroy && surface.hazardOnDestroy !== 'none') {
+    const cascadeCandidates = world.query(Position);
+    for (const targetId of cascadeCandidates) {
+      if (targetId === destroyedId || visited.has(targetId) || world.hasComponent(targetId, Dying)) {
+        continue;
+      }
+      const tPos = world.getComponent(targetId, Position)!;
+      const dist = Math.abs(tPos.x - pos.x) + Math.abs(tPos.y - pos.y);
+      if (dist <= (surface.cascadeRadius ?? 2)) {
+        const targetSurface = world.getComponent(targetId, InteractiveSurface);
+        const targetCorrupted = world.getComponent(targetId, CorruptedNode);
+
+        if (targetSurface && targetSurface.destructible !== false) {
+          const h = world.getComponent(targetId, Health);
+          if (h) {
+            const newH = Math.max(0, h.current - 15);
+            world.patchComponent(targetId, Health, { current: newH });
+            eventBus.emit('DAMAGE_DEALT', {
+              attackerId: killerId,
+              defenderId: targetId,
+              amount: 15,
+            });
+            if (newH <= 0) {
+              handlePropDestruction(world, grid, eventBus, targetId, killerId, visited);
+            }
+          }
+        } else if (targetCorrupted && !targetCorrupted.isDisarmed) {
+          const h = world.getComponent(targetId, Health);
+          if (h) {
+            const newH = Math.max(0, h.current - 15);
+            world.patchComponent(targetId, Health, { current: newH });
+            if (newH <= 0) {
+              world.addComponent(targetId, Dying, { killerId, reason: 'environmental_destruction' });
+              eventBus.emit('ENTITY_DIED', {
+                entityId: targetId,
+                killerId,
+                isPlayer: false,
+              });
+            }
+          } else {
+            world.addComponent(targetId, Dying, { killerId, reason: 'environmental_destruction' });
+            eventBus.emit('ENTITY_DIED', {
+              entityId: targetId,
+              killerId,
+              isPlayer: false,
+            });
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
  * Combat system that resolves AttackIntent during the REACTION phase.
  */
 export function createCombatSystem<T extends GameplayEvents>(
@@ -171,6 +403,10 @@ export function createCombatSystem<T extends GameplayEvents>(
   void componentRegistry;
   void options;
   const handleDeath = (entityId: EntityId, killerId: EntityId) => {
+    if (world.hasComponent(entityId, InteractiveSurface)) {
+      handlePropDestruction(world, grid, eventBus, entityId, killerId);
+      return;
+    }
     const actor = world.getComponent(entityId, Actor);
     const isPlayer = !!actor?.isPlayer;
 
@@ -205,7 +441,21 @@ export function createCombatSystem<T extends GameplayEvents>(
       const defenderHeat = w.getComponent(defenderId, Heat);
       const effectiveArmor = getEffectiveArmor(w, defenderId, defenderHeat?.isVenting ?? false);
 
-      const damage = resolveDamage(attackerAttack.power, modifiers, effectiveArmor);
+      let damage = resolveDamage(attackerAttack.power, modifiers, effectiveArmor);
+
+      // Check Directional Cover
+      const cover = checkDirectionalCover(w, attackerId, defenderId);
+      if (cover.hasCover) {
+        damage = Math.max(1, Math.floor(damage * (1 - cover.reduction)));
+        const pct = Math.round(cover.reduction * 100);
+        const defActor = w.getComponent(defenderId, Actor);
+        const defName = defActor?.isPlayer ? 'You' : (defActor ? 'The enemy' : 'The obstacle');
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `[COVER]: ${defName} absorbed damage behind cover (${pct}% reduction).`,
+          type: 'combat',
+        });
+      }
+
       const oldHealth = defenderHealth.current;
       const newHealth = Math.max(0, oldHealth - damage);
 
@@ -241,7 +491,7 @@ export function createCombatSystem<T extends GameplayEvents>(
       const attackerActor = w.getComponent(attackerId, Actor);
       const defenderActor = w.getComponent(defenderId, Actor);
       const attackerName = attackerActor?.isPlayer ? 'You' : 'The enemy';
-      const defenderName = defenderActor?.isPlayer ? 'you' : 'the enemy';
+      const defenderName = defenderActor?.isPlayer ? 'you' : (defenderActor ? 'the enemy' : 'the obstacle');
 
       eventBus.emit('MESSAGE_EMITTED', {
         text: `${attackerName} hit ${defenderName} for ${damage} damage.`,
@@ -286,7 +536,21 @@ export function createCombatSystem<T extends GameplayEvents>(
       const effectiveArmor = getEffectiveArmor(w, targetId, targetHeat?.isVenting ?? false);
 
       // Abilities use raw amount minus armor
-      const finalDamage = Math.max(1, intent.amount - effectiveArmor);
+      let finalDamage = Math.max(1, intent.amount - effectiveArmor);
+
+      // Check Directional Cover
+      const cover = checkDirectionalCover(w, requesterId, targetId);
+      if (cover.hasCover) {
+        finalDamage = Math.max(1, Math.floor(finalDamage * (1 - cover.reduction)));
+        const pct = Math.round(cover.reduction * 100);
+        const defActor = w.getComponent(targetId, Actor);
+        const defName = defActor?.isPlayer ? 'You' : (defActor ? 'The enemy' : 'The obstacle');
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `[COVER]: ${defName} absorbed damage behind cover (${pct}% reduction).`,
+          type: 'combat',
+        });
+      }
+
       const oldHealth = targetHealth.current;
       const newHealth = Math.max(0, oldHealth - finalDamage);
 

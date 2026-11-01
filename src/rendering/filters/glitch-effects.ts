@@ -1,6 +1,66 @@
 import { Sprite, Filter } from 'pixi.js';
-import { GlitchFilter, RGBSplitFilter } from 'pixi-filters';
+import { GlitchFilter, RGBSplitFilter, OutlineFilter } from 'pixi-filters';
 import { AIBehaviorType } from '@shared/components/ai-state';
+
+export type PropVisualState = 'safe' | 'locked' | 'corrupted' | 'searched';
+
+/**
+ * Applies a visual outline/glitch effect to an interactive prop sprite based on its state:
+ * - 'safe': #00F0FF (Cyan) clean outline
+ * - 'locked': #FF9500 (Orange) security barrier outline
+ * - 'corrupted': #FF0055 (Pink) outline with subtle glitch jitter
+ * - 'searched': Dimmed alpha (0.6) with no outline
+ */
+export function applyPropOutline(sprite: Sprite, state: PropVisualState): void {
+  if (!sprite || sprite.destroyed) return;
+
+  if (state === 'searched') {
+    sprite.alpha = 0.6;
+    sprite.filters = null;
+    return;
+  }
+
+  sprite.alpha = 1.0;
+  const filters: Filter[] = [];
+
+  switch (state) {
+    case 'safe':
+      filters.push(
+        new OutlineFilter({
+          thickness: 1,
+          color: 0x00f0ff,
+        }) as unknown as Filter,
+      );
+      break;
+
+    case 'locked':
+      filters.push(
+        new OutlineFilter({
+          thickness: 1,
+          color: 0xff9500,
+        }) as unknown as Filter,
+      );
+      break;
+
+    case 'corrupted':
+      filters.push(
+        new OutlineFilter({
+          thickness: 1,
+          color: 0xff0055,
+        }) as unknown as Filter,
+      );
+      filters.push(
+        new GlitchFilter({
+          slices: 2,
+          offset: 3,
+          direction: 0,
+        }) as unknown as Filter,
+      );
+      break;
+  }
+
+  sprite.filters = filters.length > 0 ? filters : null;
+}
 
 /**
  * Applies a persistent glitch effect to an enemy sprite based on its behavior type.

@@ -1,5 +1,9 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { applyDamageDistortion, removePersistentGlitch } from '../../src/rendering/filters/glitch-effects';
+import {
+  applyDamageDistortion,
+  removePersistentGlitch,
+  applyPropOutline,
+} from '../../src/rendering/filters/glitch-effects';
 
 // Mock PIXI and pixi-filters
 vi.mock('pixi.js', () => ({
@@ -15,6 +19,9 @@ vi.mock('pixi-filters', () => ({
     constructor(public options: any) {}
   },
   RGBSplitFilter: class {
+    constructor(public options: any) {}
+  },
+  OutlineFilter: class {
     constructor(public options: any) {}
   },
 }));
@@ -81,5 +88,34 @@ describe('glitch-effects', () => {
     expect(() => {
       vi.advanceTimersByTime(201);
     }).not.toThrow();
+  });
+
+  describe('applyPropOutline', () => {
+    it('applies cyan outline for safe props', () => {
+      applyPropOutline(sprite, 'safe');
+      expect(sprite.filters).toHaveLength(1);
+      expect(sprite.alpha).toBe(1.0);
+    });
+
+    it('applies orange outline for locked props', () => {
+      applyPropOutline(sprite, 'locked');
+      expect(sprite.filters).toHaveLength(1);
+      expect(sprite.alpha).toBe(1.0);
+    });
+
+    it('applies pink outline and glitch for corrupted props', () => {
+      applyPropOutline(sprite, 'corrupted');
+      expect(sprite.filters).toHaveLength(2);
+      expect(sprite.alpha).toBe(1.0);
+    });
+
+    it('clears filters and dims alpha for searched props', () => {
+      applyPropOutline(sprite, 'safe');
+      expect(sprite.filters).toHaveLength(1);
+
+      applyPropOutline(sprite, 'searched');
+      expect(sprite.filters).toBeNull();
+      expect(sprite.alpha).toBe(0.6);
+    });
   });
 });

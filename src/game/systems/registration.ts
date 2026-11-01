@@ -25,6 +25,7 @@ import { createTeleportSystem } from './teleport';
 import { createAISystem } from './ai';
 import { createFirmwareSystem } from './firmware';
 import { createTileCorruptionSystem } from './tile-corruption';
+import { createPropInteractionSystem } from './prop-interaction';
 import { RunMode } from '@shared/run-mode';
 
 /**
@@ -80,6 +81,13 @@ export function registerCoreSystems<T extends GameplayEvents>(
   );
 
   const anchorInteraction = createAnchorInteractionSystem(world, grid, eventBus);
+  const propInteraction = createPropInteractionSystem(
+    world,
+    grid,
+    eventBus,
+    entityFactory,
+    componentRegistry,
+  );
 
   const isClient = options.isClient === true;
 
@@ -93,6 +101,7 @@ export function registerCoreSystems<T extends GameplayEvents>(
   // Action / Reaction
   teleport.init();
   movement.init();
+  propInteraction.init();
   equipment.init();
   anchorInteraction.init();
   firmware.init();
@@ -158,5 +167,6 @@ export function registerCoreSystems<T extends GameplayEvents>(
     ai,
     firmware,
     tileCorruption,
+    propInteraction,
   };
 }

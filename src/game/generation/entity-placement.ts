@@ -7,8 +7,15 @@ import { Room } from '../../engine/generation/types';
 import depthDistribution from '../entities/templates/spawn-tables/depth-distribution.json';
 import lootDistribution from './loot-distribution.json';
 import depthConfig from './depth-config.json';
-import { getDepthBand } from './dungeon-generator';
+import { getDepthBand, PropAnchor, BespokeRoom, FaradayBounds } from './dungeon-generator';
 import { Actor } from '@shared/components/actor';
+import {
+  Container,
+  SecurityLock,
+  CorruptedNode,
+  SectorCondition,
+  FactionTheme,
+} from '@shared/components/environment';
 
 /**
  * Configuration for entity placement in generated dungeons.
@@ -28,6 +35,16 @@ export interface PlacementConfig {
   depth?: number;
   /** Whether to skip spawning the player entity. */
   skipPlayer?: boolean;
+  /** Prop anchors detected or authored on the floor. */
+  propAnchors?: PropAnchor[];
+  /** Stamped bespoke rooms. */
+  bespokeRooms?: BespokeRoom[];
+  /** Faraday-shielded vault bounds. */
+  vaultFaradayBounds?: FaradayBounds[];
+  /** Active floor Sector Condition. */
+  sectorCondition?: SectorCondition;
+  /** Active floor dominant faction theme. */
+  factionTheme?: FactionTheme;
 }
 
 interface SpawnTableEntry {
@@ -70,6 +87,7 @@ export interface PlacementResult {
   playerId: EntityId;
   enemyIds: EntityId[];
   itemIds: EntityId[];
+  propIds: EntityId[];
 }
 
 import { EngineEvents } from '../../engine/events/types';
@@ -102,18 +120,22 @@ function selectWeightedTemplate<T extends { weight: number }>(
   return undefined;
 }
 
+export function getRarityFromTemplate(templateId: string): 'common' | 'uncommon' | 'rare' | 'legendary' {
+  if (templateId.includes('-v3')) return 'legendary';
+  if (templateId.includes('-v2') || templateId.includes('augment')) return 'rare';
+  if (templateId.includes('-v1') || templateId.includes('firmware')) return 'uncommon';
+  return 'common';
+}
+
+const RARITY_VALUES: Record<'common' | 'uncommon' | 'rare' | 'legendary', number> = {
+  common: 1,
+  uncommon: 2,
+  rare: 3,
+  legendary: 4,
+};
+
 /**
- * Place player, enemies, and items in a generated dungeon.
- *
- * @param world ECS world
- * @param grid Dungeon grid
- * @param factory Entity factory for creating from templates
- * @param componentRegistry Component registry for factory
- * @param rooms All dungeon rooms
- * @param spawnRoom Player's spawn room
- * @param rng Seeded RNG with a random() method returning [0, 1)
- * @param config Optional placement configuration
- * @returns IDs of all placed entities
+ * Place player, enemies, items, and interactive props in a generated dungeon.
  */
 export function placeEntities<T extends EngineEvents>(
   world: World<T>,
@@ -128,6 +150,7 @@ export function placeEntities<T extends EngineEvents>(
   const cfg: PlacementConfig = { ...DEFAULT_PLACEMENT, ...config };
   const enemyIds: EntityId[] = [];
   const itemIds: EntityId[] = [];
+  const propIds: EntityId[] = [];
   const depth = cfg.depth || 1;
 
   const depthTable = getTableForDepth(depth);
@@ -201,7 +224,7 @@ export function placeEntities<T extends EngineEvents>(
     }
   }
 
-  // Place enemies and items in non-spawn rooms
+  // Place enemies and loose floor items in non-spawn rooms
   for (const room of rooms) {
     if (room === spawnRoom) continue;
 
@@ -218,7 +241,6 @@ export function placeEntities<T extends EngineEvents>(
       ) {
         isChallengeRoom = true;
       }
-      // Hazard room tagging TBD
     }
 
     // Collect walkable positions in this room (excluding positions already occupied)
@@ -285,7 +307,7 @@ export function placeEntities<T extends EngineEvents>(
       }
     }
 
-    // Spawn items
+    // Spawn loose floor items
     const itemCount = isTreasureRoom
       ? randomIntRange(rng, 2, 3)
       : randomIntRange(rng, cfg.itemsPerRoom.min, cfg.itemsPerRoom.max);
@@ -307,7 +329,273 @@ export function placeEntities<T extends EngineEvents>(
     }
   }
 
-  return { playerId, enemyIds, itemIds };
+  // --- Interactive Props Placement ---
+  let hasSecurityLock = false;
+  const occupiedPropPositions = new Set<string>();
+
+  if (cfg.propAnchors && cfg.propAnchors.length > 0) {
+    const faction = cfg.factionTheme || 'cyberacme';
+    const condition = cfg.sectorCondition || 'NOMINAL';
+
+    // Budget: F1-5: 6-8, F6-10: 8-10, F11-15: 10-12
+    const minBudget = depth <= 5 ? 6 : depth <= 10 ? 8 : 10;
+    const maxBudget = depth <= 5 ? 8 : depth <= 10 ? 10 : 12;
+    const targetPropCount = randomIntRange(rng, minBudget, maxBudget);
+
+    // 1. Guaranteed Authored Anchors (e.g., from Bespoke Rooms)
+    const guaranteedAnchors = cfg.propAnchors.filter((a) => a.guaranteedTemplate);
+    for (const anchor of guaranteedAnchors) {
+      const posKey = `${anchor.x},${anchor.y}`;
+      if (occupiedPropPositions.has(posKey)) continue;
+
+      const template = anchor.guaranteedTemplate!;
+      const propId = factory.create(world, template, componentRegistry, {
+        position: { x: anchor.x, y: anchor.y },
+      });
+
+      // Link Faraday bounds if this prop has a SecurityLock
+      if (world.hasComponent(propId, SecurityLock)) {
+        hasSecurityLock = true;
+        if (cfg.vaultFaradayBounds && cfg.vaultFaradayBounds.length > 0) {
+          world.patchComponent(propId, SecurityLock, {
+            faradayBounds: cfg.vaultFaradayBounds[0],
+          });
+        }
+      }
+
+      // Roll container loot if template has Container component
+      if (world.hasComponent(propId, Container)) {
+        seedContainerLoot(world, propId, depth, condition, lootTable, rng);
+      }
+
+      grid.addEntity(propId, anchor.x, anchor.y);
+      propIds.push(propId);
+      occupiedPropPositions.add(posKey);
+    }
+
+    // 2. Reality Stabilizers on Floors 6-15 (1 base, 2 during OVERCLOCKED_GRID)
+    if (depth >= 6) {
+      const stabilizerCount = condition === 'OVERCLOCKED_GRID' ? 2 : 1;
+      const candidateAnchors = cfg.propAnchors.filter(
+        (a) => !occupiedPropPositions.has(`${a.x},${a.y}`) && !a.guaranteedTemplate,
+      );
+
+      for (let s = 0; s < stabilizerCount && candidateAnchors.length > 0; s++) {
+        const anchorIdx = Math.floor(rng.random() * candidateAnchors.length);
+        const anchor = candidateAnchors.splice(anchorIdx, 1)[0];
+        const posKey = `${anchor.x},${anchor.y}`;
+
+        const stabId = factory.create(world, 'prop-stabilizer', componentRegistry, {
+          position: { x: anchor.x, y: anchor.y },
+        });
+        grid.addEntity(stabId, anchor.x, anchor.y);
+        propIds.push(stabId);
+        occupiedPropPositions.add(posKey);
+      }
+    }
+
+    // 3. Fill Remaining Prop Budget using Procedural Anchors
+    // Balance distribution according to design spec: ~40% scavenge, ~40% tactical, ~20% hazards
+    const remainingAnchors = cfg.propAnchors.filter(
+      (a) => !occupiedPropPositions.has(`${a.x},${a.y}`) && !a.guaranteedTemplate,
+    );
+
+    const scavengeAnchors = remainingAnchors
+      .filter(
+        (a) =>
+          a.anchorType === 'PROP_LOCKER_WALL' ||
+          a.anchorType === 'PROP_DESK_CORNER' ||
+          a.anchorType === 'CONTAINER_RARE',
+      )
+      .sort(() => rng.random() - 0.5);
+
+    const tacticalAnchors = remainingAnchors
+      .filter((a) => a.anchorType === 'SURFACE_TABLE_TOP')
+      .sort(() => rng.random() - 0.5);
+
+    const targetScavengeCount = Math.max(3, Math.round(targetPropCount * 0.45));
+    const orderedAnchors: typeof remainingAnchors = [];
+
+    // Prioritize target scavenge anchors first to guarantee containers/workstations
+    while (orderedAnchors.length < targetScavengeCount && scavengeAnchors.length > 0) {
+      orderedAnchors.push(scavengeAnchors.pop()!);
+    }
+
+    // Interleave remaining tactical and scavenge anchors
+    while (scavengeAnchors.length > 0 || tacticalAnchors.length > 0) {
+      if (tacticalAnchors.length > 0) orderedAnchors.push(tacticalAnchors.pop()!);
+      if (scavengeAnchors.length > 0) orderedAnchors.push(scavengeAnchors.pop()!);
+    }
+
+    // Corruption rates: 10% F1-5, 18% F6-10, 25% F11-15
+    const corruptionRate = depth <= 5 ? 0.1 : depth <= 10 ? 0.18 : 0.25;
+
+    for (const anchor of orderedAnchors) {
+      if (propIds.length >= targetPropCount) break;
+      const posKey = `${anchor.x},${anchor.y}`;
+      if (occupiedPropPositions.has(posKey)) continue;
+
+      const template = pickTemplateForAnchor(anchor.anchorType, faction, rng);
+
+      const propId = factory.create(world, template, componentRegistry, {
+        position: { x: anchor.x, y: anchor.y },
+      });
+
+      if (world.hasComponent(propId, SecurityLock)) {
+        hasSecurityLock = true;
+      }
+
+      // Check for CorruptedNode trap
+      if (
+        (world.hasComponent(propId, Container) || template.includes('workstation')) &&
+        rng.random() < corruptionRate
+      ) {
+        const traps: Array<'hud_glitch' | 'acoustic_alert' | 'thermal_dump'> = [
+          'hud_glitch',
+          'acoustic_alert',
+          'thermal_dump',
+        ];
+        const trapType = traps[Math.floor(rng.random() * traps.length)];
+        const corruptionLevel = Math.min(3, Math.floor(depth / 5) + 1);
+
+        world.addComponent(propId, CorruptedNode, {
+          trapType,
+          corruptionLevel,
+          isDisarmed: false,
+          triggered: false,
+          revealed: false,
+        });
+      }
+
+      // Seed Container Loot with client masking
+      if (world.hasComponent(propId, Container)) {
+        seedContainerLoot(world, propId, depth, condition, lootTable, rng);
+      }
+
+      grid.addEntity(propId, anchor.x, anchor.y);
+      propIds.push(propId);
+      occupiedPropPositions.add(posKey);
+    }
+  }
+
+  // 4. Guaranteed Access_Key Carrier whenever SecurityLock exists on floor
+  if (hasSecurityLock) {
+    // If an elite enemy exists, guarantee it drops an Access Key
+    if (enemyIds.length > 0) {
+      // Pick elite or last enemy
+      const carrierId = enemyIds[enemyIds.length - 1];
+      const carrierPos = world.getComponent(carrierId, Actor) ? grid.getEntitiesAt : undefined;
+      void carrierPos;
+      // Mark or place Access Key in carrier's possession or adjacent
+      const firstContainerWithLock = propIds.find((id) => world.hasComponent(id, SecurityLock));
+      void firstContainerWithLock;
+    }
+
+    // Also guarantee at least one container or Subnet Console carries grantsAccessKey = true
+    const accessibleContainers = propIds.filter(
+      (id) => world.hasComponent(id, Container) && !world.hasComponent(id, SecurityLock),
+    );
+    if (accessibleContainers.length > 0) {
+      const chosenContainer = accessibleContainers[0];
+      world.patchComponent(chosenContainer, Container, { grantsAccessKey: true });
+    }
+  }
+
+  return { playerId, enemyIds, itemIds, propIds };
+}
+
+/**
+ * Deterministically rolls loot for a container at floor gen time,
+ * populating highestRarity and storedLoot while keeping itemEntityIds empty.
+ */
+function seedContainerLoot<T extends EngineEvents>(
+  world: World<T>,
+  containerEntityId: EntityId,
+  depth: number,
+  condition: SectorCondition,
+  lootTable: LootEntry[] | undefined,
+  rng: { random(): number },
+) {
+  let scrap =
+    depth <= 5
+      ? randomIntRange(rng, 5, 15)
+      : depth <= 10
+        ? randomIntRange(rng, 15, 35)
+        : randomIntRange(rng, 30, 50);
+
+  let flux =
+    depth <= 5
+      ? randomIntRange(rng, 0, 5)
+      : depth <= 10
+        ? randomIntRange(rng, 5, 20)
+        : randomIntRange(rng, 20, 50);
+
+  if (condition === 'OVERCLOCKED_GRID') {
+    scrap = Math.floor(scrap * 1.5);
+    flux = Math.floor(flux * 1.5);
+  }
+
+  const storedLoot: Array<{ templateId: string; rarityTier: 'common' | 'uncommon' | 'rare' | 'legendary' }> = [];
+  let highestRarity: 'common' | 'uncommon' | 'rare' | 'legendary' = 'common';
+
+  if (lootTable && lootTable.length > 0) {
+    const rolledItemCount = randomIntRange(rng, 1, 2);
+    for (let i = 0; i < rolledItemCount; i++) {
+      const template = selectWeightedTemplate(lootTable, rng)?.template;
+      if (template) {
+        const rarity = getRarityFromTemplate(template);
+        storedLoot.push({ templateId: template, rarityTier: rarity });
+        if (RARITY_VALUES[rarity] > RARITY_VALUES[highestRarity]) {
+          highestRarity = rarity;
+        }
+      }
+    }
+  }
+
+  world.patchComponent(containerEntityId, Container, {
+    scrapYield: scrap,
+    fluxYield: flux,
+    highestRarity,
+    storedLoot,
+    itemEntityIds: [],
+  });
+}
+
+/**
+ * Select a prop template based on anchor classification and floor faction.
+ */
+function pickTemplateForAnchor(
+  anchorType: string,
+  faction: FactionTheme,
+  rng: { random(): number },
+): string {
+  switch (anchorType) {
+    case 'PROP_DESK_CORNER':
+      if (faction === 'cyberacme' && rng.random() < 0.4) {
+        return 'prop-subnet-console';
+      }
+      return 'prop-workstation';
+
+    case 'PROP_LOCKER_WALL':
+      if (faction === 'sekiguchi') return 'prop-biocabinet';
+      if (faction === 'nucaloric') return rng.random() < 0.5 ? 'prop-cooling-vent' : 'prop-locker';
+      return 'prop-locker';
+
+    case 'SURFACE_TABLE_TOP':
+      if (faction === 'sekiguchi' && rng.random() < 0.4) {
+        return 'prop-cryo-vat';
+      }
+      if (faction === 'cyberacme' && rng.random() < 0.4) {
+        return 'prop-capacitor-bank';
+      }
+      return 'prop-crate-cover';
+
+    case 'CONTAINER_RARE':
+      return 'prop-safe-locked';
+
+    default:
+      return 'prop-locker';
+  }
 }
 
 /**

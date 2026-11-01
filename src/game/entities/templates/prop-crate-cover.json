@@ -1,0 +1,22 @@
+{
+  "name": "prop-crate-cover",
+  "mixins": [],
+  "components": {
+    "position": { "x": 0, "y": 0 },
+    "interactiveSurface": {
+      "surfaceId": "crate_cover",
+      "providesCover": true,
+      "coverDamageReduction": 0.25,
+      "destructible": true
+    },
+    "health": {
+      "max": 15,
+      "current": 15,
+      "isAlive": true
+    },
+    "blocksMovement": {}
+  },
+  "overrides": {
+    "sprite": { "key": "prop_crate_cover" }
+  }
+}

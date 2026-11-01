@@ -1,0 +1,30 @@
+{
+  "id": "zero-day-vault",
+  "name": "The Zero-Day Vault",
+  "faction": "cyberacme",
+  "isVaultRoom": true,
+  "faradayShielded": true,
+  "minFloor": 6,
+  "maxFloor": 15,
+  "width": 10,
+  "height": 8,
+  "layout": [
+    "##########",
+    "#........#",
+    "#........#",
+    "#........#",
+    "#........#",
+    "#........#",
+    "####VV####",
+    "##########"
+  ],
+  "portals": [
+    { "x": 4, "y": 6, "direction": "south" },
+    { "x": 5, "y": 6, "direction": "south" }
+  ],
+  "propSpawns": [
+    { "x": 4, "y": 2, "anchorType": "CONTAINER_RARE", "guaranteedTemplate": "prop_safe_locked" },
+    { "x": 1, "y": 3, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop_cooling_vent" },
+    { "x": 8, "y": 3, "anchorType": "PROP_DESK_CORNER", "guaranteedTemplate": "prop_dead_drop" }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "prop-locker",
+  "mixins": [],
+  "components": {
+    "position": { "x": 0, "y": 0 },
+    "prop": {
+      "propId": "locker",
+      "faction": "traxus",
+      "propClass": "locker"
+    },
+    "container": {
+      "containerId": "locker",
+      "capacity": 4
+    },
+    "blocksMovement": {}
+  },
+  "overrides": {
+    "sprite": { "key": "prop_locker_closed" }
+  }
+}

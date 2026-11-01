@@ -111,6 +111,19 @@ export const AbortRunActionSchema = z.object({
   type: z.literal('ABORT_RUN'),
 });
 
+export const InteractPropActionSchema = z.object({
+  type: z.literal('INTERACT_PROP'),
+  targetPropId: z.number().int(),
+  forceOverride: z.boolean().default(false),
+  deadDropSelectionId: z.union([z.number().int(), z.string()]).optional(),
+});
+
+export const DeadDropItemActionSchema = z.object({
+  type: z.literal('DEAD_DROP_ITEM'),
+  targetPropId: z.number().int(),
+  itemId: z.union([z.number().int(), z.string()]),
+});
+
 export const ActionIntentSchema = z.discriminatedUnion('type', [
   MoveActionSchema,
   AttackActionSchema,
@@ -131,6 +144,8 @@ export const ActionIntentSchema = z.discriminatedUnion('type', [
   DebugActionSchema,
   InventorySwapActionSchema,
   AbortRunActionSchema,
+  InteractPropActionSchema,
+  DeadDropItemActionSchema,
 ]);
 
 export type ActionIntent = z.infer<typeof ActionIntentSchema>;

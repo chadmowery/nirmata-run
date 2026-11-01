@@ -539,6 +539,86 @@
         "w": 32,
         "h": 32
       }
+    },
+    "prop_workstation_active": {
+      "frame": { "x": 0, "y": 64, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 32 }
+    },
+    "prop_locker_closed": {
+      "frame": { "x": 32, "y": 64, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 32 }
+    },
+    "prop_biocabinet": {
+      "frame": { "x": 64, "y": 64, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 32 }
+    },
+    "prop_safe_locked": {
+      "frame": { "x": 96, "y": 64, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 32 }
+    },
+    "prop_vault_door": {
+      "frame": { "x": 128, "y": 64, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 32 }
+    },
+    "prop_cooling_vent_ready": {
+      "frame": { "x": 160, "y": 64, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 32 }
+    },
+    "prop_dead_drop": {
+      "frame": { "x": 192, "y": 64, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 32 }
+    },
+    "prop_stabilizer": {
+      "frame": { "x": 224, "y": 64, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 32 }
+    },
+    "prop_subnet_console": {
+      "frame": { "x": 0, "y": 96, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 32 }
+    },
+    "prop_crate_cover": {
+      "frame": { "x": 32, "y": 96, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 32 }
+    },
+    "prop_cryo_vat": {
+      "frame": { "x": 64, "y": 96, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 32 }
+    },
+    "prop_capacitor_bank": {
+      "frame": { "x": 96, "y": 96, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 32 }
+    },
+    "item_access_key": {
+      "frame": { "x": 128, "y": 96, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 32 }
+    },
+    "item_scavenger_siphon": {
+      "frame": { "x": 160, "y": 96, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 32 }
+    },
+    "item_kinetic_breacher": {
+      "frame": { "x": 192, "y": 96, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 32 }
+    },
+    "item_thermal_bypass": {
+      "frame": { "x": 224, "y": 96, "w": 32, "h": 32 },
+      "sourceSize": { "w": 32, "h": 32 },
+      "spriteSourceSize": { "x": 0, "y": 0, "w": 32, "h": 32 }
     }
   },
   "meta": {

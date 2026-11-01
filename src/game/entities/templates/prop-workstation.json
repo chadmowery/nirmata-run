@@ -1,0 +1,21 @@
+{
+  "name": "prop-workstation",
+  "mixins": [],
+  "components": {
+    "position": { "x": 0, "y": 0 },
+    "prop": {
+      "propId": "workstation",
+      "faction": "cyberacme",
+      "propClass": "workstation",
+      "heatCostOnAccess": 10
+    },
+    "container": {
+      "containerId": "workstation",
+      "capacity": 4
+    },
+    "blocksMovement": {}
+  },
+  "overrides": {
+    "sprite": { "key": "prop_workstation_active" }
+  }
+}

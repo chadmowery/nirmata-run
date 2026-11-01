@@ -1,7 +1,7 @@
 # Nirmata Runner — Project Tracking & Future Work
 
 > **Last Updated:** 2026-10-31  
-> **Baseline State:** v2.2 (Post-UI-Overhaul `ui-overhaul-taikoku-vector` — 136 test files, 813 tests passing)
+> **Baseline State:** v2.4 (Interactive Environments & Hybrid ProcGen Complete — 141 test files, 871 tests passing)
 
 ---
 
@@ -145,5 +145,44 @@
   - Added ESC key mission abort modal dialog ([`AbortMissionDialog.tsx`](../src/components/ui/AbortMissionDialog.tsx)) handling `ABORT_RUN` action, triggering BSOD and autopsy sequence.
   - Implemented in-run tactical inventory telemetry sidebar ([`ChassisTelemetrySidebar.tsx`](../src/components/ui/inventory/ChassisTelemetrySidebar.tsx)) displaying current shell archetype, subsystem metrics (Speed, Armor, Health, Stability, Heat), active firmware abilities, and operational states with interactive tooltips.
   - Implemented screen bounds collision detection and dynamic clamping for all tooltips ([`ItemTooltip.tsx`](../src/components/ui/hub/ItemTooltip.tsx), [`InRunItemTooltip.tsx`](../src/components/ui/inventory/InRunItemTooltip.tsx)), preventing viewport cutoffs across all screen dimensions.
+
+---
+
+## Workstream 5: Interactive Environments & Hybrid ProcGen System
+
+- [x] **[ENV-01] ECS Zod Components, Augment Triggers & Scoring Schemas (Milestone 1)**
+  - Defined canonical environment components in [`src/shared/components/environment.ts`](../src/shared/components/environment.ts): `Prop`, `SecurityLock`, `Container` (with `highestRarity` client masking), `InteractiveSurface`, `CorruptedNode`, `InteractPropIntent`, and `PropInteractedThisTurn`.
+  - Registered all new components in [`COMPONENTS_REGISTRY`](../src/shared/components/index.ts).
+  - Extended [`FloorState`](../src/shared/components/floor-state.ts) with `sectorCondition`, `accessKeysHeld`, `vaultsBreached`, and `trapsDisarmed`.
+  - Extended [`ConditionNodeSchema`](../src/shared/components/augment-data.ts) with `ON_HACK` and `ON_COVER_BROKEN` trigger types.
+  - Added environmental scoring factors (`vaultsBreached: 150`, `trapsDisarmed: 50`) to [`economy.json`](../src/game/entities/templates/economy.json), [`economy-types.ts`](../src/shared/economy-types.ts), and [`scoring.ts`](../src/game/scoring.ts).
+  - Added `InteractPropActionSchema` to [`src/shared/types.ts`](../src/shared/types.ts) and environmental gameplay events to [`src/shared/events/types.ts`](../src/shared/events/types.ts).
+  - Unit tested schemas and serialization in `src/shared/components/__tests__/environment.test.ts` and `src/game/scoring.test.ts`.
+- [x] **[ENV-02] Hybrid ProcGen, Sector Conditions, Faraday Vaults & Dynamic Anchor Tagging (Milestone 2)**
+  - Authored room prefabs in [`src/game/generation/prefabs/`](../src/game/generation/prefabs/): `server-core.json`, `freight-bay.json`, `decon-airlock.json`, and `zero-day-vault.json`.
+  - Created and registered 13 entity templates in [`src/game/entities/`](../src/game/entities/): workstations, lockers, biocabinets, safes, vault doors, cooling vents, dead drops, reality stabilizers, subnet consoles, crates, cryo-vats, capacitor banks, and access keys.
+  - Updated [`dungeon-generator.ts`](../src/game/generation/dungeon-generator.ts) to stamp bespoke prefabs, assign faction themes, roll sector conditions (guaranteed on floors 6, 10, 15; 25% on other F6-15), and classify procedural anchors (`PROP_DESK_CORNER`, `PROP_LOCKER_WALL`, `SURFACE_TABLE_TOP`, `CONTAINER_RARE`).
+  - Updated [`entity-placement.ts`](../src/game/generation/entity-placement.ts) with depth-scaled prop budgets (~40% scavenge, ~40% tactical/cover, ~20% hazards), deterministic container loot with client masking (`highestRarity` exposed; contents materialized on search), and guaranteed access key drops when locks exist.
+  - Verified with 10 unit tests in `src/game/generation/__tests__/hybrid-procgen.test.ts`.
+- [x] **[ENV-03] Bump-to-Loot Safeguards, `PropInteractionSystem`, Dead-Drop & Forensics Logs (Milestone 3)**
+  - Implemented [`src/game/systems/prop-interaction.ts`](../src/game/systems/prop-interaction.ts) handling container searches, currency/loot materialization, key consumption, +35 Heat Overclock bypass, 12-tile acoustic alerts waking enemies into chasing state, corporate forensics audio logs per faction, dead-drop profile transmission, reality stabilizers (+10% stability), cooling vents (-40 heat), and subnet consoles.
+  - Implemented Two-Tier Bump Safeguard in [`MovementSystem`](../src/game/systems/movement.ts): clean props auto-interact seamlessly; armed Corrupted Nodes or Overclock risks halt movement with 0 turn cost, emit warning, and flush input buffer.
+  - Implemented Faraday shield teleport blocking in [`TeleportSystem`](../src/game/systems/teleport.ts).
+  - Wired cleanup for `InteractPropIntent` and `PropInteractedThisTurn` into [`tag-cleanup.ts`](../src/game/systems/tag-cleanup.ts).
+  - Verified with 12 unit tests in `src/game/systems/__tests__/prop-interaction.test.ts`.
+- [x] **[ENV-04] Directional Cover, Volatile Cascade Reactions, Environmental Augments & Traps (Milestone 4)**
+  - Implemented directional cover checks in [`CombatSystem`](../src/game/systems/combat.ts): orthogonal cover intervening between ranged attacker and defender reduces damage by 25% (35% for `BASTION-v1` Shell).
+  - Implemented volatile destruction and cascade reactions in `CombatSystem`: Cryo-Vats spawn 3×3 chemical spills (4 damage + `MOVEMENT_SLOW`); Capacitor Banks discharge 2-tile Manhattan EMP shockwaves (10 damage + `DISRUPT`); volatile destruction cascades 15 structural damage within distance 2 without recursion.
+  - Wired `ON_HACK` and `ON_COVER_BROKEN` trigger evaluation into [`augment-util.ts`](../src/game/systems/augment-util.ts).
+  - Authored environmental augment templates: `scavenger-siphon.json`, `kinetic-breacher.json`, and `thermal-bypass.json`.
+  - Implemented firmware counterplay in [`firmware.ts`](../src/game/systems/firmware.ts): `LOGIC_JAM.exe` disarms Corrupted Nodes (+50 score, triggers `ON_HACK`); `Extended_Sight.sys` / `GHOST_PULSE.exe` reveals hidden Corrupted Nodes.
+  - Verified with 12 unit tests in `src/game/systems/__tests__/cover-and-hazards.test.ts`.
+- [x] **[ENV-05] Atlas Sprites, PixiJS Shader States & Container Modal Overlay (Milestone 5)**
+  - Updated [`public/assets/tileset.json`](../public/assets/tileset.json) with 16 prop and augment frame mappings.
+  - Implemented `applyPropOutline` in [`src/rendering/filters/glitch-effects.ts`](../src/rendering/filters/glitch-effects.ts) with Cyan (#00F0FF) for safe props, Orange (#FF9500) for locked barriers, Pink (#FF0055) with glitch jitter for corrupted nodes, and dimmed alpha for searched props.
+  - Wired prop outline updates into [`src/rendering/render-system.ts`](../src/rendering/render-system.ts) on entity creation and `PROP_INTERACTED` / `LOCK_UNLOCKED` events.
+  - Built [`src/components/ui/inventory/ContainerOverlay.tsx`](../src/components/ui/inventory/ContainerOverlay.tsx) and [`ContainerOverlay.module.css`](../src/components/ui/inventory/ContainerOverlay.module.css) for 2-column container vs. backpack item swapping with ESC keyboard navigation.
+  - Verified with 8 unit tests in `tests/rendering/glitch-effects.test.ts` and 6 unit tests in `src/components/ui/inventory/__tests__/ContainerOverlay.test.tsx`.
+
 
 

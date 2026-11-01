@@ -1,0 +1,24 @@
+{
+  "name": "prop-cryo-vat",
+  "mixins": [],
+  "components": {
+    "position": { "x": 0, "y": 0 },
+    "interactiveSurface": {
+      "surfaceId": "cryo_vat",
+      "providesCover": true,
+      "coverDamageReduction": 0.25,
+      "destructible": true,
+      "hazardOnDestroy": "cryo_spill",
+      "cascadeRadius": 2
+    },
+    "health": {
+      "max": 10,
+      "current": 10,
+      "isAlive": true
+    },
+    "blocksMovement": {}
+  },
+  "overrides": {
+    "sprite": { "key": "prop_cryo_vat" }
+  }
+}

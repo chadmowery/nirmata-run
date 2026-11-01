@@ -147,12 +147,23 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
       dungeonResult.rooms,
       dungeonResult.playerSpawnRoom,
       rng,
-      { depth: newFloor, skipPlayer: true },
+      {
+        depth: newFloor,
+        skipPlayer: true,
+        propAnchors: dungeonResult.propAnchors,
+        bespokeRooms: dungeonResult.bespokeRooms,
+        vaultFaradayBounds: dungeonResult.vaultFaradayBounds,
+        sectorCondition: dungeonResult.sectorCondition,
+        factionTheme: dungeonResult.factionTheme,
+      },
     );
 
     // 9. Update player FloorState and add FloorTransitioned tag
     if (world.hasComponent(playerId, FloorState)) {
-      world.patchComponent(playerId, FloorState, { currentFloor: newFloor });
+      world.patchComponent(playerId, FloorState, {
+        currentFloor: newFloor,
+        sectorCondition: dungeonResult.sectorCondition,
+      });
       world.addComponent(playerId, FloorTransitioned, { floorNumber: newFloor });
     }
 

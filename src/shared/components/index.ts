@@ -64,6 +64,15 @@ import { FloorTransitioned } from './floor-transitioned';
 import { Parent } from './parent';
 import { Children } from './children';
 import { EquipmentDef } from './equipment-def';
+import {
+  Prop,
+  SecurityLock,
+  Container,
+  InteractiveSurface,
+  CorruptedNode,
+  InteractPropIntent,
+  PropInteractedThisTurn,
+} from './environment';
 
 export * from './position';
 export * from './health';
@@ -113,6 +122,7 @@ export * from './floor-transitioned';
 export * from './parent';
 export * from './children';
 export * from './equipment-def';
+export * from './environment';
 
 export const COMPONENTS_REGISTRY = [
   Position,
@@ -180,4 +190,11 @@ export const COMPONENTS_REGISTRY = [
   Parent,
   Children,
   EquipmentDef,
+  Prop,
+  SecurityLock,
+  Container,
+  InteractiveSurface,
+  CorruptedNode,
+  InteractPropIntent,
+  PropInteractedThisTurn,
 ] as const;

@@ -46,7 +46,7 @@ export interface GameplayEvents extends EngineEvents {
     entityId: EntityId;
     oldValue: number;
     newValue: number;
-    reason: 'floor_entry' | 'turn_bleed' | 'anchor_refill';
+    reason: 'floor_entry' | 'turn_bleed' | 'anchor_refill' | 'reality_stabilizer';
   };
 
   /** Queued when an entity takes damage from a degraded Stability state. */
@@ -206,6 +206,31 @@ export interface GameplayEvents extends EngineEvents {
 
   /** Queued when a system requests the game to resume. */
   GAME_RESUME_REQUESTED: Record<string, never>;
+
+  /** Queued when a prop is interacted with. */
+  PROP_INTERACTED: {
+    entityId: EntityId;
+    propId: EntityId;
+    propClass: string;
+    outcome?: string;
+  };
+
+  /** Queued when a security lock is unlocked. */
+  LOCK_UNLOCKED: {
+    propId: EntityId;
+    method: 'key' | 'overclock';
+    entityId: EntityId;
+  };
+
+  /** Queued when an item or blueprint is transmitted via Dead-Drop Uplink. */
+  DEAD_DROP_TRANSMITTED: {
+    entityId: EntityId;
+    itemEntityId?: EntityId;
+    blueprintId?: string;
+  };
+
+  /** Queued when an input buffer should be cleared on client following a bump safeguard halt. */
+  INPUT_BUFFER_CLEARED: Record<string, never>;
 }
 
 export interface RunEndedStats {
@@ -216,4 +241,6 @@ export interface RunEndedStats {
   itemsExtracted: VaultItem[];
   blueprintsExtracted?: Array<{ blueprintId: string; type: 'firmware' | 'augment' }>;
   runMode?: RunMode;
+  vaultsBreached?: number;
+  trapsDisarmed?: number;
 }

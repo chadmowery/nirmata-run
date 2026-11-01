@@ -39,6 +39,7 @@ describe('FloorManagerSystem Unit Tests', () => {
     eventBus = new EventBus<GameplayEvents>();
     world = new World<GameplayEvents>(eventBus);
     grid = new Grid(40, 40);
+    dummyEntityFactory.create = vi.fn(() => world.createEntity());
 
     // Setup player
     playerId = world.createEntity();

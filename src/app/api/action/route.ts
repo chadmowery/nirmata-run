@@ -25,6 +25,7 @@ import {
   BurnSoftwareIntent,
   RunInventory,
   Shell,
+  InteractPropIntent,
 } from '@shared/components';
 import { Dying } from '@shared/components/dying';
 import { getRunModeConfig } from '@game/systems/run-mode-config';
@@ -175,6 +176,24 @@ export async function POST(req: Request) {
           reason: 'OPERATOR_MANUAL_DESYNC',
         });
         actionKey = 'ABORT_RUN';
+        break;
+
+      case 'INTERACT_PROP':
+        world.addComponent(session.playerId, InteractPropIntent, {
+          targetPropId: action.targetPropId,
+          forceOverride: action.forceOverride,
+          deadDropSelectionId: action.deadDropSelectionId,
+        });
+        actionKey = 'INTERACT_PROP';
+        break;
+
+      case 'DEAD_DROP_ITEM':
+        world.addComponent(session.playerId, InteractPropIntent, {
+          targetPropId: action.targetPropId,
+          forceOverride: false,
+          deadDropSelectionId: action.itemId,
+        });
+        actionKey = 'DEAD_DROP_ITEM';
         break;
     }
 

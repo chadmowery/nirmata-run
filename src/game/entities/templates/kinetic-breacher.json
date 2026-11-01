@@ -1,0 +1,17 @@
+{
+  "name": "kinetic-breacher",
+  "sprite": { "key": "item_kinetic_breacher" },
+  "components": {
+    "augmentData": {
+      "name": "Kinetic_Breacher.arc",
+      "trigger": {
+        "type": "ON_COVER_BROKEN"
+      },
+      "payloads": [
+        { "type": "DAMAGE_BONUS", "magnitude": 30, "statusEffectDuration": 2 }
+      ],
+      "maxTriggersPerTurn": 1,
+      "cooldownTurns": 2
+    }
+  }
+}

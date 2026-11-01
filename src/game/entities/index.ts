@@ -51,6 +51,22 @@ import phased_overdrive from './templates/phased-overdrive.json';
 import neural_recursion from './templates/neural-recursion.json';
 import static_collapse from './templates/static-collapse.json';
 import void_echo from './templates/void-echo.json';
+import prop_workstation from './templates/prop-workstation.json';
+import prop_locker from './templates/prop-locker.json';
+import prop_biocabinet from './templates/prop-biocabinet.json';
+import prop_safe_locked from './templates/prop-safe-locked.json';
+import prop_vault_door from './templates/prop-vault-door.json';
+import prop_cooling_vent from './templates/prop-cooling-vent.json';
+import prop_dead_drop from './templates/prop-dead-drop.json';
+import prop_stabilizer from './templates/prop-stabilizer.json';
+import prop_subnet_console from './templates/prop-subnet-console.json';
+import prop_crate_cover from './templates/prop-crate-cover.json';
+import prop_cryo_vat from './templates/prop-cryo-vat.json';
+import prop_capacitor_bank from './templates/prop-capacitor-bank.json';
+import item_access_key from './templates/item-access-key.json';
+import scavenger_siphon from './templates/scavenger-siphon.json';
+import kinetic_breacher from './templates/kinetic-breacher.json';
+import thermal_bypass from './templates/thermal-bypass.json';
 
 /**
  * Registers all game entity templates and mixins.
@@ -109,4 +125,20 @@ export function registerGameTemplates(registry: EntityRegistry): void {
   registry.register(neural_recursion as unknown as RawTemplate);
   registry.register(static_collapse as unknown as RawTemplate);
   registry.register(void_echo as unknown as RawTemplate);
+  registry.register(prop_workstation as unknown as RawTemplate);
+  registry.register(prop_locker as unknown as RawTemplate);
+  registry.register(prop_biocabinet as unknown as RawTemplate);
+  registry.register(prop_safe_locked as unknown as RawTemplate);
+  registry.register(prop_vault_door as unknown as RawTemplate);
+  registry.register(prop_cooling_vent as unknown as RawTemplate);
+  registry.register(prop_dead_drop as unknown as RawTemplate);
+  registry.register(prop_stabilizer as unknown as RawTemplate);
+  registry.register(prop_subnet_console as unknown as RawTemplate);
+  registry.register(prop_crate_cover as unknown as RawTemplate);
+  registry.register(prop_cryo_vat as unknown as RawTemplate);
+  registry.register(prop_capacitor_bank as unknown as RawTemplate);
+  registry.register(item_access_key as unknown as RawTemplate);
+  registry.register(scavenger_siphon as unknown as RawTemplate);
+  registry.register(kinetic_breacher as unknown as RawTemplate);
+  registry.register(thermal_bypass as unknown as RawTemplate);
 }

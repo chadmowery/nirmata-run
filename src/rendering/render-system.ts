@@ -9,6 +9,7 @@ import { SpriteComponent } from '@shared/components/sprite';
 import { Actor } from '@shared/components/actor';
 import { AbilityDef } from '@shared/components/ability-def';
 import { FirmwareSlots } from '@shared/components/firmware-slots';
+import { Prop, SecurityLock, CorruptedNode } from '@shared/components/environment';
 import { gameStore } from '../game/ui/store';
 import { WorldLayers } from './layers';
 import { TILE_SIZE, FOV_RADIUS } from './constants';
@@ -36,7 +37,11 @@ import {
   clearAnimations,
   hasActiveAnimation,
 } from './animations';
-import { applyPersistentGlitch, applyDamageDistortion } from './filters/glitch-effects';
+import {
+  applyPersistentGlitch,
+  applyDamageDistortion,
+  applyPropOutline,
+} from './filters/glitch-effects';
 import { queueTypedDeathAnimation } from './filters/death-effects';
 import { AIState } from '@shared/components/ai-state';
 import {
@@ -87,6 +92,43 @@ export function createRenderSystem(config: RenderSystemConfig) {
       if (aiState) {
         applyPersistentGlitch(sprite, aiState.behaviorType);
         attachNeonEmitter(sprite, aiState.behaviorType, layers.effectsLayer);
+      }
+
+      // Apply prop outline for interactive props
+      const propComp = world.getComponent(payload.entityId, Prop);
+      if (propComp) {
+        const corrupted = world.getComponent(payload.entityId, CorruptedNode);
+        const lock = world.getComponent(payload.entityId, SecurityLock);
+        if (propComp.isSearched) {
+          applyPropOutline(sprite, 'searched');
+        } else if (corrupted && !corrupted.isDisarmed) {
+          applyPropOutline(sprite, 'corrupted');
+        } else if (lock && lock.isLocked) {
+          applyPropOutline(sprite, 'locked');
+        } else {
+          applyPropOutline(sprite, 'safe');
+        }
+      }
+    }
+  };
+
+  const handlePropUpdated = (payload: { propId: number }) => {
+    const entityId = payload.propId;
+    if (entityId) {
+      const sprite = getEntitySprite(entityId);
+      if (sprite) {
+        const propComp = world.getComponent(entityId, Prop);
+        const corrupted = world.getComponent(entityId, CorruptedNode);
+        const lock = world.getComponent(entityId, SecurityLock);
+        if (propComp?.isSearched) {
+          applyPropOutline(sprite, 'searched');
+        } else if (corrupted && !corrupted.isDisarmed) {
+          applyPropOutline(sprite, 'corrupted');
+        } else if (lock && lock.isLocked) {
+          applyPropOutline(sprite, 'locked');
+        } else {
+          applyPropOutline(sprite, 'safe');
+        }
       }
     }
   };
@@ -288,6 +330,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.on('REMOVE_WORLD_FILTER', handleRemoveWorldFilter);
       eventBus.on('STABILITY_CHANGED', handleStabilityChanged);
       eventBus.on('HEAT_CHANGED', handleHeatChanged);
+      eventBus.on('PROP_INTERACTED', handlePropUpdated);
+      eventBus.on('LOCK_UNLOCKED', handlePropUpdated);
       eventBus.on('DUNGEON_GENERATED', () => this.onDungeonGenerated());
       eventBus.on('STATE_RECONCILED', () => this.reconcileSprites());
 
@@ -494,6 +538,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.off('REMOVE_WORLD_FILTER', handleRemoveWorldFilter);
       eventBus.off('STABILITY_CHANGED', handleStabilityChanged);
       eventBus.off('HEAT_CHANGED', handleHeatChanged);
+      eventBus.off('PROP_INTERACTED', handlePropUpdated);
+      eventBus.off('LOCK_UNLOCKED', handlePropUpdated);
 
       app.ticker.remove(updateCameraFrame);
       clearTilemap(layers.terrainLayer);
