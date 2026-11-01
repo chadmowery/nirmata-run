@@ -23,11 +23,11 @@
     { "x": 4, "y": 8, "direction": "south" }
   ],
   "propSpawns": [
-    { "x": 1, "y": 3, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop_biocabinet" },
-    { "x": 8, "y": 3, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop_biocabinet" },
-    { "x": 4, "y": 4, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop_cryo_vat" },
-    { "x": 5, "y": 4, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop_cryo_vat" },
-    { "x": 4, "y": 5, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop_cryo_vat" },
-    { "x": 5, "y": 5, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop_cryo_vat" }
+    { "x": 1, "y": 3, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop-biocabinet" },
+    { "x": 8, "y": 3, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop-biocabinet" },
+    { "x": 4, "y": 4, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop-cryo-vat" },
+    { "x": 5, "y": 4, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop-cryo-vat" },
+    { "x": 4, "y": 5, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop-cryo-vat" },
+    { "x": 5, "y": 5, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop-cryo-vat" }
   ]
 }

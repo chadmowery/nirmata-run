@@ -36,4 +36,10 @@ export interface GameEvents extends GameplayEvents {
     turnNumber: number;
     playerId: number;
   };
+
+  /** Debug signal to expose the entire floor map and disable fog of war. */
+  DEBUG_REVEAL_MAP: Record<string, never>;
+
+  /** Signal to re-center the viewport camera back onto the player character. */
+  RECENTER_CAMERA: Record<string, never>;
 }

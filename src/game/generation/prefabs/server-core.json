@@ -23,10 +23,10 @@
     { "x": 4, "y": 8, "direction": "south" }
   ],
   "propSpawns": [
-    { "x": 1, "y": 1, "anchorType": "PROP_DESK_CORNER", "guaranteedTemplate": "prop_workstation" },
-    { "x": 8, "y": 1, "anchorType": "PROP_DESK_CORNER", "guaranteedTemplate": "prop_workstation" },
-    { "x": 1, "y": 4, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop_capacitor_bank" },
-    { "x": 8, "y": 7, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop_capacitor_bank" },
-    { "x": 1, "y": 8, "anchorType": "PROP_DESK_CORNER", "guaranteedTemplate": "prop_subnet_console" }
+    { "x": 1, "y": 1, "anchorType": "PROP_DESK_CORNER", "guaranteedTemplate": "prop-workstation" },
+    { "x": 8, "y": 1, "anchorType": "PROP_DESK_CORNER", "guaranteedTemplate": "prop-workstation" },
+    { "x": 1, "y": 4, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop-capacitor-bank" },
+    { "x": 8, "y": 7, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop-capacitor-bank" },
+    { "x": 1, "y": 8, "anchorType": "PROP_DESK_CORNER", "guaranteedTemplate": "prop-subnet-console" }
   ]
 }

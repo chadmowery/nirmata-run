@@ -348,7 +348,7 @@ export function placeEntities<T extends EngineEvents>(
       const posKey = `${anchor.x},${anchor.y}`;
       if (occupiedPropPositions.has(posKey)) continue;
 
-      const template = anchor.guaranteedTemplate!;
+      const template = anchor.guaranteedTemplate!.replace(/_/g, '-');
       const propId = factory.create(world, template, componentRegistry, {
         position: { x: anchor.x, y: anchor.y },
       });

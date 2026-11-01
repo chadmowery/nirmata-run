@@ -51,7 +51,12 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     }
 
     // Complete cycle
-    this.executeTurnCycle();
+    try {
+      this.executeTurnCycle();
+    } catch (err) {
+      this.phase = TurnPhase.AWAIT_INPUT;
+      throw err;
+    }
   }
 
   /**
@@ -154,6 +159,10 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     readyEnemies.sort((a, b) => Number(a) - Number(b));
 
     for (const enemyId of readyEnemies) {
+      if (!this.adapter.isActorActive(enemyId)) {
+        continue;
+      }
+
       logger.info(`Enemy Acting: ${enemyId}`, 'TURN');
       this.adapter.onBeforeActorAct?.(enemyId);
 
@@ -235,6 +244,13 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
    */
   loadState(turnNumber: number, phase: TurnPhase): void {
     this.turnNumber = turnNumber;
+    this.phase = phase;
+  }
+
+  /**
+   * Resets the active turn phase (typically back to AWAIT_INPUT during checkpoint recovery).
+   */
+  resetPhase(phase: TurnPhase = TurnPhase.AWAIT_INPUT): void {
     this.phase = phase;
   }
 

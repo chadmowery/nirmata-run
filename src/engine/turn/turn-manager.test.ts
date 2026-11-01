@@ -298,4 +298,59 @@ describe('TurnManager (Generic Engine)', () => {
     expect(startSpy).toHaveBeenCalled();
     expect(endSpy).toHaveBeenCalled();
   });
+
+  it('skips enemies destroyed mid-enemy-turn-phase without throwing or freezing', () => {
+    const enemy1 = world.createEntity();
+    const enemy2 = world.createEntity();
+
+    adapter.addActor({
+      id: enemy1,
+      isPlayer: false,
+      isAlive: true,
+      energy: 1000,
+      speed: 100,
+      acting: false,
+    });
+
+    adapter.addActor({
+      id: enemy2,
+      isPlayer: false,
+      isAlive: true,
+      energy: 1000,
+      speed: 100,
+      acting: false,
+    });
+
+    // When enemy1 acts in ACTION phase, it kills enemy2
+    const originalExecute = world.executeSystems.bind(world);
+    vi.spyOn(world, 'executeSystems').mockImplementation((phase) => {
+      if (phase === Phase.ACTION && adapter.actors.get(enemy1)?.acting) {
+        // Enemy 2 dies
+        const e2 = adapter.actors.get(enemy2)!;
+        e2.isAlive = false;
+      }
+      originalExecute(phase);
+    });
+
+    turnManager.start();
+    expect(turnManager.getPhase()).toBe(TurnPhase.AWAIT_INPUT);
+
+    // Player acts
+    expect(() => turnManager.submitAction('move')).not.toThrow();
+
+    // Verify enemy2 never had onBeforeActorAct called while dead
+    expect(turnManager.getPhase()).toBe(TurnPhase.AWAIT_INPUT);
+    expect(turnManager.canAcceptInput()).toBe(true);
+  });
+
+  it('resets phase to AWAIT_INPUT when turn execution throws an unexpected error', () => {
+    vi.spyOn(world, 'executeSystems').mockImplementationOnce(() => {
+      throw new Error('Simulated critical turn error');
+    });
+
+    turnManager.start();
+    expect(() => turnManager.submitAction('move')).toThrow('Simulated critical turn error');
+    expect(turnManager.getPhase()).toBe(TurnPhase.AWAIT_INPUT);
+    expect(turnManager.canAcceptInput()).toBe(true);
+  });
 });

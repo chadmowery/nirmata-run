@@ -90,7 +90,7 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
    */
   addComponent<T>(entityId: EntityId, def: ComponentDef<T>, data: T): void {
     if (!this.entities.has(entityId)) {
-      throw new Error(`Cannot add component to non-existent entity: ${entityId}`);
+      throw new Error(`Cannot add component "${def.key}" to non-existent entity: ${entityId}`);
     }
 
     const isNew = !this.hasComponent(entityId, def);
@@ -145,6 +145,21 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
    */
   hasComponent<T>(entityId: EntityId, def: ComponentDef<T>): boolean {
     return !!this.stores.get(def.key)?.has(entityId);
+  }
+
+  /**
+   * Returns a map of all components attached to an entity.
+   */
+  getEntityComponents(entityId: EntityId): Record<string, unknown> {
+    const result: Record<string, unknown> = {};
+    if (!this.entities.has(entityId)) return result;
+
+    for (const [key, store] of this.stores.entries()) {
+      if (store.has(entityId)) {
+        result[key] = store.get(entityId);
+      }
+    }
+    return result;
   }
 
   /**

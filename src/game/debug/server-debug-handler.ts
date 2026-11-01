@@ -191,6 +191,12 @@ export function handleServerDebugCommand(
       break;
     }
 
+    case 'REVEAL_MAP':
+    case 'EXPOSE_MAP': {
+      logger.info(`Server debug command ${command} received for player ${playerId}`, 'DEBUG');
+      break;
+    }
+
     case 'GRANT_ALL':
     case 'SEED_VAULT': {
       const targetSessionId = (args.sessionId as string | undefined) || sessionId;

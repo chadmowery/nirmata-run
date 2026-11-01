@@ -21,7 +21,7 @@ export function getPrefabsForFloor(
   depth: number,
   faction?: FactionTheme,
 ): RoomPrefabTemplate[] {
-  return ALL_PREFABS.filter((p) => {
+  const matching = ALL_PREFABS.filter((p) => {
     const floorMatch = depth >= p.minFloor && depth <= p.maxFloor;
     if (!floorMatch) return false;
     // Vault rooms can spawn for any faction on floors 6-15
@@ -29,4 +29,9 @@ export function getPrefabsForFloor(
     if (!faction || faction === 'system') return true;
     return p.faction === faction;
   });
+
+  if (matching.length > 0) return matching;
+
+  // Fallback to any prefab matching floor depth if active faction has no bespoke prefab authored yet
+  return ALL_PREFABS.filter((p) => depth >= p.minFloor && depth <= p.maxFloor);
 }

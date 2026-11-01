@@ -12,6 +12,6 @@
     "blocksMovement": {}
   },
   "overrides": {
-    "sprite": { "key": "prop_workstation_active" }
+    "sprite": { "key": "prop_subnet_console" }
   }
 }

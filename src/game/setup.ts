@@ -344,6 +344,16 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
       return;
     }
 
+    if (action === GameAction.DEBUG_REVEAL_MAP) {
+      eventBus.emit('DEBUG_REVEAL_MAP', {});
+      return;
+    }
+
+    if (action === GameAction.RECENTER_CAMERA) {
+      eventBus.emit('RECENTER_CAMERA', {});
+      return;
+    }
+
     autoPathfinder.cancel();
 
     const pId = context.playerId;

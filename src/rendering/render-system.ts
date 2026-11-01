@@ -79,8 +79,64 @@ export function createRenderSystem(config: RenderSystemConfig) {
   const { app, layers, world, eventBus, getGrid, getPlayerEntity, lightPasses } = config;
   const exploredSet = createExploredSet();
   let cameraTarget = { x: 0, y: 0 };
+  let cameraPanOffset = { x: 0, y: 0 };
+  let isMapRevealed = false;
+  let isDragging = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let initialPanX = 0;
+  let initialPanY = 0;
+
   const targetingCursor = new Graphics();
   layers.effectsLayer.addChild(targetingCursor);
+
+  const handlePointerDown = (e: PointerEvent) => {
+    isDragging = true;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    initialPanX = cameraPanOffset.x;
+    initialPanY = cameraPanOffset.y;
+  };
+
+  const handlePointerMove = (e: PointerEvent) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    cameraPanOffset = {
+      x: initialPanX + dx,
+      y: initialPanY + dy,
+    };
+  };
+
+  const handlePointerUp = () => {
+    isDragging = false;
+  };
+
+  const handleWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    cameraPanOffset = {
+      x: cameraPanOffset.x - e.deltaX,
+      y: cameraPanOffset.y - e.deltaY,
+    };
+  };
+
+  const handleContextMenu = (e: MouseEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDebugRevealMap = () => {
+    isMapRevealed = true;
+    const grid = getGrid();
+    for (let y = 0; y < grid.height; y++) {
+      for (let x = 0; x < grid.width; x++) {
+        exploredSet.add(`${x},${y}`);
+      }
+    }
+  };
+
+  const handleRecenterCamera = () => {
+    cameraPanOffset = { x: 0, y: 0 };
+  };
 
   const handleEntityCreated = (payload: { entityId: EntityId }) => {
     const spriteComp = world.getComponent(payload.entityId, SpriteComponent);
@@ -215,6 +271,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
     const origin = EventOriginContext.current;
 
     if (isPlayer) {
+      cameraPanOffset = { x: 0, y: 0 };
       if (origin === 'client') {
         // Record predicted player movement and queue visual tween
         lastPredictedPlayerMove = {
@@ -332,8 +389,20 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.on('HEAT_CHANGED', handleHeatChanged);
       eventBus.on('PROP_INTERACTED', handlePropUpdated);
       eventBus.on('LOCK_UNLOCKED', handlePropUpdated);
+      eventBus.on('DEBUG_REVEAL_MAP', handleDebugRevealMap);
+      eventBus.on('RECENTER_CAMERA', handleRecenterCamera);
       eventBus.on('DUNGEON_GENERATED', () => this.onDungeonGenerated());
       eventBus.on('STATE_RECONCILED', () => this.reconcileSprites());
+
+      const canvas = app.canvas;
+      if (canvas && typeof canvas.addEventListener === 'function') {
+        canvas.addEventListener('pointerdown', handlePointerDown);
+        window.addEventListener('pointermove', handlePointerMove);
+        window.addEventListener('pointerup', handlePointerUp);
+        window.addEventListener('pointercancel', handlePointerUp);
+        canvas.addEventListener('wheel', handleWheel, { passive: false });
+        canvas.addEventListener('contextmenu', handleContextMenu);
+      }
 
       app.ticker.add(updateCameraFrame);
 
@@ -394,6 +463,13 @@ export function createRenderSystem(config: RenderSystemConfig) {
         lightPasses,
         exploredSet,
       );
+
+      if (isMapRevealed) {
+        for (const key of exploredSet) {
+          fovSet.add(key);
+        }
+      }
+
       eventBus.emit('FOV_UPDATED', { visibleSet: fovSet });
 
       // 1.5. Targeting UI Rendering
@@ -446,7 +522,11 @@ export function createRenderSystem(config: RenderSystemConfig) {
       }
 
       // 2. Camera
-      cameraTarget = computeCameraTarget(playerPos.x, playerPos.y);
+      const baseTarget = computeCameraTarget(playerPos.x, playerPos.y);
+      cameraTarget = {
+        x: baseTarget.x + cameraPanOffset.x,
+        y: baseTarget.y + cameraPanOffset.y,
+      };
 
       // 3. Tilemap
       const visibleRange = getVisibleTileRange(layers.worldContainer.x, layers.worldContainer.y);
@@ -496,6 +576,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
     },
 
     onDungeonGenerated() {
+      cameraPanOffset = { x: 0, y: 0 };
+      isMapRevealed = false;
       clearExplored(exploredSet);
       clearTilemap(layers.terrainLayer);
       clearAnimations();
@@ -540,6 +622,18 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.off('HEAT_CHANGED', handleHeatChanged);
       eventBus.off('PROP_INTERACTED', handlePropUpdated);
       eventBus.off('LOCK_UNLOCKED', handlePropUpdated);
+      eventBus.off('DEBUG_REVEAL_MAP', handleDebugRevealMap);
+      eventBus.off('RECENTER_CAMERA', handleRecenterCamera);
+
+      const canvas = app.canvas;
+      if (canvas && typeof canvas.removeEventListener === 'function') {
+        canvas.removeEventListener('pointerdown', handlePointerDown);
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handlePointerUp);
+        window.removeEventListener('pointercancel', handlePointerUp);
+        canvas.removeEventListener('wheel', handleWheel);
+        canvas.removeEventListener('contextmenu', handleContextMenu);
+      }
 
       app.ticker.remove(updateCameraFrame);
       clearTilemap(layers.terrainLayer);
@@ -550,6 +644,14 @@ export function createRenderSystem(config: RenderSystemConfig) {
       disposeHeatEffects();
       disposeAllEmitters();
       disposeDamageTexts();
+    },
+
+    recenterCamera() {
+      handleRecenterCamera();
+    },
+
+    exposeMap() {
+      handleDebugRevealMap();
     },
   };
 }

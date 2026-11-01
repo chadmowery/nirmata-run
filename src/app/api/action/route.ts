@@ -30,6 +30,8 @@ import {
 import { Dying } from '@shared/components/dying';
 import { getRunModeConfig } from '@game/systems/run-mode-config';
 import { handleInventorySwap } from '@game/intent/inventory-intent';
+import { TurnPhase } from '@engine/turn/types';
+import { logTurnExecutionError } from '@/server/utils/error-logger';
 
 export async function POST(req: Request) {
   try {
@@ -58,6 +60,7 @@ export async function POST(req: Request) {
     // 1. Snapshot initial state
     const oldWorldState = serializeWorld(world);
     const oldGridState = serializeGrid(grid);
+    const oldTurnNumber = turnManager.getTurnNumber();
 
     // 2. Capture all events emitted during this tick
     const capturedEvents: Array<{ type: string; payload: unknown }> = [];
@@ -211,11 +214,16 @@ export async function POST(req: Request) {
     } catch (turnError: unknown) {
       turnExecutionFailed = true;
       turnErrorMessage = turnError instanceof Error ? turnError.message : String(turnError);
-      logger.error(
-        `[API] Exception during turn execution for session ${sessionId}. Restoring pre-turn checkpoint.`,
-        'API',
-        turnError,
-      );
+
+      // Detailed console error dump and persistent log file writing
+      await logTurnExecutionError({
+        sessionId,
+        action,
+        playerId: session.playerId,
+        world,
+        turnManager,
+        error: turnError,
+      });
 
       // 1. Roll back World to pre-turn snapshot
       world.loadSerializableState(oldWorldState);
@@ -223,12 +231,17 @@ export async function POST(req: Request) {
       // 2. Roll back Grid to pre-turn snapshot
       grid.loadSerializableTiles(oldGridState.tiles);
 
-      // 3. Purge transient intents attached to player during this aborted action
+      // 3. Roll back TurnManager state & reset phase to AWAIT_INPUT to prevent turn freezing
+      turnManager.loadState(oldTurnNumber, TurnPhase.AWAIT_INPUT);
+      turnManager.resetPhase(TurnPhase.AWAIT_INPUT);
+
+      // 4. Purge transient intents attached to player during this aborted action
       world.removeComponent(session.playerId, DescentIntent);
       world.removeComponent(session.playerId, ExtractionIntent);
       world.removeComponent(session.playerId, EquipIntent);
       world.removeComponent(session.playerId, UnequipIntent);
       world.removeComponent(session.playerId, BurnSoftwareIntent);
+      world.removeComponent(session.playerId, InteractPropIntent);
     }
 
     // Stop capturing

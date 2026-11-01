@@ -23,12 +23,12 @@
     { "x": 9, "y": 4, "direction": "east" }
   ],
   "propSpawns": [
-    { "x": 1, "y": 1, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop_locker" },
-    { "x": 8, "y": 1, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop_locker" },
-    { "x": 4, "y": 3, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop_crate_cover" },
-    { "x": 5, "y": 3, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop_crate_cover" },
-    { "x": 4, "y": 6, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop_crate_cover" },
-    { "x": 5, "y": 6, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop_crate_cover" },
-    { "x": 8, "y": 8, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop_locker" }
+    { "x": 1, "y": 1, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop-locker" },
+    { "x": 8, "y": 1, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop-locker" },
+    { "x": 4, "y": 3, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop-crate-cover" },
+    { "x": 5, "y": 3, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop-crate-cover" },
+    { "x": 4, "y": 6, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop-crate-cover" },
+    { "x": 5, "y": 6, "anchorType": "SURFACE_TABLE_TOP", "guaranteedTemplate": "prop-crate-cover" },
+    { "x": 8, "y": 8, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop-locker" }
   ]
 }
