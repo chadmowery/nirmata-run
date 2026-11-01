@@ -204,3 +204,76 @@ export function clearInventory<T extends EngineEvents>(world: World<T>, playerId
     world.patchComponent(playerId, RunCurrency, { stacks: [] });
   }
 }
+
+export function addConsumable<T extends EngineEvents>(
+  world: World<T>,
+  playerId: number,
+  item: {
+    entityId: number;
+    templateId: string;
+    rarityTier: string;
+    pickedUpAtFloor: number;
+    pickedUpAtTimestamp: number;
+  },
+  maxStackSize: number = 10,
+): boolean {
+  const inv = world.getComponent(playerId, RunInventory);
+  if (!inv) return false;
+
+  const equipment = [...inv.equipment];
+  // Look for existing consumable stack with the same templateId and room (< maxStackSize)
+  const existingIdx = equipment.findIndex(
+    (e) => e.templateId === item.templateId && e.isConsumable && (e.quantity ?? 1) < maxStackSize,
+  );
+
+  if (existingIdx !== -1) {
+    const existing = equipment[existingIdx];
+    equipment[existingIdx] = {
+      ...existing,
+      quantity: (existing.quantity ?? 1) + 1,
+    };
+    world.patchComponent(playerId, RunInventory, { equipment });
+    return true;
+  }
+
+  // Check capacity against maxSlots
+  const totalItems = inv.software.length + equipment.length;
+  if (totalItems >= (inv.maxSlots || 20)) {
+    return false;
+  }
+
+  equipment.push({
+    ...item,
+    quantity: 1,
+    isConsumable: true,
+  });
+  world.patchComponent(playerId, RunInventory, { equipment });
+  return true;
+}
+
+export function consumeConsumable<T extends EngineEvents>(
+  world: World<T>,
+  playerId: number,
+  index: number,
+): RunInventoryItem | null {
+  const inv = world.getComponent(playerId, RunInventory);
+  if (!inv || index < 0 || index >= inv.equipment.length) return null;
+
+  const equipment = [...inv.equipment];
+  const item = equipment[index];
+  if (!item || !item.isConsumable) return null;
+
+  const currentQty = item.quantity ?? 1;
+  if (currentQty > 1) {
+    equipment[index] = {
+      ...item,
+      quantity: currentQty - 1,
+    };
+    world.patchComponent(playerId, RunInventory, { equipment });
+    return item;
+  } else {
+    const [removed] = equipment.splice(index, 1);
+    world.patchComponent(playerId, RunInventory, { equipment });
+    return removed;
+  }
+}

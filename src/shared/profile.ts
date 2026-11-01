@@ -26,10 +26,11 @@ export const VaultItemSchema = z.object({
   entityId: z.number(),
   templateId: z.string(),
   rarityTier: z.string(),
-  itemType: z.enum(['firmware', 'augment', 'software', 'equipment', 'weapon', 'armor', 'backpack']),
+  itemType: z.enum(['firmware', 'augment', 'software', 'equipment', 'weapon', 'armor', 'backpack', 'consumable']),
   extractedAtFloor: z.number(),
   extractedAtTimestamp: z.number(),
   socketedSoftware: z.array(z.string()).optional(),
+  quantity: z.number().int().min(1).default(1).optional(),
 });
 
 export const AttemptTrackingSchema = z

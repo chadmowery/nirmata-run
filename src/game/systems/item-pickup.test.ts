@@ -10,7 +10,7 @@ import { MovedThisTurn } from '@shared/components/moved-this-turn';
 import { Item } from '@shared/components/item';
 import { PickupEffect, EffectType } from '@shared/components/pickup-effect';
 import { Health } from '@shared/components/health';
-import { HealIntent, Dying } from '@shared/components';
+import { HealIntent, Dying, RunInventory } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 
 describe('ItemPickupSystem', () => {
@@ -282,7 +282,8 @@ describe('ItemPickupSystem', () => {
       targetId: PLAYER_ID,
       amount: 5,
     });
-    expect(eventBus.emit).toHaveBeenCalledTimes(2);
+    expect(eventBus.emit).toHaveBeenCalledWith('ITEM_PICKED_UP', { entityId: PLAYER_ID, itemId: ITEM_ID });
+    expect(eventBus.emit).toHaveBeenCalledWith('ITEM_PICKED_UP', { entityId: PLAYER_ID, itemId: ITEM_ID_2 });
     expect(grid.getItemsAt(6, 5).size).toBe(0);
     expect(world.addComponent).toHaveBeenCalledWith(
       ITEM_ID,
@@ -293,6 +294,53 @@ describe('ItemPickupSystem', () => {
       ITEM_ID_2,
       expect.anything(),
       expect.objectContaining({ reason: 'pickup' }),
+    );
+  });
+
+  it('should store consumable in backpack when player is already at full health', () => {
+    grid.addItem(ITEM_ID, 6, 5);
+    const mockInventory = {
+      software: [],
+      equipment: [],
+      maxSlots: 20,
+    };
+    vi.mocked(world.getComponent).mockImplementation((id, def) => {
+      if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
+      if (id === PLAYER_ID && def === Health) return { current: 20, max: 20 };
+      if (id === PLAYER_ID && def === MovedThisTurn) return { fromX: 5, fromY: 5, toX: 6, toY: 5 };
+      if (id === PLAYER_ID && def === Position) return { x: 6, y: 5 };
+      if (id === PLAYER_ID && def === RunInventory) return mockInventory;
+      if (id === ITEM_ID) {
+        if (def === Item) return { name: 'Health Potion' };
+        if (def === PickupEffect) return { type: EffectType.HEAL, value: 5 };
+      }
+      return undefined;
+    });
+    vi.mocked(world.hasComponent).mockImplementation((id, def) => {
+      if (id === ITEM_ID && def === Item) return true;
+      return false;
+    });
+    vi.mocked(world.query).mockImplementation((...args) =>
+      args.includes(MovedThisTurn) ? [PLAYER_ID] : [],
+    );
+
+    itemPickupSystem.update(world);
+
+    // Should NOT have created HealIntent
+    expect(world.addComponent).not.toHaveBeenCalledWith(PLAYER_ID, HealIntent, expect.anything());
+    // Should have patched inventory with consumable
+    expect(world.patchComponent).toHaveBeenCalledWith(
+      PLAYER_ID,
+      RunInventory,
+      expect.objectContaining({
+        equipment: expect.arrayContaining([
+          expect.objectContaining({
+            entityId: ITEM_ID,
+            isConsumable: true,
+            quantity: 1,
+          }),
+        ]),
+      }),
     );
   });
 });

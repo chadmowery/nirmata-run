@@ -18,6 +18,7 @@ import {
   SpriteComponent,
   AbilityDef,
   AugmentData,
+  Health,
 } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { RarityTier } from '@shared/components/rarity-tier';
@@ -221,14 +222,65 @@ export function createItemPickupSystem<T extends GameplayEvents>(
       }
     }
 
-    // 4. Apply pickup effect if it exists (e.g. Health Potions)
+    // 5. Apply pickup effect if it exists (e.g. Health Potions / Repair Kits)
     const effect = w.getComponent(itemId, PickupEffect);
     if (effect) {
       if (effect.type === EffectType.HEAL) {
-        w.addComponent(entityId, HealIntent, {
-          targetId: entityId,
-          amount: effect.value,
-        });
+        const health = w.getComponent(entityId, Health);
+        const needsHeal = health ? health.current < health.max : false;
+
+        if (needsHeal) {
+          w.addComponent(entityId, HealIntent, {
+            targetId: entityId,
+            amount: effect.value,
+          });
+          eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: `+ REPAIR ACTIVATED: Restored ${effect.value} HP`,
+            type: 'info',
+          });
+          grid.removeItem(itemId, x, y);
+          w.addComponent(itemId, Dying, { reason: 'pickup' });
+          return;
+        } else {
+          // Health is full: stack in backpack in stacks of up to 10
+          const rarity = w.getComponent(itemId, RarityTier);
+          const templateRef = w.getComponent(itemId, TemplateId);
+          const floorState = w.getComponent(entityId, FloorState);
+
+          const added = InventoryUtil.addConsumable(
+            w,
+            entityId,
+            {
+              entityId: itemId,
+              templateId: templateRef?.id || 'nanite-canister',
+              rarityTier: rarity?.tier || 'common',
+              pickedUpAtFloor: floorState?.currentFloor || 1,
+              pickedUpAtTimestamp: Date.now(),
+            },
+            10,
+          );
+
+          if (added) {
+            eventBus.emit('MESSAGE_EMITTED', {
+              text: `+ HEALTH AT MAX: Stored consumable in backpack (Stack /10)`,
+              type: 'info',
+            });
+            grid.removeItem(itemId, x, y);
+            w.removeComponent(itemId, Position);
+            if (w.hasComponent(itemId, SpriteComponent)) {
+              w.removeComponent(itemId, SpriteComponent);
+            }
+            eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
+            return;
+          } else {
+            eventBus.emit('MESSAGE_EMITTED', {
+              text: `INVENTORY FULL: Cannot store health consumable`,
+              type: 'error',
+            });
+            return;
+          }
+        }
       }
     }
 

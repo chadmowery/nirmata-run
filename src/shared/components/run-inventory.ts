@@ -11,6 +11,8 @@ export const RunInventoryItemSchema = z.object({
   pickedUpAtFloor: z.number(),
   pickedUpAtTimestamp: z.number(),
   gridIndex: z.number().optional(),
+  quantity: z.number().int().min(1).optional(),
+  isConsumable: z.boolean().optional(),
 });
 
 /**

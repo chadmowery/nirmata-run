@@ -26,7 +26,9 @@ import {
   RunInventory,
   Shell,
   InteractPropIntent,
+  HealIntent,
 } from '@shared/components';
+import * as InventoryUtil from '@shared/utils/inventory-util';
 import { Dying } from '@shared/components/dying';
 import { getRunModeConfig } from '@game/systems/run-mode-config';
 import { handleInventorySwap } from '@game/intent/inventory-intent';
@@ -198,6 +200,22 @@ export async function POST(req: Request) {
         });
         actionKey = 'DEAD_DROP_ITEM';
         break;
+
+      case 'USE_CONSUMABLE': {
+        const consumed = InventoryUtil.consumeConsumable(world, session.playerId, action.inventoryIndex);
+        if (consumed) {
+          world.addComponent(session.playerId, HealIntent, {
+            targetId: session.playerId,
+            amount: 5,
+          });
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: `+ REPAIR CONSUMED: Restored 5 HP`,
+            type: 'info',
+          });
+        }
+        actionKey = 'USE_CONSUMABLE';
+        break;
+      }
     }
 
     // Execute turn within a transactional checkpoint (ARCH-01)
@@ -297,6 +315,23 @@ export async function POST(req: Request) {
           logger.info(`Processing extraction for ${sessionId}: ${items.length} items.`, 'API');
 
           for (const item of items) {
+            if (item.itemType === 'consumable') {
+              const existing = profile.vault.find(
+                (v) => v.itemType === 'consumable' && v.templateId === item.templateId && (v.quantity ?? 1) < 10,
+              );
+              if (existing) {
+                const addAmount = item.quantity ?? 1;
+                const available = 10 - (existing.quantity ?? 1);
+                const actual = Math.min(addAmount, available);
+                existing.quantity = (existing.quantity ?? 1) + actual;
+                const remainder = addAmount - actual;
+                if (remainder <= 0) {
+                  continue;
+                }
+                item.quantity = remainder;
+              }
+            }
+
             if (profile.vault.length < VAULT_MAX_SLOTS) {
               profile.vault.push(item);
             } else {

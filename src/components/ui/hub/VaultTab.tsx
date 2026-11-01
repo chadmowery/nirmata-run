@@ -444,6 +444,24 @@ export const VaultTab: React.FC = () => {
                       ? 'SW+'
                       : item.itemType.substring(0, 4).toUpperCase()}
                   </span>
+                  {item.quantity && item.quantity > 1 ? (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        bottom: '2px',
+                        right: '4px',
+                        background: 'rgba(0, 240, 255, 0.9)',
+                        color: '#000000',
+                        fontSize: '9px',
+                        fontWeight: 900,
+                        padding: '1px 3px',
+                        borderRadius: '2px',
+                        lineHeight: '9px',
+                      }}
+                    >
+                      x{item.quantity}
+                    </span>
+                  ) : null}
                 </div>
               );
             })}

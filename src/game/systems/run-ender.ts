@@ -119,11 +119,13 @@ export function createRunEnderSystem<T extends GameplayEvents>(
               if (cTmpl?.id) swList.push(cTmpl.id);
             }
           }
+          const itemType = item.isConsumable ? ('consumable' as const) : ('equipment' as const);
           return {
             entityId: item.entityId,
             templateId: item.templateId,
             rarityTier: item.rarityTier,
-            itemType: 'equipment' as const,
+            itemType,
+            quantity: item.quantity ?? 1,
             extractedAtFloor: floorNumber,
             extractedAtTimestamp: Date.now(),
             socketedSoftware: swList.length > 0 ? swList : undefined,

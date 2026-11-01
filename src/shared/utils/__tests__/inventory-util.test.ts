@@ -10,11 +10,21 @@ import {
   addSoftware,
   addEquipment,
   removeSoftware,
+  addConsumable,
+  consumeConsumable,
 } from '../inventory-util';
 
 describe('Inventory Utilities Unit Tests', () => {
   let world: World<EngineEvents>;
   let playerId: number;
+
+  const makeItem = (id: number, templateId: string, rarityTier = 'common'): RunInventoryItem => ({
+    entityId: id,
+    templateId,
+    rarityTier,
+    pickedUpAtFloor: 1,
+    pickedUpAtTimestamp: Date.now(),
+  });
 
   beforeEach(() => {
     const bus = new EventBus<EngineEvents>();
@@ -67,14 +77,6 @@ describe('Inventory Utilities Unit Tests', () => {
   });
 
   describe('Software and Equipment Slot Bounds', () => {
-    const makeItem = (id: number, templateId: string, rarityTier = 'common'): RunInventoryItem => ({
-      entityId: id,
-      templateId,
-      rarityTier,
-      pickedUpAtFloor: 1,
-      pickedUpAtTimestamp: Date.now(),
-    });
-
     it('adds software items and auto-assigns sequential gridIndex', () => {
       const sw1 = makeItem(101, 'vampire-v1', 'common');
       const sw2 = makeItem(102, 'auto-loader-v1', 'rare');
@@ -108,6 +110,53 @@ describe('Inventory Utilities Unit Tests', () => {
 
       // 3rd item must be rejected
       expect(addSoftware(world, playerId, makeItem(3, 'item-3'))).toBe(false);
+    });
+  });
+
+  describe('Consumable Stacking', () => {
+    it('stacks consumables of the same templateId up to 10 in a single slot', () => {
+      const item = makeItem(201, 'nanite-canister');
+
+      // Add first
+      expect(addConsumable(world, playerId, item, 10)).toBe(true);
+      let inv = world.getComponent(playerId, RunInventory);
+      expect(inv?.equipment).toHaveLength(1);
+      expect(inv?.equipment[0].quantity).toBe(1);
+      expect(inv?.equipment[0].isConsumable).toBe(true);
+
+      // Add 9 more (total 10)
+      for (let i = 2; i <= 10; i++) {
+        expect(addConsumable(world, playerId, makeItem(200 + i, 'nanite-canister'), 10)).toBe(true);
+      }
+      inv = world.getComponent(playerId, RunInventory);
+      expect(inv?.equipment).toHaveLength(1);
+      expect(inv?.equipment[0].quantity).toBe(10);
+
+      // 11th should create a new stack
+      expect(addConsumable(world, playerId, makeItem(211, 'nanite-canister'), 10)).toBe(true);
+      inv = world.getComponent(playerId, RunInventory);
+      expect(inv?.equipment).toHaveLength(2);
+      expect(inv?.equipment[0].quantity).toBe(10);
+      expect(inv?.equipment[1].quantity).toBe(1);
+    });
+
+    it('consumes from stack, decrementing quantity and removing when empty', () => {
+      addConsumable(world, playerId, makeItem(301, 'nanite-canister'), 10);
+      addConsumable(world, playerId, makeItem(302, 'nanite-canister'), 10);
+
+      let inv = world.getComponent(playerId, RunInventory);
+      expect(inv?.equipment[0].quantity).toBe(2);
+
+      const firstConsumed = consumeConsumable(world, playerId, 0);
+      expect(firstConsumed).toBeDefined();
+      inv = world.getComponent(playerId, RunInventory);
+      expect(inv?.equipment).toHaveLength(1);
+      expect(inv?.equipment[0].quantity).toBe(1);
+
+      const secondConsumed = consumeConsumable(world, playerId, 0);
+      expect(secondConsumed).toBeDefined();
+      inv = world.getComponent(playerId, RunInventory);
+      expect(inv?.equipment).toHaveLength(0);
     });
   });
 });

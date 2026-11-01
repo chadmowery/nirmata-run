@@ -3,6 +3,7 @@ import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import {
   RunInventory,
+  RunInventoryItem,
   SoftwareDef,
   EquipmentDef,
   AbilityDef,
@@ -27,6 +28,12 @@ interface GameContext {
   };
 }
 
+const getSessionId = () =>
+  (typeof window !== 'undefined' && window.localStorage?.getItem('nimrata_sessionId')) ||
+  (typeof window !== 'undefined' && (window as unknown as { gameContext?: { sessionId?: string } }).gameContext?.sessionId) ||
+  gameStore.getState().playerProfile?.sessionId ||
+  'default-player-session';
+
 export const BackpackGrid: React.FC = () => {
   const [hoveredEntityId, setHoveredEntityId] = useState<number | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -47,7 +54,7 @@ export const BackpackGrid: React.FC = () => {
 
   // Construct the lists of items
   const softwareItems = inv?.software || [];
-  let equipmentItems: Array<{ entityId: number; templateId: string; rarityTier: string }> = [];
+  let equipmentItems: RunInventoryItem[] = [];
 
   if (optimisticInventoryEquipmentIds !== null) {
     equipmentItems = optimisticInventoryEquipmentIds.map((id) => {
@@ -57,6 +64,8 @@ export const BackpackGrid: React.FC = () => {
         entityId: id,
         templateId: templateRef?.id || 'unknown',
         rarityTier: rarity?.tier || 'v1.x',
+        pickedUpAtFloor: 1,
+        pickedUpAtTimestamp: Date.now(),
       };
     });
   } else if (inv?.equipment) {
@@ -74,7 +83,26 @@ export const BackpackGrid: React.FC = () => {
       const swDef = gameContext.world.getComponent(item.entityId, SoftwareDef);
       const eqDef = gameContext.world.getComponent(item.entityId, EquipmentDef);
       const eventBus = gameContext.eventBus;
-      if (swDef) {
+      if (item.isConsumable) {
+        selectedItemAction = {
+          label: `💊 USE REPAIR CANISTER`,
+          action: async () => {
+            const sessionId = getSessionId();
+            await fetch('/api/action', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                sessionId,
+                action: {
+                  type: 'USE_CONSUMABLE',
+                  inventoryIndex: isSw ? selectedSlotIndex : selectedSlotIndex - softwareItems.length,
+                },
+              }),
+            });
+            setSelectedSlotIndex(null);
+          },
+        };
+      } else if (swDef) {
         selectedItemAction = {
           label: `⚡ INSTALL ${swDef.name.toUpperCase()} ON ${swDef.targetSlot.toUpperCase()}`,
           action: () => {
@@ -149,8 +177,11 @@ export const BackpackGrid: React.FC = () => {
             } else if (augment) {
               itemName = augment.name;
               itemType = 'augment';
+            } else if (equipmentItem?.isConsumable) {
+              itemName = itemTemplateId === 'nanite-canister' ? 'Repair Nanites' : 'Nanite Canister';
+              itemType = 'consumable';
             } else {
-              itemName = `Entity #${entityId}`;
+              itemName = itemTemplateId || `Entity #${entityId}`;
             }
           }
 
@@ -215,6 +246,22 @@ export const BackpackGrid: React.FC = () => {
               }}
               onDoubleClick={() => {
                 if (entityId) {
+                  if (equipmentItem?.isConsumable) {
+                    const sessionId = getSessionId();
+                    fetch('/api/action', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        sessionId,
+                        action: {
+                          type: 'USE_CONSUMABLE',
+                          inventoryIndex: isSoftware ? i : i - softwareItems.length,
+                        },
+                      }),
+                    });
+                    return;
+                  }
+
                   const isSw = gameContext.world.hasComponent(entityId, SoftwareDef);
                   const swDef = gameContext.world.getComponent(entityId, SoftwareDef);
                   const isEq = gameContext.world.hasComponent(entityId, EquipmentDef);
@@ -270,6 +317,25 @@ export const BackpackGrid: React.FC = () => {
                       title="Loaded Software Subroutine"
                     >
                       SW
+                    </div>
+                  )}
+                  {equipmentItem?.isConsumable && (equipmentItem.quantity ?? 1) > 1 && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '-2px',
+                        right: '-2px',
+                        background: 'rgba(0, 240, 255, 0.9)',
+                        color: '#000000',
+                        fontSize: '8px',
+                        fontWeight: 900,
+                        padding: '0 3px',
+                        borderRadius: '2px',
+                        lineHeight: '10px',
+                      }}
+                      title={`Stack: ${equipmentItem.quantity}`}
+                    >
+                      x{equipmentItem.quantity}
                     </div>
                   )}
                   <div
