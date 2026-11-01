@@ -90,4 +90,28 @@ describe('DevTerminal Component', () => {
     expect(result.success).toBe(true);
     expect(result.vaultCount).toBe(30);
   });
+
+  it('executes /show-map command and invokes window.__DEBUG__.showMap', async () => {
+    const showMapMock = vi.fn();
+    (window as any).__DEBUG__ = {
+      showMap: showMapMock,
+      exposeMap: showMapMock,
+    };
+
+    render(<DevTerminal />);
+
+    // Open terminal
+    fireEvent.keyDown(window, { key: '`', code: 'Backquote' });
+
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: '/show-map' } });
+    fireEvent.submit(input.closest('form')!);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Floor map fully exposed and fog of war cleared/i)).toBeDefined();
+    });
+
+    expect(showMapMock).toHaveBeenCalledTimes(1);
+    delete (window as any).__DEBUG__;
+  });
 });

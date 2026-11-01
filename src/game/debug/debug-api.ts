@@ -207,4 +207,11 @@ export class DebugAPI {
   revealMap(): void {
     this.exposeMap();
   }
+
+  /**
+   * Shows the entire floor map and clears fog of war (triggered by /show-map).
+   */
+  showMap(): void {
+    this.exposeMap();
+  }
 }
