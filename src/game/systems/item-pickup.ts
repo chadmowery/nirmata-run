@@ -236,7 +236,8 @@ export function createItemPickupSystem<T extends GameplayEvents>(
         const health = w.getComponent(entityId, Health);
         const needsHeal = health ? health.current < health.max : false;
 
-        if (needsHeal) {
+        if (!isExplicitPickup && needsHeal) {
+          // Walk over heal: restore HP, clean up grid/components and destroy consumable entity
           w.addComponent(entityId, HealIntent, {
             targetId: entityId,
             amount: effect.value,
@@ -247,10 +248,16 @@ export function createItemPickupSystem<T extends GameplayEvents>(
             type: 'info',
           });
           grid.removeItem(itemId, x, y);
+          if (w.hasComponent(itemId, Position)) {
+            w.removeComponent(itemId, Position);
+          }
+          if (w.hasComponent(itemId, SpriteComponent)) {
+            w.removeComponent(itemId, SpriteComponent);
+          }
           w.addComponent(itemId, Dying, { reason: 'pickup' });
           return;
-        } else {
-          // Health is full: stack in backpack in stacks of up to 10
+        } else if (isExplicitPickup) {
+          // Explicit pickup: always store in player backpack (stacks of up to 10)
           const rarity = w.getComponent(itemId, RarityTier);
           const templateRef = w.getComponent(itemId, TemplateId);
           const floorState = w.getComponent(entityId, FloorState);
@@ -260,7 +267,7 @@ export function createItemPickupSystem<T extends GameplayEvents>(
             entityId,
             {
               entityId: itemId,
-              templateId: templateRef?.id || 'nanite-canister',
+              templateId: templateRef?.id || 'health-potion',
               rarityTier: rarity?.tier || 'common',
               pickedUpAtFloor: floorState?.currentFloor || 1,
               pickedUpAtTimestamp: Date.now(),
@@ -270,11 +277,13 @@ export function createItemPickupSystem<T extends GameplayEvents>(
 
           if (added) {
             eventBus.emit('MESSAGE_EMITTED', {
-              text: `+ HEALTH AT MAX: Stored consumable in backpack (Stack /10)`,
+              text: `+ CONSUMABLE SECURED: Stored in backpack (Stack /10)`,
               type: 'info',
             });
             grid.removeItem(itemId, x, y);
-            w.removeComponent(itemId, Position);
+            if (w.hasComponent(itemId, Position)) {
+              w.removeComponent(itemId, Position);
+            }
             if (w.hasComponent(itemId, SpriteComponent)) {
               w.removeComponent(itemId, SpriteComponent);
             }

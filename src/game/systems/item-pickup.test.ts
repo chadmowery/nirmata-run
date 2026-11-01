@@ -402,4 +402,52 @@ describe('ItemPickupSystem', () => {
       }),
     );
   });
+
+  it('should store consumable in backpack during explicit pickup even when player is damaged', () => {
+    grid.addItem(ITEM_ID, 6, 5);
+    const mockInventory = {
+      software: [],
+      equipment: [],
+      maxSlots: 20,
+    };
+    vi.mocked(world.getComponent).mockImplementation((id, def) => {
+      if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
+      if (id === PLAYER_ID && def === Health) return { current: 10, max: 20 }; // Damaged
+      if (id === PLAYER_ID && def === PickupIntent) return { actorId: PLAYER_ID, itemId: ITEM_ID };
+      if (id === PLAYER_ID && def === Position) return { x: 6, y: 5 };
+      if (id === PLAYER_ID && def === RunInventory) return mockInventory;
+      if (id === ITEM_ID) {
+        if (def === Position) return { x: 6, y: 5 };
+        if (def === Item) return { name: 'Health Potion' };
+        if (def === PickupEffect) return { type: EffectType.HEAL, value: 5 };
+      }
+      return undefined;
+    });
+    vi.mocked(world.hasComponent).mockImplementation((id, def) => {
+      if (id === ITEM_ID && def === Item) return true;
+      return false;
+    });
+    vi.mocked(world.query).mockImplementation((...args) =>
+      args.includes(PickupIntent) ? [PLAYER_ID] : [],
+    );
+
+    itemPickupSystem.update(world);
+
+    // Should NOT have created HealIntent because it was an explicit pickup
+    expect(world.addComponent).not.toHaveBeenCalledWith(PLAYER_ID, HealIntent, expect.anything());
+    // Should have stored consumable in backpack
+    expect(world.patchComponent).toHaveBeenCalledWith(
+      PLAYER_ID,
+      RunInventory,
+      expect.objectContaining({
+        equipment: expect.arrayContaining([
+          expect.objectContaining({
+            entityId: ITEM_ID,
+            isConsumable: true,
+            quantity: 1,
+          }),
+        ]),
+      }),
+    );
+  });
 });
