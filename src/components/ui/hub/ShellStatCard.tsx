@@ -19,9 +19,9 @@ export const ShellStatCard: React.FC<ShellStatCardProps> = ({
     const base = shell.baseStats[stat];
     let upgrade = 0;
     if (upgrades) {
-      if (stat === 'speed') upgrade = upgrades.speed;
-      if (stat === 'stability') upgrade = upgrades.stability;
-      if (stat === 'armor') upgrade = upgrades.armor;
+      if (stat === 'speed') upgrade = upgrades.speed * 5;
+      if (stat === 'stability') upgrade = upgrades.stability * 10;
+      if (stat === 'armor') upgrade = upgrades.armor * 1;
       // maxHealth doesn't have an upgrade in the current schema, using 0
     }
     return { base, upgrade, total: base + upgrade };
@@ -78,13 +78,14 @@ export const ShellStatCard: React.FC<ShellStatCardProps> = ({
         <div className={styles.portGroup}>
           <div className={styles.portLabel}>FIRMWARE</div>
           <div className={styles.slots}>
-            {Array.from({ length: shell.basePorts.maxFirmware }).map((_, i) => (
+            {Array.from({ length: shell.basePorts.maxFirmware + (upgrades?.additionalPorts || 0) }).map((_, i) => (
               <SlotBox
                 key={`fw-${i}`}
                 filled={i < firmwareSlots.length}
                 itemName={firmwareSlots[i]?.blueprintId}
                 slotType="firmware"
                 legacy={firmwareSlots[i]?.isLegacy}
+                isUnlockedExpansion={i >= shell.basePorts.maxFirmware}
               />
             ))}
           </div>
@@ -93,13 +94,14 @@ export const ShellStatCard: React.FC<ShellStatCardProps> = ({
         <div className={styles.portGroup}>
           <div className={styles.portLabel}>AUGMENT</div>
           <div className={styles.slots}>
-            {Array.from({ length: shell.basePorts.maxAugment }).map((_, i) => (
+            {Array.from({ length: shell.basePorts.maxAugment + (upgrades?.additionalPorts || 0) }).map((_, i) => (
               <SlotBox
                 key={`aug-${i}`}
                 filled={i < augmentSlots.length}
                 itemName={augmentSlots[i]?.blueprintId}
                 slotType="augment"
                 legacy={augmentSlots[i]?.isLegacy}
+                isUnlockedExpansion={i >= shell.basePorts.maxAugment}
               />
             ))}
           </div>

@@ -140,17 +140,24 @@ export function applyShellUpgradesToRecord(
 ): ShellRecord {
   if (!upgrades || (record as unknown as Record<string, unknown>)._upgradesApplied) return record;
 
+  const speedBonus = upgrades.speed ? (upgrades.speed > 5 ? upgrades.speed : upgrades.speed * 5) : 0;
+  const armorBonus = upgrades.armor || 0;
+  const stabilityBonus = upgrades.stability ? (upgrades.stability > 5 ? upgrades.stability : upgrades.stability * 10) : 0;
+  const additionalPorts = upgrades.additionalPorts || 0;
+
   return {
     ...record,
     currentStats: {
       ...record.currentStats,
-      speed: record.currentStats.speed + (upgrades.speed || 0),
-      armor: record.currentStats.armor + (upgrades.armor || 0),
-      stability: record.currentStats.stability + (upgrades.stability || 0),
+      speed: record.currentStats.speed + speedBonus,
+      armor: record.currentStats.armor + armorBonus,
+      stability: record.currentStats.stability + stabilityBonus,
     },
     portConfig: {
       ...record.portConfig,
-      maxSoftware: record.portConfig.maxSoftware + (upgrades.additionalPorts || 0),
+      maxFirmware: record.portConfig.maxFirmware + additionalPorts,
+      maxAugment: record.portConfig.maxAugment + additionalPorts,
+      maxSoftware: record.portConfig.maxSoftware + additionalPorts,
     },
     _upgradesApplied: true,
   } as ShellRecord;

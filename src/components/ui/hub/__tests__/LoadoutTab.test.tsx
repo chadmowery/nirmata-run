@@ -224,4 +224,42 @@ describe('LoadoutTab UI', () => {
       }),
     );
   });
+
+  it('reflects shell additionalPorts in loadout slots and marks unlocked expansion ports', async () => {
+    const upgradedProfile = {
+      ...mockProfile,
+      shellUpgrades: {
+        'vanguard-v1': {
+          speed: 1,
+          armor: 1,
+          stability: 1,
+          additionalPorts: 1,
+        },
+      },
+    };
+    gameStore.setState({ playerProfile: upgradedProfile, selectedShellIndex: 0 });
+
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        templates: [
+          {
+            id: 'vanguard-v1',
+            name: 'Vanguard Alpha',
+            archetype: 'assault',
+            baseStats: { maxHealth: 100, armor: 5, speed: 10, stability: 100 },
+            basePorts: { maxFirmware: 2, maxAugment: 2, maxSoftware: 2 },
+          },
+        ],
+      }),
+    } as unknown as Response);
+
+    render(<LoadoutTab />);
+
+    await waitFor(() => {
+      // With additionalPorts: 1, basePorts 2 becomes 3, and the 3rd slot has 'UNLOCKED' tag
+      const unlockedTags = screen.getAllByText(/UNLOCKED/i);
+      expect(unlockedTags.length).toBeGreaterThanOrEqual(1);
+    });
+  });
 });

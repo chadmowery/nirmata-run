@@ -69,6 +69,19 @@ export const LoadoutTab: React.FC = () => {
   const activeShellTemplate = templates[selectedShellIndex] || templates[0];
   const activeShellId = activeShellTemplate?.id;
 
+  const shellUpgrades = playerProfile.shellUpgrades?.[activeShellId] || {
+    speed: 0,
+    armor: 0,
+    stability: 0,
+    additionalPorts: 0,
+  };
+
+  const effectivePortConfig = {
+    maxFirmware: (activeShellTemplate.basePorts?.maxFirmware ?? 2) + (shellUpgrades.additionalPorts || 0),
+    maxAugment: (activeShellTemplate.basePorts?.maxAugment ?? 2) + (shellUpgrades.additionalPorts || 0),
+    maxSoftware: (activeShellTemplate.basePorts?.maxSoftware ?? 2) + (shellUpgrades.additionalPorts || 0),
+  };
+
   const equippedItems = playerProfile.installedItems.filter(
     (item) => item.shellId === activeShellId,
   );
@@ -314,7 +327,8 @@ export const LoadoutTab: React.FC = () => {
       {/* Column 1: Installed Hardware Matrix */}
       <PanelCard title="INSTALLED HARDWARE" badge={activeShellTemplate.name}>
         <LoadoutSlotPanel
-          portConfig={activeShellTemplate.basePorts}
+          portConfig={effectivePortConfig}
+          basePortConfig={activeShellTemplate.basePorts}
           equippedItems={equippedItems}
           shellId={activeShellId}
           onSlotDrop={handleSlotDrop}
