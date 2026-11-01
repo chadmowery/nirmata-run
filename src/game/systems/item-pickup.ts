@@ -10,7 +10,7 @@ import { MovedThisTurn } from '@shared/components/moved-this-turn';
 import { Item } from '@shared/components/item';
 import { PickupEffect, EffectType } from '@shared/components/pickup-effect';
 import { CurrencyItem } from '@shared/components/currency-item';
-import { TemplateId, Dying, HealIntent, PickupIntent } from '@shared/components';
+import { TemplateId, Dying, HealIntent, PickupIntent, SpriteComponent } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { RarityTier } from '@shared/components/rarity-tier';
 import { SoftwareDef } from '@shared/components/software-def';
@@ -107,6 +107,9 @@ export function createItemPickupSystem<T extends GameplayEvents>(
 
           grid.removeItem(itemId, x, y);
           w.removeComponent(itemId, Position);
+          if (w.hasComponent(itemId, SpriteComponent)) {
+            w.removeComponent(itemId, SpriteComponent);
+          }
           // NOTE: We DO NOT destroy the entity here because it's now in the inventory.
           eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
           return;
@@ -148,6 +151,9 @@ export function createItemPickupSystem<T extends GameplayEvents>(
 
           grid.removeItem(itemId, x, y);
           w.removeComponent(itemId, Position);
+          if (w.hasComponent(itemId, SpriteComponent)) {
+            w.removeComponent(itemId, SpriteComponent);
+          }
           // NOTE: We DO NOT destroy the entity here because it's now in the inventory.
           eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
           return;

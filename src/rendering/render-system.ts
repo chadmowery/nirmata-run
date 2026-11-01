@@ -206,6 +206,10 @@ export function createRenderSystem(config: RenderSystemConfig) {
     }
   };
 
+  const handleItemPickedUp = (payload: { entityId?: EntityId; itemId: EntityId }) => {
+    destroyEntitySprite(payload.itemId);
+  };
+
   // Track last predicted player move to avoid duplicate tweens when server reconciles
   let lastPredictedPlayerMove: {
     fromX: number;
@@ -381,6 +385,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
     init() {
       eventBus.on('ENTITY_CREATED', handleEntityCreated);
       eventBus.on('ENTITY_DESTROYED', handleEntityDestroyed);
+      eventBus.on('ITEM_PICKED_UP', handleItemPickedUp);
       eventBus.on('ENTITY_MOVED', handleEntityMoved);
       eventBus.on('DAMAGE_DEALT', handleDamageDealt);
       eventBus.on('APPLY_WORLD_FILTER', handleApplyWorldFilter);
@@ -418,7 +423,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
     },
 
     reconcileSprites() {
-      const activeEntities = new Set(world.query(SpriteComponent));
+      const activeEntities = new Set(world.query(SpriteComponent, Position));
       purgeOrphanedSprites(activeEntities);
 
       // Instantiate sprites for any active entity missing its sprite
