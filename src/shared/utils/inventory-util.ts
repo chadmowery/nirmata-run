@@ -196,6 +196,27 @@ export function removeEquipment<T extends EngineEvents>(
   return removed;
 }
 
+export function removeItemByEntityId<T extends EngineEvents>(
+  world: World<T>,
+  playerId: number,
+  entityId: number,
+): RunInventoryItem | null {
+  const runInventory = world.getComponent(playerId, RunInventory);
+  if (!runInventory) return null;
+
+  const swIdx = runInventory.software.findIndex((s) => s.entityId === entityId);
+  if (swIdx !== -1) {
+    return removeSoftware(world, playerId, swIdx);
+  }
+
+  const eqIdx = runInventory.equipment.findIndex((e) => e.entityId === entityId);
+  if (eqIdx !== -1) {
+    return removeEquipment(world, playerId, eqIdx);
+  }
+
+  return null;
+}
+
 export function clearInventory<T extends EngineEvents>(world: World<T>, playerId: number): void {
   if (world.hasComponent(playerId, RunInventory)) {
     world.patchComponent(playerId, RunInventory, { software: [], equipment: [] });

@@ -895,6 +895,59 @@ describe('Software System', () => {
       expect(world.hasComponent(player, ApplyStatusEffectIntent)).toBe(true);
     });
 
+    it('BurnSoftwareIntent burns software stored in equipment list and cleans up properly', () => {
+      const eventBus = new EventBus<GameplayEvents>();
+      const world = new World<GameplayEvents>(eventBus);
+      const system = createSoftwareSystem(world, eventBus);
+      system.init();
+
+      const player = world.createEntity();
+      const armor = world.createEntity();
+      world.addComponent(armor, EquipmentDef, { name: 'Titan Weave Plate', slotType: 'armor' });
+      world.addComponent(player, EquipmentSlots, { weapon: null, armor });
+      world.addComponent(player, RunInventory, { maxSlots: 5, software: [], equipment: [] });
+      world.addComponent(player, RunCurrency, { stacks: [] });
+
+      const shieldSw = world.createEntity();
+      world.addComponent(shieldSw, SoftwareDef, {
+        name: 'Barrier.exe',
+        type: 'shield_boost',
+        targetSlot: 'armor',
+        baseMagnitude: 5,
+        effectType: 'shield',
+        description: 'Increases barrier',
+        purchaseCost: 0,
+      });
+
+      InventoryUtil.addEquipment(world, player, {
+        entityId: shieldSw,
+        templateId: 'barrier-v1',
+        rarityTier: 'v1.x',
+        pickedUpAtFloor: 1,
+        pickedUpAtTimestamp: Date.now(),
+      });
+
+      expect(world.getComponent(player, RunInventory)?.equipment).toHaveLength(1);
+
+      world.addComponent(player, BurnSoftwareIntent, {
+        actorId: player,
+        softwareEntityId: shieldSw,
+        targetSlot: 'armor',
+        inventoryIndex: 0,
+        isEquipmentList: true,
+      });
+
+      world.executeSystems(Phase.ACTION);
+
+      // Software should be attached to armor Children
+      const children = world.getComponent(armor, Children)!;
+      expect(children).toBeDefined();
+      expect(children.entityIds).toContain(shieldSw);
+
+      // Software must be removed from backpack equipment
+      expect(world.getComponent(player, RunInventory)?.equipment).toHaveLength(0);
+    });
+
     it('Unequipping weapon preserves burned software on the item entity', () => {
       const eventBus = new EventBus<GameplayEvents>();
       const world = new World<GameplayEvents>(eventBus);

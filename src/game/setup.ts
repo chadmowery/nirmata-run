@@ -278,7 +278,37 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     await sendActionToServer({
       type: 'BURN_SOFTWARE',
       runInventoryIndex: payload.runInventoryIndex,
+      softwareEntityId: payload.softwareEntityId,
       targetSlot: payload.targetSlot,
+    });
+    inputManager.setRequestPending(false);
+  });
+
+  eventBus.on('PURGE_SOFTWARE_REQUESTED', async (payload) => {
+    inputManager.setRequestPending(true);
+    await sendActionToServer({
+      type: 'PURGE_SOFTWARE',
+      targetSlot: payload.targetSlot,
+    });
+    inputManager.setRequestPending(false);
+  });
+
+  eventBus.on('BURN_FIRMWARE_REQUESTED', async (payload) => {
+    inputManager.setRequestPending(true);
+    await sendActionToServer({
+      type: 'BURN_FIRMWARE',
+      firmwareEntityId: payload.firmwareEntityId,
+      slotIndex: payload.slotIndex,
+    });
+    inputManager.setRequestPending(false);
+  });
+
+  eventBus.on('BURN_AUGMENT_REQUESTED', async (payload) => {
+    inputManager.setRequestPending(true);
+    await sendActionToServer({
+      type: 'BURN_AUGMENT',
+      augmentEntityId: payload.augmentEntityId,
+      slotIndex: payload.slotIndex,
     });
     inputManager.setRequestPending(false);
   });

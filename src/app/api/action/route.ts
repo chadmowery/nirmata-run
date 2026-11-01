@@ -27,6 +27,12 @@ import {
   Shell,
   InteractPropIntent,
   HealIntent,
+  FirmwareSlots,
+  AugmentSlots,
+  EquipmentSlots,
+  Children,
+  AbilityDef,
+  AugmentData,
 } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { Dying } from '@shared/components/dying';
@@ -150,16 +156,120 @@ export async function POST(req: Request) {
 
       case 'BURN_SOFTWARE': {
         const inventory = world.getComponent(session.playerId, RunInventory);
-        const swItem = inventory?.software[action.runInventoryIndex];
-        if (swItem) {
+        let swEntityId = action.softwareEntityId;
+        let foundIdx = action.runInventoryIndex ?? 0;
+        let isEquipmentList = false;
+
+        if (swEntityId) {
+          const swIdx = inventory?.software.findIndex((s) => s.entityId === swEntityId) ?? -1;
+          if (swIdx !== -1) {
+            foundIdx = swIdx;
+            isEquipmentList = false;
+          } else {
+            const eqIdx = inventory?.equipment.findIndex((e) => e.entityId === swEntityId) ?? -1;
+            if (eqIdx !== -1) {
+              foundIdx = eqIdx;
+              isEquipmentList = true;
+            }
+          }
+        } else if (inventory?.software[foundIdx]) {
+          swEntityId = inventory.software[foundIdx].entityId;
+          isEquipmentList = false;
+        } else if (inventory?.equipment[foundIdx]) {
+          swEntityId = inventory.equipment[foundIdx].entityId;
+          isEquipmentList = true;
+        }
+
+        if (swEntityId) {
           world.addComponent(session.playerId, BurnSoftwareIntent, {
             actorId: session.playerId,
-            softwareEntityId: swItem.entityId,
+            softwareEntityId: swEntityId,
             targetSlot: action.targetSlot,
-            inventoryIndex: action.runInventoryIndex,
+            inventoryIndex: foundIdx,
+            isEquipmentList,
           });
         }
         actionKey = 'BURN_SOFTWARE';
+        break;
+      }
+
+      case 'PURGE_SOFTWARE': {
+        const eqSlots = world.getComponent(session.playerId, EquipmentSlots);
+        const targetGearId = eqSlots?.[action.targetSlot];
+        if (targetGearId) {
+          const children = world.getComponent(targetGearId, Children);
+          if (children && children.entityIds.length > 0) {
+            for (const childId of children.entityIds) {
+              world.addComponent(childId, Dying, { killerId: session.playerId, reason: 'purged' });
+            }
+            world.patchComponent(targetGearId, Children, { entityIds: [] });
+            eventBus.emit('MESSAGE_EMITTED', {
+              text: `Purged software mod from ${action.targetSlot}. Socket cleared.`,
+              type: 'info',
+            });
+          }
+        }
+        actionKey = 'PURGE_SOFTWARE';
+        break;
+      }
+
+      case 'BURN_FIRMWARE': {
+        const consumed = InventoryUtil.removeItemByEntityId(world, session.playerId, action.firmwareEntityId);
+        if (consumed) {
+          let fwSlots = world.getComponent(session.playerId, FirmwareSlots);
+          if (!fwSlots) {
+            world.addComponent(session.playerId, FirmwareSlots, { equipped: [] });
+            fwSlots = world.getComponent(session.playerId, FirmwareSlots)!;
+          }
+          const equipped = [...fwSlots.equipped];
+          const oldAbilityId = equipped[action.slotIndex];
+          if (oldAbilityId) {
+            world.addComponent(oldAbilityId, Dying, { killerId: session.playerId, reason: 'overwritten' });
+          }
+          if (action.slotIndex < equipped.length) {
+            equipped[action.slotIndex] = action.firmwareEntityId;
+          } else {
+            while (equipped.length < action.slotIndex) {
+              equipped.push(0);
+            }
+            equipped.push(action.firmwareEntityId);
+          }
+          world.patchComponent(session.playerId, FirmwareSlots, { equipped });
+          const abilityDef = world.getComponent(action.firmwareEntityId, AbilityDef);
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: `+ FIRMWARE BURNED: ${abilityDef?.name || 'Subroutine'} installed in Slot ${action.slotIndex + 1}`,
+            type: 'info',
+          });
+        }
+        actionKey = 'BURN_FIRMWARE';
+        break;
+      }
+
+      case 'BURN_AUGMENT': {
+        const consumed = InventoryUtil.removeItemByEntityId(world, session.playerId, action.augmentEntityId);
+        if (consumed) {
+          let agSlots = world.getComponent(session.playerId, AugmentSlots);
+          if (!agSlots) {
+            world.addComponent(session.playerId, AugmentSlots, { equipped: [] });
+            agSlots = world.getComponent(session.playerId, AugmentSlots)!;
+          }
+          const equipped = [...agSlots.equipped];
+          const targetSlot = action.slotIndex ?? equipped.length;
+          const oldAgId = equipped[targetSlot];
+          if (oldAgId) {
+            world.addComponent(oldAgId, Dying, { killerId: session.playerId, reason: 'overwritten' });
+            equipped[targetSlot] = action.augmentEntityId;
+          } else {
+            equipped.push(action.augmentEntityId);
+          }
+          world.patchComponent(session.playerId, AugmentSlots, { equipped });
+          const agData = world.getComponent(action.augmentEntityId, AugmentData);
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: `+ AUGMENT BURNED: ${agData?.name || 'Hardware Mod'} integrated into chassis`,
+            type: 'info',
+          });
+        }
+        actionKey = 'BURN_AUGMENT';
         break;
       }
 

@@ -27,8 +27,26 @@ export interface GameEvents extends GameplayEvents {
 
   /** Request from UI to burn software. */
   BURN_SOFTWARE_REQUESTED: {
-    runInventoryIndex: number;
+    runInventoryIndex?: number;
+    softwareEntityId?: number;
     targetSlot: 'weapon' | 'armor';
+  };
+
+  /** Request from UI to purge/delete socketed software from weapon/armor. */
+  PURGE_SOFTWARE_REQUESTED: {
+    targetSlot: 'weapon' | 'armor';
+  };
+
+  /** Request from UI to burn firmware into a shell ability slot. */
+  BURN_FIRMWARE_REQUESTED: {
+    firmwareEntityId: number;
+    slotIndex: number;
+  };
+
+  /** Request from UI to burn an augment into the shell. */
+  BURN_AUGMENT_REQUESTED: {
+    augmentEntityId: number;
+    slotIndex?: number;
   };
 
   /** Emitted on the client when authoritative state reconciliation finishes. */

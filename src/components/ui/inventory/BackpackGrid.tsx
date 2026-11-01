@@ -17,7 +17,7 @@ import type { EventBus } from '@engine/events/event-bus';
 import type { GameEvents } from '@/game/events/types';
 import styles from './InventoryOverlay.module.css';
 import { InRunItemTooltip } from './InRunItemTooltip';
-import { ItemIcon } from '../atomic';
+import { ItemIcon, BtnLever } from '../atomic';
 
 interface GameContext {
   playerId: number;
@@ -75,17 +75,30 @@ export const BackpackGrid: React.FC = () => {
   const slots = Array(15).fill(null);
 
   // Selected item details for action panel
-  let selectedItemAction: { label: string; action: () => void } | null = null;
+  interface ActionConfig {
+    label: string;
+    variant?: 'primary' | 'cyan' | 'danger';
+    holdToConfirm?: boolean;
+    holdDurationMs?: number;
+    action: () => void;
+    rightSlot?: string;
+  }
+  const selectedItemActions: ActionConfig[] = [];
+
   if (selectedSlotIndex !== null) {
     const isSw = selectedSlotIndex < softwareItems.length;
     const item = isSw ? softwareItems[selectedSlotIndex] : equipmentItems[selectedSlotIndex - softwareItems.length];
     if (item?.entityId) {
       const swDef = gameContext.world.getComponent(item.entityId, SoftwareDef);
       const eqDef = gameContext.world.getComponent(item.entityId, EquipmentDef);
+      const abilityDef = gameContext.world.getComponent(item.entityId, AbilityDef);
+      const augmentData = gameContext.world.getComponent(item.entityId, AugmentData);
       const eventBus = gameContext.eventBus;
+
       if (item.isConsumable) {
-        selectedItemAction = {
+        selectedItemActions.push({
           label: `💊 USE REPAIR CANISTER`,
+          variant: 'primary',
           action: async () => {
             const sessionId = getSessionId();
             await fetch('/api/action', {
@@ -101,21 +114,27 @@ export const BackpackGrid: React.FC = () => {
             });
             setSelectedSlotIndex(null);
           },
-        };
+        });
       } else if (swDef) {
-        selectedItemAction = {
-          label: `⚡ INSTALL ${swDef.name.toUpperCase()} ON ${swDef.targetSlot.toUpperCase()}`,
+        selectedItemActions.push({
+          label: `⚡ BURN ON ${swDef.targetSlot.toUpperCase()}`,
+          variant: 'cyan',
+          holdToConfirm: true,
+          holdDurationMs: 600,
+          rightSlot: 'HOLD',
           action: () => {
             eventBus?.emit('BURN_SOFTWARE_REQUESTED', {
+              softwareEntityId: item.entityId,
               runInventoryIndex: isSw ? selectedSlotIndex : selectedSlotIndex - softwareItems.length,
               targetSlot: swDef.targetSlot,
             });
             setSelectedSlotIndex(null);
           },
-        };
+        });
       } else if (eqDef) {
-        selectedItemAction = {
+        selectedItemActions.push({
           label: `EQUIP ${eqDef.name.toUpperCase()} TO ${eqDef.slotType.toUpperCase()}`,
+          variant: 'primary',
           action: () => {
             gameStore.getState().optimisticEquipItem(item.entityId, eqDef.slotType);
             eventBus?.emit('EQUIP_REQUESTED', {
@@ -124,7 +143,38 @@ export const BackpackGrid: React.FC = () => {
             });
             setSelectedSlotIndex(null);
           },
-        };
+        });
+      } else if (abilityDef) {
+        [0, 1, 2].forEach((slotIdx) => {
+          selectedItemActions.push({
+            label: `⚡ BURN FIRMWARE (SLOT ${slotIdx + 1})`,
+            variant: 'cyan',
+            holdToConfirm: true,
+            holdDurationMs: 600,
+            rightSlot: 'HOLD',
+            action: () => {
+              eventBus?.emit('BURN_FIRMWARE_REQUESTED', {
+                firmwareEntityId: item.entityId,
+                slotIndex: slotIdx,
+              });
+              setSelectedSlotIndex(null);
+            },
+          });
+        });
+      } else if (augmentData) {
+        selectedItemActions.push({
+          label: `🧬 BURN AUGMENT INTO CHASSIS`,
+          variant: 'cyan',
+          holdToConfirm: true,
+          holdDurationMs: 600,
+          rightSlot: 'HOLD',
+          action: () => {
+            eventBus?.emit('BURN_AUGMENT_REQUESTED', {
+              augmentEntityId: item.entityId,
+            });
+            setSelectedSlotIndex(null);
+          },
+        });
       }
     }
   }
@@ -364,28 +414,23 @@ export const BackpackGrid: React.FC = () => {
         })}
       </div>
 
-      {/* Quick Action Button for Selected Item */}
-      {selectedItemAction && (
-        <div style={{ marginTop: '10px' }}>
-          <button
-            type="button"
-            onClick={selectedItemAction.action}
-            style={{
-              width: '100%',
-              background: 'var(--c-accent-secondary, #d8ff00)',
-              color: '#000000',
-              border: 'none',
-              padding: '6px 12px',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '10px',
-              fontWeight: 900,
-              cursor: 'pointer',
-              letterSpacing: '0.05em',
-              textTransform: 'uppercase',
-            }}
-          >
-            {selectedItemAction.label}
-          </button>
+      {/* Quick Action Buttons for Selected Item */}
+      {selectedItemActions.length > 0 && (
+        <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {selectedItemActions.map((act, idx) => (
+            <BtnLever
+              key={idx}
+              variant={act.variant || 'cyan'}
+              holdToConfirm={act.holdToConfirm}
+              holdDurationMs={act.holdDurationMs ?? 600}
+              onHoldComplete={act.holdToConfirm ? act.action : undefined}
+              onClick={!act.holdToConfirm ? act.action : undefined}
+              rightSlot={act.rightSlot}
+              style={{ width: '100%', fontSize: '9px', padding: '5px 10px' }}
+            >
+              {act.label}
+            </BtnLever>
+          ))}
         </div>
       )}
     </div>

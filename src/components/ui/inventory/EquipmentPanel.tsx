@@ -15,7 +15,7 @@ import type { EventBus } from '@engine/events/event-bus';
 import type { GameEvents } from '@/game/events/types';
 import styles from './InventoryOverlay.module.css';
 import { InRunItemTooltip } from './InRunItemTooltip';
-import { ItemIcon } from '../atomic';
+import { ItemIcon, BtnLever } from '../atomic';
 import { getSoftwareModificationInfo } from '../hub/item-metadata';
 
 interface GameContext {
@@ -31,6 +31,11 @@ export const EquipmentPanel: React.FC = () => {
   const [hoveredEntityId, setHoveredEntityId] = useState<number | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [openSocketMenuSlot, setOpenSocketMenuSlot] = useState<'weapon' | 'armor' | null>(null);
+  const [pendingBurnTarget, setPendingBurnTarget] = useState<{
+    entityId: number;
+    targetSlot: 'weapon' | 'armor';
+    softwareName: string;
+  } | null>(null);
 
   const gameContext = (window as unknown as { gameContext: GameContext }).gameContext;
 
@@ -196,10 +201,11 @@ export const EquipmentPanel: React.FC = () => {
                 if (isEq && eqDef && eqDef.slotType === 'weapon') {
                   gameStore.getState().optimisticEquipItem(itemEntityId, 'weapon');
                   eventBus?.emit('EQUIP_REQUESTED', { slotType: 'weapon', itemEntityId });
-                } else if (isSw && swDef && swDef.targetSlot === 'weapon') {
-                  eventBus?.emit('BURN_SOFTWARE_REQUESTED', {
-                    runInventoryIndex: data.inventoryIndex,
+                } else if (isSw && swDef && (swDef.targetSlot === 'weapon' || !swDef.targetSlot)) {
+                  setPendingBurnTarget({
+                    entityId: itemEntityId,
                     targetSlot: 'weapon',
+                    softwareName: swDef.name,
                   });
                 } else {
                   eventBus?.emit('MESSAGE_EMITTED', {
@@ -211,10 +217,11 @@ export const EquipmentPanel: React.FC = () => {
                 if (isEq && eqDef && eqDef.slotType === 'armor') {
                   gameStore.getState().optimisticEquipItem(itemEntityId, 'armor');
                   eventBus?.emit('EQUIP_REQUESTED', { slotType: 'armor', itemEntityId });
-                } else if (isSw && swDef && swDef.targetSlot === 'armor') {
-                  eventBus?.emit('BURN_SOFTWARE_REQUESTED', {
-                    runInventoryIndex: data.inventoryIndex,
+                } else if (isSw && swDef && (swDef.targetSlot === 'armor' || !swDef.targetSlot)) {
+                  setPendingBurnTarget({
+                    entityId: itemEntityId,
                     targetSlot: 'armor',
+                    softwareName: swDef.name,
                   });
                 } else {
                   eventBus?.emit('MESSAGE_EMITTED', {
@@ -262,8 +269,25 @@ export const EquipmentPanel: React.FC = () => {
                   {detailText}
                 </div>
                 {socketedSwName && (
-                  <div style={{ fontSize: '9px', color: 'var(--c-accent-secondary)', marginTop: '3px', fontWeight: 700 }}>
-                    ⚡ MOD: {socketedSwName.toUpperCase()} — {socketedSwEffect}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginTop: '4px' }}>
+                    <div style={{ fontSize: '9px', color: 'var(--c-accent-secondary)', fontWeight: 700 }}>
+                      ⚡ MOD: {socketedSwName.toUpperCase()} — {socketedSwEffect}
+                    </div>
+                    <BtnLever
+                      variant="danger"
+                      holdToConfirm={true}
+                      holdDurationMs={600}
+                      onHoldComplete={() => {
+                        gameContext.eventBus?.emit('PURGE_SOFTWARE_REQUESTED', {
+                          targetSlot: slotType,
+                        });
+                      }}
+                      rightSlot="HOLD"
+                      style={{ fontSize: '8px', padding: '2px 6px', height: 'auto', minHeight: 'unset' }}
+                      title="Hold to delete burned software from socket"
+                    >
+                      ✕ PURGE MOD
+                    </BtnLever>
                   </div>
                 )}
                 <div style={{ fontSize: '9px', color: 'var(--c-text-muted)', marginTop: '3px' }}>
@@ -271,6 +295,51 @@ export const EquipmentPanel: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Confirmation Prompt for Dropped Software */}
+            {pendingBurnTarget && pendingBurnTarget.targetSlot === slotType && (
+              <div
+                style={{
+                  marginTop: '8px',
+                  padding: '8px',
+                  background: 'rgba(255, 0, 85, 0.12)',
+                  border: '1px solid #ff0055',
+                  borderRadius: '2px',
+                }}
+              >
+                <div style={{ fontSize: '10px', color: '#ff0055', fontWeight: 800, marginBottom: '4px' }}>
+                  ⚠️ BURN CONFIRMATION: {pendingBurnTarget.softwareName.toUpperCase()}
+                </div>
+                <div style={{ fontSize: '9px', color: '#ffffff', opacity: 0.8, marginBottom: '8px' }}>
+                  Once burned into {slotType.toUpperCase()}, this software cannot be returned to backpack.
+                </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <BtnLever
+                    variant="danger"
+                    holdToConfirm={true}
+                    holdDurationMs={600}
+                    onHoldComplete={() => {
+                      gameContext.eventBus?.emit('BURN_SOFTWARE_REQUESTED', {
+                        softwareEntityId: pendingBurnTarget.entityId,
+                        targetSlot: slotType,
+                      });
+                      setPendingBurnTarget(null);
+                    }}
+                    rightSlot="HOLD"
+                    style={{ fontSize: '9px', padding: '4px 8px' }}
+                  >
+                    ⚡ CONFIRM BURN (600MS)
+                  </BtnLever>
+                  <BtnLever
+                    variant="primary"
+                    onClick={() => setPendingBurnTarget(null)}
+                    style={{ fontSize: '9px', padding: '4px 8px' }}
+                  >
+                    CANCEL
+                  </BtnLever>
+                </div>
+              </div>
+            )}
 
             {/* Software Socketing UI */}
             <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '6px', marginTop: '2px' }}>
@@ -305,15 +374,15 @@ export const EquipmentPanel: React.FC = () => {
                         background: '#070c14',
                         border: '1px solid var(--c-accent, #00f0ff)',
                         borderRadius: '2px',
-                        padding: '4px',
+                        padding: '6px',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: '4px',
+                        gap: '6px',
                       }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div style={{ fontSize: '8px', color: 'var(--c-text-muted)', textTransform: 'uppercase' }}>
-                        Select Software from Backpack to Install:
+                        Press & hold (600ms) to burn software into socket:
                       </div>
                       {backpackSoftware.map(({ item, index }) => {
                         const swDef = gameContext.world.getComponent(item.entityId, SoftwareDef);
@@ -321,31 +390,41 @@ export const EquipmentPanel: React.FC = () => {
                         return (
                           <div
                             key={item.entityId}
-                            onClick={() => {
-                              gameContext.eventBus?.emit('BURN_SOFTWARE_REQUESTED', {
-                                runInventoryIndex: index,
-                                targetSlot: slotType,
-                              });
-                              setOpenSocketMenuSlot(null);
-                            }}
                             style={{
                               display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
+                              flexDirection: 'column',
+                              gap: '4px',
                               background: 'rgba(0, 240, 255, 0.05)',
                               border: '1px solid rgba(0, 240, 255, 0.2)',
-                              padding: '4px 6px',
-                              cursor: 'pointer',
+                              padding: '6px',
                               borderRadius: '2px',
                             }}
-                            title={info.effect}
                           >
-                            <span style={{ fontSize: '9px', fontWeight: 700, color: '#ffffff' }}>
-                              {swDef?.name || item.templateId}
-                            </span>
-                            <span style={{ fontSize: '8px', fontWeight: 800, color: 'var(--c-accent-secondary)' }}>
-                              [INSTALL]
-                            </span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: '10px', fontWeight: 800, color: '#ffffff' }}>
+                                {swDef?.name || item.templateId}
+                              </span>
+                              <span style={{ fontSize: '8px', color: 'var(--c-accent-secondary)' }}>
+                                {info.effect}
+                              </span>
+                            </div>
+                            <BtnLever
+                              variant="cyan"
+                              holdToConfirm={true}
+                              holdDurationMs={600}
+                              onHoldComplete={() => {
+                                gameContext.eventBus?.emit('BURN_SOFTWARE_REQUESTED', {
+                                  softwareEntityId: item.entityId,
+                                  runInventoryIndex: index,
+                                  targetSlot: slotType,
+                                });
+                                setOpenSocketMenuSlot(null);
+                              }}
+                              rightSlot="HOLD"
+                              style={{ width: '100%', fontSize: '9px', padding: '4px 8px' }}
+                            >
+                              ⚡ HOLD TO BURN SUBROUTINE
+                            </BtnLever>
                           </div>
                         );
                       })}

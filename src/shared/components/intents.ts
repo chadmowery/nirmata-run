@@ -141,6 +141,7 @@ export const BurnSoftwareIntent = defineComponent(
     softwareEntityId: z.number(),
     targetSlot: z.enum(['weapon', 'armor']),
     inventoryIndex: z.number(),
+    isEquipmentList: z.boolean().optional(),
   }),
 );
 

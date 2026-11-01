@@ -147,13 +147,35 @@ export function processAction(
       break;
     case 'BURN_SOFTWARE': {
       const inventory = world.getComponent(entityId, RunInventory);
-      const swItem = inventory?.software[action.runInventoryIndex];
-      if (swItem) {
+      let swEntityId = action.softwareEntityId;
+      let foundIdx = action.runInventoryIndex ?? 0;
+      let isEquipmentList = false;
+
+      if (swEntityId) {
+        const swIdx = inventory?.software.findIndex((s) => s.entityId === swEntityId) ?? -1;
+        if (swIdx !== -1) {
+          foundIdx = swIdx;
+          isEquipmentList = false;
+        } else {
+          const eqIdx = inventory?.equipment.findIndex((e) => e.entityId === swEntityId) ?? -1;
+          if (eqIdx !== -1) {
+            foundIdx = eqIdx;
+            isEquipmentList = true;
+          }
+        }
+      } else if (action.runInventoryIndex !== undefined && inventory?.software[action.runInventoryIndex]) {
+        swEntityId = inventory.software[action.runInventoryIndex].entityId;
+        foundIdx = action.runInventoryIndex;
+        isEquipmentList = false;
+      }
+
+      if (swEntityId) {
         world.addComponent(entityId, BurnSoftwareIntent, {
           actorId: entityId,
-          softwareEntityId: swItem.entityId,
+          softwareEntityId: swEntityId,
           targetSlot: action.targetSlot,
-          inventoryIndex: action.runInventoryIndex,
+          inventoryIndex: foundIdx,
+          isEquipmentList,
         });
       }
       break;
