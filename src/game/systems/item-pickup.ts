@@ -10,7 +10,15 @@ import { MovedThisTurn } from '@shared/components/moved-this-turn';
 import { Item } from '@shared/components/item';
 import { PickupEffect, EffectType } from '@shared/components/pickup-effect';
 import { CurrencyItem } from '@shared/components/currency-item';
-import { TemplateId, Dying, HealIntent, PickupIntent, SpriteComponent } from '@shared/components';
+import {
+  TemplateId,
+  Dying,
+  HealIntent,
+  PickupIntent,
+  SpriteComponent,
+  AbilityDef,
+  AugmentData,
+} from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { RarityTier } from '@shared/components/rarity-tier';
 import { SoftwareDef } from '@shared/components/software-def';
@@ -160,6 +168,52 @@ export function createItemPickupSystem<T extends GameplayEvents>(
         } else {
           eventBus.emit('MESSAGE_EMITTED', {
             text: `INVENTORY FULL: Cannot secure ${swDef.name}`,
+            type: 'error',
+          });
+          return;
+        }
+      }
+    }
+
+    // 4. Handle Firmware and Augment item pickup (stored in backpack, never auto-equipped)
+    const abilityDef = w.getComponent(itemId, AbilityDef);
+    const augmentData = w.getComponent(itemId, AugmentData);
+    if (abilityDef || augmentData) {
+      const rarity = w.getComponent(itemId, RarityTier);
+      const templateRef = w.getComponent(itemId, TemplateId);
+      const floorState = w.getComponent(entityId, FloorState);
+      const itemName = abilityDef?.name || augmentData?.name || templateRef?.id || 'Hardware Mod';
+      const typeLabel = abilityDef ? 'FIRMWARE' : 'AUGMENT';
+
+      if (templateRef) {
+        const added = InventoryUtil.addEquipment(w, entityId, {
+          entityId: itemId,
+          templateId: templateRef.id,
+          rarityTier: rarity?.tier || 'v1.x',
+          pickedUpAtFloor: floorState?.currentFloor || 1,
+          pickedUpAtTimestamp: Date.now(),
+        });
+
+        if (added) {
+          logger.info(
+            `Entity ${entityId} secured ${typeLabel} ${itemId} (${templateRef.id}) into backpack`,
+            'SYSTEM',
+          );
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: `+ ${typeLabel} SECURED: ${itemName} [${rarity?.tier || 'v1.x'}]`,
+            type: 'info',
+          });
+
+          grid.removeItem(itemId, x, y);
+          w.removeComponent(itemId, Position);
+          if (w.hasComponent(itemId, SpriteComponent)) {
+            w.removeComponent(itemId, SpriteComponent);
+          }
+          eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
+          return;
+        } else {
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: `INVENTORY FULL: Cannot secure ${itemName}`,
             type: 'error',
           });
           return;

@@ -5,6 +5,8 @@ import {
   RunInventory,
   SoftwareDef,
   EquipmentDef,
+  AbilityDef,
+  AugmentData,
   TemplateId,
   RarityTier,
   Children,
@@ -121,6 +123,8 @@ export const BackpackGrid: React.FC = () => {
           if (entityId) {
             const sw = gameContext.world.getComponent(entityId, SoftwareDef);
             const eq = gameContext.world.getComponent(entityId, EquipmentDef);
+            const ability = gameContext.world.getComponent(entityId, AbilityDef);
+            const augment = gameContext.world.getComponent(entityId, AugmentData);
             const tmpl = gameContext.world.getComponent(entityId, TemplateId);
             const rarity = gameContext.world.getComponent(entityId, RarityTier);
 
@@ -139,6 +143,12 @@ export const BackpackGrid: React.FC = () => {
               if (children && children.entityIds.length > 0) {
                 hasSocketedSoftware = true;
               }
+            } else if (ability) {
+              itemName = ability.name;
+              itemType = 'firmware';
+            } else if (augment) {
+              itemName = augment.name;
+              itemType = 'augment';
             } else {
               itemName = `Entity #${entityId}`;
             }
