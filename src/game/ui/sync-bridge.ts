@@ -75,6 +75,12 @@ export function syncEngineToStore(context: GameContext) {
     const statusEffects = world.getComponent(context.playerId, StatusEffects);
     const statuses = statusEffects?.effects.map((e) => e.name) || [];
 
+    const activeShellId =
+      shell?.archetypeId ||
+      store.launchConfig?.shellId ||
+      store.shellTemplates[store.selectedShellIndex]?.id ||
+      'vanguard-v1';
+
     store.updatePlayerStats({
       hp: health?.current ?? 0,
       maxHp: health?.max ?? 0,
@@ -82,7 +88,7 @@ export function syncEngineToStore(context: GameContext) {
       level: progression?.level ?? 1,
       heat: heat?.current ?? 0,
       maxHeat: heat?.maxSafe ?? 100,
-      shellName: shell?.archetypeId || 'Default Shell',
+      shellName: activeShellId,
       mods,
       statuses,
     });

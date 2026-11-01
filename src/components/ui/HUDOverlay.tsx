@@ -9,6 +9,7 @@ import { NearbyEntities } from './NearbyEntities';
 import { AbilityBar } from './AbilityBar';
 import EventTimelinePanel from './EventTimelinePanel';
 import { InventoryOverlay } from './inventory/InventoryOverlay';
+import { HotkeysModal } from './HotkeysModal';
 import { BtnLever } from './atomic';
 import styles from './styles.module.css';
 
@@ -16,6 +17,8 @@ export const HUDOverlay: React.FC = () => {
   const heatTier = useStore(gameStore, (s) => s.heatTier);
   const inventoryVisible = useStore(gameStore, (s) => s.inventoryVisible);
   const toggleInventory = () => gameStore.getState().toggleInventory();
+  const hotkeysModalVisible = useStore(gameStore, (s) => s.hotkeysModalVisible);
+  const toggleHotkeysModal = () => gameStore.getState().toggleHotkeysModal();
 
   const selectedRunMode = useStore(gameStore, (s) => s.selectedRunMode);
   const currentFloor = useStore(gameStore, (s) => s.currentFloor);
@@ -114,7 +117,8 @@ export const HUDOverlay: React.FC = () => {
             <span>[SPACE] Wait Turn</span>
             <span>[1-3] Subroutine</span>
             <span>[I] Inventory</span>
-            <span>[E] Anchor Terminal</span>
+            <span>[E] Terminal</span>
+            <span>[?] Controls</span>
           </div>
         </div>
 
@@ -133,6 +137,9 @@ export const HUDOverlay: React.FC = () => {
         <AbilityBar />
 
         <div style={{ display: 'flex', gap: '8px' }}>
+          <BtnLever variant="cyan" onClick={toggleHotkeysModal} rightSlot="[?]">
+            CONTROLS GUIDE
+          </BtnLever>
           <BtnLever variant="primary" onClick={toggleInventory} rightSlot="[I]">
             TACTICAL INVENTORY
           </BtnLever>
@@ -141,6 +148,7 @@ export const HUDOverlay: React.FC = () => {
 
       {/* Modal Overlays */}
       {inventoryVisible && <InventoryOverlay onClose={toggleInventory} />}
+      {hotkeysModalVisible && <HotkeysModal onClose={toggleHotkeysModal} />}
     </div>
   );
 };

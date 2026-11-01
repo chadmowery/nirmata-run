@@ -1,7 +1,15 @@
 import React, { useState } from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
-import { EquipmentSlots, SoftwareDef, EquipmentDef, TemplateId, RarityTier, Children } from '@shared/components';
+import {
+  EquipmentSlots,
+  SoftwareDef,
+  EquipmentDef,
+  TemplateId,
+  RarityTier,
+  Children,
+  RunInventory,
+} from '@shared/components';
 import type { ComponentDef } from '@engine/ecs/types';
 import type { EventBus } from '@engine/events/event-bus';
 import type { GameEvents } from '@/game/events/types';
@@ -22,6 +30,7 @@ interface GameContext {
 export const EquipmentPanel: React.FC = () => {
   const [hoveredEntityId, setHoveredEntityId] = useState<number | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [openSocketMenuSlot, setOpenSocketMenuSlot] = useState<'weapon' | 'armor' | null>(null);
 
   const gameContext = (window as unknown as { gameContext: GameContext }).gameContext;
 
@@ -35,6 +44,7 @@ export const EquipmentPanel: React.FC = () => {
   if (!gameContext) return null;
 
   const eq = gameContext.world.getComponent(gameContext.playerId, EquipmentSlots);
+  const inv = gameContext.world.getComponent(gameContext.playerId, RunInventory);
 
   // Compute displayed weapon and armor ids based on optimistic state overrides
   const weaponId = optimisticWeapon !== undefined ? optimisticWeapon : eq?.weapon;
@@ -111,6 +121,14 @@ export const EquipmentPanel: React.FC = () => {
       }
     }
 
+    // Check available compatible software in the backpack for this slot
+    const backpackSoftware = (inv?.software || [])
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => {
+        const swDef = gameContext.world.getComponent(item.entityId, SoftwareDef);
+        return swDef && (swDef.targetSlot === slotType || !swDef.targetSlot);
+      });
+
     // Class name based on drag states
     let borderStyle = {};
     if (isDraggedOver) {
@@ -119,6 +137,8 @@ export const EquipmentPanel: React.FC = () => {
       };
     }
 
+    const isMenuOpen = openSocketMenuSlot === slotType;
+
     return (
       <div
         className={`${styles.slot} ${entityId ? styles.slotFilled : ''}`}
@@ -126,8 +146,8 @@ export const EquipmentPanel: React.FC = () => {
           ...borderStyle,
           cursor: entityId ? 'grab' : 'default',
           position: 'relative',
-          padding: '8px',
-          minHeight: '80px',
+          padding: '10px',
+          minHeight: '90px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -225,29 +245,120 @@ export const EquipmentPanel: React.FC = () => {
         onMouseLeave={() => setHoveredEntityId(null)}
       >
         {entityId ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', textAlign: 'left' }}>
-            <ItemIcon
-              templateId={itemTemplateId}
-              name={itemName}
-              itemType={slotType}
-              rarityTier={itemRarity}
-              size="md"
-            />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: '13px', color: '#ffffff', textTransform: 'uppercase' }}>
-                {itemName}
+          <div style={{ display: 'flex', flexDirection: 'column', width: '100%', textAlign: 'left', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <ItemIcon
+                templateId={itemTemplateId}
+                name={itemName}
+                itemType={slotType}
+                rarityTier={itemRarity}
+                size="md"
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 800, fontSize: '13px', color: '#ffffff', textTransform: 'uppercase' }}>
+                  {itemName}
+                </div>
+                <div style={{ fontSize: '10px', color: 'var(--c-text-dim)', marginTop: '2px' }}>
+                  {detailText}
+                </div>
+                {socketedSwName && (
+                  <div style={{ fontSize: '9px', color: 'var(--c-accent-secondary)', marginTop: '3px', fontWeight: 700 }}>
+                    ⚡ MOD: {socketedSwName.toUpperCase()} — {socketedSwEffect}
+                  </div>
+                )}
+                <div style={{ fontSize: '9px', color: 'var(--c-text-muted)', marginTop: '3px' }}>
+                  Double-click to unequip.
+                </div>
               </div>
-              <div style={{ fontSize: '10px', color: 'var(--c-text-dim)', marginTop: '2px' }}>
-                {detailText}
-              </div>
-              {socketedSwName && (
-                <div style={{ fontSize: '9px', color: 'var(--c-accent-secondary)', marginTop: '3px', fontWeight: 700 }}>
-                  ⚡ MOD: {socketedSwName.toUpperCase()} — {socketedSwEffect}
+            </div>
+
+            {/* Software Socketing UI */}
+            <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '6px', marginTop: '2px' }}>
+              {backpackSoftware.length > 0 ? (
+                <div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenSocketMenuSlot(isMenuOpen ? null : slotType);
+                    }}
+                    style={{
+                      background: isMenuOpen ? 'var(--c-accent, #00f0ff)' : 'rgba(0, 240, 255, 0.1)',
+                      color: isMenuOpen ? '#000000' : 'var(--c-accent, #00f0ff)',
+                      border: '1px solid var(--c-accent, #00f0ff)',
+                      padding: '3px 8px',
+                      fontSize: '9px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      borderRadius: '2px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {socketedSwName ? '⚡ REPLACE SOFTWARE MOD' : '+ INSTALL SOFTWARE MOD'} ({backpackSoftware.length})
+                  </button>
+
+                  {isMenuOpen && (
+                    <div
+                      style={{
+                        marginTop: '6px',
+                        background: '#070c14',
+                        border: '1px solid var(--c-accent, #00f0ff)',
+                        borderRadius: '2px',
+                        padding: '4px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div style={{ fontSize: '8px', color: 'var(--c-text-muted)', textTransform: 'uppercase' }}>
+                        Select Software from Backpack to Install:
+                      </div>
+                      {backpackSoftware.map(({ item, index }) => {
+                        const swDef = gameContext.world.getComponent(item.entityId, SoftwareDef);
+                        const info = getSoftwareModificationInfo(item.templateId || swDef?.type || '');
+                        return (
+                          <div
+                            key={item.entityId}
+                            onClick={() => {
+                              gameContext.eventBus?.emit('BURN_SOFTWARE_REQUESTED', {
+                                runInventoryIndex: index,
+                                targetSlot: slotType,
+                              });
+                              setOpenSocketMenuSlot(null);
+                            }}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              background: 'rgba(0, 240, 255, 0.05)',
+                              border: '1px solid rgba(0, 240, 255, 0.2)',
+                              padding: '4px 6px',
+                              cursor: 'pointer',
+                              borderRadius: '2px',
+                            }}
+                            title={info.effect}
+                          >
+                            <span style={{ fontSize: '9px', fontWeight: 700, color: '#ffffff' }}>
+                              {swDef?.name || item.templateId}
+                            </span>
+                            <span style={{ fontSize: '8px', fontWeight: 800, color: 'var(--c-accent-secondary)' }}>
+                              [INSTALL]
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div style={{ fontSize: '8px', color: 'var(--c-text-muted)' }}>
+                  {socketedSwName
+                    ? 'No other compatible software in backpack.'
+                    : 'No compatible software in backpack to install.'}
                 </div>
               )}
-              <div style={{ fontSize: '9px', color: 'var(--c-danger)', marginTop: '4px' }}>
-                Uninstall: Double-click to quick-uninstall.
-              </div>
             </div>
           </div>
         ) : (

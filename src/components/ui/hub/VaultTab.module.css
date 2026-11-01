@@ -183,6 +183,15 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: 4px;
+  width: 100%;
+}
+
+.actionList > div {
+  width: 100%;
+}
+
+.actionList :global(.btn-lever) {
+  width: 100%;
 }
 
 .actionList::-webkit-scrollbar {

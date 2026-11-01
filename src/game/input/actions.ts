@@ -23,6 +23,7 @@ export enum GameAction {
   DEBUG_TOGGLE_TIMELINE = 'DEBUG_TOGGLE_TIMELINE',
   RECENTER_CAMERA = 'RECENTER_CAMERA',
   TOGGLE_INVENTORY = 'TOGGLE_INVENTORY',
+  TOGGLE_HOTKEYS = 'TOGGLE_HOTKEYS',
 }
 
 /**
@@ -47,6 +48,8 @@ export const DEFAULT_BINDINGS: Record<string, GameAction> = {
 
   // UI
   Escape: GameAction.PAUSE,
+  KeyH: GameAction.TOGGLE_HOTKEYS,
+  'Shift+Slash': GameAction.TOGGLE_HOTKEYS,
 
   // Firmware
   Digit1: GameAction.USE_FIRMWARE_0,

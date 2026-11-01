@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import { PanelCard } from './atomic';
@@ -8,11 +8,6 @@ import styles from './styles.module.css';
 
 export const MessageLog: React.FC = () => {
   const messages = useStore(gameStore, (s) => s.messages);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView?.({ behavior: 'smooth' });
-  }, [messages]);
 
   const getTag = (type: string) => {
     switch (type) {
@@ -60,7 +55,6 @@ export const MessageLog: React.FC = () => {
             )}
           </div>
         ))}
-        <div ref={bottomRef} />
       </div>
     </PanelCard>
   );

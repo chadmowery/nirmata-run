@@ -284,6 +284,8 @@ export const VaultTab: React.FC = () => {
       )
     : [];
 
+  const allSoftwareInVault = profile.vault.filter((v) => isSoftwareItem(v));
+
   const isSelectedSoftware = selectedItem && isSoftwareItem(selectedItem);
   const compatibleGearInVault = isSelectedSoftware
     ? profile.vault.filter(
@@ -616,9 +618,16 @@ export const VaultTab: React.FC = () => {
                           fontSize: '9px',
                           color: 'var(--c-text-muted)',
                           marginBottom: '8px',
+                          lineHeight: 1.4,
                         }}
                       >
                         NO COMPATIBLE SOFTWARE CORES IN VAULT
+                        {allSoftwareInVault.length > 0 && (
+                          <div style={{ color: 'var(--c-warning)', marginTop: '3px' }}>
+                            ({allSoftwareInVault.length} software chips in vault require{' '}
+                            {isWeaponItem(selectedItem) ? 'Armor' : 'Weapon'} hardware)
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className={styles.actionList}>
@@ -633,6 +642,7 @@ export const VaultTab: React.FC = () => {
                           return (
                             <div
                               key={sw.entityId}
+                              style={{ width: '100%' }}
                               onPointerEnter={(e) =>
                                 setHoveredSlot({ metadata: swMeta, x: e.clientX, y: e.clientY })
                               }
@@ -650,6 +660,7 @@ export const VaultTab: React.FC = () => {
                                 holdToConfirm={true}
                                 onClick={() => handleSocketSoftware(selectedItem.entityId, sw.entityId)}
                                 rightSlot="LOAD"
+                                style={{ width: '100%' }}
                               >
                                 {sw.templateId.toUpperCase()}
                               </BtnLever>

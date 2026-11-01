@@ -457,6 +457,7 @@ export const LoadoutTab: React.FC = () => {
                         return (
                           <div
                             key={sw.entityId}
+                            style={{ width: '100%' }}
                             onPointerEnter={(e) =>
                               setHoveredSoftware({ metadata: swMeta, x: e.clientX, y: e.clientY })
                             }
@@ -472,6 +473,7 @@ export const LoadoutTab: React.FC = () => {
                               holdToConfirm={true}
                               onClick={() => handleSoftwareSocket(inspectedItem.entityId!, sw.entityId)}
                               rightSlot="LOAD"
+                              style={{ width: '100%' }}
                             >
                               {sw.templateId.toUpperCase()}
                             </BtnLever>

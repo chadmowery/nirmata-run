@@ -28,6 +28,7 @@ interface GameContext {
 export const BackpackGrid: React.FC = () => {
   const [hoveredEntityId, setHoveredEntityId] = useState<number | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
 
   const gameContext = (window as unknown as { gameContext: GameContext }).gameContext;
 
@@ -62,6 +63,42 @@ export const BackpackGrid: React.FC = () => {
 
   const slots = Array(15).fill(null);
 
+  // Selected item details for action panel
+  let selectedItemAction: { label: string; action: () => void } | null = null;
+  if (selectedSlotIndex !== null) {
+    const isSw = selectedSlotIndex < softwareItems.length;
+    const item = isSw ? softwareItems[selectedSlotIndex] : equipmentItems[selectedSlotIndex - softwareItems.length];
+    if (item?.entityId) {
+      const swDef = gameContext.world.getComponent(item.entityId, SoftwareDef);
+      const eqDef = gameContext.world.getComponent(item.entityId, EquipmentDef);
+      const eventBus = gameContext.eventBus;
+      if (swDef) {
+        selectedItemAction = {
+          label: `⚡ INSTALL ${swDef.name.toUpperCase()} ON ${swDef.targetSlot.toUpperCase()}`,
+          action: () => {
+            eventBus?.emit('BURN_SOFTWARE_REQUESTED', {
+              runInventoryIndex: isSw ? selectedSlotIndex : selectedSlotIndex - softwareItems.length,
+              targetSlot: swDef.targetSlot,
+            });
+            setSelectedSlotIndex(null);
+          },
+        };
+      } else if (eqDef) {
+        selectedItemAction = {
+          label: `EQUIP ${eqDef.name.toUpperCase()} TO ${eqDef.slotType.toUpperCase()}`,
+          action: () => {
+            gameStore.getState().optimisticEquipItem(item.entityId, eqDef.slotType);
+            eventBus?.emit('EQUIP_REQUESTED', {
+              slotType: eqDef.slotType,
+              itemEntityId: item.entityId,
+            });
+            setSelectedSlotIndex(null);
+          },
+        };
+      }
+    }
+  }
+
   return (
     <div className={styles.panel}>
       <h3>Backpack</h3>
@@ -72,6 +109,7 @@ export const BackpackGrid: React.FC = () => {
           const equipmentItem = !isSoftware ? equipmentItems[i - softwareItems.length] : null;
           const item = softwareItem || equipmentItem;
           const entityId = item?.entityId || null;
+          const isSelected = selectedSlotIndex === i;
 
           // Get item name and details if entityId is present
           let itemName = '';
@@ -111,7 +149,7 @@ export const BackpackGrid: React.FC = () => {
               key={i}
               className={`${styles.slot} ${entityId ? styles.slotFilled : ''}`}
               style={{
-                cursor: entityId ? 'grab' : 'default',
+                cursor: entityId ? 'pointer' : 'default',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -120,8 +158,17 @@ export const BackpackGrid: React.FC = () => {
                 padding: '4px',
                 textAlign: 'center',
                 position: 'relative',
+                border: isSelected ? '2px solid var(--c-accent, #00f0ff)' : undefined,
+                background: isSelected ? 'rgba(0, 240, 255, 0.1)' : undefined,
               }}
               draggable={!!entityId}
+              onClick={() => {
+                if (entityId) {
+                  setSelectedSlotIndex(isSelected ? null : i);
+                } else {
+                  setSelectedSlotIndex(null);
+                }
+              }}
               onDragStart={(e) => {
                 if (entityId) {
                   const dragData = {
@@ -240,6 +287,31 @@ export const BackpackGrid: React.FC = () => {
           );
         })}
       </div>
+
+      {/* Quick Action Button for Selected Item */}
+      {selectedItemAction && (
+        <div style={{ marginTop: '10px' }}>
+          <button
+            type="button"
+            onClick={selectedItemAction.action}
+            style={{
+              width: '100%',
+              background: 'var(--c-accent-secondary, #d8ff00)',
+              color: '#000000',
+              border: 'none',
+              padding: '6px 12px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '10px',
+              fontWeight: 900,
+              cursor: 'pointer',
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+            }}
+          >
+            {selectedItemAction.label}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

@@ -33,6 +33,7 @@ export interface MessageEntry {
   text: string;
   count: number;
   type: MessageType;
+  timestamp?: number;
 }
 
 export interface PlayerStats {
@@ -158,6 +159,7 @@ export interface UIState {
   inventoryVisible: boolean;
   inventoryRevision: number;
   abortDialogVisible: boolean;
+  hotkeysModalVisible: boolean;
 
   // Drag and drop / optimistic updates state
   draggedRunItemEntityId: number | null;
@@ -173,6 +175,8 @@ export interface UIState {
   updateStats: (stats: Partial<RunStats>) => void;
   toggleInventory: () => void;
   incrementInventoryRevision: () => void;
+  toggleHotkeysModal: () => void;
+  setHotkeysModalVisible: (visible: boolean) => void;
   setDraggedRunItemEntityId: (entityId: number | null) => void;
   optimisticEquipItem: (entityId: number, slot: 'weapon' | 'armor') => void;
   optimisticUnequipItem: (slot: 'weapon' | 'armor') => void;
@@ -308,6 +312,7 @@ export const gameStore = createStore<UIState>((set, get) => ({
   inventoryVisible: false,
   inventoryRevision: 0,
   abortDialogVisible: false,
+  hotkeysModalVisible: false,
   draggedRunItemEntityId: null,
   optimisticWeapon: undefined,
   optimisticArmor: undefined,
@@ -329,6 +334,7 @@ export const gameStore = createStore<UIState>((set, get) => ({
   addMessage: (text, type) =>
     set((state) => {
       const lastMessage = state.messages[0];
+      const now = Date.now();
 
       if (lastMessage && lastMessage.text === text && lastMessage.type === type) {
         // Update count of identical consecutive message
@@ -336,6 +342,7 @@ export const gameStore = createStore<UIState>((set, get) => ({
         updatedMessages[0] = {
           ...lastMessage,
           count: lastMessage.count + 1,
+          timestamp: now,
         };
         return { messages: updatedMessages };
       }
@@ -346,6 +353,7 @@ export const gameStore = createStore<UIState>((set, get) => ({
         text,
         count: 1,
         type,
+        timestamp: now,
       };
 
       const newMessages = [newMessage, ...state.messages];
@@ -553,6 +561,9 @@ export const gameStore = createStore<UIState>((set, get) => ({
     }),
   updateTargetingCursor: (x, y) => set({ targetingX: x, targetingY: y }),
   toggleInventory: () => set((state) => ({ inventoryVisible: !state.inventoryVisible })),
+  toggleHotkeysModal: () =>
+    set((state) => ({ hotkeysModalVisible: !state.hotkeysModalVisible })),
+  setHotkeysModalVisible: (visible) => set({ hotkeysModalVisible: visible }),
   setAbortDialogVisible: (visible) => set({ abortDialogVisible: visible }),
   incrementInventoryRevision: () =>
     set((state) => ({ inventoryRevision: state.inventoryRevision + 1 })),

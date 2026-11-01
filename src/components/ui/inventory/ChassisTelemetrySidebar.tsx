@@ -3,7 +3,18 @@
 import React, { useState } from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
-import { Shell, Defense, Health } from '@shared/components';
+import {
+  Shell,
+  Defense,
+  Health,
+  AugmentSlots,
+  AugmentData,
+  EquipmentSlots,
+  SoftwareDef,
+  Children,
+  TemplateId,
+  Item,
+} from '@shared/components';
 import type { ComponentDef } from '@engine/ecs/types';
 import { DottedSpecRow } from '../atomic';
 import { ItemTooltip } from '../hub/ItemTooltip';
@@ -12,6 +23,7 @@ import {
   SHELL_STAT_DEFINITIONS,
   getAbilityMetadata,
   getShellMetadata,
+  getSoftwareModificationInfo,
 } from '../hub/item-metadata';
 import styles from './ChassisTelemetrySidebar.module.css';
 
@@ -50,17 +62,27 @@ const ARCHETYPE_MAP: Record<string, { subtitle: string; kanjiArchetype: string; 
 };
 
 function resolveArchetype(rawName?: string): ArchetypeMeta {
-  const norm = (rawName || 'vanguard-v1').toLowerCase();
+  const norm = (rawName || '').toLowerCase().trim();
+  const store = gameStore.getState();
+  const fallbackId =
+    store.launchConfig?.shellId ||
+    store.shellTemplates[store.selectedShellIndex]?.id ||
+    'vanguard-v1';
+
+  // If rawName is missing, none, or generic "default shell", use fallback
+  const resolvedId = (!norm || norm.includes('default') || norm === 'none') ? fallbackId : norm;
+
   for (const [key, meta] of Object.entries(ARCHETYPE_MAP)) {
-    if (norm.includes(key.replace('-v1', '')) || norm.includes(key)) {
+    if (resolvedId.includes(key.replace('-v1', '')) || resolvedId.includes(key)) {
       return { id: key, name: key.toUpperCase(), ...meta };
     }
   }
+
   return {
-    id: 'vanguard-v1',
-    name: rawName ? rawName.toUpperCase() : 'VANGUARD-v1',
-    subtitle: 'Skirmisher Assault Unit',
-    kanjiArchetype: '突撃型',
+    id: resolvedId,
+    name: resolvedId.toUpperCase(),
+    subtitle: 'Tactical Operative Unit',
+    kanjiArchetype: '戦術型',
     classLabel: 'TACTICAL OPERATOR',
   };
 }
@@ -69,6 +91,9 @@ export const ChassisTelemetrySidebar: React.FC = () => {
   const player = useStore(gameStore, (s) => s.player);
   const abilities = useStore(gameStore, (s) => s.abilities);
   const stability = useStore(gameStore, (s) => s.stability);
+  const playerProfile = useStore(gameStore, (s) => s.playerProfile);
+  const optimisticWeapon = useStore(gameStore, (s) => s.optimisticWeapon);
+  const optimisticArmor = useStore(gameStore, (s) => s.optimisticArmor);
 
   const [hoveredTooltip, setHoveredTooltip] = useState<{
     metadata: ItemMetadata;
@@ -76,7 +101,7 @@ export const ChassisTelemetrySidebar: React.FC = () => {
     y: number;
   } | null>(null);
 
-  // Read current stats from gameContext world if present, otherwise fallback to store
+  // Read current stats and components from gameContext world if present
   const gameContext = (typeof window !== 'undefined'
     ? (window as unknown as { gameContext?: GameContext }).gameContext
     : undefined);
@@ -114,8 +139,108 @@ export const ChassisTelemetrySidebar: React.FC = () => {
     },
   ];
 
+  // 1. Resolve Installed Augments
+  interface AugmentDisplay {
+    id: string;
+    name: string;
+    trigger: string;
+    effect: string;
+    description: string;
+  }
+  const installedAugments: AugmentDisplay[] = [];
+
+  if (gameContext) {
+    const agSlots = gameContext.world.getComponent(gameContext.playerId, AugmentSlots);
+    if (agSlots?.equipped) {
+      for (const agId of agSlots.equipped) {
+        const agData = gameContext.world.getComponent(agId, AugmentData);
+        const itemComp = gameContext.world.getComponent(agId, Item);
+        const tmpl = gameContext.world.getComponent(agId, TemplateId);
+        if (agData) {
+          const triggerType = agData.trigger?.type ? agData.trigger.type.replace(/_/g, ' ') : 'PASSIVE';
+          let effectDesc = itemComp?.description || '';
+          if (agData.payloads && agData.payloads.length > 0) {
+            effectDesc = agData.payloads
+              .map((p) => {
+                if (p.type === 'SHIELD') return `+${p.magnitude} Barrier (${p.statusEffectDuration || 2}T)`;
+                if (p.type === 'VENT_HEAT') return `-${p.magnitude} Core Heat`;
+                return `${p.type}: ${p.magnitude}`;
+              })
+              .join(', ');
+          }
+          installedAugments.push({
+            id: tmpl?.id || agData.name,
+            name: agData.name,
+            trigger: triggerType,
+            effect: effectDesc,
+            description: itemComp?.description || effectDesc,
+          });
+        }
+      }
+    }
+  }
+
+  // Fallback to profile installedItems if ECS is still initializing
+  if (installedAugments.length === 0 && playerProfile) {
+    const profileAugments = playerProfile.installedItems.filter(
+      (i) => i.type === 'augment' && (i.shellId === archetype.id || !i.shellId),
+    );
+    for (const pa of profileAugments) {
+      const info = getSoftwareModificationInfo(pa.blueprintId);
+      installedAugments.push({
+        id: pa.blueprintId,
+        name: pa.blueprintId.toUpperCase(),
+        trigger: 'PASSIVE SYNERGY',
+        effect: info.effect || 'Enhances chassis neuro-pathways during operations.',
+        description: info.description,
+      });
+    }
+  }
+
+  // 2. Resolve Active Software Socketed on Weapon and Armor
+  const eqSlots = gameContext?.world.getComponent(gameContext.playerId, EquipmentSlots);
+  const activeWeaponId = optimisticWeapon !== undefined ? optimisticWeapon : eqSlots?.weapon;
+  const activeArmorId = optimisticArmor !== undefined ? optimisticArmor : eqSlots?.armor;
+
+  interface SoftwareDisplay {
+    slot: 'weapon' | 'armor';
+    softwareName: string;
+    effect: string;
+  }
+  const installedSoftware: SoftwareDisplay[] = [];
+
+  const resolveGearSoftware = (gearId: number | null | undefined, slot: 'weapon' | 'armor') => {
+    if (!gameContext || !gearId) return null;
+    const children = gameContext.world.getComponent(gearId, Children);
+    if (children) {
+      for (const childId of children.entityIds) {
+        const sw = gameContext.world.getComponent(childId, SoftwareDef);
+        const tmpl = gameContext.world.getComponent(childId, TemplateId);
+        if (sw) {
+          const info = getSoftwareModificationInfo(tmpl?.id || sw.type);
+          return { slot, softwareName: sw.name, effect: info.effect };
+        }
+      }
+    }
+    const directSw = gameContext.world.getComponent(gearId, SoftwareDef);
+    if (directSw) {
+      const info = getSoftwareModificationInfo(directSw.type);
+      return { slot, softwareName: directSw.name, effect: info.effect };
+    }
+    return null;
+  };
+
+  const weaponSw = resolveGearSoftware(activeWeaponId, 'weapon');
+  const armorSw = resolveGearSoftware(activeArmorId, 'armor');
+  if (weaponSw) installedSoftware.push(weaponSw);
+  if (armorSw) installedSoftware.push(armorSw);
+
   return (
-    <aside className={styles.sidebarContainer} aria-label="Chassis Telemetry Sidebar">
+    <aside
+      className={styles.sidebarContainer}
+      aria-label="Chassis Telemetry Sidebar"
+      style={{ overflowY: 'auto', maxHeight: 'calc(100vh - 120px)' }}
+    >
       {/* 1. CHASSIS OVERVIEW & SCHEMATIC */}
       <div>
         <div className={styles.sectionHeader}>
@@ -244,53 +369,53 @@ export const ChassisTelemetrySidebar: React.FC = () => {
       {/* 3. ACTIVE FIRMWARE SUBROUTINES */}
       <div>
         <div className={styles.sectionHeader}>
-          <span>ACTIVE FIRMWARE</span>
+          <span>ACTIVE FIRMWARE (FW)</span>
           <span className={styles.kanjiDim}>[戦術機能]</span>
         </div>
 
         <div className={styles.abilitiesList}>
-          {abilities.map((ability, idx) => (
-            <div
-              key={`${ability.name}-${idx}`}
-              className={styles.abilityCard}
-              tabIndex={0}
-              role="button"
-              aria-label={`Firmware ${idx + 1}: ${ability.name}`}
-              onPointerEnter={(e) =>
-                setHoveredTooltip({
-                  metadata: getAbilityMetadata(ability),
-                  x: e.clientX,
-                  y: e.clientY,
-                })
-              }
-              onPointerMove={(e) =>
-                setHoveredTooltip((prev) =>
-                  prev ? { ...prev, x: e.clientX, y: e.clientY } : null,
-                )
-              }
-              onPointerLeave={() => setHoveredTooltip(null)}
-              onFocus={(e) => {
-                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                setHoveredTooltip({
-                  metadata: getAbilityMetadata(ability),
-                  x: rect.right + 12,
-                  y: rect.top,
-                });
-              }}
-              onBlur={() => setHoveredTooltip(null)}
-            >
-              <div className={styles.abilityLeft}>
-                <span className={styles.hotkeyTag}>[{idx + 1}]</span>
-                <span className={styles.abilityName}>{ability.name}</span>
+          {abilities.map((ability, idx) => {
+            const meta = getAbilityMetadata(ability);
+            return (
+              <div
+                key={`${ability.name}-${idx}`}
+                className={styles.abilityCard}
+                style={{ flexDirection: 'column', alignItems: 'stretch', gap: '3px' }}
+                tabIndex={0}
+                role="button"
+                aria-label={`Firmware ${idx + 1}: ${ability.name}`}
+                onPointerEnter={(e) =>
+                  setHoveredTooltip({
+                    metadata: meta,
+                    x: e.clientX,
+                    y: e.clientY,
+                  })
+                }
+                onPointerMove={(e) =>
+                  setHoveredTooltip((prev) =>
+                    prev ? { ...prev, x: e.clientX, y: e.clientY } : null,
+                  )
+                }
+                onPointerLeave={() => setHoveredTooltip(null)}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className={styles.abilityLeft}>
+                    <span className={styles.hotkeyTag}>[{idx + 1}]</span>
+                    <span className={styles.abilityName}>{ability.name}</span>
+                  </div>
+                  <div className={styles.abilityMetaTags}>
+                    {ability.heatCost > 0 && (
+                      <span className={styles.heatTag}>+{ability.heatCost}H</span>
+                    )}
+                    {ability.range > 0 && <span className={styles.rangeTag}>R:{ability.range}</span>}
+                  </div>
+                </div>
+                <div style={{ fontSize: '8px', color: 'var(--c-text-dim)', lineHeight: 1.2 }}>
+                  ⚡ {meta.description || 'Active tactical ability subroutine.'}
+                </div>
               </div>
-              <div className={styles.abilityMetaTags}>
-                {ability.heatCost > 0 && (
-                  <span className={styles.heatTag}>+{ability.heatCost}H</span>
-                )}
-                {ability.range > 0 && <span className={styles.rangeTag}>R:{ability.range}</span>}
-              </div>
-            </div>
-          ))}
+            );
+          })}
 
           {Array.from({ length: Math.max(0, 3 - abilities.length) }).map((_, i) => {
             const idx = abilities.length + i;
@@ -307,7 +432,117 @@ export const ChassisTelemetrySidebar: React.FC = () => {
         </div>
       </div>
 
-      {/* 4. OPERATIONAL STATES & MODIFIERS */}
+      {/* 4. PASSIVE NEURO-AUGMENTS */}
+      <div>
+        <div className={styles.sectionHeader}>
+          <span>NEURO-AUGMENTS (AG)</span>
+          <span className={styles.kanjiDim}>[拡張機構]</span>
+        </div>
+
+        <div className={styles.abilitiesList}>
+          {installedAugments.map((ag, idx) => (
+            <div
+              key={`${ag.id}-${idx}`}
+              className={styles.abilityCard}
+              style={{ flexDirection: 'column', alignItems: 'stretch', gap: '3px' }}
+              tabIndex={0}
+              role="button"
+              aria-label={`Augment: ${ag.name}`}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className={styles.abilityLeft}>
+                  <span style={{ fontSize: '9px', fontWeight: 800, color: 'var(--c-accent-secondary)' }}>
+                    [AG]
+                  </span>
+                  <span className={styles.abilityName}>{ag.name}</span>
+                </div>
+                <span
+                  style={{
+                    fontSize: '8px',
+                    fontWeight: 700,
+                    color: 'var(--c-accent)',
+                    background: 'rgba(0, 240, 255, 0.1)',
+                    border: '1px solid rgba(0, 240, 255, 0.3)',
+                    padding: '1px 4px',
+                  }}
+                >
+                  {ag.trigger}
+                </span>
+              </div>
+              <div style={{ fontSize: '8px', color: 'var(--c-accent-secondary)', lineHeight: 1.2 }}>
+                ⚡ {ag.effect}
+              </div>
+            </div>
+          ))}
+
+          {installedAugments.length === 0 && (
+            <div className={styles.abilityCardEmpty}>
+              <div className={styles.abilityLeft}>
+                <span style={{ fontSize: '9px', opacity: 0.6 }}>[AG]</span>
+                <span style={{ fontSize: '9px' }}>NO AUGMENTS INSTALLED</span>
+              </div>
+              <span style={{ fontSize: '8px', opacity: 0.5 }}>OFFLINE</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 5. LOADED SOFTWARE SUBROUTINES */}
+      <div>
+        <div className={styles.sectionHeader}>
+          <span>LOADED SOFTWARE (SW)</span>
+          <span className={styles.kanjiDim}>[論理機能]</span>
+        </div>
+
+        <div className={styles.abilitiesList}>
+          {installedSoftware.map((sw, idx) => (
+            <div
+              key={`${sw.slot}-${idx}`}
+              className={styles.abilityCard}
+              style={{ flexDirection: 'column', alignItems: 'stretch', gap: '3px' }}
+              tabIndex={0}
+              role="button"
+              aria-label={`Software on ${sw.slot}: ${sw.softwareName}`}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className={styles.abilityLeft}>
+                  <span style={{ fontSize: '9px', fontWeight: 800, color: 'var(--c-accent)' }}>
+                    [{sw.slot.toUpperCase()}]
+                  </span>
+                  <span className={styles.abilityName}>{sw.softwareName}</span>
+                </div>
+                <span
+                  style={{
+                    fontSize: '8px',
+                    fontWeight: 700,
+                    color: 'var(--c-accent-secondary)',
+                    background: 'rgba(216, 255, 0, 0.1)',
+                    border: '1px solid rgba(216, 255, 0, 0.3)',
+                    padding: '1px 4px',
+                  }}
+                >
+                  ACTIVE MOD
+                </span>
+              </div>
+              <div style={{ fontSize: '8px', color: 'var(--c-accent-secondary)', lineHeight: 1.2 }}>
+                ⚡ {sw.effect}
+              </div>
+            </div>
+          ))}
+
+          {installedSoftware.length === 0 && (
+            <div className={styles.abilityCardEmpty}>
+              <div className={styles.abilityLeft}>
+                <span style={{ fontSize: '9px', opacity: 0.6 }}>[SW]</span>
+                <span style={{ fontSize: '9px' }}>NO SOFTWARE LOADED ON GEAR</span>
+              </div>
+              <span style={{ fontSize: '8px', opacity: 0.5 }}>UNSOCKETED</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 6. OPERATIONAL STATES & MODIFIERS */}
       <div>
         <div className={styles.sectionHeader}>
           <span>OPERATIONAL STATES</span>

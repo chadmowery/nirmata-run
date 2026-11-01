@@ -101,7 +101,9 @@ export function registerCoreSystems<T extends GameplayEvents>(
   // Action / Reaction
   teleport.init();
   movement.init();
-  propInteraction.init();
+  if (!isClient) {
+    propInteraction.init();
+  }
   equipment.init();
   anchorInteraction.init();
   firmware.init();

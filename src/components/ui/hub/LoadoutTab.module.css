@@ -70,6 +70,15 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: 4px;
+  width: 100%;
+}
+
+.socketSoftwareList > div {
+  width: 100%;
+}
+
+.socketSoftwareList :global(.btn-lever) {
+  width: 100%;
 }
 
 .socketSoftwareList::-webkit-scrollbar {
