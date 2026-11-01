@@ -80,6 +80,29 @@ export const AbortMissionDialog: React.FC<AbortMissionDialogProps> = ({
             );
           }
         }
+
+        // If gameStatus was not automatically transitioned by sync bridge, trigger BSOD autopsy
+        if (gameStore.getState().gameStatus !== GameState.GameOver) {
+          const calculatedScore = currentFloor * 100 + stats.kills * 10;
+          gameStore.getState().setRunResultsData({
+            reason: 'OPERATOR_MANUAL_DESYNC',
+            deathReason: 'OPERATOR EMERGENCY LINK ABORT',
+            floorNumber: currentFloor,
+            turnsElapsed: stats.turns,
+            enemiesKilled: stats.kills,
+            peakHeat: player.heat ?? 0,
+            itemsSecured: {
+              firmware: 0,
+              augments: 0,
+              software: 0,
+              scrap: Math.floor((player.xp || 0) * 0.5),
+            },
+            score: calculatedScore,
+          });
+
+          showBSOD('OPERATOR_MANUAL_DESYNC [EMERGENCY CORE EJECT]');
+          setGameStatus(GameState.GameOver);
+        }
       } else {
         throw new Error(`Server returned ${res.status}`);
       }

@@ -301,7 +301,9 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     for (const entityId of dyingEntities) {
       const actor = w.getComponent(entityId, Actor);
       if (actor?.isPlayer) {
-        executeRunEnd(entityId, 'death', false);
+        const dying = w.getComponent(entityId, Dying);
+        const reason = dying?.reason || 'death';
+        executeRunEnd(entityId, reason, false);
       }
     }
 

@@ -395,7 +395,8 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
       action === GameAction.STAIRCASE_DESCEND ||
       action === GameAction.ANCHOR_EXTRACT ||
       action === 'INTERACT_PROP' ||
-      action === 'DEAD_DROP_ITEM'
+      action === 'DEAD_DROP_ITEM' ||
+      action === 'ABORT_RUN'
     ) {
       // Intent already added by API, we just need to satisfy the turn cycle
     }
