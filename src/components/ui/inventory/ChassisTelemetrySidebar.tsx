@@ -10,6 +10,7 @@ import {
   AugmentSlots,
   AugmentData,
   EquipmentSlots,
+  SoftwareSlots,
   SoftwareDef,
   Children,
   TemplateId,
@@ -203,7 +204,7 @@ export const ChassisTelemetrySidebar: React.FC = () => {
   const activeArmorId = optimisticArmor !== undefined ? optimisticArmor : eqSlots?.armor;
 
   interface SoftwareDisplay {
-    slot: 'weapon' | 'armor';
+    slot: 'weapon' | 'armor' | 'chassis';
     softwareName: string;
     effect: string;
   }
@@ -234,6 +235,36 @@ export const ChassisTelemetrySidebar: React.FC = () => {
   const armorSw = resolveGearSoftware(activeArmorId, 'armor');
   if (weaponSw) installedSoftware.push(weaponSw);
   if (armorSw) installedSoftware.push(armorSw);
+
+  // Read direct chassis SoftwareSlots
+  if (gameContext) {
+    const swSlots = gameContext.world.getComponent(gameContext.playerId, SoftwareSlots);
+    if (swSlots?.equipped) {
+      for (const swId of swSlots.equipped) {
+        const swDef = gameContext.world.getComponent(swId, SoftwareDef);
+        const tmpl = gameContext.world.getComponent(swId, TemplateId);
+        if (swDef) {
+          const info = getSoftwareModificationInfo(tmpl?.id || swDef.type);
+          installedSoftware.push({ slot: 'chassis', softwareName: swDef.name, effect: info.effect });
+        }
+      }
+    }
+  }
+
+  // Fallback to profile installed software if empty
+  if (installedSoftware.length === 0 && playerProfile) {
+    const profileSoftware = playerProfile.installedItems.filter(
+      (i) => i.type === 'software' && (i.shellId === archetype.id || !i.shellId),
+    );
+    for (const ps of profileSoftware) {
+      const info = getSoftwareModificationInfo(ps.blueprintId);
+      installedSoftware.push({
+        slot: 'chassis',
+        softwareName: ps.blueprintId.toUpperCase(),
+        effect: info.effect || 'Loaded tactical software module.',
+      });
+    }
+  }
 
   return (
     <aside

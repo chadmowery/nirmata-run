@@ -188,11 +188,15 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
 
   // If a profile is provided, populate slots from installed items
   if (config.profile) {
-    const activeShellId = config.shellRecord ? config.shellRecord.id : null;
+    const targetShellId = config.shellRecord?.archetypeId || config.shellRecord?.id || null;
 
     // Filter installed items for this specific shell
     const items = config.profile.installedItems.filter(
-      (item) => !activeShellId || item.shellId === activeShellId,
+      (item) =>
+        !targetShellId ||
+        item.shellId === targetShellId ||
+        item.shellId === config.shellRecord?.id ||
+        item.shellId === config.shellRecord?.archetypeId,
     );
 
     const firmwareIds: number[] = [];
@@ -226,12 +230,16 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
         world.addComponent(itemId, Children, { entityIds: swEntityIds });
       }
 
-      if (item.type === 'firmware') {
-        firmwareIds.push(itemId);
-      } else if (item.type === 'software') {
-        softwareIds.push(itemId);
-      } else if (item.type === 'augment') {
+      const hasAugment = world.hasComponent(itemId, AugmentData);
+      const hasSoftware = world.hasComponent(itemId, SoftwareDef);
+      const hasAbility = world.hasComponent(itemId, AbilityDef);
+
+      if (item.type === 'augment' || hasAugment) {
         augmentIds.push(itemId);
+      } else if (item.type === 'software' || hasSoftware) {
+        softwareIds.push(itemId);
+      } else if (item.type === 'firmware' || hasAbility) {
+        firmwareIds.push(itemId);
       } else if (item.type === 'weapon') {
         weaponId = itemId;
       } else if (item.type === 'armor') {
