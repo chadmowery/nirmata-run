@@ -6,6 +6,14 @@ import { logger } from '../utils/logger';
  */
 export class EntityRegistry {
   private templates: Map<string, RawTemplate> = new Map();
+  private normalizedIndex: Map<string, RawTemplate> = new Map();
+
+  private normalizeKey(key: string): string {
+    return key
+      .toLowerCase()
+      .replace(/\.(sh|exe|sys|arc)$/i, '')
+      .replace(/[\s_\-.]/g, '');
+  }
 
   /**
    * Register a new template.
@@ -22,20 +30,24 @@ export class EntityRegistry {
       );
     }
     this.templates.set(template.name, template);
+    const norm = this.normalizeKey(template.name);
+    if (!this.normalizedIndex.has(norm)) {
+      this.normalizedIndex.set(norm, template);
+    }
   }
 
   /**
    * Get a template by name.
    */
   get(name: string): RawTemplate | undefined {
-    return this.templates.get(name);
+    return this.templates.get(name) || this.normalizedIndex.get(this.normalizeKey(name));
   }
 
   /**
    * Check if a template name is registered.
    */
   has(name: string): boolean {
-    return this.templates.has(name);
+    return this.templates.has(name) || this.normalizedIndex.has(this.normalizeKey(name));
   }
 
   /**

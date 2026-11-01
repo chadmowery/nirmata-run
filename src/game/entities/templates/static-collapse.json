@@ -1,5 +1,5 @@
 {
-  "name": "STATIC_COLLAPSE",
+  "name": "static-collapse",
   "sprite": { "key": "item_static_siphon" },
   "components": {
     "augmentData": {

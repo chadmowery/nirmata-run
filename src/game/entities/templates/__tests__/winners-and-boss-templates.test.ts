@@ -70,6 +70,30 @@ describe("Winner's Items & Boss Templates", () => {
       const template = registry.get(itemId);
       expect(template).toBeDefined();
       expect(template?.name).toBe(itemId);
+
+      // Verify kebab-case name lookup works as well
+      const kebabName = itemId.toLowerCase().replace(/_/g, '-');
+      expect(registry.has(kebabName)).toBe(true);
+      const kebabTemplate = registry.get(kebabName);
+      expect(kebabTemplate).toBeDefined();
     }
+  });
+
+  it('normalizes template lookup keys in EntityRegistry (casing, separators, and extensions)', () => {
+    const registry = new EntityRegistry();
+    registerGameTemplates(registry);
+
+    expect(registry.has('phased-overdrive')).toBe(true);
+    expect(registry.has('PHASED_OVERDRIVE.exe')).toBe(true);
+    expect(registry.has('neural-recursion')).toBe(true);
+    expect(registry.has('NEURAL_RECURSION.arc')).toBe(true);
+    expect(registry.has('static-collapse')).toBe(true);
+    expect(registry.has('STATIC_COLLAPSE.arc')).toBe(true);
+    expect(registry.has('void-echo')).toBe(true);
+    expect(registry.has('Void_Echo.exe')).toBe(true);
+    expect(registry.has('displacement-venting')).toBe(true);
+    expect(registry.has('Displacement_Venting.arc')).toBe(true);
+    expect(registry.has('phase-shift')).toBe(true);
+    expect(registry.has('Phase_Shift.sh')).toBe(true);
   });
 });

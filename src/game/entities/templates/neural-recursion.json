@@ -1,5 +1,5 @@
 {
-  "name": "NEURAL_RECURSION",
+  "name": "neural-recursion",
   "sprite": { "key": "item_neural_feedback" },
   "components": {
     "augmentData": {

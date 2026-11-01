@@ -91,7 +91,7 @@ export const DEBUG_VAULT_CATALOG: Array<{
   { templateId: 'neural-feedback', rarityTier: 'rare', itemType: 'augment' },
   { templateId: 'bleed-v2', rarityTier: 'rare', itemType: 'software' },
   { templateId: 'auto-loader-v2', rarityTier: 'rare', itemType: 'software' },
-  { templateId: 'void-echo', rarityTier: 'legendary', itemType: 'augment' },
+  { templateId: 'void-echo', rarityTier: 'legendary', itemType: 'software' },
 
   // Round 6: Remaining items up to 30
   { templateId: 'kinetic-link', rarityTier: 'common', itemType: 'firmware' },

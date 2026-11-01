@@ -122,9 +122,13 @@ export function registerGameTemplates(registry: EntityRegistry): void {
   registry.register(rifle_v3 as unknown as RawTemplate);
   registry.register(dead_zone as unknown as RawTemplate);
   registry.register(phased_overdrive as unknown as RawTemplate);
+  registry.register({ ...(phased_overdrive as unknown as RawTemplate), name: 'PHASED_OVERDRIVE' });
   registry.register(neural_recursion as unknown as RawTemplate);
+  registry.register({ ...(neural_recursion as unknown as RawTemplate), name: 'NEURAL_RECURSION' });
   registry.register(static_collapse as unknown as RawTemplate);
+  registry.register({ ...(static_collapse as unknown as RawTemplate), name: 'STATIC_COLLAPSE' });
   registry.register(void_echo as unknown as RawTemplate);
+  registry.register({ ...(void_echo as unknown as RawTemplate), name: 'VOID_ECHO' });
   registry.register(prop_workstation as unknown as RawTemplate);
   registry.register(prop_locker as unknown as RawTemplate);
   registry.register(prop_biocabinet as unknown as RawTemplate);
