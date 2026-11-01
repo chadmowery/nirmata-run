@@ -204,8 +204,26 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     const augmentIds: number[] = [];
     let weaponId: number | null = null;
     let armorId: number | null = null;
-    const backpackSoftware: Array<{ entityId: number; templateId: string; rarityTier: string }> = [];
-    const backpackEquipment: Array<{ entityId: number; templateId: string; rarityTier: string }> = [];
+    const backpackSoftware: Array<{
+      entityId: number;
+      templateId: string;
+      rarityTier: string;
+      pickedUpAtFloor: number;
+      pickedUpAtTimestamp: number;
+      gridIndex?: number;
+      quantity?: number;
+      isConsumable?: boolean;
+    }> = [];
+    const backpackEquipment: Array<{
+      entityId: number;
+      templateId: string;
+      rarityTier: string;
+      pickedUpAtFloor: number;
+      pickedUpAtTimestamp: number;
+      gridIndex?: number;
+      quantity?: number;
+      isConsumable?: boolean;
+    }> = [];
 
     for (const item of items) {
       // Spawn the item entity (D-15/D-16 Fix)
@@ -234,7 +252,30 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
       const hasSoftware = world.hasComponent(itemId, SoftwareDef);
       const hasAbility = world.hasComponent(itemId, AbilityDef);
 
-      if (item.type === 'augment' || hasAugment) {
+      if (item.type === 'backpack') {
+        const isSw = world.hasComponent(itemId, SoftwareDef);
+        const rarity = world.getComponent(itemId, RarityTier)?.tier || 'common';
+        const isConsumable =
+          item.blueprintId.includes('health') ||
+          item.blueprintId.includes('potion') ||
+          item.blueprintId.includes('injector') ||
+          item.blueprintId.includes('canister');
+        const itemObj = {
+          entityId: itemId,
+          templateId: item.blueprintId,
+          rarityTier: rarity,
+          pickedUpAtFloor: 1,
+          pickedUpAtTimestamp: Date.now(),
+          gridIndex: isSw ? backpackSoftware.length : backpackEquipment.length,
+          quantity: 1,
+          isConsumable: isConsumable || undefined,
+        };
+        if (isSw) {
+          backpackSoftware.push(itemObj);
+        } else {
+          backpackEquipment.push(itemObj);
+        }
+      } else if (item.type === 'augment' || hasAugment) {
         augmentIds.push(itemId);
       } else if (item.type === 'software' || hasSoftware) {
         softwareIds.push(itemId);
@@ -244,14 +285,6 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
         weaponId = itemId;
       } else if (item.type === 'armor') {
         armorId = itemId;
-      } else if (item.type === 'backpack') {
-        const isSw = world.hasComponent(itemId, SoftwareDef);
-        const rarity = world.getComponent(itemId, RarityTier)?.tier || 'common';
-        if (isSw) {
-          backpackSoftware.push({ entityId: itemId, templateId: item.blueprintId, rarityTier: rarity });
-        } else {
-          backpackEquipment.push({ entityId: itemId, templateId: item.blueprintId, rarityTier: rarity });
-        }
       }
     }
 

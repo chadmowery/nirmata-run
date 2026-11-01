@@ -4,7 +4,7 @@ import bastion from '../shared/templates/bastion-v1.json';
 import ghost from '../shared/templates/ghost-v1.json';
 import { createDefaultProfile } from '@shared/profile';
 import { createEngineInstance } from '@/game/engine-factory';
-import { FirmwareSlots, AbilityDef } from '@shared/components';
+import { FirmwareSlots, AbilityDef, RunInventory } from '@shared/components';
 
 describe('Shell Starter Loadouts & Abilities', () => {
   it('all starter templates define correct starterLoadout lists', () => {
@@ -97,5 +97,49 @@ describe('Shell Starter Loadouts & Abilities', () => {
     const ability1 = engine.world.getComponent(fwSlots!.equipped[1], AbilityDef);
     expect(ability0?.name).toBe('GHOST_PULSE.exe');
     expect(ability1?.name).toBe('LOGIC_JAM.exe');
+  });
+
+  it('createEngineInstance successfully boots with player backpack items without schema validation errors', () => {
+    const profile = createDefaultProfile('backpack-test-session');
+    profile.installedItems.push(
+      {
+        entityId: 9901,
+        blueprintId: 'bleed-v1',
+        type: 'backpack',
+        shellId: 'ghost-v1',
+        isLegacy: false,
+      },
+      {
+        entityId: 9902,
+        blueprintId: 'health-potion',
+        type: 'backpack',
+        shellId: 'ghost-v1',
+        isLegacy: false,
+      },
+    );
+
+    const engine = createEngineInstance({
+      width: 20,
+      height: 20,
+      seed: 'test-backpack-seed',
+      profile,
+      shellRecord: {
+        id: 'ghost-v1',
+        archetypeId: 'ghost-v1',
+        level: 1,
+        currentStats: { speed: 110, stability: 80, armor: 0, maxHealth: 15 },
+        portConfig: { maxFirmware: 2, maxAugment: 1, maxSoftware: 2 },
+        starterLoadout: ['ghost-pulse', 'logic-jam'],
+      },
+    });
+
+    const player = engine.playerId;
+    const inv = engine.world.getComponent(player, RunInventory);
+    expect(inv).toBeDefined();
+    expect(inv?.software.length).toBeGreaterThanOrEqual(1);
+    const swItem = inv!.software[0];
+    expect(swItem.templateId).toBe('bleed-v1');
+    expect(swItem.pickedUpAtFloor).toBe(1);
+    expect(swItem.pickedUpAtTimestamp).toBeGreaterThan(0);
   });
 });
