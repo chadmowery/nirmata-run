@@ -25,6 +25,7 @@ export enum GameAction {
   TOGGLE_INVENTORY = 'TOGGLE_INVENTORY',
   TOGGLE_HOTKEYS = 'TOGGLE_HOTKEYS',
   PICKUP_GROUND = 'PICKUP_GROUND',
+  TOGGLE_FLAVOR_TEXT = 'TOGGLE_FLAVOR_TEXT',
 }
 
 /**
@@ -66,6 +67,7 @@ export const DEFAULT_BINDINGS: Record<string, GameAction> = {
   KeyE: GameAction.INTERACT_ANCHOR,
   KeyI: GameAction.TOGGLE_INVENTORY,
   KeyG: GameAction.PICKUP_GROUND,
+  KeyT: GameAction.TOGGLE_FLAVOR_TEXT,
 };
 
 /**

@@ -11,6 +11,7 @@ import EventTimelinePanel from './EventTimelinePanel';
 import { InventoryOverlay } from './inventory/InventoryOverlay';
 import { GroundTransferModal } from './inventory/GroundTransferModal';
 import { HotkeysModal } from './HotkeysModal';
+import { TacticalInspectTooltip } from './TacticalInspectTooltip';
 import { BtnLever } from './atomic';
 import styles from './styles.module.css';
 
@@ -22,6 +23,7 @@ export const HUDOverlay: React.FC = () => {
   const toggleHotkeysModal = () => gameStore.getState().toggleHotkeysModal();
   const groundTransferVisible = useStore(gameStore, (s) => s.groundTransferVisible);
   const closeGroundTransfer = () => gameStore.getState().closeGroundTransfer();
+  const detailedFlavorTextEnabled = useStore(gameStore, (s) => s.detailedFlavorTextEnabled);
 
   const selectedRunMode = useStore(gameStore, (s) => s.selectedRunMode);
   const currentFloor = useStore(gameStore, (s) => s.currentFloor);
@@ -97,6 +99,13 @@ export const HUDOverlay: React.FC = () => {
               {blueprintCount} BP
             </span>
           </div>
+
+          <div className={styles.hudChip}>
+            <span className={styles.hudChipLabel}>NANITES</span>
+            <span className={styles.hudChipVal} style={{ color: 'var(--c-nanites, #10b981)' }}>
+              {nanites} NT
+            </span>
+          </div>
         </div>
 
         {/* Reality Stability Progress Track */}
@@ -133,11 +142,12 @@ export const HUDOverlay: React.FC = () => {
           </div>
 
           <div className={styles.viewportControlsHint}>
-            <span>[WASD / ARROWS] Move</span>
-            <span>[SPACE] Wait Turn</span>
+            <span>[WASD] Move</span>
+            <span>[SPACE] Wait</span>
             <span>[1-3] Subroutine</span>
             <span>[I] Inventory</span>
-            <span>[E] Terminal</span>
+            <span>[G] Loot</span>
+            <span>[T] Forensics: {detailedFlavorTextEnabled ? 'ON' : 'OFF'}</span>
             <span>[?] Controls</span>
           </div>
         </div>
@@ -157,6 +167,13 @@ export const HUDOverlay: React.FC = () => {
         <AbilityBar />
 
         <div style={{ display: 'flex', gap: '8px' }}>
+          <BtnLever
+            variant={detailedFlavorTextEnabled ? 'cyan' : undefined}
+            onClick={() => gameStore.getState().toggleDetailedFlavorText()}
+            rightSlot="[T]"
+          >
+            {detailedFlavorTextEnabled ? 'FORENSICS ON' : 'TILE FORENSICS'}
+          </BtnLever>
           <BtnLever variant="cyan" onClick={toggleHotkeysModal} rightSlot="[?]">
             CONTROLS GUIDE
           </BtnLever>
@@ -165,6 +182,9 @@ export const HUDOverlay: React.FC = () => {
           </BtnLever>
         </div>
       </footer>
+
+      {/* Tactical Inspection Tooltip */}
+      <TacticalInspectTooltip />
 
       {/* Modal Overlays */}
       {inventoryVisible && <InventoryOverlay onClose={toggleInventory} />}

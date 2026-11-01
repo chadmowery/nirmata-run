@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useStore } from 'zustand';
 import { gameStore, GroundItemInfo } from '@/game/ui/store';
+import type { GameContext } from '@/game/types';
 import { TaikokuPlacard, ItemIcon, BtnLever } from '../atomic';
 import styles from './ContainerOverlay.module.css';
 import {
@@ -24,9 +25,12 @@ interface GroundTransferModalProps {
 export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClose }) => {
   const groundItems = useStore(gameStore, (s) => s.nearbyGroundItems);
   const inventoryRevision = useStore(gameStore, (s) => s.inventoryRevision);
+  void inventoryRevision;
 
   const gameContext = (typeof window !== 'undefined'
-    ? (window as unknown as { gameContext?: any }).gameContext
+    ? (window as unknown as {
+        gameContext?: GameContext;
+      }).gameContext
     : undefined);
 
   useEffect(() => {
@@ -86,8 +90,8 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
 
           let directionLabel = 'CURRENT TILE';
           if (dx !== 0 || dy !== 0) {
-            let ns = dy < 0 ? 'N' : dy > 0 ? 'S' : '';
-            let ew = dx < 0 ? 'W' : dx > 0 ? 'E' : '';
+            const ns = dy < 0 ? 'N' : dy > 0 ? 'S' : '';
+            const ew = dx < 0 ? 'W' : dx > 0 ? 'E' : '';
             directionLabel = `ADJACENT (${ns}${ew})`;
           }
 
@@ -109,7 +113,7 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
   };
 
   // Read player's current backpack items
-  let backpackItems: Array<{
+  const backpackItems: Array<{
     entityId: number;
     templateId: string;
     name: string;

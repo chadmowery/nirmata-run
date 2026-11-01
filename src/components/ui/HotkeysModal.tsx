@@ -63,6 +63,8 @@ const HOTKEY_CATEGORIES: HotkeyCategory[] = [
     title: 'Tactical Sensor Camera',
     badge: 'CAM-05',
     items: [
+      { keys: ['HOVER'], description: 'Inspect interactive enemies, chassis & environmental objects' },
+      { keys: ['T'], description: 'Toggle detailed tile flavor text & environmental forensics' },
       { keys: ['R-CLICK DRAG'], description: 'Free-pan sensor camera across sector' },
       { keys: ['M-CLICK DRAG'], description: 'Alternative free-pan sensor camera' },
       { keys: ['WHEEL SCROLL'], description: 'Tactical optical zoom in / out' },

@@ -115,6 +115,33 @@ export interface RunResultsData {
   deathReason?: string;
 }
 
+export interface HoveredEntityInfo {
+  type: 'enemy' | 'player' | 'prop' | 'item' | 'tile';
+  entityId?: number;
+  name: string;
+  kanjiSub?: string;
+  subTitle?: string;
+  badge?: string;
+  badgeVariant?: 'cyan' | 'orange' | 'danger' | 'yellow';
+  description?: string;
+  flavorText?: string;
+  hp?: number;
+  maxHp?: number;
+  heat?: number;
+  maxHeat?: number;
+  stability?: number;
+  threatLevel?: string;
+  behavior?: string;
+  statusEffects?: string[];
+  rarity?: string;
+  interactionHint?: string;
+  screenX: number;
+  screenY: number;
+  gridX: number;
+  gridY: number;
+  isDetailedOnly?: boolean;
+}
+
 export interface UIState {
   player: PlayerStats;
   messages: MessageEntry[];
@@ -179,6 +206,8 @@ export interface UIState {
   hotkeysModalVisible: boolean;
   groundTransferVisible: boolean;
   nearbyGroundItems: GroundItemInfo[];
+  hoveredEntity: HoveredEntityInfo | null;
+  detailedFlavorTextEnabled: boolean;
 
   // Drag and drop / optimistic updates state
   draggedRunItemEntityId: number | null;
@@ -200,6 +229,9 @@ export interface UIState {
   closeGroundTransfer: () => void;
   updateNearbyGroundItems: (items: GroundItemInfo[]) => void;
   setDraggedRunItemEntityId: (entityId: number | null) => void;
+  setHoveredEntity: (info: HoveredEntityInfo | null) => void;
+  toggleDetailedFlavorText: () => void;
+  setDetailedFlavorTextEnabled: (enabled: boolean) => void;
   optimisticEquipItem: (entityId: number, slot: 'weapon' | 'armor') => void;
   optimisticUnequipItem: (slot: 'weapon' | 'armor') => void;
   clearOptimisticUpdates: () => void;
@@ -346,6 +378,8 @@ export const gameStore = createStore<UIState>((set, get) => ({
   hotkeysModalVisible: false,
   groundTransferVisible: false,
   nearbyGroundItems: [],
+  hoveredEntity: null,
+  detailedFlavorTextEnabled: false,
   draggedRunItemEntityId: null,
   optimisticWeapon: undefined,
   optimisticArmor: undefined,
@@ -494,6 +528,7 @@ export const gameStore = createStore<UIState>((set, get) => ({
       currentFloor: 1,
       runResults: null,
       runResultsVisible: false,
+      hoveredEntity: null,
       bsodVisible: false,
       bsodReason: '',
       heatTier: 0,
@@ -614,6 +649,10 @@ export const gameStore = createStore<UIState>((set, get) => ({
   updateHeatTier: (tier, value, maxSafe) =>
     set({ heatTier: tier, heatValue: value, heatMaxSafe: maxSafe }),
   setDraggedRunItemEntityId: (entityId) => set({ draggedRunItemEntityId: entityId }),
+  setHoveredEntity: (info) => set({ hoveredEntity: info }),
+  toggleDetailedFlavorText: () =>
+    set((state) => ({ detailedFlavorTextEnabled: !state.detailedFlavorTextEnabled })),
+  setDetailedFlavorTextEnabled: (enabled) => set({ detailedFlavorTextEnabled: enabled }),
   optimisticEquipItem: (entityId, slot) =>
     set((state) => {
       const currentWeapon = slot === 'weapon' ? entityId : state.optimisticWeapon;

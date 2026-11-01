@@ -35,7 +35,6 @@ import {
   AugmentData,
   Position,
   SpriteComponent,
-  Item,
   PickupIntent,
 } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';

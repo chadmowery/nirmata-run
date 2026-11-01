@@ -64,6 +64,7 @@ import {
 } from './filters/particle-emitters';
 import { spawnDamageText, updateDamageTexts, disposeDamageTexts } from './filters/damage-text';
 import { EventOriginContext } from '../engine/utils/event-context';
+import { resolveTileInspection } from './tile-inspector';
 
 export interface RenderSystemConfig {
   app: Application;
@@ -90,8 +91,73 @@ export function createRenderSystem(config: RenderSystemConfig) {
   const targetingCursor = new Graphics();
   layers.effectsLayer.addChild(targetingCursor);
 
+  let lastPointerEvent: { clientX: number; clientY: number } | null = null;
+  let currentFovSet: Set<string> = new Set();
+
+  const updateHoverInspection = (e: { clientX: number; clientY: number }) => {
+    if (isDragging) {
+      gameStore.getState().setHoveredEntity(null);
+      return;
+    }
+
+    const canvas = app.canvas;
+    if (!canvas || typeof canvas.getBoundingClientRect !== 'function') {
+      gameStore.getState().setHoveredEntity(null);
+      return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    if (
+      e.clientX < rect.left ||
+      e.clientX > rect.right ||
+      e.clientY < rect.top ||
+      e.clientY > rect.bottom
+    ) {
+      gameStore.getState().setHoveredEntity(null);
+      return;
+    }
+
+    const storeState = gameStore.getState();
+    if (
+      storeState.inventoryVisible ||
+      storeState.groundTransferVisible ||
+      storeState.hotkeysModalVisible ||
+      storeState.abortDialogVisible ||
+      storeState.bsodVisible ||
+      storeState.runResultsVisible
+    ) {
+      storeState.setHoveredEntity(null);
+      return;
+    }
+
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const canvasX = (e.clientX - rect.left) * scaleX;
+    const canvasY = (e.clientY - rect.top) * scaleY;
+    const worldX = canvasX - layers.worldContainer.x;
+    const worldY = canvasY - layers.worldContainer.y;
+    const gx = Math.floor(worldX / TILE_SIZE);
+    const gy = Math.floor(worldY / TILE_SIZE);
+
+    const info = resolveTileInspection({
+      world,
+      grid: getGrid(),
+      gx,
+      gy,
+      screenX: e.clientX,
+      screenY: e.clientY,
+      isVisibleInFov: currentFovSet.has(`${gx},${gy}`) || isMapRevealed,
+      isExplored: exploredSet.has(`${gx},${gy}`) || isMapRevealed,
+      playerEntity: getPlayerEntity(),
+      detailedFlavorTextEnabled: storeState.detailedFlavorTextEnabled,
+    });
+
+    storeState.setHoveredEntity(info);
+  };
+
   const handlePointerDown = (e: PointerEvent) => {
     isDragging = true;
+    gameStore.getState().setHoveredEntity(null);
     dragStartX = e.clientX;
     dragStartY = e.clientY;
     initialPanX = cameraPanOffset.x;
@@ -99,13 +165,23 @@ export function createRenderSystem(config: RenderSystemConfig) {
   };
 
   const handlePointerMove = (e: PointerEvent) => {
-    if (!isDragging) return;
-    const dx = e.clientX - dragStartX;
-    const dy = e.clientY - dragStartY;
-    cameraPanOffset = {
-      x: initialPanX + dx,
-      y: initialPanY + dy,
-    };
+    lastPointerEvent = { clientX: e.clientX, clientY: e.clientY };
+    if (isDragging) {
+      const dx = e.clientX - dragStartX;
+      const dy = e.clientY - dragStartY;
+      cameraPanOffset = {
+        x: initialPanX + dx,
+        y: initialPanY + dy,
+      };
+      gameStore.getState().setHoveredEntity(null);
+      return;
+    }
+    updateHoverInspection(e);
+  };
+
+  const handlePointerLeave = () => {
+    lastPointerEvent = null;
+    gameStore.getState().setHoveredEntity(null);
   };
 
   const handlePointerUp = () => {
@@ -402,6 +478,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       const canvas = app.canvas;
       if (canvas && typeof canvas.addEventListener === 'function') {
         canvas.addEventListener('pointerdown', handlePointerDown);
+        canvas.addEventListener('pointerleave', handlePointerLeave);
         window.addEventListener('pointermove', handlePointerMove);
         window.addEventListener('pointerup', handlePointerUp);
         window.addEventListener('pointercancel', handlePointerUp);
@@ -475,6 +552,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
         }
       }
 
+      currentFovSet = fovSet;
       eventBus.emit('FOV_UPDATED', { visibleSet: fovSet });
 
       // 1.5. Targeting UI Rendering
@@ -578,6 +656,10 @@ export function createRenderSystem(config: RenderSystemConfig) {
           sprite.parent.addChild(sprite);
         }
       }
+
+      if (lastPointerEvent) {
+        updateHoverInspection(lastPointerEvent);
+      }
     },
 
     onDungeonGenerated() {
@@ -633,6 +715,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       const canvas = app.canvas;
       if (canvas && typeof canvas.removeEventListener === 'function') {
         canvas.removeEventListener('pointerdown', handlePointerDown);
+        canvas.removeEventListener('pointerleave', handlePointerLeave);
         window.removeEventListener('pointermove', handlePointerMove);
         window.removeEventListener('pointerup', handlePointerUp);
         window.removeEventListener('pointercancel', handlePointerUp);
@@ -649,6 +732,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       disposeHeatEffects();
       disposeAllEmitters();
       disposeDamageTexts();
+      gameStore.getState().setHoveredEntity(null);
     },
 
     recenterCamera() {

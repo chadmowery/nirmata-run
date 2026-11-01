@@ -360,6 +360,18 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
       return;
     }
 
+    if (action === GameAction.TOGGLE_FLAVOR_TEXT) {
+      gameStore.getState().toggleDetailedFlavorText();
+      const active = gameStore.getState().detailedFlavorTextEnabled;
+      gameStore.getState().addMessage(
+        active
+          ? '[SENSORS] DETAILED FORENSIC TELEMETRY: ACTIVE (Hover over any tile or object for lore)'
+          : '[SENSORS] DETAILED FORENSIC TELEMETRY: STANDBY (Interactive entities only)',
+        'info',
+      );
+      return;
+    }
+
     if (action === GameAction.PICKUP_GROUND) {
       if (gameStore.getState().groundTransferVisible) {
         gameStore.getState().closeGroundTransfer();
