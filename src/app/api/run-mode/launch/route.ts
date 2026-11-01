@@ -104,6 +104,7 @@ export async function POST(req: NextRequest) {
     };
 
     const engine = createEngineInstance(engineConfig);
+    engine.turnManager?.start?.();
 
     sessionManager.createSession(sessionId, {
       world: engine.world,

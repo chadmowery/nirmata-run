@@ -62,12 +62,12 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   const seed = config.seed ?? `run-${Date.now()}`;
 
   // Fetch shell record for the player
-  const shellId = config.shellId || 'player-shell-default';
+  const shellId = config.shellId || 'vanguard-v1';
   let shellRecord = globalShellRegistry.get(shellId);
   if (!shellRecord) {
     const isKnownArchetype =
-      config.shellId && globalShellRegistry.getTemplates().some((t) => t.id === config.shellId);
-    const archetypeId = isKnownArchetype ? config.shellId! : 'vanguard-v1';
+      globalShellRegistry.getTemplates().some((t) => t.id === shellId);
+    const archetypeId = isKnownArchetype ? shellId : 'vanguard-v1';
     shellRecord = globalShellRegistry.createRecord(shellId, archetypeId);
   }
 

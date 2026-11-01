@@ -376,7 +376,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
       shellRecord.id ||
       ''
     ).toLowerCase();
-    let spriteKey = 'player';
+    let spriteKey = 'player_vanguard';
     if (shellKey.includes('bastion')) {
       spriteKey = 'player_bastion';
     } else if (shellKey.includes('ghost')) {

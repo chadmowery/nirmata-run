@@ -1,4 +1,4 @@
-import { Application, Ticker, Graphics } from 'pixi.js';
+import { Application, Ticker, Graphics, Sprite } from 'pixi.js';
 import { World } from '../engine/ecs/world';
 import { EventBus } from '../engine/events/event-bus';
 import { GameEvents } from '../game/events/types';
@@ -622,6 +622,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
       // 4. Entity Sprites Sync & Visibility
       const renderables = world.query(SpriteComponent, Position);
+      let playerSprite: Sprite | null = null;
       for (const entityId of renderables) {
         let sprite = getEntitySprite(entityId);
 
@@ -646,15 +647,21 @@ export function createRenderSystem(config: RenderSystemConfig) {
         if (entityType === 'player') {
           visible = true;
           alpha = 1.0;
+          playerSprite = sprite;
         }
 
         sprite.visible = visible;
         sprite.alpha = alpha;
 
-        // Ensure sprite is on top within its container
-        if (visible && sprite.parent) {
+        // Layer visible entities; player will be placed on the absolute top
+        if (entityType !== 'player' && visible && sprite.parent) {
           sprite.parent.addChild(sprite);
         }
+      }
+
+      // Ensure player sprite is ALWAYS on the topmost z-layer of entityLayer
+      if (playerSprite && playerSprite.parent) {
+        playerSprite.parent.addChild(playerSprite);
       }
 
       if (lastPointerEvent) {

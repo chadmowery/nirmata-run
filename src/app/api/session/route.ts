@@ -50,7 +50,7 @@ export async function POST(req: Request) {
 
     // Shell resolution
     let shellRecord = null;
-    const requestedShellId = parsed.data.shellId;
+    const requestedShellId = parsed.data.shellId || 'vanguard-v1';
     if (requestedShellId) {
       shellRecord = globalShellRegistry.get(requestedShellId);
       if (!shellRecord) {

@@ -59,7 +59,7 @@ export default function GamePage() {
       let runMode: RunMode | undefined;
       let shellId: string | undefined;
 
-      const fallbackShellId = store.shellTemplates[store.selectedShellIndex]?.id;
+      const fallbackShellId = store.shellTemplates[store.selectedShellIndex]?.id || 'vanguard-v1';
 
       if (launchConfig) {
         // Use pre-configured launch data from the Hub (Initialize Ritual)
@@ -70,7 +70,7 @@ export default function GamePage() {
         logger.info(`Using Hub launch configuration: ${JSON.stringify(launchConfig)}`, 'NETWORK');
       } else {
         // Fallback for legacy/direct play
-        shellId = fallbackShellId;
+        shellId = fallbackShellId || 'vanguard-v1';
         seed = `run-${Date.now()}`;
         const sessionResponse = await fetch('/api/session', {
           method: 'POST',
