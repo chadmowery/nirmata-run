@@ -101,7 +101,7 @@ export interface GameplayEvents extends EngineEvents {
   /** Queued when a currency item is picked up. */
   CURRENCY_PICKED_UP: {
     entityId: EntityId;
-    currencyType: 'scrap' | 'blueprint' | 'flux';
+    currencyType: 'scrap' | 'blueprint' | 'flux' | 'nanites';
     amount: number;
     blueprintId?: string;
   };

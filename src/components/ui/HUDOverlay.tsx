@@ -25,6 +25,9 @@ export const HUDOverlay: React.FC = () => {
   const depthBand = useStore(gameStore, (s) => s.depthBand);
   const stats = useStore(gameStore, (s) => s.stats);
   const scrap = useStore(gameStore, (s) => s.scrap);
+  const flux = useStore(gameStore, (s) => s.flux);
+  const blueprintCount = useStore(gameStore, (s) => s.blueprintCount);
+  const nanites = useStore(gameStore, (s) => s.nanites);
   const stability = useStore(gameStore, (s) => s.stability);
   const maxStability = useStore(gameStore, (s) => s.maxStability);
 
@@ -73,8 +76,22 @@ export const HUDOverlay: React.FC = () => {
 
           <div className={styles.hudChip}>
             <span className={styles.hudChipLabel}>SCRAP RECOVERED</span>
-            <span className={styles.hudChipVal} style={{ color: 'var(--c-scrap)' }}>
+            <span className={styles.hudChipVal} style={{ color: 'var(--c-scrap, #f59e0b)' }}>
               {scrap.toLocaleString()} CR
+            </span>
+          </div>
+
+          <div className={styles.hudChip}>
+            <span className={styles.hudChipLabel}>FLUX MATRIX</span>
+            <span className={styles.hudChipVal} style={{ color: 'var(--c-accent, #00f0ff)' }}>
+              {flux.toLocaleString()} FX
+            </span>
+          </div>
+
+          <div className={styles.hudChip}>
+            <span className={styles.hudChipLabel}>LOCKED FILES</span>
+            <span className={styles.hudChipVal} style={{ color: 'var(--c-accent-secondary, #d8ff00)' }}>
+              {blueprintCount} BP
             </span>
           </div>
         </div>

@@ -115,6 +115,9 @@ export interface UIState {
   depthBand: string; // "CORRUPTED_DATA" | "STATIC_HORRORS" | "LOGIC_BREAKERS"
   scrap: number; // Current Scrap amount
   walletScrap: number; // Session-level persistent Scrap
+  flux: number; // Current Flux amount
+  blueprintCount: number; // Current Blueprint count
+  nanites: number; // Current Nanites amount
 
   // Overlays
   anchorOverlayVisible: boolean;
@@ -186,6 +189,12 @@ export interface UIState {
   updateStability: (stability: number, max: number) => void;
   updateFloor: (floor: number, band: string) => void;
   updateScrap: (amount: number) => void;
+  updateCurrencies: (currencies: {
+    scrap?: number;
+    flux?: number;
+    nanites?: number;
+    blueprintCount?: number;
+  }) => void;
   showAnchorOverlay: (data: AnchorOverlayData) => void;
   hideAnchorOverlay: () => void;
   makeAnchorDecision: (decision: 'extract' | 'descend') => void;
@@ -277,6 +286,9 @@ export const gameStore = createStore<UIState>((set, get) => ({
   depthBand: 'CORRUPTED_DATA',
   scrap: 0,
   walletScrap: 0,
+  flux: 0,
+  blueprintCount: 0,
+  nanites: 0,
   anchorOverlayVisible: false,
   anchorData: null,
   staircaseOverlayVisible: false,
@@ -372,6 +384,14 @@ export const gameStore = createStore<UIState>((set, get) => ({
   updateStability: (stability, max) => set({ stability, maxStability: max }),
   updateFloor: (floor, band) => set({ currentFloor: floor, depthBand: band }),
   updateScrap: (amount) => set({ scrap: amount }),
+  updateCurrencies: (currencies) =>
+    set((state) => ({
+      scrap: currencies.scrap !== undefined ? currencies.scrap : state.scrap,
+      flux: currencies.flux !== undefined ? currencies.flux : state.flux,
+      nanites: currencies.nanites !== undefined ? currencies.nanites : state.nanites,
+      blueprintCount:
+        currencies.blueprintCount !== undefined ? currencies.blueprintCount : state.blueprintCount,
+    })),
   showAnchorOverlay: (data) => set({ anchorOverlayVisible: true, anchorData: data }),
   hideAnchorOverlay: () => set({ anchorOverlayVisible: false, anchorData: null }),
   makeAnchorDecision: (decision: 'extract' | 'descend') => {

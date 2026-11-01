@@ -37,8 +37,11 @@ export function syncEngineToStore(context: GameContext) {
     const burned = world.getComponent(context.playerId, EquipmentSlots);
     const fSlots = world.getComponent(context.playerId, FirmwareSlots);
 
-    // New authoritative source for run currency
+    // Authoritative source for run currencies
     const scrapAmount = InventoryUtil.getCurrencyAmount(world, context.playerId, 'scrap');
+    const fluxAmount = InventoryUtil.getCurrencyAmount(world, context.playerId, 'flux');
+    const blueprintAmount = InventoryUtil.getCurrencyAmount(world, context.playerId, 'blueprint');
+    const naniteAmount = InventoryUtil.getCurrencyAmount(world, context.playerId, 'nanites');
 
     const store = gameStore.getState();
 
@@ -99,8 +102,14 @@ export function syncEngineToStore(context: GameContext) {
       store.updateStability(stability.current, stability.max);
     }
 
-    // Update with registry scrap (D-06/D-11 migration complete)
+    // Update with registry currencies
     store.updateScrap(scrapAmount);
+    store.updateCurrencies({
+      scrap: scrapAmount,
+      flux: fluxAmount,
+      blueprintCount: blueprintAmount,
+      nanites: naniteAmount,
+    });
 
     if (floorState) {
       const band = getDepthBand(floorState.currentFloor);

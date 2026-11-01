@@ -92,6 +92,10 @@ export const ChassisTelemetrySidebar: React.FC = () => {
   const player = useStore(gameStore, (s) => s.player);
   const abilities = useStore(gameStore, (s) => s.abilities);
   const stability = useStore(gameStore, (s) => s.stability);
+  const scrap = useStore(gameStore, (s) => s.scrap);
+  const flux = useStore(gameStore, (s) => s.flux);
+  const blueprintCount = useStore(gameStore, (s) => s.blueprintCount);
+  const nanites = useStore(gameStore, (s) => s.nanites);
   const playerProfile = useStore(gameStore, (s) => s.playerProfile);
   const optimisticWeapon = useStore(gameStore, (s) => s.optimisticWeapon);
   const optimisticArmor = useStore(gameStore, (s) => s.optimisticArmor);
@@ -138,6 +142,30 @@ export const ChassisTelemetrySidebar: React.FC = () => {
       value: `${heat} / ${maxHeat} H`,
       valueColor: heat > 50 ? 'var(--c-warning, #f59e0b)' : undefined,
     },
+    {
+      label: 'SCRAP SALVAGE',
+      value: `${scrap.toLocaleString()} CR`,
+      valueColor: 'var(--c-scrap, #f59e0b)',
+    },
+    {
+      label: 'FLUX ENERGY',
+      value: `${flux.toLocaleString()} FX`,
+      valueColor: 'var(--c-accent, #00f0ff)',
+    },
+    {
+      label: 'LOCKED FILES',
+      value: `${blueprintCount} BP`,
+      valueColor: 'var(--c-accent-secondary, #d8ff00)',
+    },
+    ...(nanites > 0
+      ? [
+          {
+            label: 'NANITE CORES',
+            value: `${nanites.toLocaleString()} NT`,
+            valueColor: '#10b981',
+          },
+        ]
+      : []),
   ];
 
   // 1. Resolve Installed Augments

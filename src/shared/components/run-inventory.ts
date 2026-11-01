@@ -17,7 +17,7 @@ export const RunInventoryItemSchema = z.object({
  * Schema for a currency stack in the run inventory.
  */
 export const CurrencyStackSchema = z.object({
-  currencyType: z.enum(['scrap', 'blueprint', 'flux']),
+  currencyType: z.enum(['scrap', 'blueprint', 'flux', 'nanites']),
   amount: z.number().int().min(0),
   blueprintId: z.string().optional(),
   blueprintType: z.enum(['firmware', 'augment']).optional(),

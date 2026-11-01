@@ -9,7 +9,7 @@ import { RunInventory, RunCurrency, RunInventoryItem } from '../components/run-i
 export function getCurrencyAmount<T extends EngineEvents>(
   world: World<T>,
   playerId: number,
-  currencyType: 'scrap' | 'blueprint' | 'flux',
+  currencyType: 'scrap' | 'blueprint' | 'flux' | 'nanites',
 ): number {
   const runCurrency = world.getComponent(playerId, RunCurrency);
   if (!runCurrency) return 0;
@@ -21,7 +21,7 @@ export function getCurrencyAmount<T extends EngineEvents>(
 export function addCurrency<T extends EngineEvents>(
   world: World<T>,
   playerId: number,
-  currencyType: 'scrap' | 'blueprint' | 'flux',
+  currencyType: 'scrap' | 'blueprint' | 'flux' | 'nanites',
   amount: number,
   meta?: { blueprintId?: string; blueprintType?: 'firmware' | 'augment' },
 ): boolean {

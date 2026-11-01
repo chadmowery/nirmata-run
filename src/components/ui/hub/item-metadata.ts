@@ -840,6 +840,53 @@ export const SHELL_STAT_DEFINITIONS: Record<string, StatDefinition> = {
       { label: 'AUGMENTS (AG)', value: 'PASSIVE STATS & COMBAT TRIGGERS' },
     ],
   },
+  'SCRAP SALVAGE': {
+    name: 'RAW MATERIALS & SCRAP // 廃材回収',
+    kanjiSub: '資源回収 // SCRAP SALVAGE',
+    typeLabel: 'SECTOR CURRENCY & SALVAGE',
+    description:
+      'Essential structural components, micro-wires, and cybernetic chassis scrap recovered from neutralized enemies and destructible containers. Can be banked at Stability Anchors or used in the Workshop.',
+    specs: [
+      { label: 'CURRENCY TYPE', value: 'PRIMARY RECOVERY CAPITAL', color: 'var(--c-scrap, #f59e0b)' },
+      { label: 'EXTRACTION', value: 'BANKED SAFELY AT ANCHOR OR EXTRACTION' },
+      { label: 'WORKSHOP UTILITY', value: 'HARDWARE COMPILATION & SHELL REPAIRS' },
+    ],
+  },
+  'FLUX ENERGY': {
+    name: 'QUANTUM FLUX MATRIX // 磁束エネルギー',
+    kanjiSub: '量子磁束 // QUANTUM FLUX',
+    typeLabel: 'ANOMALY ENERGY CURRENCY',
+    description:
+      'Rare concentrated quantum flux retrieved from anomaly breaches and deep sector boss encounters. Used to decode proprietary blueprint archives and synthesize permanent augmentations.',
+    specs: [
+      { label: 'CURRENCY TYPE', value: 'HIGH-TIER RESEARCH FLUX', color: 'var(--c-accent, #00f0ff)' },
+      { label: 'ACQUISITION', value: 'ELITE FOES & EXTRACTION BONUS' },
+      { label: 'TECH ARCHIVE', value: 'BLUEPRINT COMPILATION & UPGRADES' },
+    ],
+  },
+  'LOCKED FILES': {
+    name: 'ENCRYPTED BLUEPRINT ARCHIVES // 暗号化設計図',
+    kanjiSub: '設計資料 // LOCKED BLUEPRINTS',
+    typeLabel: 'SCHEMATIC ARCHIVE DATA',
+    description:
+      'Encrypted schematic files secured from corporate dead-drops, classified lockers, and forensic nodes. Must be extracted alive to compile in the Workshop library.',
+    specs: [
+      { label: 'DATA TYPE', value: 'SCHEMATIC INTEL PAYLOAD', color: 'var(--c-accent-secondary, #d8ff00)' },
+      { label: 'EXTRACTION POLICY', value: 'LOST UPON KIA UNLESS EXTRACTED' },
+      { label: 'UNLOCK TARGET', value: 'WORKSHOP BLUEPRINT LIBRARY' },
+    ],
+  },
+  'NANITE CORES': {
+    name: 'SYNTHETIC BIO-NANITE CANISTERS // ナノマシン',
+    kanjiSub: '自己修復 // NANITE REPAIR SYSTEM',
+    typeLabel: 'ACTIVE REPAIR CURRENCY',
+    description:
+      'Coagulating molecular nanites harvested from cybernetic cores. Directly utilized to stabilize chassis integrity and repair structural damage.',
+    specs: [
+      { label: 'MATERIAL ROLE', value: 'STRUCTURAL CELLULAR REPAIR', color: '#10b981' },
+      { label: 'BIO-COMPATIBILITY', value: '100% REPAIR ACCELERATION' },
+    ],
+  },
   'OPERATIONAL STATES': {
     name: 'CHASSIS OPERATIONAL STATUS // 稼働状態',
     kanjiSub: '機体状態 // RUNTIME STATUS',
