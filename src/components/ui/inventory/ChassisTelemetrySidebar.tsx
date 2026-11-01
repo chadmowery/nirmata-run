@@ -99,6 +99,8 @@ export const ChassisTelemetrySidebar: React.FC = () => {
   const playerProfile = useStore(gameStore, (s) => s.playerProfile);
   const optimisticWeapon = useStore(gameStore, (s) => s.optimisticWeapon);
   const optimisticArmor = useStore(gameStore, (s) => s.optimisticArmor);
+  const inventoryRevision = useStore(gameStore, (s) => s.inventoryRevision);
+  void inventoryRevision;
 
   const [hoveredTooltip, setHoveredTooltip] = useState<{
     metadata: ItemMetadata;
@@ -210,7 +212,7 @@ export const ChassisTelemetrySidebar: React.FC = () => {
   }
 
   // Fallback to profile installedItems if ECS is still initializing
-  if (installedAugments.length === 0 && playerProfile) {
+  if (installedAugments.length === 0 && !gameContext?.world && playerProfile) {
     const profileAugments = playerProfile.installedItems.filter(
       (i) => i.type === 'augment' && (i.shellId === archetype.id || !i.shellId),
     );
@@ -241,13 +243,18 @@ export const ChassisTelemetrySidebar: React.FC = () => {
   const resolveGearSoftware = (gearId: number | null | undefined, slot: 'weapon' | 'armor') => {
     if (!gameContext || !gearId) return null;
     const children = gameContext.world.getComponent(gearId, Children);
-    if (children) {
+    if (children && children.entityIds && children.entityIds.length > 0) {
       for (const childId of children.entityIds) {
         const sw = gameContext.world.getComponent(childId, SoftwareDef);
         const tmpl = gameContext.world.getComponent(childId, TemplateId);
-        if (sw) {
-          const info = getSoftwareModificationInfo(tmpl?.id || sw.type);
-          return { slot, softwareName: sw.name, effect: info.effect };
+        const itemComp = gameContext.world.getComponent(childId, Item);
+        if (sw || tmpl || itemComp) {
+          const info = getSoftwareModificationInfo(tmpl?.id || sw?.type || '');
+          return {
+            slot,
+            softwareName: sw?.name || itemComp?.name || info.name || tmpl?.id || 'Software Mod',
+            effect: info.effect || sw?.description || '',
+          };
         }
       }
     }
@@ -279,8 +286,8 @@ export const ChassisTelemetrySidebar: React.FC = () => {
     }
   }
 
-  // Fallback to profile installed software if empty
-  if (installedSoftware.length === 0 && playerProfile) {
+  // Fallback to profile installed software if empty and ECS not initialized
+  if (installedSoftware.length === 0 && !gameContext?.world && playerProfile) {
     const profileSoftware = playerProfile.installedItems.filter(
       (i) => i.type === 'software' && (i.shellId === archetype.id || !i.shellId),
     );

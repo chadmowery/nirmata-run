@@ -36,6 +36,7 @@ import {
   Position,
   SpriteComponent,
   PickupIntent,
+  SoftwareDef,
 } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { Dying } from '@shared/components/dying';
@@ -206,6 +207,13 @@ export async function POST(req: Request) {
               world.addComponent(childId, Dying, { killerId: session.playerId, reason: 'purged' });
             }
             world.patchComponent(targetGearId, Children, { entityIds: [] });
+            eventBus.emit('MESSAGE_EMITTED', {
+              text: `Purged software mod from ${action.targetSlot}. Socket cleared.`,
+              type: 'info',
+            });
+          } else if (world.hasComponent(targetGearId, SoftwareDef)) {
+            world.addComponent(targetGearId, Dying, { killerId: session.playerId, reason: 'purged' });
+            world.patchComponent(session.playerId, EquipmentSlots, { [action.targetSlot]: null });
             eventBus.emit('MESSAGE_EMITTED', {
               text: `Purged software mod from ${action.targetSlot}. Socket cleared.`,
               type: 'info',

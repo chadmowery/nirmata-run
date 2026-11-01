@@ -1,6 +1,8 @@
 'use client';
 
 import React from 'react';
+import { useStore } from 'zustand';
+import { gameStore } from '@/game/ui/store';
 import { ChassisTelemetrySidebar } from './ChassisTelemetrySidebar';
 import { EquipmentPanel } from './EquipmentPanel';
 import { BackpackGrid } from './BackpackGrid';
@@ -8,6 +10,9 @@ import { TaikokuPlacard } from '../atomic';
 import styles from './InventoryOverlay.module.css';
 
 export const InventoryOverlay: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+  const inventoryRevision = useStore(gameStore, (s) => s.inventoryRevision);
+  void inventoryRevision;
+
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {

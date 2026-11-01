@@ -9,6 +9,7 @@ import {
   RarityTier,
   Children,
   RunInventory,
+  Item,
 } from '@shared/components';
 import type { ComponentDef } from '@engine/ecs/types';
 import type { EventBus } from '@engine/events/event-bus';
@@ -40,7 +41,8 @@ export const EquipmentPanel: React.FC = () => {
   const gameContext = (window as unknown as { gameContext: GameContext }).gameContext;
 
   // Connect to Zustand game store to subscribe to revisions and handle updates
-  useStore(gameStore, (s) => s.inventoryRevision);
+  const inventoryRevision = useStore(gameStore, (s) => s.inventoryRevision);
+  void inventoryRevision;
   const draggedRunItemEntityId = useStore(gameStore, (s) => s.draggedRunItemEntityId);
   const dragOverSlot = useStore(gameStore, (s) => s.dragOverSlot);
   const optimisticWeapon = useStore(gameStore, (s) => s.optimisticWeapon);
@@ -101,14 +103,15 @@ export const EquipmentPanel: React.FC = () => {
 
         // Check for attached software subroutines
         const children = gameContext.world.getComponent(entityId, Children);
-        if (children) {
+        if (children && children.entityIds && children.entityIds.length > 0) {
           for (const childId of children.entityIds) {
             const cSw = gameContext.world.getComponent(childId, SoftwareDef);
             const cTmpl = gameContext.world.getComponent(childId, TemplateId);
-            if (cSw) {
-              socketedSwName = cSw.name;
-              const info = getSoftwareModificationInfo(cTmpl?.id || cSw.type);
-              socketedSwEffect = info.effect;
+            const cItem = gameContext.world.getComponent(childId, Item);
+            if (cSw || cTmpl || cItem) {
+              const info = getSoftwareModificationInfo(cTmpl?.id || cSw?.type || '');
+              socketedSwName = cSw?.name || cItem?.name || info.name || cTmpl?.id || 'Software Mod';
+              socketedSwEffect = info.effect || cSw?.description || '';
               break;
             }
           }
