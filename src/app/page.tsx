@@ -86,6 +86,9 @@ export default function GamePage() {
         if (sessionResponse.ok) {
           const sessionData = await sessionResponse.json();
           sessionId = sessionData.sessionId;
+          if (typeof window !== 'undefined' && sessionId) {
+            window.localStorage?.setItem('nimrata_sessionId', sessionId);
+          }
           logger.info(`Server session initialized: ${sessionId}`, 'NETWORK');
         } else {
           logger.warn(

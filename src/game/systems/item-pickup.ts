@@ -39,6 +39,18 @@ export function createItemPickupSystem<T extends GameplayEvents>(
   grid: Grid,
   eventBus: EventBus<T>,
 ): ItemPickupSystem<T> {
+  function isItemLike(w: World<T>, id: number): boolean {
+    return (
+      w.hasComponent(id, Item) ||
+      w.hasComponent(id, EquipmentDef) ||
+      w.hasComponent(id, SoftwareDef) ||
+      w.hasComponent(id, AbilityDef) ||
+      w.hasComponent(id, AugmentData) ||
+      w.hasComponent(id, PickupEffect) ||
+      w.hasComponent(id, CurrencyItem)
+    );
+  }
+
   function processItem(
     w: World<T>,
     entityId: number,
@@ -47,8 +59,8 @@ export function createItemPickupSystem<T extends GameplayEvents>(
     y: number,
     isExplicitPickup = false,
   ) {
-    // Security check: ensure it actually has the Item component and isn't already dying/picked up
-    if (!w.hasComponent(itemId, Item) || w.hasComponent(itemId, Dying)) {
+    // Security check: ensure it actually has an item component signature and isn't already dying/picked up
+    if (!isItemLike(w, itemId) || w.hasComponent(itemId, Dying)) {
       return;
     }
 
@@ -300,10 +312,36 @@ export function createItemPickupSystem<T extends GameplayEvents>(
       }
     }
 
-    // 5. Emit event for standard items
+    // 6. Handle Floor Vault Keys / Access Keys
+    const itemComp = w.getComponent(itemId, Item);
+    const tmplRef = w.getComponent(itemId, TemplateId);
+    if (tmplRef?.id === 'item-access-key' || itemComp?.type === 'key') {
+      const floorState = w.getComponent(entityId, FloorState);
+      if (floorState) {
+        w.patchComponent(entityId, FloorState, {
+          accessKeysHeld: (floorState.accessKeysHeld ?? 0) + 1,
+        });
+      }
+      eventBus.emit('MESSAGE_EMITTED', {
+        text: `+ ACCESS KEY SECURED: Floor Vault Keycard`,
+        type: 'info',
+      });
+      grid.removeItem(itemId, x, y);
+      if (w.hasComponent(itemId, Position)) {
+        w.removeComponent(itemId, Position);
+      }
+      if (w.hasComponent(itemId, SpriteComponent)) {
+        w.removeComponent(itemId, SpriteComponent);
+      }
+      w.addComponent(itemId, Dying, { reason: 'pickup' });
+      eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
+      return;
+    }
+
+    // 7. Emit event for standard items
     eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
 
-    // 6. Cleanup
+    // 8. Cleanup
     grid.removeItem(itemId, x, y);
     w.addComponent(itemId, Dying, { reason: 'pickup' });
   }
@@ -345,17 +383,21 @@ export function createItemPickupSystem<T extends GameplayEvents>(
       const intent = w.getComponent(requesterId, PickupIntent)!;
       let targetX: number | undefined;
       let targetY: number | undefined;
+      let resolvedItemId = intent.itemId;
 
-      const pos = w.getComponent(intent.itemId, Position);
+      const pos = w.getComponent(resolvedItemId, Position);
       if (pos) {
         targetX = pos.x;
         targetY = pos.y;
+      } else if (intent.targetX !== undefined && intent.targetY !== undefined) {
+        targetX = intent.targetX;
+        targetY = intent.targetY;
       } else {
         const actorPos = w.getComponent(intent.actorId, Position);
         if (actorPos) {
           for (let dx = -1; dx <= 1; dx++) {
             for (let dy = -1; dy <= 1; dy++) {
-              if (grid.getItemsAt(actorPos.x + dx, actorPos.y + dy).has(intent.itemId)) {
+              if (grid.getItemsAt(actorPos.x + dx, actorPos.y + dy).has(resolvedItemId)) {
                 targetX = actorPos.x + dx;
                 targetY = actorPos.y + dy;
                 break;
@@ -366,8 +408,40 @@ export function createItemPickupSystem<T extends GameplayEvents>(
         }
       }
 
+      // Desync resilience: If the specified entity doesn't have an item signature or is Dying, find an item at target coordinates
+      if (!isItemLike(w, resolvedItemId) || w.hasComponent(resolvedItemId, Dying)) {
+        const searchCoords: Array<{ x: number; y: number }> = [];
+        if (targetX !== undefined && targetY !== undefined) {
+          searchCoords.push({ x: targetX, y: targetY });
+        }
+        if (intent.targetX !== undefined && intent.targetY !== undefined) {
+          searchCoords.push({ x: intent.targetX, y: intent.targetY });
+        }
+        const actorPos = w.getComponent(intent.actorId, Position);
+        if (actorPos) {
+          searchCoords.push({ x: actorPos.x, y: actorPos.y });
+          for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+              if (dx !== 0 || dy !== 0) searchCoords.push({ x: actorPos.x + dx, y: actorPos.y + dy });
+            }
+          }
+        }
+        for (const coord of searchCoords) {
+          const itemsOnTile = grid.getItemsAt(coord.x, coord.y);
+          for (const candId of itemsOnTile) {
+            if (isItemLike(w, candId) && !w.hasComponent(candId, Dying)) {
+              resolvedItemId = candId;
+              targetX = coord.x;
+              targetY = coord.y;
+              break;
+            }
+          }
+          if (isItemLike(w, resolvedItemId)) break;
+        }
+      }
+
       if (targetX !== undefined && targetY !== undefined) {
-        processItem(w, intent.actorId, intent.itemId, targetX, targetY, true);
+        processItem(w, intent.actorId, resolvedItemId, targetX, targetY, true);
       }
       w.removeComponent(requesterId, PickupIntent);
     }

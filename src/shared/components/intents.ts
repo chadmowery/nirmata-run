@@ -176,5 +176,7 @@ export const PickupIntent = defineComponent(
   z.object({
     actorId: z.number(),
     itemId: z.number(),
+    targetX: z.number().int().optional(),
+    targetY: z.number().int().optional(),
   }),
 );

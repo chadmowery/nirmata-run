@@ -29,8 +29,9 @@ interface GameContext {
 }
 
 const getSessionId = () =>
-  (typeof window !== 'undefined' && window.localStorage?.getItem('nimrata_sessionId')) ||
   (typeof window !== 'undefined' && (window as unknown as { gameContext?: { sessionId?: string } }).gameContext?.sessionId) ||
+  gameStore.getState().launchConfig?.sessionId ||
+  (typeof window !== 'undefined' && window.localStorage?.getItem('nimrata_sessionId')) ||
   gameStore.getState().playerProfile?.sessionId ||
   'default-player-session';
 

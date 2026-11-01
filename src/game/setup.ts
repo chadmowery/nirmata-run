@@ -28,6 +28,7 @@ import {
   EquipmentDef,
   AugmentData,
   Item,
+  Dying,
 } from '@shared/components';
 import { ActionIntent } from '@shared/types';
 import { RunMode } from '@shared/run-mode';
@@ -388,6 +389,16 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
           const ty = playerPos.y + dy;
           const cellItems = grid.getItemsAt(tx, ty);
           for (const itemId of cellItems) {
+            if (!world.entityExists(itemId) || world.hasComponent(itemId, Dying)) {
+              grid.removeItem(itemId, tx, ty);
+              continue;
+            }
+            const pos = world.getComponent(itemId, Position);
+            if (!pos || pos.x !== tx || pos.y !== ty) {
+              grid.removeItem(itemId, tx, ty);
+              continue;
+            }
+
             const tmpl = world.getComponent(itemId, TemplateId);
             const rarity = world.getComponent(itemId, RarityTier);
             const sw = world.getComponent(itemId, SoftwareDef);
@@ -448,6 +459,8 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
         await sendActionToServer({
           type: 'PICKUP',
           itemId: nearby[0].itemId,
+          targetX: nearby[0].x,
+          targetY: nearby[0].y,
         });
         inputManager.setRequestPending(false);
         return;

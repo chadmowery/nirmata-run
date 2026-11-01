@@ -16,6 +16,7 @@ import {
   RarityTier,
   Position,
   Item,
+  Dying,
 } from '@shared/components';
 import { applyStateDelta } from '@shared/reconciliation';
 
@@ -28,11 +29,15 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
   const inventoryRevision = useStore(gameStore, (s) => s.inventoryRevision);
   void inventoryRevision;
 
-  const gameContext = (typeof window !== 'undefined'
-    ? (window as unknown as {
-        gameContext?: GameContext;
-      }).gameContext
-    : undefined);
+  const getContext = (): GameContext | undefined => {
+    return (
+      (typeof window !== 'undefined'
+        ? (window as unknown as {
+            gameContext?: GameContext;
+          }).gameContext
+        : undefined)
+    );
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -46,16 +51,22 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [onClose]);
 
-  const getSessionId = () =>
-    (typeof window !== 'undefined' && window.localStorage?.getItem('nimrata_sessionId')) ||
-    gameContext?.sessionId ||
-    gameStore.getState().playerProfile?.sessionId ||
-    'default-player-session';
+  const getSessionId = () => {
+    const ctx = getContext();
+    return (
+      ctx?.sessionId ||
+      gameStore.getState().launchConfig?.sessionId ||
+      (typeof window !== 'undefined' && window.localStorage?.getItem('nimrata_sessionId')) ||
+      gameStore.getState().playerProfile?.sessionId ||
+      'default-player-session'
+    );
+  };
 
   // Helper to re-scan ground items nearby after a take or drop
   const rescanNearby = () => {
-    if (!gameContext?.world || !gameContext?.grid || !gameContext?.playerId) return;
-    const playerPos = gameContext.world.getComponent(gameContext.playerId, Position);
+    const ctx = getContext();
+    if (!ctx?.world || !ctx?.grid || !ctx?.playerId) return;
+    const playerPos = ctx.world.getComponent(ctx.playerId, Position);
     if (!playerPos) return;
 
     const nearby: GroundItemInfo[] = [];
@@ -63,15 +74,25 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
       for (let dy = -1; dy <= 1; dy++) {
         const tx = playerPos.x + dx;
         const ty = playerPos.y + dy;
-        const cellItems = gameContext.grid.getItemsAt(tx, ty);
+        const cellItems = ctx.grid.getItemsAt(tx, ty);
         for (const itemId of cellItems) {
-          const tmpl = gameContext.world.getComponent(itemId, TemplateId);
-          const rarity = gameContext.world.getComponent(itemId, RarityTier);
-          const sw = gameContext.world.getComponent(itemId, SoftwareDef);
-          const eq = gameContext.world.getComponent(itemId, EquipmentDef);
-          const ability = gameContext.world.getComponent(itemId, AbilityDef);
-          const augment = gameContext.world.getComponent(itemId, AugmentData);
-          const itemComp = gameContext.world.getComponent(itemId, Item);
+          if (!ctx.world.entityExists(itemId) || ctx.world.hasComponent(itemId, Dying)) {
+            ctx.grid.removeItem(itemId, tx, ty);
+            continue;
+          }
+          const itemPos = ctx.world.getComponent(itemId, Position);
+          if (!itemPos || itemPos.x !== tx || itemPos.y !== ty) {
+            ctx.grid.removeItem(itemId, tx, ty);
+            continue;
+          }
+
+          const tmpl = ctx.world.getComponent(itemId, TemplateId);
+          const rarity = ctx.world.getComponent(itemId, RarityTier);
+          const sw = ctx.world.getComponent(itemId, SoftwareDef);
+          const eq = ctx.world.getComponent(itemId, EquipmentDef);
+          const ability = ctx.world.getComponent(itemId, AbilityDef);
+          const augment = ctx.world.getComponent(itemId, AugmentData);
+          const itemComp = ctx.world.getComponent(itemId, Item);
 
           let name = itemComp?.name || tmpl?.id || `Item #${itemId}`;
           let type = 'equipment';
@@ -126,12 +147,13 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
 
   let maxSlots = 20;
 
-  if (gameContext?.world && gameContext?.playerId) {
-    const inv = gameContext.world.getComponent(gameContext.playerId, RunInventory);
+  const currentCtx = getContext();
+  if (currentCtx?.world && currentCtx?.playerId) {
+    const inv = currentCtx.world.getComponent(currentCtx.playerId, RunInventory);
     if (inv) {
       maxSlots = inv.maxSlots || 20;
       for (const sw of inv.software) {
-        const swDef = gameContext.world.getComponent(sw.entityId, SoftwareDef);
+        const swDef = currentCtx.world.getComponent(sw.entityId, SoftwareDef);
         backpackItems.push({
           entityId: sw.entityId,
           templateId: sw.templateId,
@@ -143,9 +165,9 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
         });
       }
       for (const eq of inv.equipment) {
-        const eqDef = gameContext.world.getComponent(eq.entityId, EquipmentDef);
-        const ability = gameContext.world.getComponent(eq.entityId, AbilityDef);
-        const augment = gameContext.world.getComponent(eq.entityId, AugmentData);
+        const eqDef = currentCtx.world.getComponent(eq.entityId, EquipmentDef);
+        const ability = currentCtx.world.getComponent(eq.entityId, AbilityDef);
+        const augment = currentCtx.world.getComponent(eq.entityId, AugmentData);
         let name = eq.templateId;
         let type = 'equipment';
         if (eqDef) {
@@ -175,7 +197,7 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
     }
   }
 
-  const handleTakeItem = async (itemId: number) => {
+  const handleTakeItem = async (itemId: number, targetX?: number, targetY?: number) => {
     const sessionId = getSessionId();
     try {
       const res = await fetch('/api/action', {
@@ -186,28 +208,34 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
           action: {
             type: 'PICKUP',
             itemId,
+            targetX,
+            targetY,
           },
         }),
       });
       if (res.ok) {
         const data = await res.json();
+        const activeCtx = getContext();
         if (
           data.payload &&
-          gameContext?.world &&
-          gameContext?.grid &&
-          gameContext?.turnManager &&
-          gameContext?.eventBus
+          activeCtx?.world &&
+          activeCtx?.grid &&
+          activeCtx?.turnManager &&
+          activeCtx?.eventBus
         ) {
           if (data.payload.playerId) {
-            gameContext.playerId = data.payload.playerId;
+            activeCtx.playerId = data.payload.playerId;
           }
           applyStateDelta(
-            gameContext.world,
-            gameContext.grid,
-            gameContext.turnManager,
-            gameContext.eventBus,
+            activeCtx.world,
+            activeCtx.grid,
+            activeCtx.turnManager,
+            activeCtx.eventBus,
             data.payload,
           );
+          if (targetX !== undefined && targetY !== undefined) {
+            activeCtx.grid.removeItem(itemId, targetX, targetY);
+          }
         }
       }
       gameStore.getState().incrementInventoryRevision();
@@ -222,15 +250,16 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
     for (const item of itemsToTake) {
       let currentBackpackCount = 0;
       let limit = 20;
-      if (gameContext?.world && gameContext?.playerId) {
-        const inv = gameContext.world.getComponent(gameContext.playerId, RunInventory);
+      const activeCtx = getContext();
+      if (activeCtx?.world && activeCtx?.playerId) {
+        const inv = activeCtx.world.getComponent(activeCtx.playerId, RunInventory);
         if (inv) {
           limit = inv.maxSlots || 20;
           currentBackpackCount = inv.software.length + inv.equipment.length;
         }
       }
       if (currentBackpackCount >= limit) break;
-      await handleTakeItem(item.itemId);
+      await handleTakeItem(item.itemId, item.x, item.y);
     }
   };
 
@@ -250,21 +279,22 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
       });
       if (res.ok) {
         const data = await res.json();
+        const activeCtx = getContext();
         if (
           data.payload &&
-          gameContext?.world &&
-          gameContext?.grid &&
-          gameContext?.turnManager &&
-          gameContext?.eventBus
+          activeCtx?.world &&
+          activeCtx?.grid &&
+          activeCtx?.turnManager &&
+          activeCtx?.eventBus
         ) {
           if (data.payload.playerId) {
-            gameContext.playerId = data.payload.playerId;
+            activeCtx.playerId = data.payload.playerId;
           }
           applyStateDelta(
-            gameContext.world,
-            gameContext.grid,
-            gameContext.turnManager,
-            gameContext.eventBus,
+            activeCtx.world,
+            activeCtx.grid,
+            activeCtx.turnManager,
+            activeCtx.eventBus,
             data.payload,
           );
         }
@@ -349,7 +379,7 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
 
                     <BtnLever
                       variant="cyan"
-                      onClick={() => handleTakeItem(item.itemId)}
+                      onClick={() => handleTakeItem(item.itemId, item.x, item.y)}
                       disabled={backpackItems.length >= maxSlots}
                       style={{ fontSize: '9px', padding: '3px 10px' }}
                     >

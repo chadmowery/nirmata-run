@@ -17,6 +17,8 @@ export const AttackActionSchema = z.object({
 export const PickupActionSchema = z.object({
   type: z.literal('PICKUP'),
   itemId: z.number(),
+  targetX: z.number().int().optional(),
+  targetY: z.number().int().optional(),
 });
 
 export const WaitActionSchema = z.object({

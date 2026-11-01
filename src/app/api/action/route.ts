@@ -342,6 +342,8 @@ export async function POST(req: Request) {
         world.addComponent(session.playerId, PickupIntent, {
           actorId: session.playerId,
           itemId: action.itemId,
+          targetX: action.targetX,
+          targetY: action.targetY,
         });
         actionKey = 'PICKUP';
         break;

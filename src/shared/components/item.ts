@@ -9,6 +9,7 @@ export const Item = defineComponent(
   z.object({
     name: z.string(),
     description: z.string().optional(),
+    type: z.string().optional(),
   }),
 );
 
