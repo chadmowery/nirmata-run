@@ -1,4 +1,4 @@
-import { gameStore } from './ui/store';
+import { gameStore, GroundItemInfo } from './ui/store';
 import { createEngineInstance } from './engine-factory';
 import { GameContext, GameSystem } from './types';
 import { syncEngineToStore } from './ui/sync-bridge';
@@ -16,7 +16,19 @@ import {
   getFirmwareSlotIndex,
 } from './input/actions';
 import { createTargetingManager } from './input/targeting';
-import { AbilityDef, FirmwareSlots, Position, MoveIntent, VentIntent } from '@shared/components';
+import {
+  AbilityDef,
+  FirmwareSlots,
+  Position,
+  MoveIntent,
+  VentIntent,
+  TemplateId,
+  RarityTier,
+  SoftwareDef,
+  EquipmentDef,
+  AugmentData,
+  Item,
+} from '@shared/components';
 import { ActionIntent } from '@shared/types';
 import { RunMode } from '@shared/run-mode';
 import { PlayerProfile } from '@shared/profile';
@@ -348,7 +360,97 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
       return;
     }
 
+    if (action === GameAction.PICKUP_GROUND) {
+      if (gameStore.getState().groundTransferVisible) {
+        gameStore.getState().closeGroundTransfer();
+        return;
+      }
+      if (!context.playerId) return;
+      const playerPos = world.getComponent(context.playerId, Position);
+      if (!playerPos) return;
+
+      const nearby: GroundItemInfo[] = [];
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const tx = playerPos.x + dx;
+          const ty = playerPos.y + dy;
+          const cellItems = grid.getItemsAt(tx, ty);
+          for (const itemId of cellItems) {
+            const tmpl = world.getComponent(itemId, TemplateId);
+            const rarity = world.getComponent(itemId, RarityTier);
+            const sw = world.getComponent(itemId, SoftwareDef);
+            const eq = world.getComponent(itemId, EquipmentDef);
+            const ability = world.getComponent(itemId, AbilityDef);
+            const augment = world.getComponent(itemId, AugmentData);
+            const itemComp = world.getComponent(itemId, Item);
+
+            let name = itemComp?.name || tmpl?.id || `Item #${itemId}`;
+            let type = 'equipment';
+            if (sw) {
+              name = sw.name;
+              type = 'software';
+            } else if (eq) {
+              name = eq.name;
+              type = eq.slotType;
+            } else if (ability) {
+              name = ability.name;
+              type = 'firmware';
+            } else if (augment) {
+              name = augment.name;
+              type = 'augment';
+            }
+
+            let directionLabel = 'CURRENT TILE';
+            if (dx !== 0 || dy !== 0) {
+              const ns = dy < 0 ? 'N' : dy > 0 ? 'S' : '';
+              const ew = dx < 0 ? 'W' : dx > 0 ? 'E' : '';
+              directionLabel = `ADJACENT (${ns}${ew})`;
+            }
+
+            nearby.push({
+              itemId,
+              templateId: tmpl?.id || 'unknown',
+              name,
+              rarityTier: rarity?.tier || 'v1.x',
+              type,
+              x: tx,
+              y: ty,
+              isPlayerTile: dx === 0 && dy === 0,
+              directionLabel,
+            });
+          }
+        }
+      }
+
+      if (nearby.length === 0) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'No loot on the ground nearby to pick up.',
+          type: 'info',
+        });
+        return;
+      }
+
+      // If only 1 item and it is on the player's current tile, directly pick it up!
+      if (nearby.length === 1 && nearby[0].isPlayerTile) {
+        inputManager.setRequestPending(true);
+        await sendActionToServer({
+          type: 'PICKUP',
+          itemId: nearby[0].itemId,
+        });
+        inputManager.setRequestPending(false);
+        return;
+      }
+
+      // If multiple items or items on adjacent tiles, open the Ground Transfer Modal!
+      gameStore.getState().openGroundTransfer(nearby);
+      return;
+    }
+
     if (action === GameAction.PAUSE) {
+      if (gameStore.getState().groundTransferVisible) {
+        gameStore.getState().closeGroundTransfer();
+        return;
+      }
       if (gameStore.getState().hotkeysModalVisible) {
         gameStore.getState().setHotkeysModalVisible(false);
         return;

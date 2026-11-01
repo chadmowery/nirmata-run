@@ -9,6 +9,7 @@ import { NearbyEntities } from './NearbyEntities';
 import { AbilityBar } from './AbilityBar';
 import EventTimelinePanel from './EventTimelinePanel';
 import { InventoryOverlay } from './inventory/InventoryOverlay';
+import { GroundTransferModal } from './inventory/GroundTransferModal';
 import { HotkeysModal } from './HotkeysModal';
 import { BtnLever } from './atomic';
 import styles from './styles.module.css';
@@ -19,6 +20,8 @@ export const HUDOverlay: React.FC = () => {
   const toggleInventory = () => gameStore.getState().toggleInventory();
   const hotkeysModalVisible = useStore(gameStore, (s) => s.hotkeysModalVisible);
   const toggleHotkeysModal = () => gameStore.getState().toggleHotkeysModal();
+  const groundTransferVisible = useStore(gameStore, (s) => s.groundTransferVisible);
+  const closeGroundTransfer = () => gameStore.getState().closeGroundTransfer();
 
   const selectedRunMode = useStore(gameStore, (s) => s.selectedRunMode);
   const currentFloor = useStore(gameStore, (s) => s.currentFloor);
@@ -166,6 +169,7 @@ export const HUDOverlay: React.FC = () => {
       {/* Modal Overlays */}
       {inventoryVisible && <InventoryOverlay onClose={toggleInventory} />}
       {hotkeysModalVisible && <HotkeysModal onClose={toggleHotkeysModal} />}
+      {groundTransferVisible && <GroundTransferModal onClose={closeGroundTransfer} />}
     </div>
   );
 };

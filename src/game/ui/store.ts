@@ -70,6 +70,20 @@ export interface VisibleEntity {
   maxHp: number;
 }
 
+export interface GroundItemInfo {
+  itemId: number;
+  templateId: string;
+  name: string;
+  rarityTier: string;
+  type: string;
+  x: number;
+  y: number;
+  isPlayerTile: boolean;
+  directionLabel?: string;
+  quantity?: number;
+  isConsumable?: boolean;
+}
+
 export interface RunStats {
   turns: number;
   kills: number;
@@ -163,6 +177,8 @@ export interface UIState {
   inventoryRevision: number;
   abortDialogVisible: boolean;
   hotkeysModalVisible: boolean;
+  groundTransferVisible: boolean;
+  nearbyGroundItems: GroundItemInfo[];
 
   // Drag and drop / optimistic updates state
   draggedRunItemEntityId: number | null;
@@ -180,6 +196,9 @@ export interface UIState {
   incrementInventoryRevision: () => void;
   toggleHotkeysModal: () => void;
   setHotkeysModalVisible: (visible: boolean) => void;
+  openGroundTransfer: (items: GroundItemInfo[]) => void;
+  closeGroundTransfer: () => void;
+  updateNearbyGroundItems: (items: GroundItemInfo[]) => void;
   setDraggedRunItemEntityId: (entityId: number | null) => void;
   optimisticEquipItem: (entityId: number, slot: 'weapon' | 'armor') => void;
   optimisticUnequipItem: (slot: 'weapon' | 'armor') => void;
@@ -325,6 +344,8 @@ export const gameStore = createStore<UIState>((set, get) => ({
   inventoryRevision: 0,
   abortDialogVisible: false,
   hotkeysModalVisible: false,
+  groundTransferVisible: false,
+  nearbyGroundItems: [],
   draggedRunItemEntityId: null,
   optimisticWeapon: undefined,
   optimisticArmor: undefined,
@@ -584,6 +605,9 @@ export const gameStore = createStore<UIState>((set, get) => ({
   toggleHotkeysModal: () =>
     set((state) => ({ hotkeysModalVisible: !state.hotkeysModalVisible })),
   setHotkeysModalVisible: (visible) => set({ hotkeysModalVisible: visible }),
+  openGroundTransfer: (items) => set({ groundTransferVisible: true, nearbyGroundItems: items }),
+  closeGroundTransfer: () => set({ groundTransferVisible: false }),
+  updateNearbyGroundItems: (items) => set({ nearbyGroundItems: items }),
   setAbortDialogVisible: (visible) => set({ abortDialogVisible: visible }),
   incrementInventoryRevision: () =>
     set((state) => ({ inventoryRevision: state.inventoryRevision + 1 })),

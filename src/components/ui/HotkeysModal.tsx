@@ -53,6 +53,7 @@ const HOTKEY_CATEGORIES: HotkeyCategory[] = [
     title: 'Environment & Exploration',
     badge: 'ENV-04',
     items: [
+      { keys: ['G'], description: 'Ground loot recovery & backpack transfer (radial 1-tile)' },
       { keys: ['E'], description: 'Engage Stability Anchor / Access Terminal' },
       { keys: ['BUMP'], description: 'Pry open crates, lockers & forensic nodes' },
       { keys: ['>', 'SHIFT + .'], description: 'Descend through Staircase to lower floor' },

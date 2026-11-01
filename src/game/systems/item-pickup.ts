@@ -293,19 +293,37 @@ export function createItemPickupSystem<T extends GameplayEvents>(
   }
 
   function update(w: World<T>) {
-    // 1. Process reactive pickups from movement
+    // 1. Process reactive pickups from movement (Currency always auto-picks up, health only if damaged)
     const movers = w.query(Actor, MovedThisTurn, Position);
     for (const entityId of movers) {
       if (!w.getComponent(entityId, Actor)?.isPlayer) continue;
 
       const moved = w.getComponent(entityId, MovedThisTurn)!;
       const items = Array.from(grid.getItemsAt(moved.toX, moved.toY));
+      let hasManualLoot = false;
+
       for (const itemId of items) {
-        processItem(w, entityId, itemId, moved.toX, moved.toY);
+        const isCurrency = w.hasComponent(itemId, CurrencyItem);
+        const effect = w.getComponent(itemId, PickupEffect);
+        const health = w.getComponent(entityId, Health);
+        const needsHeal = effect?.type === EffectType.HEAL && health ? health.current < health.max : false;
+
+        if (isCurrency || needsHeal) {
+          processItem(w, entityId, itemId, moved.toX, moved.toY);
+        } else {
+          hasManualLoot = true;
+        }
+      }
+
+      if (hasManualLoot) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `[G] GROUND OBJECT DETECTED: Press [G] to pick up or transfer`,
+          type: 'info',
+        });
       }
     }
 
-    // 2. Process explicit PickupIntents (e.g. from pipeline or UI)
+    // 2. Process explicit PickupIntents (e.g. from pipeline, G key, or transfer UI)
     const explicitPickups = w.query(PickupIntent);
     for (const requesterId of explicitPickups) {
       const intent = w.getComponent(requesterId, PickupIntent)!;

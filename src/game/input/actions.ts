@@ -24,6 +24,7 @@ export enum GameAction {
   RECENTER_CAMERA = 'RECENTER_CAMERA',
   TOGGLE_INVENTORY = 'TOGGLE_INVENTORY',
   TOGGLE_HOTKEYS = 'TOGGLE_HOTKEYS',
+  PICKUP_GROUND = 'PICKUP_GROUND',
 }
 
 /**
@@ -64,6 +65,7 @@ export const DEFAULT_BINDINGS: Record<string, GameAction> = {
   'Shift+Period': GameAction.INTERACT_STAIRCASE,
   KeyE: GameAction.INTERACT_ANCHOR,
   KeyI: GameAction.TOGGLE_INVENTORY,
+  KeyG: GameAction.PICKUP_GROUND,
 };
 
 /**

@@ -33,6 +33,10 @@ import {
   Children,
   AbilityDef,
   AugmentData,
+  Position,
+  SpriteComponent,
+  Item,
+  PickupIntent,
 } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { Dying } from '@shared/components/dying';
@@ -324,6 +328,37 @@ export async function POST(req: Request) {
           });
         }
         actionKey = 'USE_CONSUMABLE';
+        break;
+      }
+
+      case 'PICKUP': {
+        world.addComponent(session.playerId, PickupIntent, {
+          actorId: session.playerId,
+          itemId: action.itemId,
+        });
+        actionKey = 'PICKUP';
+        break;
+      }
+
+      case 'DROP_ITEM': {
+        const playerPos = world.getComponent(session.playerId, Position);
+        if (playerPos) {
+          const dropX = action.targetX ?? playerPos.x;
+          const dropY = action.targetY ?? playerPos.y;
+          const removed = InventoryUtil.removeItemByEntityId(world, session.playerId, action.itemEntityId);
+          if (removed) {
+            world.addComponent(action.itemEntityId, Position, { x: dropX, y: dropY });
+            world.addComponent(action.itemEntityId, SpriteComponent, {
+              key: 'item',
+            });
+            session.grid.addItem(action.itemEntityId, dropX, dropY);
+            eventBus.emit('MESSAGE_EMITTED', {
+              text: `Dropped ${removed.templateId} onto floor`,
+              type: 'info',
+            });
+          }
+        }
+        actionKey = 'DROP_ITEM';
         break;
       }
     }

@@ -134,6 +134,13 @@ export const AbortRunActionSchema = z.object({
   type: z.literal('ABORT_RUN'),
 });
 
+export const DropItemActionSchema = z.object({
+  type: z.literal('DROP_ITEM'),
+  itemEntityId: z.number().int(),
+  targetX: z.number().int().optional(),
+  targetY: z.number().int().optional(),
+});
+
 export const InteractPropActionSchema = z.object({
   type: z.literal('INTERACT_PROP'),
   targetPropId: z.number().int(),
@@ -173,6 +180,7 @@ export const ActionIntentSchema = z.discriminatedUnion('type', [
   PurgeSoftwareActionSchema,
   BurnFirmwareActionSchema,
   BurnAugmentActionSchema,
+  DropItemActionSchema,
 ]);
 
 export type ActionIntent = z.infer<typeof ActionIntentSchema>;
