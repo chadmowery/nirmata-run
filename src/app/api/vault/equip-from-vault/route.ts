@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
-import { globalShellRegistry } from '@/game/shells/server';
+import { globalShellRegistry, applyShellUpgradesToRecord } from '@/game/shells/server';
 import { logger } from '@engine/utils/logger';
 import { VaultItem } from '@/shared/profile';
 import { isWeaponItem, isArmorItem } from '@/shared/utils/equipment-util';
@@ -151,6 +151,13 @@ export async function POST(req: NextRequest) {
           if (template) {
             shellRecord = globalShellRegistry.createRecord(shellId, template.id);
           }
+        }
+      }
+
+      if (shellRecord) {
+        const upgradeData = profile.shellUpgrades?.[shellId];
+        if (upgradeData) {
+          shellRecord = applyShellUpgradesToRecord(shellRecord, upgradeData);
         }
       }
 

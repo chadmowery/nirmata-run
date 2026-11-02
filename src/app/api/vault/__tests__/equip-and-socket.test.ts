@@ -157,6 +157,49 @@ describe('Vault Loadout & Software Socketing API', () => {
     expect(mockProfile.installedItems[0].blueprintId).toBe('bleed-v1');
   });
 
+  it('allows equipping software into upgraded additional ports', async () => {
+    // Vanguard base software port limit is 2. With additionalPorts: 1, limit is 3.
+    mockProfile.shellUpgrades = {
+      'vanguard-v1': { speed: 0, armor: 0, stability: 0, additionalPorts: 1 },
+    };
+    mockProfile.installedItems = [
+      {
+        entityId: 301,
+        blueprintId: 'bleed-v0',
+        type: 'software',
+        shellId: 'vanguard-v1',
+        isLegacy: false,
+      },
+      {
+        entityId: 302,
+        blueprintId: 'auto-loader-v0',
+        type: 'software',
+        shellId: 'vanguard-v1',
+        isLegacy: false,
+      },
+    ];
+
+    const req = new NextRequest('http://localhost/api/vault/equip-from-vault', {
+      method: 'POST',
+      body: JSON.stringify({
+        sessionId: 'test-session',
+        shellId: 'vanguard-v1',
+        entityId: 103, // bleed-v1
+        targetSlotType: 'software',
+      }),
+    });
+
+    const res = await equipRoute(req);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+
+    const softwareInstalled = mockProfile.installedItems.filter(
+      (i) => i.shellId === 'vanguard-v1' && i.type === 'software',
+    );
+    expect(softwareInstalled).toHaveLength(3);
+  });
+
   it('uninstalls weapon from shell loadout and restores to vault with socketed software', async () => {
     mockProfile.vault = [];
     mockProfile.installedItems = [

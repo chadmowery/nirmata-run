@@ -1,6 +1,6 @@
 import AStar from 'rot-js/lib/path/astar';
 import { GameContext } from '../types';
-import { AnchorMarker, Health, Position, StaircaseMarker } from '@shared/components';
+import { AnchorMarker, Health, Position, StaircaseMarker, Prop, BlocksMovement, Hostile } from '@shared/components';
 import { GameAction, DIRECTIONS } from '../input/actions';
 import { ActionIntent } from '@shared/types';
 import { logger } from '@engine/utils/logger';
@@ -83,14 +83,26 @@ export class AutoPathfinder {
         break;
       }
 
-      // Pathfind
+      // Pathfind avoiding props, blocking obstacles, and hostiles
       const astar = new AStar(
         anchorPos.x,
         anchorPos.y,
         (x, y) => {
           if (x === playerPos.x && y === playerPos.y) return true;
           if (x === anchorPos!.x && y === anchorPos!.y) return true;
-          return this.context!.grid.isWalkable(x, y);
+          if (!this.context!.grid.isWalkable(x, y)) return false;
+          const occupants = this.context!.grid.getEntitiesAt(x, y);
+          for (const occId of occupants) {
+            if (occId === this.context!.playerId) continue;
+            if (
+              this.context!.world.hasComponent(occId, Prop) ||
+              this.context!.world.hasComponent(occId, BlocksMovement) ||
+              this.context!.world.hasComponent(occId, Hostile)
+            ) {
+              return false;
+            }
+          }
+          return true;
         },
         { topology: 4 },
       );
@@ -99,6 +111,12 @@ export class AutoPathfinder {
       astar.compute(playerPos.x, playerPos.y, (x, y) => {
         path.push([x, y]);
       });
+
+      if (path.length === 0) {
+        logger.warn('[DEBUG] No path found to anchor');
+        this.cancel();
+        break;
+      }
 
       // Stop if 1 tile away (path length is 2: [player, neighbor])
       if (path.length <= 2) {

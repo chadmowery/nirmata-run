@@ -257,9 +257,11 @@ describe('LoadoutTab UI', () => {
     render(<LoadoutTab />);
 
     await waitFor(() => {
-      // With additionalPorts: 1, basePorts 2 becomes 3, and the 3rd slot has 'UNLOCKED' tag
-      const unlockedTags = screen.getAllByText(/UNLOCKED/i);
-      expect(unlockedTags.length).toBeGreaterThanOrEqual(1);
+      // With additionalPorts: 1, basePorts 2 becomes 3, and the 3rd slot is marked as unlocked expansion in aria-label
+      const unlockedSlots = screen.getAllByLabelText(/UNLOCKED EXPANSION/i);
+      expect(unlockedSlots.length).toBeGreaterThanOrEqual(1);
+      // Overlapping "UNLOCKED" text label should be removed
+      expect(screen.queryByText(/^UNLOCKED$/)).toBeNull();
     });
   });
 });

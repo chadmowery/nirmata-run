@@ -52,7 +52,7 @@ const VaultOverflowBanner: React.FC<VaultOverflowBannerProps> = ({
     <div className={styles.banner}>
       <h3 className={styles.heading}>OVERFLOW: {overflowItems.length} IN_LIMBO</h3>
       <div className={styles.itemList}>
-        {overflowItems.map((item) => {
+        {overflowItems.map((item, idx) => {
           const meta = resolveItemMetadata({
             templateId: item.templateId,
             type: item.itemType,
@@ -65,7 +65,7 @@ const VaultOverflowBanner: React.FC<VaultOverflowBannerProps> = ({
 
           return (
             <div
-              key={item.entityId}
+              key={`${item.entityId}-${idx}`}
               className={styles.itemRow}
               tabIndex={0}
               onPointerEnter={(e) =>

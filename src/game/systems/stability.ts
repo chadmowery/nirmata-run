@@ -9,6 +9,7 @@ import { GameEvents } from '../events/types';
 import { FloorTransitioned } from '@shared/components/floor-transitioned';
 import { FloorState } from '@shared/components/floor-state';
 import { DamageIntent } from '@shared/components/intents';
+import { Actor } from '@shared/components/actor';
 
 /**
  * Configuration for the Reality Stability system.
@@ -26,10 +27,10 @@ export interface StabilityConfig {
 /** Default configuration values for Stability. */
 export const DEFAULT_STABILITY_CONFIG: StabilityConfig = {
   initialStability: 100,
-  perFloorChunkBase: 5,
-  perFloorChunkScale: 0.5,
-  perTurnBleedBase: 0.01,
-  perTurnBleedScale: 0.1,
+  perFloorChunkBase: 3,
+  perFloorChunkScale: 0.2,
+  perTurnBleedBase: 0.005,
+  perTurnBleedScale: 0.02,
   degradedDamagePerTurn: 2,
 };
 
@@ -136,14 +137,44 @@ export function createStabilitySystem<T extends GameplayEvents>(
       applyDegradedDamage(entityId);
     }
   };
+  const handleEntityDied = (event: { entityId: EntityId; killerId: EntityId; isPlayer: boolean }) => {
+    if (event.isPlayer) return;
+    const killerActor = world.getComponent(event.killerId, Actor);
+    if (killerActor?.isPlayer) {
+      const stability = world.getComponent<StabilityData>(event.killerId, Stability);
+      if (stability) {
+        const restoreAmount = 2; // +2% Reality Stability per eliminated hostile
+        const oldValue = stability.current;
+        const newValue = Math.min(stability.max, stability.current + restoreAmount);
+        world.patchComponent(event.killerId, Stability, { current: newValue });
+
+        eventBus.emit('STABILITY_CHANGED', {
+          entityId: event.killerId,
+          oldValue,
+          newValue,
+          reason: 'threat_purged',
+        } as unknown as T['STABILITY_CHANGED']);
+
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `[REALITY STABILIZED]: +${restoreAmount}% Stability restored from threat purged.`,
+          type: 'info',
+        } as unknown as T['MESSAGE_EMITTED']);
+      }
+    }
+  };
+
   const init = () => {
     world.registerSystem(Phase.PRE_TURN, updatePreTurn, 'StabilitySystem');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    eventBus.on('ENTITY_DIED', handleEntityDied as any);
   };
 
   return {
     init,
     dispose: () => {
       world.unregisterSystem(Phase.PRE_TURN, updatePreTurn);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      eventBus.off('ENTITY_DIED', handleEntityDied as any);
     },
     update: updatePreTurn,
     applyFloorDrain,

@@ -270,7 +270,16 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
           quantity: 1,
           isConsumable: isConsumable || undefined,
         };
-        if (isSw) {
+        if (isConsumable) {
+          const existing = backpackEquipment.find(
+            (e) => e.templateId === item.blueprintId && e.isConsumable && (e.quantity ?? 1) < 10,
+          );
+          if (existing) {
+            existing.quantity = Math.min(10, (existing.quantity ?? 1) + 1);
+          } else {
+            backpackEquipment.push(itemObj);
+          }
+        } else if (isSw) {
           backpackSoftware.push(itemObj);
         } else {
           backpackEquipment.push(itemObj);

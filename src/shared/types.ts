@@ -118,6 +118,7 @@ export const PickupCurrencyActionSchema = z.object({
 export const UseConsumableActionSchema = z.object({
   type: z.literal('USE_CONSUMABLE'),
   inventoryIndex: z.number().int(),
+  targetEntityId: z.number().int().optional(),
 });
 
 export const DebugActionSchema = z.object({

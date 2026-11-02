@@ -4,7 +4,7 @@ export interface ItemSpec {
   color?: string;
 }
 
-export type ItemType = 'firmware' | 'augment' | 'software' | 'equipment' | 'item';
+export type ItemType = 'firmware' | 'augment' | 'software' | 'equipment' | 'item' | 'consumable';
 
 export type StampVariant = 'danger' | 'cyan' | 'secured' | 'amber';
 
@@ -519,14 +519,15 @@ const KNOWN_TEMPLATES: Record<string, KnownTemplateDefinition> = {
   'health-potion': {
     name: 'Health Injector',
     kanjiSub: '修復注入 // REPAIR INJECTOR',
-    type: 'item',
+    type: 'consumable',
     typeLabel: 'CONSUMABLE // REPAIR CANISTER',
     defaultRarity: 'common',
-    description: 'Single-use pressurized aerosol canister filled with rapid-coagulating bio-repair nanites.',
+    description: 'Single-use pressurized aerosol canister filled with rapid-coagulating bio-repair nanites. Restores 5 HP and 10 Stability immediately, plus 3 turns of regenerative repair nanites. Stacks up to 10 per slot.',
     specs: [
-      { label: 'REPAIR VOLUME', value: '+50 HP RESTORATION', color: 'var(--c-accent-secondary)' },
-      { label: 'ADMINISTRATION', value: 'INSTANT USE' },
-      { label: 'DISPOSAL STATE', value: 'EXPENDABLE' },
+      { label: 'IMMEDIATE REPAIR', value: '+5 HP / +10 STABILITY', color: 'var(--c-accent-secondary)' },
+      { label: 'TEMPORARY EFFECT', value: 'REGENERATION (3 TURNS)', color: 'var(--c-accent)' },
+      { label: 'STACK LIMIT', value: '10 UNITS / SLOT', color: 'var(--c-text-bright)' },
+      { label: 'ADMINISTRATION', value: 'ONE-TIME USE' },
     ],
   },
   'blueprint-locked': {

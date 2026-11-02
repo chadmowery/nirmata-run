@@ -61,7 +61,7 @@ const VaultGrid: React.FC<VaultGridProps> = ({ items, onCellClick, onCellRightCl
 
           return (
             <div
-              key={item.entityId}
+              key={`${item.entityId}-${index}`}
               className={styles.cell}
               style={{ borderColor: getRarityColor(item.rarityTier) }}
               onClick={(e) => onCellClick(item, e)}

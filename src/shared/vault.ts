@@ -56,7 +56,7 @@ export interface DebugGrantResult {
 export const DEBUG_VAULT_CATALOG: Array<{
   templateId: string;
   rarityTier: string;
-  itemType: 'firmware' | 'augment' | 'software' | 'equipment' | 'weapon' | 'armor';
+  itemType: 'firmware' | 'augment' | 'software' | 'equipment' | 'weapon' | 'armor' | 'consumable';
 }> = [
   // Round 1: 1 of each of all 5 distinct item types (guarantees diverse representation)
   { templateId: 'phase-shift', rarityTier: 'common', itemType: 'firmware' },
@@ -82,7 +82,7 @@ export const DEBUG_VAULT_CATALOG: Array<{
   // Round 4: 4th item of types
   { templateId: 'logic-jam', rarityTier: 'common', itemType: 'firmware' },
   { templateId: 'neural-recursion', rarityTier: 'legendary', itemType: 'augment' },
-  { templateId: 'health-potion', rarityTier: 'common', itemType: 'software' },
+  { templateId: 'health-potion', rarityTier: 'common', itemType: 'consumable' },
   { templateId: 'extended-sight', rarityTier: 'uncommon', itemType: 'firmware' },
   { templateId: 'static-collapse', rarityTier: 'legendary', itemType: 'augment' },
 

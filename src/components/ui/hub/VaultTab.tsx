@@ -39,6 +39,7 @@ export const TYPE_SORT_WEIGHT: Record<string, number> = {
   software: 2,
   equipment: 1,
   backpack: 1,
+  consumable: 1,
   item: 0,
 };
 
@@ -390,7 +391,7 @@ export const VaultTab: React.FC = () => {
 
               return (
                 <div
-                  key={item.entityId}
+                  key={`${item.entityId}-${idx}`}
                   className={`
                     ${styles.vaultSlot} 
                     ${isSelected ? styles.selected : ''}
@@ -649,7 +650,7 @@ export const VaultTab: React.FC = () => {
                       </div>
                     ) : (
                       <div className={styles.actionList}>
-                        {compatibleSoftwareInVault.map((sw) => {
+                        {compatibleSoftwareInVault.map((sw, idx) => {
                           const swMeta = resolveItemMetadata({
                             templateId: sw.templateId,
                             type: sw.itemType,
@@ -659,7 +660,7 @@ export const VaultTab: React.FC = () => {
                           });
                           return (
                             <div
-                              key={sw.entityId}
+                              key={`${sw.entityId}-${idx}`}
                               style={{ width: '100%' }}
                               onPointerEnter={(e) =>
                                 setHoveredSlot({ metadata: swMeta, x: e.clientX, y: e.clientY })
@@ -716,9 +717,9 @@ export const VaultTab: React.FC = () => {
                       </div>
                     ) : (
                       <div className={styles.actionList}>
-                        {compatibleGearInVault.map((gear) => (
+                        {compatibleGearInVault.map((gear, idx) => (
                           <BtnLever
-                            key={gear.entityId}
+                            key={`${gear.entityId}-${idx}`}
                             variant="cyan"
                             holdToConfirm={true}
                             onClick={() => handleSocketSoftware(gear.entityId, selectedItem.entityId)}

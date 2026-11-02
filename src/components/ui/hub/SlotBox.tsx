@@ -55,11 +55,6 @@ export const SlotBox: React.FC<SlotBoxProps> = ({
           SW
         </div>
       )}
-      {isUnlockedExpansion && (
-        <div className={styles.unlockedTag} title="Expansion Port Unlocked via Flux Upgrade">
-          UNLOCKED
-        </div>
-      )}
       {legacy && <div className={styles.legacyTag}>LEGACY</div>}
       {filled && legacy && <div className={styles.legacyOverlay} />}
     </div>

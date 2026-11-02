@@ -301,7 +301,7 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
       // 3. Resolve Tactical Terminals & Utilities
       if (propClass === 'reality_stabilizer' && !prop.isSearched) {
         const stability = w.getComponent(actorId, Stability);
-        const restoreAmount = prop.stabilityRestoreAmount ?? 10;
+        const restoreAmount = prop.stabilityRestoreAmount ?? 20;
         if (stability) {
           w.patchComponent(actorId, Stability, {
             current: Math.min(100, stability.current + restoreAmount),

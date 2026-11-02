@@ -100,6 +100,14 @@ export const ItemCard: React.FC<ItemCardProps> = ({
         <div className={styles.itemName}>{item.templateId}</div>
         <div className={styles.itemMeta}>
           <span className={styles.itemType}>{item.itemType.toUpperCase()}</span>
+          {item.quantity && item.quantity > 1 && (
+            <>
+              <span className={styles.dot}>•</span>
+              <span style={{ color: 'var(--c-accent-secondary)', fontWeight: 700 }}>
+                x{item.quantity}
+              </span>
+            </>
+          )}
           <span className={styles.dot}>•</span>
           <span className={styles.rarityText}>{item.rarityTier.toUpperCase()}</span>
           {item.socketedSoftware && item.socketedSoftware.length > 0 && (

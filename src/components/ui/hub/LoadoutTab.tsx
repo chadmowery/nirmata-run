@@ -129,7 +129,7 @@ export const LoadoutTab: React.FC = () => {
     const sessionId = playerProfile.sessionId;
     const entityId = item.entityId;
     const shellId = activeShellId;
-    const previousProfile = { ...playerProfile };
+    const previousProfile = structuredClone(playerProfile);
 
     // Optimistic UI update
     updateProfileOptimistic((prev) => {
@@ -194,9 +194,9 @@ export const LoadoutTab: React.FC = () => {
 
     const typeEquippedCount = equippedItems.filter((i) => i.type === primarySlotType).length;
     let maxForType = 1;
-    if (primarySlotType === 'firmware') maxForType = activeShellTemplate.basePorts.maxFirmware;
-    else if (primarySlotType === 'augment') maxForType = activeShellTemplate.basePorts.maxAugment;
-    else if (primarySlotType === 'software') maxForType = activeShellTemplate.basePorts.maxSoftware;
+    if (primarySlotType === 'firmware') maxForType = effectivePortConfig.maxFirmware;
+    else if (primarySlotType === 'augment') maxForType = effectivePortConfig.maxAugment;
+    else if (primarySlotType === 'software') maxForType = effectivePortConfig.maxSoftware;
 
     let targetSlot: string | null = null;
     if (typeEquippedCount < maxForType) {
@@ -217,7 +217,7 @@ export const LoadoutTab: React.FC = () => {
   const handleSoftwareSocket = async (targetEntityId: number, softwareEntityId: number) => {
     logger.debug(`[Loadout] Socketing software ${softwareEntityId} onto ${targetEntityId}`, 'UI');
     const sessionId = playerProfile.sessionId;
-    const previousProfile = { ...playerProfile };
+    const previousProfile = structuredClone(playerProfile);
     const softwareItem = playerProfile.vault.find((i) => i.entityId === softwareEntityId);
     if (!softwareItem) return;
 
@@ -258,7 +258,7 @@ export const LoadoutTab: React.FC = () => {
     const entityId = draggedItem.entityId;
     const shellId = activeShellId;
     const sessionId = playerProfile.sessionId;
-    const previousProfile = { ...playerProfile };
+    const previousProfile = structuredClone(playerProfile);
 
     updateProfileOptimistic((prev) => {
       const newInstalled = prev.installedItems.filter(
@@ -460,7 +460,7 @@ export const LoadoutTab: React.FC = () => {
                     </div>
                   ) : (
                     <div className={styles.socketSoftwareList}>
-                      {compatibleStashSoftware.map((sw) => {
+                      {compatibleStashSoftware.map((sw, idx) => {
                         const swMeta = resolveItemMetadata({
                           templateId: sw.templateId,
                           type: sw.itemType,
@@ -470,7 +470,7 @@ export const LoadoutTab: React.FC = () => {
                         });
                         return (
                           <div
-                            key={sw.entityId}
+                            key={`${sw.entityId}-${idx}`}
                             style={{ width: '100%' }}
                             onPointerEnter={(e) =>
                               setHoveredSoftware({ metadata: swMeta, x: e.clientX, y: e.clientY })

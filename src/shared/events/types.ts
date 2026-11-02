@@ -46,7 +46,7 @@ export interface GameplayEvents extends EngineEvents {
     entityId: EntityId;
     oldValue: number;
     newValue: number;
-    reason: 'floor_entry' | 'turn_bleed' | 'anchor_refill' | 'reality_stabilizer';
+    reason: 'floor_entry' | 'turn_bleed' | 'anchor_refill' | 'reality_stabilizer' | 'threat_purged' | 'consumable_use';
   };
 
   /** Queued when an entity takes damage from a degraded Stability state. */

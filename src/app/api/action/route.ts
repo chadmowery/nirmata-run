@@ -37,6 +37,8 @@ import {
   SpriteComponent,
   PickupIntent,
   SoftwareDef,
+  Stability,
+  ApplyStatusEffectIntent,
 } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { Dying } from '@shared/components/dying';
@@ -323,14 +325,42 @@ export async function POST(req: Request) {
         break;
 
       case 'USE_CONSUMABLE': {
+        const targetId = action.targetEntityId ?? session.playerId;
         const consumed = InventoryUtil.consumeConsumable(world, session.playerId, action.inventoryIndex);
         if (consumed) {
+          // Immediate Effect: HP restore
           world.addComponent(session.playerId, HealIntent, {
-            targetId: session.playerId,
+            targetId,
             amount: 5,
           });
+
+          // Immediate Effect: Stability restore
+          const stability = world.getComponent(targetId, Stability);
+          if (stability) {
+            const oldValue = stability.current;
+            const newValue = Math.min(stability.max, stability.current + 10);
+            world.patchComponent(targetId, Stability, { current: newValue });
+            eventBus.emit('STABILITY_CHANGED', {
+              entityId: targetId,
+              oldValue,
+              newValue,
+              reason: 'consumable_use',
+            });
+          }
+
+          // Temporary Effect: Regeneration (3 turns)
+          world.addComponent(session.playerId, ApplyStatusEffectIntent, {
+            targetId,
+            effect: {
+              name: 'regeneration',
+              duration: 3,
+              magnitude: 1,
+              source: 'health-potion',
+            },
+          });
+
           eventBus.emit('MESSAGE_EMITTED', {
-            text: `+ REPAIR CONSUMED: Restored 5 HP`,
+            text: `+ REPAIR CONSUMED: Restored 5 HP, +10 Stability, Nanite Regeneration active (3 turns)`,
             type: 'info',
           });
         }
