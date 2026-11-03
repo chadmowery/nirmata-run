@@ -38,6 +38,10 @@ import { AutoPathfinder } from './debug/auto-pathfind';
 import { useDebugStore } from './debug/debug-store';
 import { EventOriginContext } from '@engine/utils/event-context';
 import { DebugAPI } from './debug/debug-api';
+import { installReactKeyLogger } from './diagnostics/react-key-interceptor';
+
+// Install diagnostic interceptor for React key collision warnings on client
+installReactKeyLogger();
 
 declare global {
   interface Window {

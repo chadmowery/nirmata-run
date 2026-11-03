@@ -72,7 +72,12 @@ export class GameTurnAdapter<
     return null;
   }
 
+  allowsInactiveActorAction(action: string): boolean {
+    return action === 'ABORT_RUN';
+  }
+
   getActionCost(actorId: EntityId, action: string): number {
+    if (action === 'ABORT_RUN') return 0;
     if (!this.world.entityExists(actorId)) return 1000;
     if (action === 'WAIT') {
       return this.config?.waitActionCost ?? 500;

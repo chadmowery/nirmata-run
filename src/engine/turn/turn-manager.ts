@@ -31,8 +31,9 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     logger.info(`Player submitting action: ${action}`, 'TURN');
     this.phase = TurnPhase.PLAYER_ACTION;
     const playerEntity = this.adapter.getPrimaryActor();
+    const allowsInactive = this.adapter.allowsInactiveActorAction?.(action) ?? false;
     if (
-      action !== 'ABORT_RUN' &&
+      !allowsInactive &&
       (playerEntity === null || !this.adapter.isActorActive(playerEntity))
     ) {
       this.phase = TurnPhase.AWAIT_INPUT;
@@ -40,13 +41,15 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     }
 
     // Process player action
-    if (!this.config.isClient && action !== 'ABORT_RUN' && playerEntity !== null) {
+    if (!this.config.isClient && playerEntity !== null) {
       const cost = this.adapter.getActionCost
         ? this.adapter.getActionCost(playerEntity, action)
         : action === 'WAIT'
           ? this.config.waitActionCost
           : this.config.defaultActionCost;
-      this.adapter.deductActionCost(playerEntity, cost);
+      if (cost > 0) {
+        this.adapter.deductActionCost(playerEntity, cost);
+      }
     }
 
     if (this.playerActionHandler && playerEntity !== null) {

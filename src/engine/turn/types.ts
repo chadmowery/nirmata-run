@@ -84,4 +84,7 @@ export interface TurnSchedulerAdapter<TActorId = EntityId> {
 
   /** Optional hook called immediately after an actor completes its action sequence. */
   onAfterActorAct?(actorId: TActorId): void;
+
+  /** Optional hook to determine if an action can be executed without an active primary actor. */
+  allowsInactiveActorAction?(action: string): boolean;
 }

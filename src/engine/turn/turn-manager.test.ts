@@ -69,6 +69,10 @@ class TestTurnSchedulerAdapter implements TurnSchedulerAdapter<number> {
     const actor = this.actors.get(actorId);
     if (actor) actor.acting = false;
   }
+
+  allowsInactiveActorAction(action: string): boolean {
+    return action === 'special_meta_action';
+  }
 }
 
 describe('TurnManager (Generic Engine)', () => {
@@ -352,5 +356,24 @@ describe('TurnManager (Generic Engine)', () => {
     expect(() => turnManager.submitAction('move')).toThrow('Simulated critical turn error');
     expect(turnManager.getPhase()).toBe(TurnPhase.AWAIT_INPUT);
     expect(turnManager.canAcceptInput()).toBe(true);
+  });
+
+  it('allows actions that bypass active player check via adapter.allowsInactiveActorAction', () => {
+    // Kill the player actor
+    adapter.actors.get(playerEntity)!.isAlive = false;
+
+    let handlerCalledWith = '';
+    turnManager.setPlayerActionHandler((action) => {
+      handlerCalledWith = action;
+    });
+
+    turnManager.start();
+    // Normal move should be rejected
+    turnManager.submitAction('move');
+    expect(handlerCalledWith).toBe('');
+
+    // Meta action allowed via adapter
+    turnManager.submitAction('special_meta_action');
+    expect(handlerCalledWith).toBe('special_meta_action');
   });
 });
