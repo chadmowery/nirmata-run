@@ -94,9 +94,6 @@ export function registerCoreSystems<T extends GameplayEvents>(
   // Initialize systems in phased order
   // Pre-turn phase
   shellStats.init();
-  if (!isClient) {
-    stability.init();
-  }
 
   // Action / Reaction
   teleport.init();
@@ -110,6 +107,7 @@ export function registerCoreSystems<T extends GameplayEvents>(
 
   if (!isClient) {
     combat.init();
+    stability.init();
   }
   augment.init();
   software.init();

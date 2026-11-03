@@ -10,6 +10,8 @@ import { FloorTransitioned } from '@shared/components/floor-transitioned';
 import { FloorState } from '@shared/components/floor-state';
 import { DamageIntent } from '@shared/components/intents';
 import { Actor } from '@shared/components/actor';
+import { Dying } from '@shared/components/dying';
+import { Hostile } from '@shared/components/hostile';
 
 /**
  * Configuration for the Reality Stability system.
@@ -137,46 +139,57 @@ export function createStabilitySystem<T extends GameplayEvents>(
       applyDegradedDamage(entityId);
     }
   };
-  const handleEntityDied = (event: { entityId: EntityId; killerId: EntityId; isPlayer: boolean }) => {
-    if (event.isPlayer) return;
-    const killerActor = world.getComponent(event.killerId, Actor);
-    if (killerActor?.isPlayer) {
-      const stability = world.getComponent<StabilityData>(event.killerId, Stability);
-      if (stability) {
-        const restoreAmount = 2; // +2% Reality Stability per eliminated hostile
-        const oldValue = stability.current;
-        const newValue = Math.min(stability.max, stability.current + restoreAmount);
-        world.patchComponent(event.killerId, Stability, { current: newValue });
+  const updateReaction = (w: World<T>) => {
+    const dyingEntities = w.query(Dying);
+    for (const dyingId of dyingEntities) {
+      const dyingComp = w.getComponent(dyingId, Dying);
+      if (!dyingComp?.killerId) continue;
 
-        eventBus.emit('STABILITY_CHANGED', {
-          entityId: event.killerId,
-          oldValue,
-          newValue,
-          reason: 'threat_purged',
-        } as unknown as T['STABILITY_CHANGED']);
+      // Only eliminate hostile threats (not crates/traps or player self-damage)
+      const isHostile = w.hasComponent(dyingId, Hostile);
+      const dyingActor = w.getComponent(dyingId, Actor);
+      if (dyingActor?.isPlayer || !isHostile) continue;
 
-        eventBus.emit('MESSAGE_EMITTED', {
-          text: `[REALITY STABILIZED]: +${restoreAmount}% Stability restored from threat purged.`,
-          type: 'info',
-        } as unknown as T['MESSAGE_EMITTED']);
+      const killerActor = w.getComponent(dyingComp.killerId, Actor);
+      if (killerActor?.isPlayer) {
+        const stability = w.getComponent<StabilityData>(dyingComp.killerId, Stability);
+        if (stability) {
+          const restoreAmount = 2; // +2% Reality Stability per eliminated hostile
+          const oldValue = stability.current;
+          const newValue = Math.min(stability.max, stability.current + restoreAmount);
+          w.patchComponent(dyingComp.killerId, Stability, { current: newValue });
+
+          eventBus.emit('STABILITY_CHANGED', {
+            entityId: dyingComp.killerId,
+            oldValue,
+            newValue,
+            reason: 'threat_purged',
+          } as unknown as T['STABILITY_CHANGED']);
+
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: `[REALITY STABILIZED]: +${restoreAmount}% Stability restored from threat purged.`,
+            type: 'info',
+          } as unknown as T['MESSAGE_EMITTED']);
+        }
       }
     }
   };
 
   const init = () => {
-    world.registerSystem(Phase.PRE_TURN, updatePreTurn, 'StabilitySystem');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    eventBus.on('ENTITY_DIED', handleEntityDied as any);
+    world.registerSystem(Phase.PRE_TURN, updatePreTurn, 'StabilitySystem_PreTurn');
+    world.registerSystem(Phase.REACTION, updateReaction, 'StabilitySystem_Reaction');
+  };
+
+  const dispose = () => {
+    world.unregisterSystem(Phase.PRE_TURN, updatePreTurn);
+    world.unregisterSystem(Phase.REACTION, updateReaction);
   };
 
   return {
     init,
-    dispose: () => {
-      world.unregisterSystem(Phase.PRE_TURN, updatePreTurn);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      eventBus.off('ENTITY_DIED', handleEntityDied as any);
-    },
+    dispose,
     update: updatePreTurn,
+    updateReaction,
     applyFloorDrain,
     applyTurnBleed,
     applyDegradedDamage,
