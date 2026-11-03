@@ -16,9 +16,11 @@ import { registerGameTemplates } from '../../entities';
 import { COMPONENTS_REGISTRY } from '@shared/components';
 import { ComponentRegistry } from '@engine/entity/types';
 import { ComponentDef } from '@engine/ecs/types';
-import { Container, SecurityLock, Prop } from '@shared/components/environment';
+import { Container, SecurityLock, Prop, CorruptedNode } from '@shared/components/environment';
 import { Position } from '@shared/components/position';
 import { Item } from '@shared/components/item';
+import { serializeWorld } from '@shared/serialization';
+import { createECSWorldDelta } from '@shared/ecs-delta';
 
 describe('Hybrid ProcGen & Interactive Environments Generation', () => {
   describe('rollSectorCondition', () => {
@@ -401,6 +403,95 @@ describe('Hybrid ProcGen & Interactive Environments Generation', () => {
       // Assert that across F6-F15 real floors contain locks and vault doors
       expect(totalFloorsWithLocks).toBeGreaterThan(0);
       expect(totalVaultDoorsSpawned).toBeGreaterThan(0);
+    });
+
+    it('C3 Integration: Serialized FULL and DELTA payloads contain no storedLoot, scrapYield, fluxYield, grantsAccessKey, or unrevealed trapType', () => {
+      const { world, entityFactory, componentRegistry } = setupECS();
+      const dungeon = generateDungeon({
+        width: 80,
+        height: 45,
+        seed: 'c3_network_redaction_seed_f8',
+        depth: 8,
+      });
+
+      const rng = createSeededRNG('c3_rng');
+      const placement = placeEntities(
+        world,
+        dungeon.grid,
+        entityFactory,
+        componentRegistry,
+        dungeon.rooms,
+        dungeon.playerSpawnRoom,
+        rng,
+        {
+          depth: 8,
+          propAnchors: dungeon.propAnchors,
+          bespokeRooms: dungeon.bespokeRooms,
+          vaultFaradayBounds: dungeon.vaultFaradayBounds,
+          sectorCondition: dungeon.sectorCondition,
+          factionTheme: dungeon.factionTheme,
+        },
+      );
+
+      // Verify that the server's in-memory world has containers with secret rolls
+      let containerCount = 0;
+      for (const propId of placement.propIds) {
+        if (world.hasComponent(propId, Container)) {
+          containerCount++;
+          const container = world.getComponent(propId, Container)!;
+          expect(container.storedLoot).toBeDefined();
+        }
+      }
+      expect(containerCount).toBeGreaterThan(0);
+
+      // Verify at least one corrupted node is present
+      const corruptedNodes = placement.propIds.filter((id) => world.hasComponent(id, CorruptedNode));
+      expect(corruptedNodes.length).toBeGreaterThan(0);
+
+      // 1. FULL payload check with client redaction
+      const clientFullWorld = serializeWorld(world, { redactForClient: true });
+
+      // Check all container components in serialized world
+      const containerStore = clientFullWorld.stores['container'] || {};
+      for (const [entityId, compData] of Object.entries(containerStore)) {
+        const c = compData as Record<string, unknown>;
+        expect(c.storedLoot, `Entity ${entityId} container must not have storedLoot`).toBeUndefined();
+        expect(c.scrapYield, `Entity ${entityId} container must not have scrapYield`).toBeUndefined();
+        expect(c.fluxYield, `Entity ${entityId} container must not have fluxYield`).toBeUndefined();
+        expect(c.grantsAccessKey, `Entity ${entityId} container must not have grantsAccessKey`).toBeUndefined();
+        expect(c.blueprintId, `Entity ${entityId} container must not have blueprintId`).toBeUndefined();
+        expect(c.blueprintType, `Entity ${entityId} container must not have blueprintType`).toBeUndefined();
+      }
+
+      // Check all corruptedNode components in serialized world
+      const corruptedStore = clientFullWorld.stores['corruptedNode'] || {};
+      for (const [entityId, compData] of Object.entries(corruptedStore)) {
+        const node = compData as Record<string, unknown>;
+        if (!node.revealed) {
+          expect(node.trapType, `Entity ${entityId} unrevealed node must not have trapType`).toBeUndefined();
+        }
+      }
+
+      // 2. DELTA payload check with client redaction
+      const emptyWorld = serializeWorld(new World<GameplayEvents>(new EventBus()));
+      const clientDelta = createECSWorldDelta(emptyWorld, serializeWorld(world), { redactForClient: true });
+
+      for (const compItem of clientDelta.componentsSet) {
+        if (compItem.component === 'container') {
+          const c = compItem.data as Record<string, unknown>;
+          expect(c.storedLoot).toBeUndefined();
+          expect(c.scrapYield).toBeUndefined();
+          expect(c.fluxYield).toBeUndefined();
+          expect(c.grantsAccessKey).toBeUndefined();
+          expect(c.blueprintId).toBeUndefined();
+          expect(c.blueprintType).toBeUndefined();
+        } else if (compItem.component === 'corruptedNode') {
+          const node = compItem.data as Record<string, unknown>;
+          if (!node.revealed) {
+            expect(node.trapType).toBeUndefined();
+          }
+        }
+      }
     });
   });
 });

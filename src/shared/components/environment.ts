@@ -113,7 +113,7 @@ export const CorruptedNode = defineComponent(
   'corruptedNode',
   z.object({
     corruptionLevel: z.number().int().min(1).max(3).default(1).optional(),
-    trapType: z.enum(['hud_glitch', 'acoustic_alert', 'thermal_dump']),
+    trapType: z.enum(['hud_glitch', 'acoustic_alert', 'thermal_dump']).optional(),
     isDisarmed: z.boolean().default(false).optional(),
     triggered: z.boolean().default(false).optional(),
     revealed: z.boolean().default(false).optional(),

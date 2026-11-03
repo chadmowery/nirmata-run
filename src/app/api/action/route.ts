@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ActionRequestSchema, SyncPayload } from '@shared/types';
 import { sessionManager } from '@server/session/session-manager';
-import { serializeWorld, serializeGrid } from '@shared/serialization';
+import { serializeWorld, serializeGrid, redactWorldForClient } from '@shared/serialization';
 import { createECSWorldDelta } from '@shared/ecs-delta';
 import { submitLeaderboardEntry } from '@/server/leaderboard/leaderboard-service';
 import { RunMode } from '@shared/run-mode';
@@ -124,7 +124,7 @@ export async function POST(req: Request) {
     if (turnExecutionFailed) {
       const rollbackPayload: SyncPayload = {
         type: 'FULL',
-        world: oldWorldState,
+        world: redactWorldForClient(oldWorldState),
         grid: oldGridState,
         events: [
           {
@@ -282,11 +282,16 @@ export async function POST(req: Request) {
     ]);
     const syncEvents = capturedEvents.filter((e) => !EXCLUDED_SYNC_EVENTS.has(e.type));
 
+    // 7. Client-facing redacted states (strip secret loot and unrevealed traps)
+    const redactedNewWorld = redactWorldForClient(newWorldState);
+    const redactedOldWorld = redactWorldForClient(oldWorldState);
+    const clientDelta = createECSWorldDelta(redactedOldWorld, redactedNewWorld, { redactForClient: true });
+
     let syncPayload: SyncPayload;
     if (isMassiveChange) {
       syncPayload = {
         type: 'FULL',
-        world: newWorldState,
+        world: redactedNewWorld,
         grid: newGridState,
         events: syncEvents,
         turnNumber: turnManager.getTurnNumber(),
@@ -298,8 +303,8 @@ export async function POST(req: Request) {
       logger.info(`[API] Sending DELTA state sync.`, 'API');
       syncPayload = {
         type: 'DELTA',
-        worldDelta: createECSWorldDelta(oldWorldState, newWorldState),
-        world: newWorldState,
+        worldDelta: clientDelta,
+        world: redactedNewWorld,
         grid: diff(oldGridState, newGridState),
         events: syncEvents,
         turnNumber: turnManager.getTurnNumber(),
