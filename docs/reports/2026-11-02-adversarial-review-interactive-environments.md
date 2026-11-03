@@ -11,9 +11,9 @@
 
 | # | Finding | Severity |
 |---|---|---|
-| C1 | **Floors 11–15 can never be generated.** Sealed prefabs make `generateDungeon` throw `Failed to generate connected dungeon` on about 100% of seeds. The run is stuck on floor 10. | 🔴 Critical |
-| C2 | **Locks, vaults, safes, keys, overclock bypass and Faraday shielding never spawn on floors 1–10.** The only paths that could create them are broken or unreachable. | 🔴 Critical |
-| C3 | **"Masked loot" is not masked.** `storedLoot`, `scrapYield`, `fluxYield` and `grantsAccessKey` are serialized to the client in full. | 🔴 High (anti-cheat) |
+| C1 | **Floors 11–15 can never be generated.** Sealed prefabs make `generateDungeon` throw `Failed to generate connected dungeon` on about 100% of seeds. | ✅ **RESOLVED** (`30ff0a4c`) |
+| C2 | **Locks, vaults, safes, keys, overclock bypass and Faraday shielding never spawn on floors 1–10.** The only paths that could create them are broken or unreachable. | ✅ **RESOLVED** (`c4d2d761`) |
+| C3 | **"Masked loot" is not masked.** `storedLoot`, `scrapYield`, `fluxYield` and `grantsAccessKey` are serialized to the client in full. | ✅ **RESOLVED** (`b1a7999a`) |
 | C4 | **`PICKUP` and `DROP_ITEM` have no server-side range or position validation.** The client can pick up any item on the map by entity ID and drop items on arbitrary tiles. | 🔴 High (security) |
 | C5 | **The "0-turn bump safeguard" does not exist.** The energy cost is deducted before the action runs and never refunded. `INPUT_BUFFER_CLEARED` has no listener. | 🟠 High (false claim) |
 | C6 | **Direct `ECS` architecture violations.** There is an `eventBus.on()` that drives game logic, direct `Health` patching that bypasses `DamageIntent`, and a game-specific string in the engine layer. | ✅ **RESOLVED** (`73842d7f`..`519b3487`) |
@@ -54,7 +54,15 @@ I ran temporary Vitest probes against the real generator and placement code at p
 
 ## 2. Critical findings
 
-### C1. Sealed prefabs crash floor generation on floors 11–15 (and silently shrink content elsewhere)
+### C1. Sealed prefabs crash floor generation on floors 11–15 (and silently shrink content elsewhere) — ✅ RESOLVED (`30ff0a4c`)
+
+> [!NOTE]
+> **Resolution Status (2026-11-03):** Completely resolved and verified with a 750-floor sweep test (Commit `30ff0a4c`).
+> - **Portals**: Authored perimeter portals in `server-core.json`, `decon-airlock.json`, and `zero-day-vault.json`.
+> - **Portal & Door Preservation**: `dungeon-generator.ts` now preserves entrance doors/corridors, carves perimeter portals as walkable doors, and connects entrance doors to nearest portals via `carveWalkablePath`.
+> - **Local Rollback**: Stamping failure performs an attempt-local rollback of room tiles and drops the prefab instead of burning whole-floor attempts.
+> - **BSP Fallback**: If all attempts are exhausted, the generator falls back to pure BSP generation rather than throwing.
+> - **Automated Invariant Test**: Added 750-floor sweep test (`15 depths × 50 seeds`) in `src/game/generation/dungeon-generator.test.ts`. Runs in ~1.5s with 100% floor connectivity and 0 throws.
 
 **Where:** [`dungeon-generator.ts` L210-L330](../../src/game/generation/dungeon-generator.ts), [`prefabs/*.json`](../../src/game/generation/prefabs/)
 
@@ -83,7 +91,17 @@ I ran temporary Vitest probes against the real generator and placement code at p
 3. Treat a prefab as an attempt-local optimization. If stamping breaks connectivity, **drop the prefab and retry without it** rather than burning one of 10 whole-floor attempts.
 4. A last-resort fallback is to generate without bespoke rooms. A generation throw should never be reachable from player input.
 
-### C2. The lock/vault/key content is unreachable in generated floors
+### C2. The lock/vault/key content is unreachable in generated floors — ✅ RESOLVED (`c4d2d761`)
+
+> [!NOTE]
+> **Resolution Status (2026-11-03):** Completely resolved and verified with integration tests across F6–F15 (Commit `c4d2d761`).
+> - **Threshold Lowered**: Reduced `CONTAINER_RARE` room area threshold from 100 to 48 in `dungeon-generator.ts`.
+> - **Template Selection**: `pickTemplateForAnchor` spawns `prop-safe-locked` on floors ≥ 6 for `CONTAINER_RARE`.
+> - **Vault Door Spawn**: Added `prop-vault-door` to `zero-day-vault.json` authored `propSpawns` at `(4, 6)`.
+> - **Spatial Faraday Matching**: `findMatchingFaradayBounds` matches locks strictly to their own vault boundaries; safes outside vaults do not receive erroneous Faraday bounds.
+> - **Dead Code Purged**: Removed `void carrierPos;` and `void firstContainerWithLock;`.
+> - **Multi-Key Guarantee**: Spawns accessible container keys and ground `item-access-key` pickups outside vaults such that reachable keys ≥ lock count.
+> - **Integration Test**: Added F6–F15 sweep in `src/game/generation/__tests__/hybrid-procgen.test.ts` verifying lock presence, key reachability, key count ≥ lock count, and Faraday bounds matching.
 
 Across 404 successfully generated floors, **zero** contained a `SecurityLock`. Contributing causes:
 
@@ -106,7 +124,15 @@ Across 404 successfully generated floors, **zero** contained a `SecurityLock`. C
 
 **Fix:** After C1 is fixed, add an integration test that walks real generated floors (F6–F15) and asserts on lock presence, key reachability and key-count ≥ lock-count. Add a `prop-vault-door` entry to the vault prefab `propSpawns` (the `V` tile should host the entity, not just terrain). Lower the `CONTAINER_RARE` threshold or key it to something other than raw room area. Delete the dead placeholder block.
 
-### C3. "Masked client loot" is not masked
+### C3. "Masked client loot" is not masked — ✅ RESOLVED (`b1a7999a`)
+
+> [!NOTE]
+> **Resolution Status (2026-11-03):** Completely resolved and verified with unit and integration tests (Commit `b1a7999a`).
+> - **Schema Update**: Made `trapType` optional in `CorruptedNode.schema` so unrevealed nodes omitting `trapType` conform to schema parsing.
+> - **Redaction Transformers**: Implemented `redactWorldForClient` and `redactDeltaForClient` in `src/shared/serialization.ts`, stripping `storedLoot`, `scrapYield`, `fluxYield`, `grantsAccessKey`, `blueprintId`, and `blueprintType` from `container`, and stripping `trapType` from `corruptedNode` when `!revealed`.
+> - **Delta Options**: Added `options?: { redactForClient?: boolean }` to `createECSWorldDelta` and `serializeWorld`.
+> - **API Route Payloads**: `src/app/api/action/route.ts` redacts both `FULL` (including transactional rollback payload) and `DELTA` payloads transmitted across the network, while preserving server-side in-memory `World` state.
+> - **Tests**: Added tests in `src/shared/__tests__/serialization.test.ts`, `tests/shared/ecs-delta.test.ts`, and an integration test in `src/game/generation/__tests__/hybrid-procgen.test.ts` verifying no secret fields exist in client `FULL` or `DELTA` payloads.
 
 The handoff (§3 M1, §3 M2) and the test titled *"masks container loot from network/client payload"* claim that only `highestRarity` is exposed until searched.
 
@@ -317,9 +343,9 @@ Update these docs as part of the fix, not as a follow-up. The handoff also shoul
 
 ## 8. Suggested merge gate
 
-- [ ] Depth 1–15 × ≥50 seeds: `generateDungeon` never throws and the floor is connected
-- [ ] Real floors F6–F15 contain locks, every lock has a reachable key, and Faraday bounds match their own vault
-- [ ] Serialized `FULL` and `DELTA` payloads contain no `storedLoot`, `scrapYield`, `fluxYield`, `grantsAccessKey` or unrevealed `trapType`
+- [x] Depth 1–15 × ≥50 seeds: `generateDungeon` never throws and the floor is connected (✅ **RESOLVED** in C1: `30ff0a4c`)
+- [x] Real floors F6–F15 contain locks, every lock has a reachable key, and Faraday bounds match their own vault (✅ **RESOLVED** in C2: `c4d2d761`)
+- [x] Serialized `FULL` and `DELTA` payloads contain no `storedLoot`, `scrapYield`, `fluxYield`, `grantsAccessKey` or unrevealed `trapType` (✅ **RESOLVED** in C3: `b1a7999a`)
 - [ ] Server rejects out-of-range `PICKUP`, `DROP_ITEM`, `USE_CONSUMABLE` targets and out-of-capacity burns (negative tests)
 - [ ] `TurnManager`-level test proves the energy outcome of a blocked bump
 - [x] Zero `eventBus.on` in gameplay systems; zero direct `Health` patches outside `CombatSystem`; `@engine` has no game or React strings (✅ **RESOLVED** in C6)

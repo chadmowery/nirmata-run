@@ -79,6 +79,10 @@
   - **Prediction Boundary & System Decoupling**: Decoupled `access-key-util.ts` from `prop-interaction.ts`; parameterized `MovementSystem` with `isClient` to halt prediction on props without attaching server-only `InteractPropIntent` or emitting duplicate warnings.
   - **API Route Consolidation**: Consolidated player action handling into canonical `processAction` in `src/game/pipeline/action-pipeline.ts`, deleting 300+ lines of duplicate inline business logic from `src/app/api/action/route.ts`.
   - **Architecture Documentation**: Updated `DEATH_PROTOCOL.md`, `ENGINE_GUIDELINES.md`, and `SYSTEM_OVERVIEW.md`.
+- [x] **[ARCH-08] Resolve Adversarial Review C1–C3 Critical Findings (`docs/reports/2026-11-02-adversarial-review-interactive-environments.md`)**
+  - **C1: Bespoke Prefab Generation & Connectivity Invariant**: Authored perimeter portals in all sealed prefabs, preserved entrance portals and doors in `dungeon-generator.ts`, implemented attempt-local room rollback, and added pure BSP fallback on attempt exhaustion. Verified with a 750-floor sweep test (15 depths × 50 seeds, 0 throws, 100% connected).
+  - **C2: Gated Content & Key Reachability**: Lowered `CONTAINER_RARE` room area threshold to 48, spawned `prop-safe-locked` on floors ≥ 6, spawned `prop-vault-door` in `zero-day-vault`, strictly scoped Faraday bounds to their own vault boundaries, and enforced multi-key reachability guarantee outside vaults. Verified with an F6–F15 integration sweep test.
+  - **C3: Client Payload Anti-Cheat Loot Redaction**: Implemented `redactWorldForClient` and `redactDeltaForClient` in `serialization.ts` and `ecs-delta.ts`, stripping `storedLoot`, `scrapYield`, `fluxYield`, `grantsAccessKey`, and `blueprintId` from containers, and unrevealed `trapType` from corrupted nodes across all client `FULL` and `DELTA` sync responses while preserving server-side world state. Verified with unit and integration tests.
 
 ### 2.3 API Security & Persistence Synchronization
 - [x] **[SEC-01] Sanitize `sessionId` Against Path Traversal (`src/app/persistence/fs-profile-repository.ts`)**
