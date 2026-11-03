@@ -17,6 +17,8 @@ import { COMPONENTS_REGISTRY } from '@shared/components';
 import { ComponentRegistry } from '@engine/entity/types';
 import { ComponentDef } from '@engine/ecs/types';
 import { Container, SecurityLock, Prop } from '@shared/components/environment';
+import { Position } from '@shared/components/position';
+import { Item } from '@shared/components/item';
 
 describe('Hybrid ProcGen & Interactive Environments Generation', () => {
   describe('rollSectorCondition', () => {
@@ -272,14 +274,133 @@ describe('Hybrid ProcGen & Interactive Environments Generation', () => {
       );
 
       const locks = placement.propIds.filter((id) => world.hasComponent(id, SecurityLock));
-      if (locks.length > 0) {
-        // Guaranteed keycard source exists
-        const keyContainers = placement.propIds.filter((id) => {
-          const c = world.getComponent(id, Container);
-          return c?.grantsAccessKey === true;
-        });
-        expect(keyContainers.length).toBeGreaterThan(0);
+      expect(locks.length).toBeGreaterThan(0);
+
+      const keyContainers = placement.propIds.filter((id) => {
+        const c = world.getComponent(id, Container);
+        return c?.grantsAccessKey === true;
+      });
+      const keyItems = placement.itemIds.filter((id) => {
+        const it = world.getComponent(id, Item);
+        return it?.type === 'key';
+      });
+      expect(keyContainers.length + keyItems.length).toBeGreaterThanOrEqual(locks.length);
+    });
+
+    it('C2 Integration: walks real generated floors (F6-F15), asserting on lock presence, key reachability, key-count >= lock-count, and Faraday bounds matching their own vault', () => {
+      let totalFloorsWithLocks = 0;
+      let totalVaultDoorsSpawned = 0;
+
+      for (let depth = 6; depth <= 15; depth++) {
+        for (let s = 0; s < 5; s++) {
+          const { world, entityFactory, componentRegistry } = setupECS();
+          const seed = `real_floor_sweep_d${depth}_s${s}`;
+          const dungeon = generateDungeon({
+            width: 80,
+            height: 45,
+            seed,
+            depth,
+          });
+
+          const rng = createSeededRNG(`real_placement_${seed}`);
+          const placement = placeEntities(
+            world,
+            dungeon.grid,
+            entityFactory,
+            componentRegistry,
+            dungeon.rooms,
+            dungeon.playerSpawnRoom,
+            rng,
+            {
+              depth,
+              propAnchors: dungeon.propAnchors,
+              bespokeRooms: dungeon.bespokeRooms,
+              vaultFaradayBounds: dungeon.vaultFaradayBounds,
+              sectorCondition: dungeon.sectorCondition,
+              factionTheme: dungeon.factionTheme,
+            },
+          );
+
+          // Check for locked props
+          const lockedProps = placement.propIds.filter((id) => {
+            const lock = world.getComponent(id, SecurityLock);
+            return lock?.isLocked === true;
+          });
+
+          if (lockedProps.length > 0) {
+            totalFloorsWithLocks++;
+
+            // Count reachable keys (key-granting containers + ground key items)
+            const keyContainers = placement.propIds.filter((id) => {
+              const c = world.getComponent(id, Container);
+              return c?.grantsAccessKey === true;
+            });
+            const keyItems = placement.itemIds.filter((id) => {
+              const it = world.getComponent(id, Item);
+              return it?.type === 'key';
+            });
+
+            const totalKeys = keyContainers.length + keyItems.length;
+            // Key count must be >= lock count
+            expect(totalKeys).toBeGreaterThanOrEqual(lockedProps.length);
+
+            // Key reachability: keys must NOT spawn inside locked vault rooms
+            const vaultBounds = dungeon.vaultFaradayBounds;
+            for (const cId of keyContainers) {
+              const pos = world.getComponent(cId, Position)!;
+              for (const vb of vaultBounds) {
+                const inside =
+                  pos.x >= vb.x &&
+                  pos.x < vb.x + vb.width &&
+                  pos.y >= vb.y &&
+                  pos.y < vb.y + vb.height;
+                expect(inside).toBe(false);
+              }
+            }
+            for (const kId of keyItems) {
+              const pos = world.getComponent(kId, Position)!;
+              for (const vb of vaultBounds) {
+                const inside =
+                  pos.x >= vb.x &&
+                  pos.x < vb.x + vb.width &&
+                  pos.y >= vb.y &&
+                  pos.y < vb.y + vb.height;
+                expect(inside).toBe(false);
+              }
+            }
+
+            // Verify Faraday bounds match their own vault
+            for (const lockId of lockedProps) {
+              const lock = world.getComponent(lockId, SecurityLock)!;
+              const pos = world.getComponent(lockId, Position)!;
+              if (lock.faradayBounds) {
+                const b = lock.faradayBounds;
+                const matches =
+                  pos.x >= b.x - 1 &&
+                  pos.x <= b.x + b.width &&
+                  pos.y >= b.y - 1 &&
+                  pos.y <= b.y + b.height;
+                expect(matches).toBe(true);
+              }
+            }
+          }
+
+          // Verify prop-vault-door entity is spawned when zero-day-vault is stamped
+          const hasVaultPrefab = dungeon.bespokeRooms.some((br) => br.prefabId === 'zero-day-vault');
+          if (hasVaultPrefab) {
+            const vaultDoors = placement.propIds.filter((id) => {
+              const prop = world.getComponent(id, Prop);
+              return prop?.propClass === 'vault_door';
+            });
+            expect(vaultDoors.length).toBeGreaterThanOrEqual(1);
+            totalVaultDoorsSpawned += vaultDoors.length;
+          }
+        }
       }
+
+      // Assert that across F6-F15 real floors contain locks and vault doors
+      expect(totalFloorsWithLocks).toBeGreaterThan(0);
+      expect(totalVaultDoorsSpawned).toBeGreaterThan(0);
     });
   });
 });

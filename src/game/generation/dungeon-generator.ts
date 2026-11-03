@@ -540,9 +540,9 @@ export function tagProceduralRoomAnchors(
 ): PropAnchor[] {
   const anchors: PropAnchor[] = [];
 
-  // Center tile for large room CONTAINER_RARE
+  // Center tile for large room CONTAINER_RARE (area >= 48)
   const area = room.width * room.height;
-  if (area >= 100) {
+  if (area >= 48) {
     anchors.push({
       x: room.centerX,
       y: room.centerY,
@@ -560,7 +560,7 @@ export function tagProceduralRoomAnchors(
       if (nearDoor) continue;
 
       // Do not duplicate center rare container tile
-      if (area >= 100 && x === room.centerX && y === room.centerY) continue;
+      if (area >= 48 && x === room.centerX && y === room.centerY) continue;
 
       const northWall = grid.getTile(x, y - 1)?.terrain === 'wall';
       const southWall = grid.getTile(x, y + 1)?.terrain === 'wall';

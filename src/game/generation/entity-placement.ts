@@ -9,6 +9,7 @@ import lootDistribution from './loot-distribution.json';
 import depthConfig from './depth-config.json';
 import { getDepthBand, PropAnchor, BespokeRoom, FaradayBounds } from './dungeon-generator';
 import { Actor } from '@shared/components/actor';
+import { Position } from '@shared/components/position';
 import {
   Container,
   SecurityLock,
@@ -330,7 +331,6 @@ export function placeEntities<T extends EngineEvents>(
   }
 
   // --- Interactive Props Placement ---
-  let hasSecurityLock = false;
   const occupiedPropPositions = new Set<string>();
 
   if (cfg.propAnchors && cfg.propAnchors.length > 0) {
@@ -353,12 +353,16 @@ export function placeEntities<T extends EngineEvents>(
         position: { x: anchor.x, y: anchor.y },
       });
 
-      // Link Faraday bounds if this prop has a SecurityLock
+      // Link Faraday bounds if this prop has a SecurityLock and is within or at a vault
       if (world.hasComponent(propId, SecurityLock)) {
-        hasSecurityLock = true;
-        if (cfg.vaultFaradayBounds && cfg.vaultFaradayBounds.length > 0) {
+        const matchingBounds = findMatchingFaradayBounds(
+          anchor.x,
+          anchor.y,
+          cfg.vaultFaradayBounds,
+        );
+        if (matchingBounds) {
           world.patchComponent(propId, SecurityLock, {
-            faradayBounds: cfg.vaultFaradayBounds[0],
+            faradayBounds: matchingBounds,
           });
         }
       }
@@ -413,18 +417,29 @@ export function placeEntities<T extends EngineEvents>(
       .filter((a) => a.anchorType === 'SURFACE_TABLE_TOP')
       .sort(() => rng.random() - 0.5);
 
+    const rareContainerAnchors = scavengeAnchors.filter(
+      (a) => a.anchorType === 'CONTAINER_RARE',
+    );
+    const standardScavengeAnchors = scavengeAnchors.filter(
+      (a) => a.anchorType !== 'CONTAINER_RARE',
+    );
+
     const targetScavengeCount = Math.max(3, Math.round(targetPropCount * 0.45));
     const orderedAnchors: typeof remainingAnchors = [];
 
-    // Prioritize target scavenge anchors first to guarantee containers/workstations
-    while (orderedAnchors.length < targetScavengeCount && scavengeAnchors.length > 0) {
-      orderedAnchors.push(scavengeAnchors.pop()!);
+    // Prioritize rare container anchors first, then standard scavenge anchors
+    while (orderedAnchors.length < targetScavengeCount && rareContainerAnchors.length > 0) {
+      orderedAnchors.push(rareContainerAnchors.pop()!);
+    }
+    while (orderedAnchors.length < targetScavengeCount && standardScavengeAnchors.length > 0) {
+      orderedAnchors.push(standardScavengeAnchors.pop()!);
     }
 
     // Interleave remaining tactical and scavenge anchors
-    while (scavengeAnchors.length > 0 || tacticalAnchors.length > 0) {
+    const remainingScavenge = [...rareContainerAnchors, ...standardScavengeAnchors];
+    while (remainingScavenge.length > 0 || tacticalAnchors.length > 0) {
       if (tacticalAnchors.length > 0) orderedAnchors.push(tacticalAnchors.pop()!);
-      if (scavengeAnchors.length > 0) orderedAnchors.push(scavengeAnchors.pop()!);
+      if (remainingScavenge.length > 0) orderedAnchors.push(remainingScavenge.pop()!);
     }
 
     // Corruption rates: 10% F1-5, 18% F6-10, 25% F11-15
@@ -435,14 +450,23 @@ export function placeEntities<T extends EngineEvents>(
       const posKey = `${anchor.x},${anchor.y}`;
       if (occupiedPropPositions.has(posKey)) continue;
 
-      const template = pickTemplateForAnchor(anchor.anchorType, faction, rng);
+      const template = pickTemplateForAnchor(anchor.anchorType, faction, rng, depth);
 
       const propId = factory.create(world, template, componentRegistry, {
         position: { x: anchor.x, y: anchor.y },
       });
 
       if (world.hasComponent(propId, SecurityLock)) {
-        hasSecurityLock = true;
+        const matchingBounds = findMatchingFaradayBounds(
+          anchor.x,
+          anchor.y,
+          cfg.vaultFaradayBounds,
+        );
+        if (matchingBounds) {
+          world.patchComponent(propId, SecurityLock, {
+            faradayBounds: matchingBounds,
+          });
+        }
       }
 
       // Check for CorruptedNode trap
@@ -478,26 +502,73 @@ export function placeEntities<T extends EngineEvents>(
     }
   }
 
-  // 4. Guaranteed Access_Key Carrier whenever SecurityLock exists on floor
-  if (hasSecurityLock) {
-    // If an elite enemy exists, guarantee it drops an Access Key
-    if (enemyIds.length > 0) {
-      // Pick elite or last enemy
-      const carrierId = enemyIds[enemyIds.length - 1];
-      const carrierPos = world.getComponent(carrierId, Actor) ? grid.getEntitiesAt : undefined;
-      void carrierPos;
-      // Mark or place Access Key in carrier's possession or adjacent
-      const firstContainerWithLock = propIds.find((id) => world.hasComponent(id, SecurityLock));
-      void firstContainerWithLock;
+  // 4. Guaranteed Access_Key availability whenever SecurityLock exists on floor
+  const lockedPropIds = propIds.filter((id) => {
+    const lock = world.getComponent(id, SecurityLock);
+    return lock?.isLocked === true;
+  });
+  const numLocks = lockedPropIds.length;
+
+  if (numLocks > 0) {
+    const vaultBoundsList = cfg.vaultFaradayBounds || [];
+    const isInsideAnyVault = (x: number, y: number) => {
+      return vaultBoundsList.some(
+        (b) => x >= b.x && x < b.x + b.width && y >= b.y && y < b.y + b.height,
+      );
+    };
+
+    // Find accessible containers (not locked and not inside any locked vault room)
+    const accessibleContainers = propIds.filter((id) => {
+      if (!world.hasComponent(id, Container) || world.hasComponent(id, SecurityLock)) {
+        return false;
+      }
+      const pos = world.getComponent(id, Position);
+      if (!pos) return true;
+      return !isInsideAnyVault(pos.x, pos.y);
+    });
+
+    let keysGuaranteed = 0;
+    // Guarantee keys via accessible containers first
+    for (const containerId of accessibleContainers) {
+      if (keysGuaranteed >= numLocks) break;
+      world.patchComponent(containerId, Container, { grantsAccessKey: true });
+      keysGuaranteed++;
     }
 
-    // Also guarantee at least one container or Subnet Console carries grantsAccessKey = true
-    const accessibleContainers = propIds.filter(
-      (id) => world.hasComponent(id, Container) && !world.hasComponent(id, SecurityLock),
-    );
-    if (accessibleContainers.length > 0) {
-      const chosenContainer = accessibleContainers[0];
-      world.patchComponent(chosenContainer, Container, { grantsAccessKey: true });
+    // If accessible containers are fewer than required locks, spawn item-access-key on ground in accessible rooms
+    if (keysGuaranteed < numLocks) {
+      const candidateRooms = rooms.slice(1).filter((r) => {
+        const isBespokeVault = cfg.bespokeRooms?.some(
+          (br) => br.isVaultRoom && br.room.centerX === r.centerX && br.room.centerY === r.centerY,
+        );
+        return !isBespokeVault;
+      });
+
+      const targetRooms = candidateRooms.length > 0 ? candidateRooms : [rooms[0]];
+      let roomIdx = 0;
+
+      while (keysGuaranteed < numLocks) {
+        const room = targetRooms[roomIdx % targetRooms.length];
+        roomIdx++;
+        const walkable = getWalkablePositions(grid, room).filter(
+          (p) =>
+            !occupiedPropPositions.has(`${p.x},${p.y}`) &&
+            !isInsideAnyVault(p.x, p.y) &&
+            grid.getItemsAt(p.x, p.y).size === 0,
+        );
+
+        const spawnPos =
+          walkable.length > 0
+            ? walkable[Math.floor(rng.random() * walkable.length)]
+            : { x: room.centerX, y: room.centerY };
+
+        const keyId = factory.create(world, 'item-access-key', componentRegistry, {
+          position: { x: spawnPos.x, y: spawnPos.y },
+        });
+        grid.addItem(keyId, spawnPos.x, spawnPos.y);
+        itemIds.push(keyId);
+        keysGuaranteed++;
+      }
     }
   }
 
@@ -568,6 +639,7 @@ function pickTemplateForAnchor(
   anchorType: string,
   faction: FactionTheme,
   rng: { random(): number },
+  depth: number = 1,
 ): string {
   switch (anchorType) {
     case 'PROP_DESK_CORNER':
@@ -591,11 +663,30 @@ function pickTemplateForAnchor(
       return 'prop-crate-cover';
 
     case 'CONTAINER_RARE':
+      if (depth < 6) {
+        return faction === 'sekiguchi' ? 'prop-biocabinet' : 'prop-locker';
+      }
       return 'prop-safe-locked';
 
     default:
       return 'prop-locker';
   }
+}
+
+/**
+ * Matches a coordinate against authored vault Faraday bounds.
+ */
+function findMatchingFaradayBounds(
+  x: number,
+  y: number,
+  boundsList?: FaradayBounds[],
+): FaradayBounds | undefined {
+  if (!boundsList || boundsList.length === 0) return undefined;
+  return boundsList.find(
+    (b) =>
+      (b.doorX === x && b.doorY === y) ||
+      (x >= b.x - 1 && x <= b.x + b.width && y >= b.y - 1 && y <= b.y + b.height),
+  );
 }
 
 /**
