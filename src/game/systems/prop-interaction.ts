@@ -1,7 +1,7 @@
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
-import { Phase, EntityId } from '@engine/ecs/types';
+import { Phase } from '@engine/ecs/types';
 import { Position } from '@shared/components/position';
 import { Hostile } from '@shared/components/hostile';
 import { Heat } from '@shared/components/heat';
@@ -47,56 +47,8 @@ export const CORPORATE_FORENSICS_LOGS: Record<FactionTheme, string[]> = {
   ],
 };
 
-/**
- * Check if the player possesses an Access Key (either on FloorState or in RunInventory).
- */
-export function playerHasAccessKey<T extends GameplayEvents>(
-  world: World<T>,
-  playerId: EntityId,
-): boolean {
-  const floorState = world.getComponent(playerId, FloorState);
-  if (floorState && (floorState.accessKeysHeld ?? 0) > 0) {
-    return true;
-  }
-  const runInv = world.getComponent(playerId, RunInventory);
-  if (runInv) {
-    if (runInv.software?.some((s) => s.templateId.includes('access-key'))) {
-      return true;
-    }
-    if (runInv.equipment?.some((e) => e.templateId.includes('access-key'))) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
- * Consume an Access Key held by the player.
- */
-export function consumeAccessKey<T extends GameplayEvents>(
-  world: World<T>,
-  playerId: EntityId,
-): boolean {
-  const floorState = world.getComponent(playerId, FloorState);
-  if (floorState && (floorState.accessKeysHeld ?? 0) > 0) {
-    world.patchComponent(playerId, FloorState, {
-      accessKeysHeld: (floorState.accessKeysHeld ?? 1) - 1,
-    });
-    return true;
-  }
-
-  const runInv = world.getComponent(playerId, RunInventory);
-  if (runInv) {
-    const swIdx = runInv.software.findIndex((s) => s.templateId.includes('access-key'));
-    if (swIdx !== -1) {
-      const updatedSw = [...runInv.software];
-      updatedSw.splice(swIdx, 1);
-      world.patchComponent(playerId, RunInventory, { software: updatedSw });
-      return true;
-    }
-  }
-  return false;
-}
+import { playerHasAccessKey, consumeAccessKey } from '@shared/utils/access-key-util';
+export { playerHasAccessKey, consumeAccessKey } from '@shared/utils/access-key-util';
 
 /**
  * Trigger an acoustic alert pulsing outward from a coordinate to hostile entities within radius.

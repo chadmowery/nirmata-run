@@ -8,6 +8,7 @@ import { Hostile } from '@shared/components/hostile';
 import { Actor } from '@shared/components/actor';
 import { BlocksMovement } from '@shared/components/blocks-movement';
 import { MoveIntent, AttackIntent } from '@shared/components/intents';
+import { Prop, CorruptedNode, InteractPropIntent } from '@shared/components/environment';
 import { Phase } from '@engine/ecs/types';
 import { GameplayEvents } from '@shared/events/types';
 
@@ -123,5 +124,99 @@ describe('MovementSystem', () => {
     const pos = world.getComponent(playerId, Position);
     expect(pos).toEqual({ x: 6, y: 5 });
     expect(world.hasComponent(playerId, MoveIntent)).toBe(false);
+  });
+
+  describe('Client Prediction Boundary vs Server Prop Interaction', () => {
+    it('server mode attaches InteractPropIntent on bump to safe unsearched prop', () => {
+      const playerId = world.createEntity();
+      world.addComponent(playerId, Actor, { isPlayer: true });
+      world.addComponent(playerId, Position, { x: 5, y: 5 });
+      grid.addEntity(playerId, 5, 5);
+
+      const propId = world.createEntity();
+      world.addComponent(propId, Prop, { propId: 'prop-1', faction: 'system', propClass: 'locker', isSearched: false });
+      world.addComponent(propId, Position, { x: 6, y: 5 });
+      grid.addEntity(propId, 6, 5);
+
+      world.addComponent(playerId, MoveIntent, { dx: 1, dy: 0 });
+      world.executeSystems(Phase.ACTION);
+
+      expect(world.getComponent(playerId, Position)).toEqual({ x: 5, y: 5 });
+      expect(world.hasComponent(playerId, MoveIntent)).toBe(false);
+      const interactIntent = world.getComponent(playerId, InteractPropIntent);
+      expect(interactIntent).toEqual({ targetPropId: propId, forceOverride: false });
+    });
+
+    it('client mode blocks movement on bump to safe unsearched prop WITHOUT attaching InteractPropIntent', () => {
+      const clientBus = new EventBus<GameplayEvents>();
+      const clientWorld = new World<GameplayEvents>(clientBus);
+      const clientGrid = new Grid(10, 10);
+      for (let y = 0; y < 10; y++) {
+        for (let x = 0; x < 10; x++) {
+          clientGrid.setTile(x, y, { walkable: true });
+        }
+      }
+      const clientMovement = createMovementSystem(clientWorld, clientGrid, clientBus, true);
+      clientMovement.init();
+
+      const playerId = clientWorld.createEntity();
+      clientWorld.addComponent(playerId, Actor, { isPlayer: true });
+      clientWorld.addComponent(playerId, Position, { x: 5, y: 5 });
+      clientGrid.addEntity(playerId, 5, 5);
+
+      const propId = clientWorld.createEntity();
+      clientWorld.addComponent(propId, Prop, { propId: 'prop-1', faction: 'system', propClass: 'locker', isSearched: false });
+      clientWorld.addComponent(propId, Position, { x: 6, y: 5 });
+      clientGrid.addEntity(propId, 6, 5);
+
+      clientWorld.addComponent(playerId, MoveIntent, { dx: 1, dy: 0 });
+      clientWorld.executeSystems(Phase.ACTION);
+
+      // Player should be blocked in prediction
+      expect(clientWorld.getComponent(playerId, Position)).toEqual({ x: 5, y: 5 });
+      expect(clientWorld.hasComponent(playerId, MoveIntent)).toBe(false);
+      // But client must NOT attach InteractPropIntent (server-only system resolution)
+      expect(clientWorld.hasComponent(playerId, InteractPropIntent)).toBe(false);
+    });
+
+    it('client mode blocks movement on corrupted prop WITHOUT emitting duplicate messages', () => {
+      const clientBus = new EventBus<GameplayEvents>();
+      const clientWorld = new World<GameplayEvents>(clientBus);
+      const clientGrid = new Grid(10, 10);
+      for (let y = 0; y < 10; y++) {
+        for (let x = 0; x < 10; x++) {
+          clientGrid.setTile(x, y, { walkable: true });
+        }
+      }
+      const clientMovement = createMovementSystem(clientWorld, clientGrid, clientBus, true);
+      clientMovement.init();
+
+      const emittedMessages: any[] = [];
+      clientBus.on('MESSAGE_EMITTED', (payload) => emittedMessages.push(payload));
+
+      const playerId = clientWorld.createEntity();
+      clientWorld.addComponent(playerId, Actor, { isPlayer: true });
+      clientWorld.addComponent(playerId, Position, { x: 5, y: 5 });
+      clientGrid.addEntity(playerId, 5, 5);
+
+      const propId = clientWorld.createEntity();
+      clientWorld.addComponent(propId, Prop, { propId: 'prop-terminal', faction: 'system', propClass: 'workstation', isSearched: false });
+      clientWorld.addComponent(propId, CorruptedNode, {
+        isDisarmed: false,
+        triggered: false,
+        trapType: 'acoustic_alert',
+        revealed: false,
+      });
+      clientWorld.addComponent(propId, Position, { x: 6, y: 5 });
+      clientGrid.addEntity(propId, 6, 5);
+
+      clientWorld.addComponent(playerId, MoveIntent, { dx: 1, dy: 0 });
+      clientWorld.executeSystems(Phase.ACTION);
+
+      expect(clientWorld.getComponent(playerId, Position)).toEqual({ x: 5, y: 5 });
+      expect(clientWorld.hasComponent(playerId, MoveIntent)).toBe(false);
+      // No duplicate messages emitted from client prediction
+      expect(emittedMessages).toHaveLength(0);
+    });
   });
 });

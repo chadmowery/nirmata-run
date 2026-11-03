@@ -16,7 +16,7 @@ import {
   CorruptedNode,
   InteractPropIntent,
 } from '@shared/components/environment';
-import { playerHasAccessKey } from './prop-interaction';
+import { playerHasAccessKey } from '@shared/utils/access-key-util';
 
 import { GameplayEvents } from '@shared/events/types';
 
@@ -27,6 +27,7 @@ export function createMovementSystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
   eventBus: EventBus<T>,
+  isClient: boolean = false,
 ) {
   const update = (w: World<T>) => {
     const entities = w.query(MoveIntent, Position);
@@ -103,11 +104,13 @@ export function createMovementSystem<T extends GameplayEvents>(
           // Check CorruptedNode (Tier 2 Risk: Halt movement, 0 energy cost, warn & flush queue)
           const corrupted = w.getComponent(occupantId, CorruptedNode);
           if (corrupted && !corrupted.isDisarmed && !corrupted.triggered) {
-            eventBus.emit('MESSAGE_EMITTED', {
-              text: '[SECURITY FAULT]: Corrupted terminal detected (acoustic trap / EMP dump). Disarm with Logic_Jam or hack carefully.',
-              type: 'warning',
-            });
-            eventBus.emit('INPUT_BUFFER_CLEARED' as keyof T, {} as T[keyof T]);
+            if (!isClient) {
+              eventBus.emit('MESSAGE_EMITTED', {
+                text: '[SECURITY FAULT]: Corrupted terminal detected (acoustic trap / EMP dump). Disarm with Logic_Jam or hack carefully.',
+                type: 'warning',
+              });
+              eventBus.emit('INPUT_BUFFER_CLEARED', {});
+            }
             blocked = true;
             break;
           }
@@ -117,22 +120,24 @@ export function createMovementSystem<T extends GameplayEvents>(
           if (lock && lock.isLocked) {
             const hasKey = playerHasAccessKey(w, entityId);
             if (!hasKey) {
-              const heat = w.getComponent(entityId, Heat);
-              const currentHeat = heat?.current ?? 0;
-              const cost = lock.overclockHeatCost ?? 35;
+              if (!isClient) {
+                const heat = w.getComponent(entityId, Heat);
+                const currentHeat = heat?.current ?? 0;
+                const cost = lock.overclockHeatCost ?? 35;
 
-              if (currentHeat + cost > 100) {
-                eventBus.emit('MESSAGE_EMITTED', {
-                  text: `[HEAT CRITICAL]: Overclocking would exceed 100 Heat (${currentHeat + cost}/100) and trigger Emergency Shutdown. Vent Heat first.`,
-                  type: 'error',
-                });
-              } else {
-                eventBus.emit('MESSAGE_EMITTED', {
-                  text: `[OVERCLOCK WARNING]: Overclocking blast lock costs +${cost} Heat and triggers an acoustic alert (radius ${lock.alertRadiusOnBypass ?? 12}). Safe bypass requires Access Key.`,
-                  type: 'warning',
-                });
+                if (currentHeat + cost > 100) {
+                  eventBus.emit('MESSAGE_EMITTED', {
+                    text: `[HEAT CRITICAL]: Overclocking would exceed 100 Heat (${currentHeat + cost}/100) and trigger Emergency Shutdown. Vent Heat first.`,
+                    type: 'error',
+                  });
+                } else {
+                  eventBus.emit('MESSAGE_EMITTED', {
+                    text: `[OVERCLOCK WARNING]: Overclocking blast lock costs +${cost} Heat and triggers an acoustic alert (radius ${lock.alertRadiusOnBypass ?? 12}). Safe bypass requires Access Key.`,
+                    type: 'warning',
+                  });
+                }
+                eventBus.emit('INPUT_BUFFER_CLEARED', {});
               }
-              eventBus.emit('INPUT_BUFFER_CLEARED' as keyof T, {} as T[keyof T]);
               blocked = true;
               break;
             }
@@ -140,10 +145,12 @@ export function createMovementSystem<T extends GameplayEvents>(
 
           // Safe & Unsearched (or locked with valid key): Convert MoveIntent to InteractPropIntent
           if (!prop.isSearched || (lock && lock.isLocked)) {
-            w.addComponent(entityId, InteractPropIntent, {
-              targetPropId: occupantId,
-              forceOverride: false,
-            });
+            if (!isClient) {
+              w.addComponent(entityId, InteractPropIntent, {
+                targetPropId: occupantId,
+                forceOverride: false,
+              });
+            }
             blocked = true;
             break;
           }

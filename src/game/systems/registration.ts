@@ -41,7 +41,7 @@ export function registerCoreSystems<T extends GameplayEvents>(
   options: { skipLoot?: boolean; runMode?: RunMode; isClient?: boolean } = {},
 ) {
   const teleport = createTeleportSystem(world, grid, eventBus);
-  const movement = createMovementSystem(world, grid, eventBus);
+  const movement = createMovementSystem(world, grid, eventBus, options.isClient === true);
   const combat = createCombatSystem(
     world,
     grid,
