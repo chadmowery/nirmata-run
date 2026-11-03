@@ -40,6 +40,7 @@ import { TemplateId } from './template-id';
 import {
   MoveIntent,
   AttackIntent,
+  AlertIntent,
   VentIntent,
   DamageIntent,
   DescentIntent,
@@ -167,6 +168,7 @@ export const COMPONENTS_REGISTRY = [
   TemplateId,
   MoveIntent,
   AttackIntent,
+  AlertIntent,
   VentIntent,
   MovedThisTurn,
   Dying,

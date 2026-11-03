@@ -9,8 +9,7 @@ import { Stability } from '@shared/components/stability';
 import { FloorState } from '@shared/components/floor-state';
 import { BlocksMovement } from '@shared/components/blocks-movement';
 import { Children } from '@shared/components/children';
-import { FovAwareness } from '@shared/components/fov-awareness';
-import { AIState, AIBehavior } from '@shared/components/ai-state';
+import { AlertIntent } from '@shared/components/intents';
 import { RunInventory } from '@shared/components/run-inventory';
 import {
   Prop,
@@ -101,6 +100,7 @@ export function consumeAccessKey<T extends GameplayEvents>(
 
 /**
  * Trigger an acoustic alert pulsing outward from a coordinate to hostile entities within radius.
+ * Attaches AlertIntent so AISystem can update awareness and behavior in Phase.GATHER_INTENT.
  */
 export function triggerAcousticAlert<T extends GameplayEvents>(
   world: World<T>,
@@ -115,16 +115,10 @@ export function triggerAcousticAlert<T extends GameplayEvents>(
 
     const dist = Math.abs(ePos.x - originX) + Math.abs(ePos.y - originY);
     if (dist <= radius) {
-      if (world.hasComponent(enemyId, FovAwareness)) {
-        world.patchComponent(enemyId, FovAwareness, {
-          canSeePlayer: true,
-          lastKnownPlayerX: originX,
-          lastKnownPlayerY: originY,
-        });
-      }
-      if (world.hasComponent(enemyId, AIState)) {
-        world.patchComponent(enemyId, AIState, { behavior: AIBehavior.CHASING });
-      }
+      world.addComponent(enemyId, AlertIntent, {
+        sourceX: originX,
+        sourceY: originY,
+      });
     }
   }
 }

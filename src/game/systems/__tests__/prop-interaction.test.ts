@@ -31,9 +31,11 @@ import {
   CorruptedNode,
   InteractPropIntent,
 } from '@shared/components/environment';
-import { createPropInteractionSystem } from '../prop-interaction';
+import { AlertIntent } from '@shared/components/intents';
+import { createPropInteractionSystem, triggerAcousticAlert } from '../prop-interaction';
 import { createMovementSystem } from '../movement';
 import { createTeleportSystem } from '../teleport';
+import { createAISystem } from '../ai';
 import { registerGameTemplates } from '../../entities';
 
 describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
@@ -89,6 +91,8 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
     it('rejects interaction when Manhattan distance is greater than 1', () => {
       const propSystem = createPropInteractionSystem(world, grid, eventBus, entityFactory, componentRegistry);
       propSystem.init();
+      const aiSystem = createAISystem(world, grid, eventBus, entityFactory, componentRegistry);
+      aiSystem.init();
 
       const propId = world.createEntity();
       world.addComponent(propId, Position, { x: 10, y: 10 }); // Far away
@@ -199,6 +203,8 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
     it('unlocks with keycard without increasing heat when player holds an Access Key', () => {
       const propSystem = createPropInteractionSystem(world, grid, eventBus, entityFactory, componentRegistry);
       propSystem.init();
+      const aiSystem = createAISystem(world, grid, eventBus, entityFactory, componentRegistry);
+      aiSystem.init();
 
       const unlockSpy = vi.fn();
       eventBus.on('LOCK_UNLOCKED', unlockSpy);
@@ -237,6 +243,8 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
     it('performs Overclock bypass with +35 Heat, acoustic alert, and score update when forceOverride is true', () => {
       const propSystem = createPropInteractionSystem(world, grid, eventBus, entityFactory, componentRegistry);
       propSystem.init();
+      const aiSystem = createAISystem(world, grid, eventBus, entityFactory, componentRegistry);
+      aiSystem.init();
 
       const unlockSpy = vi.fn();
       eventBus.on('LOCK_UNLOCKED', unlockSpy);
@@ -263,6 +271,7 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
       // Player force overrides without key
       world.addComponent(playerId, InteractPropIntent, { targetPropId: doorId, forceOverride: true });
       world.executeSystems(Phase.ACTION);
+      world.executeSystems(Phase.GATHER_INTENT);
       eventBus.flush();
 
       const lock = world.getComponent(doorId, SecurityLock)!;
@@ -290,6 +299,8 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
     it('rejects Overclock bypass if Heat + 35 > 100', () => {
       const propSystem = createPropInteractionSystem(world, grid, eventBus, entityFactory, componentRegistry);
       propSystem.init();
+      const aiSystem = createAISystem(world, grid, eventBus, entityFactory, componentRegistry);
+      aiSystem.init();
 
       // Player already at 75 Heat (75 + 35 = 110 > 100)
       world.patchComponent(playerId, Heat, { current: 75 });
@@ -352,6 +363,8 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
     it('restores +10 Stability when activating Reality Stabilizer', () => {
       const propSystem = createPropInteractionSystem(world, grid, eventBus, entityFactory, componentRegistry);
       propSystem.init();
+      const aiSystem = createAISystem(world, grid, eventBus, entityFactory, componentRegistry);
+      aiSystem.init();
 
       const stabId = world.createEntity();
       world.addComponent(stabId, Position, { x: 6, y: 5 });
@@ -370,6 +383,8 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
     it('purges 40 Heat when activating Thermal Cooling Vent', () => {
       const propSystem = createPropInteractionSystem(world, grid, eventBus, entityFactory, componentRegistry);
       propSystem.init();
+      const aiSystem = createAISystem(world, grid, eventBus, entityFactory, componentRegistry);
+      aiSystem.init();
 
       world.patchComponent(playerId, Heat, { current: 60 });
 
@@ -390,6 +405,8 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
     it('transmits item to Profile Vault via Teleport Dead-Drop Uplink costing 25 Flux', () => {
       const propSystem = createPropInteractionSystem(world, grid, eventBus, entityFactory, componentRegistry);
       propSystem.init();
+      const aiSystem = createAISystem(world, grid, eventBus, entityFactory, componentRegistry);
+      aiSystem.init();
 
       const deadDropSpy = vi.fn();
       eventBus.on('DEAD_DROP_TRANSMITTED', deadDropSpy);
@@ -443,6 +460,8 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
     it('materializes stored loot items and emits corporate forensics audio log on search', () => {
       const propSystem = createPropInteractionSystem(world, grid, eventBus, entityFactory, componentRegistry);
       propSystem.init();
+      const aiSystem = createAISystem(world, grid, eventBus, entityFactory, componentRegistry);
+      aiSystem.init();
 
       const messageSpy = vi.fn();
       eventBus.on('MESSAGE_EMITTED', messageSpy);
@@ -485,6 +504,46 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
           text: expect.stringContaining('CYBERACME'),
         }),
       );
+    });
+
+    it('attaches AlertIntent on acoustic alert which AISystem consumes in Phase.GATHER_INTENT', () => {
+      const aiSystem = createAISystem(world, grid, eventBus, entityFactory, componentRegistry);
+      aiSystem.init();
+
+      const enemyId = world.createEntity();
+      world.addComponent(enemyId, Position, { x: 10, y: 10 });
+      world.addComponent(enemyId, Hostile, {});
+      world.addComponent(enemyId, FovAwareness, {
+        canSeePlayer: false,
+        lastKnownPlayerX: 0,
+        lastKnownPlayerY: 0,
+      });
+      world.addComponent(enemyId, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.BASIC,
+        sightRadius: 6,
+      });
+
+      // Trigger acoustic alert from (10, 15) with radius 8 (distance 5 <= 8)
+      triggerAcousticAlert(world, 10, 15, 8);
+
+      // Verify AlertIntent was attached
+      const alertIntent = world.getComponent(enemyId, AlertIntent);
+      expect(alertIntent).toBeDefined();
+      expect(alertIntent?.sourceX).toBe(10);
+      expect(alertIntent?.sourceY).toBe(15);
+
+      // Execute GATHER_INTENT where AISystem runs
+      world.executeSystems(Phase.GATHER_INTENT);
+
+      // Verify AISystem consumed the intent and updated FovAwareness and AIState
+      expect(world.hasComponent(enemyId, AlertIntent)).toBe(false);
+      const fov = world.getComponent(enemyId, FovAwareness)!;
+      expect(fov.canSeePlayer).toBe(true);
+      expect(fov.lastKnownPlayerX).toBe(10);
+      expect(fov.lastKnownPlayerY).toBe(15);
+      const ai = world.getComponent(enemyId, AIState)!;
+      expect(ai.behavior).toBe(AIBehavior.CHASING);
     });
   });
 });

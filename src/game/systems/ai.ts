@@ -16,6 +16,7 @@ import {
   TeleportIntent,
   Acting,
   ApplyStatusEffectIntent,
+  AlertIntent,
 } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
 import { logger } from '@engine/utils/logger';
@@ -195,6 +196,24 @@ export function createAISystem<T extends GameplayEvents>(
      * Internal update loop that processes all entities marked as 'Acting'.
      */
     update(w: World<T>): void {
+      // 1. Process pending AlertIntents
+      const alertedEntities = w.query(AlertIntent);
+      for (const entityId of alertedEntities) {
+        const alert = w.getComponent(entityId, AlertIntent)!;
+        if (w.hasComponent(entityId, FovAwareness)) {
+          w.patchComponent(entityId, FovAwareness, {
+            canSeePlayer: true,
+            lastKnownPlayerX: alert.sourceX,
+            lastKnownPlayerY: alert.sourceY,
+          });
+        }
+        if (w.hasComponent(entityId, AIState)) {
+          w.patchComponent(entityId, AIState, { behavior: AIBehavior.CHASING });
+        }
+        w.removeComponent(entityId, AlertIntent);
+      }
+
+      // 2. Process all entities marked as 'Acting'
       const actingEntities = w.query(Acting, AIState);
       for (const entityId of actingEntities) {
         this.processEnemyTurn(entityId);

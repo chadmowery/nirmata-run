@@ -41,6 +41,18 @@ export const DamageIntent = defineComponent(
 );
 
 /**
+ * Intent indicating an entity was alerted by an acoustic event.
+ * Consumed by AISystem in Phase.GATHER_INTENT to update FovAwareness and AIState.
+ */
+export const AlertIntent = defineComponent(
+  'alertIntent',
+  z.object({
+    sourceX: z.number(),
+    sourceY: z.number(),
+  }),
+);
+
+/**
  * Intent to descend to the next floor.
  */
 export const DescentIntent = defineComponent(

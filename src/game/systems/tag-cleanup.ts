@@ -9,6 +9,7 @@ import {
   Acting,
   InteractPropIntent,
   PropInteractedThisTurn,
+  AlertIntent,
 } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 
@@ -47,6 +48,10 @@ export function createTagCleanupSystem<T extends GameplayEvents>(world: World<T>
     const propInteracted = w.query(PropInteractedThisTurn);
     for (const entityId of propInteracted) {
       w.removeComponent(entityId, PropInteractedThisTurn);
+    }
+    const alertIntents = w.query(AlertIntent);
+    for (const entityId of alertIntents) {
+      w.removeComponent(entityId, AlertIntent);
     }
 
     if (
