@@ -56,9 +56,9 @@ During a turn cycle on the server, the 4-phase sequence (`GATHER_INTENT → ACTI
 
 ### Phase Definitions & Registered Systems
 1. **`PRE_TURN`**: Global upkeep before action resolution (`ShellStatsSystem`, `StabilitySystem`, `HeatSystem` passive dissipation, `StatusEffectSystem` duration ticks & DoT).
-2. **`GATHER_INTENT`**: Decision making (`AISystem`, `PackCoordinatorSystem` evaluate board state for the `Acting` enemy and attach `MoveIntent`, `AttackIntent`, `TeleportIntent`).
-3. **`ACTION`**: Primary movement and ability execution (`TeleportSystem`, `MovementSystem` — converts blocked moves into `AttackIntent` — `EquipmentSystem`, `FirmwareSystem`, `DeadZoneSystem` hazard damage intents, `HeatSystem` active venting).
-4. **`REACTION`**: Consequence & combat resolution (`CombatSystem` resolves `AttackIntent`, `DamageIntent`, `HealIntent`, and attaches `Dying`; `ItemPickupSystem`; `AnchorInteractionSystem`; `AugmentSystem` and `SoftwareSystem` evaluate on-activation/on-hit/on-kill reactions).
+2. **`GATHER_INTENT`**: Decision making (`AISystem` consumes `AlertIntent` from acoustic traps and evaluates board state for the `Acting` enemy, attaching `MoveIntent`, `AttackIntent`, `TeleportIntent`; `PackCoordinatorSystem`).
+3. **`ACTION`**: Primary movement, ability, and interaction execution (`TeleportSystem`, `MovementSystem` — converts blocked moves into `AttackIntent` or blocks client prediction on dangerous bumps — `PropInteractionSystem` resolving locks and container searches server-side, `EquipmentSystem`, `FirmwareSystem`, `DeadZoneSystem` hazard damage intents, `HeatSystem` active venting).
+4. **`REACTION`**: Consequence & combat resolution (`CombatSystem` resolves `AttackIntent`, `DamageIntent` — including cascading volatile prop explosions — and `HealIntent`, and attaches `Dying`; `StabilitySystem` queries `Dying` hostiles to restore stability; `ItemPickupSystem`; `AnchorInteractionSystem`; `AugmentSystem` and `SoftwareSystem` evaluate on-activation/on-hit/on-kill reactions).
 5. **`CLEANUP`**: Death harvesting, floor transitions, and garbage collection (`RewardDropSystem`, `RunEnderSystem`, `FloorManagerSystem`, `GravediggerSystem` entity destruction, `TagCleanupSystem`, `KernelPanicSystem`).
 6. **`POST_TURN`**: Global environmental propagation (`TileCorruptionSystem`).
 7. **`RENDER`**: Client-only visual presentation updates.

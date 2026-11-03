@@ -39,11 +39,12 @@ An entity's removal is initiated by an action or environmental tick:
 
 ### 2. Condemnation (Marking as `Dying`)
 The authoritative system for that trigger marks the entity with `Dying`:
-- **[`CombatSystem`](../../src/game/systems/combat.ts) (`Phase.REACTION`)**: Resolves `AttackIntent` and `DamageIntent`. If `Health.current <= 0`, sets `isAlive: false`, emits `ENTITY_DIED`, and attaches `Dying` (`{ killerId, reason: 'damage' }`).
+- **[`CombatSystem`](../../src/game/systems/combat.ts) (`Phase.REACTION`)**: Resolves `AttackIntent` and `DamageIntent` (including volatile prop cascades and environmental hazards). If `Health.current <= 0`, sets `isAlive: false`, emits `ENTITY_DIED`, and attaches `Dying` (`{ killerId, reason: surface ? 'environmental_destruction' : 'damage' }`).
 - **[`StatusEffectSystem`](../../src/game/systems/status-effects.ts) (`Phase.PRE_TURN`)**: If `BLEED` DoT reduces `Health.current <= 0`, emits `ENTITY_DIED` and attaches `Dying` (`{ reason: 'bleed' }`).
 - **[`ItemPickupSystem`](../../src/game/systems/item-pickup.ts) (`Phase.REACTION`)**: Attaches `Dying` (`{ reason: 'picked_up' }` or `{ reason: 'currency_picked_up' }`) to collected map items.
 - **[`DeadZoneSystem`](../../src/game/systems/dead-zone.ts) (`Phase.ACTION`)**: Attaches `Dying` (`{ reason: 'expiration' }`) when a hazard expires.
 - **[`FloorManagerSystem`](../../src/game/systems/floor-manager.ts) (`Phase.CLEANUP`)**: Attaches `Dying` (`{ reason: 'floor_transition' }`) to all non-protected entities before generating the next floor.
+- **Subroutine & Action Pipeline Lifecycle**: Attaches `Dying` when software mods are cleared from sockets (`{ killerId, reason: 'purged' }`), when firmware/augments are overwritten in chassis slots (`{ killerId, reason: 'overwritten' }`), or upon manual abort (`{ killerId, reason: 'OPERATOR_MANUAL_DESYNC' }`).
 
 ### 3. Reaction & Harvesting
 While the entity still has all of its components intact (`Position`, `LootTable`, `Hostile`, etc.) alongside `Dying`:

@@ -46,7 +46,7 @@ The runtime operates on a **Client Prediction + Authoritative Server Delta Recon
 
 1. **Client Engine Initialization (`isClient: true`)**:
    - [`createEngineInstance`](../../src/game/engine-factory.ts) and [`registerCoreSystems`](../../src/game/systems/registration.ts) initialize **only** prediction-safe movement/intent systems on the client (`shellStats`, `teleport`, `movement`, `equipment`, `anchorInteraction`, `augment`, `software`, `firmware`, `tagCleanup`).
-   - Server-authoritative simulation systems (`combat`, `ai`, `itemPickup`, `stability`, `deadZone`, `statusEffect`, `packCoordinator`, `tileCorruption`, `rewardDrop`, `runEnder`, `floorManager`, `gravedigger`, `heat`, `kernelPanic`) run exclusively on the server (`isClient: false`).
+   - Server-authoritative simulation systems (`combat`, `ai`, `itemPickup`, `propInteraction`, `stability`, `deadZone`, `statusEffect`, `packCoordinator`, `tileCorruption`, `rewardDrop`, `runEnder`, `floorManager`, `gravedigger`, `heat`, `kernelPanic`) run exclusively on the server (`isClient: false`).
    - On the client, [`TurnManager.executeTurnCycle`](../../src/engine/turn/turn-manager.ts) executes `PRE_TURN` and the player's 4-phase action sequence (`GATHER_INTENT -> ACTION -> REACTION -> CLEANUP`), then returns immediately without simulating enemy turns or energy sub-ticks.
 
 2. **Buffered Input & Action Submission**:
