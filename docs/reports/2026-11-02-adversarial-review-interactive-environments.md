@@ -16,7 +16,7 @@
 | C3 | **"Masked loot" is not masked.** `storedLoot`, `scrapYield`, `fluxYield` and `grantsAccessKey` are serialized to the client in full. | 🔴 High (anti-cheat) |
 | C4 | **`PICKUP` and `DROP_ITEM` have no server-side range or position validation.** The client can pick up any item on the map by entity ID and drop items on arbitrary tiles. | 🔴 High (security) |
 | C5 | **The "0-turn bump safeguard" does not exist.** The energy cost is deducted before the action runs and never refunded. `INPUT_BUFFER_CLEARED` has no listener. | 🟠 High (false claim) |
-| C6 | **Direct `ECS` architecture violations.** There is an `eventBus.on()` that drives game logic, direct `Health` patching that bypasses `DamageIntent`, and a game-specific string in the engine layer. | 🟠 High |
+| C6 | **Direct `ECS` architecture violations.** There is an `eventBus.on()` that drives game logic, direct `Health` patching that bypasses `DamageIntent`, and a game-specific string in the engine layer. | ✅ **RESOLVED** (`73842d7f`..`519b3487`) |
 | C7 | **Stability "threat purge" is exploitable.** It fires on any `ENTITY_DIED` the player causes, including crates and traps. The stability rebalance is also a 5–80% nerf shipped as a "bug fix". | 🟠 High |
 | C8 | **`BURN_FIRMWARE` / `BURN_AUGMENT` ignore shell port capacity.** They use hard-coded slot caps and can push `0` placeholder entity IDs. | 🟠 High |
 | M1–M14 | Medium and low issues (dead code, inconsistent key accounting, 2 of 3 sector conditions are no-ops, a log-format typo, and others). | 🟡 / 🔵 |
@@ -144,18 +144,21 @@ The handoff claims risky bumps *"halt player movement with **0 turn cost**, flas
 
 **Fix:** Decide whether blocked bumps are free. If yes, resolve them client-side before submitting a turn (the client already predicts movement), or have the server short-circuit the cycle without energy cost. Wire up the input buffer clear or delete the event. Add a `TurnManager`-level test that verifies the energy value after a blocked bump.
 
-### C6. Architecture-guideline violations
+### C6. Architecture-guideline violations — ✅ ALL RESOLVED
 
-| Rule (source) | Violation | Location |
-|---|---|---|
-| **No `eventBus.on()` to trigger game logic** (`AGENTS.md` §3.1; `ENGINE_GUIDELINES` "Golden Rule") | `StabilitySystem` subscribes to `ENTITY_DIED` and mutates `Stability`. It also emits `STABILITY_CHANGED` and a message from the handler. It runs outside any `Phase`, after CLEANUP, whenever the bus flushes. Needs `as any` plus `eslint-disable`. | [`stability.ts` L140-L177](../../src/game/systems/stability.ts) |
-| **All combat/hazard damage routes through `AttackIntent` / `DamageIntent`** (`AGENTS.md` §3.3) | `handlePropDestruction` patches `Health` directly for cryo spill (4 dmg), EMP (10 dmg) and cascades (15 dmg), emits `DAMAGE_DEALT` itself, and attaches `Dying` itself. This bypasses armor, `CombatSystem` death handling, `isAlive`, and on-kill augment/software reactions. | [`combat.ts` L218-L340](../../src/game/systems/combat.ts) |
-| **Engine layer is game-agnostic** (`AGENTS.md` §2, `SYSTEM_OVERVIEW` layer table) | `TurnManager` now special-cases the string `'ABORT_RUN'`. [`engine/utils/logger.ts`](../../src/engine/utils/logger.ts) now installs a global `window.console.error` interceptor for **React duplicate-key warnings**. That is a React/DOM concern in `@engine`, and uses untyped `any` (`window as any`). | [`turn-manager.ts` L35, L43](../../src/engine/turn/turn-manager.ts) |
-| **Systems don't directly mutate other systems' domain state** (spirit of Phase-Driven Intent) | `triggerAcousticAlert` patches `AIState.behavior` and `FovAwareness` on every hostile in range. `AISystem` should consume an `AlertIntent` or `Alerted` tag in `GATHER_INTENT`. The subnet console and `FirmwareSystem` patch `CorruptedNode.revealed` on remote entities. | [`prop-interaction.ts` L105-L130](../../src/game/systems/prop-interaction.ts) |
-| **Business logic in API routes** (`SYSTEM_OVERVIEW` §2: route "attaches the Intent component") | [`route.ts`](../../src/app/api/action/route.ts) now contains inline burn/purge/drop/consume logic: it patches `Stability`, swaps firmware slots, adds `Dying`, and calls `grid.addItem`. The same actions are duplicated in [`action-pipeline.ts`](../../src/game/pipeline/action-pipeline.ts). The two copies have already diverged (for example `INTERACT_PROP` exists in both with different flow). | `route.ts` L229-L395 |
-| **Death Protocol step 2: condemnation by the authoritative system** (`DEATH_PROTOCOL.md`) | `handlePropDestruction` and the cascade code attach `Dying` and emit `ENTITY_DIED` from a helper, and set neither `isAlive` nor a consistent `reason`. The protocol doc lists the authorised condemnation points; this one is not among them. | `combat.ts` |
-| **Client prediction only registers prediction-safe systems** | `MovementSystem` (client-registered) now imports from `prop-interaction.ts` and attaches `InteractPropIntent`. The resolving `PropInteractionSystem` is server-only, so on the client the intent is attached and never consumed (removed only by `TagCleanup`). Bump warnings are also emitted on both sides, which risks duplicate messages. | [`movement.ts`](../../src/game/systems/movement.ts) |
-| **Ground-truth "Only `GravediggerSystem` may call `destroyEntity`"** | ✅ **Compliant.** `grep destroyEntity` shows only `gravedigger.ts` in non-test, non-engine code. | |
+> [!NOTE]
+> **Resolution Status (2026-11-03):** All items in Section C6 have been completely resolved and verified with unit tests (Commits `73842d7f`..`519b3487`). Zero `eventBus.on` remain in gameplay systems, prop damage routes through `DamageIntent`, `@engine` is game-agnostic, and route business logic has been consolidated into `processAction`.
+
+| Rule (source) | Violation | Location | Status |
+|---|---|---|---|
+| **No `eventBus.on()` to trigger game logic** (`AGENTS.md` §3.1; `ENGINE_GUIDELINES` "Golden Rule") | `StabilitySystem` subscribes to `ENTITY_DIED` and mutates `Stability`. It also emits `STABILITY_CHANGED` and a message from the handler. It runs outside any `Phase`, after CLEANUP, whenever the bus flushes. Needs `as any` plus `eslint-disable`. | [`stability.ts` L140-L177](../../src/game/systems/stability.ts) | ✅ **Resolved (`73842d7f`)**: Moved to `Phase.REACTION` query on `(Dying, Hostile)`. |
+| **All combat/hazard damage routes through `AttackIntent` / `DamageIntent`** (`AGENTS.md` §3.3) | `handlePropDestruction` patches `Health` directly for cryo spill (4 dmg), EMP (10 dmg) and cascades (15 dmg), emits `DAMAGE_DEALT` itself, and attaches `Dying` itself. This bypasses armor, `CombatSystem` death handling, `isAlive`, and on-kill augment/software reactions. | [`combat.ts` L218-L340](../../src/game/systems/combat.ts) | ✅ **Resolved (`54219230`)**: Routed via `DamageIntent` (`damageType: 'environmental'`) in `CombatSystem` cascade loop. |
+| **Engine layer is game-agnostic** (`AGENTS.md` §2, `SYSTEM_OVERVIEW` layer table) | `TurnManager` now special-cases the string `'ABORT_RUN'`. [`engine/utils/logger.ts`](../../src/engine/utils/logger.ts) now installs a global `window.console.error` interceptor for **React duplicate-key warnings**. That is a React/DOM concern in `@engine`, and uses untyped `any` (`window as any`). | [`turn-manager.ts` L35, L43](../../src/engine/turn/turn-manager.ts) | ✅ **Resolved (`fbc273ba`)**: Handled via `allowsInactiveActorAction` hook on adapter; React interceptor moved to `src/game/diagnostics/`. |
+| **Systems don't directly mutate other systems' domain state** (spirit of Phase-Driven Intent) | `triggerAcousticAlert` patches `AIState.behavior` and `FovAwareness` on every hostile in range. `AISystem` should consume an `AlertIntent` or `Alerted` tag in `GATHER_INTENT`. The subnet console and `FirmwareSystem` patch `CorruptedNode.revealed` on remote entities. | [`prop-interaction.ts` L105-L130](../../src/game/systems/prop-interaction.ts) | ✅ **Resolved (`644f632b`)**: Attaches `AlertIntent`, consumed by `AISystem` in `Phase.GATHER_INTENT`. |
+| **Business logic in API routes** (`SYSTEM_OVERVIEW` §2: route "attaches the Intent component") | [`route.ts`](../../src/app/api/action/route.ts) now contains inline burn/purge/drop/consume logic: it patches `Stability`, swaps firmware slots, adds `Dying`, and calls `grid.addItem`. The same actions are duplicated in [`action-pipeline.ts`](../../src/game/pipeline/action-pipeline.ts). The two copies have already diverged (for example `INTERACT_PROP` exists in both with different flow). | `route.ts` L229-L395 | ✅ **Resolved (`f15f26ac`)**: Consolidated into `processAction` pipeline; route only validates and attaches intents. |
+| **Death Protocol step 2: condemnation by the authoritative system** (`DEATH_PROTOCOL.md`) | `handlePropDestruction` and the cascade code attach `Dying` and emit `ENTITY_DIED` from a helper, and set neither `isAlive` nor a consistent `reason`. The protocol doc lists the authorised condemnation points; this one is not among them. | `combat.ts` | ✅ **Resolved (`54219230`, `519b3487`)**: Condemnation handled by `CombatSystem` with `reason: 'environmental_destruction'`; docs updated. |
+| **Client prediction only registers prediction-safe systems** | `MovementSystem` (client-registered) now imports from `prop-interaction.ts` and attaches `InteractPropIntent`. The resolving `PropInteractionSystem` is server-only, so on the client the intent is attached and never consumed (removed only by `TagCleanup`). Bump warnings are also emitted on both sides, which risks duplicate messages. | [`movement.ts`](../../src/game/systems/movement.ts) | ✅ **Resolved (`f0e4790e`)**: Parameterized with `isClient`, blocking prediction without attaching `InteractPropIntent` or emitting duplicates; access keys decoupled. |
+| **Ground-truth "Only `GravediggerSystem` may call `destroyEntity`"** | ✅ **Compliant.** `grep destroyEntity` shows only `gravedigger.ts` in non-test, non-engine code. | | ✅ **Compliant.** |
 
 > [!NOTE]
 > The handoff's §2 states that "all code strictly enforces the architectural boundaries" and that systems "never call each other directly". The two bullets above (direct `eventBus.on` game logic, direct `Health` patching) contradict that. ESLint passes only because the layer rules enforce *import* boundaries, not these behavioural mandates, and because of the `as any` / `as unknown as` / `eslint-disable` escapes.
@@ -285,7 +288,7 @@ Update these docs as part of the fix, not as a follow-up. The handoff also shoul
 3. **Server-side validation of every new client intent (C4, C8).** Adjacency, bounds, walkability, ownership and capacity. Remove the "substitute another item" fallback.
 4. **Implement sync redaction (C3)** and a test on the serialized payload.
 5. **Resolve the bump safeguard (C5).** Make it genuinely free or correct the docs; wire or remove `INPUT_BUFFER_CLEARED`.
-6. **Remove the architecture violations (C6).** At minimum: stability recovery into a Phase; volatile damage via `DamageIntent`; `ABORT_RUN` and the React interceptor out of `@engine`.
+6. [x] **Remove the architecture violations (C6).** (✅ **RESOLVED** via commits `73842d7f`..`519b3487`: stability recovery into Phase.REACTION query; volatile damage via DamageIntent; ABORT_RUN hook and React interceptor out of @engine; client prediction boundary enforced).
 7. **Fix the `+2%` farm (C7)** and decide on the stability rebalance in a separate, signed-off change.
 
 ### P1: should fix in this branch
@@ -294,7 +297,7 @@ Update these docs as part of the fix, not as a follow-up. The handoff also shoul
 10. Fix `HealIntent` overwrites (C7) by stacking amounts or using separate tag components.
 11. Re-validate connectivity after prop placement (M10).
 12. Fix the logger typo and add rotation and redaction (M11).
-13. Consolidate the duplicate action handling in `route.ts` and `action-pipeline.ts` (C6).
+13. [x] **Consolidate the duplicate action handling in `route.ts` and `action-pipeline.ts` (C6).** (✅ **RESOLVED** via commit `f15f26ac`: route delegates to canonical `processAction`).
 14. Replace `Math.random()` with the seeded RNG (M4).
 15. Either implement `THERMAL_SURGE` / `DARK_SUBNET` or stop guaranteeing them (M5). Remove or implement unused schema surface (M6).
 
@@ -319,9 +322,9 @@ Update these docs as part of the fix, not as a follow-up. The handoff also shoul
 - [ ] Serialized `FULL` and `DELTA` payloads contain no `storedLoot`, `scrapYield`, `fluxYield`, `grantsAccessKey` or unrevealed `trapType`
 - [ ] Server rejects out-of-range `PICKUP`, `DROP_ITEM`, `USE_CONSUMABLE` targets and out-of-capacity burns (negative tests)
 - [ ] `TurnManager`-level test proves the energy outcome of a blocked bump
-- [ ] Zero `eventBus.on` in gameplay systems; zero direct `Health` patches outside `CombatSystem`; `@engine` has no game or React strings
-- [ ] Stability: crate destruction does not restore stability; rebalance is separately approved
-- [ ] Architecture docs and handoff updated to match
+- [x] Zero `eventBus.on` in gameplay systems; zero direct `Health` patches outside `CombatSystem`; `@engine` has no game or React strings (✅ **RESOLVED** in C6)
+- [ ] Stability: crate destruction does not restore stability (mitigated in C6 hostile filter; rebalance review pending)
+- [x] Architecture docs and handoff updated to match (✅ **RESOLVED**: `DEATH_PROTOCOL.md`, `ENGINE_GUIDELINES.md`, `SYSTEM_OVERVIEW.md` updated)
 
 ---
 

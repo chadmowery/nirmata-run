@@ -71,6 +71,14 @@
   - Deduplicated `SoftwareSlots` entry in [`src/shared/components/index.ts`](../src/shared/components/index.ts).
 - [x] **[ARCH-06] Remove Auxiliary Scratch Directories (`tmp/`, `scratch/`, `debug/`, empty `config.json`)**
   - Cleaned up untracked/legacy one-off scripts in `tmp/`, empty `scratch/`, root `config.json` (0 bytes), and added `debug/`, `scratch/`, `tmp/` to `.gitignore`.
+- [x] **[ARCH-07] Resolve Adversarial Review C6 Architecture Violations (`docs/reports/2026-11-02-adversarial-review-interactive-environments.md`)**
+  - **StabilitySystem**: Replaced `eventBus.on('ENTITY_DIED')` with `Phase.REACTION` query on `(Dying, Hostile)`, eliminating out-of-phase execution, unsafe casts, and the destructible prop stability farm.
+  - **Damage Pipeline**: Routed volatile prop destruction and cascade damage through `DamageIntent` (`damageType: 'environmental'`) in a bounded fixed-point loop (`MAX_CASCADE_DEPTH = 10`) inside `CombatSystem`, assigning canonical death condemnation (`reason: 'environmental_destruction'`).
+  - **Engine Purity**: Removed `'ABORT_RUN'` string from `TurnManager` via `TurnSchedulerAdapter.allowsInactiveActorAction` hook; extracted React duplicate-key console interceptor out of `@engine/utils/logger.ts` into `src/game/diagnostics/react-key-interceptor.ts`.
+  - **Acoustic Alerts**: Replaced direct hostile `AIState`/`FovAwareness` patching in `triggerAcousticAlert` with `AlertIntent` consumed by `AISystem` in `Phase.GATHER_INTENT`.
+  - **Prediction Boundary & System Decoupling**: Decoupled `access-key-util.ts` from `prop-interaction.ts`; parameterized `MovementSystem` with `isClient` to halt prediction on props without attaching server-only `InteractPropIntent` or emitting duplicate warnings.
+  - **API Route Consolidation**: Consolidated player action handling into canonical `processAction` in `src/game/pipeline/action-pipeline.ts`, deleting 300+ lines of duplicate inline business logic from `src/app/api/action/route.ts`.
+  - **Architecture Documentation**: Updated `DEATH_PROTOCOL.md`, `ENGINE_GUIDELINES.md`, and `SYSTEM_OVERVIEW.md`.
 
 ### 2.3 API Security & Persistence Synchronization
 - [x] **[SEC-01] Sanitize `sessionId` Against Path Traversal (`src/app/persistence/fs-profile-repository.ts`)**
