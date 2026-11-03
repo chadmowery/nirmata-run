@@ -24,7 +24,24 @@ import {
   FirmwareIntent,
   PickupIntent,
   InteractPropIntent,
+  FloorState,
+  EquipmentSlots,
+  Children,
+  SoftwareDef,
+  FirmwareSlots,
+  AugmentSlots,
+  AugmentData,
+  AbilityDef,
+  Dying,
+  HealIntent,
+  ApplyStatusEffectIntent,
+  Stability,
+  SpriteComponent,
 } from '@shared/components';
+import * as InventoryUtil from '@shared/utils/inventory-util';
+import { DIRECTIONS, GameAction } from '../input/actions';
+import { handleInventorySwap } from '../intent/inventory-intent';
+import { handleServerDebugCommand } from '../debug/server-debug-handler';
 import { checkAutoLoader } from '../systems/software-effects';
 import { Phase, ComponentDef } from '@engine/ecs/types';
 import { EntityRegistry } from '@engine/entity/registry';
@@ -33,6 +50,11 @@ import { ComponentRegistry } from '@engine/entity/types';
 import { registerCoreSystems } from '../systems/registration';
 import { registerGameTemplates } from '../entities';
 import { RunMode } from '@shared/run-mode';
+
+export interface ProcessActionOptions {
+  sessionId?: string;
+  systems?: Record<string, unknown>;
+}
 
 /**
  * Runs a game action against a world/grid state and returns the new state and delta.
@@ -101,50 +123,127 @@ export function runActionPipeline(
   return { world: newWorld, grid: newGrid, delta };
 }
 
+/**
+ * Validates action parameters, attaches corresponding Intent components to the entity,
+ * and returns the TurnManager action key (or null if non-turn action).
+ * Shared canonically between the API route and the offline action simulation pipeline.
+ */
 export function processAction(
   world: World<GameplayEvents>,
   grid: Grid,
   eventBus: EventBus<GameplayEvents>,
   entityId: number,
   action: ActionIntent,
-) {
+  options?: ProcessActionOptions,
+): string | null {
   switch (action.type) {
-    case 'MOVE':
+    case 'MOVE': {
       world.addComponent(entityId, MoveIntent, { dx: action.dx, dy: action.dy });
-      break;
-    case 'WAIT':
-      // Do nothing
-      break;
-    case 'PICKUP': {
-      // Walking onto an item triggers pickup via MovedThisTurn in Phase.REACTION.
-      // If called explicitly, we simulate a "move to self" to trigger the system.
-      const pos = world.getComponent(entityId, Position);
-      if (pos) {
-        world.addComponent(entityId, MovedThisTurn, {
-          fromX: pos.x,
-          fromY: pos.y,
-          toX: pos.x,
-          toY: pos.y,
-        });
+      for (const [key, dir] of Object.entries(DIRECTIONS)) {
+        const d = dir as { dx: number; dy: number };
+        if (d.dx === action.dx && d.dy === action.dy) {
+          return key;
+        }
       }
-      break;
+      return null;
     }
+    case 'WAIT':
+      return GameAction.WAIT;
     case 'ATTACK':
-      // Explicit attack intent
       world.addComponent(entityId, AttackIntent, { targetId: action.targetId });
-      break;
+      return 'ATTACK';
+    case 'PICKUP': {
+      if (action.itemId !== undefined) {
+        world.addComponent(entityId, PickupIntent, {
+          actorId: entityId,
+          itemId: action.itemId,
+          targetX: action.targetX,
+          targetY: action.targetY,
+        });
+      } else {
+        const pos = world.getComponent(entityId, Position);
+        if (pos) {
+          world.addComponent(entityId, MovedThisTurn, {
+            fromX: pos.x,
+            fromY: pos.y,
+            toX: pos.x,
+            toY: pos.y,
+          });
+        }
+      }
+      return 'PICKUP';
+    }
     case 'EQUIP':
       world.addComponent(entityId, EquipIntent, {
         slotType: action.slotType,
         itemEntityId: action.itemEntityId,
       });
-      break;
+      return 'EQUIP';
     case 'UNEQUIP':
       world.addComponent(entityId, UnequipIntent, {
         slotType: action.slotType,
         slotIndex: action.slotIndex,
       });
-      break;
+      return 'UNEQUIP';
+    case 'SELECT_SHELL':
+      world.addComponent(entityId, ShellUpdateTag, {});
+      eventBus.emit('SHELL_SELECTED', { shellId: action.shellId });
+      return 'SELECT_SHELL';
+    case 'UPGRADE_SHELL':
+      world.addComponent(entityId, ShellUpdateTag, {});
+      eventBus.emit('SHELL_STATS_CHANGED', { entityId, shellId: action.shellId });
+      return 'UPGRADE_SHELL';
+    case 'USE_FIRMWARE':
+      world.addComponent(entityId, FirmwareIntent, {
+        actorId: entityId,
+        slotIndex: action.slotIndex,
+        targetX: action.targetX,
+        targetY: action.targetY,
+      });
+      return `USE_FIRMWARE_${action.slotIndex}:${action.targetX}:${action.targetY}`;
+    case 'VENT':
+      world.addComponent(entityId, VentIntent, {});
+      return GameAction.VENT;
+    case 'MOVE_AND_USE_FIRMWARE':
+      if (!checkAutoLoader(world, entityId)) {
+        eventBus.emit('MESSAGE_EMITTED', { text: 'Auto-Loader.msi required', type: 'error' });
+        return null;
+      }
+      world.addComponent(entityId, MoveIntent, { dx: action.dx, dy: action.dy });
+      return processAction(
+        world,
+        grid,
+        eventBus,
+        entityId,
+        {
+          type: 'USE_FIRMWARE',
+          slotIndex: action.firmwareSlotIndex,
+          targetX: action.targetX,
+          targetY: action.targetY,
+        },
+        options,
+      );
+    case 'ANCHOR_DESCEND': {
+      const floorState = world.getComponent(entityId, FloorState);
+      const targetFloor = (floorState?.currentFloor ?? 1) + 1;
+      world.addComponent(entityId, DescentIntent, { targetFloor, cost: action.cost });
+      return 'ANCHOR_DESCEND';
+    }
+    case 'ANCHOR_EXTRACT':
+      world.addComponent(entityId, ExtractionIntent, { reason: 'manual' });
+      return 'ANCHOR_EXTRACT';
+    case 'STAIRCASE_DESCEND':
+      world.addComponent(entityId, DescentIntent, { targetFloor: action.targetFloor, cost: 0 });
+      return 'STAIRCASE_DESCEND';
+    case 'PICKUP_CURRENCY':
+      world.addComponent(entityId, PickupIntent, {
+        actorId: entityId,
+        itemId: action.itemId,
+      });
+      return 'PICKUP_CURRENCY';
+    case 'INVENTORY_SWAP':
+      handleInventorySwap(world, entityId, action.sourceIndex, action.destinationIndex);
+      return 'INVENTORY_SWAP';
     case 'BURN_SOFTWARE': {
       const inventory = world.getComponent(entityId, RunInventory);
       let swEntityId = action.softwareEntityId;
@@ -163,10 +262,12 @@ export function processAction(
             isEquipmentList = true;
           }
         }
-      } else if (action.runInventoryIndex !== undefined && inventory?.software[action.runInventoryIndex]) {
-        swEntityId = inventory.software[action.runInventoryIndex].entityId;
-        foundIdx = action.runInventoryIndex;
+      } else if (inventory?.software[foundIdx]) {
+        swEntityId = inventory.software[foundIdx].entityId;
         isEquipmentList = false;
+      } else if (inventory?.equipment[foundIdx]) {
+        swEntityId = inventory.equipment[foundIdx].entityId;
+        isEquipmentList = true;
       }
 
       if (swEntityId) {
@@ -178,74 +279,187 @@ export function processAction(
           isEquipmentList,
         });
       }
-      break;
+      return 'BURN_SOFTWARE';
     }
-    case 'SELECT_SHELL':
-      world.addComponent(entityId, ShellUpdateTag, {});
-      eventBus.emit('SHELL_SELECTED', { shellId: action.shellId });
-      break;
-    case 'UPGRADE_SHELL':
-      world.addComponent(entityId, ShellUpdateTag, {});
-      eventBus.emit('SHELL_STATS_CHANGED', { entityId, shellId: action.shellId });
-      break;
-    case 'USE_FIRMWARE':
-      world.addComponent(entityId, FirmwareIntent, {
-        actorId: entityId,
-        slotIndex: action.slotIndex,
-        targetX: action.targetX,
-        targetY: action.targetY,
-      });
-      break;
-    case 'VENT':
-      world.addComponent(entityId, VentIntent, {});
-      break;
-    case 'MOVE_AND_USE_FIRMWARE':
-      // Only allowed if checkAutoLoader returns true
-      if (!checkAutoLoader(world, entityId)) {
-        eventBus.emit('MESSAGE_EMITTED', { text: 'Auto-Loader.msi required', type: 'error' });
-        break;
+    case 'PURGE_SOFTWARE': {
+      const eqSlots = world.getComponent(entityId, EquipmentSlots);
+      const targetGearId = eqSlots?.[action.targetSlot];
+      if (targetGearId) {
+        const children = world.getComponent(targetGearId, Children);
+        if (children && children.entityIds.length > 0) {
+          for (const childId of children.entityIds) {
+            world.addComponent(childId, Dying, { killerId: entityId, reason: 'purged' });
+          }
+          world.patchComponent(targetGearId, Children, { entityIds: [] });
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: `Purged software mod from ${action.targetSlot}. Socket cleared.`,
+            type: 'info',
+          });
+        } else if (world.hasComponent(targetGearId, SoftwareDef)) {
+          world.addComponent(targetGearId, Dying, { killerId: entityId, reason: 'purged' });
+          world.patchComponent(entityId, EquipmentSlots, { [action.targetSlot]: null });
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: `Purged software mod from ${action.targetSlot}. Socket cleared.`,
+            type: 'info',
+          });
+        }
       }
-      world.addComponent(entityId, MoveIntent, { dx: action.dx, dy: action.dy });
-      // Delegate to USE_FIRMWARE handling
-      processAction(world, grid, eventBus, entityId, {
-        type: 'USE_FIRMWARE',
-        slotIndex: action.firmwareSlotIndex,
-        targetX: action.targetX,
-        targetY: action.targetY,
-      });
-      break;
-    case 'ANCHOR_DESCEND':
-      world.addComponent(entityId, DescentIntent, { targetFloor: 0, cost: action.cost }); // Floor manager handles target calculation
-      break;
-    case 'ANCHOR_EXTRACT':
-      world.addComponent(entityId, ExtractionIntent, { reason: 'anchor' });
-      break;
-    case 'STAIRCASE_DESCEND':
-      world.addComponent(entityId, DescentIntent, { targetFloor: action.targetFloor, cost: 0 });
-      break;
-    case 'PICKUP_CURRENCY': {
-      // Use PickupIntent to follow the Phase-Driven pattern
-      world.addComponent(entityId, PickupIntent, {
-        actorId: entityId,
-        itemId: action.itemId,
-      });
-      break;
+      return 'PURGE_SOFTWARE';
     }
-    case 'INTERACT_PROP': {
+    case 'BURN_FIRMWARE': {
+      let fwSlots = world.getComponent(entityId, FirmwareSlots);
+      if (!fwSlots) {
+        world.addComponent(entityId, FirmwareSlots, { equipped: [] });
+        fwSlots = world.getComponent(entityId, FirmwareSlots)!;
+      }
+      const consumed = InventoryUtil.removeItemByEntityId(world, entityId, action.firmwareEntityId);
+      if (consumed) {
+        const equipped = [...fwSlots.equipped];
+        const oldAbilityId = equipped[action.slotIndex];
+        if (oldAbilityId) {
+          world.addComponent(oldAbilityId, Dying, { killerId: entityId, reason: 'overwritten' });
+        }
+        if (action.slotIndex < equipped.length) {
+          equipped[action.slotIndex] = action.firmwareEntityId;
+        } else {
+          while (equipped.length < action.slotIndex) {
+            equipped.push(0);
+          }
+          equipped.push(action.firmwareEntityId);
+        }
+        world.patchComponent(entityId, FirmwareSlots, { equipped });
+        const abilityDef = world.getComponent(action.firmwareEntityId, AbilityDef);
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `+ FIRMWARE BURNED: ${abilityDef?.name || 'Subroutine'} installed in Slot ${action.slotIndex + 1}`,
+          type: 'info',
+        });
+      }
+      return 'BURN_FIRMWARE';
+    }
+    case 'BURN_AUGMENT': {
+      let agSlots = world.getComponent(entityId, AugmentSlots);
+      if (!agSlots) {
+        world.addComponent(entityId, AugmentSlots, { equipped: [] });
+        agSlots = world.getComponent(entityId, AugmentSlots)!;
+      }
+      const consumed = InventoryUtil.removeItemByEntityId(world, entityId, action.augmentEntityId);
+      if (consumed) {
+        const equipped = [...agSlots.equipped];
+        const targetSlot = action.slotIndex ?? equipped.length;
+        const oldAgId = equipped[targetSlot];
+        if (oldAgId) {
+          world.addComponent(oldAgId, Dying, { killerId: entityId, reason: 'overwritten' });
+          equipped[targetSlot] = action.augmentEntityId;
+        } else {
+          equipped.push(action.augmentEntityId);
+        }
+        world.patchComponent(entityId, AugmentSlots, { equipped });
+        const agData = world.getComponent(action.augmentEntityId, AugmentData);
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `+ AUGMENT BURNED: ${agData?.name || 'Hardware Mod'} integrated into chassis`,
+          type: 'info',
+        });
+      }
+      return 'BURN_AUGMENT';
+    }
+    case 'USE_CONSUMABLE': {
+      // Direct targeting exclusively to self
+      const targetId = entityId;
+      const consumed = InventoryUtil.consumeConsumable(world, entityId, action.inventoryIndex);
+      if (consumed) {
+        world.addComponent(entityId, HealIntent, {
+          targetId,
+          amount: 5,
+        });
+
+        const stability = world.getComponent(targetId, Stability);
+        if (stability) {
+          const oldValue = stability.current;
+          const newValue = Math.min(stability.max, stability.current + 10);
+          world.patchComponent(targetId, Stability, { current: newValue });
+          eventBus.emit('STABILITY_CHANGED', {
+            entityId: targetId,
+            oldValue,
+            newValue,
+            reason: 'consumable_use',
+          });
+        }
+
+        world.addComponent(entityId, ApplyStatusEffectIntent, {
+          targetId,
+          effect: {
+            name: 'regeneration',
+            duration: 3,
+            magnitude: 1,
+            source: 'health-potion',
+          },
+        });
+
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `+ REPAIR CONSUMED: Restored 5 HP, +10 Stability, Nanite Regeneration active (3 turns)`,
+          type: 'info',
+        });
+      }
+      return 'USE_CONSUMABLE';
+    }
+    case 'DROP_ITEM': {
+      const playerPos = world.getComponent(entityId, Position);
+      if (playerPos) {
+        const dropX = action.targetX ?? playerPos.x;
+        const dropY = action.targetY ?? playerPos.y;
+        const dist = Math.abs(dropX - playerPos.x) + Math.abs(dropY - playerPos.y);
+        if (dist <= 1 && grid.inBounds(dropX, dropY) && grid.isWalkable(dropX, dropY)) {
+          const removed = InventoryUtil.removeItemByEntityId(world, entityId, action.itemEntityId);
+          if (removed) {
+            const dropEntityId = world.entityExists(action.itemEntityId)
+              ? action.itemEntityId
+              : world.createEntity();
+            world.addComponent(dropEntityId, Position, { x: dropX, y: dropY });
+            world.addComponent(dropEntityId, SpriteComponent, {
+              key: 'item',
+            });
+            grid.addItem(dropEntityId, dropX, dropY);
+            eventBus.emit('MESSAGE_EMITTED', {
+              text: `Dropped ${removed.templateId} onto floor`,
+              type: 'info',
+            });
+          }
+        }
+      }
+      return 'DROP_ITEM';
+    }
+    case 'INTERACT_PROP':
       world.addComponent(entityId, InteractPropIntent, {
         targetPropId: action.targetPropId,
         forceOverride: action.forceOverride,
         deadDropSelectionId: action.deadDropSelectionId,
       });
-      break;
-    }
-    case 'DEAD_DROP_ITEM': {
+      return 'INTERACT_PROP';
+    case 'DEAD_DROP_ITEM':
       world.addComponent(entityId, InteractPropIntent, {
         targetPropId: action.targetPropId,
         forceOverride: false,
         deadDropSelectionId: action.itemId,
       });
-      break;
-    }
+      return 'DEAD_DROP_ITEM';
+    case 'ABORT_RUN':
+      world.addComponent(entityId, Dying, {
+        killerId: entityId,
+        reason: 'OPERATOR_MANUAL_DESYNC',
+      });
+      return 'ABORT_RUN';
+    case 'DEBUG_COMMAND':
+      if (options?.sessionId) {
+        handleServerDebugCommand(
+          world,
+          eventBus,
+          entityId,
+          options.sessionId,
+          action.command,
+          action.args,
+          options.systems,
+        );
+      }
+      return null;
   }
 }

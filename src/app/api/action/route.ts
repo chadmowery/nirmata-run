@@ -6,16 +6,13 @@ import { createECSWorldDelta } from '@shared/ecs-delta';
 import { submitLeaderboardEntry } from '@/server/leaderboard/leaderboard-service';
 import { RunMode } from '@shared/run-mode';
 import { diff } from 'json-diff-ts';
-import { DIRECTIONS, GameAction } from '@game/input/actions';
 import { logger } from '@engine/utils/logger';
 import { GameplayEvents } from '@shared/events/types';
 import { EngineInstance } from '@game/engine-factory';
-import { FloorState } from '@shared/components/floor-state';
 import { createDefaultProfile, VaultItem } from '@shared/profile';
 import { VAULT_MAX_SLOTS } from '@shared/vault';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import economy from '@game/entities/templates/economy.json';
-import { handleServerDebugCommand } from '@game/debug/server-debug-handler';
 import { EventOriginContext } from '@engine/utils/event-context';
 import {
   ExtractionIntent,
@@ -23,27 +20,11 @@ import {
   EquipIntent,
   UnequipIntent,
   BurnSoftwareIntent,
-  RunInventory,
   Shell,
   InteractPropIntent,
-  HealIntent,
-  FirmwareSlots,
-  AugmentSlots,
-  EquipmentSlots,
-  Children,
-  AbilityDef,
-  AugmentData,
-  Position,
-  SpriteComponent,
-  PickupIntent,
-  SoftwareDef,
-  Stability,
-  ApplyStatusEffectIntent,
 } from '@shared/components';
-import * as InventoryUtil from '@shared/utils/inventory-util';
-import { Dying } from '@shared/components/dying';
+import { processAction } from '@game/pipeline/action-pipeline';
 import { getRunModeConfig } from '@game/systems/run-mode-config';
-import { handleInventorySwap } from '@game/intent/inventory-intent';
 import { TurnPhase } from '@engine/turn/types';
 import { logTurnExecutionError } from '@/server/utils/error-logger';
 
@@ -83,324 +64,15 @@ export async function POST(req: Request) {
     };
     eventBus.onAny(eventCaptureHandler);
 
-    // 3. Process Action Intent
-    let actionKey: string | null = null;
-
-    switch (action.type) {
-      case 'MOVE':
-        for (const [key, dir] of Object.entries(DIRECTIONS)) {
-          const d = dir as { dx: number; dy: number };
-          if (d.dx === action.dx && d.dy === action.dy) {
-            actionKey = key;
-            break;
-          }
-        }
-        break;
-
-      case 'WAIT':
-        actionKey = GameAction.WAIT;
-        break;
-
-      case 'USE_FIRMWARE':
-        if (session.systems?.firmware) {
-          // Encode coordinates into actionKey so the TurnManager handler can use them
-          actionKey = `USE_FIRMWARE_${action.slotIndex}:${action.targetX}:${action.targetY}`;
-        }
-        break;
-
-      case 'VENT':
-        actionKey = GameAction.VENT;
-        break;
-
-      case 'STAIRCASE_DESCEND': {
-        world.addComponent(session.playerId, DescentIntent, {
-          targetFloor: action.targetFloor,
-          cost: 0,
-        });
-        actionKey = 'STAIRCASE_DESCEND';
-        break;
-      }
-
-      case 'ANCHOR_DESCEND': {
-        const floorState = world.getComponent(session.playerId, FloorState);
-        world.addComponent(session.playerId, DescentIntent, {
-          targetFloor: (floorState?.currentFloor ?? 1) + 1,
-          cost: action.cost,
-        });
-        actionKey = 'ANCHOR_DESCEND';
-        break;
-      }
-
-      case 'ANCHOR_EXTRACT':
-        world.addComponent(session.playerId, ExtractionIntent, { reason: 'manual' });
-        actionKey = 'ANCHOR_EXTRACT';
-        break;
-
-      case 'INVENTORY_SWAP': {
-        handleInventorySwap(world, session.playerId, action.sourceIndex, action.destinationIndex);
-        actionKey = 'INVENTORY_SWAP';
-        break;
-      }
-
-      case 'EQUIP': {
-        world.addComponent(session.playerId, EquipIntent, {
-          slotType: action.slotType,
-          itemEntityId: action.itemEntityId,
-        });
-        actionKey = 'EQUIP';
-        break;
-      }
-
-      case 'UNEQUIP': {
-        world.addComponent(session.playerId, UnequipIntent, {
-          slotType: action.slotType,
-          slotIndex: action.slotIndex,
-        });
-        actionKey = 'UNEQUIP';
-        break;
-      }
-
-      case 'BURN_SOFTWARE': {
-        const inventory = world.getComponent(session.playerId, RunInventory);
-        let swEntityId = action.softwareEntityId;
-        let foundIdx = action.runInventoryIndex ?? 0;
-        let isEquipmentList = false;
-
-        if (swEntityId) {
-          const swIdx = inventory?.software.findIndex((s) => s.entityId === swEntityId) ?? -1;
-          if (swIdx !== -1) {
-            foundIdx = swIdx;
-            isEquipmentList = false;
-          } else {
-            const eqIdx = inventory?.equipment.findIndex((e) => e.entityId === swEntityId) ?? -1;
-            if (eqIdx !== -1) {
-              foundIdx = eqIdx;
-              isEquipmentList = true;
-            }
-          }
-        } else if (inventory?.software[foundIdx]) {
-          swEntityId = inventory.software[foundIdx].entityId;
-          isEquipmentList = false;
-        } else if (inventory?.equipment[foundIdx]) {
-          swEntityId = inventory.equipment[foundIdx].entityId;
-          isEquipmentList = true;
-        }
-
-        if (swEntityId) {
-          world.addComponent(session.playerId, BurnSoftwareIntent, {
-            actorId: session.playerId,
-            softwareEntityId: swEntityId,
-            targetSlot: action.targetSlot,
-            inventoryIndex: foundIdx,
-            isEquipmentList,
-          });
-        }
-        actionKey = 'BURN_SOFTWARE';
-        break;
-      }
-
-      case 'PURGE_SOFTWARE': {
-        const eqSlots = world.getComponent(session.playerId, EquipmentSlots);
-        const targetGearId = eqSlots?.[action.targetSlot];
-        if (targetGearId) {
-          const children = world.getComponent(targetGearId, Children);
-          if (children && children.entityIds.length > 0) {
-            for (const childId of children.entityIds) {
-              world.addComponent(childId, Dying, { killerId: session.playerId, reason: 'purged' });
-            }
-            world.patchComponent(targetGearId, Children, { entityIds: [] });
-            eventBus.emit('MESSAGE_EMITTED', {
-              text: `Purged software mod from ${action.targetSlot}. Socket cleared.`,
-              type: 'info',
-            });
-          } else if (world.hasComponent(targetGearId, SoftwareDef)) {
-            world.addComponent(targetGearId, Dying, { killerId: session.playerId, reason: 'purged' });
-            world.patchComponent(session.playerId, EquipmentSlots, { [action.targetSlot]: null });
-            eventBus.emit('MESSAGE_EMITTED', {
-              text: `Purged software mod from ${action.targetSlot}. Socket cleared.`,
-              type: 'info',
-            });
-          }
-        }
-        actionKey = 'PURGE_SOFTWARE';
-        break;
-      }
-
-      case 'BURN_FIRMWARE': {
-        const consumed = InventoryUtil.removeItemByEntityId(world, session.playerId, action.firmwareEntityId);
-        if (consumed) {
-          let fwSlots = world.getComponent(session.playerId, FirmwareSlots);
-          if (!fwSlots) {
-            world.addComponent(session.playerId, FirmwareSlots, { equipped: [] });
-            fwSlots = world.getComponent(session.playerId, FirmwareSlots)!;
-          }
-          const equipped = [...fwSlots.equipped];
-          const oldAbilityId = equipped[action.slotIndex];
-          if (oldAbilityId) {
-            world.addComponent(oldAbilityId, Dying, { killerId: session.playerId, reason: 'overwritten' });
-          }
-          if (action.slotIndex < equipped.length) {
-            equipped[action.slotIndex] = action.firmwareEntityId;
-          } else {
-            while (equipped.length < action.slotIndex) {
-              equipped.push(0);
-            }
-            equipped.push(action.firmwareEntityId);
-          }
-          world.patchComponent(session.playerId, FirmwareSlots, { equipped });
-          const abilityDef = world.getComponent(action.firmwareEntityId, AbilityDef);
-          eventBus.emit('MESSAGE_EMITTED', {
-            text: `+ FIRMWARE BURNED: ${abilityDef?.name || 'Subroutine'} installed in Slot ${action.slotIndex + 1}`,
-            type: 'info',
-          });
-        }
-        actionKey = 'BURN_FIRMWARE';
-        break;
-      }
-
-      case 'BURN_AUGMENT': {
-        const consumed = InventoryUtil.removeItemByEntityId(world, session.playerId, action.augmentEntityId);
-        if (consumed) {
-          let agSlots = world.getComponent(session.playerId, AugmentSlots);
-          if (!agSlots) {
-            world.addComponent(session.playerId, AugmentSlots, { equipped: [] });
-            agSlots = world.getComponent(session.playerId, AugmentSlots)!;
-          }
-          const equipped = [...agSlots.equipped];
-          const targetSlot = action.slotIndex ?? equipped.length;
-          const oldAgId = equipped[targetSlot];
-          if (oldAgId) {
-            world.addComponent(oldAgId, Dying, { killerId: session.playerId, reason: 'overwritten' });
-            equipped[targetSlot] = action.augmentEntityId;
-          } else {
-            equipped.push(action.augmentEntityId);
-          }
-          world.patchComponent(session.playerId, AugmentSlots, { equipped });
-          const agData = world.getComponent(action.augmentEntityId, AugmentData);
-          eventBus.emit('MESSAGE_EMITTED', {
-            text: `+ AUGMENT BURNED: ${agData?.name || 'Hardware Mod'} integrated into chassis`,
-            type: 'info',
-          });
-        }
-        actionKey = 'BURN_AUGMENT';
-        break;
-      }
-
-      case 'DEBUG_COMMAND':
-        handleServerDebugCommand(
-          world,
-          eventBus,
-          session.playerId,
-          sessionId,
-          action.command,
-          action.args,
-          session.systems,
-        );
-        break;
-
-      case 'ABORT_RUN':
-        world.addComponent(session.playerId, Dying, {
-          killerId: session.playerId,
-          reason: 'OPERATOR_MANUAL_DESYNC',
-        });
-        actionKey = 'ABORT_RUN';
-        break;
-
-      case 'INTERACT_PROP':
-        world.addComponent(session.playerId, InteractPropIntent, {
-          targetPropId: action.targetPropId,
-          forceOverride: action.forceOverride,
-          deadDropSelectionId: action.deadDropSelectionId,
-        });
-        actionKey = 'INTERACT_PROP';
-        break;
-
-      case 'DEAD_DROP_ITEM':
-        world.addComponent(session.playerId, InteractPropIntent, {
-          targetPropId: action.targetPropId,
-          forceOverride: false,
-          deadDropSelectionId: action.itemId,
-        });
-        actionKey = 'DEAD_DROP_ITEM';
-        break;
-
-      case 'USE_CONSUMABLE': {
-        const targetId = action.targetEntityId ?? session.playerId;
-        const consumed = InventoryUtil.consumeConsumable(world, session.playerId, action.inventoryIndex);
-        if (consumed) {
-          // Immediate Effect: HP restore
-          world.addComponent(session.playerId, HealIntent, {
-            targetId,
-            amount: 5,
-          });
-
-          // Immediate Effect: Stability restore
-          const stability = world.getComponent(targetId, Stability);
-          if (stability) {
-            const oldValue = stability.current;
-            const newValue = Math.min(stability.max, stability.current + 10);
-            world.patchComponent(targetId, Stability, { current: newValue });
-            eventBus.emit('STABILITY_CHANGED', {
-              entityId: targetId,
-              oldValue,
-              newValue,
-              reason: 'consumable_use',
-            });
-          }
-
-          // Temporary Effect: Regeneration (3 turns)
-          world.addComponent(session.playerId, ApplyStatusEffectIntent, {
-            targetId,
-            effect: {
-              name: 'regeneration',
-              duration: 3,
-              magnitude: 1,
-              source: 'health-potion',
-            },
-          });
-
-          eventBus.emit('MESSAGE_EMITTED', {
-            text: `+ REPAIR CONSUMED: Restored 5 HP, +10 Stability, Nanite Regeneration active (3 turns)`,
-            type: 'info',
-          });
-        }
-        actionKey = 'USE_CONSUMABLE';
-        break;
-      }
-
-      case 'PICKUP': {
-        world.addComponent(session.playerId, PickupIntent, {
-          actorId: session.playerId,
-          itemId: action.itemId,
-          targetX: action.targetX,
-          targetY: action.targetY,
-        });
-        actionKey = 'PICKUP';
-        break;
-      }
-
-      case 'DROP_ITEM': {
-        const playerPos = world.getComponent(session.playerId, Position);
-        if (playerPos) {
-          const dropX = action.targetX ?? playerPos.x;
-          const dropY = action.targetY ?? playerPos.y;
-          const removed = InventoryUtil.removeItemByEntityId(world, session.playerId, action.itemEntityId);
-          if (removed) {
-            world.addComponent(action.itemEntityId, Position, { x: dropX, y: dropY });
-            world.addComponent(action.itemEntityId, SpriteComponent, {
-              key: 'item',
-            });
-            session.grid.addItem(action.itemEntityId, dropX, dropY);
-            eventBus.emit('MESSAGE_EMITTED', {
-              text: `Dropped ${removed.templateId} onto floor`,
-              type: 'info',
-            });
-          }
-        }
-        actionKey = 'DROP_ITEM';
-        break;
-      }
-    }
+    // 3. Process Action Intent (Attaches Intents and determines actionKey via canonical pipeline)
+    const actionKey = processAction(
+      world,
+      grid,
+      eventBus,
+      session.playerId,
+      action,
+      { sessionId, systems: session.systems },
+    );
 
     // Execute turn within a transactional checkpoint (ARCH-01)
     let turnExecutionFailed = false;
