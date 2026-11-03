@@ -1,4 +1,5 @@
 import { Grid } from '../../engine/grid/grid';
+import { Tile } from '../../engine/grid/types';
 import { GeneratorConfig, Room } from '../../engine/generation/types';
 import { generateBSP } from '../../engine/generation/bsp';
 import { validateConnectivity } from '../../engine/generation/flood-fill';
@@ -215,8 +216,12 @@ export function generateDungeon(config: DungeonConfig): DungeonResult {
     const propAnchors: PropAnchor[] = [];
     const bespokeRoomIndices = new Set<number>();
 
-    // Shuffle qualifying prefabs with attempt RNG
-    const shuffledPrefabs = [...qualifyingPrefabs].sort(() => rng.random() - 0.5);
+    // Door and corridor tile coordinates that must never be severed
+    const doorSet = new Set(doors.map((d) => `${d.x},${d.y}`));
+    const corridorSet = new Set(corridors.flatMap((c) => c.points.map((p) => `${p.x},${p.y}`)));
+
+    // Shuffle qualifying prefabs deterministically
+    const shuffledPrefabs = shufflePrefabs(qualifyingPrefabs, rng);
 
     // Eligible rooms are non-spawn rooms (index >= 1)
     const nonSpawnRooms = rooms.slice(1);
@@ -235,7 +240,16 @@ export function generateDungeon(config: DungeonConfig): DungeonResult {
       if (candidateRoomIndex !== -1) {
         const actualRoomIndex = candidateRoomIndex + 1;
         const targetRoom = rooms[actualRoomIndex];
-        bespokeRoomIndices.add(actualRoomIndex);
+
+        // Snapshot existing room tiles and boundary so we can roll back if connectivity breaks
+        const savedTiles: Array<{ x: number; y: number; tile: Tile }> = [];
+        for (let y = targetRoom.y - 1; y <= targetRoom.y + targetRoom.height; y++) {
+          for (let x = targetRoom.x - 1; x <= targetRoom.x + targetRoom.width; x++) {
+            if (grid.inBounds(x, y)) {
+              savedTiles.push({ x, y, tile: { ...grid.getTile(x, y)! } });
+            }
+          }
+        }
 
         // Center prefab within the room footprint
         const offsetX = Math.floor((targetRoom.width - prefab.width) / 2);
@@ -255,6 +269,10 @@ export function generateDungeon(config: DungeonConfig): DungeonResult {
             if (!grid.inBounds(gx, gy)) continue;
 
             if (char === '#') {
+              // Never overwrite a tile that a corridor or door entered through
+              if (doorSet.has(`${gx},${gy}`) || corridorSet.has(`${gx},${gy}`)) {
+                continue;
+              }
               grid.setTile(gx, gy, { terrain: 'wall', walkable: false, transparent: false });
             } else if (char === '.') {
               grid.setTile(gx, gy, { terrain: 'floor', walkable: true, transparent: true });
@@ -269,6 +287,60 @@ export function generateDungeon(config: DungeonConfig): DungeonResult {
             }
           }
         }
+
+        // Carve portals on the prefab perimeter
+        for (const portal of prefab.portals) {
+          const pgx = startX + portal.x;
+          const pgy = startY + portal.y;
+          if (grid.inBounds(pgx, pgy)) {
+            const tile = grid.getTile(pgx, pgy);
+            if (!tile || !tile.walkable) {
+              grid.setTile(pgx, pgy, { terrain: 'door', walkable: true, transparent: true });
+            }
+          }
+        }
+
+        // Connect room entrance doors to the nearest portal via walkable corridors
+        const roomDoors = doors.filter(
+          (d) =>
+            d.x >= targetRoom.x - 1 &&
+            d.x <= targetRoom.x + targetRoom.width &&
+            d.y >= targetRoom.y - 1 &&
+            d.y <= targetRoom.y + targetRoom.height,
+        );
+
+        for (const rd of roomDoors) {
+          if (prefab.portals.length === 0) break;
+          let nearestPortal = prefab.portals[0];
+          let minDist = Infinity;
+          for (const portal of prefab.portals) {
+            const dist = Math.abs(rd.x - (startX + portal.x)) + Math.abs(rd.y - (startY + portal.y));
+            if (dist < minDist) {
+              minDist = dist;
+              nearestPortal = portal;
+            }
+          }
+          carveWalkablePath(grid, rd.x, rd.y, startX + nearestPortal.x, startY + nearestPortal.y);
+        }
+
+        // Validate attempt-local connectivity: if broken, revert room and drop prefab
+        const testConn = validateConnectivity(
+          config.width,
+          config.height,
+          (x, y) => grid.isWalkable(x, y),
+          playerSpawnRoom.centerX,
+          playerSpawnRoom.centerY,
+        );
+
+        if (!testConn.connected) {
+          for (const { x, y, tile } of savedTiles) {
+            grid.setTile(x, y, tile);
+          }
+          continue;
+        }
+
+        // Stamping succeeded! Register bespoke room and anchors
+        bespokeRoomIndices.add(actualRoomIndex);
 
         // Handle Faraday bounds for vault prefabs
         let faradayBounds: FaradayBounds | undefined;
@@ -342,7 +414,104 @@ export function generateDungeon(config: DungeonConfig): DungeonResult {
     }
   }
 
+  // Last-resort fallback: Generate connected pure BSP dungeon without bespoke rooms
+  const fallbackConfig = {
+    ...config,
+    seed: `${floorSeed}_fallback`,
+    ...(depthBand ? depthBand.bspConfig : {}),
+  };
+  const fallbackRng = createSeededRNG(`${floorSeed}_fallback`);
+  const { rooms: fRooms, corridors: fCorridors, doors: fDoors } = generateBSP(fallbackConfig);
+  if (fRooms.length > 0) {
+    const fGrid = new Grid(config.width, config.height);
+    initializeWalls(fGrid, config.width, config.height);
+    const fSpawnRoom = fRooms[0];
+    for (const room of fRooms) {
+      for (let y = room.y; y < room.y + room.height; y++) {
+        for (let x = room.x; x < room.x + room.width; x++) {
+          fGrid.setTile(x, y, { terrain: 'floor', walkable: true, transparent: true });
+        }
+      }
+    }
+    for (const corridor of fCorridors) {
+      for (const pt of corridor.points) {
+        if (fGrid.inBounds(pt.x, pt.y)) {
+          fGrid.setTile(pt.x, pt.y, { terrain: 'floor', walkable: true, transparent: true });
+        }
+      }
+    }
+    for (const door of fDoors) {
+      if (fGrid.inBounds(door.x, door.y)) {
+        fGrid.setTile(door.x, door.y, { terrain: 'door', walkable: true, transparent: true });
+      }
+    }
+    const fPropAnchors: PropAnchor[] = [];
+    for (let rIdx = 1; rIdx < fRooms.length; rIdx++) {
+      const room = fRooms[rIdx];
+      const dynamicAnchors = tagProceduralRoomAnchors(fGrid, room, fDoors, rIdx);
+      fPropAnchors.push(...dynamicAnchors);
+    }
+    const fConn = validateConnectivity(
+      config.width,
+      config.height,
+      (x, y) => fGrid.isWalkable(x, y),
+      fSpawnRoom.centerX,
+      fSpawnRoom.centerY,
+    );
+    if (fConn.connected) {
+      return {
+        grid: fGrid,
+        rooms: fRooms,
+        doors: fDoors,
+        playerSpawnRoom: fSpawnRoom,
+        sectorCondition: rollSectorCondition(depth, fallbackRng),
+        factionTheme: rollFactionTheme(fallbackRng),
+        bespokeRooms: [],
+        vaultFaradayBounds: [],
+        propAnchors: fPropAnchors,
+      };
+    }
+  }
+
   throw new Error('Failed to generate connected dungeon');
+}
+
+/**
+ * Deterministically shuffles an array using Fisher-Yates with the provided RNG.
+ */
+function shufflePrefabs<T>(array: T[], rng: { random(): number }): T[] {
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(rng.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+/**
+ * Carves an L-shaped walkable floor corridor between two points.
+ */
+function carveWalkablePath(grid: Grid, x1: number, y1: number, x2: number, y2: number): void {
+  const xStart = Math.min(x1, x2);
+  const xEnd = Math.max(x1, x2);
+  for (let x = xStart; x <= xEnd; x++) {
+    if (grid.inBounds(x, y1)) {
+      const tile = grid.getTile(x, y1);
+      if (!tile || !tile.walkable) {
+        grid.setTile(x, y1, { terrain: 'floor', walkable: true, transparent: true });
+      }
+    }
+  }
+  const yStart = Math.min(y1, y2);
+  const yEnd = Math.max(y1, y2);
+  for (let y = yStart; y <= yEnd; y++) {
+    if (grid.inBounds(x2, y)) {
+      const tile = grid.getTile(x2, y);
+      if (!tile || !tile.walkable) {
+        grid.setTile(x2, y, { terrain: 'floor', walkable: true, transparent: true });
+      }
+    }
+  }
 }
 
 /**

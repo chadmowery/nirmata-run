@@ -76,6 +76,31 @@ describe('generateDungeon', () => {
 
       expect(connectivity.connected).toBe(true);
     });
+
+    it('guarantees connectivity across all floor depths 1-15 for 50 seeds per depth (750 floors)', () => {
+      const SEEDS_PER_DEPTH = 50;
+      for (let depth = 1; depth <= 15; depth++) {
+        for (let s = 0; s < SEEDS_PER_DEPTH; s++) {
+          const seed = `invariant_sweep_d${depth}_s${s}`;
+          const result = generateDungeon({
+            width: 80,
+            height: 45,
+            seed,
+            depth,
+          });
+
+          expect(result.rooms.length).toBeGreaterThan(0);
+          const connectivity = validateConnectivity(
+            result.grid.width,
+            result.grid.height,
+            (x, y) => result.grid.isWalkable(x, y),
+            result.playerSpawnRoom.centerX,
+            result.playerSpawnRoom.centerY,
+          );
+          expect(connectivity.connected).toBe(true);
+        }
+      }
+    });
   });
 
   describe('reproducibility', () => {

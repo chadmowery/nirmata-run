@@ -7,7 +7,7 @@
   "width": 10,
   "height": 10,
   "layout": [
-    "##########",
+    "####+#####",
     "#...+....#",
     "#..###...#",
     "#........#",
@@ -16,11 +16,11 @@
     "#..###...#",
     "#........#",
     "#...+....#",
-    "##########"
+    "####+#####"
   ],
   "portals": [
-    { "x": 4, "y": 1, "direction": "north" },
-    { "x": 4, "y": 8, "direction": "south" }
+    { "x": 4, "y": 0, "direction": "north" },
+    { "x": 4, "y": 9, "direction": "south" }
   ],
   "propSpawns": [
     { "x": 1, "y": 3, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop-biocabinet" },
