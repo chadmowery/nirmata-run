@@ -21,6 +21,7 @@ import {
   AugmentState,
   AbilityDef,
   FirmwareSlots,
+  Dying,
 } from '@shared/components';
 import { AttackIntent, FirmwareIntent } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
@@ -303,6 +304,51 @@ describe('Milestone 4: Directional Cover, Cascade Hazards & Augment Counterplay'
 
       // Vat 2 was hit by cascade (15 damage > 10 HP) and also destroyed
       expect(world.getComponent(vat2, Health)?.current).toBe(0);
+    });
+
+    it('routes environmental damage through DamageIntent, sets isAlive=false, and attaches Dying component canonically', () => {
+      const combat = createCombatSystem(world, grid, eventBus);
+      combat.init();
+
+      const attacker = world.createEntity();
+      world.addComponent(attacker, Position, { x: 5, y: 5 });
+      world.addComponent(attacker, Attack, { power: 20 });
+      world.addComponent(attacker, Actor, { isPlayer: true });
+
+      // Destructible vat with 10 HP
+      const vat = world.createEntity();
+      world.addComponent(vat, Position, { x: 5, y: 6 });
+      world.addComponent(vat, Health, { current: 10, max: 10, isAlive: true });
+      world.addComponent(vat, InteractiveSurface, {
+        surfaceId: 'cryo_vat',
+        hazardOnDestroy: 'cryo_spill',
+      });
+
+      // Enemy in cryo radius with 4 HP (lethal to cryo spill)
+      const enemy = world.createEntity();
+      world.addComponent(enemy, Position, { x: 6, y: 6 });
+      world.addComponent(enemy, Health, { current: 4, max: 10, isAlive: true });
+      world.addComponent(enemy, Hostile, {});
+
+      world.addComponent(attacker, AttackIntent, { targetId: vat });
+
+      world.executeSystems(Phase.REACTION);
+      eventBus.flush();
+
+      // Vat should be condemned with Dying
+      const vatDying = world.getComponent(vat, Dying);
+      expect(vatDying).toBeDefined();
+      expect(vatDying?.reason).toBe('environmental_destruction');
+      expect(vatDying?.killerId).toBe(attacker);
+      expect(world.getComponent(vat, Health)?.isAlive).toBe(false);
+
+      // Enemy hit by cryo spill DamageIntent, killed and condemned through CombatSystem
+      const enemyDying = world.getComponent(enemy, Dying);
+      expect(enemyDying).toBeDefined();
+      expect(enemyDying?.reason).toBe('damage');
+      expect(enemyDying?.killerId).toBe(attacker);
+      expect(world.getComponent(enemy, Health)?.isAlive).toBe(false);
+      expect(world.getComponent(enemy, Health)?.current).toBe(0);
     });
   });
 

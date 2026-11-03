@@ -33,8 +33,10 @@ export const VentIntent = defineComponent('ventIntent', z.object({}));
 export const DamageIntent = defineComponent(
   'damageIntent',
   z.object({
+    attackerId: z.number().optional(),
     targetId: z.number(),
     amount: z.number(), // Raw damage before defense
+    damageType: z.enum(['physical', 'neural', 'environmental']).optional(),
   }),
 );
 

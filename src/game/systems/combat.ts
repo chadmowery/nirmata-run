@@ -213,7 +213,8 @@ export function checkDirectionalCover<T extends GameplayEvents>(
 }
 
 /**
- * Handles destruction of props with InteractiveSurface, triggering hazard spills and cascade reactions.
+ * Handles destruction of props with InteractiveSurface, triggering hazard spills and cascade reactions
+ * by attaching DamageIntent components to affected entities.
  */
 export function handlePropDestruction<T extends GameplayEvents>(
   world: World<T>,
@@ -228,20 +229,6 @@ export function handlePropDestruction<T extends GameplayEvents>(
 
   const surface = world.getComponent(destroyedId, InteractiveSurface);
   const pos = world.getComponent(destroyedId, Position);
-
-  // Mark dying if not already marked
-  if (!world.hasComponent(destroyedId, Dying)) {
-    world.addComponent(destroyedId, Dying, {
-      killerId,
-      reason: 'environmental_destruction',
-    });
-    eventBus.emit('ENTITY_DIED', {
-      entityId: destroyedId,
-      killerId,
-      isPlayer: false,
-    });
-  }
-
   if (!surface || !pos) return;
 
   // 1. Cryo-Vat hazard footprint (3x3)
@@ -253,30 +240,17 @@ export function handlePropDestruction<T extends GameplayEvents>(
 
     const allPositions = world.query(Position);
     for (const eid of allPositions) {
-      if (eid === destroyedId || world.hasComponent(eid, Dying)) continue;
+      if (eid === destroyedId || visited.has(eid) || world.hasComponent(eid, Dying)) continue;
       const ePos = world.getComponent(eid, Position)!;
       if (Math.abs(ePos.x - pos.x) <= 1 && Math.abs(ePos.y - pos.y) <= 1) {
         const h = world.getComponent(eid, Health);
-        if (h) {
-          const newH = Math.max(0, h.current - 4);
-          world.patchComponent(eid, Health, { current: newH });
-          eventBus.emit('DAMAGE_DEALT', {
+        if (h && h.isAlive !== false && h.current > 0) {
+          world.addComponent(eid, DamageIntent, {
             attackerId: killerId,
-            defenderId: eid,
+            targetId: eid,
             amount: 4,
+            damageType: 'environmental',
           });
-          if (newH <= 0) {
-            if (world.hasComponent(eid, InteractiveSurface)) {
-              handlePropDestruction(world, grid, eventBus, eid, killerId, visited);
-            } else {
-              world.addComponent(eid, Dying, { killerId, reason: 'environmental_destruction' });
-              eventBus.emit('ENTITY_DIED', {
-                entityId: eid,
-                killerId,
-                isPlayer: !!world.getComponent(eid, Actor)?.isPlayer,
-              });
-            }
-          }
         }
         applyStatusEffect(world, eventBus, eid, {
           name: 'MOVEMENT_SLOW',
@@ -294,31 +268,18 @@ export function handlePropDestruction<T extends GameplayEvents>(
 
     const allPositions = world.query(Position);
     for (const eid of allPositions) {
-      if (eid === destroyedId || world.hasComponent(eid, Dying)) continue;
+      if (eid === destroyedId || visited.has(eid) || world.hasComponent(eid, Dying)) continue;
       const ePos = world.getComponent(eid, Position)!;
       const dist = Math.abs(ePos.x - pos.x) + Math.abs(ePos.y - pos.y);
       if (dist <= 2) {
         const h = world.getComponent(eid, Health);
-        if (h) {
-          const newH = Math.max(0, h.current - 10);
-          world.patchComponent(eid, Health, { current: newH });
-          eventBus.emit('DAMAGE_DEALT', {
+        if (h && h.isAlive !== false && h.current > 0) {
+          world.addComponent(eid, DamageIntent, {
             attackerId: killerId,
-            defenderId: eid,
+            targetId: eid,
             amount: 10,
+            damageType: 'environmental',
           });
-          if (newH <= 0) {
-            if (world.hasComponent(eid, InteractiveSurface)) {
-              handlePropDestruction(world, grid, eventBus, eid, killerId, visited);
-            } else {
-              world.addComponent(eid, Dying, { killerId, reason: 'environmental_destruction' });
-              eventBus.emit('ENTITY_DIED', {
-                entityId: eid,
-                killerId,
-                isPlayer: !!world.getComponent(eid, Actor)?.isPlayer,
-              });
-            }
-          }
         }
         const actor = world.getComponent(eid, Actor);
         const hostile = world.getComponent(eid, Hostile);
@@ -334,11 +295,15 @@ export function handlePropDestruction<T extends GameplayEvents>(
     }
   }
 
-  // 2. Cascade Chain Reaction Rule (15 structural damage within Manhattan distance <= 2)
+  // 2. Cascade Chain Reaction Rule (15 structural damage within Manhattan distance <= cascadeRadius)
   if (surface.hazardOnDestroy && surface.hazardOnDestroy !== 'none') {
     const cascadeCandidates = world.query(Position);
     for (const targetId of cascadeCandidates) {
-      if (targetId === destroyedId || visited.has(targetId) || world.hasComponent(targetId, Dying)) {
+      if (
+        targetId === destroyedId ||
+        visited.has(targetId) ||
+        world.hasComponent(targetId, Dying)
+      ) {
         continue;
       }
       const tPos = world.getComponent(targetId, Position)!;
@@ -349,39 +314,25 @@ export function handlePropDestruction<T extends GameplayEvents>(
 
         if (targetSurface && targetSurface.destructible !== false) {
           const h = world.getComponent(targetId, Health);
-          if (h) {
-            const newH = Math.max(0, h.current - 15);
-            world.patchComponent(targetId, Health, { current: newH });
-            eventBus.emit('DAMAGE_DEALT', {
+          if (h && h.isAlive !== false && h.current > 0) {
+            world.addComponent(targetId, DamageIntent, {
               attackerId: killerId,
-              defenderId: targetId,
+              targetId,
               amount: 15,
+              damageType: 'environmental',
             });
-            if (newH <= 0) {
-              handlePropDestruction(world, grid, eventBus, targetId, killerId, visited);
-            }
           }
         } else if (targetCorrupted && !targetCorrupted.isDisarmed) {
           const h = world.getComponent(targetId, Health);
-          if (h) {
-            const newH = Math.max(0, h.current - 15);
-            world.patchComponent(targetId, Health, { current: newH });
-            if (newH <= 0) {
-              world.addComponent(targetId, Dying, { killerId, reason: 'environmental_destruction' });
-              eventBus.emit('ENTITY_DIED', {
-                entityId: targetId,
-                killerId,
-                isPlayer: false,
-              });
-            }
-          } else {
-            world.addComponent(targetId, Dying, { killerId, reason: 'environmental_destruction' });
-            eventBus.emit('ENTITY_DIED', {
-              entityId: targetId,
-              killerId,
-              isPlayer: false,
-            });
+          if (!h) {
+            world.addComponent(targetId, Health, { current: 15, max: 15, isAlive: true });
           }
+          world.addComponent(targetId, DamageIntent, {
+            attackerId: killerId,
+            targetId,
+            amount: 15,
+            damageType: 'environmental',
+          });
         }
       }
     }
@@ -402,27 +353,40 @@ export function createCombatSystem<T extends GameplayEvents>(
   void entityFactory;
   void componentRegistry;
   void options;
-  const handleDeath = (entityId: EntityId, killerId: EntityId) => {
-    if (world.hasComponent(entityId, InteractiveSurface)) {
-      handlePropDestruction(world, grid, eventBus, entityId, killerId);
-      return;
-    }
+  const handleDeath = (
+    entityId: EntityId,
+    killerId: EntityId,
+    visitedProps: Set<EntityId> = new Set(),
+  ) => {
     const actor = world.getComponent(entityId, Actor);
     const isPlayer = !!actor?.isPlayer;
 
     // 1. Mark entity as dying
     // Per the Death Protocol, RewardDropSystem and GravediggerSystem will handle the rest in Phase.CLEANUP
-    logger.info(`Entity ${entityId} CONDEMNED by killer ${killerId}`, 'COMBAT');
-    world.addComponent(entityId, Dying, { killerId });
+    const surface = world.getComponent(entityId, InteractiveSurface);
+    const reason = surface ? 'environmental_destruction' : 'damage';
+    logger.info(`Entity ${entityId} CONDEMNED by killer ${killerId} (reason: ${reason})`, 'COMBAT');
+    world.addComponent(entityId, Dying, { killerId, reason });
+
+    const health = world.getComponent(entityId, Health);
+    if (health) {
+      world.patchComponent(entityId, Health, { isAlive: false, current: 0 });
+    }
 
     eventBus.emit('ENTITY_DIED', {
       entityId,
       killerId,
       isPlayer,
     });
+
+    if (surface) {
+      handlePropDestruction(world, grid, eventBus, entityId, killerId, visitedProps);
+    }
   };
 
   const update = (w: World<T>) => {
+    const visitedProps = new Set<EntityId>();
+
     // 1. Process AttackIntents (Melee/Ranged weapon attacks)
     const attackEntities = w.query(AttackIntent);
     for (const attackerId of attackEntities) {
@@ -432,7 +396,7 @@ export function createCombatSystem<T extends GameplayEvents>(
       const attackerAttack = w.getComponent(attackerId, Attack);
       const defenderHealth = w.getComponent(defenderId, Health);
 
-      if (!attackerAttack || !defenderHealth) {
+      if (!attackerAttack || !defenderHealth || w.hasComponent(defenderId, Dying)) {
         w.removeComponent(attackerId, AttackIntent);
         continue;
       }
@@ -513,65 +477,76 @@ export function createCombatSystem<T extends GameplayEvents>(
       }
 
       if (newHealth <= 0) {
-        handleDeath(defenderId, attackerId);
+        handleDeath(defenderId, attackerId, visitedProps);
       }
 
       // Cleanup intent
       w.removeComponent(attackerId, AttackIntent);
     }
 
-    // 2. Process DamageIntents (Fixed damage from Firmware/Abilities)
-    const damageEntities = w.query(DamageIntent);
-    for (const requesterId of damageEntities) {
-      const intent = w.getComponent(requesterId, DamageIntent)!;
-      const targetId = intent.targetId;
-      const targetHealth = w.getComponent(targetId, Health);
+    // 2. Process DamageIntents in a bounded fixed-point loop (handles abilities and cascades)
+    const MAX_CASCADE_DEPTH = 10;
+    let iteration = 0;
 
-      if (!targetHealth) {
-        w.removeComponent(requesterId, DamageIntent);
-        continue;
-      }
+    while (iteration < MAX_CASCADE_DEPTH) {
+      iteration++;
+      const damageEntities = w.query(DamageIntent);
+      if (damageEntities.length === 0) break;
 
-      const targetHeat = w.getComponent(targetId, Heat);
-      const effectiveArmor = getEffectiveArmor(w, targetId, targetHeat?.isVenting ?? false);
+      for (const requesterId of damageEntities) {
+        const intent = w.getComponent(requesterId, DamageIntent)!;
+        const targetId = intent.targetId ?? requesterId;
+        const attackerId = intent.attackerId ?? requesterId;
+        const targetHealth = w.getComponent(targetId, Health);
 
-      // Abilities use raw amount minus armor
-      let finalDamage = Math.max(1, intent.amount - effectiveArmor);
+        if (!targetHealth || w.hasComponent(targetId, Dying)) {
+          w.removeComponent(requesterId, DamageIntent);
+          continue;
+        }
 
-      // Check Directional Cover
-      const cover = checkDirectionalCover(w, requesterId, targetId);
-      if (cover.hasCover) {
-        finalDamage = Math.max(1, Math.floor(finalDamage * (1 - cover.reduction)));
-        const pct = Math.round(cover.reduction * 100);
-        const defActor = w.getComponent(targetId, Actor);
-        const defName = defActor?.isPlayer ? 'You' : (defActor ? 'The enemy' : 'The obstacle');
-        eventBus.emit('MESSAGE_EMITTED', {
-          text: `[COVER]: ${defName} absorbed damage behind cover (${pct}% reduction).`,
-          type: 'combat',
+        const targetHeat = w.getComponent(targetId, Heat);
+        const effectiveArmor = getEffectiveArmor(w, targetId, targetHeat?.isVenting ?? false);
+
+        // Abilities and environmental use raw amount minus armor
+        let finalDamage = Math.max(1, intent.amount - effectiveArmor);
+
+        // Check Directional Cover (only if not environmental)
+        if (intent.damageType !== 'environmental') {
+          const cover = checkDirectionalCover(w, attackerId, targetId);
+          if (cover.hasCover) {
+            finalDamage = Math.max(1, Math.floor(finalDamage * (1 - cover.reduction)));
+            const pct = Math.round(cover.reduction * 100);
+            const defActor = w.getComponent(targetId, Actor);
+            const defName = defActor?.isPlayer ? 'You' : (defActor ? 'The enemy' : 'The obstacle');
+            eventBus.emit('MESSAGE_EMITTED', {
+              text: `[COVER]: ${defName} absorbed damage behind cover (${pct}% reduction).`,
+              type: 'combat',
+            });
+          }
+        }
+
+        const oldHealth = targetHealth.current;
+        const newHealth = Math.max(0, oldHealth - finalDamage);
+
+        logger.info(
+          `Damage Intent Resolved: ${attackerId} -> ${targetId} | DMG: ${finalDamage} (Health: ${oldHealth} -> ${newHealth})`,
+          'COMBAT',
+        );
+
+        w.patchComponent(targetId, Health, { current: newHealth });
+
+        eventBus.emit('DAMAGE_DEALT', {
+          attackerId,
+          defenderId: targetId,
+          amount: finalDamage,
         });
+
+        if (newHealth <= 0) {
+          handleDeath(targetId, attackerId, visitedProps);
+        }
+
+        w.removeComponent(requesterId, DamageIntent);
       }
-
-      const oldHealth = targetHealth.current;
-      const newHealth = Math.max(0, oldHealth - finalDamage);
-
-      logger.info(
-        `Damage Intent Resolved: ${requesterId} -> ${targetId} | DMG: ${finalDamage} (Health: ${oldHealth} -> ${newHealth})`,
-        'COMBAT',
-      );
-
-      w.patchComponent(targetId, Health, { current: newHealth });
-
-      eventBus.emit('DAMAGE_DEALT', {
-        attackerId: requesterId,
-        defenderId: targetId,
-        amount: finalDamage,
-      });
-
-      if (newHealth <= 0) {
-        handleDeath(targetId, requesterId);
-      }
-
-      w.removeComponent(requesterId, DamageIntent);
     }
 
     // 3. Process HealIntents
