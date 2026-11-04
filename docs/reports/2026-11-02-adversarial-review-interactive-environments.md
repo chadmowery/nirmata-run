@@ -262,7 +262,10 @@ The handoff claims risky bumps *"halt player movement with **0 turn cost**, flas
 - Verified multiplier: Verified `scoring.ts` multiplies `vaultsBreached * 150` in accordance with `economy.json`.
 - Verified in [`tests/game/m2-vaults-scoring.test.ts`](../../tests/game/m2-vaults-scoring.test.ts).
 
-**M3. Dead-drop uplink charges Flux even when no item is removed.** [`prop-interaction.ts` L370-L425](../../src/game/systems/prop-interaction.ts): `removeCurrency` runs before the item lookup. If the selection ID matches nothing, Flux is spent, `DEAD_DROP_TRANSMITTED` fires and "Item transmitted" is logged, but nothing is vaulted.
+**M3. Dead-drop uplink charges Flux even when no item is removed — ✅ RESOLVED.**
+- Pre-charge item validation: In [`prop-interaction.ts`](../../src/game/systems/prop-interaction.ts), dead-drop uplink locates and removes the target item from `RunInventory` (software/equipment) or blueprint stack from `RunCurrency` before deducting Flux.
+- No wasted currency or phantom transmissions: If the selection ID is invalid or not in inventory, emits an error message, aborts transmission, leaves Flux untouched, and leaves the prop unsearched.
+- Verified in [`tests/game/m3-dead-drop.test.ts`](../../tests/game/m3-dead-drop.test.ts).
 
 **M4. `Math.random()` in server game logic.** [`prop-interaction.ts` L505](../../src/game/systems/prop-interaction.ts) picks the lore line with `Math.random()`. This is cosmetic, but it breaks replay and snapshot determinism and conflicts with the "100% deterministic" posture of seeded generation. Use the session RNG.
 

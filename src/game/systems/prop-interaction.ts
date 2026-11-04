@@ -10,7 +10,7 @@ import { FloorState } from '@shared/components/floor-state';
 import { BlocksMovement } from '@shared/components/blocks-movement';
 import { Children } from '@shared/components/children';
 import { AlertIntent } from '@shared/components/intents';
-import { RunInventory } from '@shared/components/run-inventory';
+import { RunInventory, RunCurrency } from '@shared/components/run-inventory';
 import {
   Prop,
   SecurityLock,
@@ -339,51 +339,87 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
               type: 'error',
             });
           } else {
-            removeCurrency(w, actorId, 'flux', fluxCost);
-            // Remove item from RunInventory
+            // Locate item or blueprint to remove before charging Flux
             const runInv = w.getComponent(actorId, RunInventory);
+            let removedItem = false;
+            let transmittedItemEntityId: number | undefined;
+            let transmittedBlueprintId: string | undefined;
+
             if (runInv) {
               const swIdx = runInv.software.findIndex(
                 (s) =>
                   s.entityId === intent.deadDropSelectionId ||
-                  (s as unknown as Record<string, unknown>).templateId ===
-                    intent.deadDropSelectionId,
+                  s.templateId === intent.deadDropSelectionId,
               );
               if (swIdx !== -1) {
+                const item = runInv.software[swIdx];
+                transmittedItemEntityId = item.entityId;
                 const updatedSw = [...runInv.software];
                 updatedSw.splice(swIdx, 1);
                 w.patchComponent(actorId, RunInventory, { software: updatedSw });
+                removedItem = true;
               } else {
                 const eqIdx = runInv.equipment.findIndex(
                   (e) =>
                     e.entityId === intent.deadDropSelectionId ||
-                    (e as unknown as Record<string, unknown>).templateId ===
-                      intent.deadDropSelectionId,
+                    e.templateId === intent.deadDropSelectionId,
                 );
                 if (eqIdx !== -1) {
+                  const item = runInv.equipment[eqIdx];
+                  transmittedItemEntityId = item.entityId;
                   const updatedEq = [...runInv.equipment];
                   updatedEq.splice(eqIdx, 1);
                   w.patchComponent(actorId, RunInventory, { equipment: updatedEq });
+                  removedItem = true;
                 }
               }
             }
 
-            bus.emit('DEAD_DROP_TRANSMITTED', {
-              entityId: actorId,
-              itemEntityId:
-                typeof intent.deadDropSelectionId === 'number'
-                  ? intent.deadDropSelectionId
-                  : undefined,
-              blueprintId:
-                typeof intent.deadDropSelectionId === 'string'
-                  ? intent.deadDropSelectionId
-                  : undefined,
-            });
-            bus.emit('MESSAGE_EMITTED', {
-              text: `[ORBITAL UPLINK COMPLETE]: Item transmitted to persistent Profile Vault.`,
-              type: 'info',
-            });
-            w.patchComponent(targetId, Prop, { isSearched: true });
+            // Also check if transmitting a blueprint from RunCurrency
+            if (!removedItem && typeof intent.deadDropSelectionId === 'string') {
+              const runCurrency = w.getComponent(actorId, RunCurrency);
+              if (runCurrency) {
+                const stackIdx = runCurrency.stacks.findIndex(
+                  (s) =>
+                    s.currencyType === 'blueprint' &&
+                    s.blueprintId === intent.deadDropSelectionId &&
+                    s.amount > 0,
+                );
+                if (stackIdx !== -1) {
+                  const updatedStacks = [...runCurrency.stacks];
+                  const stack = { ...updatedStacks[stackIdx] };
+                  stack.amount -= 1;
+                  if (stack.amount <= 0) {
+                    updatedStacks.splice(stackIdx, 1);
+                  } else {
+                    updatedStacks[stackIdx] = stack;
+                  }
+                  w.patchComponent(actorId, RunCurrency, { stacks: updatedStacks });
+                  transmittedBlueprintId = intent.deadDropSelectionId;
+                  removedItem = true;
+                }
+              }
+            }
+
+            if (!removedItem) {
+              bus.emit('MESSAGE_EMITTED', {
+                text: `[UPLINK ERROR]: Target item not found in inventory. Transmission aborted.`,
+                type: 'error',
+              });
+            } else {
+              removeCurrency(w, actorId, 'flux', fluxCost);
+
+              bus.emit('DEAD_DROP_TRANSMITTED', {
+                entityId: actorId,
+                itemEntityId: transmittedItemEntityId,
+                blueprintId: transmittedBlueprintId,
+              });
+              bus.emit('MESSAGE_EMITTED', {
+                text: `[ORBITAL UPLINK COMPLETE]: Item transmitted to persistent Profile Vault.`,
+                type: 'info',
+              });
+              w.patchComponent(targetId, Prop, { isSearched: true });
+            }
           }
         } else {
           bus.emit('MESSAGE_EMITTED', {
