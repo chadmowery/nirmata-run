@@ -29,7 +29,7 @@ export function applyPropOutline(sprite: Sprite, state: PropVisualState): void {
         new OutlineFilter({
           thickness: 1,
           color: 0x00f0ff,
-        }) as unknown as Filter,
+        }) as Filter,
       );
       break;
 
@@ -38,7 +38,7 @@ export function applyPropOutline(sprite: Sprite, state: PropVisualState): void {
         new OutlineFilter({
           thickness: 1,
           color: 0xff9500,
-        }) as unknown as Filter,
+        }) as Filter,
       );
       break;
 
@@ -47,14 +47,14 @@ export function applyPropOutline(sprite: Sprite, state: PropVisualState): void {
         new OutlineFilter({
           thickness: 1,
           color: 0xff0055,
-        }) as unknown as Filter,
+        }) as Filter,
       );
       filters.push(
         new GlitchFilter({
           slices: 2,
           offset: 3,
           direction: 0,
-        }) as unknown as Filter,
+        }) as Filter,
       );
       break;
   }

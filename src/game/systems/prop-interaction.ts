@@ -97,7 +97,7 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
 ) {
   const update = (w: World<T>) => {
     const actorsWithIntent = w.query(InteractPropIntent);
-    const bus = eventBus as unknown as EventBus<GameplayEvents>;
+    const bus = eventBus;
 
     for (const actorId of actorsWithIntent) {
       const intent = w.getComponent(actorId, InteractPropIntent);

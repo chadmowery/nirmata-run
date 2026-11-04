@@ -231,6 +231,12 @@ export interface GameplayEvents extends EngineEvents {
 
   /** Queued when an input buffer should be cleared on client following a bump safeguard halt. */
   INPUT_BUFFER_CLEARED: Record<string, never>;
+
+  /** Emitted on the client when authoritative state reconciliation finishes. */
+  STATE_RECONCILED: {
+    turnNumber: number;
+    playerId: number;
+  };
 }
 
 export interface RunEndedStats {

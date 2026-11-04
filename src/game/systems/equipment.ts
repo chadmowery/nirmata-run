@@ -95,7 +95,7 @@ export function createEquipmentSystem<T extends GameplayEvents>(
             }
           }
 
-          (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
+          eventBus.emit('MESSAGE_EMITTED', {
             text: `Inventory full — cannot equip ${intent.slotType}`,
             type: 'error',
           });
@@ -108,11 +108,11 @@ export function createEquipmentSystem<T extends GameplayEvents>(
       };
       w.patchComponent(entityId, EquipmentSlots, patch);
 
-      (eventBus as unknown as EventBus<GameplayEvents>).emit('EQUIPMENT_CHANGED', {
+      eventBus.emit('EQUIPMENT_CHANGED', {
         entityId,
         slotType: intent.slotType,
       });
-      (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
+      eventBus.emit('MESSAGE_EMITTED', {
         text: `${intent.slotType} equipped`,
         type: 'info',
       });
@@ -125,7 +125,7 @@ export function createEquipmentSystem<T extends GameplayEvents>(
 
     const portConfig = w.getComponent(entityId, PortConfig);
     if (!portConfig) {
-      (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
+      eventBus.emit('MESSAGE_EMITTED', {
         text: 'Entity has no PortConfig',
         type: 'error',
       });
@@ -154,7 +154,7 @@ export function createEquipmentSystem<T extends GameplayEvents>(
 
     const slots = w.getComponent(entityId, slotComponent);
     if (!slots) {
-      (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
+      eventBus.emit('MESSAGE_EMITTED', {
         text: `Entity has no ${intent.slotType} slots`,
         type: 'error',
       });
@@ -162,7 +162,7 @@ export function createEquipmentSystem<T extends GameplayEvents>(
     }
 
     if (slots.equipped.length >= maxSlots) {
-      (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
+      eventBus.emit('MESSAGE_EMITTED', {
         text: `No available ${intent.slotType} ports`,
         type: 'error',
       });
@@ -173,11 +173,11 @@ export function createEquipmentSystem<T extends GameplayEvents>(
     const newEquipped = [...slots.equipped, intent.itemEntityId];
     w.patchComponent(entityId, slotComponent, { equipped: newEquipped });
 
-    (eventBus as unknown as EventBus<GameplayEvents>).emit('EQUIPMENT_CHANGED', {
+    eventBus.emit('EQUIPMENT_CHANGED', {
       entityId,
       slotType: intent.slotType,
     });
-    (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
+    eventBus.emit('MESSAGE_EMITTED', {
       text: `Equipped item to ${intent.slotType} slot`,
       type: 'info',
     });
@@ -211,7 +211,7 @@ export function createEquipmentSystem<T extends GameplayEvents>(
         });
 
         if (!added) {
-          (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
+          eventBus.emit('MESSAGE_EMITTED', {
             text: `Inventory full — cannot unequip ${intent.slotType}`,
             type: 'error',
           });
@@ -224,11 +224,11 @@ export function createEquipmentSystem<T extends GameplayEvents>(
       };
       w.patchComponent(entityId, EquipmentSlots, patch);
 
-      (eventBus as unknown as EventBus<GameplayEvents>).emit('EQUIPMENT_CHANGED', {
+      eventBus.emit('EQUIPMENT_CHANGED', {
         entityId,
         slotType: intent.slotType,
       });
-      (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
+      eventBus.emit('MESSAGE_EMITTED', {
         text: `${intent.slotType} unequipped`,
         type: 'info',
       });
@@ -253,7 +253,7 @@ export function createEquipmentSystem<T extends GameplayEvents>(
 
     const slots = w.getComponent(entityId, slotComponent);
     if (!slots || intent.slotIndex < 0 || intent.slotIndex >= slots.equipped.length) {
-      (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
+      eventBus.emit('MESSAGE_EMITTED', {
         text: `Invalid ${intent.slotType} slot index`,
         type: 'error',
       });
@@ -265,11 +265,11 @@ export function createEquipmentSystem<T extends GameplayEvents>(
     newEquipped.splice(intent.slotIndex, 1);
     w.patchComponent(entityId, slotComponent, { equipped: newEquipped });
 
-    (eventBus as unknown as EventBus<GameplayEvents>).emit('EQUIPMENT_CHANGED', {
+    eventBus.emit('EQUIPMENT_CHANGED', {
       entityId,
       slotType: intent.slotType,
     });
-    (eventBus as unknown as EventBus<GameplayEvents>).emit('MESSAGE_EMITTED', {
+    eventBus.emit('MESSAGE_EMITTED', {
       text: `Unequipped item from ${intent.slotType} slot`,
       type: 'info',
     });

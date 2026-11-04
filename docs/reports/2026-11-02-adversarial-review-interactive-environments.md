@@ -318,7 +318,11 @@ The handoff claims risky bumps *"halt player movement with **0 turn cost**, flas
 - PII / session sanitization: Truncates and sanitizes session IDs in persistent file logs.
 - Verified in [`tests/server/m11-error-logger.test.ts`](../../tests/server/m11-error-logger.test.ts).
 
-**M12. Type-safety erosion.** In `src/` this branch adds 37 `as unknown as` casts, 7 `any`, and 3 `eslint-disable` lines. Many are `as keyof T` / `as T[keyof T]` event-emit casts that hide missing event definitions. They are the reason lint stays green despite C5 and C6.
+**M12. Type-safety erosion — ✅ RESOLVED.**
+- Added missing event types: Added `STATE_RECONCILED` directly to authoritative `GameplayEvents` in [`src/shared/events/types.ts`](../../src/shared/events/types.ts), inheriting cleanly into client `GameEvents` and enabling zero-cast, type-safe emissions in [`reconciliation.ts`](../../src/shared/reconciliation.ts).
+- Burned down unsafe casts across gameplay systems: Eliminated `as unknown as T['...']` and `(eventBus as unknown as EventBus<GameplayEvents>)` across [`stability.ts`](../../src/game/systems/stability.ts), [`firmware.ts`](../../src/game/systems/firmware.ts), [`item-pickup.ts`](../../src/game/systems/item-pickup.ts), [`run-ender.ts`](../../src/game/systems/run-ender.ts), [`equipment.ts`](../../src/game/systems/equipment.ts), and [`prop-interaction.ts`](../../src/game/systems/prop-interaction.ts).
+- Cleaned rendering & inspector types: Replaced `World<any>` and `EventBus<any>` in [`tile-inspector.ts`](../../src/rendering/tile-inspector.ts) with `World<GameEvents>` and `EventBus<GameEvents>`, pruned pixi filter double casts in [`glitch-effects.ts`](../../src/rendering/filters/glitch-effects.ts), and removed `eslint-disable` workarounds in `sync-bridge.ts`, `tile-inspector.ts`, and `reconciliation.ts`.
+- Verified in [`tests/game/m12-type-safety.test.ts`](../../tests/game/m12-type-safety.test.ts).
 
 **M13. Unreviewed behaviour changes bundled in.** Default shell ID changed from `player-shell-default` to `vanguard-v1` (client `setup.ts` and `session/route.ts`). The BFS/pathing changes in `auto-pathfind.ts` treat every `Hostile` as a wall (can fail to find paths in corridors; `path.length === 0` now cancels). `GameTurnAdapter` gained `Dying` checks and `entityExists` guards. None of it is in the handoff.
 

@@ -222,7 +222,7 @@ export function createFirmwareSystem<T extends GameplayEvents>(
           }
         }
 
-        eventBus.emit('FOV_UPDATED', { visibleSet } as unknown as T['FOV_UPDATED']);
+        eventBus.emit('FOV_UPDATED', { visibleSet });
         eventBus.emit('MESSAGE_EMITTED', {
           text: `${abilityDef.name} activated! Sensor sweep reveals sector (radius ${radius}).`,
           type: 'info',

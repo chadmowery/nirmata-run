@@ -11,11 +11,12 @@ import { Prop, SecurityLock, Container } from '@shared/components/environment';
 import { StaircaseMarker } from '@shared/components/staircase-marker';
 import { AnchorMarker } from '@shared/components/anchor-marker';
 import { Item } from '@shared/components/item';
+import { GameEvents } from '../../game/events/types';
 import { gameStore } from '../../game/ui/store';
 
 describe('resolveTileInspection', () => {
-  let eventBus: EventBus<any>;
-  let world: World<any>;
+  let eventBus: EventBus<GameEvents>;
+  let world: World<GameEvents>;
   let grid: Grid;
   let playerEntity: number;
 

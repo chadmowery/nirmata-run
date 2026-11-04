@@ -42,7 +42,7 @@ export function applyStateDelta<T extends GameplayEvents>(
     const floorSeed = floorState
       ? `${floorState.runSeed}_floor_${floorState.currentFloor}`
       : 'reconciled-seed';
-    (eventBus as unknown as EventBus<GameplayEvents>).emit('DUNGEON_GENERATED', {
+    eventBus.emit('DUNGEON_GENERATED', {
       seed: floorSeed,
     });
   } else {
@@ -62,14 +62,12 @@ export function applyStateDelta<T extends GameplayEvents>(
   // 4. Replay server-side events for visual systems (Animations, UI, Particles)
   if (payload.events) {
     for (const event of payload.events) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      eventBus.emit(event.type as any, event.payload as any);
+      eventBus.emit(event.type as keyof T, event.payload as T[keyof T]);
     }
   }
 
   // 5. Finalize turn reconciliation
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (eventBus as any).emit('STATE_RECONCILED', {
+  eventBus.emit('STATE_RECONCILED', {
     turnNumber: payload.turnNumber,
     playerId: payload.playerId,
   });

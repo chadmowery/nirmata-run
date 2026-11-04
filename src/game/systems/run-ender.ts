@@ -237,7 +237,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
         vaultsBreached,
         trapsDisarmed,
       },
-    } as unknown as T['RUN_ENDED']);
+    });
 
     const message = isSuccess
       ? `SUCCESS: Extraction protocol complete. ${finalScrap} Scrap, ${finalFlux} Flux secured.`

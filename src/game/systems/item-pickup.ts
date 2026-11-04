@@ -95,7 +95,7 @@ export function createItemPickupSystem<T extends GameplayEvents>(
           currencyType: type,
           amount,
           blueprintId: meta.blueprintId,
-        } as unknown as T['CURRENCY_PICKED_UP']);
+        });
 
         // Cleanup
         grid.removeItem(itemId, x, y);

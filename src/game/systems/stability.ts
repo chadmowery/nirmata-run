@@ -64,7 +64,7 @@ export function createStabilitySystem<T extends GameplayEvents>(
       oldValue,
       newValue,
       reason: 'floor_entry',
-    } as unknown as T['STABILITY_CHANGED']);
+    });
 
     logger.debug(
       `Stability Floor Drain for entity ${entityId}: ${oldValue.toFixed(2)} -> ${newValue.toFixed(2)}`,
@@ -94,7 +94,7 @@ export function createStabilitySystem<T extends GameplayEvents>(
       oldValue,
       newValue,
       reason: 'turn_bleed',
-    } as unknown as T['STABILITY_CHANGED']);
+    });
 
     logger.debug(
       `Stability Turn Bleed for entity ${entityId}: ${oldValue.toFixed(2)} -> ${newValue.toFixed(2)}`,
@@ -120,7 +120,7 @@ export function createStabilitySystem<T extends GameplayEvents>(
     eventBus.emit('DEGRADED_DAMAGE', {
       entityId,
       damage: config.degradedDamagePerTurn,
-    } as unknown as T['DEGRADED_DAMAGE']);
+    });
 
     logger.info(
       `Degraded Damage applied to entity ${entityId}: ${config.degradedDamagePerTurn} HP`,
@@ -168,12 +168,12 @@ export function createStabilitySystem<T extends GameplayEvents>(
             oldValue,
             newValue,
             reason: 'threat_purged',
-          } as unknown as T['STABILITY_CHANGED']);
+          });
 
           eventBus.emit('MESSAGE_EMITTED', {
             text: `[REALITY STABILIZED]: +${restoreAmount}% Stability restored from threat purged.`,
             type: 'info',
-          } as unknown as T['MESSAGE_EMITTED']);
+          });
         }
       }
     }

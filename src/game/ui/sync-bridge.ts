@@ -255,8 +255,7 @@ export function syncEngineToStore(context: GameContext) {
   });
 
   // Floor updates
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  eventBus.on('FLOOR_TRANSITION', (event) => {
+  eventBus.on('FLOOR_TRANSITION', () => {
     gameStore.getState().clearMessages();
     refreshPlayerStats();
   });

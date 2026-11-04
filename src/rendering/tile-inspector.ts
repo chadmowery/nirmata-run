@@ -26,6 +26,7 @@ import { RarityTier } from '@shared/components/rarity-tier';
 import { TemplateId } from '@shared/components/template-id';
 import { DeadZone } from '@shared/components/dead-zone';
 import { Dying } from '@shared/components/dying';
+import { GameEvents } from '../game/events/types';
 import { gameStore, HoveredEntityInfo } from '../game/ui/store';
 
 const ENEMY_LORE: Record<
@@ -200,8 +201,7 @@ const PROP_CLASS_LORE: Record<
 };
 
 export interface ResolveTileInspectionParams {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  world: World<any>;
+  world: World<GameEvents>;
   grid: Grid;
   gx: number;
   gy: number;

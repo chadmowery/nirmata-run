@@ -8,10 +8,10 @@ import zeroDayVault from './zero-day-vault.json';
 export * from './types';
 
 export const ALL_PREFABS: RoomPrefabTemplate[] = [
-  serverCore as unknown as RoomPrefabTemplate,
-  freightBay as unknown as RoomPrefabTemplate,
-  deconAirlock as unknown as RoomPrefabTemplate,
-  zeroDayVault as unknown as RoomPrefabTemplate,
+  serverCore as RoomPrefabTemplate,
+  freightBay as RoomPrefabTemplate,
+  deconAirlock as RoomPrefabTemplate,
+  zeroDayVault as RoomPrefabTemplate,
 ];
 
 /**
