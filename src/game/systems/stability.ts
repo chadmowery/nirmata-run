@@ -80,7 +80,11 @@ export function createStabilitySystem<T extends GameplayEvents>(
     if (!stability) return;
 
     const oldValue = stability.current;
-    const bleed = config.perTurnBleedBase + (floorNumber - 1) * config.perTurnBleedScale;
+    let bleed = config.perTurnBleedBase + (floorNumber - 1) * config.perTurnBleedScale;
+    const floorState = world.getComponent(entityId, FloorState);
+    if (floorState?.sectorCondition === 'OVERCLOCKED_GRID') {
+      bleed *= 1.25;
+    }
     const newValue = Math.max(0, stability.current - bleed);
 
     world.patchComponent(entityId, Stability, { current: newValue });

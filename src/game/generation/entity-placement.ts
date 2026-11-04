@@ -472,6 +472,28 @@ export function placeEntities<T extends EngineEvents>(
       }
     }
 
+    // 2b. Extra Thermal Cooling Vent during THERMAL_SURGE
+    if (condition === 'THERMAL_SURGE') {
+      const ventAnchors = cfg.propAnchors.filter(
+        (a) =>
+          !occupiedPropPositions.has(`${a.x},${a.y}`) &&
+          !a.guaranteedTemplate &&
+          !isInsideAnyVault(a.x, a.y) &&
+          !wouldPinchWalkability(grid, a.x, a.y, occupiedPropPositions),
+      );
+      if (ventAnchors.length > 0) {
+        const anchorIdx = Math.floor(rng.random() * ventAnchors.length);
+        const anchor = ventAnchors[anchorIdx];
+        const posKey = `${anchor.x},${anchor.y}`;
+        const ventId = factory.create(world, 'prop-cooling-vent', componentRegistry, {
+          position: { x: anchor.x, y: anchor.y },
+        });
+        grid.addEntity(ventId, anchor.x, anchor.y);
+        propIds.push(ventId);
+        occupiedPropPositions.add(posKey);
+      }
+    }
+
     // 3. Fill Remaining Prop Budget using Procedural Anchors
     // Balance distribution according to design spec: ~40% scavenge, ~40% tactical, ~20% hazards
     const remainingAnchors = cfg.propAnchors.filter(

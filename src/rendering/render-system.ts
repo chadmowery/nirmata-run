@@ -7,6 +7,7 @@ import { EntityId } from '../engine/ecs/types';
 import { Position } from '@shared/components/position';
 import { SpriteComponent } from '@shared/components/sprite';
 import { Actor } from '@shared/components/actor';
+import { FloorState } from '@shared/components/floor-state';
 import { AbilityDef } from '@shared/components/ability-def';
 import { FirmwareSlots } from '@shared/components/firmware-slots';
 import { Prop, SecurityLock, CorruptedNode } from '@shared/components/environment';
@@ -528,6 +529,10 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
       // 1. Dynamic FOV (D-15 Extended Sight Logic)
       let effectiveRadius = FOV_RADIUS;
+      const floorState = world.getComponent(playerEntity, FloorState);
+      if (floorState?.sectorCondition === 'DARK_SUBNET') {
+        effectiveRadius = Math.max(2, effectiveRadius - 2);
+      }
       const fSlots = world.getComponent(playerEntity, FirmwareSlots);
       if (fSlots) {
         for (const firmwareId of fSlots.equipped) {

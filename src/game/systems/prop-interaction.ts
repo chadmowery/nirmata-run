@@ -232,7 +232,9 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
           w.patchComponent(targetId, CorruptedNode, { triggered: true, revealed: true });
 
           if (corrupted.trapType === 'acoustic_alert' && actorPos) {
-            triggerAcousticAlert(w, actorPos.x, actorPos.y, 12);
+            const floorState = w.getComponent(actorId, FloorState);
+            const alertRadius = floorState?.sectorCondition === 'DARK_SUBNET' ? 6 : 12;
+            triggerAcousticAlert(w, actorPos.x, actorPos.y, alertRadius);
             bus.emit('MESSAGE_EMITTED', {
               text: '[SECURITY FAULT]: Corrupted node triggered Acoustic Trap! Enemies alerted.',
               type: 'error',
@@ -434,6 +436,30 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
       // 4. Resolve Container / Workstations
       if (w.hasComponent(targetId, Container) && !prop.isSearched) {
         const container = w.getComponent(targetId, Container)!;
+
+        // Workstation access thermal cost (0 during THERMAL_SURGE, 10 baseline)
+        if (propClass === 'workstation') {
+          const floorState = w.getComponent(actorId, FloorState);
+          const isThermalSurge = floorState?.sectorCondition === 'THERMAL_SURGE';
+          const cost = isThermalSurge ? 0 : (prop.heatCostOnAccess ?? 10);
+          if (cost > 0) {
+            const heat = w.getComponent(actorId, Heat);
+            if (heat) {
+              const newHeat = Math.min(100, heat.current + cost);
+              w.patchComponent(actorId, Heat, { current: newHeat });
+              bus.emit('HEAT_CHANGED', {
+                entityId: actorId,
+                oldHeat: heat.current,
+                newHeat,
+                maxSafe: heat.maxSafe ?? 100,
+              });
+              bus.emit('MESSAGE_EMITTED', {
+                text: `[WORKSTATION ACCESS]: Injected +${cost} Neural Heat.`,
+                type: 'warning',
+              });
+            }
+          }
+        }
 
         // Yield scrap
         if (container.scrapYield && container.scrapYield > 0) {

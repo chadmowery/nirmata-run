@@ -272,7 +272,12 @@ The handoff claims risky bumps *"halt player movement with **0 turn cost**, flas
 - Deterministic simulation & replay parity: Preserves strict RNG replay fidelity across floor runs.
 - Verified in [`tests/game/m4-lore-rng.test.ts`](../../tests/game/m4-lore-rng.test.ts).
 
-**M5. Two of three sector conditions are no-ops.** `THERMAL_SURGE` and `DARK_SUBNET` are rolled, stored on `FloorState`, and guaranteed on floors 6/10/15, but nothing reads them. Only `OVERCLOCKED_GRID` has any effect (loot ×1.5, 2 stabilizers). The handoff §9 proposes *adding* `LOW_GRAVITY` and `TOXIC_VENTILATION` while the existing conditions are placeholders. The in-code probability comments ("10 / 25, 8 / 25, 7 / 25") also do not match the thresholds used (`0.4 / 0.72` is 40% / 32% / 28%).
+**M5. Two of three sector conditions are no-ops — ✅ RESOLVED.**
+- `THERMAL_SURGE` implemented: Passive shell heat dissipation in [`HeatSystem`](../../src/game/systems/heat.ts) is halved (`0.5x`); workstation access costs 0 Heat (in [`prop-interaction.ts`](../../src/game/systems/prop-interaction.ts)); and `+1` extra `prop-cooling-vent` spawns on the floor (in [`entity-placement.ts`](../../src/game/generation/entity-placement.ts)).
+- `DARK_SUBNET` implemented: Base player FOV drops by 2 tiles (`6` instead of `8` in [`render-system.ts`](../../src/rendering/render-system.ts)); and `CorruptedNode` acoustic alert radius is halved to `6` tiles instead of `12` in [`prop-interaction.ts`](../../src/game/systems/prop-interaction.ts).
+- `OVERCLOCKED_GRID` implemented: Per-turn stability bleed in [`StabilitySystem`](../../src/game/systems/stability.ts) runs `1.25x` faster; container scrap/flux loot is boosted by `+50%` and `2` Reality Stabilizers spawn.
+- Clarified generator probability comments in [`dungeon-generator.ts`](../../src/game/generation/dungeon-generator.ts).
+- Verified in [`tests/game/m5-sector-conditions.test.ts`](../../tests/game/m5-sector-conditions.test.ts).
 
 **M6. Unused schema surface.** `thermal_burst` (`hazardOnDestroy`), `bulkhead_switch` (`PropClass`), `loreSnippetId`, `Container.capacity` and `blueprintType`/`blueprintId` on `Container` have no consumers.
 

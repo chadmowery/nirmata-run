@@ -105,19 +105,19 @@ export function rollSectorCondition(depth: number, rng: { random(): number }): S
     return 'NOMINAL';
   }
 
-  // Floors 6, 10, 15: Guaranteed active condition
+  // Floors 6, 10, 15: Guaranteed active condition (40% THERMAL_SURGE [10/25], 32% DARK_SUBNET [8/25], 28% OVERCLOCKED_GRID [7/25])
   if (depth === 6 || depth === 10 || depth === 15) {
     const roll = rng.random();
     if (roll < 0.4) {
-      return 'THERMAL_SURGE'; // 10 / 25
+      return 'THERMAL_SURGE'; // 40% (10 / 25)
     } else if (roll < 0.72) {
-      return 'DARK_SUBNET'; // 8 / 25
+      return 'DARK_SUBNET'; // 32% (8 / 25)
     } else {
-      return 'OVERCLOCKED_GRID'; // 7 / 25
+      return 'OVERCLOCKED_GRID'; // 28% (7 / 25)
     }
   }
 
-  // Remaining floors in 6-15: 25% chance of active condition
+  // Remaining floors in 6-15 (75% NOMINAL, 25% active: 10% THERMAL_SURGE, 8% DARK_SUBNET, 7% OVERCLOCKED_GRID)
   const roll = rng.random();
   if (roll < 0.75) {
     return 'NOMINAL';
