@@ -21,6 +21,7 @@ import { Dying } from '@shared/components/dying';
 import { logger } from '@engine/utils/logger';
 import { DescentIntent } from '@shared/components/intents';
 import * as InventoryUtil from '@shared/utils/inventory-util';
+import { isAccessKeyTemplate } from '@shared/utils/access-key-util';
 import { generateDungeon, getDepthBand } from '../generation/dungeon-generator';
 import { placeEntities } from '../generation/entity-placement';
 import { hashSeedForPlacement } from '../engine-factory';
@@ -84,8 +85,16 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
       if (eqSlots.armor !== null) protectEntityAndChildren(eqSlots.armor);
     }
     if (runInv) {
-      runInv.software.forEach((item) => protectEntityAndChildren(item.entityId));
-      runInv.equipment.forEach((item) => protectEntityAndChildren(item.entityId));
+      runInv.software.forEach((item) => {
+        if (!isAccessKeyTemplate(item.templateId)) {
+          protectEntityAndChildren(item.entityId);
+        }
+      });
+      runInv.equipment.forEach((item) => {
+        if (!isAccessKeyTemplate(item.templateId)) {
+          protectEntityAndChildren(item.entityId);
+        }
+      });
     }
 
     // 3. Mark all non-protected entities for destruction via the Dying pipeline
@@ -158,13 +167,29 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
       },
     );
 
-    // 9. Update player FloorState and add FloorTransitioned tag
+    // 9. Update player FloorState, clear access keys, and add FloorTransitioned tag
     if (world.hasComponent(playerId, FloorState)) {
       world.patchComponent(playerId, FloorState, {
         currentFloor: newFloor,
         sectorCondition: dungeonResult.sectorCondition,
+        accessKeysHeld: 0,
       });
       world.addComponent(playerId, FloorTransitioned, { floorNumber: newFloor });
+    }
+
+    // Clear floor-scoped access keys from inventory
+    if (runInv) {
+      const cleanSoftware = runInv.software.filter((s) => !isAccessKeyTemplate(s.templateId));
+      const cleanEquipment = runInv.equipment.filter((e) => !isAccessKeyTemplate(e.templateId));
+      if (
+        cleanSoftware.length !== runInv.software.length ||
+        cleanEquipment.length !== runInv.equipment.length
+      ) {
+        world.patchComponent(playerId, RunInventory, {
+          software: cleanSoftware,
+          equipment: cleanEquipment,
+        });
+      }
     }
 
     // 10. Emit transition event

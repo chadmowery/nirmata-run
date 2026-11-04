@@ -5,6 +5,14 @@ import { FloorState } from '../components/floor-state';
 import { RunInventory } from '../components/run-inventory';
 
 /**
+ * Robustly checks if a templateId corresponds to an access key.
+ */
+export function isAccessKeyTemplate(templateId?: string): boolean {
+  if (!templateId) return false;
+  return templateId === 'item-access-key' || templateId.startsWith('item-access-key');
+}
+
+/**
  * Check if the player possesses an Access Key (either on FloorState or in RunInventory).
  */
 export function playerHasAccessKey<T extends EngineEvents>(
@@ -17,10 +25,10 @@ export function playerHasAccessKey<T extends EngineEvents>(
   }
   const runInv = world.getComponent(playerId, RunInventory);
   if (runInv) {
-    if (runInv.software?.some((s) => s.templateId.includes('access-key'))) {
+    if (runInv.software?.some((s) => isAccessKeyTemplate(s.templateId))) {
       return true;
     }
-    if (runInv.equipment?.some((e) => e.templateId.includes('access-key'))) {
+    if (runInv.equipment?.some((e) => isAccessKeyTemplate(e.templateId))) {
       return true;
     }
   }
@@ -44,14 +52,14 @@ export function consumeAccessKey<T extends EngineEvents>(
 
   const runInv = world.getComponent(playerId, RunInventory);
   if (runInv) {
-    const swIdx = runInv.software.findIndex((s) => s.templateId.includes('access-key'));
+    const swIdx = runInv.software.findIndex((s) => isAccessKeyTemplate(s.templateId));
     if (swIdx !== -1) {
       const sw = [...runInv.software];
       sw.splice(swIdx, 1);
       world.patchComponent(playerId, RunInventory, { software: sw });
       return true;
     }
-    const eqIdx = runInv.equipment.findIndex((e) => e.templateId.includes('access-key'));
+    const eqIdx = runInv.equipment.findIndex((e) => isAccessKeyTemplate(e.templateId));
     if (eqIdx !== -1) {
       const eq = [...runInv.equipment];
       eq.splice(eqIdx, 1);

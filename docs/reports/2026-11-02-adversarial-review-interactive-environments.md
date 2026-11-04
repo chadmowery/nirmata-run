@@ -249,7 +249,12 @@ The handoff claims risky bumps *"halt player movement with **0 turn cost**, flas
 
 ## 3. Medium and low findings
 
-**M1. Inconsistent access-key accounting (latent infinite-key bug).** `playerHasAccessKey` checks `FloorState.accessKeysHeld`, **and** any `RunInventory.software`/`equipment` entry whose `templateId` contains `'access-key'`. `consumeAccessKey` only consumes from `FloorState` or `software`, never `equipment`. [`prop-interaction.ts` L178-L180](../../src/game/systems/prop-interaction.ts) ignores the return value of `consumeAccessKey` and unlocks anyway. A key sitting in `equipment` would be reusable forever. The `String.includes('access-key')` match is also fragile. `accessKeysHeld` is never reset on floor transition ([`floor-manager.ts`](../../src/game/systems/floor-manager.ts) only patches `currentFloor` and `sectorCondition`), so keys carry over between floors.
+**M1. Inconsistent access-key accounting (latent infinite-key bug) — ✅ RESOLVED.**
+- Robust matching: Defined `isAccessKeyTemplate` in [`access-key-util.ts`](../../src/shared/utils/access-key-util.ts) replacing substring checks.
+- Symmetric consumption: `consumeAccessKey` consumes from `FloorState`, `RunInventory.software`, or `RunInventory.equipment`.
+- Return-value enforcement: In [`prop-interaction.ts`](../../src/game/systems/prop-interaction.ts), `SecurityLock` only unlocks when `consumeAccessKey` successfully returns `true`.
+- Floor transition cleanup: In [`floor-manager.ts`](../../src/game/systems/floor-manager.ts), resets `accessKeysHeld: 0` on descent and purges any temporary access-key items from `RunInventory` so keys never bleed across floors.
+- Verified in [`tests/game/m1-access-key.test.ts`](../../tests/game/m1-access-key.test.ts).
 
 **M2. `vaultsBreached` (+150 pts) is only counted on the overclock path.** Unlocking with a key at [L178-L194](../../src/game/systems/prop-interaction.ts) never increments it. Overclocking, the *riskier* path, scores; the intended path does not. Also check that `scoring.ts` multiplies by what the handoff says.
 

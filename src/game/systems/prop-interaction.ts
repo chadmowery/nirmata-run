@@ -122,7 +122,15 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
         const lock = w.getComponent(targetId, SecurityLock)!;
         if (lock.isLocked) {
           if (playerHasAccessKey(w, actorId)) {
-            consumeAccessKey(w, actorId);
+            const consumed = consumeAccessKey(w, actorId);
+            if (!consumed) {
+              bus.emit('MESSAGE_EMITTED', {
+                text: '[ACCESS DENIED]: Access Key could not be consumed.',
+                type: 'error',
+              });
+              w.removeComponent(actorId, InteractPropIntent);
+              continue;
+            }
             w.patchComponent(targetId, SecurityLock, { isLocked: false });
 
             if (w.hasComponent(targetId, BlocksMovement) && propClass === 'vault_door') {
