@@ -29,6 +29,8 @@ export async function submitLeaderboardEntry(
     scrapExtracted: number;
     softwareExtracted: number;
     fluxExtracted: number;
+    vaultsBreached?: number;
+    trapsDisarmed?: number;
   },
 ): Promise<SubmitLeaderboardResult | null> {
   if (mode === RunMode.SIMULATION) {
@@ -40,6 +42,8 @@ export async function submitLeaderboardEntry(
     scrapExtracted: stats.scrapExtracted || 0,
     softwareExtracted: stats.softwareExtracted || 0,
     fluxExtracted: stats.fluxExtracted || 0,
+    vaultsBreached: stats.vaultsBreached || 0,
+    trapsDisarmed: stats.trapsDisarmed || 0,
   });
 
   const now = new Date();

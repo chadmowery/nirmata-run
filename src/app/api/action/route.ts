@@ -267,6 +267,8 @@ export async function POST(req: Request) {
           scrapExtracted: finalScrap,
           softwareExtracted: (payload.stats.softwareExtracted as number) || 0,
           fluxExtracted: finalFlux,
+          vaultsBreached: (payload.stats.vaultsBreached as number) || 0,
+          trapsDisarmed: (payload.stats.trapsDisarmed as number) || 0,
         });
       }
     }

@@ -256,7 +256,11 @@ The handoff claims risky bumps *"halt player movement with **0 turn cost**, flas
 - Floor transition cleanup: In [`floor-manager.ts`](../../src/game/systems/floor-manager.ts), resets `accessKeysHeld: 0` on descent and purges any temporary access-key items from `RunInventory` so keys never bleed across floors.
 - Verified in [`tests/game/m1-access-key.test.ts`](../../tests/game/m1-access-key.test.ts).
 
-**M2. `vaultsBreached` (+150 pts) is only counted on the overclock path.** Unlocking with a key at [L178-L194](../../src/game/systems/prop-interaction.ts) never increments it. Overclocking, the *riskier* path, scores; the intended path does not. Also check that `scoring.ts` multiplies by what the handoff says.
+**M2. `vaultsBreached` (+150 pts) is only counted on the overclock path — ✅ RESOLVED.**
+- Clean unlock scoring: In [`prop-interaction.ts`](../../src/game/systems/prop-interaction.ts), unlocking with an Access Key increments `FloorState.vaultsBreached` symmetrically with the Overclock Bypass path.
+- End-of-run event & UI propagation: `RunEnderSystem` (`src/game/systems/run-ender.ts`) passes `vaultsBreached` and `trapsDisarmed` into `RUN_ENDED` payload stats, which [`sync-bridge.ts`](../../src/game/ui/sync-bridge.ts) routes to `calculateScore` and [`route.ts`](../../src/app/api/action/route.ts) passes to `submitLeaderboardEntry`.
+- Verified multiplier: Verified `scoring.ts` multiplies `vaultsBreached * 150` in accordance with `economy.json`.
+- Verified in [`tests/game/m2-vaults-scoring.test.ts`](../../tests/game/m2-vaults-scoring.test.ts).
 
 **M3. Dead-drop uplink charges Flux even when no item is removed.** [`prop-interaction.ts` L370-L425](../../src/game/systems/prop-interaction.ts): `removeCurrency` runs before the item lookup. If the selection ID matches nothing, Flux is spent, `DEAD_DROP_TRANSMITTED` fires and "Item transmitted" is logged, but nothing is vaulted.
 

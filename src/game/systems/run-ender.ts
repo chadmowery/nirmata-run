@@ -219,6 +219,9 @@ export function createRunEnderSystem<T extends GameplayEvents>(
       }
     }
 
+    const vaultsBreached = floorState?.vaultsBreached ?? 0;
+    const trapsDisarmed = floorState?.trapsDisarmed ?? 0;
+
     eventBus.emit('RUN_ENDED', {
       reason,
       entityId: playerId,
@@ -231,6 +234,8 @@ export function createRunEnderSystem<T extends GameplayEvents>(
         pityAwarded,
         itemsExtracted,
         blueprintsExtracted,
+        vaultsBreached,
+        trapsDisarmed,
       },
     } as unknown as T['RUN_ENDED']);
 

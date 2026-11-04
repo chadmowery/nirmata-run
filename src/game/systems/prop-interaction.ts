@@ -137,6 +137,14 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
               w.removeComponent(targetId, BlocksMovement);
             }
 
+            // Increment vaults breached score on clean key unlock
+            const floorState = w.getComponent(actorId, FloorState);
+            if (floorState) {
+              w.patchComponent(actorId, FloorState, {
+                vaultsBreached: (floorState.vaultsBreached ?? 0) + 1,
+              });
+            }
+
             bus.emit('LOCK_UNLOCKED', {
               propId: targetId,
               method: 'key',

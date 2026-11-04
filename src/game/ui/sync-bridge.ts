@@ -331,6 +331,8 @@ export function syncEngineToStore(context: GameContext) {
       scrapExtracted?: number;
       fluxExtracted?: number;
       softwareExtracted?: number;
+      vaultsBreached?: number;
+      trapsDisarmed?: number;
     },
   ) => {
     const player = context.playerId;
@@ -361,6 +363,8 @@ export function syncEngineToStore(context: GameContext) {
       scrapExtracted: runScrap,
       softwareExtracted: eventStats?.softwareExtracted ?? softwareCount,
       fluxExtracted: eventStats?.fluxExtracted ?? 0,
+      vaultsBreached: eventStats?.vaultsBreached ?? 0,
+      trapsDisarmed: eventStats?.trapsDisarmed ?? 0,
     });
 
     const results = {
