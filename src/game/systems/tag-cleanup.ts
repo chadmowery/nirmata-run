@@ -10,6 +10,8 @@ import {
   InteractPropIntent,
   PropInteractedThisTurn,
   AlertIntent,
+  PickupIntent,
+  DropItemIntent,
 } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 
@@ -52,6 +54,14 @@ export function createTagCleanupSystem<T extends GameplayEvents>(world: World<T>
     const alertIntents = w.query(AlertIntent);
     for (const entityId of alertIntents) {
       w.removeComponent(entityId, AlertIntent);
+    }
+    const pickupIntents = w.query(PickupIntent);
+    for (const entityId of pickupIntents) {
+      w.removeComponent(entityId, PickupIntent);
+    }
+    const dropIntents = w.query(DropItemIntent);
+    for (const entityId of dropIntents) {
+      w.removeComponent(entityId, DropItemIntent);
     }
 
     if (

@@ -22,6 +22,8 @@ import {
   BurnSoftwareIntent,
   Shell,
   InteractPropIntent,
+  DropItemIntent,
+  PickupIntent,
 } from '@shared/components';
 import { processAction } from '@game/pipeline/action-pipeline';
 import { getRunModeConfig } from '@game/systems/run-mode-config';
@@ -116,6 +118,8 @@ export async function POST(req: Request) {
       world.removeComponent(session.playerId, UnequipIntent);
       world.removeComponent(session.playerId, BurnSoftwareIntent);
       world.removeComponent(session.playerId, InteractPropIntent);
+      world.removeComponent(session.playerId, DropItemIntent);
+      world.removeComponent(session.playerId, PickupIntent);
     }
 
     // Stop capturing

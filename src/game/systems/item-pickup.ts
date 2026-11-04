@@ -15,6 +15,7 @@ import {
   Dying,
   HealIntent,
   PickupIntent,
+  DropItemIntent,
   SpriteComponent,
   AbilityDef,
   AugmentData,
@@ -34,22 +35,23 @@ export type ItemPickupSystem<T extends GameplayEvents = GameEvents> = {
   update(world: World<T>): void;
 };
 
+export function isItemLike<T extends GameplayEvents>(w: World<T>, id: number): boolean {
+  return (
+    w.hasComponent(id, Item) ||
+    w.hasComponent(id, EquipmentDef) ||
+    w.hasComponent(id, SoftwareDef) ||
+    w.hasComponent(id, AbilityDef) ||
+    w.hasComponent(id, AugmentData) ||
+    w.hasComponent(id, PickupEffect) ||
+    w.hasComponent(id, CurrencyItem)
+  );
+}
+
 export function createItemPickupSystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
   eventBus: EventBus<T>,
 ): ItemPickupSystem<T> {
-  function isItemLike(w: World<T>, id: number): boolean {
-    return (
-      w.hasComponent(id, Item) ||
-      w.hasComponent(id, EquipmentDef) ||
-      w.hasComponent(id, SoftwareDef) ||
-      w.hasComponent(id, AbilityDef) ||
-      w.hasComponent(id, AugmentData) ||
-      w.hasComponent(id, PickupEffect) ||
-      w.hasComponent(id, CurrencyItem)
-    );
-  }
 
   function processItem(
     w: World<T>,
@@ -381,11 +383,44 @@ export function createItemPickupSystem<T extends GameplayEvents>(
     const explicitPickups = w.query(PickupIntent);
     for (const requesterId of explicitPickups) {
       const intent = w.getComponent(requesterId, PickupIntent)!;
+      let actorPos = w.getComponent(intent.actorId, Position);
+      if (!actorPos) {
+        for (let x = 0; x < grid.width; x++) {
+          for (let y = 0; y < grid.height; y++) {
+            if (grid.getEntitiesAt(x, y).has(intent.actorId)) {
+              actorPos = { x, y };
+              break;
+            }
+          }
+          if (actorPos) break;
+        }
+      }
+
+      if (!actorPos) {
+        w.removeComponent(requesterId, PickupIntent);
+        continue;
+      }
+
+      const itemId = intent.itemId;
+
+      // Fail loudly: ensure the specified entity exists, is item-like, and is not dying
+      if (
+        (w.entityExists && !w.entityExists(itemId)) ||
+        !isItemLike(w, itemId) ||
+        w.hasComponent(itemId, Dying)
+      ) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'Cannot pick up: item does not exist or was already removed.',
+          type: 'error',
+        });
+        w.removeComponent(requesterId, PickupIntent);
+        continue;
+      }
+
       let targetX: number | undefined;
       let targetY: number | undefined;
-      let resolvedItemId = intent.itemId;
 
-      const pos = w.getComponent(resolvedItemId, Position);
+      const pos = w.getComponent(itemId, Position);
       if (pos) {
         targetX = pos.x;
         targetY = pos.y;
@@ -393,57 +428,68 @@ export function createItemPickupSystem<T extends GameplayEvents>(
         targetX = intent.targetX;
         targetY = intent.targetY;
       } else {
-        const actorPos = w.getComponent(intent.actorId, Position);
-        if (actorPos) {
-          for (let dx = -1; dx <= 1; dx++) {
-            for (let dy = -1; dy <= 1; dy++) {
-              if (grid.getItemsAt(actorPos.x + dx, actorPos.y + dy).has(resolvedItemId)) {
-                targetX = actorPos.x + dx;
-                targetY = actorPos.y + dy;
-                break;
-              }
-            }
-            if (targetX !== undefined) break;
-          }
-        }
-      }
-
-      // Desync resilience: If the specified entity doesn't have an item signature or is Dying, find an item at target coordinates
-      if (!isItemLike(w, resolvedItemId) || w.hasComponent(resolvedItemId, Dying)) {
-        const searchCoords: Array<{ x: number; y: number }> = [];
-        if (targetX !== undefined && targetY !== undefined) {
-          searchCoords.push({ x: targetX, y: targetY });
-        }
-        if (intent.targetX !== undefined && intent.targetY !== undefined) {
-          searchCoords.push({ x: intent.targetX, y: intent.targetY });
-        }
-        const actorPos = w.getComponent(intent.actorId, Position);
-        if (actorPos) {
-          searchCoords.push({ x: actorPos.x, y: actorPos.y });
-          for (let dx = -1; dx <= 1; dx++) {
-            for (let dy = -1; dy <= 1; dy++) {
-              if (dx !== 0 || dy !== 0) searchCoords.push({ x: actorPos.x + dx, y: actorPos.y + dy });
-            }
-          }
-        }
-        for (const coord of searchCoords) {
-          const itemsOnTile = grid.getItemsAt(coord.x, coord.y);
-          for (const candId of itemsOnTile) {
-            if (isItemLike(w, candId) && !w.hasComponent(candId, Dying)) {
-              resolvedItemId = candId;
-              targetX = coord.x;
-              targetY = coord.y;
+        // Search immediate adjacent tiles (Manhattan <= 1) for the item on the grid
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            if (
+              Math.abs(dx) + Math.abs(dy) <= 1 &&
+              grid.getItemsAt(actorPos.x + dx, actorPos.y + dy).has(itemId)
+            ) {
+              targetX = actorPos.x + dx;
+              targetY = actorPos.y + dy;
               break;
             }
           }
-          if (isItemLike(w, resolvedItemId)) break;
+          if (targetX !== undefined) break;
         }
       }
 
-      if (targetX !== undefined && targetY !== undefined) {
-        processItem(w, intent.actorId, resolvedItemId, targetX, targetY, true);
+      if (targetX === undefined || targetY === undefined) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'Cannot pick up: item location unknown or not found on grid.',
+          type: 'error',
+        });
+        w.removeComponent(requesterId, PickupIntent);
+        continue;
       }
+
+      // Adjacency check: Manhattan distance <= 1 to actor
+      const dist = Math.abs(targetX - actorPos.x) + Math.abs(targetY - actorPos.y);
+      if (dist > 1) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'Cannot pick up: item is out of reach.',
+          type: 'error',
+        });
+        w.removeComponent(requesterId, PickupIntent);
+        continue;
+      }
+
+      processItem(w, intent.actorId, itemId, targetX, targetY, true);
       w.removeComponent(requesterId, PickupIntent);
+    }
+
+    // 3. Process explicit DropItemIntents
+    const explicitDrops = w.query(DropItemIntent);
+    for (const requesterId of explicitDrops) {
+      const intent = w.getComponent(requesterId, DropItemIntent)!;
+      const removed = InventoryUtil.removeItemByEntityId(
+        w,
+        intent.actorId,
+        intent.itemEntityId,
+      );
+      if (removed) {
+        const dropEntityId = w.entityExists(intent.itemEntityId)
+          ? intent.itemEntityId
+          : w.createEntity();
+        w.addComponent(dropEntityId, Position, { x: intent.targetX, y: intent.targetY });
+        w.addComponent(dropEntityId, SpriteComponent, { key: 'item' });
+        grid.addItem(dropEntityId, intent.targetX, intent.targetY);
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `Dropped ${removed.templateId} onto floor`,
+          type: 'info',
+        });
+      }
+      w.removeComponent(requesterId, DropItemIntent);
     }
   }
 

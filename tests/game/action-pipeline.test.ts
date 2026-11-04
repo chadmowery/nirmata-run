@@ -4,6 +4,7 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { GameplayEvents } from '@shared/events/types';
 import { runActionPipeline, processAction } from '@game/pipeline/action-pipeline';
+import { createItemPickupSystem } from '@game/systems/item-pickup';
 import {
   Position,
   Health,
@@ -19,6 +20,7 @@ import {
   VentIntent,
   BurnSoftwareIntent,
   PickupIntent,
+  DropItemIntent,
   InteractPropIntent,
   HealIntent,
   Stability,
@@ -181,9 +183,13 @@ describe('ActionPipeline', () => {
     });
 
     it('should process PICKUP_CURRENCY intent', () => {
+      const currencyId = world.createEntity();
+      world.addComponent(currencyId, Position, { x: 5, y: 5 });
+      grid.addItem(currencyId, 5, 5);
+
       const action = {
         type: 'PICKUP_CURRENCY' as const,
-        itemId: 50,
+        itemId: currencyId,
         currencyType: 'scrap' as const,
         amount: 10,
       };
@@ -279,7 +285,7 @@ describe('ActionPipeline', () => {
       expect(inventory?.equipment[0].quantity).toBe(1);
     });
 
-    it('processes DROP_ITEM by removing item from inventory, placing it on grid, and adding Position/Sprite', () => {
+    it('processes DROP_ITEM by attaching DropItemIntent and resolving it via ItemPickupSystem', () => {
       const dropId = world.createEntity();
       world.addComponent(PLAYER_ID, RunInventory, {
         software: [
@@ -301,12 +307,23 @@ describe('ActionPipeline', () => {
       });
 
       expect(actionKey).toBe('DROP_ITEM');
+      expect(world.getComponent(PLAYER_ID, DropItemIntent)).toEqual({
+        actorId: PLAYER_ID,
+        itemEntityId: dropId,
+        targetX: 5,
+        targetY: 5,
+      });
+
+      const itemPickupSystem = createItemPickupSystem(world, grid, eventBus);
+      itemPickupSystem.update(world);
+
       expect(world.getComponent(dropId, Position)).toEqual({ x: 5, y: 5 });
       expect(world.getComponent(dropId, SpriteComponent)).toBeDefined();
       expect(grid.getItemsAt(5, 5)).toContain(dropId);
 
       const inventory = world.getComponent(PLAYER_ID, RunInventory);
       expect(inventory?.software).toHaveLength(0);
+      expect(world.hasComponent(PLAYER_ID, DropItemIntent)).toBe(false);
     });
 
     it('attaches Dying component and returns actionKey for ABORT_RUN', () => {

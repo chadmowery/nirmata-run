@@ -23,6 +23,7 @@ import {
   BurnSoftwareIntent,
   FirmwareIntent,
   PickupIntent,
+  DropItemIntent,
   InteractPropIntent,
   FloorState,
   EquipmentSlots,
@@ -36,13 +37,13 @@ import {
   HealIntent,
   ApplyStatusEffectIntent,
   Stability,
-  SpriteComponent,
 } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { DIRECTIONS, GameAction } from '../input/actions';
 import { handleInventorySwap } from '../intent/inventory-intent';
 import { handleServerDebugCommand } from '../debug/server-debug-handler';
 import { checkAutoLoader } from '../systems/software-effects';
+import { isItemLike } from '../systems/item-pickup';
 import { Phase, ComponentDef } from '@engine/ecs/types';
 import { EntityRegistry } from '@engine/entity/registry';
 import { EntityFactory } from '@engine/entity/factory';
@@ -154,11 +155,63 @@ export function processAction(
       return 'ATTACK';
     case 'PICKUP': {
       if (action.itemId !== undefined) {
+        const actorPos = world.getComponent(entityId, Position);
+        if (!actorPos) return null;
+
+        if (
+          !world.entityExists(action.itemId) ||
+          !isItemLike(world, action.itemId) ||
+          world.hasComponent(action.itemId, Dying)
+        ) {
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: 'Cannot pick up: item does not exist or was removed.',
+            type: 'error',
+          });
+          return null;
+        }
+
+        const itemPos = world.getComponent(action.itemId, Position);
+        let targetX = itemPos?.x ?? action.targetX;
+        let targetY = itemPos?.y ?? action.targetY;
+
+        if (targetX === undefined || targetY === undefined) {
+          for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+              if (
+                Math.abs(dx) + Math.abs(dy) <= 1 &&
+                grid.getItemsAt(actorPos.x + dx, actorPos.y + dy).has(action.itemId)
+              ) {
+                targetX = actorPos.x + dx;
+                targetY = actorPos.y + dy;
+                break;
+              }
+            }
+            if (targetX !== undefined) break;
+          }
+        }
+
+        if (targetX === undefined || targetY === undefined) {
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: 'Cannot pick up: item location is unknown.',
+            type: 'error',
+          });
+          return null;
+        }
+
+        const dist = Math.abs(targetX - actorPos.x) + Math.abs(targetY - actorPos.y);
+        if (dist > 1) {
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: 'Cannot pick up: item is out of reach.',
+            type: 'error',
+          });
+          return null;
+        }
+
         world.addComponent(entityId, PickupIntent, {
           actorId: entityId,
           itemId: action.itemId,
-          targetX: action.targetX,
-          targetY: action.targetY,
+          targetX,
+          targetY,
         });
       } else {
         const pos = world.getComponent(entityId, Position);
@@ -235,12 +288,63 @@ export function processAction(
     case 'STAIRCASE_DESCEND':
       world.addComponent(entityId, DescentIntent, { targetFloor: action.targetFloor, cost: 0 });
       return 'STAIRCASE_DESCEND';
-    case 'PICKUP_CURRENCY':
+    case 'PICKUP_CURRENCY': {
+      const actorPos = world.getComponent(entityId, Position);
+      if (!actorPos) return null;
+
+      if (!world.entityExists(action.itemId) || world.hasComponent(action.itemId, Dying)) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'Cannot pick up currency: entity does not exist.',
+          type: 'error',
+        });
+        return null;
+      }
+
+      const itemPos = world.getComponent(action.itemId, Position);
+      let targetX = itemPos?.x;
+      let targetY = itemPos?.y;
+
+      if (targetX === undefined || targetY === undefined) {
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            if (
+              Math.abs(dx) + Math.abs(dy) <= 1 &&
+              grid.getItemsAt(actorPos.x + dx, actorPos.y + dy).has(action.itemId)
+            ) {
+              targetX = actorPos.x + dx;
+              targetY = actorPos.y + dy;
+              break;
+            }
+          }
+          if (targetX !== undefined) break;
+        }
+      }
+
+      if (targetX === undefined || targetY === undefined) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'Cannot pick up currency: location unknown.',
+          type: 'error',
+        });
+        return null;
+      }
+
+      const dist = Math.abs(targetX - actorPos.x) + Math.abs(targetY - actorPos.y);
+      if (dist > 1) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'Cannot pick up currency: out of reach.',
+          type: 'error',
+        });
+        return null;
+      }
+
       world.addComponent(entityId, PickupIntent, {
         actorId: entityId,
         itemId: action.itemId,
+        targetX,
+        targetY,
       });
       return 'PICKUP_CURRENCY';
+    }
     case 'INVENTORY_SWAP':
       handleInventorySwap(world, entityId, action.sourceIndex, action.destinationIndex);
       return 'INVENTORY_SWAP';
@@ -363,6 +467,25 @@ export function processAction(
       return 'BURN_AUGMENT';
     }
     case 'USE_CONSUMABLE': {
+      // Validate target: only the player entity itself may be targeted
+      if (action.targetEntityId !== undefined && action.targetEntityId !== entityId) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'Cannot use consumable on other entities.',
+          type: 'error',
+        });
+        return null;
+      }
+
+      const inv = world.getComponent(entityId, RunInventory);
+      const itemToUse = inv?.equipment[action.inventoryIndex];
+      if (!itemToUse || !itemToUse.isConsumable) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'Cannot use item: invalid consumable.',
+          type: 'error',
+        });
+        return null;
+      }
+
       // Direct targeting exclusively to self
       const targetId = entityId;
       const consumed = InventoryUtil.consumeConsumable(world, entityId, action.inventoryIndex);
@@ -404,28 +527,51 @@ export function processAction(
     }
     case 'DROP_ITEM': {
       const playerPos = world.getComponent(entityId, Position);
-      if (playerPos) {
-        const dropX = action.targetX ?? playerPos.x;
-        const dropY = action.targetY ?? playerPos.y;
-        const dist = Math.abs(dropX - playerPos.x) + Math.abs(dropY - playerPos.y);
-        if (dist <= 1 && grid.inBounds(dropX, dropY) && grid.isWalkable(dropX, dropY)) {
-          const removed = InventoryUtil.removeItemByEntityId(world, entityId, action.itemEntityId);
-          if (removed) {
-            const dropEntityId = world.entityExists(action.itemEntityId)
-              ? action.itemEntityId
-              : world.createEntity();
-            world.addComponent(dropEntityId, Position, { x: dropX, y: dropY });
-            world.addComponent(dropEntityId, SpriteComponent, {
-              key: 'item',
-            });
-            grid.addItem(dropEntityId, dropX, dropY);
-            eventBus.emit('MESSAGE_EMITTED', {
-              text: `Dropped ${removed.templateId} onto floor`,
-              type: 'info',
-            });
-          }
-        }
+      if (!playerPos) return null;
+
+      const dropX = action.targetX ?? playerPos.x;
+      const dropY = action.targetY ?? playerPos.y;
+
+      // 1. Distance check: Manhattan distance <= 1
+      const dist = Math.abs(dropX - playerPos.x) + Math.abs(dropY - playerPos.y);
+      if (dist > 1) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'Cannot drop item: target tile is out of reach.',
+          type: 'error',
+        });
+        return null;
       }
+
+      // 2. Bounds and walkability check
+      if (!grid.inBounds(dropX, dropY) || !grid.isWalkable(dropX, dropY)) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'Cannot drop item: target tile is blocked or out of bounds.',
+          type: 'error',
+        });
+        return null;
+      }
+
+      // 3. Ownership check: verify item is in player's inventory
+      const inv = world.getComponent(entityId, RunInventory);
+      const isOwned =
+        inv?.software.some((s) => s.entityId === action.itemEntityId) ||
+        inv?.equipment.some((e) => e.entityId === action.itemEntityId);
+
+      if (!isOwned) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'Cannot drop item: item is not in inventory.',
+          type: 'error',
+        });
+        return null;
+      }
+
+      // Attach DropItemIntent (resolution happens inside ItemPickupSystem during turn phase)
+      world.addComponent(entityId, DropItemIntent, {
+        actorId: entityId,
+        itemEntityId: action.itemEntityId,
+        targetX: dropX,
+        targetY: dropY,
+      });
       return 'DROP_ITEM';
     }
     case 'INTERACT_PROP':

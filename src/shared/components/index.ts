@@ -56,6 +56,7 @@ import {
   FirmwareIntent,
   Acting,
   PickupIntent,
+  DropItemIntent,
 } from './intents';
 import { MovedThisTurn } from './moved-this-turn';
 import { Dying } from './dying';
@@ -189,6 +190,7 @@ export const COMPONENTS_REGISTRY = [
   FirmwareIntent,
   Acting,
   PickupIntent,
+  DropItemIntent,
   Parent,
   Children,
   EquipmentDef,

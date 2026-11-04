@@ -194,3 +194,16 @@ export const PickupIntent = defineComponent(
     targetY: z.number().int().optional(),
   }),
 );
+
+/**
+ * Intent to drop an item from inventory onto a floor tile.
+ */
+export const DropItemIntent = defineComponent(
+  'dropItemIntent',
+  z.object({
+    actorId: z.number(),
+    itemEntityId: z.number(),
+    targetX: z.number().int(),
+    targetY: z.number().int(),
+  }),
+);
