@@ -29,7 +29,6 @@ export const PropClassSchema = z.enum([
   'reality_stabilizer',
   'cooling_vent',
   'subnet_console',
-  'bulkhead_switch',
   'volatile_vat',
   'capacitor_bank',
 ]);
@@ -46,7 +45,6 @@ export const Prop = defineComponent(
     ventAmount: z.number().default(0).optional(),
     stabilityRestoreAmount: z.number().default(0).optional(),
     deadDropFluxCost: z.number().int().min(0).default(25).optional(),
-    loreSnippetId: z.string().optional(),
   }),
 );
 export type PropData = z.infer<typeof Prop.schema>;

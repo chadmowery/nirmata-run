@@ -293,6 +293,40 @@ export function handlePropDestruction<T extends GameplayEvents>(
         }
       }
     }
+  } else if (surface.hazardOnDestroy === 'thermal_burst') {
+    eventBus.emit('MESSAGE_EMITTED', {
+      text: '[THERMAL BURST]: Superheated manifold ruptured into a fiery shockwave!',
+      type: 'combat',
+    });
+
+    const allPositions = world.query(Position);
+    for (const eid of allPositions) {
+      if (eid === destroyedId || visited.has(eid) || world.hasComponent(eid, Dying)) continue;
+      const ePos = world.getComponent(eid, Position)!;
+      const dist = Math.abs(ePos.x - pos.x) + Math.abs(ePos.y - pos.y);
+      if (dist <= 2) {
+        const h = world.getComponent(eid, Health);
+        if (h && h.isAlive !== false && h.current > 0) {
+          world.addComponent(eid, DamageIntent, {
+            attackerId: killerId,
+            targetId: eid,
+            amount: 8,
+            damageType: 'environmental',
+          });
+        }
+        const heat = world.getComponent(eid, Heat);
+        if (heat) {
+          const newHeat = Math.min(100, heat.current + 25);
+          world.patchComponent(eid, Heat, { current: newHeat });
+          eventBus.emit('HEAT_CHANGED', {
+            entityId: eid,
+            oldHeat: heat.current,
+            newHeat,
+            maxSafe: heat.maxSafe ?? 100,
+          });
+        }
+      }
+    }
   }
 
   // 2. Cascade Chain Reaction Rule (15 structural damage within Manhattan distance <= cascadeRadius)

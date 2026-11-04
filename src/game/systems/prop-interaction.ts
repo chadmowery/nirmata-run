@@ -493,6 +493,18 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
           });
         }
 
+        // Yield blueprint
+        if (container.blueprintId) {
+          addCurrency(w, actorId, 'blueprint', 1, {
+            blueprintId: container.blueprintId,
+            blueprintType: container.blueprintType ?? 'firmware',
+          });
+          bus.emit('MESSAGE_EMITTED', {
+            text: `[BLUEPRINT RECOVERED]: Secured ${container.blueprintId} (${container.blueprintType ?? 'firmware'}) blueprint.`,
+            type: 'info',
+          });
+        }
+
         // Materialize stored loot entities
         const itemEntityIds: number[] = [];
         if (

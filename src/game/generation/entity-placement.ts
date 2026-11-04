@@ -693,9 +693,13 @@ function seedContainerLoot<T extends EngineEvents>(
   const storedLoot: Array<{ templateId: string; rarityTier: 'common' | 'uncommon' | 'rare' | 'legendary' }> = [];
   let highestRarity: 'common' | 'uncommon' | 'rare' | 'legendary' = 'common';
 
+  const container = world.getComponent(containerEntityId, Container);
+  const maxCapacity = container?.capacity ?? 4;
+
   if (lootTable && lootTable.length > 0) {
-    const rolledItemCount = randomIntRange(rng, 1, 2);
+    const rolledItemCount = Math.min(maxCapacity, randomIntRange(rng, 1, 2));
     for (let i = 0; i < rolledItemCount; i++) {
+      if (storedLoot.length >= maxCapacity) break;
       const template = selectWeightedTemplate(lootTable, rng)?.template;
       if (template) {
         const rarity = getRarityFromTemplate(template);

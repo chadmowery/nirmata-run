@@ -279,7 +279,12 @@ The handoff claims risky bumps *"halt player movement with **0 turn cost**, flas
 - Clarified generator probability comments in [`dungeon-generator.ts`](../../src/game/generation/dungeon-generator.ts).
 - Verified in [`tests/game/m5-sector-conditions.test.ts`](../../tests/game/m5-sector-conditions.test.ts).
 
-**M6. Unused schema surface.** `thermal_burst` (`hazardOnDestroy`), `bulkhead_switch` (`PropClass`), `loreSnippetId`, `Container.capacity` and `blueprintType`/`blueprintId` on `Container` have no consumers.
+**M6. Unused schema surface — ✅ RESOLVED.**
+- `thermal_burst` implemented: In [`combat.ts`](../../src/game/systems/combat.ts) `handlePropDestruction`, detonating a prop with `hazardOnDestroy: 'thermal_burst'` applies 8 environmental damage via `DamageIntent` and injects +25 Neural Heat to actors within radius 2.
+- `blueprintId` & `blueprintType` consumed: In [`prop-interaction.ts`](../../src/game/systems/prop-interaction.ts), searching containers holding blueprint metadata adds the blueprint to the player's `RunCurrency` stacks.
+- `Container.capacity` enforced: In [`entity-placement.ts`](../../src/game/generation/entity-placement.ts) `seedContainerLoot`, respects `container.capacity` to bound stored items.
+- Pruned dead schema surface: Removed unused `bulkhead_switch` from `PropClassSchema` and unused `loreSnippetId` from `PropSchema` in [`environment.ts`](../../src/shared/components/environment.ts).
+- Verified in [`tests/game/m6-schema-surface.test.ts`](../../tests/game/m6-schema-surface.test.ts).
 
 **M7. Cover is not "directional" and does not raycast.** The handoff says "Raycasts between attacker and defender. Intervening orthogonal cover…". [`checkDirectionalCover`](../../src/game/systems/combat.ts) has no raycast. It finds any `InteractiveSurface` at Manhattan distance 1 from the defender whose Manhattan distance to the attacker is smaller than the defender's. That is a half-plane test, so cover on a defender's side can count for a diagonal attack, and walls and LoS are ignored. The Bastion override (`isBastion ? 0.35 : surface.coverDamageReduction`) *replaces* a higher per-prop value rather than taking the max. The function also iterates all surfaces on every hit.
 
