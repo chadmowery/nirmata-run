@@ -11,6 +11,8 @@ import {
   TemplateId,
   RarityTier,
   Children,
+  PortConfig,
+  AugmentSlots,
 } from '@shared/components';
 import type { ComponentDef } from '@engine/ecs/types';
 import type { EventBus } from '@engine/events/event-bus';
@@ -146,7 +148,9 @@ export const BackpackGrid: React.FC = () => {
           },
         });
       } else if (abilityDef) {
-        [0, 1, 2].forEach((slotIdx) => {
+        const portConfig = gameContext.world.getComponent(gameContext.playerId, PortConfig);
+        const maxFirmware = portConfig?.maxFirmware ?? 2;
+        Array.from({ length: maxFirmware }, (_, i) => i).forEach((slotIdx) => {
           selectedItemActions.push({
             label: `⚡ BURN FIRMWARE (SLOT ${slotIdx + 1})`,
             variant: 'cyan',
@@ -163,19 +167,46 @@ export const BackpackGrid: React.FC = () => {
           });
         });
       } else if (augmentData) {
-        selectedItemActions.push({
-          label: `🧬 BURN AUGMENT INTO CHASSIS`,
-          variant: 'cyan',
-          holdToConfirm: true,
-          holdDurationMs: 600,
-          rightSlot: 'HOLD',
-          action: () => {
-            eventBus?.emit('BURN_AUGMENT_REQUESTED', {
-              augmentEntityId: item.entityId,
+        const portConfig = gameContext.world.getComponent(gameContext.playerId, PortConfig);
+        const maxAugment = portConfig?.maxAugment ?? 3;
+        const agSlots = gameContext.world.getComponent(gameContext.playerId, AugmentSlots);
+
+        // Allow overwriting existing equipped augment slots
+        if (agSlots && agSlots.equipped.length > 0) {
+          agSlots.equipped.forEach((_, slotIdx) => {
+            selectedItemActions.push({
+              label: `🧬 OVERWRITE AUGMENT (SLOT ${slotIdx + 1})`,
+              variant: 'cyan',
+              holdToConfirm: true,
+              holdDurationMs: 600,
+              rightSlot: 'HOLD',
+              action: () => {
+                eventBus?.emit('BURN_AUGMENT_REQUESTED', {
+                  augmentEntityId: item.entityId,
+                  slotIndex: slotIdx,
+                });
+                setSelectedSlotIndex(null);
+              },
             });
-            setSelectedSlotIndex(null);
-          },
-        });
+          });
+        }
+
+        // Allow burning into chassis if available ports remain
+        if (!agSlots || agSlots.equipped.length < maxAugment) {
+          selectedItemActions.push({
+            label: `🧬 BURN AUGMENT INTO CHASSIS`,
+            variant: 'cyan',
+            holdToConfirm: true,
+            holdDurationMs: 600,
+            rightSlot: 'HOLD',
+            action: () => {
+              eventBus?.emit('BURN_AUGMENT_REQUESTED', {
+                augmentEntityId: item.entityId,
+              });
+              setSelectedSlotIndex(null);
+            },
+          });
+        }
       }
     }
   }

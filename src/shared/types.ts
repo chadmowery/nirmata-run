@@ -74,20 +74,20 @@ export const PurgeSoftwareActionSchema = z.object({
 export const BurnFirmwareActionSchema = z.object({
   type: z.literal('BURN_FIRMWARE'),
   firmwareEntityId: z.number().int(),
-  slotIndex: z.number().int().min(0).max(2),
+  slotIndex: z.number().int().min(0).max(10),
 });
 
 export const BurnAugmentActionSchema = z.object({
   type: z.literal('BURN_AUGMENT'),
   augmentEntityId: z.number().int(),
-  slotIndex: z.number().int().min(0).max(3).optional(),
+  slotIndex: z.number().int().min(0).max(10).optional(),
 });
 
 export const MoveAndUseFirmwareActionSchema = z.object({
   type: z.literal('MOVE_AND_USE_FIRMWARE'),
   dx: z.number(),
   dy: z.number(),
-  firmwareSlotIndex: z.number().int().min(0).max(2),
+  firmwareSlotIndex: z.number().int().min(0).max(10),
   targetX: z.number().int(),
   targetY: z.number().int(),
 });

@@ -36,6 +36,7 @@ import {
   Dying,
   ApplyStatusEffectIntent,
   Stability,
+  PortConfig,
 } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { DIRECTIONS, GameAction } from '../input/actions';
@@ -411,59 +412,172 @@ export function processAction(
       return 'PURGE_SOFTWARE';
     }
     case 'BURN_FIRMWARE': {
+      // 1. Verify item is in player inventory
+      const inv = world.getComponent(entityId, RunInventory);
+      const hasItem =
+        inv?.software.some((s) => s.entityId === action.firmwareEntityId) ||
+        inv?.equipment.some((e) => e.entityId === action.firmwareEntityId);
+      if (!hasItem) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'Firmware item not found in player inventory.',
+          type: 'error',
+        });
+        return null;
+      }
+
+      // 2. Verify item is valid ability definition
+      const abilityDef = world.getComponent(action.firmwareEntityId, AbilityDef);
+      if (!abilityDef) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'Selected item is not a valid firmware subroutine.',
+          type: 'error',
+        });
+        return null;
+      }
+
+      // 3. Consult shell port configuration
+      const portConfig = world.getComponent(entityId, PortConfig);
+      const maxFirmware = portConfig?.maxFirmware ?? 2;
+      if (action.slotIndex < 0 || action.slotIndex >= maxFirmware) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `Cannot burn firmware: slot index ${action.slotIndex + 1} exceeds shell capacity (max ${maxFirmware} ports).`,
+          type: 'error',
+        });
+        return null;
+      }
+
       let fwSlots = world.getComponent(entityId, FirmwareSlots);
       if (!fwSlots) {
         world.addComponent(entityId, FirmwareSlots, { equipped: [] });
         fwSlots = world.getComponent(entityId, FirmwareSlots)!;
       }
+      const equipped = [...fwSlots.equipped];
+
+      // If appending a new slot, ensure current equipped slots don't already equal or exceed capacity
+      if (action.slotIndex >= equipped.length && equipped.length >= maxFirmware) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `Cannot burn firmware: all ${maxFirmware} firmware ports are occupied.`,
+          type: 'error',
+        });
+        return null;
+      }
+
+      // 4. Remove item from inventory only after capacity and item checks pass
       const consumed = InventoryUtil.removeItemByEntityId(world, entityId, action.firmwareEntityId);
-      if (consumed) {
-        const equipped = [...fwSlots.equipped];
+      if (!consumed) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'Failed to remove firmware item from inventory.',
+          type: 'error',
+        });
+        return null;
+      }
+
+      // 5. Update slots cleanly without placeholder gaps (no 0 entity IDs)
+      let installedSlotIndex: number;
+      if (action.slotIndex < equipped.length) {
         const oldAbilityId = equipped[action.slotIndex];
-        if (oldAbilityId) {
+        if (oldAbilityId && oldAbilityId !== action.firmwareEntityId) {
           world.addComponent(oldAbilityId, Dying, { killerId: entityId, reason: 'overwritten' });
         }
-        if (action.slotIndex < equipped.length) {
-          equipped[action.slotIndex] = action.firmwareEntityId;
-        } else {
-          while (equipped.length < action.slotIndex) {
-            equipped.push(0);
-          }
-          equipped.push(action.firmwareEntityId);
-        }
-        world.patchComponent(entityId, FirmwareSlots, { equipped });
-        const abilityDef = world.getComponent(action.firmwareEntityId, AbilityDef);
-        eventBus.emit('MESSAGE_EMITTED', {
-          text: `+ FIRMWARE BURNED: ${abilityDef?.name || 'Subroutine'} installed in Slot ${action.slotIndex + 1}`,
-          type: 'info',
-        });
+        equipped[action.slotIndex] = action.firmwareEntityId;
+        installedSlotIndex = action.slotIndex;
+      } else {
+        equipped.push(action.firmwareEntityId);
+        installedSlotIndex = equipped.length - 1;
       }
+      world.patchComponent(entityId, FirmwareSlots, { equipped });
+
+      eventBus.emit('MESSAGE_EMITTED', {
+        text: `+ FIRMWARE BURNED: ${abilityDef?.name || 'Subroutine'} installed in Slot ${installedSlotIndex + 1}`,
+        type: 'info',
+      });
       return 'BURN_FIRMWARE';
     }
     case 'BURN_AUGMENT': {
+      // 1. Verify item is in player inventory
+      const inv = world.getComponent(entityId, RunInventory);
+      const hasItem =
+        inv?.software.some((s) => s.entityId === action.augmentEntityId) ||
+        inv?.equipment.some((e) => e.entityId === action.augmentEntityId);
+      if (!hasItem) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'Augment item not found in player inventory.',
+          type: 'error',
+        });
+        return null;
+      }
+
+      // 2. Verify item is valid augment data
+      const agData = world.getComponent(action.augmentEntityId, AugmentData);
+      if (!agData) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'Selected item is not a valid augment module.',
+          type: 'error',
+        });
+        return null;
+      }
+
+      // 3. Consult shell port configuration
+      const portConfig = world.getComponent(entityId, PortConfig);
+      const maxAugment = portConfig?.maxAugment ?? 3;
+      if (
+        action.slotIndex !== undefined &&
+        (action.slotIndex < 0 || action.slotIndex >= maxAugment)
+      ) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `Cannot burn augment: slot index ${action.slotIndex + 1} exceeds shell capacity (max ${maxAugment} ports).`,
+          type: 'error',
+        });
+        return null;
+      }
+
       let agSlots = world.getComponent(entityId, AugmentSlots);
       if (!agSlots) {
         world.addComponent(entityId, AugmentSlots, { equipped: [] });
         agSlots = world.getComponent(entityId, AugmentSlots)!;
       }
-      const consumed = InventoryUtil.removeItemByEntityId(world, entityId, action.augmentEntityId);
-      if (consumed) {
-        const equipped = [...agSlots.equipped];
-        const targetSlot = action.slotIndex ?? equipped.length;
-        const oldAgId = equipped[targetSlot];
-        if (oldAgId) {
-          world.addComponent(oldAgId, Dying, { killerId: entityId, reason: 'overwritten' });
-          equipped[targetSlot] = action.augmentEntityId;
-        } else {
-          equipped.push(action.augmentEntityId);
-        }
-        world.patchComponent(entityId, AugmentSlots, { equipped });
-        const agData = world.getComponent(action.augmentEntityId, AugmentData);
+      const equipped = [...agSlots.equipped];
+
+      const isExplicitOverwrite =
+        action.slotIndex !== undefined && action.slotIndex < equipped.length;
+      if (!isExplicitOverwrite && equipped.length >= maxAugment) {
         eventBus.emit('MESSAGE_EMITTED', {
-          text: `+ AUGMENT BURNED: ${agData?.name || 'Hardware Mod'} integrated into chassis`,
-          type: 'info',
+          text: `Cannot burn augment: all ${maxAugment} augment ports are occupied. Specify a slot to overwrite.`,
+          type: 'error',
         });
+        return null;
       }
+
+      // 4. Remove item from inventory only after capacity and item checks pass
+      const consumed = InventoryUtil.removeItemByEntityId(world, entityId, action.augmentEntityId);
+      if (!consumed) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'Failed to remove augment item from inventory.',
+          type: 'error',
+        });
+        return null;
+      }
+
+      // 5. Update slots cleanly without placeholder gaps (no 0 entity IDs)
+      let installedSlotIndex: number;
+      if (isExplicitOverwrite) {
+        const targetSlot = action.slotIndex!;
+        const oldAgId = equipped[targetSlot];
+        if (oldAgId && oldAgId !== action.augmentEntityId) {
+          world.addComponent(oldAgId, Dying, { killerId: entityId, reason: 'overwritten' });
+        }
+        equipped[targetSlot] = action.augmentEntityId;
+        installedSlotIndex = targetSlot;
+      } else {
+        equipped.push(action.augmentEntityId);
+        installedSlotIndex = equipped.length - 1;
+      }
+      world.patchComponent(entityId, AugmentSlots, { equipped });
+
+      eventBus.emit('MESSAGE_EMITTED', {
+        text: `+ AUGMENT BURNED: ${agData?.name || 'Hardware Mod'} integrated into chassis Slot ${installedSlotIndex + 1}`,
+        type: 'info',
+      });
       return 'BURN_AUGMENT';
     }
     case 'USE_CONSUMABLE': {
