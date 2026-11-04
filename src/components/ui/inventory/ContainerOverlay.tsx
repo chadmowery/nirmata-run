@@ -20,6 +20,7 @@ export interface ContainerOverlayProps {
   onClose: () => void;
   onTakeItem?: (item: ContainerItem) => void;
   onStoreItem?: (item: ContainerItem) => void;
+  onTakeAll?: () => void;
 }
 
 export const ContainerOverlay: React.FC<ContainerOverlayProps> = ({
@@ -29,6 +30,7 @@ export const ContainerOverlay: React.FC<ContainerOverlayProps> = ({
   onClose,
   onTakeItem,
   onStoreItem,
+  onTakeAll,
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -36,11 +38,15 @@ export const ContainerOverlay: React.FC<ContainerOverlayProps> = ({
         e.preventDefault();
         e.stopPropagation();
         onClose();
+      } else if (e.key === ' ' && onTakeAll && containerItems.length > 0) {
+        e.preventDefault();
+        e.stopPropagation();
+        onTakeAll();
       }
     };
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
-  }, [onClose]);
+  }, [onClose, onTakeAll, containerItems.length]);
 
   return (
     <div
@@ -66,7 +72,19 @@ export const ContainerOverlay: React.FC<ContainerOverlayProps> = ({
           <div className={styles.panel}>
             <div className={styles.panelHeader}>
               <span className={styles.panelTitle}>CONTAINER CARGO</span>
-              <span className={styles.panelBadge}>{containerItems.length} ITEMS</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {onTakeAll && containerItems.length > 0 && (
+                  <button
+                    type="button"
+                    className={styles.actionButton}
+                    onClick={onTakeAll}
+                    style={{ padding: '2px 8px', fontSize: '0.75rem' }}
+                  >
+                    TAKE ALL [SPACE]
+                  </button>
+                )}
+                <span className={styles.panelBadge}>{containerItems.length} ITEMS</span>
+              </div>
             </div>
 
             <div className={styles.itemList}>

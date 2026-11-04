@@ -8,7 +8,6 @@ import { Heat } from '@shared/components/heat';
 import { Stability } from '@shared/components/stability';
 import { FloorState } from '@shared/components/floor-state';
 import { BlocksMovement } from '@shared/components/blocks-movement';
-import { Children } from '@shared/components/children';
 import { AlertIntent } from '@shared/components/intents';
 import { RunInventory, RunCurrency } from '@shared/components/run-inventory';
 import {
@@ -23,6 +22,15 @@ import {
 import { GameplayEvents } from '@shared/events/types';
 import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
+import { logger } from '@engine/utils/logger';
+import { SoftwareDef } from '@shared/components/software-def';
+import { EquipmentDef } from '@shared/components/equipment-def';
+import { Item } from '@shared/components/item';
+import { PickupEffect } from '@shared/components/pickup-effect';
+import { RarityTier } from '@shared/components/rarity-tier';
+import { TemplateId } from '@shared/components/template-id';
+import { SpriteComponent } from '@shared/components/sprite';
+import * as InventoryUtil from '@shared/utils/inventory-util';
 import { addCurrency, getCurrencyAmount, removeCurrency } from '@shared/utils/inventory-util';
 import RNG from 'rot-js/lib/rng';
 
@@ -522,20 +530,114 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
                 propPos ? { position: { x: propPos.x, y: propPos.y } } : undefined,
               );
               itemEntityIds.push(itemEntityId);
-            } catch {
-              // Ignore template instantiation failure if mock/test
+            } catch (err) {
+              logger.error(
+                `Failed to instantiate container item template '${item.templateId}': ${err instanceof Error ? err.message : String(err)}`,
+                'PROP_INTERACTION',
+              );
             }
           }
         }
 
+        const playerInventory = w.getComponent(actorId, RunInventory);
+        const floorState = w.getComponent(actorId, FloorState);
+        const currentFloor = floorState?.currentFloor ?? 1;
+
+        const groundOverflowIds: number[] = [];
+
+        for (const itemEntityId of itemEntityIds) {
+          let transferred = false;
+          if (playerInventory) {
+            const swDef = w.getComponent(itemEntityId, SoftwareDef);
+            const eqDef = w.getComponent(itemEntityId, EquipmentDef);
+            const itemDef = w.getComponent(itemEntityId, Item);
+            const pickupEffect = w.getComponent(itemEntityId, PickupEffect);
+            const rarity = w.getComponent(itemEntityId, RarityTier);
+            const templateRef = w.getComponent(itemEntityId, TemplateId);
+            const templateId = templateRef?.id ?? '';
+
+            if (swDef && templateId) {
+              transferred = InventoryUtil.addSoftware(w, actorId, {
+                entityId: itemEntityId,
+                templateId,
+                rarityTier: rarity?.tier || 'v1.x',
+                pickedUpAtFloor: currentFloor,
+                pickedUpAtTimestamp: Date.now(),
+              });
+              if (transferred) {
+                bus.emit('MESSAGE_EMITTED', {
+                  text: `+ SOFTWARE SECURED: ${swDef.name} [${rarity?.tier || 'v1.x'}]`,
+                  type: 'info',
+                });
+              }
+            } else if (pickupEffect && templateId) {
+              transferred = InventoryUtil.addConsumable(
+                w,
+                actorId,
+                {
+                  entityId: itemEntityId,
+                  templateId,
+                  rarityTier: rarity?.tier || 'common',
+                  pickedUpAtFloor: currentFloor,
+                  pickedUpAtTimestamp: Date.now(),
+                },
+                10,
+              );
+              if (transferred) {
+                bus.emit('MESSAGE_EMITTED', {
+                  text: `+ CONSUMABLE SECURED: Stored in backpack`,
+                  type: 'info',
+                });
+              }
+            } else if (templateId) {
+              transferred = InventoryUtil.addEquipment(w, actorId, {
+                entityId: itemEntityId,
+                templateId,
+                rarityTier: rarity?.tier || 'v1.x',
+                pickedUpAtFloor: currentFloor,
+                pickedUpAtTimestamp: Date.now(),
+              });
+              if (transferred) {
+                const name = eqDef?.name ?? itemDef?.name ?? templateId;
+                bus.emit('MESSAGE_EMITTED', {
+                  text: `+ EQUIPMENT SECURED: ${name} [${rarity?.tier || 'v1.x'}]`,
+                  type: 'info',
+                });
+              }
+            }
+          }
+
+          if (transferred) {
+            // Remove world ground coordinates since item transferred to inventory
+            if (w.hasComponent(itemEntityId, Position)) {
+              w.removeComponent(itemEntityId, Position);
+            }
+            if (w.hasComponent(itemEntityId, SpriteComponent)) {
+              w.removeComponent(itemEntityId, SpriteComponent);
+            }
+            if (grid && propPos) {
+              grid.removeItem(itemEntityId, propPos.x, propPos.y);
+            }
+            bus.emit('ITEM_PICKED_UP', { entityId: actorId, itemId: itemEntityId });
+          } else {
+            // Overflow: drop to ground on the tile
+            groundOverflowIds.push(itemEntityId);
+            if (grid && propPos) {
+              grid.addItem(itemEntityId, propPos.x, propPos.y);
+            }
+            bus.emit('MESSAGE_EMITTED', {
+              text: `[OVERFLOW]: Inventory full - cargo dropped to deck.`,
+              type: 'info',
+            });
+          }
+        }
+
         w.patchComponent(targetId, Container, {
-          itemEntityIds,
+          itemEntityIds: groundOverflowIds,
           storedLoot: [],
         });
-
-        if (itemEntityIds.length > 0) {
-          w.addComponent(targetId, Children, { entityIds: itemEntityIds });
-        }
+        // NOTE: We deliberately do NOT attach Children to targetId here,
+        // ensuring ground overflow items are independent and not destroyed if the container is later destroyed.
 
         // Atmospheric Corporate Forensics Audio Log
         const faction = prop.faction ?? 'system';

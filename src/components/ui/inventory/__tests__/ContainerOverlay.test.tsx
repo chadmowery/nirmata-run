@@ -126,4 +126,25 @@ describe('ContainerOverlay Component', () => {
     fireEvent.keyDown(window, { key: 'Escape', code: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('renders TAKE ALL button and calls onTakeAll when clicked or Space pressed', () => {
+    const onTakeAll = vi.fn<() => void>();
+    render(
+      <ContainerOverlay
+        containerEntityId={99}
+        containerItems={mockContainerItems}
+        onClose={onClose}
+        onTakeAll={onTakeAll}
+      />,
+    );
+
+    const takeAllBtn = screen.getByText('TAKE ALL [SPACE]');
+    expect(takeAllBtn).toBeDefined();
+
+    fireEvent.click(takeAllBtn);
+    expect(onTakeAll).toHaveBeenCalledTimes(1);
+
+    fireEvent.keyDown(window, { key: ' ', code: 'Space' });
+    expect(onTakeAll).toHaveBeenCalledTimes(2);
+  });
 });

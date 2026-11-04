@@ -517,7 +517,11 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
 
       const container = world.getComponent(safeId, Container)!;
       expect(container.storedLoot).toEqual([]);
-      expect(container.itemEntityIds?.length).toBe(1);
+      expect(container.itemEntityIds).toEqual([]);
+
+      // Loot transferred directly to player backpack
+      const inv = world.getComponent(playerId, RunInventory)!;
+      expect(inv.software.length + inv.equipment.length).toBe(1);
 
       // Player received currency & access key
       const currency = world.getComponent(playerId, RunCurrency)!;

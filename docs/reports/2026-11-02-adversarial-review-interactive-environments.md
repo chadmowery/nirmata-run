@@ -299,7 +299,12 @@ The handoff claims risky bumps *"halt player movement with **0 turn cost**, flas
 - Player friendly-fire safety: Added `friendlyFire` to `InteractiveSurface` schema and `options.friendlyFire` support to `handlePropDestruction`, exempting player from self-harm and status effects when friendly-fire is disabled.
 - Verified in [`tests/game/m8-cryo-hazard.test.ts`](../../tests/game/m8-cryo-hazard.test.ts) and [`src/game/systems/__tests__/cover-and-hazards.test.ts`](../../src/game/systems/__tests__/cover-and-hazards.test.ts).
 
-**M9. Container search does not match the handoff.** The handoff says loot is "transferred directly to backpack or dropping to ground on overflow". The code just creates item entities at the prop's position and links them with `Children`. There is no backpack transfer or overflow path. Also: the `Children` component means that if the container is ever condemned, `GravediggerSystem` will hierarchically destroy loot the player has not picked up. [`ContainerOverlay.tsx`](../../src/components/ui/inventory/ContainerOverlay.tsx) is **not mounted anywhere** (only its CSS is reused by `GroundTransferModal`) and has **no "Take All"**, contrary to the handoff.
+**M9. Container search does not match the handoff — ✅ RESOLVED.**
+- Backpack transfer & ground overflow: In [`prop-interaction.ts`](../../src/game/systems/prop-interaction.ts), container search transfers software, equipment, and consumables directly into the player's `RunInventory` via `InventoryUtil`. Items overflowing max inventory capacity drop to the ground deck at `propPos`.
+- Gravedigger cascade immunity: Containers no longer attach `Children` to themselves upon opening; ground loot remains independent and is not destroyed if the container is subsequently destroyed.
+- ContainerOverlay "Take All" & hotkey: Added `onTakeAll` callback and "TAKE ALL [SPACE]" button to [`ContainerOverlay.tsx`](../../src/components/ui/inventory/ContainerOverlay.tsx), with Space and Escape keyboard accessibility.
+- Loud template failure logging: Replaced silent `catch {}` with `logger.error` during container loot materialization.
+- Verified in [`tests/game/m9-container-loot.test.ts`](../../tests/game/m9-container-loot.test.ts) and [`src/components/ui/inventory/__tests__/ContainerOverlay.test.tsx`](../../src/components/ui/inventory/__tests__/ContainerOverlay.test.tsx).
 
 **M10. Prop placement can disconnect the map.** Placement does not re-validate connectivity after adding `BlocksMovement` props. 6 of 404 sampled floors (1.5%) had a walkable region cut off (potentially including stairs, items or enemies). Anchor filtering only avoids tiles within distance 1 of a door.
 
