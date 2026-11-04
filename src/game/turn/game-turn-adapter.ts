@@ -22,7 +22,9 @@ export class GameTurnAdapter<
   ) {}
 
   getCandidateActors(): EntityId[] {
-    return this.world.query(Actor, Energy);
+    return this.world
+      .query(Actor, Energy)
+      .filter((id) => !this.world.hasComponent(id, Dying));
   }
 
   isActorActive(actorId: EntityId): boolean {

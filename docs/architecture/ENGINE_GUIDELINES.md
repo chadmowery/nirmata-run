@@ -51,7 +51,7 @@ graph TD
 ### Why the 4-Phase Action Sequence Runs Per-Actor
 During a turn cycle on the server, the 4-phase sequence (`GATHER_INTENT → ACTION → REACTION → CLEANUP`) runs once for the acting player (`Acting` tag attached), and then **repeats sequentially for each ready enemy** rather than batching all actors simultaneously:
 1. **Sequential Board Truth**: Enemy B evaluates `GATHER_INTENT` against the updated grid positions resulting from the Player's and Enemy A's moves.
-2. **Immediate Death Pruning**: If the player kills an enemy during the player's action sequence, `GravediggerSystem` purges that enemy in the player's `CLEANUP` phase before `processEnemyTurns()` checks `isActorActive(enemyId)`.
+2. **Immediate Death Pruning**: If the player kills an enemy during the player's action sequence, `GravediggerSystem` purges that enemy in the player's `CLEANUP` phase before `processEnemyTurns()` checks `isActorActive(enemyId)`. Additionally, `GameTurnAdapter` guards `isActorActive`, `canActorAct`, `accumulateEnergy`, and candidate queries against `Dying` and missing entities to guarantee condemned actors never act.
 3. **Scoped Transient Tags**: Single-actor tags (`Acting`, `MovedThisTurn`, `DealtDamageThisTurn`, `FirmwareActivatedThisTurn`) are wiped by `TagCleanupSystem` at the end of each actor's `CLEANUP` phase so they never bleed across actors.
 
 ### Phase Definitions & Registered Systems

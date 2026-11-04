@@ -1,6 +1,14 @@
 import AStar from 'rot-js/lib/path/astar';
 import { GameContext } from '../types';
-import { AnchorMarker, Health, Position, StaircaseMarker, Prop, BlocksMovement, Hostile } from '@shared/components';
+import {
+  AnchorMarker,
+  Health,
+  Position,
+  StaircaseMarker,
+  BlocksMovement,
+  Hostile,
+  Prop,
+} from '@shared/components';
 import { GameAction, DIRECTIONS } from '../input/actions';
 import { ActionIntent } from '@shared/types';
 import { logger } from '@engine/utils/logger';
@@ -52,6 +60,77 @@ export class AutoPathfinder {
     return this.isAutoPathing;
   }
 
+  private isTilePassable(
+    x: number,
+    y: number,
+    playerPos: { x: number; y: number },
+    targetPos: { x: number; y: number },
+    avoidHostilesAndProps: boolean,
+  ): boolean {
+    if (!this.context) return false;
+    if (x === playerPos.x && y === playerPos.y) return true;
+    if (x === targetPos.x && y === targetPos.y) return true;
+    if (!this.context.grid.isWalkable(x, y)) return false;
+
+    const occupants = this.context.grid.getEntitiesAt(x, y);
+    for (const occId of occupants) {
+      if (occId === this.context.playerId) continue;
+
+      // Entities that strictly block physical movement are impassable
+      if (this.context.world.hasComponent(occId, BlocksMovement)) {
+        return false;
+      }
+
+      if (avoidHostilesAndProps) {
+        // Safe pass: route around hostiles and props to reach anchor cleanly
+        if (
+          this.context.world.hasComponent(occId, Hostile) ||
+          this.context.world.hasComponent(occId, Prop)
+        ) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  private computePath(
+    playerPos: { x: number; y: number },
+    anchorPos: { x: number; y: number },
+  ): [number, number][] {
+    // Pass 1: Try safe navigation avoiding hostiles and hazard props
+    const safeAstar = new AStar(
+      anchorPos.x,
+      anchorPos.y,
+      (x, y) => this.isTilePassable(x, y, playerPos, anchorPos, true),
+      { topology: 4 },
+    );
+
+    let path: [number, number][] = [];
+    safeAstar.compute(playerPos.x, playerPos.y, (x, y) => {
+      path.push([x, y]);
+    });
+
+    if (path.length > 0) {
+      return path;
+    }
+
+    // Pass 2: Fallback when corridor is blocked by hostiles/props; navigate through hostiles to engage
+    const directAstar = new AStar(
+      anchorPos.x,
+      anchorPos.y,
+      (x, y) => this.isTilePassable(x, y, playerPos, anchorPos, false),
+      { topology: 4 },
+    );
+
+    path = [];
+    directAstar.compute(playerPos.x, playerPos.y, (x, y) => {
+      path.push([x, y]);
+    });
+
+    return path;
+  }
+
   private async runLoop(): Promise<void> {
     while (this.isAutoPathing && this.context) {
       if (!this.context.turnManager.canAcceptInput() || !this.context.playerId) {
@@ -83,34 +162,7 @@ export class AutoPathfinder {
         break;
       }
 
-      // Pathfind avoiding props, blocking obstacles, and hostiles
-      const astar = new AStar(
-        anchorPos.x,
-        anchorPos.y,
-        (x, y) => {
-          if (x === playerPos.x && y === playerPos.y) return true;
-          if (x === anchorPos!.x && y === anchorPos!.y) return true;
-          if (!this.context!.grid.isWalkable(x, y)) return false;
-          const occupants = this.context!.grid.getEntitiesAt(x, y);
-          for (const occId of occupants) {
-            if (occId === this.context!.playerId) continue;
-            if (
-              this.context!.world.hasComponent(occId, Prop) ||
-              this.context!.world.hasComponent(occId, BlocksMovement) ||
-              this.context!.world.hasComponent(occId, Hostile)
-            ) {
-              return false;
-            }
-          }
-          return true;
-        },
-        { topology: 4 },
-      );
-
-      const path: [number, number][] = [];
-      astar.compute(playerPos.x, playerPos.y, (x, y) => {
-        path.push([x, y]);
-      });
+      const path = this.computePath(playerPos, anchorPos);
 
       if (path.length === 0) {
         logger.warn('[DEBUG] No path found to anchor');

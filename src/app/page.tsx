@@ -22,7 +22,7 @@ import { AbortMissionDialog } from '@/components/ui/AbortMissionDialog';
 import { HubLayout } from '@/components/ui/hub/HubLayout';
 import { DevTerminal } from '@/components/ui/DevTerminal';
 import { GameContext } from '@/game/types';
-import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT } from '@/shared/constants';
+import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT, DEFAULT_SHELL_ID } from '@/shared/constants';
 
 export default function GamePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -59,7 +59,7 @@ export default function GamePage() {
       let runMode: RunMode | undefined;
       let shellId: string | undefined;
 
-      const fallbackShellId = store.shellTemplates[store.selectedShellIndex]?.id || 'vanguard-v1';
+      const fallbackShellId = store.shellTemplates[store.selectedShellIndex]?.id || DEFAULT_SHELL_ID;
 
       if (launchConfig) {
         // Use pre-configured launch data from the Hub (Initialize Ritual)
@@ -70,7 +70,7 @@ export default function GamePage() {
         logger.info(`Using Hub launch configuration: ${JSON.stringify(launchConfig)}`, 'NETWORK');
       } else {
         // Fallback for legacy/direct play
-        shellId = fallbackShellId || 'vanguard-v1';
+        shellId = fallbackShellId || DEFAULT_SHELL_ID;
         seed = `run-${Date.now()}`;
         const sessionResponse = await fetch('/api/session', {
           method: 'POST',

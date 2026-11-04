@@ -4,7 +4,7 @@ import { createEngineInstance } from '@game/engine-factory';
 import { sessionManager } from '@server/session/session-manager';
 import { createDefaultProfile } from '@shared/profile';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
-import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT } from '@/shared/constants';
+import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT, DEFAULT_SHELL_ID } from '@/shared/constants';
 import { RunMode } from '@shared/run-mode';
 import { logger } from '@engine/utils/logger';
 import { globalShellRegistry, applyShellUpgradesToRecord } from '@/game/shells/server';
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
 
     // Shell resolution
     let shellRecord = null;
-    const requestedShellId = parsed.data.shellId || 'vanguard-v1';
+    const requestedShellId = parsed.data.shellId || DEFAULT_SHELL_ID;
     if (requestedShellId) {
       shellRecord = globalShellRegistry.get(requestedShellId);
       if (!shellRecord) {

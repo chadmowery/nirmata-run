@@ -7,6 +7,11 @@ This document defines the canonical process for entity destruction in Nirmata Ru
 
 Any system that determines an entity should be removed (due to fatal combat damage, item pickup, software consumption, hazard expiration, or floor teardown) must instead mark the entity with the [`Dying`](../../src/shared/components/dying.ts) component.
 
+### Turn Scheduler & Adapter Invariants
+To prevent condemned entities from executing turns or accumulating energy during sequential actor loops before `GravediggerSystem` purges them in `Phase.CLEANUP`:
+- [`GameTurnAdapter`](../../src/game/turn/game-turn-adapter.ts) checks `entityExists` and guards against `Dying` across `isActorActive()`, `canActorAct()`, `accumulateEnergy()`, `getCandidateActors()`, and `onBeforeActorAct()`.
+- Condemned entities are immediately inert to the turn scheduler while remaining queryable to reaction/harvesting systems.
+
 ---
 
 ## Architecture Overview

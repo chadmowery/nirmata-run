@@ -36,6 +36,7 @@ import {
 import { ActionIntent } from '@shared/types';
 import { RunMode } from '@shared/run-mode';
 import { PlayerProfile } from '@shared/profile';
+import { DEFAULT_SHELL_ID } from '@shared/constants';
 import { logger } from '@engine/utils/logger';
 import { AutoPathfinder } from './debug/auto-pathfind';
 import { useDebugStore } from './debug/debug-store';
@@ -70,12 +71,12 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   const seed = config.seed ?? `run-${Date.now()}`;
 
   // Fetch shell record for the player
-  const shellId = config.shellId || 'vanguard-v1';
+  const shellId = config.shellId || DEFAULT_SHELL_ID;
   let shellRecord = globalShellRegistry.get(shellId);
   if (!shellRecord) {
     const isKnownArchetype =
       globalShellRegistry.getTemplates().some((t) => t.id === shellId);
-    const archetypeId = isKnownArchetype ? shellId : 'vanguard-v1';
+    const archetypeId = isKnownArchetype ? shellId : DEFAULT_SHELL_ID;
     shellRecord = globalShellRegistry.createRecord(shellId, archetypeId);
   }
 
@@ -277,7 +278,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   eventBus.on('EQUIP_REQUESTED', async (payload) => {
     const { Shell } = await import('@shared/components/shell');
     const shell = world.getComponent(playerId, Shell);
-    const shellId = shell?.archetypeId || 'player-shell-default';
+    const shellId = shell?.archetypeId || DEFAULT_SHELL_ID;
 
     inputManager.setRequestPending(true);
     await sendActionToServer({

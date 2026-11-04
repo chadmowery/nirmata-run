@@ -20,6 +20,7 @@ import { getDepthBand } from '../generation/dungeon-generator';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { getHeatTier } from '../config/heat-tiers';
 import { calculateScore } from '../scoring';
+import { DEFAULT_SHELL_ID } from '@shared/constants';
 
 export function syncEngineToStore(context: GameContext) {
   const { eventBus, world } = context;
@@ -82,7 +83,7 @@ export function syncEngineToStore(context: GameContext) {
       shell?.archetypeId ||
       store.launchConfig?.shellId ||
       store.shellTemplates[store.selectedShellIndex]?.id ||
-      'vanguard-v1';
+      DEFAULT_SHELL_ID;
 
     store.updatePlayerStats({
       hp: health?.current ?? 0,
