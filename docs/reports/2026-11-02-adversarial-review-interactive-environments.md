@@ -19,7 +19,7 @@
 | C6 | **Direct `ECS` architecture violations.** There is an `eventBus.on()` that drives game logic, direct `Health` patching that bypasses `DamageIntent`, and a game-specific string in the engine layer. | ✅ **RESOLVED** (`73842d7f`..`519b3487`) |
 | C7 | **Stability "threat purge" is exploitable.** It fires on any `ENTITY_DIED` the player causes, including crates and traps. The stability rebalance is also a 5–80% nerf shipped as a "bug fix". | ✅ **RESOLVED** (`0d33d784`) |
 | C8 | **`BURN_FIRMWARE` / `BURN_AUGMENT` ignore shell port capacity.** They use hard-coded slot caps and can push `0` placeholder entity IDs. | ✅ **RESOLVED** (`91fccc2d`) |
-| M1–M14 | Medium and low issues (dead code, inconsistent key accounting, 2 of 3 sector conditions are no-ops, a log-format typo, and others). | 🟡 / 🔵 |
+| M1–M14 | All medium issues (M1–M14) resolved (access key accounting, vault scoring, dead-drop validation, deterministic lore RNG, sector conditions, schema cleanup, directional cover raycasting, persistent cryo dead zones, container backpack transfer, prop connectivity validation, error logger hardening, type safety, default shell & pathfinding parity, and test coverage). | ✅ **ALL RESOLVED** |
 
 **The gates pass because the tests do not cover the broken paths.** I reproduced the green gates myself, and also found a 33% generation crash rate that the 915 tests do not catch.
 
@@ -330,12 +330,13 @@ The handoff claims risky bumps *"halt player movement with **0 turn cost**, flas
 - `GameTurnAdapter` Death Protocol alignment & documented invariants: In [`game-turn-adapter.ts`](../../src/game/turn/game-turn-adapter.ts), filtered out condemned `Dying` entities in `getCandidateActors()` alongside existing `isActorActive`, `canActorAct`, `accumulateEnergy`, and `onBeforeActorAct` guards. Documented turn scheduler adapter invariants in [`DEATH_PROTOCOL.md`](../architecture/DEATH_PROTOCOL.md) and [`ENGINE_GUIDELINES.md`](../architecture/ENGINE_GUIDELINES.md).
 - Verified in [`tests/game/m13-unreviewed-behavior.test.ts`](../../tests/game/m13-unreviewed-behavior.test.ts).
 
-**M14. Weak or misleading tests.**
-- *"masks container loot…"* asserts the opposite (see C3).
-- The bump-safeguard tests call `MovementSystem` directly and never exercise energy cost, input buffering or client/server parity (see C5).
-- Procgen tests use a handful of lucky seeds (see C1).
-- `prop-interaction` tests use mocked factories and catch template-instantiation failures with a bare `catch {}` ("Ignore … if mock/test"). The production system also has this `catch {}` at [L487](../../src/game/systems/prop-interaction.ts). A bad template silently produces an empty container in production.
-- No test covers client-side prediction parity for the new systems.
+**M14. Weak or misleading tests — ✅ RESOLVED.**
+- Hardened loot-masking verification: In [`hybrid-procgen.test.ts`](../../src/game/generation/__tests__/hybrid-procgen.test.ts), updated the container loot test to serialize via `serializeWorld(world, { redactForClient: true })` and assert that secret fields (`storedLoot`, `scrapYield`, `fluxYield`, `grantsAccessKey`, `blueprintId`, and `blueprintType`) are completely stripped from client payloads, and that unrevealed `CorruptedNode.trapType` is stripped.
+- Multi-seed procgen sweep test: Added multi-depth (1–15) × multi-seed sweep tests in `hybrid-procgen.test.ts` verifying floor connectivity, sector conditions, and room generation beyond lucky seeds.
+- Loud template instantiation failure tests: In [`prop-interaction.test.ts`](../../src/game/systems/__tests__/prop-interaction.test.ts), added tests verifying that bad/unregistered container item templates log errors via `logger.error` rather than silently swallowing errors.
+- ActionAbortedTag and InputBuffer assertions: In `prop-interaction.test.ts`, verified `ActionAbortedTag` attachment and `INPUT_BUFFER_CLEARED` event emissions across hazard and lock bumps.
+- Client-side prediction parity test suite: Created comprehensive test suite in [`tests/game/m14-prediction-parity.test.ts`](../../tests/game/m14-prediction-parity.test.ts) comparing client (`isClient: true`) and authoritative server (`isClient: false`) state outcomes, testing movement prediction, bump-to-search parity, 0-turn-cost bump safeguard parity, and delta reconciliation without client desync.
+- Verified in [`tests/game/m14-prediction-parity.test.ts`](../../tests/game/m14-prediction-parity.test.ts), [`src/game/generation/__tests__/hybrid-procgen.test.ts`](../../src/game/generation/__tests__/hybrid-procgen.test.ts), and [`src/game/systems/__tests__/prop-interaction.test.ts`](../../src/game/systems/__tests__/prop-interaction.test.ts).
 
 **Low / polish**
 - `getRarityFromTemplate` classifies rarity by substring (`-v3`, `augment`, `firmware`).

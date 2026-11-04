@@ -22,7 +22,9 @@ import {
   BlocksMovement,
   RunInventory,
   RunCurrency,
+  ActionAbortedTag,
 } from '@shared/components';
+import { logger } from '@engine/utils/logger';
 import { AIBehavior, AIBehaviorType } from '@shared/components/ai-state';
 import {
   Prop,
@@ -144,7 +146,9 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
       moveSystem.init();
 
       const messageSpy = vi.fn();
+      const bufferSpy = vi.fn();
       eventBus.on('MESSAGE_EMITTED', messageSpy);
+      eventBus.on('INPUT_BUFFER_CLEARED', bufferSpy);
 
       // Place revealed corrupted terminal at (6, 5)
       const propId = world.createEntity();
@@ -161,6 +165,8 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
       // Move cancelled, NO InteractPropIntent added (Tier 2 Safeguard)
       expect(world.hasComponent(playerId, MoveIntent)).toBe(false);
       expect(world.hasComponent(playerId, InteractPropIntent)).toBe(false);
+      expect(world.hasComponent(playerId, ActionAbortedTag)).toBe(true);
+      expect(bufferSpy).toHaveBeenCalled();
 
       expect(messageSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -199,7 +205,9 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
       moveSystem.init();
 
       const messageSpy = vi.fn();
+      const bufferSpy = vi.fn();
       eventBus.on('MESSAGE_EMITTED', messageSpy);
+      eventBus.on('INPUT_BUFFER_CLEARED', bufferSpy);
 
       const propId = world.createEntity();
       world.addComponent(propId, Position, { x: 6, y: 5 });
@@ -214,6 +222,8 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
 
       expect(world.hasComponent(playerId, MoveIntent)).toBe(false);
       expect(world.hasComponent(playerId, InteractPropIntent)).toBe(false);
+      expect(world.hasComponent(playerId, ActionAbortedTag)).toBe(true);
+      expect(bufferSpy).toHaveBeenCalled();
 
       expect(messageSpy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -536,6 +546,31 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
           type: 'info',
           text: expect.stringContaining('CYBERACME'),
         }),
+      );
+    });
+
+    it('logs error when container item template fails instantiation rather than swallowing silently', () => {
+      const propSystem = createPropInteractionSystem(world, grid, eventBus, entityFactory, componentRegistry);
+      propSystem.init();
+
+      const errorSpy = vi.spyOn(logger, 'error');
+
+      const crateId = world.createEntity();
+      world.addComponent(crateId, Position, { x: 6, y: 5 });
+      world.addComponent(crateId, Prop, { propId: 'crate1', faction: 'traxus', propClass: 'locker', isSearched: false });
+      world.addComponent(crateId, Container, {
+        containerId: 'c_crate',
+        storedLoot: [{ templateId: 'non-existent-template-xyz', rarityTier: 'common' }],
+        itemEntityIds: [],
+      });
+      grid.addEntity(crateId, 6, 5);
+
+      world.addComponent(playerId, InteractPropIntent, { targetPropId: crateId, forceOverride: false });
+      world.executeSystems(Phase.ACTION);
+
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Failed to instantiate container item template 'non-existent-template-xyz'"),
+        'PROP_INTERACTION',
       );
     });
 

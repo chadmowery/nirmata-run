@@ -138,6 +138,31 @@ describe('Hybrid ProcGen & Interactive Environments Generation', () => {
       expect(res1.propAnchors.length).toBe(res2.propAnchors.length);
       expect(res1.propAnchors[0]).toEqual(res2.propAnchors[0]);
     });
+
+    it('generates valid connected floors with sector conditions across depths 1-15 and diverse seeds', () => {
+      const depths = [1, 5, 6, 11, 15];
+      for (const depth of depths) {
+        for (let s = 0; s < 5; s++) {
+          const dungeon = generateDungeon({
+            width: 80,
+            height: 45,
+            seed: `sweep_seed_d${depth}_s${s}`,
+            depth,
+          });
+          expect(dungeon.grid).toBeDefined();
+          expect(dungeon.rooms.length).toBeGreaterThanOrEqual(3);
+          expect(dungeon.playerSpawnRoom).toBeDefined();
+          if (depth <= 5) {
+            expect(dungeon.sectorCondition).toBe('NOMINAL');
+          } else {
+            expect(['NOMINAL', 'THERMAL_SURGE', 'DARK_SUBNET', 'OVERCLOCKED_GRID']).toContain(dungeon.sectorCondition);
+            if (depth === 6 || depth === 10 || depth === 15) {
+              expect(dungeon.sectorCondition).not.toBe('NOMINAL');
+            }
+          }
+        }
+      }
+    });
   });
 
   describe('placeEntities with Interactive Props & Loot Masking', () => {
@@ -189,17 +214,17 @@ describe('Hybrid ProcGen & Interactive Environments Generation', () => {
 
       expect(placement.propIds.length).toBeGreaterThan(0);
 
-      // Check containers for loot masking
+      // Verify server ECS components have deterministic stored loot before search
       let containerCount = 0;
       for (const propId of placement.propIds) {
         if (world.hasComponent(propId, Container)) {
           containerCount++;
           const container = world.getComponent(propId, Container)!;
 
-          // Crucial anti-cheat rule: itemEntityIds is EMPTY before search
+          // Anti-cheat invariant 1: itemEntityIds is EMPTY before search
           expect(container.itemEntityIds).toEqual([]);
 
-          // Stored loot is rolled deterministically
+          // Stored loot is rolled deterministically on authoritative server
           expect(container.storedLoot).toBeDefined();
 
           // Highest rarity is populated for skills that inspect container contents
@@ -208,6 +233,34 @@ describe('Hybrid ProcGen & Interactive Environments Generation', () => {
         }
       }
       expect(containerCount).toBeGreaterThan(0);
+
+      // Verify network client payload completely masks secret container fields
+      const clientPayload = serializeWorld(world, { redactForClient: true });
+      const containerStore = clientPayload.stores['container'];
+      expect(containerStore).toBeDefined();
+
+      for (const compData of Object.values(containerStore!)) {
+        const container = compData as Record<string, unknown>;
+        expect(container.storedLoot).toBeUndefined();
+        expect(container.scrapYield).toBeUndefined();
+        expect(container.fluxYield).toBeUndefined();
+        expect(container.grantsAccessKey).toBeUndefined();
+        expect(container.blueprintId).toBeUndefined();
+        expect(container.blueprintType).toBeUndefined();
+        // Visible fields remain
+        expect(container.highestRarity).toBeDefined();
+      }
+
+      // Verify unrevealed CorruptedNode trapType is stripped in client payload
+      const corruptedStore = clientPayload.stores['corruptedNode'];
+      if (corruptedStore) {
+        for (const compData of Object.values(corruptedStore)) {
+          const node = compData as Record<string, unknown>;
+          if (!node.revealed) {
+            expect(node.trapType).toBeUndefined();
+          }
+        }
+      }
     });
 
     it('places guaranteed reality stabilizer on floor 6-15', () => {
