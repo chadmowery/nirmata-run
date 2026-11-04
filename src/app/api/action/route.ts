@@ -93,14 +93,16 @@ export async function POST(req: Request) {
       turnExecutionFailed = true;
       turnErrorMessage = turnError instanceof Error ? turnError.message : String(turnError);
 
-      // Detailed console error dump and persistent log file writing
-      await logTurnExecutionError({
+      // Non-blocking background error log and file write to avoid request latency
+      void logTurnExecutionError({
         sessionId,
         action,
         playerId: session.playerId,
         world,
         turnManager,
         error: turnError,
+      }).catch((logErr) => {
+        console.error('Failed to write error log in background:', logErr);
       });
 
       // 1. Roll back World to pre-turn snapshot

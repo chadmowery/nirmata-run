@@ -26,6 +26,36 @@ export interface TurnErrorContext<TEvents extends EngineEvents = EngineEvents> {
   error: unknown;
 }
 
+export const MAX_LOG_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+export const MAX_BACKUP_FILES = 2;
+
+/**
+ * Checks if the error log file exceeds MAX_LOG_SIZE_BYTES and rotates backup files.
+ */
+export async function rotateLogFileIfNeeded(logFilePath: string): Promise<void> {
+  try {
+    const stats = await fs.stat(logFilePath);
+    if (stats.size >= MAX_LOG_SIZE_BYTES) {
+      for (let i = MAX_BACKUP_FILES - 1; i >= 1; i--) {
+        const src = `${logFilePath}.${i}`;
+        const dest = `${logFilePath}.${i + 1}`;
+        try {
+          await fs.rename(src, dest);
+        } catch {
+          // Backup file might not exist yet
+        }
+      }
+      try {
+        await fs.rename(logFilePath, `${logFilePath}.1`);
+      } catch {
+        // Ignore rename error
+      }
+    }
+  } catch {
+    // File does not exist yet; no rotation needed
+  }
+}
+
 /**
  * Formats rich diagnostic information for turn execution exceptions,
  * logs it with full component and game state to the console, and appends to logs/game-errors.log.
@@ -35,6 +65,10 @@ export async function logTurnExecutionError<TEvents extends EngineEvents = Engin
 ): Promise<void> {
   const timestamp = new Date().toISOString();
   const errorObj = ctx.error instanceof Error ? ctx.error : new Error(String(ctx.error));
+  const sanitizedSessionId =
+    ctx.sessionId && ctx.sessionId.length > 12
+      ? `${ctx.sessionId.slice(0, 8)}...`
+      : ctx.sessionId;
 
   // Extract Player Component Snapshot
   const playerComponents = ctx.world.getEntityComponents(ctx.playerId);
@@ -107,17 +141,17 @@ export async function logTurnExecutionError<TEvents extends EngineEvents = Engin
     `\x1b[1;31mError Details:\x1b[0m`,
     `  Message:    ${errorObj.message}`,
     `  Stack Trace:\n${errorObj.stack || '  (no stack trace)'}`,
-    `\x1b[31${separator}\x1b[0m`,
+    `\x1b[31m${separator}\x1b[0m`,
     '',
   ];
 
   console.error(consoleLines.join('\n'));
 
-  // Format File Log Entry (strip ANSI colors)
+  // Format File Log Entry (strip ANSI colors & sanitize session ID)
   const fileLogEntry = [
     `\n${separator}`,
     `[TURN EXECUTION FAILURE] - ${timestamp}`,
-    `Session ID:   ${ctx.sessionId}`,
+    `Session ID:   ${sanitizedSessionId}`,
     `Action:       ${JSON.stringify(ctx.action, null, 2)}`,
     `Turn State:   Turn #${ctx.turnManager.getTurnNumber()} | Phase: ${ctx.turnManager.getPhase()} | Paused: ${ctx.turnManager.isPaused}`,
     `Floor:        ${floorState?.currentFloor ?? 1} (Seed: ${floorState?.runSeed ?? 'unknown'}, Condition: ${floorState?.sectorCondition ?? 'NOMINAL'})`,
@@ -146,6 +180,7 @@ export async function logTurnExecutionError<TEvents extends EngineEvents = Engin
     const logsDir = path.join(process.cwd(), 'logs');
     await fs.mkdir(logsDir, { recursive: true });
     const logFilePath = path.join(logsDir, 'game-errors.log');
+    await rotateLogFileIfNeeded(logFilePath);
     await fs.appendFile(logFilePath, fileLogEntry, 'utf-8');
   } catch (fsErr) {
     console.error('Failed to write to logs/game-errors.log:', fsErr);

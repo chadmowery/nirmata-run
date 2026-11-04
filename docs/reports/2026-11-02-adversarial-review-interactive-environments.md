@@ -311,7 +311,12 @@ The handoff claims risky bumps *"halt player movement with **0 turn cost**, flas
 - Vault interior preservation: Validates mutual reachability inside locked vault boundaries to guarantee vault props do not disconnect interior loot or terminals.
 - Verified in [`tests/game/m10-prop-connectivity.test.ts`](../../tests/game/m10-prop-connectivity.test.ts) across depths 1–15 and varied seeds.
 
-**M11. Error logger issues.** [`error-logger.ts` L110](../../src/server/utils/error-logger.ts): the ANSI string is `\x1b[31${separator}` (missing the `m`), so the closing line prints garbage escape codes. The logger appends full component dumps for the player to an unbounded `logs/game-errors.log` with no rotation, size cap or PII review. `logs/` was added to `.gitignore`, but the file will grow forever in long-lived server processes. `await`-ing disk I/O inside the request path of a failing turn adds latency to the failure case.
+**M11. Error logger issues — ✅ RESOLVED.**
+- ANSI escape sequence fix: Corrected `\x1b[31${separator}` to `\x1b[31m${separator}` in [`error-logger.ts`](../../src/server/utils/error-logger.ts).
+- Size cap and log rotation: Implemented `MAX_LOG_SIZE_BYTES` (5 MB) cap with automatic file rotation via `rotateLogFileIfNeeded`, rotating up to `MAX_BACKUP_FILES` (2) backups (`game-errors.log.1`, `game-errors.log.2`).
+- Latency & non-blocking disk I/O: In [`route.ts`](../../src/app/api/action/route.ts), executes `logTurnExecutionError` as a non-blocking background task (`void logTurnExecutionError(...).catch(...)`), preventing failing turns from blocking the HTTP response on disk I/O.
+- PII / session sanitization: Truncates and sanitizes session IDs in persistent file logs.
+- Verified in [`tests/server/m11-error-logger.test.ts`](../../tests/server/m11-error-logger.test.ts).
 
 **M12. Type-safety erosion.** In `src/` this branch adds 37 `as unknown as` casts, 7 `any`, and 3 `eslint-disable` lines. Many are `as keyof T` / `as T[keyof T]` event-emit casts that hide missing event definitions. They are the reason lint stays green despite C5 and C6.
 
