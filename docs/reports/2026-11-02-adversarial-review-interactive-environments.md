@@ -267,7 +267,10 @@ The handoff claims risky bumps *"halt player movement with **0 turn cost**, flas
 - No wasted currency or phantom transmissions: If the selection ID is invalid or not in inventory, emits an error message, aborts transmission, leaves Flux untouched, and leaves the prop unsearched.
 - Verified in [`tests/game/m3-dead-drop.test.ts`](../../tests/game/m3-dead-drop.test.ts).
 
-**M4. `Math.random()` in server game logic.** [`prop-interaction.ts` L505](../../src/game/systems/prop-interaction.ts) picks the lore line with `Math.random()`. This is cosmetic, but it breaks replay and snapshot determinism and conflicts with the "100% deterministic" posture of seeded generation. Use the session RNG.
+**M4. `Math.random()` in server game logic — ✅ RESOLVED.**
+- Deterministic lore selection: In [`prop-interaction.ts`](../../src/game/systems/prop-interaction.ts), atmospheric forensics lore selection accepts an optional seeded `rng?: { random(): number }` or falls back to ROT.js `RNG.getUniform()`, eliminating unseeded `Math.random()`.
+- Deterministic simulation & replay parity: Preserves strict RNG replay fidelity across floor runs.
+- Verified in [`tests/game/m4-lore-rng.test.ts`](../../tests/game/m4-lore-rng.test.ts).
 
 **M5. Two of three sector conditions are no-ops.** `THERMAL_SURGE` and `DARK_SUBNET` are rolled, stored on `FloorState`, and guaranteed on floors 6/10/15, but nothing reads them. Only `OVERCLOCKED_GRID` has any effect (loot ×1.5, 2 stabilizers). The handoff §9 proposes *adding* `LOW_GRAVITY` and `TOXIC_VENTILATION` while the existing conditions are placeholders. The in-code probability comments ("10 / 25, 8 / 25, 7 / 25") also do not match the thresholds used (`0.4 / 0.72` is 40% / 32% / 28%).
 

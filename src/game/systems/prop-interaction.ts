@@ -24,6 +24,7 @@ import { GameplayEvents } from '@shared/events/types';
 import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
 import { addCurrency, getCurrencyAmount, removeCurrency } from '@shared/utils/inventory-util';
+import RNG from 'rot-js/lib/rng';
 
 export const CORPORATE_FORENSICS_LOGS: Record<FactionTheme, string[]> = {
   cyberacme: [
@@ -84,6 +85,7 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
   eventBus: EventBus<T>,
   entityFactory?: EntityFactory,
   componentRegistry?: ComponentRegistry,
+  rng?: { random(): number },
 ) {
   const update = (w: World<T>) => {
     const actorsWithIntent = w.query(InteractPropIntent);
@@ -500,7 +502,8 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
         // Atmospheric Corporate Forensics Audio Log
         const faction = prop.faction ?? 'system';
         const logs = CORPORATE_FORENSICS_LOGS[faction] || CORPORATE_FORENSICS_LOGS.system;
-        const logText = logs[Math.floor(Math.random() * logs.length)];
+        const randomRoll = rng ? rng.random() : RNG.getUniform();
+        const logText = logs[Math.floor(randomRoll * logs.length)];
         bus.emit('MESSAGE_EMITTED', { text: logText, type: 'info' });
 
         w.patchComponent(targetId, Prop, { isSearched: true });
