@@ -1,7 +1,7 @@
 # Nirmata Runner — Project Tracking & Future Work
 
-> **Last Updated:** 2026-11-03  
-> **Baseline State:** v2.5 (C1–C8 Adversarial Review Remediation Complete — 150 test files, 971 tests passing)
+> **Last Updated:** 2026-11-04  
+> **Baseline State:** v2.5 (C1–C8 + M1–M14 + U1 Remediation Complete)
 
 ---
 
@@ -93,6 +93,8 @@
   - **C1/C2 Hardening**: Preserved `#` walls inside prefab footprints, carved a 1-tile perimeter moat around prefabs, sealed isolated target-room floor pockets, attached `faradayBounds` and `SecurityLock` strictly to `prop-vault-door` (1-key vault unlock), excluded `CorruptedNode` containers from `Access_Key` placement, placed staircases/anchors on verified safe room tiles, and enforced `wouldPinchWalkability` on procedural props (750/750 floors pass all invariants).
   - **C3/C4/C8 Hardening**: Redacted `FloorState.runSeed` on client worlds, rejected `PICKUP` of already-owned/equipped items, required grid verification when `Position` is absent, preserved consumable stack quantities on `DROP_ITEM`, and reconciled server `DELTA` payloads on consumable use in `BackpackGrid.tsx`.
   - **C5/C6/C7 Production Lifecycle Fixes**: Removed premature `ActionAbortedTag` and `AlertIntent` deletion from `TagCleanupSystem`, rolled back `Phase.PRE_TURN` state snapshots when an action is aborted at 0 turn cost, restricted 0-cost `CorruptedNode` bump safeguards to `revealed === true`, added `CHASING` fallback movement to specialist AI routines, gated `/api/action` `processAction()` behind `turnManager.canAcceptInput()`, wired `[E]` (`KeyE`) to adjacent prop interactions, and moved `HealSystem` registration after `ItemPickupSystem` and `StatusEffectSystem` with a `Dying` entity guard.
+- [x] **[ARCH-12] Phase 2 Rendering & UI Remediation — U1 (`docs/reports/2026-11-02-adversarial-review-interactive-environments.md`)**
+  - **U1: Trap Reveal Gating & Remembered Fog-of-War State (`src/rendering/render-system.ts`, `src/rendering/tile-inspector.ts`)**: Gated `'corrupted'` prop outlines and `CORRUPTED NODE` inspector badges on `corrupted.revealed && !corrupted.isDisarmed && !corrupted.triggered`; snapshotted client-remembered prop and ground item state (`rememberedProps`, `rememberedTileItems`) on active FOV tiles so explored-but-unseen tiles never leak out-of-sight state changes; kept `/show-map` (`isMapRevealed`) scoped to `isExplored` so unseen enemy HP/statuses are not leaked. Verified in `src/rendering/__tests__/tile-inspector.test.ts`.
 
 ### 2.3 API Security & Persistence Synchronization
 - [x] **[SEC-01] Sanitize `sessionId` Against Path Traversal (`src/app/persistence/fs-profile-repository.ts`)**

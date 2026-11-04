@@ -65,7 +65,36 @@ import {
 } from './filters/particle-emitters';
 import { spawnDamageText, updateDamageTexts, disposeDamageTexts } from './filters/damage-text';
 import { EventOriginContext } from '../engine/utils/event-context';
-import { resolveTileInspection } from './tile-inspector';
+import { resolveTileInspection, RememberedPropState } from './tile-inspector';
+import { Item } from '@shared/components/item';
+import { CurrencyItem } from '@shared/components/currency-item';
+
+/**
+ * Resolves the client-visible prop outline state.
+ * Only flags a prop as 'corrupted' when the CorruptedNode has been revealed
+ * (or triggered) and is not yet disarmed.
+ */
+export function resolvePropOutlineState(
+  world: World<GameEvents>,
+  entityId: EntityId,
+): 'searched' | 'corrupted' | 'locked' | 'safe' | null {
+  const propComp = world.getComponent(entityId, Prop);
+  if (!propComp) return null;
+
+  const corrupted = world.getComponent(entityId, CorruptedNode);
+  const lock = world.getComponent(entityId, SecurityLock);
+
+  if (propComp.isSearched) {
+    return 'searched';
+  }
+  if (corrupted && !corrupted.isDisarmed && !corrupted.triggered && corrupted.revealed) {
+    return 'corrupted';
+  }
+  if (lock && lock.isLocked) {
+    return 'locked';
+  }
+  return 'safe';
+}
 
 export interface RenderSystemConfig {
   app: Application;
@@ -80,6 +109,8 @@ export interface RenderSystemConfig {
 export function createRenderSystem(config: RenderSystemConfig) {
   const { app, layers, world, eventBus, getGrid, getPlayerEntity, lightPasses } = config;
   const exploredSet = createExploredSet();
+  const rememberedProps = new Map<EntityId, RememberedPropState>();
+  const rememberedTileItems = new Map<string, Set<EntityId>>();
   let cameraTarget = { x: 0, y: 0 };
   let cameraPanOffset = { x: 0, y: 0 };
   let isMapRevealed = false;
@@ -94,6 +125,59 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
   let lastPointerEvent: { clientX: number; clientY: number } | null = null;
   let currentFovSet: Set<string> = new Set();
+
+  const syncPropOutline = (entityId: EntityId, targetSprite?: Sprite) => {
+    const outlineState = resolvePropOutlineState(world, entityId);
+    if (!outlineState) return;
+    const sprite = targetSprite ?? getEntitySprite(entityId);
+    if (sprite) {
+      applyPropOutline(sprite, outlineState);
+    }
+  };
+
+  const recordPropMemory = (entityId: EntityId) => {
+    const propComp = world.getComponent(entityId, Prop);
+    if (!propComp) return;
+    const lock = world.getComponent(entityId, SecurityLock);
+    const corrupted = world.getComponent(entityId, CorruptedNode);
+    rememberedProps.set(entityId, {
+      isSearched: Boolean(propComp.isSearched),
+      isLocked: Boolean(lock?.isLocked),
+      corruptedRevealed: Boolean(corrupted?.revealed || corrupted?.triggered),
+      corruptedDisarmed: Boolean(corrupted?.isDisarmed),
+      corruptedTriggered: Boolean(corrupted?.triggered),
+      corruptionLevel: corrupted?.corruptionLevel,
+    });
+  };
+
+  const snapshotVisibleMemory = (visibleSet: Set<string>) => {
+    const props = world.query(Prop, Position);
+    for (const propId of props) {
+      const pos = world.getComponent(propId, Position);
+      if (pos && visibleSet.has(`${pos.x},${pos.y}`)) {
+        recordPropMemory(propId);
+      }
+    }
+
+    for (const key of visibleSet) {
+      rememberedTileItems.set(key, new Set());
+    }
+    const posEntities = world.query(Position);
+    for (const id of posEntities) {
+      if (!world.hasComponent(id, Item) && !world.hasComponent(id, CurrencyItem)) continue;
+      const pos = world.getComponent(id, Position);
+      if (!pos) continue;
+      const key = `${pos.x},${pos.y}`;
+      if (visibleSet.has(key)) {
+        let set = rememberedTileItems.get(key);
+        if (!set) {
+          set = new Set();
+          rememberedTileItems.set(key, set);
+        }
+        set.add(id);
+      }
+    }
+  };
 
   const updateHoverInspection = (e: { clientX: number; clientY: number }) => {
     if (isDragging) {
@@ -147,10 +231,12 @@ export function createRenderSystem(config: RenderSystemConfig) {
       gy,
       screenX: e.clientX,
       screenY: e.clientY,
-      isVisibleInFov: currentFovSet.has(`${gx},${gy}`) || isMapRevealed,
+      isVisibleInFov: currentFovSet.has(`${gx},${gy}`),
       isExplored: exploredSet.has(`${gx},${gy}`) || isMapRevealed,
       playerEntity: getPlayerEntity(),
       detailedFlavorTextEnabled: storeState.detailedFlavorTextEnabled,
+      rememberedProps,
+      rememberedTileItems,
     });
 
     storeState.setHoveredEntity(info);
@@ -227,41 +313,18 @@ export function createRenderSystem(config: RenderSystemConfig) {
         attachNeonEmitter(sprite, aiState.behaviorType, layers.effectsLayer);
       }
 
-      // Apply prop outline for interactive props
-      const propComp = world.getComponent(payload.entityId, Prop);
-      if (propComp) {
-        const corrupted = world.getComponent(payload.entityId, CorruptedNode);
-        const lock = world.getComponent(payload.entityId, SecurityLock);
-        if (propComp.isSearched) {
-          applyPropOutline(sprite, 'searched');
-        } else if (corrupted && !corrupted.isDisarmed) {
-          applyPropOutline(sprite, 'corrupted');
-        } else if (lock && lock.isLocked) {
-          applyPropOutline(sprite, 'locked');
-        } else {
-          applyPropOutline(sprite, 'safe');
-        }
-      }
+      // Apply client-visible prop outline for interactive props
+      syncPropOutline(payload.entityId, sprite);
     }
   };
 
   const handlePropUpdated = (payload: { propId: number }) => {
     const entityId = payload.propId;
     if (entityId) {
-      const sprite = getEntitySprite(entityId);
-      if (sprite) {
-        const propComp = world.getComponent(entityId, Prop);
-        const corrupted = world.getComponent(entityId, CorruptedNode);
-        const lock = world.getComponent(entityId, SecurityLock);
-        if (propComp?.isSearched) {
-          applyPropOutline(sprite, 'searched');
-        } else if (corrupted && !corrupted.isDisarmed) {
-          applyPropOutline(sprite, 'corrupted');
-        } else if (lock && lock.isLocked) {
-          applyPropOutline(sprite, 'locked');
-        } else {
-          applyPropOutline(sprite, 'safe');
-        }
+      syncPropOutline(entityId);
+      const pos = world.getComponent(entityId, Position);
+      if (pos && currentFovSet.has(`${pos.x},${pos.y}`)) {
+        recordPropMemory(entityId);
       }
     }
   };
@@ -497,6 +560,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
         const sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
         sprite.x = pos.x * TILE_SIZE;
         sprite.y = pos.y * TILE_SIZE;
+        syncPropOutline(entityId, sprite);
       }
     },
 
@@ -504,18 +568,22 @@ export function createRenderSystem(config: RenderSystemConfig) {
       const activeEntities = new Set(world.query(SpriteComponent, Position));
       purgeOrphanedSprites(activeEntities);
 
-      // Instantiate sprites for any active entity missing its sprite
+      // Instantiate sprites for any active entity missing its sprite and refresh prop outlines
       for (const entityId of activeEntities) {
-        if (!getEntitySprite(entityId)) {
+        let sprite = getEntitySprite(entityId);
+        if (!sprite) {
           const spriteComp = world.getComponent(entityId, SpriteComponent);
           const pos = world.getComponent(entityId, Position);
           if (spriteComp) {
-            const sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
+            sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
             if (pos) {
               sprite.x = pos.x * TILE_SIZE;
               sprite.y = pos.y * TILE_SIZE;
             }
           }
+        }
+        if (sprite) {
+          syncPropOutline(entityId, sprite);
         }
       }
     },
@@ -551,13 +619,16 @@ export function createRenderSystem(config: RenderSystemConfig) {
         exploredSet,
       );
 
+      // Snapshot remembered state for tiles currently visible in player's real FOV
+      snapshotVisibleMemory(fovSet);
+      currentFovSet = new Set(fovSet);
+
       if (isMapRevealed) {
         for (const key of exploredSet) {
           fovSet.add(key);
         }
       }
 
-      currentFovSet = fovSet;
       eventBus.emit('FOV_UPDATED', { visibleSet: fovSet });
 
       // 1.5. Targeting UI Rendering
@@ -678,6 +749,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
       cameraPanOffset = { x: 0, y: 0 };
       isMapRevealed = false;
       clearExplored(exploredSet);
+      rememberedProps.clear();
+      rememberedTileItems.clear();
       clearTilemap(layers.terrainLayer);
       clearAnimations();
       clearAllSprites();
@@ -705,6 +778,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
         if (aiState) {
           attachNeonEmitter(sprite, aiState.behaviorType, layers.effectsLayer);
         }
+        syncPropOutline(entityId, sprite);
       }
 
       this.renderSystem();
@@ -738,6 +812,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
       app.ticker.remove(updateCameraFrame);
       clearTilemap(layers.terrainLayer);
       clearExplored(exploredSet);
+      rememberedProps.clear();
+      rememberedTileItems.clear();
       clearAllSprites();
       clearAnimations();
       disposeScreenEffects();

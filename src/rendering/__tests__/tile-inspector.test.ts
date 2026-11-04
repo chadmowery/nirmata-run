@@ -3,11 +3,12 @@ import { World } from '../../engine/ecs/world';
 import { EventBus } from '../../engine/events/event-bus';
 import { Grid } from '../../engine/grid/grid';
 import { resolveTileInspection } from '../tile-inspector';
+import { resolvePropOutlineState } from '../render-system';
 import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
 import { AIState } from '@shared/components/ai-state';
 import { Health } from '@shared/components/health';
-import { Prop, SecurityLock, Container } from '@shared/components/environment';
+import { Prop, SecurityLock, Container, CorruptedNode } from '@shared/components/environment';
 import { StaircaseMarker } from '@shared/components/staircase-marker';
 import { AnchorMarker } from '@shared/components/anchor-marker';
 import { Item } from '@shared/components/item';
@@ -326,5 +327,134 @@ describe('resolveTileInspection', () => {
     expect(result?.type).toBe('item');
     expect(result?.name).toBe('Field Nanite Repair');
     expect(result?.interactionHint).toContain('[G] to pick up or transfer');
+  });
+
+  describe('U1: trap reveal gating and explored-tile remembered state', () => {
+    it('does not leak hidden CorruptedNode trap outline or inspector badge when revealed is false', () => {
+      const prop = world.createEntity();
+      world.addComponent(prop, Position, { x: 7, y: 7 });
+      world.addComponent(prop, Prop, {
+        propId: 'prop_locker_trapped',
+        faction: 'traxus',
+        propClass: 'locker',
+        isSearched: false,
+      });
+      world.addComponent(prop, CorruptedNode, {
+        trapType: 'thermal_dump',
+        corruptionLevel: 2,
+        isDisarmed: false,
+        triggered: false,
+        revealed: false,
+      });
+
+      // Outline state must stay 'safe' while unrevealed
+      expect(resolvePropOutlineState(world, prop)).toBe('safe');
+
+      // Inspector must NOT show CORRUPTED NODE while unrevealed
+      const hiddenInspect = resolveTileInspection({
+        world,
+        grid,
+        gx: 7,
+        gy: 7,
+        screenX: 100,
+        screenY: 100,
+        isVisibleInFov: true,
+        isExplored: true,
+        playerEntity,
+        detailedFlavorTextEnabled: false,
+      });
+      expect(hiddenInspect?.badge).toBe('INTERACTIVE PROP');
+      expect(hiddenInspect?.badgeVariant).toBe('cyan');
+      expect(hiddenInspect?.interactionHint).not.toContain('Hazardous trap payload');
+
+      // Once revealed, both outline and inspector reflect the active trap
+      world.patchComponent(prop, CorruptedNode, { revealed: true });
+      expect(resolvePropOutlineState(world, prop)).toBe('corrupted');
+
+      const revealedInspect = resolveTileInspection({
+        world,
+        grid,
+        gx: 7,
+        gy: 7,
+        screenX: 100,
+        screenY: 100,
+        isVisibleInFov: true,
+        isExplored: true,
+        playerEntity,
+        detailedFlavorTextEnabled: false,
+      });
+      expect(revealedInspect?.badge).toBe('CORRUPTED NODE [LVL 2]');
+      expect(revealedInspect?.badgeVariant).toBe('danger');
+      expect(revealedInspect?.interactionHint).toContain('Hazardous trap payload active');
+
+      // Once disarmed, outline returns to 'safe' and badge clears
+      world.patchComponent(prop, CorruptedNode, { isDisarmed: true });
+      expect(resolvePropOutlineState(world, prop)).toBe('safe');
+    });
+
+    it('uses remembered state on explored-but-unseen tiles instead of leaking live prop and item state', () => {
+      const prop = world.createEntity();
+      world.addComponent(prop, Position, { x: 9, y: 9 });
+      world.addComponent(prop, Prop, {
+        propId: 'prop_safe_01',
+        faction: 'cyberacme',
+        propClass: 'encrypted_safe',
+        isSearched: true, // Server state changed out of sight!
+      });
+      world.addComponent(prop, SecurityLock, {
+        isLocked: false, // Server unlocked out of sight!
+        keyIdRequired: 'key_01',
+      });
+
+      const rememberedProps = new Map([
+        [
+          prop,
+          {
+            isSearched: false,
+            isLocked: true,
+            corrupted: null,
+          },
+        ],
+      ]);
+
+      // Out of FOV (isVisibleInFov: false, isExplored: true) -> shows remembered state (locked, unsearched)
+      const unseenInspect = resolveTileInspection({
+        world,
+        grid,
+        gx: 9,
+        gy: 9,
+        screenX: 100,
+        screenY: 100,
+        isVisibleInFov: false,
+        isExplored: true,
+        playerEntity,
+        detailedFlavorTextEnabled: false,
+        rememberedProps,
+      });
+
+      expect(unseenInspect?.badge).toBe('ENCRYPTED / LOCKED');
+      expect(unseenInspect?.badge).not.toBe('SEARCHED / DEPLETED');
+
+      // Ground item spawned out of sight on an explored tile should not be revealed until seen
+      const unseenItem = world.createEntity();
+      world.addComponent(unseenItem, Position, { x: 11, y: 11 });
+      world.addComponent(unseenItem, Item, { name: 'Dropped Secret Key' });
+
+      const rememberedTileItems = new Map<string, Set<number>>([['11,11', new Set()]]);
+      const unseenItemInspect = resolveTileInspection({
+        world,
+        grid,
+        gx: 11,
+        gy: 11,
+        screenX: 100,
+        screenY: 100,
+        isVisibleInFov: false,
+        isExplored: true,
+        playerEntity,
+        detailedFlavorTextEnabled: false,
+        rememberedTileItems,
+      });
+      expect(unseenItemInspect).toBeNull();
+    });
   });
 });

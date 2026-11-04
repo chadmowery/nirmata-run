@@ -470,7 +470,7 @@ Update these docs as part of the fix, not as a follow-up. The handoff also shoul
 
 | # | Finding | Severity |
 |---|---|---|
-| U1 | **UI leaks hidden traps and live prop state.** The renderer outlines every trapped prop pink regardless of `revealed`, and the inspector shows trap badges and live prop and item state on any *explored* tile, even out of sight. | 🔴 High |
+| U1 | ✅ **RESOLVED:** **UI leaks hidden traps and live prop state.** The renderer outlines every trapped prop pink regardless of `revealed`, and the inspector shows trap badges and live prop and item state on any *explored* tile, even out of sight. | 🔴 High (Fixed) |
 | U2 | **Overclock bypass, forced interaction and Dead-Drop Uplink are unreachable from the UI.** No client code ever sends `INTERACT_PROP` or `DEAD_DROP_ITEM`. | 🔴 High |
 | U3 | **Quick-use consumable discards the server delta**, and several modals run their own `fetch` outside the input and reconciliation pipeline. The server has no per-session request serialization. | 🔴 High |
 | U4 | **Dropping a consumable stack destroys all but one item.** | 🟠 High |
@@ -488,7 +488,9 @@ Update these docs as part of the fix, not as a follow-up. The handoff also shoul
 
 ## P2.1 High-severity findings
 
-### U1. The UI leaks hidden traps and live prop state (compounds C3)
+### U1. ✅ RESOLVED — The UI leaks hidden traps and live prop state (compounds C3)
+
+> **Resolution:** `resolvePropOutlineState` in [`src/rendering/render-system.ts`](../../src/rendering/render-system.ts) and [`src/rendering/tile-inspector.ts`](../../src/rendering/tile-inspector.ts) now gate `'corrupted'` outlines and `CORRUPTED NODE` badges strictly on `corrupted.revealed && !corrupted.isDisarmed && !corrupted.triggered`. Explored-but-unseen tiles use client-remembered prop and ground-item snapshots (`rememberedProps`, `rememberedTileItems`) updated only when tiles are inside active FOV, and `/show-map` (`isMapRevealed`) sets `isExplored` without overriding `isVisibleInFov`. Verified in [`src/rendering/__tests__/tile-inspector.test.ts`](../../src/rendering/__tests__/tile-inspector.test.ts).
 
 Part 1 C3 showed that `CorruptedNode.trapType` and `revealed` are visible in sync payloads. The presentation layer also ignores `revealed`:
 
@@ -677,7 +679,7 @@ Skimmed rather than line-reviewed. Beyond U11: the modal overlays use `position:
 
 **Additional merge-gate items** (extend §8):
 
-- [ ] Trap outlines and inspector badges depend on `revealed`; explored-but-unseen tiles show remembered state only
+- [x] Trap outlines and inspector badges depend on `revealed`; explored-but-unseen tiles show remembered state only
 - [ ] An input-driven test can open a locked safe via overclock and use a Dead-Drop Uplink
 - [ ] Every client action path goes through one request function that applies the returned payload; server rejects overlapping requests per session
 - [ ] Dropping then picking up a consumable stack preserves the count

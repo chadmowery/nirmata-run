@@ -200,6 +200,15 @@ const PROP_CLASS_LORE: Record<
   },
 };
 
+export interface RememberedPropState {
+  isSearched: boolean;
+  isLocked?: boolean;
+  corruptedRevealed?: boolean;
+  corruptedDisarmed?: boolean;
+  corruptedTriggered?: boolean;
+  corruptionLevel?: number;
+}
+
 export interface ResolveTileInspectionParams {
   world: World<GameEvents>;
   grid: Grid;
@@ -211,6 +220,8 @@ export interface ResolveTileInspectionParams {
   isExplored: boolean;
   playerEntity: EntityId;
   detailedFlavorTextEnabled: boolean;
+  rememberedProps?: ReadonlyMap<EntityId, RememberedPropState>;
+  rememberedTileItems?: ReadonlyMap<string, ReadonlySet<EntityId>>;
 }
 
 export function resolveTileInspection(
@@ -227,6 +238,8 @@ export function resolveTileInspection(
     isExplored,
     playerEntity,
     detailedFlavorTextEnabled,
+    rememberedProps,
+    rememberedTileItems,
   } = params;
 
   if (!grid.inBounds(gx, gy)) {
@@ -405,22 +418,57 @@ export function resolveTileInspection(
       flavorText: 'An environmental fixture installed within the corporate facility.',
     };
 
+    // Determine effective client-visible state (live when in FOV, remembered when explored out of FOV)
+    let isSearched = false;
+    let isLocked = false;
+    let isCorruptedVisible = false;
+    let corruptionLevel = 1;
+
+    if (isVisibleInFov) {
+      isSearched = Boolean(prop.isSearched);
+      isLocked = Boolean(lock?.isLocked);
+      isCorruptedVisible = Boolean(
+        corrupted &&
+          !corrupted.isDisarmed &&
+          !corrupted.triggered &&
+          (corrupted.revealed || corrupted.triggered),
+      );
+      corruptionLevel = corrupted?.corruptionLevel || 1;
+    } else {
+      const remembered = rememberedProps?.get(propEntityId);
+      if (remembered) {
+        isSearched = remembered.isSearched;
+        isLocked = Boolean(remembered.isLocked);
+        isCorruptedVisible = Boolean(
+          remembered.corruptedRevealed &&
+            !remembered.corruptedDisarmed &&
+            !remembered.corruptedTriggered,
+        );
+        corruptionLevel = remembered.corruptionLevel || 1;
+      } else {
+        // Default remembered state when explored before any out-of-sight state change
+        isSearched = false;
+        isLocked = Boolean(lock);
+        isCorruptedVisible = false;
+      }
+    }
+
     let badge = 'INTERACTIVE PROP';
     let badgeVariant: 'cyan' | 'orange' | 'danger' | 'yellow' = 'cyan';
     let hint = '[BUMP] to inspect or interact';
 
-    if (prop.isSearched) {
+    if (isSearched) {
       badge = 'SEARCHED / DEPLETED';
       badgeVariant = 'cyan';
       hint = 'Salvage already recovered';
-    } else if (corrupted && !corrupted.isDisarmed) {
-      badge = `CORRUPTED NODE [LVL ${corrupted.corruptionLevel || 1}]`;
+    } else if (isCorruptedVisible) {
+      badge = `CORRUPTED NODE [LVL ${corruptionLevel}]`;
       badgeVariant = 'danger';
-      hint = '[BUMP] to scavenge (Hazardous trap payload active)';
-    } else if (lock && lock.isLocked) {
+      hint = '[E] to force bypass (Hazardous trap payload active)';
+    } else if (isLocked) {
       badge = 'ENCRYPTED / LOCKED';
       badgeVariant = 'orange';
-      hint = '[BUMP] to attempt bypass (Keycard or overclock required)';
+      hint = '[BUMP] to attempt bypass | [E] to overclock (Keycard or overclock required)';
     } else if (container) {
       badge = 'UNOPENED SALVAGE';
       badgeVariant = 'cyan';
@@ -462,10 +510,13 @@ export function resolveTileInspection(
     };
   }
 
-  // 6. Ground Items & Currency Check
-  const itemId = entitiesAtTile.find(
-    (id) => world.hasComponent(id, Item) || world.hasComponent(id, CurrencyItem),
-  );
+  // 6. Ground Items & Currency Check (Live when visible in FOV; remembered only when out of FOV)
+  const itemId = entitiesAtTile.find((id) => {
+    const isItemEntity = world.hasComponent(id, Item) || world.hasComponent(id, CurrencyItem);
+    if (!isItemEntity) return false;
+    if (isVisibleInFov) return true;
+    return Boolean(rememberedTileItems?.get(`${gx},${gy}`)?.has(id));
+  });
   if (itemId !== undefined) {
     const itemComp = world.getComponent(itemId, Item);
     const currencyComp = world.getComponent(itemId, CurrencyItem);
@@ -522,8 +573,10 @@ export function resolveTileInspection(
     return null;
   }
 
-  // Check if tile is a DeadZone hazard
-  const deadZoneId = entitiesAtTile.find((id) => world.hasComponent(id, DeadZone));
+  // Check if tile is a DeadZone hazard (only when visible in FOV)
+  const deadZoneId = isVisibleInFov
+    ? entitiesAtTile.find((id) => world.hasComponent(id, DeadZone))
+    : undefined;
   if (deadZoneId !== undefined) {
     const dz = world.getComponent(deadZoneId, DeadZone)!;
     return {
