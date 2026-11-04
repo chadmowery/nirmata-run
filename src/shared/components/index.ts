@@ -55,6 +55,7 @@ import {
   BurnSoftwareIntent,
   FirmwareIntent,
   Acting,
+  ActionAbortedTag,
   PickupIntent,
   DropItemIntent,
 } from './intents';
@@ -189,6 +190,7 @@ export const COMPONENTS_REGISTRY = [
   BurnSoftwareIntent,
   FirmwareIntent,
   Acting,
+  ActionAbortedTag,
   PickupIntent,
   DropItemIntent,
   Parent,

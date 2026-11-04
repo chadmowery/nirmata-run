@@ -9,7 +9,7 @@ import { Actor } from '@shared/components/actor';
 import { BlocksMovement } from '@shared/components/blocks-movement';
 import { StatusEffects } from '@shared/components/status-effects';
 import { Heat } from '@shared/components/heat';
-import { MoveIntent, AttackIntent, MovedThisTurn } from '@shared/components/index';
+import { MoveIntent, AttackIntent, MovedThisTurn, ActionAbortedTag } from '@shared/components/index';
 import {
   Prop,
   SecurityLock,
@@ -109,8 +109,9 @@ export function createMovementSystem<T extends GameplayEvents>(
                 text: '[SECURITY FAULT]: Corrupted terminal detected (acoustic trap / EMP dump). Disarm with Logic_Jam or hack carefully.',
                 type: 'warning',
               });
-              eventBus.emit('INPUT_BUFFER_CLEARED', {});
             }
+            eventBus.emit('INPUT_BUFFER_CLEARED', {});
+            w.addComponent(entityId, ActionAbortedTag, {});
             blocked = true;
             break;
           }
@@ -136,8 +137,9 @@ export function createMovementSystem<T extends GameplayEvents>(
                     type: 'warning',
                   });
                 }
-                eventBus.emit('INPUT_BUFFER_CLEARED', {});
               }
+              eventBus.emit('INPUT_BUFFER_CLEARED', {});
+              w.addComponent(entityId, ActionAbortedTag, {});
               blocked = true;
               break;
             }

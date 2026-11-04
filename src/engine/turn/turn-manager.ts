@@ -41,8 +41,9 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     }
 
     // Process player action
+    let cost = 0;
     if (!this.config.isClient && playerEntity !== null) {
-      const cost = this.adapter.getActionCost
+      cost = this.adapter.getActionCost
         ? this.adapter.getActionCost(playerEntity, action)
         : action === 'WAIT'
           ? this.config.waitActionCost
@@ -58,7 +59,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
 
     // Complete cycle
     try {
-      this.executeTurnCycle();
+      this.executeTurnCycle(cost);
     } catch (err) {
       this.phase = TurnPhase.AWAIT_INPUT;
       throw err;
@@ -68,12 +69,8 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
   /**
    * Run the full turn cycle: pre-turn -> action resolution -> enemy turns -> post-turn -> energy tick.
    */
-  private executeTurnCycle(): void {
+  private executeTurnCycle(deductedCost: number = 0): void {
     if (this._paused) return;
-
-    this.turnNumber++;
-    logger.info(`STARTING TURN ${this.turnNumber}`, 'TURN');
-    this.eventBus.emit('TURN_START', { turnNumber: this.turnNumber });
 
     // 1. Pre-turn phase
     this.phase = TurnPhase.PRE_TURN;
@@ -94,6 +91,22 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     }
 
     if (this._paused) return;
+
+    // Check if player action was halted / aborted with 0 turn cost (e.g. Two-Tier Bump Safeguard)
+    if (playerId !== null && this.adapter.wasActionAborted?.(playerId)) {
+      logger.info(`Action halted with 0 turn cost for actor ${playerId}`, 'TURN');
+      if (!this.config.isClient && deductedCost > 0) {
+        this.adapter.refundActionCost?.(playerId, deductedCost);
+      }
+      this.adapter.clearActionAborted?.(playerId);
+      this.phase = TurnPhase.AWAIT_INPUT;
+      this.eventBus.flush();
+      return;
+    }
+
+    this.turnNumber++;
+    logger.info(`STARTING TURN ${this.turnNumber}`, 'TURN');
+    this.eventBus.emit('TURN_START', { turnNumber: this.turnNumber });
 
     if (this.config.isClient) {
       // In client prediction mode, only the player's immediate movement was predicted.

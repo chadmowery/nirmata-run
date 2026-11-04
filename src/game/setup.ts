@@ -90,6 +90,12 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   const { world, grid, eventBus, turnManager, entityFactory, systems, playerId } = instance;
   const inputManager = new InputManager(DEFAULT_BINDINGS);
 
+  // Flush queued buffered inputs on bump safeguards and security faults
+  eventBus.on('INPUT_BUFFER_CLEARED', () => {
+    logger.info('[INPUT] Input buffer flushed by safeguard', 'INPUT');
+    inputManager.clearQueue();
+  });
+
   const contextBase: Omit<GameContext, 'fsm'> = {
     world,
     grid,

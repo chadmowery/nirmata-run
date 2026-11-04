@@ -73,6 +73,23 @@ class TestTurnSchedulerAdapter implements TurnSchedulerAdapter<number> {
   allowsInactiveActorAction(action: string): boolean {
     return action === 'special_meta_action';
   }
+
+  public abortedActors: Set<number> = new Set();
+
+  refundActionCost(actorId: number, cost: number): void {
+    const actor = this.actors.get(actorId);
+    if (actor) {
+      actor.energy += cost;
+    }
+  }
+
+  wasActionAborted(actorId: number): boolean {
+    return this.abortedActors.has(actorId);
+  }
+
+  clearActionAborted(actorId: number): void {
+    this.abortedActors.delete(actorId);
+  }
 }
 
 describe('TurnManager (Generic Engine)', () => {
@@ -375,5 +392,48 @@ describe('TurnManager (Generic Engine)', () => {
     // Meta action allowed via adapter
     turnManager.submitAction('special_meta_action');
     expect(handlerCalledWith).toBe('special_meta_action');
+  });
+
+  describe('Two-Tier Bump Safeguard (0-turn action abort outcome)', () => {
+    it('refunds action cost, does not advance turnNumber, and skips enemy turns when action is aborted', () => {
+      // Add a ready enemy with 1000 energy
+      const enemyEntity = world.createEntity();
+      adapter.addActor({
+        id: enemyEntity,
+        isPlayer: false,
+        isAlive: true,
+        energy: 1000,
+        speed: 100,
+        acting: false,
+      });
+
+      turnManager.start();
+      expect(turnManager.getTurnNumber()).toBe(0);
+      expect(adapter.actors.get(playerEntity)!.energy).toBe(1000);
+      expect(adapter.actors.get(enemyEntity)!.energy).toBe(1000);
+
+      // Handler simulates a bump safeguard halt (marks actor as aborted in ACTION phase)
+      turnManager.setPlayerActionHandler(() => {
+        adapter.abortedActors.add(playerEntity);
+      });
+
+      turnManager.submitAction('move');
+
+      // 1. Energy must be refunded to 1000 (0 turn cost)
+      expect(adapter.actors.get(playerEntity)!.energy).toBe(1000);
+
+      // 2. Turn number must remain 0 (not incremented)
+      expect(turnManager.getTurnNumber()).toBe(0);
+
+      // 3. Enemy must NOT have acted (energy remains 1000, not deducted)
+      expect(adapter.actors.get(enemyEntity)!.energy).toBe(1000);
+
+      // 4. Aborted tag must have been cleared
+      expect(adapter.abortedActors.has(playerEntity)).toBe(false);
+
+      // 5. Phase must be reset to AWAIT_INPUT
+      expect(turnManager.getPhase()).toBe(TurnPhase.AWAIT_INPUT);
+      expect(turnManager.canAcceptInput()).toBe(true);
+    });
   });
 });

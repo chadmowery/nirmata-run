@@ -178,6 +178,12 @@ export const FirmwareIntent = defineComponent(
 export const Acting = defineComponent('acting', z.object({}));
 
 /**
+ * Tag indicating that an actor's turn action was halted/aborted with 0 turn cost
+ * (e.g. Two-Tier Bump Safeguard).
+ */
+export const ActionAbortedTag = defineComponent('actionAbortedTag', z.object({}));
+
+/**
  * Tag indicating that shell stats need to be re-synchronized.
  */
 export const ShellUpdateTag = defineComponent('shellUpdateTag', z.object({}));

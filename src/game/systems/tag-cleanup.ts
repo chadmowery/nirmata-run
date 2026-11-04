@@ -7,6 +7,7 @@ import {
   DealtDamageThisTurn,
   FloorTransitioned,
   Acting,
+  ActionAbortedTag,
   InteractPropIntent,
   PropInteractedThisTurn,
   AlertIntent,
@@ -42,6 +43,10 @@ export function createTagCleanupSystem<T extends GameplayEvents>(world: World<T>
     const acting = w.query(Acting);
     for (const entityId of acting) {
       w.removeComponent(entityId, Acting);
+    }
+    const aborted = w.query(ActionAbortedTag);
+    for (const entityId of aborted) {
+      w.removeComponent(entityId, ActionAbortedTag);
     }
     const propIntents = w.query(InteractPropIntent);
     for (const entityId of propIntents) {

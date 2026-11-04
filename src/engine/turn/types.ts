@@ -87,4 +87,13 @@ export interface TurnSchedulerAdapter<TActorId = EntityId> {
 
   /** Optional hook to determine if an action can be executed without an active primary actor. */
   allowsInactiveActorAction?(action: string): boolean;
+
+  /** Optional hook to refund action cost if action was aborted/halted with 0 turn cost. */
+  refundActionCost?(actorId: TActorId, cost: number): void;
+
+  /** Optional hook to check if an actor's action was aborted (e.g. 0-turn bump safeguard). */
+  wasActionAborted?(actorId: TActorId): boolean;
+
+  /** Optional hook to clear aborted status on an actor. */
+  clearActionAborted?(actorId: TActorId): void;
 }
