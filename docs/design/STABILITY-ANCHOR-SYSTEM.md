@@ -7,9 +7,13 @@ The extraction loop is driven by **Reality Stability** ([`src/shared/components/
 ## 1. Reality Stability Mechanics
 
 * **Initial Stability**: Players start Floor 1 with `100 / 100` Stability.
-* **Per-Turn Bleed**: During `Phase.PRE_TURN`, Stability decays by `0.01` per turn (`perTurnBleedBase`), scaled upward by `1.1^(floor - 1)`.
+* **Per-Turn Bleed**: During `Phase.PRE_TURN`, Stability decays per turn scaled by floor depth:
+  $$\text{Turn Bleed} = \text{perTurnBleedBase} + (\text{currentFloor} - 1) \times \text{perTurnBleedScale}$$
+  *Default Values*: $\text{perTurnBleedBase} = 0.005$, $\text{perTurnBleedScale} = 0.02$.
 * **Floor Descent Chunk Drain**: Entering a new floor (`FloorTransitioned` tag) drains an immediate chunk of Stability:
-  $$\text{Chunk Drain} = 5 + (\text{currentFloor} - 1) \times 0.5$$
+  $$\text{Chunk Drain} = \text{perFloorChunkBase} + (\text{currentFloor} - 1) \times \text{perFloorChunkScale}$$
+  *Default Values*: $\text{perFloorChunkBase} = 3$, $\text{perFloorChunkScale} = 0.2$.
+* **Threat Purge Recovery**: Eliminating hostile enemies (`(Dying, Hostile)` where `killerId` is the player) restores **+2% Reality Stability** (`reason: 'threat_purged'`). Destructible props, vats, crates, and traps do not restore stability.
 * **Zero-Stability Collapse**: If `Stability.current <= 0` during `Phase.CLEANUP`, [`RunEnderSystem`](../../src/game/systems/run-ender.ts) terminates the run immediately with `FATAL: REALITY_ANCHOR_COLLAPSED`.
 
 ---

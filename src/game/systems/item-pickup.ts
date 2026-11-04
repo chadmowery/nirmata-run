@@ -13,7 +13,6 @@ import { CurrencyItem } from '@shared/components/currency-item';
 import {
   TemplateId,
   Dying,
-  HealIntent,
   PickupIntent,
   DropItemIntent,
   SpriteComponent,
@@ -26,6 +25,7 @@ import { RarityTier } from '@shared/components/rarity-tier';
 import { SoftwareDef } from '@shared/components/software-def';
 import { EquipmentDef } from '@shared/components/equipment-def';
 import { FloorState } from '@shared/components/floor-state';
+import { addHealIntent } from './combat';
 
 import { GameEvents } from '../events/types';
 
@@ -252,10 +252,7 @@ export function createItemPickupSystem<T extends GameplayEvents>(
 
         if (!isExplicitPickup && needsHeal) {
           // Walk over heal: restore HP, clean up grid/components and destroy consumable entity
-          w.addComponent(entityId, HealIntent, {
-            targetId: entityId,
-            amount: effect.value,
-          });
+          addHealIntent(w, entityId, entityId, effect.value);
           eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
           eventBus.emit('MESSAGE_EMITTED', {
             text: `+ REPAIR ACTIVATED: Restored ${effect.value} HP`,

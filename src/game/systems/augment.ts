@@ -6,13 +6,13 @@ import {
   AugmentData,
   AugmentState,
   AugmentSlots,
-  HealIntent,
   HeatIntent,
   ApplyStatusEffectIntent,
 } from '@shared/components';
 import { PayloadType } from '@shared/components/augment-data';
 import { GameplayEvents } from '@shared/events/types';
 import { getLegacyMagnitude } from './legacy-code';
+import { addHealIntent } from './combat';
 import { createTriggerContext, evaluateCondition } from './augment-util';
 import { applyStatusEffect } from './status-effects';
 
@@ -30,12 +30,7 @@ export function createAugmentSystem<T extends GameplayEvents>(
 
       switch (payload.type) {
         case 'HEAL': {
-          const existing = world.getComponent(entityId, HealIntent);
-          const currentAmount = existing?.amount ?? 0;
-          world.addComponent(entityId, HealIntent, {
-            targetId: entityId,
-            amount: currentAmount + magnitude,
-          });
+          addHealIntent(world, entityId, entityId, magnitude);
           break;
         }
         case 'SHIELD':

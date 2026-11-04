@@ -5,11 +5,11 @@ import {
   EquipmentSlots,
   SoftwareDef,
   RarityTier,
-  HealIntent,
   ApplyStatusEffectIntent,
   Children,
   SoftwareSlots,
 } from '@shared/components';
+import { addHealIntent } from './combat';
 import { GameplayEvents } from '@shared/events/types';
 
 /**
@@ -125,10 +125,7 @@ export function applyVampireOnKill<T extends GameplayEvents>(
   // baseMagnitude=5: v0.x→5, v1.x→7, v2.x→10, v3.x→15
 
   // Submit intent for heal resolution
-  world.addComponent(killerId, HealIntent, {
-    targetId: killerId,
-    amount: healAmount,
-  });
+  addHealIntent(world, killerId, killerId, healAmount);
 
   eventBus.emit('MESSAGE_EMITTED', {
     text: `Vampire.exe activated on kill.`,

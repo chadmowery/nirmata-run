@@ -565,6 +565,23 @@ export function createCombatSystem<T extends GameplayEvents>(
 }
 
 /**
+ * Attaches or stacks a HealIntent on an entity without overwriting existing heal amounts in the same turn.
+ */
+export function addHealIntent<T extends GameplayEvents>(
+  world: World<T>,
+  requesterId: EntityId,
+  targetId: EntityId,
+  amount: number,
+): void {
+  const existing = world.getComponent(requesterId, HealIntent);
+  const totalAmount = (existing ? existing.amount : 0) + amount;
+  world.addComponent(requesterId, HealIntent, {
+    targetId,
+    amount: totalAmount,
+  });
+}
+
+/**
  * Pure intent-driven resolver for HealIntent components.
  */
 export function resolveHealIntents<T extends GameplayEvents>(
@@ -601,8 +618,8 @@ export function resolveHealIntents<T extends GameplayEvents>(
 }
 
 /**
- * Dedicated system running at the tail of Phase.REACTION to resolve
- * on-kill and reaction heal intents (e.g. Vampire.exe, heal augments) in the same turn.
+ * Dedicated system running at the tail of Phase.PRE_TURN and Phase.REACTION to resolve
+ * regeneration, on-kill, and reaction heal intents in the same turn.
  */
 export function createHealSystem<T extends GameplayEvents>(
   world: World<T>,
@@ -614,9 +631,11 @@ export function createHealSystem<T extends GameplayEvents>(
 
   return {
     init() {
-      world.registerSystem(Phase.REACTION, update, 'HealSystem');
+      world.registerSystem(Phase.PRE_TURN, update, 'HealSystem_PreTurn');
+      world.registerSystem(Phase.REACTION, update, 'HealSystem_Reaction');
     },
     dispose() {
+      world.unregisterSystem(Phase.PRE_TURN, update);
       world.unregisterSystem(Phase.REACTION, update);
     },
     update,

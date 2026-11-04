@@ -34,7 +34,6 @@ import {
   AugmentData,
   AbilityDef,
   Dying,
-  HealIntent,
   ApplyStatusEffectIntent,
   Stability,
 } from '@shared/components';
@@ -44,6 +43,7 @@ import { handleInventorySwap } from '../intent/inventory-intent';
 import { handleServerDebugCommand } from '../debug/server-debug-handler';
 import { checkAutoLoader } from '../systems/software-effects';
 import { isItemLike } from '../systems/item-pickup';
+import { addHealIntent } from '../systems/combat';
 import { Phase, ComponentDef } from '@engine/ecs/types';
 import { EntityRegistry } from '@engine/entity/registry';
 import { EntityFactory } from '@engine/entity/factory';
@@ -490,10 +490,7 @@ export function processAction(
       const targetId = entityId;
       const consumed = InventoryUtil.consumeConsumable(world, entityId, action.inventoryIndex);
       if (consumed) {
-        world.addComponent(entityId, HealIntent, {
-          targetId,
-          amount: 5,
-        });
+        addHealIntent(world, entityId, targetId, 5);
 
         const stability = world.getComponent(targetId, Stability);
         if (stability) {
@@ -513,7 +510,7 @@ export function processAction(
           effect: {
             name: 'regeneration',
             duration: 3,
-            magnitude: 1,
+            magnitude: 2,
             source: 'health-potion',
           },
         });
