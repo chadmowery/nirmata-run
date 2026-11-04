@@ -102,7 +102,9 @@ export const InteractiveSurface = defineComponent(
     coverDamageReduction: z.number().min(0).max(1).default(0.25).optional(),
     destructible: z.boolean().default(true).optional(),
     hazardOnDestroy: z.enum(['none', 'cryo_spill', 'emp_arc', 'thermal_burst']).default('none').optional(),
+    hazardRadius: z.number().int().min(0).default(2).optional(),
     cascadeRadius: z.number().int().min(0).default(2).optional(),
+    friendlyFire: z.boolean().default(true).optional(),
   }),
 );
 export type InteractiveSurfaceData = z.infer<typeof InteractiveSurface.schema>;

@@ -27,6 +27,7 @@ import {
   CorruptedNode,
   Shell,
   Hostile,
+  DeadZone,
 } from '@shared/components';
 import { AttackIntent, DamageIntent, HealIntent } from '@shared/components/intents';
 import { createTriggerContext, evaluateCondition } from './augment-util';
@@ -296,6 +297,7 @@ export function handlePropDestruction<T extends GameplayEvents>(
   destroyedId: EntityId,
   killerId: EntityId,
   visited: Set<EntityId> = new Set(),
+  options: { friendlyFire?: boolean } = {},
 ): void {
   if (visited.has(destroyedId)) return;
   visited.add(destroyedId);
@@ -304,18 +306,72 @@ export function handlePropDestruction<T extends GameplayEvents>(
   const pos = world.getComponent(destroyedId, Position);
   if (!surface || !pos) return;
 
-  // 1. Cryo-Vat hazard footprint (3x3)
+  const killerActor = world.getComponent(killerId, Actor);
+  const isKillerPlayer = killerActor?.isPlayer ?? false;
+  const allowFriendlyFire = options.friendlyFire ?? surface.friendlyFire ?? true;
+
+  const isFriendlyTarget = (targetId: EntityId): boolean => {
+    if (allowFriendlyFire) return false;
+    const targetActor = world.getComponent(targetId, Actor);
+    return isKillerPlayer && (targetActor?.isPlayer ?? false);
+  };
+
+  // 1. Cryo-Vat hazard footprint (3x3 default, or data-driven hazardRadius)
   if (surface.hazardOnDestroy === 'cryo_spill') {
     eventBus.emit('MESSAGE_EMITTED', {
       text: '[CRYO SPILL]: Cryo-vat shattered into a cryogenic hazard!',
       type: 'combat',
     });
 
+    const hazardRadius = surface.hazardRadius ?? 1;
+
+    // Spawn persistent DeadZone hazard entities across walkable tiles in footprint
+    for (let dx = -hazardRadius; dx <= hazardRadius; dx++) {
+      for (let dy = -hazardRadius; dy <= hazardRadius; dy++) {
+        const tx = pos.x + dx;
+        const ty = pos.y + dy;
+        if (grid && !grid.isWalkable(tx, ty)) continue;
+
+        // Check if there is already an active DeadZone at this tile
+        let existingDz: EntityId | undefined;
+        if (grid) {
+          const atTile = grid.getEntitiesAt(tx, ty);
+          for (const eid of atTile) {
+            if (world.hasComponent(eid, DeadZone) && !world.hasComponent(eid, Dying)) {
+              existingDz = eid;
+              break;
+            }
+          }
+        }
+        if (existingDz) {
+          const currentDz = world.getComponent(existingDz, DeadZone)!;
+          world.patchComponent(existingDz, DeadZone, {
+            remainingTurns: Math.max(currentDz.remainingTurns, 3),
+            damagePerTick: Math.max(currentDz.damagePerTick, 4),
+          });
+        } else {
+          const dzId = world.createEntity();
+          world.addComponent(dzId, Position, { x: tx, y: ty });
+          world.addComponent(dzId, DeadZone, {
+            remainingTurns: 3,
+            damagePerTick: 4,
+            creatorId: killerId,
+          });
+          if (grid) {
+            grid.addEntity(dzId, tx, ty);
+          }
+        }
+      }
+    }
+
+    // Apply immediate blast damage & MOVEMENT_SLOW to entities in footprint
     const allPositions = world.query(Position);
     for (const eid of allPositions) {
       if (eid === destroyedId || visited.has(eid) || world.hasComponent(eid, Dying)) continue;
+      if (isFriendlyTarget(eid)) continue;
+
       const ePos = world.getComponent(eid, Position)!;
-      if (Math.abs(ePos.x - pos.x) <= 1 && Math.abs(ePos.y - pos.y) <= 1) {
+      if (Math.abs(ePos.x - pos.x) <= hazardRadius && Math.abs(ePos.y - pos.y) <= hazardRadius) {
         const h = world.getComponent(eid, Health);
         if (h && h.isAlive !== false && h.current > 0) {
           world.addComponent(eid, DamageIntent, {
@@ -339,12 +395,15 @@ export function handlePropDestruction<T extends GameplayEvents>(
       type: 'combat',
     });
 
+    const hazardRadius = surface.hazardRadius ?? 2;
     const allPositions = world.query(Position);
     for (const eid of allPositions) {
       if (eid === destroyedId || visited.has(eid) || world.hasComponent(eid, Dying)) continue;
+      if (isFriendlyTarget(eid)) continue;
+
       const ePos = world.getComponent(eid, Position)!;
       const dist = Math.abs(ePos.x - pos.x) + Math.abs(ePos.y - pos.y);
-      if (dist <= 2) {
+      if (dist <= hazardRadius) {
         const h = world.getComponent(eid, Health);
         if (h && h.isAlive !== false && h.current > 0) {
           world.addComponent(eid, DamageIntent, {
@@ -372,12 +431,15 @@ export function handlePropDestruction<T extends GameplayEvents>(
       type: 'combat',
     });
 
+    const hazardRadius = surface.hazardRadius ?? 2;
     const allPositions = world.query(Position);
     for (const eid of allPositions) {
       if (eid === destroyedId || visited.has(eid) || world.hasComponent(eid, Dying)) continue;
+      if (isFriendlyTarget(eid)) continue;
+
       const ePos = world.getComponent(eid, Position)!;
       const dist = Math.abs(ePos.x - pos.x) + Math.abs(ePos.y - pos.y);
-      if (dist <= 2) {
+      if (dist <= hazardRadius) {
         const h = world.getComponent(eid, Health);
         if (h && h.isAlive !== false && h.current > 0) {
           world.addComponent(eid, DamageIntent, {

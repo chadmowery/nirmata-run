@@ -9,6 +9,7 @@
       "coverDamageReduction": 0.25,
       "destructible": true,
       "hazardOnDestroy": "cryo_spill",
+      "hazardRadius": 1,
       "cascadeRadius": 2
     },
     "health": {

@@ -9,6 +9,7 @@
       "coverDamageReduction": 0.25,
       "destructible": true,
       "hazardOnDestroy": "emp_arc",
+      "hazardRadius": 2,
       "cascadeRadius": 2
     },
     "health": {
