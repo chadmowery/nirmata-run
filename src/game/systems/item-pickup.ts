@@ -30,6 +30,18 @@ import { addHealIntent } from './combat';
 
 import { GameEvents } from '../events/types';
 
+/** Atlas frame used by every heal consumable (matches `health-potion.json`). */
+const CONSUMABLE_SPRITE_KEY = 'item_potion';
+
+/** Display metadata for consumables re-materialised on the floor from a RunInventory stack. */
+const CONSUMABLE_DISPLAY: Record<string, { name: string; description?: string }> = {
+  'health-potion': {
+    name: 'Health Potion',
+    description:
+      'Restores 5 HP and 10 Stability immediately, plus 3 turns of regenerative repair nanites. Stacks up to 10 per slot.',
+  },
+};
+
 export type ItemPickupSystem<T extends GameplayEvents = GameEvents> = {
   init(): void;
   dispose(): void;
@@ -137,10 +149,9 @@ export function createItemPickupSystem<T extends GameplayEvents>(
           });
 
           grid.removeItem(itemId, x, y);
+          // Keep SpriteComponent: renderers query (SpriteComponent, Position), so removing
+          // Position alone hides the entity, and the atlas key survives a later drop (U4).
           w.removeComponent(itemId, Position);
-          if (w.hasComponent(itemId, SpriteComponent)) {
-            w.removeComponent(itemId, SpriteComponent);
-          }
           // NOTE: We DO NOT destroy the entity here because it's now in the inventory.
           eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
           return;
@@ -181,10 +192,9 @@ export function createItemPickupSystem<T extends GameplayEvents>(
           });
 
           grid.removeItem(itemId, x, y);
+          // Keep SpriteComponent: renderers query (SpriteComponent, Position), so removing
+          // Position alone hides the entity, and the atlas key survives a later drop (U4).
           w.removeComponent(itemId, Position);
-          if (w.hasComponent(itemId, SpriteComponent)) {
-            w.removeComponent(itemId, SpriteComponent);
-          }
           // NOTE: We DO NOT destroy the entity here because it's now in the inventory.
           eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
           return;
@@ -229,9 +239,6 @@ export function createItemPickupSystem<T extends GameplayEvents>(
 
           grid.removeItem(itemId, x, y);
           w.removeComponent(itemId, Position);
-          if (w.hasComponent(itemId, SpriteComponent)) {
-            w.removeComponent(itemId, SpriteComponent);
-          }
           eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
           return;
         } else {
@@ -295,9 +302,6 @@ export function createItemPickupSystem<T extends GameplayEvents>(
             grid.removeItem(itemId, x, y);
             if (w.hasComponent(itemId, Position)) {
               w.removeComponent(itemId, Position);
-            }
-            if (w.hasComponent(itemId, SpriteComponent)) {
-              w.removeComponent(itemId, SpriteComponent);
             }
             eventBus.emit('ITEM_PICKED_UP', { entityId, itemId });
             return;
@@ -493,14 +497,28 @@ export function createItemPickupSystem<T extends GameplayEvents>(
       }
 
       if (removed) {
-        const dropEntityId =
-          !droppedSingleFromStack && w.entityExists(intent.itemEntityId)
-            ? intent.itemEntityId
-            : w.createEntity();
-        if (!w.hasComponent(dropEntityId, Item)) {
+        // A fresh ground entity is needed when a unit is split off a stack, or when the
+        // original entity no longer exists. Otherwise the original entity is re-used.
+        const reuseOriginal = !droppedSingleFromStack && w.entityExists(intent.itemEntityId);
+        const dropEntityId = reuseOriginal ? intent.itemEntityId : w.createEntity();
+
+        if (removed.isConsumable) {
+          // Consumables must be fully pickup-able again: restore every component that
+          // `ItemPickupSystem.processItem` relies on (Item, PickupEffect, TemplateId).
+          if (!w.hasComponent(dropEntityId, Item)) {
+            w.addComponent(dropEntityId, Item, {
+              name: CONSUMABLE_DISPLAY[removed.templateId]?.name ?? removed.templateId,
+              description: CONSUMABLE_DISPLAY[removed.templateId]?.description,
+              type: 'consumable',
+            });
+          }
+          if (!w.hasComponent(dropEntityId, PickupEffect)) {
+            w.addComponent(dropEntityId, PickupEffect, { type: EffectType.HEAL, value: 5 });
+          }
+        } else if (!w.hasComponent(dropEntityId, Item)) {
           w.addComponent(dropEntityId, Item, {
             name: removed.templateId,
-            type: removed.isConsumable ? 'consumable' : 'equipment',
+            type: 'equipment',
           });
         }
         if (!w.hasComponent(dropEntityId, TemplateId)) {
@@ -508,7 +526,11 @@ export function createItemPickupSystem<T extends GameplayEvents>(
         }
         w.addComponent(dropEntityId, Position, { x: intent.targetX, y: intent.targetY });
         if (!w.hasComponent(dropEntityId, SpriteComponent)) {
-          w.addComponent(dropEntityId, SpriteComponent, { key: removed.templateId || 'item' });
+          w.addComponent(dropEntityId, SpriteComponent, {
+            key: removed.isConsumable
+              ? CONSUMABLE_SPRITE_KEY
+              : removed.templateId || 'item',
+          });
         }
         grid.addItem(dropEntityId, intent.targetX, intent.targetY);
         eventBus.emit('MESSAGE_EMITTED', {

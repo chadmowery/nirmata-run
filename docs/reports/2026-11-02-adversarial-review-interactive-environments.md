@@ -473,7 +473,7 @@ Update these docs as part of the fix, not as a follow-up. The handoff also shoul
 | U1 | ✅ **RESOLVED:** **UI leaks hidden traps and live prop state.** The renderer outlines every trapped prop pink regardless of `revealed`, and the inspector shows trap badges and live prop and item state on any *explored* tile, even out of sight. | 🔴 High (Fixed) |
 | U2 | ✅ **RESOLVED:** **Overclock bypass, forced interaction and Dead-Drop Uplink are unreachable from the UI.** No client code ever sends `INTERACT_PROP` or `DEAD_DROP_ITEM`. | 🔴 High (Fixed) |
 | U3 | ✅ **RESOLVED:** **Quick-use consumable discards the server delta**, and several modals run their own `fetch` outside the input and reconciliation pipeline. The server has no per-session request serialization. | 🔴 High (Fixed) |
-| U4 | **Dropping a consumable stack destroys all but one item.** | 🟠 High |
+| U4 | ✅ **RESOLVED:** **Dropping a consumable stack destroys all but one item.** (Residual: dropped units could not be picked up again and lost their sprite key.) | 🟠 High (Fixed) |
 | U5 | **The "duplicate React key" fix masks a real vault ID-collision bug.** | 🟠 High |
 | R1 | Tile hover inspection re-runs a full-world query and pushes a new object into the store **every frame**; the tooltip then re-renders and re-lays-out at ~60 Hz with `aria-live`. | 🟠 Medium-High |
 | R2 | The prop outline state is stale after disarm or reveal, and the "searched" dimming is **overwritten every frame** by the FOV pass. | 🟡 Medium |
@@ -534,7 +534,9 @@ Related issues in the same family:
 
 **Fix:** route every action through one client function that serializes requests, applies the returned payload, and surfaces errors. Add a per-session async mutex around the turn pipeline on the server.
 
-### U4. Dropping a consumable stack destroys the rest of the stack
+### U4. ✅ RESOLVED — Dropping a consumable stack destroys the rest of the stack
+
+> **Resolution:** The original stack-wipe was already fixed during C4 (`DropItemIntent` in [`item-pickup.ts`](../../src/game/systems/item-pickup.ts) now calls `consumeConsumable` and drops one unit). Re-validation found the fix was incomplete: the split-off ground entity was created with only `Item`, `TemplateId`, `Position` and `SpriteComponent`, with **no `PickupEffect`**. `ItemPickupSystem.processItem` gates consumable storage on `PickupEffect`, so re-picking the dropped unit fell through to the generic cleanup path and **condemned it with `Dying`, losing the item**. In addition, every inventory-storing pickup path removed `SpriteComponent`, so a later drop fell back to `key: templateId` (e.g. `'health-potion'`) instead of the atlas frame `'item_potion'`. Fixes: dropped consumables are re-materialised with `Item` (name/description), `PickupEffect`, `TemplateId`, `Position` and the `item_potion` sprite; pickups into `RunInventory` keep `SpriteComponent` (removing `Position` already hides the entity from `world.query(SpriteComponent, Position)`). Verified in [`tests/game/u4-consumable-drop-pickup.test.ts`](../../tests/game/u4-consumable-drop-pickup.test.ts).
 
 [`route.ts` DROP_ITEM (L382+)](../../src/app/api/action/route.ts) calls `removeItemByEntityId`, which removes the **entire** `RunInventoryItem` entry (including `quantity`). It then re-materialises a single ground entity. Picking that entity up again goes through `addConsumable`, which adds **one** unit. A stack of 10 repair canisters dropped to make room becomes 1. (The UI's "DROP" button in `GroundTransferModal` is offered for every backpack row, including stacks.) The dropped entity also gets a generic `SpriteComponent { key: 'item' }`, not its original sprite.
 
