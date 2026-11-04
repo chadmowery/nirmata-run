@@ -472,7 +472,7 @@ Update these docs as part of the fix, not as a follow-up. The handoff also shoul
 |---|---|---|
 | U1 | ✅ **RESOLVED:** **UI leaks hidden traps and live prop state.** The renderer outlines every trapped prop pink regardless of `revealed`, and the inspector shows trap badges and live prop and item state on any *explored* tile, even out of sight. | 🔴 High (Fixed) |
 | U2 | ✅ **RESOLVED:** **Overclock bypass, forced interaction and Dead-Drop Uplink are unreachable from the UI.** No client code ever sends `INTERACT_PROP` or `DEAD_DROP_ITEM`. | 🔴 High (Fixed) |
-| U3 | **Quick-use consumable discards the server delta**, and several modals run their own `fetch` outside the input and reconciliation pipeline. The server has no per-session request serialization. | 🔴 High |
+| U3 | ✅ **RESOLVED:** **Quick-use consumable discards the server delta**, and several modals run their own `fetch` outside the input and reconciliation pipeline. The server has no per-session request serialization. | 🔴 High (Fixed) |
 | U4 | **Dropping a consumable stack destroys all but one item.** | 🟠 High |
 | U5 | **The "duplicate React key" fix masks a real vault ID-collision bug.** | 🟠 High |
 | R1 | Tile hover inspection re-runs a full-world query and pushes a new object into the store **every frame**; the tooltip then re-renders and re-lays-out at ~60 Hz with `aria-live`. | 🟠 Medium-High |
@@ -518,7 +518,9 @@ This stacks with C2: the content is unreachable in generation, *and* three of it
 
 **Fix:** add an explicit interact action (an `[E]` handler that targets the adjacent prop and sends `INTERACT_PROP` with an optional override confirmation), a Dead-Drop item picker, and tests that drive the action through the client input layer.
 
-### U3. Quick-use discards the delta; several UI paths bypass the input and reconciliation pipeline
+### U3. ✅ RESOLVED — Quick-use discards the delta; several UI paths bypass the input and reconciliation pipeline
+
+> **Resolution:** Exposed a single canonical `submitAction(intent)` on `GameContext` in [`src/game/setup.ts`](../../src/game/setup.ts) (backed by `resolveActiveSessionId`, `inputManager.setRequestPending`, `applyStateDelta`, and `MESSAGE_EMITTED` error reporting). Refactored [`src/components/ui/inventory/BackpackGrid.tsx`](../../src/components/ui/inventory/BackpackGrid.tsx), [`src/components/ui/inventory/GroundTransferModal.tsx`](../../src/components/ui/inventory/GroundTransferModal.tsx), and [`src/components/ui/inventory/DeadDropModal.tsx`](../../src/components/ui/inventory/DeadDropModal.tsx) to route all actions through `submitAction` and removed direct `ctx.grid.removeItem` view-layer mutations. Added per-session lock acquisition/release (`tryAcquireSessionLock` / `releaseSessionLock`) in [`src/server/session/session-manager.ts`](../../src/server/session/session-manager.ts) and [`src/app/api/action/route.ts`](../../src/app/api/action/route.ts) to reject overlapping concurrent requests with HTTP 409. Verified in [`tests/game/u3-action-serialization.test.ts`](../../tests/game/u3-action-serialization.test.ts).
 
 [`BackpackGrid.tsx` L111 and L308](../../src/components/ui/inventory/BackpackGrid.tsx) (the "USE REPAIR CANISTER" button and double-click) call `fetch('/api/action', { USE_CONSUMABLE })` and **ignore the response**. The server computes each `DELTA` by diffing the world before and after *that request*. If the client never applies it, the next delta (computed from the server's new baseline) will not contain those changes. The client keeps stale HP, stability and inventory until a `FULL` sync.
 
@@ -683,7 +685,7 @@ Skimmed rather than line-reviewed. Beyond U11: the modal overlays use `position:
 
 - [x] Trap outlines and inspector badges depend on `revealed`; explored-but-unseen tiles show remembered state only
 - [x] An input-driven test can open a locked safe via overclock and use a Dead-Drop Uplink
-- [ ] Every client action path goes through one request function that applies the returned payload; server rejects overlapping requests per session
+- [x] Every client action path goes through one request function that applies the returned payload; server rejects overlapping requests per session
 - [ ] Dropping then picking up a consumable stack preserves the count
 - [ ] Vault items have unique IDs; two vault entries with the same legacy ID cannot be confused by equip, sell or discard
 - [ ] Hover inspection is not recomputed every frame

@@ -18,7 +18,6 @@ import {
   Item,
   Dying,
 } from '@shared/components';
-import { applyStateDelta } from '@shared/reconciliation';
 
 interface GroundTransferModalProps {
   onClose: () => void;
@@ -51,17 +50,6 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [onClose]);
 
-  const getSessionId = () => {
-    const ctx = getContext();
-    return (
-      ctx?.sessionId ||
-      gameStore.getState().launchConfig?.sessionId ||
-      (typeof window !== 'undefined' && window.localStorage?.getItem('nimrata_sessionId')) ||
-      gameStore.getState().playerProfile?.sessionId ||
-      'default-player-session'
-    );
-  };
-
   // Helper to re-scan ground items nearby after a take or drop
   const rescanNearby = () => {
     const ctx = getContext();
@@ -77,12 +65,10 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
         const cellItems = ctx.grid.getItemsAt(tx, ty);
         for (const itemId of cellItems) {
           if (!ctx.world.entityExists(itemId) || ctx.world.hasComponent(itemId, Dying)) {
-            ctx.grid.removeItem(itemId, tx, ty);
             continue;
           }
           const itemPos = ctx.world.getComponent(itemId, Position);
           if (!itemPos || itemPos.x !== tx || itemPos.y !== ty) {
-            ctx.grid.removeItem(itemId, tx, ty);
             continue;
           }
 
@@ -198,51 +184,15 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
   }
 
   const handleTakeItem = async (itemId: number, targetX?: number, targetY?: number) => {
-    const sessionId = getSessionId();
-    try {
-      const res = await fetch('/api/action', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId,
-          action: {
-            type: 'PICKUP',
-            itemId,
-            targetX,
-            targetY,
-          },
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const activeCtx = getContext();
-        if (
-          data.payload &&
-          activeCtx?.world &&
-          activeCtx?.grid &&
-          activeCtx?.turnManager &&
-          activeCtx?.eventBus
-        ) {
-          if (data.payload.playerId) {
-            activeCtx.playerId = data.payload.playerId;
-          }
-          applyStateDelta(
-            activeCtx.world,
-            activeCtx.grid,
-            activeCtx.turnManager,
-            activeCtx.eventBus,
-            data.payload,
-          );
-          if (targetX !== undefined && targetY !== undefined) {
-            activeCtx.grid.removeItem(itemId, targetX, targetY);
-          }
-        }
-      }
-      gameStore.getState().incrementInventoryRevision();
-      rescanNearby();
-    } catch (err) {
-      console.error('Failed to take item:', err);
-    }
+    const activeCtx = getContext();
+    if (!activeCtx?.submitAction) return;
+    await activeCtx.submitAction({
+      type: 'PICKUP',
+      itemId,
+      targetX,
+      targetY,
+    });
+    rescanNearby();
   };
 
   const handleTakeAll = async () => {
@@ -264,46 +214,13 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
   };
 
   const handleDropItem = async (itemEntityId: number) => {
-    const sessionId = getSessionId();
-    try {
-      const res = await fetch('/api/action', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId,
-          action: {
-            type: 'DROP_ITEM',
-            itemEntityId,
-          },
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const activeCtx = getContext();
-        if (
-          data.payload &&
-          activeCtx?.world &&
-          activeCtx?.grid &&
-          activeCtx?.turnManager &&
-          activeCtx?.eventBus
-        ) {
-          if (data.payload.playerId) {
-            activeCtx.playerId = data.payload.playerId;
-          }
-          applyStateDelta(
-            activeCtx.world,
-            activeCtx.grid,
-            activeCtx.turnManager,
-            activeCtx.eventBus,
-            data.payload,
-          );
-        }
-      }
-      gameStore.getState().incrementInventoryRevision();
-      rescanNearby();
-    } catch (err) {
-      console.error('Failed to drop item:', err);
-    }
+    const activeCtx = getContext();
+    if (!activeCtx?.submitAction) return;
+    await activeCtx.submitAction({
+      type: 'DROP_ITEM',
+      itemEntityId,
+    });
+    rescanNearby();
   };
 
   return (

@@ -52,6 +52,25 @@ import { EventOriginContext } from '@engine/utils/event-context';
 import { DebugAPI } from './debug/debug-api';
 import { installReactKeyLogger } from './diagnostics/react-key-interceptor';
 
+/**
+ * Canonically resolves the active client sessionId with a consistent fallback chain.
+ */
+export function resolveActiveSessionId(explicitSessionId?: string): string {
+  const storeState = gameStore.getState();
+  const windowCtxSessionId =
+    typeof window !== 'undefined' ? window.gameContext?.sessionId : undefined;
+  const storedSessionId =
+    typeof window !== 'undefined' ? window.localStorage?.getItem('nimrata_sessionId') : null;
+  return (
+    explicitSessionId ||
+    windowCtxSessionId ||
+    storeState.launchConfig?.sessionId ||
+    storedSessionId ||
+    storeState.playerProfile?.sessionId ||
+    'default-session'
+  );
+}
+
 // Install diagnostic interceptor for React key collision warnings on client
 installReactKeyLogger();
 
@@ -420,12 +439,10 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
           const cellItems = grid.getItemsAt(tx, ty);
           for (const itemId of cellItems) {
             if (!world.entityExists(itemId) || world.hasComponent(itemId, Dying)) {
-              grid.removeItem(itemId, tx, ty);
               continue;
             }
             const pos = world.getComponent(itemId, Position);
             if (!pos || pos.x !== tx || pos.y !== ty) {
-              grid.removeItem(itemId, tx, ty);
               continue;
             }
 
@@ -715,16 +732,17 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
   async function sendActionToServer(intent: ActionIntent | null) {
     if (!intent) return;
+    const activeSessionId = resolveActiveSessionId(context.sessionId);
     try {
       logger.info(
-        `[CLIENT] Sending action to server. SessionId: ${context.sessionId || 'default-session'}`,
+        `[CLIENT] Sending action to server. SessionId: ${activeSessionId}`,
         'NETWORK',
       );
       const response = await fetch('/api/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sessionId: context.sessionId || 'default-session',
+          sessionId: activeSessionId,
           action: intent,
         }),
       });
@@ -738,11 +756,34 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
           context.playerId = serverState.playerId;
           applyStateDelta(world, grid, turnManager, eventBus, serverState);
         }
-      } else if (response.status === 404) {
-        logger.warn(`[API] Session NOT FOUND: ${context.sessionId || 'default-session'}`, 'API');
+      } else {
+        let errorMessage = `Action failed (HTTP ${response.status})`;
+        try {
+          const errData = await response.json();
+          if (errData?.error) {
+            errorMessage = errData.error;
+          }
+        } catch {
+          // Ignore non-JSON error body
+        }
+        if (response.status === 404) {
+          logger.warn(`[API] Session NOT FOUND: ${activeSessionId}`, 'API');
+        } else {
+          logger.warn(`[API] Action rejected (${response.status}): ${errorMessage}`, 'API');
+        }
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `[NETWORK FAULT]: ${errorMessage}`,
+          type: 'error',
+        });
+        eventBus.flush();
       }
     } catch (error) {
       logger.error('Failed to sync with server:', 'NETWORK', error);
+      eventBus.emit('MESSAGE_EMITTED', {
+        text: '[NETWORK FAULT]: Failed to synchronize action with server.',
+        type: 'error',
+      });
+      eventBus.flush();
     } finally {
       gameStore.getState().clearOptimisticUpdates();
       gameStore.getState().incrementInventoryRevision();

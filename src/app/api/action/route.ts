@@ -52,7 +52,16 @@ export async function POST(req: Request) {
 
     logger.info(`Session Found for ${sessionId}. PlayerId: ${session.playerId}`, 'API');
 
-    const { world, grid, turnManager, eventBus } = session;
+    if (!sessionManager.tryAcquireSessionLock(sessionId)) {
+      logger.warn(`[API] Rejecting overlapping action for busy session: ${sessionId}`, 'API');
+      return NextResponse.json(
+        { error: 'Session is already processing an action' },
+        { status: 409 },
+      );
+    }
+
+    try {
+      const { world, grid, turnManager, eventBus } = session;
 
     // 1. Snapshot initial state
     const oldWorldState = serializeWorld(world);
@@ -389,10 +398,13 @@ export async function POST(req: Request) {
       };
     }
 
-    return NextResponse.json({
-      sessionId,
-      payload: syncPayload,
-    });
+      return NextResponse.json({
+        sessionId,
+        payload: syncPayload,
+      });
+    } finally {
+      sessionManager.releaseSessionLock(sessionId);
+    }
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     logger.error('API Error:', 'API', error);
