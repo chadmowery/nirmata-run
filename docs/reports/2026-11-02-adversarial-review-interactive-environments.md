@@ -14,8 +14,8 @@
 | C1 | **Floors 11–15 can never be generated.** Sealed prefabs make `generateDungeon` throw `Failed to generate connected dungeon` on about 100% of seeds. | ✅ **RESOLVED** (`30ff0a4c`) |
 | C2 | **Locks, vaults, safes, keys, overclock bypass and Faraday shielding never spawn on floors 1–10.** The only paths that could create them are broken or unreachable. | ✅ **RESOLVED** (`c4d2d761`) |
 | C3 | **"Masked loot" is not masked.** `storedLoot`, `scrapYield`, `fluxYield` and `grantsAccessKey` are serialized to the client in full. | ✅ **RESOLVED** (`b1a7999a`) |
-| C4 | **`PICKUP` and `DROP_ITEM` have no server-side range or position validation.** The client can pick up any item on the map by entity ID and drop items on arbitrary tiles. | 🔴 High (security) |
-| C5 | **The "0-turn bump safeguard" does not exist.** The energy cost is deducted before the action runs and never refunded. `INPUT_BUFFER_CLEARED` has no listener. | 🟠 High (false claim) |
+| C4 | **`PICKUP` and `DROP_ITEM` have no server-side range or position validation.** The client can pick up any item on the map by entity ID and drop items on arbitrary tiles. | ✅ **RESOLVED** (`2f6f3aa6`) |
+| C5 | **The "0-turn bump safeguard" does not exist.** The energy cost is deducted before the action runs and never refunded. `INPUT_BUFFER_CLEARED` has no listener. | ✅ **RESOLVED** (`32a8a320`) |
 | C6 | **Direct `ECS` architecture violations.** There is an `eventBus.on()` that drives game logic, direct `Health` patching that bypasses `DamageIntent`, and a game-specific string in the engine layer. | ✅ **RESOLVED** (`73842d7f`..`519b3487`) |
 | C7 | **Stability "threat purge" is exploitable.** It fires on any `ENTITY_DIED` the player causes, including crates and traps. The stability rebalance is also a 5–80% nerf shipped as a "bug fix". | 🟠 High |
 | C8 | **`BURN_FIRMWARE` / `BURN_AUGMENT` ignore shell port capacity.** They use hard-coded slot caps and can push `0` placeholder entity IDs. | 🟠 High |
@@ -146,7 +146,16 @@ The handoff (§3 M1, §3 M2) and the test titled *"masks container loot from net
 
 Then add a test that asserts the *serialized payload* contains no `storedLoot`.
 
-### C4. `PICKUP` and `DROP_ITEM` trust the client for position and range
+### C4. `PICKUP` and `DROP_ITEM` trust the client for position and range — ✅ RESOLVED (`2f6f3aa6`)
+
+> [!NOTE]
+> **Resolution Status (2026-11-03):** Completely resolved and verified with 14 unit and negative validation tests (Commit `2f6f3aa6`).
+> - **Intent-Driven Drop**: Defined `DropItemIntent` component in `src/shared/components/intents.ts` and registered in `COMPONENTS_REGISTRY`. Moved drop state mutation out of `processAction` into `ItemPickupSystem` (`Phase.REACTION`), keeping game logic inside phased systems.
+> - **Drop Validation**: Server validates Manhattan distance $\le 1$ to actor, grid bounds, walkability, and verifies that the dropped item actually belongs to the player's inventory before attaching `DropItemIntent`.
+> - **Pickup Validation**: Server validates Manhattan distance $\le 1$ between player and target item, confirms entity existence, confirms item-like nature (`ItemDef` or `Scrap` or `Flux`), and checks that the target is not condemned (`Dying`).
+> - **Desync Fail-Loud**: Removed the silent desync resilience fallback in `src/game/systems/item-pickup.ts` that previously substituted unintended items on coordinate mismatch; pickup now logs an error, emits telemetry, and fails loudly.
+> - **Consumable Target Validation**: Validates `USE_CONSUMABLE` target entity ID (enforces self-targeting on player) and ensures item has `consumable: true`.
+> - **Tests**: Comprehensive negative and boundary unit tests added in `tests/game/c4-validation.test.ts`.
 
 **Where:** [`item-pickup.ts`](../../src/game/systems/item-pickup.ts) (explicit pickup branch), [`route.ts` L371-L395](../../src/app/api/action/route.ts)
 
@@ -158,7 +167,16 @@ Then add a test that asserts the *serialized payload* contains no `storedLoot`.
 
 **Fix:** Validate every client-supplied coordinate and entity ID server-side before attaching the intent: adjacency (Manhattan ≤ 1), bounds, walkability, ownership. Keep all state mutation inside systems that run in a Phase. The route should only validate and attach intents.
 
-### C5. The Two-Tier Bump Safeguard does not do what the handoff says
+### C5. The Two-Tier Bump Safeguard does not do what the handoff says — ✅ RESOLVED (`32a8a320`)
+
+> [!NOTE]
+> **Resolution Status (2026-11-03):** Completely resolved and verified with TurnManager-level and engine-level unit tests (Commit `32a8a320`).
+> - **Engine-Agnostic Abort Architecture**: Extended `TurnSchedulerAdapter` in `src/engine/turn/types.ts` with optional hooks: `wasActionAborted?(actorId)`, `refundActionCost?(actorId, cost)`, and `clearActionAborted?(actorId)`. `@engine` remains completely decoupled from gameplay ECS components.
+> - **0-Turn Abort Outcome**: `TurnManager.submitAction` tracks deducted action cost and passes it to `executeTurnCycle(cost)`. When `adapter.wasActionAborted(playerId)` is detected, `TurnManager` refunds the deducted energy, clears the aborted tag, flushes the event bus, and resets phase to `TurnPhase.AWAIT_INPUT` without advancing `turnNumber` and without executing enemy turns or environmental spread.
+> - **Component & System Tag**: Defined `ActionAbortedTag` in `src/shared/components/intents.ts`, registered in `COMPONENTS_REGISTRY`, and handled in `TagCleanupSystem` and `GameTurnAdapter`.
+> - **Bump Safeguard Enforcement**: In `MovementSystem` (`src/game/systems/movement.ts`), when bumping into an armed `CorruptedNode` or locked `SecurityLock` without access key, emits `INPUT_BUFFER_CLEARED`, attaches `ActionAbortedTag`, and blocks movement on both client and server.
+> - **Input Buffer Listener**: Wired subscriber in `src/game/setup.ts` (`eventBus.on('INPUT_BUFFER_CLEARED', () => inputManager.clearQueue())`), clearing buffered inputs.
+> - **Tests**: Added engine unit tests in `src/engine/turn/turn-manager.test.ts` and TurnManager-level verification in `tests/game/c5-bump-safeguard.test.ts`.
 
 The handoff claims risky bumps *"halt player movement with **0 turn cost**, flash an alert, and flush the input buffer."*
 
@@ -346,8 +364,8 @@ Update these docs as part of the fix, not as a follow-up. The handoff also shoul
 - [x] Depth 1–15 × ≥50 seeds: `generateDungeon` never throws and the floor is connected (✅ **RESOLVED** in C1: `30ff0a4c`)
 - [x] Real floors F6–F15 contain locks, every lock has a reachable key, and Faraday bounds match their own vault (✅ **RESOLVED** in C2: `c4d2d761`)
 - [x] Serialized `FULL` and `DELTA` payloads contain no `storedLoot`, `scrapYield`, `fluxYield`, `grantsAccessKey` or unrevealed `trapType` (✅ **RESOLVED** in C3: `b1a7999a`)
-- [ ] Server rejects out-of-range `PICKUP`, `DROP_ITEM`, `USE_CONSUMABLE` targets and out-of-capacity burns (negative tests)
-- [ ] `TurnManager`-level test proves the energy outcome of a blocked bump
+- [x] Server rejects out-of-range `PICKUP`, `DROP_ITEM`, `USE_CONSUMABLE` targets (✅ **RESOLVED** in C4: `2f6f3aa6`; out-of-capacity burns tracked in C8)
+- [x] `TurnManager`-level test proves the energy outcome of a blocked bump (✅ **RESOLVED** in C5: `32a8a320`)
 - [x] Zero `eventBus.on` in gameplay systems; zero direct `Health` patches outside `CombatSystem`; `@engine` has no game or React strings (✅ **RESOLVED** in C6)
 - [ ] Stability: crate destruction does not restore stability (mitigated in C6 hostile filter; rebalance review pending)
 - [x] Architecture docs and handoff updated to match (✅ **RESOLVED**: `DEATH_PROTOCOL.md`, `ENGINE_GUIDELINES.md`, `SYSTEM_OVERVIEW.md` updated)
