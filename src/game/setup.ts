@@ -29,6 +29,9 @@ import {
   AugmentData,
   Item,
   Dying,
+  Prop,
+  SecurityLock,
+  CorruptedNode,
 } from '@shared/components';
 import { ActionIntent } from '@shared/types';
 import { RunMode } from '@shared/run-mode';
@@ -554,6 +557,48 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
               }
               return;
             }
+          }
+        }
+      }
+
+      if (action === GameAction.INTERACT_ANCHOR) {
+        const playerPos = world.getComponent(pId, Position);
+        if (playerPos) {
+          const offsets = [
+            [0, 0],
+            [0, -1],
+            [0, 1],
+            [-1, 0],
+            [1, 0],
+          ];
+          let targetPropId: number | null = null;
+          for (const [dx, dy] of offsets) {
+            const entities = grid.getEntitiesAt(playerPos.x + dx, playerPos.y + dy);
+            for (const eid of entities) {
+              const prop = world.getComponent(eid, Prop);
+              if (!prop) continue;
+              const lock = world.getComponent(eid, SecurityLock);
+              const corrupted = world.getComponent(eid, CorruptedNode);
+              if (
+                lock?.isLocked ||
+                (corrupted && !corrupted.isDisarmed && !corrupted.triggered) ||
+                !prop.isSearched
+              ) {
+                targetPropId = eid;
+                break;
+              }
+            }
+            if (targetPropId !== null) break;
+          }
+          if (targetPropId !== null) {
+            inputManager.setRequestPending(true);
+            await sendActionToServer({
+              type: 'INTERACT_PROP',
+              targetPropId,
+              forceOverride: true,
+            });
+            inputManager.setRequestPending(false);
+            return;
           }
         }
       }

@@ -36,6 +36,7 @@ import { createPropInteractionSystem, triggerAcousticAlert } from '../prop-inter
 import { createMovementSystem } from '../movement';
 import { createTeleportSystem } from '../teleport';
 import { createAISystem } from '../ai';
+import { createTagCleanupSystem } from '../tag-cleanup';
 import { registerGameTemplates } from '../../entities';
 
 describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
@@ -138,18 +139,18 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
       expect(intent.targetPropId).toBe(propId);
     });
 
-    it('halts bump movement with warning and 0 turn cost when bumping an armed CorruptedNode', () => {
+    it('halts bump movement with warning and 0 turn cost when bumping a revealed armed CorruptedNode', () => {
       const moveSystem = createMovementSystem(world, grid, eventBus);
       moveSystem.init();
 
       const messageSpy = vi.fn();
       eventBus.on('MESSAGE_EMITTED', messageSpy);
 
-      // Place corrupted terminal at (6, 5)
+      // Place revealed corrupted terminal at (6, 5)
       const propId = world.createEntity();
       world.addComponent(propId, Position, { x: 6, y: 5 });
       world.addComponent(propId, Prop, { propId: 'ws1', faction: 'cyberacme', propClass: 'workstation', isSearched: false });
-      world.addComponent(propId, CorruptedNode, { trapType: 'acoustic_alert', corruptionLevel: 2, isDisarmed: false, triggered: false, revealed: false });
+      world.addComponent(propId, CorruptedNode, { trapType: 'acoustic_alert', corruptionLevel: 2, isDisarmed: false, triggered: false, revealed: true });
       world.addComponent(propId, BlocksMovement, {});
       grid.addEntity(propId, 6, 5);
 
@@ -167,6 +168,30 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
           text: expect.stringContaining('Corrupted terminal detected'),
         }),
       );
+    });
+
+    it('converts MoveIntent to InteractPropIntent and triggers trap when bumping an unrevealed CorruptedNode', () => {
+      const moveSystem = createMovementSystem(world, grid, eventBus);
+      moveSystem.init();
+      const propSystem = createPropInteractionSystem(world, grid, eventBus, entityFactory, componentRegistry);
+      propSystem.init();
+
+      const propId = world.createEntity();
+      world.addComponent(propId, Position, { x: 6, y: 5 });
+      world.addComponent(propId, Prop, { propId: 'ws_unrevealed', faction: 'cyberacme', propClass: 'workstation', isSearched: false });
+      world.addComponent(propId, Container, { containerId: 'ws_unrevealed', capacity: 4, scrapYield: 10, itemEntityIds: [] });
+      world.addComponent(propId, CorruptedNode, { trapType: 'hud_glitch', corruptionLevel: 2, isDisarmed: false, triggered: false, revealed: false });
+      world.addComponent(propId, BlocksMovement, {});
+      grid.addEntity(propId, 6, 5);
+
+      world.addComponent(playerId, MoveIntent, { dx: 1, dy: 0 });
+      world.executeSystems(Phase.ACTION);
+      eventBus.flush();
+
+      const corrupted = world.getComponent(propId, CorruptedNode)!;
+      expect(corrupted.triggered).toBe(true);
+      expect(corrupted.revealed).toBe(true);
+      expect(world.getComponent(propId, Prop)!.isSearched).toBe(true);
     });
 
     it('halts bump movement with warning when bumping a SecurityLock without an Access Key', () => {
@@ -268,9 +293,13 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
       world.addComponent(doorId, BlocksMovement, {});
       grid.addEntity(doorId, 6, 5);
 
+      const tagCleanup = createTagCleanupSystem(world);
+      tagCleanup.init();
+
       // Player force overrides without key
       world.addComponent(playerId, InteractPropIntent, { targetPropId: doorId, forceOverride: true });
       world.executeSystems(Phase.ACTION);
+      world.executeSystems(Phase.CLEANUP);
       world.executeSystems(Phase.GATHER_INTENT);
       eventBus.flush();
 

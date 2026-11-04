@@ -2,8 +2,8 @@
 
 > **Subject:** [`2026-11-02-branch-handoff-interactive-environments.md`](./2026-11-02-branch-handoff-interactive-environments.md) and the 25 commits / 188 files / +12.8k lines it describes
 > **Reviewed against:** `AGENTS.md`, [`docs/architecture/`](../architecture/) (`SYSTEM_OVERVIEW`, `ENGINE_GUIDELINES`, `DEATH_PROTOCOL`)
-> **Review date:** 2026-11-02
-> **Verdict:** 🔴 **Do not merge.** The branch is green on every automated gate, but the handoff's "Fully Implemented, Verified, and Ready for Merge" status is not supported. Floor generation crashes on every floor from 11 to 15. The headline lock/vault/key feature set never appears in generated floors. Several documented safety and security claims are false.
+> **Review date:** 2026-11-02 (Updated 2026-11-03 after C1–C8 remediation & follow-up audit in [`2026-11-03-adversarial-review-c1-c8-remediation.md`](./2026-11-03-adversarial-review-c1-c8-remediation.md))
+> **Verdict:** 🟢 **All C1–C8 Critical Findings Resolved & Verified (2026-11-03).** Initial review verdict on 2026-11-02 was Do Not Merge due to C1–C8 below; all 8 critical items and follow-up production lifecycle edge cases have now been remediated and verified across 750 generated floors and 150 test files (971 tests).
 
 ---
 

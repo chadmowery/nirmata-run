@@ -594,7 +594,7 @@ export function resolveHealIntents<T extends GameplayEvents>(
     const targetId = intent.targetId;
     const targetHealth = world.getComponent(targetId, Health);
 
-    if (targetHealth) {
+    if (targetHealth && targetHealth.isAlive && !world.hasComponent(targetId, Dying)) {
       const oldVal = targetHealth.current;
       const newVal = Math.min(targetHealth.max, oldVal + intent.amount);
 
@@ -625,20 +625,23 @@ export function createHealSystem<T extends GameplayEvents>(
   world: World<T>,
   eventBus: EventBus<T>,
 ) {
-  const update = (w: World<T>) => {
+  const updatePreTurn = (w: World<T>) => {
+    resolveHealIntents(w, eventBus);
+  };
+  const updateReaction = (w: World<T>) => {
     resolveHealIntents(w, eventBus);
   };
 
   return {
     init() {
-      world.registerSystem(Phase.PRE_TURN, update, 'HealSystem_PreTurn');
-      world.registerSystem(Phase.REACTION, update, 'HealSystem_Reaction');
+      world.registerSystem(Phase.PRE_TURN, updatePreTurn, 'HealSystem_PreTurn');
+      world.registerSystem(Phase.REACTION, updateReaction, 'HealSystem_Reaction');
     },
     dispose() {
-      world.unregisterSystem(Phase.PRE_TURN, update);
-      world.unregisterSystem(Phase.REACTION, update);
+      world.unregisterSystem(Phase.PRE_TURN, updatePreTurn);
+      world.unregisterSystem(Phase.REACTION, updateReaction);
     },
-    update,
+    update: updateReaction,
   };
 }
 

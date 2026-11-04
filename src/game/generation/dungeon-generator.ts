@@ -216,10 +216,6 @@ export function generateDungeon(config: DungeonConfig): DungeonResult {
     const propAnchors: PropAnchor[] = [];
     const bespokeRoomIndices = new Set<number>();
 
-    // Door and corridor tile coordinates that must never be severed
-    const doorSet = new Set(doors.map((d) => `${d.x},${d.y}`));
-    const corridorSet = new Set(corridors.flatMap((c) => c.points.map((p) => `${p.x},${p.y}`)));
-
     // Shuffle qualifying prefabs deterministically
     const shuffledPrefabs = shufflePrefabs(qualifyingPrefabs, rng);
 
@@ -241,25 +237,70 @@ export function generateDungeon(config: DungeonConfig): DungeonResult {
         const actualRoomIndex = candidateRoomIndex + 1;
         const targetRoom = rooms[actualRoomIndex];
 
-        // Snapshot existing room tiles and boundary so we can roll back if connectivity breaks
+        // Center prefab within the room footprint, clamped so a 1-tile perimeter walkway fits inside grid bounds
+        const offsetX = Math.floor((targetRoom.width - prefab.width) / 2);
+        const offsetY = Math.floor((targetRoom.height - prefab.height) / 2);
+        const startX = Math.max(2, Math.min(config.width - prefab.width - 2, targetRoom.x + offsetX));
+        const startY = Math.max(2, Math.min(config.height - prefab.height - 2, targetRoom.y + offsetY));
+
+        // Ensure no authored propSpawn in this prefab falls within Manhattan distance <= 1 of a BSP door
+        const conflictsWithDoor = prefab.propSpawns.some((sp) =>
+          doors.some((d) => Math.abs(startX + sp.x - d.x) + Math.abs(startY + sp.y - d.y) <= 1),
+        );
+        if (conflictsWithDoor) {
+          continue;
+        }
+
+        // Snapshot existing room and prefab moat tiles so we can roll back if connectivity breaks
         const savedTiles: Array<{ x: number; y: number; tile: Tile }> = [];
-        for (let y = targetRoom.y - 1; y <= targetRoom.y + targetRoom.height; y++) {
-          for (let x = targetRoom.x - 1; x <= targetRoom.x + targetRoom.width; x++) {
+        const minSaveX = Math.min(targetRoom.x, startX) - 2;
+        const maxSaveX = Math.max(targetRoom.x + targetRoom.width, startX + prefab.width) + 2;
+        const minSaveY = Math.min(targetRoom.y, startY) - 2;
+        const maxSaveY = Math.max(targetRoom.y + targetRoom.height, startY + prefab.height) + 2;
+        for (let y = minSaveY; y <= maxSaveY; y++) {
+          for (let x = minSaveX; x <= maxSaveX; x++) {
             if (grid.inBounds(x, y)) {
               savedTiles.push({ x, y, tile: { ...grid.getTile(x, y)! } });
             }
           }
         }
 
-        // Center prefab within the room footprint
-        const offsetX = Math.floor((targetRoom.width - prefab.width) / 2);
-        const offsetY = Math.floor((targetRoom.height - prefab.height) / 2);
-        const startX = targetRoom.x + offsetX;
-        const startY = targetRoom.y + offsetY;
-
         let vaultDoorPos: { x: number; y: number } | undefined;
 
-        // Stamp prefab layout
+        // Seal any unused targetRoom floor tiles outside the prefab+moat box so no isolated floor pockets remain behind prefab walls
+        for (let ry = targetRoom.y; ry < targetRoom.y + targetRoom.height; ry++) {
+          for (let rx = targetRoom.x; rx < targetRoom.x + targetRoom.width; rx++) {
+            const insidePrefabOrMoat =
+              rx >= startX - 1 &&
+              rx <= startX + prefab.width &&
+              ry >= startY - 1 &&
+              ry <= startY + prefab.height;
+            if (!insidePrefabOrMoat && grid.inBounds(rx, ry)) {
+              const isRoomDoor = doors.some((d) => d.x === rx && d.y === ry);
+              if (!isRoomDoor) {
+                grid.setTile(rx, ry, { terrain: 'wall', walkable: false, transparent: false });
+              }
+            }
+          }
+        }
+
+        // Carve a 1-tile walkable perimeter moat around the prefab footprint so corridors/doors can route around it without breaching prefab walls
+        for (let py = -1; py <= prefab.height; py++) {
+          for (let px = -1; px <= prefab.width; px++) {
+            if (py === -1 || py === prefab.height || px === -1 || px === prefab.width) {
+              const gx = startX + px;
+              const gy = startY + py;
+              if (gx >= 1 && gx < config.width - 1 && gy >= 1 && gy < config.height - 1) {
+                const existing = grid.getTile(gx, gy);
+                if (!existing || !existing.walkable) {
+                  grid.setTile(gx, gy, { terrain: 'floor', walkable: true, transparent: true });
+                }
+              }
+            }
+          }
+        }
+
+        // Stamp prefab layout intact (never skip '#' walls inside the prefab footprint)
         for (let py = 0; py < prefab.height; py++) {
           for (let px = 0; px < prefab.width; px++) {
             const char = prefab.layout[py]?.[px] || '#';
@@ -269,10 +310,6 @@ export function generateDungeon(config: DungeonConfig): DungeonResult {
             if (!grid.inBounds(gx, gy)) continue;
 
             if (char === '#') {
-              // Never overwrite a tile that a corridor or door entered through
-              if (doorSet.has(`${gx},${gy}`) || corridorSet.has(`${gx},${gy}`)) {
-                continue;
-              }
               grid.setTile(gx, gy, { terrain: 'wall', walkable: false, transparent: false });
             } else if (char === '.') {
               grid.setTile(gx, gy, { terrain: 'floor', walkable: true, transparent: true });
@@ -300,7 +337,7 @@ export function generateDungeon(config: DungeonConfig): DungeonResult {
           }
         }
 
-        // Connect room entrance doors to the nearest portal via walkable corridors
+        // Connect room entrance doors to the prefab perimeter moat (never carving inside the prefab footprint)
         const roomDoors = doors.filter(
           (d) =>
             d.x >= targetRoom.x - 1 &&
@@ -310,29 +347,54 @@ export function generateDungeon(config: DungeonConfig): DungeonResult {
         );
 
         for (const rd of roomDoors) {
-          if (prefab.portals.length === 0) break;
-          let nearestPortal = prefab.portals[0];
-          let minDist = Infinity;
-          for (const portal of prefab.portals) {
-            const dist = Math.abs(rd.x - (startX + portal.x)) + Math.abs(rd.y - (startY + portal.y));
-            if (dist < minDist) {
-              minDist = dist;
-              nearestPortal = portal;
-            }
-          }
-          carveWalkablePath(grid, rd.x, rd.y, startX + nearestPortal.x, startY + nearestPortal.y);
+          const moatX = rd.x < startX ? startX - 1 : rd.x >= startX + prefab.width ? startX + prefab.width : rd.x;
+          const moatY = rd.y < startY ? startY - 1 : rd.y >= startY + prefab.height ? startY + prefab.height : startY - 1;
+          carveWalkablePathOutsideBox(
+            grid,
+            rd.x,
+            rd.y,
+            moatX,
+            moatY,
+            startX,
+            startY,
+            prefab.width,
+            prefab.height,
+          );
         }
 
-        // Validate attempt-local connectivity: if broken, revert room and drop prefab
-        const testConn = validateConnectivity(
+        // Validate attempt-local connectivity: if broken (or if authored blocking props / locked vault doors would disconnect non-vault tiles), revert room and drop prefab
+        const authoredPropCoords = new Set<string>(
+          prefab.propSpawns.map((sp) => `${startX + sp.x},${startY + sp.y}`),
+        );
+        const testConnWithoutProps = validateConnectivity(
           config.width,
           config.height,
           (x, y) => grid.isWalkable(x, y),
           playerSpawnRoom.centerX,
           playerSpawnRoom.centerY,
         );
+        const testConnWithProps = validateConnectivity(
+          config.width,
+          config.height,
+          (x, y) => {
+            if (!grid.isWalkable(x, y)) return false;
+            if (authoredPropCoords.has(`${x},${y}`)) return false;
+            if (
+              vaultDoorPos &&
+              x >= startX &&
+              x < startX + prefab.width &&
+              y >= startY &&
+              y <= vaultDoorPos.y
+            ) {
+              return false;
+            }
+            return true;
+          },
+          playerSpawnRoom.centerX,
+          playerSpawnRoom.centerY,
+        );
 
-        if (!testConn.connected) {
+        if (!testConnWithoutProps.connected || !testConnWithProps.connected) {
           for (const { x, y, tile } of savedTiles) {
             grid.setTile(x, y, tile);
           }
@@ -489,13 +551,26 @@ function shufflePrefabs<T>(array: T[], rng: { random(): number }): T[] {
 }
 
 /**
- * Carves an L-shaped walkable floor corridor between two points.
+ * Carves an L-shaped walkable floor corridor between two points without overwriting tiles inside [boxX..boxX+boxW-1, boxY..boxY+boxH-1].
  */
-function carveWalkablePath(grid: Grid, x1: number, y1: number, x2: number, y2: number): void {
+function carveWalkablePathOutsideBox(
+  grid: Grid,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  boxX: number,
+  boxY: number,
+  boxW: number,
+  boxH: number,
+): void {
+  const isInsideBox = (x: number, y: number) =>
+    x >= boxX && x < boxX + boxW && y >= boxY && y < boxY + boxH;
+
   const xStart = Math.min(x1, x2);
   const xEnd = Math.max(x1, x2);
   for (let x = xStart; x <= xEnd; x++) {
-    if (grid.inBounds(x, y1)) {
+    if (grid.inBounds(x, y1) && !isInsideBox(x, y1)) {
       const tile = grid.getTile(x, y1);
       if (!tile || !tile.walkable) {
         grid.setTile(x, y1, { terrain: 'floor', walkable: true, transparent: true });
@@ -505,7 +580,7 @@ function carveWalkablePath(grid: Grid, x1: number, y1: number, x2: number, y2: n
   const yStart = Math.min(y1, y2);
   const yEnd = Math.max(y1, y2);
   for (let y = yStart; y <= yEnd; y++) {
-    if (grid.inBounds(x2, y)) {
+    if (grid.inBounds(x2, y) && !isInsideBox(x2, y)) {
       const tile = grid.getTile(x2, y);
       if (!tile || !tile.walkable) {
         grid.setTile(x2, y, { terrain: 'floor', walkable: true, transparent: true });
@@ -542,7 +617,10 @@ export function tagProceduralRoomAnchors(
 
   // Center tile for large room CONTAINER_RARE (area >= 48)
   const area = room.width * room.height;
-  if (area >= 48) {
+  const nearAnyDoor = (tx: number, ty: number) =>
+    doors.some((d) => Math.abs(d.x - tx) + Math.abs(d.y - ty) <= 1);
+
+  if (area >= 48 && grid.isWalkable(room.centerX, room.centerY) && !nearAnyDoor(room.centerX, room.centerY)) {
     anchors.push({
       x: room.centerX,
       y: room.centerY,
@@ -556,8 +634,7 @@ export function tagProceduralRoomAnchors(
       if (!grid.isWalkable(x, y)) continue;
 
       // Skip tiles adjacent to any door (Manhattan distance <= 1) to prevent doorway blockages
-      const nearDoor = doors.some((d) => Math.abs(d.x - x) + Math.abs(d.y - y) <= 1);
-      if (nearDoor) continue;
+      if (nearAnyDoor(x, y)) continue;
 
       // Do not duplicate center rare container tile
       if (area >= 48 && x === room.centerX && y === room.centerY) continue;

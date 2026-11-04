@@ -19,7 +19,6 @@ import {
   EquipIntent,
   UnequipIntent,
   ShellUpdateTag,
-  MovedThisTurn,
   BurnSoftwareIntent,
   FirmwareIntent,
   PickupIntent,
@@ -171,23 +170,52 @@ export function processAction(
           return null;
         }
 
+        // Prevent duplicating already-owned or equipped items via spoofed coordinates
+        const inv = world.getComponent(entityId, RunInventory);
+        const eqSlots = world.getComponent(entityId, EquipmentSlots);
+        const fwSlots = world.getComponent(entityId, FirmwareSlots);
+        const agSlots = world.getComponent(entityId, AugmentSlots);
+        const alreadyOwned =
+          inv?.software.some((s) => s.entityId === action.itemId) ||
+          inv?.equipment.some((e) => e.entityId === action.itemId) ||
+          eqSlots?.weapon === action.itemId ||
+          eqSlots?.armor === action.itemId ||
+          fwSlots?.equipped.includes(action.itemId) ||
+          agSlots?.equipped.includes(action.itemId);
+        if (alreadyOwned) {
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: 'Cannot pick up: item is already in inventory or equipped.',
+            type: 'error',
+          });
+          return null;
+        }
+
         const itemPos = world.getComponent(action.itemId, Position);
-        let targetX = itemPos?.x ?? action.targetX;
-        let targetY = itemPos?.y ?? action.targetY;
+        let targetX: number | undefined = itemPos?.x;
+        let targetY: number | undefined = itemPos?.y;
 
         if (targetX === undefined || targetY === undefined) {
-          for (let dx = -1; dx <= 1; dx++) {
-            for (let dy = -1; dy <= 1; dy++) {
-              if (
-                Math.abs(dx) + Math.abs(dy) <= 1 &&
-                grid.getItemsAt(actorPos.x + dx, actorPos.y + dy).has(action.itemId)
-              ) {
-                targetX = actorPos.x + dx;
-                targetY = actorPos.y + dy;
-                break;
+          if (
+            action.targetX !== undefined &&
+            action.targetY !== undefined &&
+            grid.getItemsAt(action.targetX, action.targetY).has(action.itemId)
+          ) {
+            targetX = action.targetX;
+            targetY = action.targetY;
+          } else {
+            for (let dx = -1; dx <= 1; dx++) {
+              for (let dy = -1; dy <= 1; dy++) {
+                if (
+                  Math.abs(dx) + Math.abs(dy) <= 1 &&
+                  grid.getItemsAt(actorPos.x + dx, actorPos.y + dy).has(action.itemId)
+                ) {
+                  targetX = actorPos.x + dx;
+                  targetY = actorPos.y + dy;
+                  break;
+                }
               }
+              if (targetX !== undefined) break;
             }
-            if (targetX !== undefined) break;
           }
         }
 
@@ -217,12 +245,15 @@ export function processAction(
       } else {
         const pos = world.getComponent(entityId, Position);
         if (pos) {
-          world.addComponent(entityId, MovedThisTurn, {
-            fromX: pos.x,
-            fromY: pos.y,
-            toX: pos.x,
-            toY: pos.y,
-          });
+          const itemsOnTile = Array.from(grid.getItemsAt(pos.x, pos.y));
+          if (itemsOnTile.length > 0) {
+            world.addComponent(entityId, PickupIntent, {
+              actorId: entityId,
+              itemId: itemsOnTile[0],
+              targetX: pos.x,
+              targetY: pos.y,
+            });
+          }
         }
       }
       return 'PICKUP';

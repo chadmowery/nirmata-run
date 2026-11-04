@@ -104,7 +104,7 @@ export const BackpackGrid: React.FC = () => {
           variant: 'primary',
           action: async () => {
             const sessionId = getSessionId();
-            await fetch('/api/action', {
+            const response = await fetch('/api/action', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -115,6 +115,23 @@ export const BackpackGrid: React.FC = () => {
                 },
               }),
             });
+            if (response.ok) {
+              const result = await response.json();
+              const serverState = result.payload;
+              const fullCtx = (window as unknown as { gameContext?: Record<string, unknown> }).gameContext;
+              if (serverState && fullCtx?.world && fullCtx?.grid && fullCtx?.turnManager && fullCtx?.eventBus) {
+                const { applyStateDelta } = await import('@shared/reconciliation');
+                fullCtx.playerId = serverState.playerId;
+                applyStateDelta(
+                  fullCtx.world as never,
+                  fullCtx.grid as never,
+                  fullCtx.turnManager as never,
+                  fullCtx.eventBus as never,
+                  serverState,
+                );
+              }
+            }
+            gameStore.getState().incrementInventoryRevision();
             setSelectedSlotIndex(null);
           },
         });
@@ -330,17 +347,36 @@ export const BackpackGrid: React.FC = () => {
                 if (entityId) {
                   if (equipmentItem?.isConsumable) {
                     const sessionId = getSessionId();
-                    fetch('/api/action', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        sessionId,
-                        action: {
-                          type: 'USE_CONSUMABLE',
-                          inventoryIndex: isSoftware ? i : i - softwareItems.length,
-                        },
-                      }),
-                    });
+                    void (async () => {
+                      const response = await fetch('/api/action', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          sessionId,
+                          action: {
+                            type: 'USE_CONSUMABLE',
+                            inventoryIndex: isSoftware ? i : i - softwareItems.length,
+                          },
+                        }),
+                      });
+                      if (response.ok) {
+                        const result = await response.json();
+                        const serverState = result.payload;
+                        const fullCtx = (window as unknown as { gameContext?: Record<string, unknown> }).gameContext;
+                        if (serverState && fullCtx?.world && fullCtx?.grid && fullCtx?.turnManager && fullCtx?.eventBus) {
+                          const { applyStateDelta } = await import('@shared/reconciliation');
+                          fullCtx.playerId = serverState.playerId;
+                          applyStateDelta(
+                            fullCtx.world as never,
+                            fullCtx.grid as never,
+                            fullCtx.turnManager as never,
+                            fullCtx.eventBus as never,
+                            serverState,
+                          );
+                        }
+                      }
+                      gameStore.getState().incrementInventoryRevision();
+                    })();
                     return;
                   }
 

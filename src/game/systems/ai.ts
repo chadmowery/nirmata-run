@@ -112,6 +112,7 @@ export function createAISystem<T extends GameplayEvents>(
   }
 
   let updateHandler: ((w: World<T>) => void) | null = null;
+  const alertedThisTurn = new Set<EntityId>();
 
   return {
     /**
@@ -130,11 +131,11 @@ export function createAISystem<T extends GameplayEvents>(
       // 1. Update FOV awareness
       const visibleTiles = computeEnemyFov(pos.x, pos.y, ai.sightRadius);
       const playerKey = `${player.x},${player.y}`;
-      const canSeePlayer = visibleTiles.has(playerKey);
+      const canSeePlayer = visibleTiles.has(playerKey) || alertedThisTurn.has(entityId);
 
       world.patchComponent(entityId, FovAwareness, {
         canSeePlayer,
-        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
+        ...(visibleTiles.has(playerKey) ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
       });
 
       // 2. State transitions
@@ -175,8 +176,9 @@ export function createAISystem<T extends GameplayEvents>(
 
       // 3. Execute behavior
       if (nextBehavior === AIBehavior.CHASING) {
-        const targetX = awareness.lastKnownPlayerX ?? player.x;
-        const targetY = awareness.lastKnownPlayerY ?? player.y;
+        const updatedAwareness = world.getComponent(entityId, FovAwareness) ?? awareness;
+        const targetX = updatedAwareness.lastKnownPlayerX ?? player.x;
+        const targetY = updatedAwareness.lastKnownPlayerY ?? player.y;
 
         const step = pathfindToward(pos.x, pos.y, targetX, targetY);
         if (step) {
@@ -196,10 +198,13 @@ export function createAISystem<T extends GameplayEvents>(
      * Internal update loop that processes all entities marked as 'Acting'.
      */
     update(w: World<T>): void {
+      alertedThisTurn.clear();
+
       // 1. Process pending AlertIntents
       const alertedEntities = w.query(AlertIntent);
       for (const entityId of alertedEntities) {
         const alert = w.getComponent(entityId, AlertIntent)!;
+        alertedThisTurn.add(entityId);
         if (w.hasComponent(entityId, FovAwareness)) {
           w.patchComponent(entityId, FovAwareness, {
             canSeePlayer: true,
@@ -302,11 +307,11 @@ export function createAISystem<T extends GameplayEvents>(
       // 1. Update FOV awareness
       const visibleTiles = computeEnemyFov(pos.x, pos.y, ai.sightRadius);
       const playerKey = `${player.x},${player.y}`;
-      const canSeePlayer = visibleTiles.has(playerKey);
+      const canSeePlayer = visibleTiles.has(playerKey) || alertedThisTurn.has(entityId);
 
       world.patchComponent(entityId, FovAwareness, {
         canSeePlayer,
-        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
+        ...(visibleTiles.has(playerKey) ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
       });
 
       // 2. Movement/Attack logic
@@ -322,6 +327,11 @@ export function createAISystem<T extends GameplayEvents>(
           if (step) {
             world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
           }
+        }
+      } else if (ai.behavior === AIBehavior.CHASING && awareness.lastKnownPlayerX !== undefined && awareness.lastKnownPlayerY !== undefined) {
+        const step = pathfindToward(pos.x, pos.y, awareness.lastKnownPlayerX, awareness.lastKnownPlayerY);
+        if (step) {
+          world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
         }
       }
     },
@@ -339,11 +349,11 @@ export function createAISystem<T extends GameplayEvents>(
       // 1. Update FOV awareness
       const visibleTiles = computeEnemyFov(pos.x, pos.y, ai.sightRadius);
       const playerKey = `${player.x},${player.y}`;
-      const canSeePlayer = visibleTiles.has(playerKey);
+      const canSeePlayer = visibleTiles.has(playerKey) || alertedThisTurn.has(entityId);
 
       world.patchComponent(entityId, FovAwareness, {
         canSeePlayer,
-        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
+        ...(visibleTiles.has(playerKey) ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
       });
 
       // 2. Fragmenter logic
@@ -386,6 +396,11 @@ export function createAISystem<T extends GameplayEvents>(
             world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
           }
         }
+      } else if (ai.behavior === AIBehavior.CHASING && awareness.lastKnownPlayerX !== undefined && awareness.lastKnownPlayerY !== undefined) {
+        const step = pathfindToward(pos.x, pos.y, awareness.lastKnownPlayerX, awareness.lastKnownPlayerY);
+        if (step) {
+          world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
+        }
       }
     },
 
@@ -405,11 +420,11 @@ export function createAISystem<T extends GameplayEvents>(
       // 1. Update FOV awareness
       const visibleTiles = computeEnemyFov(pos.x, pos.y, ai.sightRadius);
       const playerKey = `${player.x},${player.y}`;
-      const canSeePlayer = visibleTiles.has(playerKey);
+      const canSeePlayer = visibleTiles.has(playerKey) || alertedThisTurn.has(entityId);
 
       world.patchComponent(entityId, FovAwareness, {
         canSeePlayer,
-        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
+        ...(visibleTiles.has(playerKey) ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
       });
 
       if (canSeePlayer) {
@@ -456,6 +471,11 @@ export function createAISystem<T extends GameplayEvents>(
             world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
           }
         }
+      } else if (ai.behavior === AIBehavior.CHASING && awareness.lastKnownPlayerX !== undefined && awareness.lastKnownPlayerY !== undefined) {
+        const step = pathfindToward(pos.x, pos.y, awareness.lastKnownPlayerX, awareness.lastKnownPlayerY);
+        if (step) {
+          world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
+        }
       }
     },
 
@@ -472,11 +492,11 @@ export function createAISystem<T extends GameplayEvents>(
       // 1. Update FOV awareness
       const visibleTiles = computeEnemyFov(pos.x, pos.y, ai.sightRadius);
       const playerKey = `${player.x},${player.y}`;
-      const canSeePlayer = visibleTiles.has(playerKey);
+      const canSeePlayer = visibleTiles.has(playerKey) || alertedThisTurn.has(entityId);
 
       world.patchComponent(entityId, FovAwareness, {
         canSeePlayer,
-        ...(canSeePlayer ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
+        ...(visibleTiles.has(playerKey) ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
       });
 
       const dist = Math.abs(pos.x - player.x) + Math.abs(pos.y - player.y);

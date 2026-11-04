@@ -205,7 +205,7 @@ describe('MovementSystem', () => {
         isDisarmed: false,
         triggered: false,
         trapType: 'acoustic_alert',
-        revealed: false,
+        revealed: true,
       });
       clientWorld.addComponent(propId, Position, { x: 6, y: 5 });
       clientGrid.addEntity(propId, 6, 5);

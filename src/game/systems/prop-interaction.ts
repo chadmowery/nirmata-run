@@ -211,7 +211,7 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
         const corrupted = w.getComponent(targetId, CorruptedNode)!;
         if (!corrupted.isDisarmed && !corrupted.triggered) {
           wasCorruptedTrap = true;
-          w.patchComponent(targetId, CorruptedNode, { triggered: true });
+          w.patchComponent(targetId, CorruptedNode, { triggered: true, revealed: true });
 
           if (corrupted.trapType === 'acoustic_alert' && actorPos) {
             triggerAcousticAlert(w, actorPos.x, actorPos.y, 12);

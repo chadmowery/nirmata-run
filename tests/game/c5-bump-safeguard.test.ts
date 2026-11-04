@@ -5,6 +5,7 @@ import { EventBus } from '@engine/events/event-bus';
 import { TurnManager } from '@engine/turn/turn-manager';
 import { GameTurnAdapter } from '@game/turn/game-turn-adapter';
 import { createMovementSystem } from '@game/systems/movement';
+import { createTagCleanupSystem } from '@game/systems/tag-cleanup';
 import { InputManager } from '@game/input/input-manager';
 import { GameAction, DIRECTIONS } from '@game/input/actions';
 import {
@@ -56,9 +57,11 @@ describe('C5 Two-Tier Bump Safeguard Verification (TurnManager Level)', () => {
       adapter,
     );
 
-    // Initialize MovementSystem
+    // Initialize MovementSystem and TagCleanupSystem (verifying ActionAbortedTag survives Phase.CLEANUP)
     const movementSystem = createMovementSystem(world, grid, eventBus, false);
     movementSystem.init();
+    const tagCleanupSystem = createTagCleanupSystem(world);
+    tagCleanupSystem.init();
 
     // Wire player action handler
     turnManager.setPlayerActionHandler((action: string, entityId: number) => {
@@ -92,7 +95,7 @@ describe('C5 Two-Tier Bump Safeguard Verification (TurnManager Level)', () => {
       isDisarmed: false,
       triggered: false,
       trapType: 'acoustic_alert',
-      revealed: false,
+      revealed: true,
     });
     world.addComponent(corruptedPropId, Position, { x: 6, y: 5 });
     grid.addEntity(corruptedPropId, 6, 5);

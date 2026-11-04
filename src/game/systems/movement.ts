@@ -101,9 +101,9 @@ export function createMovementSystem<T extends GameplayEvents>(
         if (isAttackerPlayer && w.hasComponent(occupantId, Prop)) {
           const prop = w.getComponent(occupantId, Prop)!;
 
-          // Check CorruptedNode (Tier 2 Risk: Halt movement, 0 energy cost, warn & flush queue)
+          // Check CorruptedNode (Tier 2 Risk when revealed: Halt movement, 0 energy cost, warn & flush queue)
           const corrupted = w.getComponent(occupantId, CorruptedNode);
-          if (corrupted && !corrupted.isDisarmed && !corrupted.triggered) {
+          if (corrupted && !corrupted.isDisarmed && !corrupted.triggered && corrupted.revealed) {
             if (!isClient) {
               eventBus.emit('MESSAGE_EMITTED', {
                 text: '[SECURITY FAULT]: Corrupted terminal detected (acoustic trap / EMP dump). Disarm with Logic_Jam or hack carefully.',

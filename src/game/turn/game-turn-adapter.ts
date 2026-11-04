@@ -2,7 +2,7 @@ import { World } from '@engine/ecs/world';
 import { EntityId } from '@engine/ecs/types';
 import { TurnSchedulerAdapter } from '@engine/turn/types';
 import { EngineEvents } from '@engine/events/types';
-import { Actor, Energy, Health, Acting, StatusEffects, Dying, ActionAbortedTag } from '@shared/components';
+import { Actor, Energy, Health, Acting, StatusEffects, Dying, ActionAbortedTag, MoveIntent } from '@shared/components';
 
 export interface GameTurnAdapterConfig {
   defaultActionCost?: number;
@@ -99,6 +99,9 @@ export class GameTurnAdapter<
 
   onBeforeActorAct(actorId: EntityId): void {
     if (!this.world.entityExists(actorId) || this.world.hasComponent(actorId, Dying)) return;
+    if (this.world.hasComponent(actorId, ActionAbortedTag)) {
+      this.world.removeComponent(actorId, ActionAbortedTag);
+    }
     this.world.addComponent(actorId, Acting, {});
   }
 
@@ -124,8 +127,12 @@ export class GameTurnAdapter<
   }
 
   clearActionAborted(actorId: EntityId): void {
-    if (this.world.entityExists(actorId) && this.world.hasComponent(actorId, ActionAbortedTag)) {
+    if (!this.world.entityExists(actorId)) return;
+    if (this.world.hasComponent(actorId, ActionAbortedTag)) {
       this.world.removeComponent(actorId, ActionAbortedTag);
+    }
+    if (this.world.hasComponent(actorId, MoveIntent)) {
+      this.world.removeComponent(actorId, MoveIntent);
     }
   }
 }

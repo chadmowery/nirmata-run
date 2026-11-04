@@ -51,6 +51,17 @@ export function redactWorldForClient(worldData: SerializedWorld): SerializedWorl
     }
   }
 
+  // 3. Redact FloorState authoritative runSeed
+  const floorStateStore = cloned.stores['floorState'];
+  if (floorStateStore) {
+    for (const compData of Object.values(floorStateStore)) {
+      if (compData && typeof compData === 'object') {
+        const fs = compData as Record<string, unknown>;
+        fs.runSeed = 'REDACTED';
+      }
+    }
+  }
+
   return cloned;
 }
 

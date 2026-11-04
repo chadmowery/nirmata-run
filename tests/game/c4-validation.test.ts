@@ -188,6 +188,59 @@ describe('C4 Server-Side Validation: Range, Position, and Targeting', () => {
         targetY: 5,
       });
     });
+
+    it('rejects PICKUP when item is already in player inventory even if client spoofs targetX/targetY', () => {
+      const ownedItem = world.createEntity();
+      world.addComponent(ownedItem, Item, { name: 'Owned Weapon', type: 'equipment' });
+      world.addComponent(PLAYER_ID, RunInventory, {
+        software: [],
+        equipment: [
+          {
+            entityId: ownedItem,
+            templateId: 'owned-weapon',
+            rarityTier: 'common',
+            pickedUpAtFloor: 1,
+            pickedUpAtTimestamp: 1000,
+          },
+        ],
+        maxSlots: 10,
+      });
+
+      const messages: string[] = [];
+      eventBus.on('MESSAGE_EMITTED', (payload) => messages.push(payload.text));
+
+      const actionKey = processAction(world, grid, eventBus, PLAYER_ID, {
+        type: 'PICKUP',
+        itemId: ownedItem,
+        targetX: 5,
+        targetY: 5,
+      });
+      eventBus.flush();
+
+      expect(actionKey).toBeNull();
+      expect(world.hasComponent(PLAYER_ID, PickupIntent)).toBe(false);
+      expect(messages).toContain('Cannot pick up: item is already in inventory or equipped.');
+    });
+
+    it('rejects PICKUP when item has no Position and is not registered on the grid at targetX/targetY', () => {
+      const floatingItem = world.createEntity();
+      world.addComponent(floatingItem, Item, { name: 'Detached Item', type: 'equipment' });
+
+      const messages: string[] = [];
+      eventBus.on('MESSAGE_EMITTED', (payload) => messages.push(payload.text));
+
+      const actionKey = processAction(world, grid, eventBus, PLAYER_ID, {
+        type: 'PICKUP',
+        itemId: floatingItem,
+        targetX: 5,
+        targetY: 5,
+      });
+      eventBus.flush();
+
+      expect(actionKey).toBeNull();
+      expect(world.hasComponent(PLAYER_ID, PickupIntent)).toBe(false);
+      expect(messages).toContain('Cannot pick up: item location is unknown.');
+    });
   });
 
   describe('DROP_ITEM Validation', () => {
@@ -351,6 +404,45 @@ describe('C4 Server-Side Validation: Range, Position, and Targeting', () => {
 
       const inv = world.getComponent(PLAYER_ID, RunInventory);
       expect(inv?.equipment).toHaveLength(0);
+    });
+
+    it('decrements consumable stack quantity by 1 on DROP_ITEM instead of deleting the entire stack', () => {
+      const potionEntityId = world.createEntity();
+      world.addComponent(PLAYER_ID, RunInventory, {
+        software: [],
+        equipment: [
+          {
+            entityId: potionEntityId,
+            templateId: 'health-potion',
+            rarityTier: 'common',
+            pickedUpAtFloor: 1,
+            pickedUpAtTimestamp: 1000,
+            isConsumable: true,
+            quantity: 3,
+          },
+        ],
+        maxSlots: 10,
+      });
+
+      const actionKey = processAction(world, grid, eventBus, PLAYER_ID, {
+        type: 'DROP_ITEM',
+        itemEntityId: potionEntityId,
+        targetX: 6,
+        targetY: 5,
+      });
+
+      expect(actionKey).toBe('DROP_ITEM');
+      itemPickupSystem.update(world);
+
+      const inv = world.getComponent(PLAYER_ID, RunInventory);
+      expect(inv?.equipment).toHaveLength(1);
+      expect(inv?.equipment[0].quantity).toBe(2);
+
+      const droppedItems = Array.from(grid.getItemsAt(6, 5));
+      expect(droppedItems).toHaveLength(1);
+      const droppedId = droppedItems[0];
+      expect(world.getComponent(droppedId, Position)).toEqual({ x: 6, y: 5 });
+      expect(world.getComponent(droppedId, Item)).toBeDefined();
     });
   });
 

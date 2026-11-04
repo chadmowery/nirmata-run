@@ -6,6 +6,7 @@ import { GameTurnAdapter } from './turn/game-turn-adapter';
 import { EntityRegistry } from '../engine/entity/registry';
 import { EntityFactory } from '../engine/entity/factory';
 import { COMPONENTS_REGISTRY } from '@shared/components';
+import { redactWorldForClient } from '@shared/serialization';
 import { ComponentRegistry } from '../engine/entity/types';
 import { ComponentDef } from '../engine/ecs/types';
 import { registerGameTemplates } from './entities';
@@ -416,6 +417,10 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
       factionTheme: dungeonResult.factionTheme,
     },
   );
+
+  if (config.isClient === true) {
+    world.loadSerializableState(redactWorldForClient(world.getSerializableState()));
+  }
 
   // Turn Manager Handlers
   // Turn Manager Handlers

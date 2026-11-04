@@ -111,6 +111,21 @@ describe('C7 Reality Stability and HealIntent Collision Resolution', () => {
       expect(world.getComponent(playerId, Health)?.current).toBe(18);
       expect(world.hasComponent(playerId, HealIntent)).toBe(false);
     });
+
+    it('does not heal an entity marked with Dying component', () => {
+      const healSystem = createHealSystem(world, eventBus);
+      healSystem.init();
+
+      world.addComponent(playerId, Dying, { killerId: 99, reason: 'lethal_hit' });
+      addHealIntent(world, playerId, playerId, 10);
+
+      world.executeSystems(Phase.REACTION);
+      eventBus.flush();
+
+      // Health must remain 5 (unchanged) and HealIntent must be cleaned up
+      expect(world.getComponent(playerId, Health)?.current).toBe(5);
+      expect(world.hasComponent(playerId, HealIntent)).toBe(false);
+    });
   });
 
   describe('Health Potion Regeneration Math Alignment', () => {

@@ -66,23 +66,25 @@ export async function POST(req: Request) {
     };
     eventBus.onAny(eventCaptureHandler);
 
-    // 3. Process Action Intent (Attaches Intents and determines actionKey via canonical pipeline)
-    const actionKey = processAction(
-      world,
-      grid,
-      eventBus,
-      session.playerId,
-      action,
-      { sessionId, systems: session.systems },
-    );
-
-    // Execute turn within a transactional checkpoint (ARCH-01)
+    // 3. Execute turn within a transactional checkpoint (ARCH-01)
     let turnExecutionFailed = false;
     let turnErrorMessage = '';
 
     try {
-      if (actionKey && turnManager.canAcceptInput()) {
-        turnManager.submitAction(actionKey);
+      const bypassInputGate = action.type === 'ABORT_RUN' || action.type === 'DEBUG_COMMAND';
+      if (bypassInputGate || turnManager.canAcceptInput()) {
+        const actionKey = processAction(
+          world,
+          grid,
+          eventBus,
+          session.playerId,
+          action,
+          { sessionId, systems: session.systems },
+        );
+
+        if (actionKey && turnManager.canAcceptInput()) {
+          turnManager.submitAction(actionKey);
+        }
       }
 
       // Always flush server events to process any immediate consequences

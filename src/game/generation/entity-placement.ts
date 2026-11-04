@@ -186,11 +186,75 @@ export function placeEntities<T extends EngineEvents>(
     }
   }
 
-  // Find furthest room for staircase (D-03)
-  let furthestRoom = rooms[0];
+  const occupiedPropPositions = new Set<string>();
+  occupiedPropPositions.add(`${spawnRoom.centerX},${spawnRoom.centerY}`);
+
+  const vaultBoundsList = cfg.vaultFaradayBounds || [];
+  const isInsideAnyVault = (x: number, y: number) => {
+    return vaultBoundsList.some(
+      (b) => x >= b.x && x < b.x + b.width && y >= b.y && y < b.y + b.height,
+    );
+  };
+  const isVaultDoorTile = (x: number, y: number) => {
+    return vaultBoundsList.some((b) => b.doorX === x && b.doorY === y);
+  };
+  const guaranteedAnchorCoords = new Set(
+    (cfg.propAnchors || [])
+      .filter((a) => a.guaranteedTemplate)
+      .map((a) => `${a.x},${a.y}`),
+  );
+
+  const findSafeRoomTile = (targetRoom: Room): { x: number; y: number } => {
+    const isSafe = (x: number, y: number) =>
+      grid.isWalkable(x, y) &&
+      !isInsideAnyVault(x, y) &&
+      !isVaultDoorTile(x, y) &&
+      !guaranteedAnchorCoords.has(`${x},${y}`) &&
+      !occupiedPropPositions.has(`${x},${y}`);
+
+    if (isSafe(targetRoom.centerX, targetRoom.centerY)) {
+      return { x: targetRoom.centerX, y: targetRoom.centerY };
+    }
+
+    let bestPos: { x: number; y: number } | null = null;
+    let bestDist = Infinity;
+    for (let y = targetRoom.y - 1; y <= targetRoom.y + targetRoom.height; y++) {
+      for (let x = targetRoom.x - 1; x <= targetRoom.x + targetRoom.width; x++) {
+        if (grid.inBounds(x, y) && isSafe(x, y)) {
+          const dist = Math.abs(x - targetRoom.centerX) + Math.abs(y - targetRoom.centerY);
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestPos = { x, y };
+          }
+        }
+      }
+    }
+    if (bestPos) return bestPos;
+
+    for (const r of rooms) {
+      if (r === spawnRoom) continue;
+      for (let y = r.y; y < r.y + r.height; y++) {
+        for (let x = r.x; x < r.x + r.width; x++) {
+          if (isSafe(x, y)) return { x, y };
+        }
+      }
+    }
+    return { x: targetRoom.centerX, y: targetRoom.centerY };
+  };
+
+  // Find furthest room for staircase (D-03), preferring non-vault rooms
+  const nonVaultRooms = rooms.filter(
+    (r) =>
+      r !== spawnRoom &&
+      !cfg.bespokeRooms?.some(
+        (br) => br.isVaultRoom && br.room.centerX === r.centerX && br.room.centerY === r.centerY,
+      ),
+  );
+  const stairCandidateRooms = nonVaultRooms.length > 0 ? nonVaultRooms : rooms.filter((r) => r !== spawnRoom);
+
+  let furthestRoom = stairCandidateRooms[0] ?? rooms[0];
   let maxDist = -1;
-  for (const room of rooms) {
-    if (room === spawnRoom) continue;
+  for (const room of stairCandidateRooms) {
     const dx = room.centerX - spawnRoom.centerX;
     const dy = room.centerY - spawnRoom.centerY;
     const dist = Math.sqrt(dx * dx + dy * dy);
@@ -202,26 +266,31 @@ export function placeEntities<T extends EngineEvents>(
 
   // Place staircase if not on last floor
   if (depth < depthConfig.maxFloor) {
+    const stairPos = findSafeRoomTile(furthestRoom);
     const staircaseId = factory.create(world, 'staircase', componentRegistry, {
-      position: { x: furthestRoom.centerX, y: furthestRoom.centerY },
+      position: { x: stairPos.x, y: stairPos.y },
       staircaseMarker: { targetFloor: depth + 1 },
       sprite: { key: 'staircase' },
     });
-    grid.addEntity(staircaseId, furthestRoom.centerX, furthestRoom.centerY);
+    grid.addEntity(staircaseId, stairPos.x, stairPos.y);
+    occupiedPropPositions.add(`${stairPos.x},${stairPos.y}`);
   }
 
   // Place Anchor on floors 5, 10, 15 (D-15)
   let anchorRoom: Room | undefined;
   if (depth % 5 === 0 && depth > 0) {
-    const candidateRooms = rooms.filter((r) => r !== spawnRoom && r !== furthestRoom);
-    if (candidateRooms.length > 0) {
-      anchorRoom = candidateRooms[Math.floor(rng.random() * candidateRooms.length)];
+    const candidateRooms = stairCandidateRooms.filter((r) => r !== furthestRoom);
+    const pool = candidateRooms.length > 0 ? candidateRooms : rooms.filter((r) => r !== spawnRoom && r !== furthestRoom);
+    if (pool.length > 0) {
+      anchorRoom = pool[Math.floor(rng.random() * pool.length)];
+      const anchorPos = findSafeRoomTile(anchorRoom);
       const anchorId = factory.create(world, 'anchor', componentRegistry, {
-        position: { x: anchorRoom.centerX, y: anchorRoom.centerY },
+        position: { x: anchorPos.x, y: anchorPos.y },
         anchorMarker: { used: false },
         sprite: { key: 'anchor' },
       });
-      grid.addEntity(anchorId, anchorRoom.centerX, anchorRoom.centerY);
+      grid.addEntity(anchorId, anchorPos.x, anchorPos.y);
+      occupiedPropPositions.add(`${anchorPos.x},${anchorPos.y}`);
     }
   }
 
@@ -331,8 +400,6 @@ export function placeEntities<T extends EngineEvents>(
   }
 
   // --- Interactive Props Placement ---
-  const occupiedPropPositions = new Set<string>();
-
   if (cfg.propAnchors && cfg.propAnchors.length > 0) {
     const faction = cfg.factionTheme || 'cyberacme';
     const condition = cfg.sectorCondition || 'NOMINAL';
@@ -353,8 +420,8 @@ export function placeEntities<T extends EngineEvents>(
         position: { x: anchor.x, y: anchor.y },
       });
 
-      // Link Faraday bounds if this prop has a SecurityLock and is within or at a vault
-      if (world.hasComponent(propId, SecurityLock)) {
+      // Only the vault blast door holds a SecurityLock and Faraday bounds inside a vault so 1 Access Key opens the vault
+      if (template === 'prop-vault-door' && world.hasComponent(propId, SecurityLock)) {
         const matchingBounds = findMatchingFaradayBounds(
           anchor.x,
           anchor.y,
@@ -365,6 +432,8 @@ export function placeEntities<T extends EngineEvents>(
             faradayBounds: matchingBounds,
           });
         }
+      } else if (isInsideAnyVault(anchor.x, anchor.y) && world.hasComponent(propId, SecurityLock)) {
+        world.removeComponent(propId, SecurityLock);
       }
 
       // Roll container loot if template has Container component
@@ -381,13 +450,18 @@ export function placeEntities<T extends EngineEvents>(
     if (depth >= 6) {
       const stabilizerCount = condition === 'OVERCLOCKED_GRID' ? 2 : 1;
       const candidateAnchors = cfg.propAnchors.filter(
-        (a) => !occupiedPropPositions.has(`${a.x},${a.y}`) && !a.guaranteedTemplate,
+        (a) =>
+          !occupiedPropPositions.has(`${a.x},${a.y}`) &&
+          !a.guaranteedTemplate &&
+          !isInsideAnyVault(a.x, a.y) &&
+          !wouldPinchWalkability(grid, a.x, a.y, occupiedPropPositions),
       );
 
       for (let s = 0; s < stabilizerCount && candidateAnchors.length > 0; s++) {
         const anchorIdx = Math.floor(rng.random() * candidateAnchors.length);
         const anchor = candidateAnchors.splice(anchorIdx, 1)[0];
         const posKey = `${anchor.x},${anchor.y}`;
+        if (wouldPinchWalkability(grid, anchor.x, anchor.y, occupiedPropPositions)) continue;
 
         const stabId = factory.create(world, 'prop-stabilizer', componentRegistry, {
           position: { x: anchor.x, y: anchor.y },
@@ -401,7 +475,10 @@ export function placeEntities<T extends EngineEvents>(
     // 3. Fill Remaining Prop Budget using Procedural Anchors
     // Balance distribution according to design spec: ~40% scavenge, ~40% tactical, ~20% hazards
     const remainingAnchors = cfg.propAnchors.filter(
-      (a) => !occupiedPropPositions.has(`${a.x},${a.y}`) && !a.guaranteedTemplate,
+      (a) =>
+        !occupiedPropPositions.has(`${a.x},${a.y}`) &&
+        !a.guaranteedTemplate &&
+        !isInsideAnyVault(a.x, a.y),
     );
 
     const scavengeAnchors = remainingAnchors
@@ -449,25 +526,13 @@ export function placeEntities<T extends EngineEvents>(
       if (propIds.length >= targetPropCount) break;
       const posKey = `${anchor.x},${anchor.y}`;
       if (occupiedPropPositions.has(posKey)) continue;
+      if (wouldPinchWalkability(grid, anchor.x, anchor.y, occupiedPropPositions)) continue;
 
       const template = pickTemplateForAnchor(anchor.anchorType, faction, rng, depth);
 
       const propId = factory.create(world, template, componentRegistry, {
         position: { x: anchor.x, y: anchor.y },
       });
-
-      if (world.hasComponent(propId, SecurityLock)) {
-        const matchingBounds = findMatchingFaradayBounds(
-          anchor.x,
-          anchor.y,
-          cfg.vaultFaradayBounds,
-        );
-        if (matchingBounds) {
-          world.patchComponent(propId, SecurityLock, {
-            faradayBounds: matchingBounds,
-          });
-        }
-      }
 
       // Check for CorruptedNode trap
       if (
@@ -510,16 +575,13 @@ export function placeEntities<T extends EngineEvents>(
   const numLocks = lockedPropIds.length;
 
   if (numLocks > 0) {
-    const vaultBoundsList = cfg.vaultFaradayBounds || [];
-    const isInsideAnyVault = (x: number, y: number) => {
-      return vaultBoundsList.some(
-        (b) => x >= b.x && x < b.x + b.width && y >= b.y && y < b.y + b.height,
-      );
-    };
-
-    // Find accessible containers (not locked and not inside any locked vault room)
+    // Find accessible containers (not locked, not corrupted, and not inside any locked vault room)
     const accessibleContainers = propIds.filter((id) => {
-      if (!world.hasComponent(id, Container) || world.hasComponent(id, SecurityLock)) {
+      if (
+        !world.hasComponent(id, Container) ||
+        world.hasComponent(id, SecurityLock) ||
+        world.hasComponent(id, CorruptedNode)
+      ) {
         return false;
       }
       const pos = world.getComponent(id, Position);
@@ -560,7 +622,7 @@ export function placeEntities<T extends EngineEvents>(
         const spawnPos =
           walkable.length > 0
             ? walkable[Math.floor(rng.random() * walkable.length)]
-            : { x: room.centerX, y: room.centerY };
+            : findSafeRoomTile(room);
 
         const keyId = factory.create(world, 'item-access-key', componentRegistry, {
           position: { x: spawnPos.x, y: spawnPos.y },
@@ -687,6 +749,68 @@ function findMatchingFaradayBounds(
       (b.doorX === x && b.doorY === y) ||
       (x >= b.x - 1 && x <= b.x + b.width && y >= b.y - 1 && y <= b.y + b.height),
   );
+}
+
+/**
+ * Checks whether placing a blocking prop at (px, py) would pinch or disconnect adjacent walkable tiles.
+ */
+function wouldPinchWalkability(
+  grid: Grid,
+  px: number,
+  py: number,
+  occupiedPropPositions: Set<string>,
+): boolean {
+  const dirs = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ];
+  const isPassable = (x: number, y: number) =>
+    grid.inBounds(x, y) &&
+    grid.isWalkable(x, y) &&
+    !(x === px && y === py) &&
+    !occupiedPropPositions.has(`${x},${y}`);
+
+  // Never place a procedural prop on or orthogonally adjacent to a door tile
+  if (grid.getTile(px, py)?.terrain === 'door') return true;
+  for (const [dx, dy] of dirs) {
+    if (grid.getTile(px + dx, py + dy)?.terrain === 'door') {
+      return true;
+    }
+  }
+
+  const openNeighbors: Array<{ x: number; y: number }> = [];
+  for (const [dx, dy] of dirs) {
+    const nx = px + dx;
+    const ny = py + dy;
+    if (isPassable(nx, ny)) {
+      openNeighbors.push({ x: nx, y: ny });
+    }
+  }
+  if (openNeighbors.length <= 1) return false;
+
+  // Verify all open cardinal neighbors remain mutually reachable on the grid
+  const remainingTargets = new Set<string>(openNeighbors.slice(1).map((n) => `${n.x},${n.y}`));
+  const start = openNeighbors[0];
+  const visited = new Set<string>([`${start.x},${start.y}`]);
+  const queue: Array<{ x: number; y: number }> = [start];
+
+  while (queue.length > 0 && remainingTargets.size > 0) {
+    const curr = queue.shift()!;
+    for (const [dx, dy] of dirs) {
+      const nx = curr.x + dx;
+      const ny = curr.y + dy;
+      const key = `${nx},${ny}`;
+      if (!visited.has(key) && isPassable(nx, ny)) {
+        visited.add(key);
+        remainingTargets.delete(key);
+        queue.push({ x: nx, y: ny });
+      }
+    }
+  }
+
+  return remainingTargets.size > 0;
 }
 
 /**

@@ -19,6 +19,7 @@ import {
   AbilityDef,
   AugmentData,
   Health,
+  RunInventory,
 } from '@shared/components';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { RarityTier } from '@shared/components/rarity-tier';
@@ -421,7 +422,11 @@ export function createItemPickupSystem<T extends GameplayEvents>(
       if (pos) {
         targetX = pos.x;
         targetY = pos.y;
-      } else if (intent.targetX !== undefined && intent.targetY !== undefined) {
+      } else if (
+        intent.targetX !== undefined &&
+        intent.targetY !== undefined &&
+        grid.getItemsAt(intent.targetX, intent.targetY).has(itemId)
+      ) {
         targetX = intent.targetX;
         targetY = intent.targetY;
       } else {
@@ -469,17 +474,42 @@ export function createItemPickupSystem<T extends GameplayEvents>(
     const explicitDrops = w.query(DropItemIntent);
     for (const requesterId of explicitDrops) {
       const intent = w.getComponent(requesterId, DropItemIntent)!;
-      const removed = InventoryUtil.removeItemByEntityId(
-        w,
-        intent.actorId,
-        intent.itemEntityId,
-      );
+      const inv = w.getComponent(intent.actorId, RunInventory);
+      const eqIdx = inv?.equipment.findIndex((e) => e.entityId === intent.itemEntityId) ?? -1;
+      const eqEntry = eqIdx !== -1 ? inv?.equipment[eqIdx] : undefined;
+
+      let removed: ReturnType<typeof InventoryUtil.removeItemByEntityId> = null;
+      let droppedSingleFromStack = false;
+
+      if (eqEntry && eqEntry.isConsumable && (eqEntry.quantity ?? 1) > 1) {
+        removed = InventoryUtil.consumeConsumable(w, intent.actorId, eqIdx);
+        droppedSingleFromStack = true;
+      } else {
+        removed = InventoryUtil.removeItemByEntityId(
+          w,
+          intent.actorId,
+          intent.itemEntityId,
+        );
+      }
+
       if (removed) {
-        const dropEntityId = w.entityExists(intent.itemEntityId)
-          ? intent.itemEntityId
-          : w.createEntity();
+        const dropEntityId =
+          !droppedSingleFromStack && w.entityExists(intent.itemEntityId)
+            ? intent.itemEntityId
+            : w.createEntity();
+        if (!w.hasComponent(dropEntityId, Item)) {
+          w.addComponent(dropEntityId, Item, {
+            name: removed.templateId,
+            type: removed.isConsumable ? 'consumable' : 'equipment',
+          });
+        }
+        if (!w.hasComponent(dropEntityId, TemplateId)) {
+          w.addComponent(dropEntityId, TemplateId, { id: removed.templateId });
+        }
         w.addComponent(dropEntityId, Position, { x: intent.targetX, y: intent.targetY });
-        w.addComponent(dropEntityId, SpriteComponent, { key: 'item' });
+        if (!w.hasComponent(dropEntityId, SpriteComponent)) {
+          w.addComponent(dropEntityId, SpriteComponent, { key: removed.templateId || 'item' });
+        }
         grid.addItem(dropEntityId, intent.targetX, intent.targetY);
         eventBus.emit('MESSAGE_EMITTED', {
           text: `Dropped ${removed.templateId} onto floor`,

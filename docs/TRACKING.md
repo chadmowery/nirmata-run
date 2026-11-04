@@ -1,7 +1,7 @@
 # Nirmata Runner — Project Tracking & Future Work
 
-> **Last Updated:** 2026-10-31  
-> **Baseline State:** v2.4 (Interactive Environments & Hybrid ProcGen Complete — 141 test files, 871 tests passing)
+> **Last Updated:** 2026-11-03  
+> **Baseline State:** v2.5 (C1–C8 Adversarial Review Remediation Complete — 150 test files, 971 tests passing)
 
 ---
 
@@ -89,6 +89,10 @@
 - [x] **[ARCH-10] Resolve Adversarial Review C7–C8 Critical Findings (`docs/reports/2026-11-02-adversarial-review-interactive-environments.md`)**
   - **C7: Stability Threat Purge Exploit, Regeneration Math & HealIntent Stacking**: Filtered threat purge in `Phase.REACTION` strictly to entities with `(Dying, Hostile)` where `killerId` is the player, preventing crates, vats, and traps from restoring stability; aligned health potion regeneration math with specification (`magnitude: 2`, +2 HP per turn); implemented `addHealIntent` helper across all systems and pipeline handlers, additively stacking multiple heals in the same turn; registered `HealSystem` in both `Phase.PRE_TURN` and `Phase.REACTION` so regeneration and on-kill/reaction heals resolve independently; updated `STABILITY-ANCHOR-SYSTEM.md` with official stability drain formulas and threat purge specification. Verified with 5 unit tests in `tests/game/c7-stability-heal.test.ts`.
   - **C8: Shell Port Capacity Enforcement & Invariant Burning Pipeline**: Relaxed Zod schema bounds in `src/shared/types.ts` (`slotIndex: z.number().int().min(0).max(10)`) to support upgraded shells; dynamically validated port capacity against `PortConfig` (`maxFirmware`, `maxAugment`) in `action-pipeline.ts`; enforced inventory item ownership and component definitions (`AbilityDef`, `AugmentData`) before removing items from inventory, preserving inventory when capacity or validation fails; eliminated pushing `0` placeholder entity IDs so slots append contiguously or overwrite existing slots; condemned overwritten abilities/modules with `Dying` (`reason: 'overwritten'`); updated `BackpackGrid.tsx` to dynamically query shell `PortConfig` and `AugmentSlots` when offering burn and overwrite actions. Verified with 10 unit tests in `tests/game/c8-port-capacity.test.ts`.
+- [x] **[ARCH-11] C1–C8 Follow-Up Adversarial Audit & Production Hardening (`docs/reports/2026-11-03-adversarial-review-c1-c8-remediation.md`)**
+  - **C1/C2 Hardening**: Preserved `#` walls inside prefab footprints, carved a 1-tile perimeter moat around prefabs, sealed isolated target-room floor pockets, attached `faradayBounds` and `SecurityLock` strictly to `prop-vault-door` (1-key vault unlock), excluded `CorruptedNode` containers from `Access_Key` placement, placed staircases/anchors on verified safe room tiles, and enforced `wouldPinchWalkability` on procedural props (750/750 floors pass all invariants).
+  - **C3/C4/C8 Hardening**: Redacted `FloorState.runSeed` on client worlds, rejected `PICKUP` of already-owned/equipped items, required grid verification when `Position` is absent, preserved consumable stack quantities on `DROP_ITEM`, and reconciled server `DELTA` payloads on consumable use in `BackpackGrid.tsx`.
+  - **C5/C6/C7 Production Lifecycle Fixes**: Removed premature `ActionAbortedTag` and `AlertIntent` deletion from `TagCleanupSystem`, rolled back `Phase.PRE_TURN` state snapshots when an action is aborted at 0 turn cost, restricted 0-cost `CorruptedNode` bump safeguards to `revealed === true`, added `CHASING` fallback movement to specialist AI routines, gated `/api/action` `processAction()` behind `turnManager.canAcceptInput()`, wired `[E]` (`KeyE`) to adjacent prop interactions, and moved `HealSystem` registration after `ItemPickupSystem` and `StatusEffectSystem` with a `Dying` entity guard.
 
 ### 2.3 API Security & Persistence Synchronization
 - [x] **[SEC-01] Sanitize `sessionId` Against Path Traversal (`src/app/persistence/fs-profile-repository.ts`)**

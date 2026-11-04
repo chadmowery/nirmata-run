@@ -113,13 +113,13 @@ export function registerCoreSystems<T extends GameplayEvents>(
   software.init();
 
   if (!isClient) {
-    heal.init();
     itemPickup.init();
     deadZone.init();
     statusEffect.init();
     packCoordinator.init();
     ai.init();
     tileCorruption.init();
+    heal.init();
   }
 
   // Cleanup & Death Processing

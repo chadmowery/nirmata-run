@@ -7,10 +7,8 @@ import {
   DealtDamageThisTurn,
   FloorTransitioned,
   Acting,
-  ActionAbortedTag,
   InteractPropIntent,
   PropInteractedThisTurn,
-  AlertIntent,
   PickupIntent,
   DropItemIntent,
 } from '@shared/components';
@@ -44,10 +42,6 @@ export function createTagCleanupSystem<T extends GameplayEvents>(world: World<T>
     for (const entityId of acting) {
       w.removeComponent(entityId, Acting);
     }
-    const aborted = w.query(ActionAbortedTag);
-    for (const entityId of aborted) {
-      w.removeComponent(entityId, ActionAbortedTag);
-    }
     const propIntents = w.query(InteractPropIntent);
     for (const entityId of propIntents) {
       w.removeComponent(entityId, InteractPropIntent);
@@ -55,10 +49,6 @@ export function createTagCleanupSystem<T extends GameplayEvents>(world: World<T>
     const propInteracted = w.query(PropInteractedThisTurn);
     for (const entityId of propInteracted) {
       w.removeComponent(entityId, PropInteractedThisTurn);
-    }
-    const alertIntents = w.query(AlertIntent);
-    for (const entityId of alertIntents) {
-      w.removeComponent(entityId, AlertIntent);
     }
     const pickupIntents = w.query(PickupIntent);
     for (const entityId of pickupIntents) {

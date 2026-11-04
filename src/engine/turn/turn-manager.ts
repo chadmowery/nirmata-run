@@ -72,6 +72,9 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
   private executeTurnCycle(deductedCost: number = 0): void {
     if (this._paused) return;
 
+    // Snapshot world state before PRE_TURN so aborted actions (0 turn cost) cannot farm free PRE_TURN ticks
+    const preTurnSnapshot = JSON.parse(JSON.stringify(this.world.getSerializableState()));
+
     // 1. Pre-turn phase
     this.phase = TurnPhase.PRE_TURN;
     this.world.executeSystems(Phase.PRE_TURN);
@@ -95,6 +98,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     // Check if player action was halted / aborted with 0 turn cost (e.g. Two-Tier Bump Safeguard)
     if (playerId !== null && this.adapter.wasActionAborted?.(playerId)) {
       logger.info(`Action halted with 0 turn cost for actor ${playerId}`, 'TURN');
+      this.world.loadSerializableState(preTurnSnapshot);
       if (!this.config.isClient && deductedCost > 0) {
         this.adapter.refundActionCost?.(playerId, deductedCost);
       }
