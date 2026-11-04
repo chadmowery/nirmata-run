@@ -286,7 +286,12 @@ The handoff claims risky bumps *"halt player movement with **0 turn cost**, flas
 - Pruned dead schema surface: Removed unused `bulkhead_switch` from `PropClassSchema` and unused `loreSnippetId` from `PropSchema` in [`environment.ts`](../../src/shared/components/environment.ts).
 - Verified in [`tests/game/m6-schema-surface.test.ts`](../../tests/game/m6-schema-surface.test.ts).
 
-**M7. Cover is not "directional" and does not raycast.** The handoff says "Raycasts between attacker and defender. Intervening orthogonal cover…". [`checkDirectionalCover`](../../src/game/systems/combat.ts) has no raycast. It finds any `InteractiveSurface` at Manhattan distance 1 from the defender whose Manhattan distance to the attacker is smaller than the defender's. That is a half-plane test, so cover on a defender's side can count for a diagonal attack, and walls and LoS are ignored. The Bastion override (`isBastion ? 0.35 : surface.coverDamageReduction`) *replaces* a higher per-prop value rather than taking the max. The function also iterates all surfaces on every hit.
+**M7. Cover is not "directional" and does not raycast — ✅ RESOLVED.**
+- Bresenham raycasting: Implemented `bresenhamLine` in [`combat.ts`](../../src/game/systems/combat.ts) to trace line trajectories between attacker and defender.
+- Intervening orthogonal cover evaluation: Directional cover requires an active `InteractiveSurface` on an intervening orthogonal tile along the attack trajectory (evaluated on the ray step immediately preceding the defender or intervening orthogonal projection tiles). Flanking or behind cover no longer mitigates attacks.
+- Bastion shell scaling: Preserves high-tier barrier cover values by taking `Math.max(0.35, baseReduction)` instead of overwriting superior cover.
+- Spatial index lookup: Uses `grid.getEntitiesAt` spatial lookup with fallback to `world.query(InteractiveSurface, Position)` to eliminate scanning all surfaces across the entire world.
+- Verified in [`tests/game/m7-directional-cover.test.ts`](../../tests/game/m7-directional-cover.test.ts) and [`src/game/systems/__tests__/cover-and-hazards.test.ts`](../../src/game/systems/__tests__/cover-and-hazards.test.ts).
 
 **M8. Cryo "spill" is a one-shot, not a hazard.** The handoff describes a "3×3 chemical spill dealing 4 tick damage". The code applies 4 damage once plus a 2-turn slow to anything in the 3×3 at the moment of destruction. There is no persistent hazard tile or `DeadZone`. EMP radius (2) is hard-coded while cascade radius is data-driven (`cascadeRadius`). There is no friendly-fire opt-out for the player.
 

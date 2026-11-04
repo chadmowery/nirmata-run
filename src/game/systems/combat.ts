@@ -163,12 +163,50 @@ export function collectDamageModifiers<T extends GameplayEvents>(
 }
 
 /**
+ * Bresenham line algorithm to trace points from (x0, y0) to (x1, y1).
+ */
+export function bresenhamLine(
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+): Array<{ x: number; y: number }> {
+  const points: Array<{ x: number; y: number }> = [];
+  const dx = Math.abs(x1 - x0);
+  const dy = Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1;
+  const sy = y0 < y1 ? 1 : -1;
+  let err = dx - dy;
+
+  let x = x0;
+  let y = y0;
+
+  while (true) {
+    points.push({ x, y });
+    if (x === x1 && y === y1) break;
+    const e2 = 2 * err;
+    if (e2 > -dy) {
+      err -= dy;
+      x += sx;
+    }
+    if (e2 < dx) {
+      err += dx;
+      y += sy;
+    }
+  }
+
+  return points;
+}
+
+/**
  * Checks if directional cover mitigates incoming ranged damage against defender.
+ * Traces a ray from attacker to defender and evaluates intervening orthogonal cover adjacent to defender.
  */
 export function checkDirectionalCover<T extends GameplayEvents>(
   world: World<T>,
   attackerId: EntityId,
   defenderId: EntityId,
+  grid?: Grid,
 ): { hasCover: boolean; reduction: number; coverId?: EntityId } {
   if (world.hasComponent(defenderId, InteractiveSurface)) {
     return { hasCover: false, reduction: 0 };
@@ -182,29 +220,64 @@ export function checkDirectionalCover<T extends GameplayEvents>(
 
   const distToAttacker =
     Math.abs(attackerPos.x - defenderPos.x) + Math.abs(attackerPos.y - defenderPos.y);
+  // Melee attacks (distance <= 1) are never mitigated by cover
   if (distToAttacker <= 1) {
     return { hasCover: false, reduction: 0 };
   }
 
-  const surfaces = world.query(InteractiveSurface, Position);
-  for (const surfaceId of surfaces) {
-    if (surfaceId === defenderId || surfaceId === attackerId) continue;
-    if (world.hasComponent(surfaceId, Dying)) continue;
+  const ray = bresenhamLine(attackerPos.x, attackerPos.y, defenderPos.x, defenderPos.y);
+  if (ray.length < 3) {
+    return { hasCover: false, reduction: 0 };
+  }
 
-    const surface = world.getComponent(surfaceId, InteractiveSurface);
-    if (!surface || surface.providesCover === false) continue;
+  // Intervening point immediately preceding defender on the attack trajectory
+  const stepBeforeDefender = ray[ray.length - 2];
 
-    const surfPos = world.getComponent(surfaceId, Position)!;
-    const distToDefender =
-      Math.abs(surfPos.x - defenderPos.x) + Math.abs(surfPos.y - defenderPos.y);
-    if (distToDefender !== 1) continue;
+  // Candidates for intervening cover:
+  // 1. Direct step before defender on ray
+  // 2. For diagonal attacks, the orthogonal projection tiles between attacker and defender
+  const candidateCoverTiles: Array<{ x: number; y: number }> = [];
+  candidateCoverTiles.push(stepBeforeDefender);
 
-    const distFromCoverToAttacker =
-      Math.abs(surfPos.x - attackerPos.x) + Math.abs(surfPos.y - attackerPos.y);
-    if (distFromCoverToAttacker < distToAttacker) {
+  const dx = Math.sign(attackerPos.x - defenderPos.x);
+  const dy = Math.sign(attackerPos.y - defenderPos.y);
+  if (dx !== 0 && dy !== 0) {
+    candidateCoverTiles.push({ x: defenderPos.x + dx, y: defenderPos.y });
+    candidateCoverTiles.push({ x: defenderPos.x, y: defenderPos.y + dy });
+  }
+
+  // Check candidate tiles for an active InteractiveSurface providing cover
+  for (const tile of candidateCoverTiles) {
+    if (Math.abs(tile.x - defenderPos.x) + Math.abs(tile.y - defenderPos.y) !== 1) {
+      continue;
+    }
+    const distToAttackerFromTile =
+      Math.abs(tile.x - attackerPos.x) + Math.abs(tile.y - attackerPos.y);
+    if (distToAttackerFromTile >= distToAttacker) {
+      continue;
+    }
+
+    const gridEntities = grid ? Array.from(grid.getEntitiesAt(tile.x, tile.y)) : [];
+    const entitiesAtTile =
+      gridEntities.length > 0
+        ? gridEntities
+        : world.query(InteractiveSurface, Position).filter((id) => {
+            const p = world.getComponent(id, Position);
+            return p && p.x === tile.x && p.y === tile.y;
+          });
+
+    for (const surfaceId of entitiesAtTile) {
+      if (surfaceId === defenderId || surfaceId === attackerId) continue;
+      if (world.hasComponent(surfaceId, Dying)) continue;
+
+      const surface = world.getComponent(surfaceId, InteractiveSurface);
+      if (!surface || surface.providesCover === false) continue;
+
       const defenderShell = world.getComponent(defenderId, Shell);
       const isBastion = defenderShell?.archetypeId?.toLowerCase().includes('bastion');
-      const reduction = isBastion ? 0.35 : (surface.coverDamageReduction ?? 0.25);
+      const baseReduction = surface.coverDamageReduction ?? 0.25;
+      const reduction = isBastion ? Math.max(0.35, baseReduction) : baseReduction;
+
       return { hasCover: true, reduction, coverId: surfaceId };
     }
   }
@@ -442,7 +515,7 @@ export function createCombatSystem<T extends GameplayEvents>(
       let damage = resolveDamage(attackerAttack.power, modifiers, effectiveArmor);
 
       // Check Directional Cover
-      const cover = checkDirectionalCover(w, attackerId, defenderId);
+      const cover = checkDirectionalCover(w, attackerId, defenderId, grid);
       if (cover.hasCover) {
         damage = Math.max(1, Math.floor(damage * (1 - cover.reduction)));
         const pct = Math.round(cover.reduction * 100);
@@ -546,7 +619,7 @@ export function createCombatSystem<T extends GameplayEvents>(
 
         // Check Directional Cover (only if not environmental)
         if (intent.damageType !== 'environmental') {
-          const cover = checkDirectionalCover(w, attackerId, targetId);
+          const cover = checkDirectionalCover(w, attackerId, targetId, grid);
           if (cover.hasCover) {
             finalDamage = Math.max(1, Math.floor(finalDamage * (1 - cover.reduction)));
             const pct = Math.round(cover.reduction * 100);
