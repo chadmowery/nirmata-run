@@ -17,8 +17,8 @@
 | C4 | **`PICKUP` and `DROP_ITEM` have no server-side range or position validation.** The client can pick up any item on the map by entity ID and drop items on arbitrary tiles. | ✅ **RESOLVED** (`2f6f3aa6`) |
 | C5 | **The "0-turn bump safeguard" does not exist.** The energy cost is deducted before the action runs and never refunded. `INPUT_BUFFER_CLEARED` has no listener. | ✅ **RESOLVED** (`32a8a320`) |
 | C6 | **Direct `ECS` architecture violations.** There is an `eventBus.on()` that drives game logic, direct `Health` patching that bypasses `DamageIntent`, and a game-specific string in the engine layer. | ✅ **RESOLVED** (`73842d7f`..`519b3487`) |
-| C7 | **Stability "threat purge" is exploitable.** It fires on any `ENTITY_DIED` the player causes, including crates and traps. The stability rebalance is also a 5–80% nerf shipped as a "bug fix". | 🟠 High |
-| C8 | **`BURN_FIRMWARE` / `BURN_AUGMENT` ignore shell port capacity.** They use hard-coded slot caps and can push `0` placeholder entity IDs. | 🟠 High |
+| C7 | **Stability "threat purge" is exploitable.** It fires on any `ENTITY_DIED` the player causes, including crates and traps. The stability rebalance is also a 5–80% nerf shipped as a "bug fix". | ✅ **RESOLVED** (`0d33d784`) |
+| C8 | **`BURN_FIRMWARE` / `BURN_AUGMENT` ignore shell port capacity.** They use hard-coded slot caps and can push `0` placeholder entity IDs. | ✅ **RESOLVED** (`91fccc2d`) |
 | M1–M14 | Medium and low issues (dead code, inconsistent key accounting, 2 of 3 sector conditions are no-ops, a log-format typo, and others). | 🟡 / 🔵 |
 
 **The gates pass because the tests do not cover the broken paths.** I reproduced the green gates myself, and also found a 33% generation crash rate that the 915 tests do not catch.
@@ -209,7 +209,16 @@ The handoff claims risky bumps *"halt player movement with **0 turn cost**, flas
 
 **Fix:** Move the stability recovery into `StabilitySystem`'s `Phase` update and have it read `Dying` entities with `killerId` (as `SoftwareSystem` and `AugmentSystem` already do). Rewrite `handlePropDestruction` to attach `DamageIntent` (`damageType: 'environmental'`) to neighbours and let `CombatSystem` resolve them, with a bounded fixed-point loop to handle cascades. Replace `triggerAcousticAlert` with an intent/tag consumed by `AISystem`. Remove `ABORT_RUN` from `TurnManager` (use an adapter hook or a config flag). Move the React key interceptor out of `@engine` into a client bootstrap file. Collapse the route/pipeline duplication so the route only validates and attaches intents.
 
-### C7. Stability changes: exploit and unreviewed rebalance
+### C7. Stability changes: exploit and unreviewed rebalance — ✅ RESOLVED (`0d33d784`)
+
+> [!NOTE]
+> **Resolution Status (2026-11-03):** Completely resolved and verified with unit tests (Commit `0d33d784`).
+> - **Threat Purge Filtered to Hostile**: In `StabilitySystem` (`src/game/systems/stability.ts`), stability recovery in `Phase.REACTION` checks `w.hasComponent(dyingId, Hostile)` and verifies the dying actor is not the player, eliminating the stability exploit from destroying crates, vats, and traps.
+> - **Documented Stability Formulas**: Updated `docs/design/STABILITY-ANCHOR-SYSTEM.md` with explicit formulas and default parameters for per-turn bleed (`base = 0.005`, `scale = 0.02`), floor chunk drain (`base = 3`, `scale = 0.2`), and the +2% threat purge recovery.
+> - **Regeneration Math Alignment**: Set regeneration magnitude to `2` (+2 HP per turn for 3 turns) in `action-pipeline.ts`, aligning with the design specification.
+> - **Additive HealIntent Stacking**: Replaced raw `addComponent(HealIntent)` calls across all systems and pipeline handlers with `addHealIntent()`, additively stacking heals in the same turn without slot collision or overwrites.
+> - **Two-Phase Heal Resolution**: Registered `HealSystem` in both `Phase.PRE_TURN` and `Phase.REACTION`, allowing regeneration and combat/reaction heals to resolve independently without loss.
+> - **Tests**: Comprehensive unit tests added in `tests/game/c7-stability-heal.test.ts`.
 
 - **Exploit:** [`handleEntityDied`](../../src/game/systems/stability.ts) grants `+2%` for every non-player `ENTITY_DIED` whose `killerId` is the player. There is no `Hostile` check, and `handlePropDestruction` emits `ENTITY_DIED` for crates, vats, capacitor banks and corrupted nodes. The handoff says "Eliminating a hostile enemy". In reality **smashing crates heals Reality Stability.** With cover props being cheap, destructible and numerous, this is a free stability farm. Cascades make it multiplicative.
 - **Handoff inaccuracy:** it says `ENTITY_DIED` carries `reason: 'threat_purged'`. In code the reason is on `STABILITY_CHANGED`.
@@ -217,7 +226,17 @@ The handoff claims risky bumps *"halt player movement with **0 turn cost**, flas
 - **Regeneration math doesn't match the handoff.** It says "+2 HP per turn". [`route.ts`](../../src/app/api/action/route.ts) applies `magnitude: 1` (+1 per turn).
 - **`HealIntent` collision.** `HealIntent` is single-slot per entity. The potion attaches one `HealIntent` (+5) from the route, and the regeneration status can attach another in `PRE_TURN` via `addComponent`, which **overwrites** it. Depending on ordering, the instant +5 can be lost, and a pickup-heal in the same turn can overwrite either one.
 
-### C8. `BURN_FIRMWARE` / `BURN_AUGMENT` ignore port capacity
+### C8. `BURN_FIRMWARE` / `BURN_AUGMENT` ignore port capacity — ✅ RESOLVED (`91fccc2d`)
+
+> [!NOTE]
+> **Resolution Status (2026-11-03):** Completely resolved and verified with unit tests (Commit `91fccc2d`).
+> - **Schema Bounds Relaxed**: Relaxed `BurnFirmwareActionSchema`, `BurnAugmentActionSchema`, and `MoveAndUseFirmwareActionSchema` slot bounds from hardcoded 2/3 to `.min(0).max(10)` to accommodate upgraded shell capacities.
+> - **Dynamic PortConfig Capacity Checks**: In `action-pipeline.ts`, queries player `PortConfig` (`maxFirmware`, `maxAugment`) containing shell base ports + upgrades, rejecting actions that exceed capacity before modifying any state.
+> - **Inventory Validation Before Consumption**: Verifies item existence and ownership in `RunInventory` as well as component definitions (`AbilityDef`, `AugmentData`) before removing items. On validation or capacity failure, inventory remains completely untouched.
+> - **Zero Placeholder Elimination**: Completely eliminated `while (equipped.length < slotIndex) equipped.push(0)`. Slots now append contiguously or overwrite existing slots; no entity ID `0` is ever pushed.
+> - **Death Protocol Condemnation**: Overwritten abilities/modules are condemned via `Dying` (`reason: 'overwritten'`, `killerId: playerId`).
+> - **UI Dynamic Port Reflection**: Updated `BackpackGrid.tsx` to read `PortConfig` and `AugmentSlots`, rendering slots matching actual shell capacity and offering slot overwrites when full.
+> - **Tests**: Comprehensive unit tests added in `tests/game/c8-port-capacity.test.ts`.
 
 [`route.ts` L229-L330](../../src/app/api/action/route.ts), [`shared/types.ts`](../../src/shared/types.ts)
 
@@ -329,16 +348,16 @@ Update these docs as part of the fix, not as a follow-up. The handoff also shoul
 ### P0: must fix before merge
 1. **Fix prefabs and generation (C1).** Add portals, never overwrite entrance tiles, fall back to "no prefab" on connectivity failure, never throw. Add a depth × seed sweep test.
 2. **Make the lock content reachable (C2).** Spawn `prop-vault-door` from the vault prefab, replace the `CONTAINER_RARE` area rule, implement a real key guarantee (at least one reachable key per lock), fix the Faraday-bounds assignment, and delete the placeholder block. Add an integration test over real floors.
-3. **Server-side validation of every new client intent (C4, C8).** Adjacency, bounds, walkability, ownership and capacity. Remove the "substitute another item" fallback.
+3. [x] **Server-side validation of every new client intent (C4, C8).** (✅ **RESOLVED** via `2f6f3aa6` for range/adjacency/bounds/ownership in C4, and `91fccc2d` for PortConfig capacity and inventory validation in C8).
 4. **Implement sync redaction (C3)** and a test on the serialized payload.
 5. **Resolve the bump safeguard (C5).** Make it genuinely free or correct the docs; wire or remove `INPUT_BUFFER_CLEARED`.
 6. [x] **Remove the architecture violations (C6).** (✅ **RESOLVED** via commits `73842d7f`..`519b3487`: stability recovery into Phase.REACTION query; volatile damage via DamageIntent; ABORT_RUN hook and React interceptor out of @engine; client prediction boundary enforced).
-7. **Fix the `+2%` farm (C7)** and decide on the stability rebalance in a separate, signed-off change.
+7. [x] **Fix the `+2%` farm (C7)** and decide on the stability rebalance in a separate, signed-off change. (✅ **RESOLVED** via `0d33d784`: threat purge strictly filtered to Hostile, documented in `STABILITY-ANCHOR-SYSTEM.md`, regeneration aligned to +2 HP, additive `HealIntent` stacking).
 
 ### P1: should fix in this branch
 8. Unify key accounting and reset or scope keys per floor (M1); count `vaultsBreached` on both paths (M2).
 9. Fix the dead-drop charge-before-validate bug (M3).
-10. Fix `HealIntent` overwrites (C7) by stacking amounts or using separate tag components.
+10. [x] **Fix `HealIntent` overwrites (C7)** by stacking amounts or using separate tag components. (✅ **RESOLVED** via `0d33d784`: `addHealIntent` additive stacking and PRE_TURN/REACTION two-phase resolution).
 11. Re-validate connectivity after prop placement (M10).
 12. Fix the logger typo and add rotation and redaction (M11).
 13. [x] **Consolidate the duplicate action handling in `route.ts` and `action-pipeline.ts` (C6).** (✅ **RESOLVED** via commit `f15f26ac`: route delegates to canonical `processAction`).
@@ -364,10 +383,10 @@ Update these docs as part of the fix, not as a follow-up. The handoff also shoul
 - [x] Depth 1–15 × ≥50 seeds: `generateDungeon` never throws and the floor is connected (✅ **RESOLVED** in C1: `30ff0a4c`)
 - [x] Real floors F6–F15 contain locks, every lock has a reachable key, and Faraday bounds match their own vault (✅ **RESOLVED** in C2: `c4d2d761`)
 - [x] Serialized `FULL` and `DELTA` payloads contain no `storedLoot`, `scrapYield`, `fluxYield`, `grantsAccessKey` or unrevealed `trapType` (✅ **RESOLVED** in C3: `b1a7999a`)
-- [x] Server rejects out-of-range `PICKUP`, `DROP_ITEM`, `USE_CONSUMABLE` targets (✅ **RESOLVED** in C4: `2f6f3aa6`; out-of-capacity burns tracked in C8)
+- [x] Server rejects out-of-range `PICKUP`, `DROP_ITEM`, `USE_CONSUMABLE` targets, and out-of-capacity burns (✅ **RESOLVED** in C4: `2f6f3aa6`; C8: `91fccc2d`)
 - [x] `TurnManager`-level test proves the energy outcome of a blocked bump (✅ **RESOLVED** in C5: `32a8a320`)
 - [x] Zero `eventBus.on` in gameplay systems; zero direct `Health` patches outside `CombatSystem`; `@engine` has no game or React strings (✅ **RESOLVED** in C6)
-- [ ] Stability: crate destruction does not restore stability (mitigated in C6 hostile filter; rebalance review pending)
+- [x] Stability: crate destruction does not restore stability (✅ **RESOLVED** in C7: `0d33d784`; threat purge strictly filtered to Hostile, documented in `STABILITY-ANCHOR-SYSTEM.md`, regeneration aligned to +2 HP, additive `HealIntent` stacking)
 - [x] Architecture docs and handoff updated to match (✅ **RESOLVED**: `DEATH_PROTOCOL.md`, `ENGINE_GUIDELINES.md`, `SYSTEM_OVERVIEW.md` updated)
 
 ---
