@@ -471,7 +471,7 @@ Update these docs as part of the fix, not as a follow-up. The handoff also shoul
 | # | Finding | Severity |
 |---|---|---|
 | U1 | ✅ **RESOLVED:** **UI leaks hidden traps and live prop state.** The renderer outlines every trapped prop pink regardless of `revealed`, and the inspector shows trap badges and live prop and item state on any *explored* tile, even out of sight. | 🔴 High (Fixed) |
-| U2 | **Overclock bypass, forced interaction and Dead-Drop Uplink are unreachable from the UI.** No client code ever sends `INTERACT_PROP` or `DEAD_DROP_ITEM`. | 🔴 High |
+| U2 | ✅ **RESOLVED:** **Overclock bypass, forced interaction and Dead-Drop Uplink are unreachable from the UI.** No client code ever sends `INTERACT_PROP` or `DEAD_DROP_ITEM`. | 🔴 High (Fixed) |
 | U3 | **Quick-use consumable discards the server delta**, and several modals run their own `fetch` outside the input and reconciliation pipeline. The server has no per-session request serialization. | 🔴 High |
 | U4 | **Dropping a consumable stack destroys all but one item.** | 🟠 High |
 | U5 | **The "duplicate React key" fix masks a real vault ID-collision bug.** | 🟠 High |
@@ -503,7 +503,9 @@ Part 1 C3 showed that `CorruptedNode.trapType` and `revealed` are visible in syn
 
 **Fix:** drive the outline and inspector from a *client-visible* state (`revealed || isDisarmed || triggered`), not the raw component. For props on explored-but-not-visible tiles, show remembered state, not live state. Pair with the server-side redaction from C3.
 
-### U2. Overclock, forced interaction and the Dead-Drop Uplink cannot be triggered from the UI
+### U2. ✅ RESOLVED — Overclock, forced interaction and the Dead-Drop Uplink cannot be triggered from the UI
+
+> **Resolution:** Wired `[E]` (`GameAction.INTERACT_ANCHOR`) and `[Shift + .]` (`GameAction.INTERACT_STAIRCASE`) in [`src/game/setup.ts`](../../src/game/setup.ts) to prioritize active Stability Anchors/Staircases on the player's tile and otherwise target adjacent props with `INTERACT_PROP` (`forceOverride: true` for Overclock Bypass / forced trap interaction) or open the Dead-Drop Uplink item picker ([`src/components/ui/inventory/DeadDropModal.tsx`](../../src/components/ui/inventory/DeadDropModal.tsx)). Also wired `PROP_INTERACTED` (`dead_drop_uplink`, `outcome: 'ready'`) in [`src/game/ui/sync-bridge.ts`](../../src/game/ui/sync-bridge.ts) to open the modal on bump, and persisted `DEAD_DROP_TRANSMITTED` items and blueprints to `profile.vault`/`profile.overflow`/`profile.blueprintLibrary` in [`src/app/api/action/route.ts`](../../src/app/api/action/route.ts). Verified in [`tests/game/u2-prop-interact-dead-drop.test.ts`](../../tests/game/u2-prop-interact-dead-drop.test.ts).
 
 A grep of all of `src/` outside the API route, pipeline and schemas finds **no sender** of `INTERACT_PROP` or `DEAD_DROP_ITEM` (the only `forceOverride` occurrences are the schema and the movement system, which always sets it to `false`). Consequences:
 
@@ -680,7 +682,7 @@ Skimmed rather than line-reviewed. Beyond U11: the modal overlays use `position:
 **Additional merge-gate items** (extend §8):
 
 - [x] Trap outlines and inspector badges depend on `revealed`; explored-but-unseen tiles show remembered state only
-- [ ] An input-driven test can open a locked safe via overclock and use a Dead-Drop Uplink
+- [x] An input-driven test can open a locked safe via overclock and use a Dead-Drop Uplink
 - [ ] Every client action path goes through one request function that applies the returned payload; server rejects overlapping requests per session
 - [ ] Dropping then picking up a consumable stack preserves the count
 - [ ] Vault items have unique IDs; two vault entries with the same legacy ID cannot be confused by equip, sell or discard

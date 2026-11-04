@@ -206,6 +206,9 @@ export interface UIState {
   hotkeysModalVisible: boolean;
   groundTransferVisible: boolean;
   nearbyGroundItems: GroundItemInfo[];
+  deadDropModalVisible: boolean;
+  deadDropPropId: number | null;
+  deadDropFluxCost: number;
   hoveredEntity: HoveredEntityInfo | null;
   detailedFlavorTextEnabled: boolean;
 
@@ -228,6 +231,8 @@ export interface UIState {
   openGroundTransfer: (items: GroundItemInfo[]) => void;
   closeGroundTransfer: () => void;
   updateNearbyGroundItems: (items: GroundItemInfo[]) => void;
+  openDeadDropModal: (propId: number, fluxCost: number) => void;
+  closeDeadDropModal: () => void;
   setDraggedRunItemEntityId: (entityId: number | null) => void;
   setHoveredEntity: (info: HoveredEntityInfo | null) => void;
   toggleDetailedFlavorText: () => void;
@@ -378,6 +383,9 @@ export const gameStore = createStore<UIState>((set, get) => ({
   hotkeysModalVisible: false,
   groundTransferVisible: false,
   nearbyGroundItems: [],
+  deadDropModalVisible: false,
+  deadDropPropId: null,
+  deadDropFluxCost: 25,
   hoveredEntity: null,
   detailedFlavorTextEnabled: false,
   draggedRunItemEntityId: null,
@@ -643,6 +651,10 @@ export const gameStore = createStore<UIState>((set, get) => ({
   openGroundTransfer: (items) => set({ groundTransferVisible: true, nearbyGroundItems: items }),
   closeGroundTransfer: () => set({ groundTransferVisible: false }),
   updateNearbyGroundItems: (items) => set({ nearbyGroundItems: items }),
+  openDeadDropModal: (propId, fluxCost) =>
+    set({ deadDropModalVisible: true, deadDropPropId: propId, deadDropFluxCost: fluxCost }),
+  closeDeadDropModal: () =>
+    set({ deadDropModalVisible: false, deadDropPropId: null }),
   setAbortDialogVisible: (visible) => set({ abortDialogVisible: visible }),
   incrementInventoryRevision: () =>
     set((state) => ({ inventoryRevision: state.inventoryRevision + 1 })),

@@ -10,6 +10,7 @@ import { AbilityBar } from './AbilityBar';
 import EventTimelinePanel from './EventTimelinePanel';
 import { InventoryOverlay } from './inventory/InventoryOverlay';
 import { GroundTransferModal } from './inventory/GroundTransferModal';
+import { DeadDropModal } from './inventory/DeadDropModal';
 import { HotkeysModal } from './HotkeysModal';
 import { TacticalInspectTooltip } from './TacticalInspectTooltip';
 import { BtnLever } from './atomic';
@@ -23,6 +24,8 @@ export const HUDOverlay: React.FC = () => {
   const toggleHotkeysModal = () => gameStore.getState().toggleHotkeysModal();
   const groundTransferVisible = useStore(gameStore, (s) => s.groundTransferVisible);
   const closeGroundTransfer = () => gameStore.getState().closeGroundTransfer();
+  const deadDropModalVisible = useStore(gameStore, (s) => s.deadDropModalVisible);
+  const closeDeadDropModal = () => gameStore.getState().closeDeadDropModal();
   const detailedFlavorTextEnabled = useStore(gameStore, (s) => s.detailedFlavorTextEnabled);
 
   const selectedRunMode = useStore(gameStore, (s) => s.selectedRunMode);
@@ -190,6 +193,7 @@ export const HUDOverlay: React.FC = () => {
       {inventoryVisible && <InventoryOverlay onClose={toggleInventory} />}
       {hotkeysModalVisible && <HotkeysModal onClose={toggleHotkeysModal} />}
       {groundTransferVisible && <GroundTransferModal onClose={closeGroundTransfer} />}
+      {deadDropModalVisible && <DeadDropModal onClose={closeDeadDropModal} />}
     </div>
   );
 };

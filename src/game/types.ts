@@ -33,6 +33,7 @@ import { TeleportSystem } from './systems/teleport';
 import { SoftwareSystem } from './systems/software';
 import { EntityFactory } from '@engine/entity/factory';
 import { AutoPathfinder } from './debug/auto-pathfind';
+import { ActionIntent } from '@shared/types';
 
 export interface GameSystem {
   init?(): void;
@@ -74,6 +75,7 @@ export interface GameContext {
   softwareSystem: SoftwareSystem<GameEvents>;
   entityFactory: EntityFactory;
   autoPathfinder?: AutoPathfinder;
+  submitAction?: (intent: ActionIntent) => Promise<void>;
   playerId?: EntityId;
   currentSeed?: string;
   sessionId?: string;

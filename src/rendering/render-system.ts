@@ -206,6 +206,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
     if (
       storeState.inventoryVisible ||
       storeState.groundTransferVisible ||
+      storeState.deadDropModalVisible ||
       storeState.hotkeysModalVisible ||
       storeState.abortDialogVisible ||
       storeState.bsodVisible ||

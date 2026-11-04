@@ -30,6 +30,10 @@ import { PickupEffect } from '@shared/components/pickup-effect';
 import { RarityTier } from '@shared/components/rarity-tier';
 import { TemplateId } from '@shared/components/template-id';
 import { SpriteComponent } from '@shared/components/sprite';
+import { Children } from '@shared/components/children';
+import { AbilityDef } from '@shared/components/ability-def';
+import { AugmentData } from '@shared/components/augment-data';
+import { VaultItem } from '@shared/profile';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { addCurrency, getCurrencyAmount, removeCurrency } from '@shared/utils/inventory-util';
 import RNG from 'rot-js/lib/rng';
@@ -353,9 +357,13 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
           } else {
             // Locate item or blueprint to remove before charging Flux
             const runInv = w.getComponent(actorId, RunInventory);
+            const floorState = w.getComponent(actorId, FloorState);
+            const floorNumber = floorState?.currentFloor ?? 1;
             let removedItem = false;
             let transmittedItemEntityId: number | undefined;
+            let transmittedVaultItem: VaultItem | undefined;
             let transmittedBlueprintId: string | undefined;
+            let transmittedBlueprintType: 'firmware' | 'augment' | undefined;
 
             if (runInv) {
               const swIdx = runInv.software.findIndex(
@@ -366,6 +374,15 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
               if (swIdx !== -1) {
                 const item = runInv.software[swIdx];
                 transmittedItemEntityId = item.entityId;
+                transmittedVaultItem = {
+                  entityId: item.entityId,
+                  templateId: item.templateId,
+                  rarityTier: item.rarityTier,
+                  itemType: 'software',
+                  quantity: item.quantity ?? 1,
+                  extractedAtFloor: floorNumber,
+                  extractedAtTimestamp: Date.now(),
+                };
                 const updatedSw = [...runInv.software];
                 updatedSw.splice(swIdx, 1);
                 w.patchComponent(actorId, RunInventory, { software: updatedSw });
@@ -379,6 +396,35 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
                 if (eqIdx !== -1) {
                   const item = runInv.equipment[eqIdx];
                   transmittedItemEntityId = item.entityId;
+                  const children = w.getComponent(item.entityId, Children);
+                  const swList: string[] = [];
+                  if (children) {
+                    for (const cId of children.entityIds) {
+                      const cTmpl = w.getComponent(cId, TemplateId);
+                      if (cTmpl?.id) swList.push(cTmpl.id);
+                    }
+                  }
+                  let itemType: VaultItem['itemType'] = item.isConsumable
+                    ? 'consumable'
+                    : 'equipment';
+                  const eqDef = w.getComponent(item.entityId, EquipmentDef);
+                  if (eqDef?.slotType === 'weapon' || eqDef?.slotType === 'armor') {
+                    itemType = eqDef.slotType;
+                  } else if (w.hasComponent(item.entityId, AbilityDef)) {
+                    itemType = 'firmware';
+                  } else if (w.hasComponent(item.entityId, AugmentData)) {
+                    itemType = 'augment';
+                  }
+                  transmittedVaultItem = {
+                    entityId: item.entityId,
+                    templateId: item.templateId,
+                    rarityTier: item.rarityTier,
+                    itemType,
+                    quantity: item.quantity ?? 1,
+                    extractedAtFloor: floorNumber,
+                    extractedAtTimestamp: Date.now(),
+                    socketedSoftware: swList.length > 0 ? swList : undefined,
+                  };
                   const updatedEq = [...runInv.equipment];
                   updatedEq.splice(eqIdx, 1);
                   w.patchComponent(actorId, RunInventory, { equipment: updatedEq });
@@ -400,6 +446,7 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
                 if (stackIdx !== -1) {
                   const updatedStacks = [...runCurrency.stacks];
                   const stack = { ...updatedStacks[stackIdx] };
+                  transmittedBlueprintType = stack.blueprintType ?? 'firmware';
                   stack.amount -= 1;
                   if (stack.amount <= 0) {
                     updatedStacks.splice(stackIdx, 1);
@@ -423,8 +470,17 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
 
               bus.emit('DEAD_DROP_TRANSMITTED', {
                 entityId: actorId,
+                propId: targetId,
                 itemEntityId: transmittedItemEntityId,
+                vaultItem: transmittedVaultItem,
                 blueprintId: transmittedBlueprintId,
+                blueprintType: transmittedBlueprintType,
+              });
+              bus.emit('PROP_INTERACTED', {
+                entityId: actorId,
+                propId: targetId,
+                propClass: 'dead_drop_uplink',
+                outcome: 'transmitted',
               });
               bus.emit('MESSAGE_EMITTED', {
                 text: `[ORBITAL UPLINK COMPLETE]: Item transmitted to persistent Profile Vault.`,
@@ -434,6 +490,12 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
             }
           }
         } else {
+          bus.emit('PROP_INTERACTED', {
+            entityId: actorId,
+            propId: targetId,
+            propClass: 'dead_drop_uplink',
+            outcome: 'ready',
+          });
           bus.emit('MESSAGE_EMITTED', {
             text: `[TELEMETRY DEAD-DROP READY]: Select an item or Blueprint to transmit to Vault (Cost: ${fluxCost} Flux).`,
             type: 'info',

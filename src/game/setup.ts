@@ -32,7 +32,15 @@ import {
   Prop,
   SecurityLock,
   CorruptedNode,
+  AnchorMarker,
+  StaircaseMarker,
+  FloorState,
+  Stability,
+  RunInventory,
+  AugmentSlots,
+  SoftwareDef as SoftwareDefComp,
 } from '@shared/components';
+import { getCurrencyAmount } from '@shared/utils/inventory-util';
 import { ActionIntent } from '@shared/types';
 import { RunMode } from '@shared/run-mode';
 import { PlayerProfile } from '@shared/profile';
@@ -209,6 +217,14 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     ...contextBase,
     fsm,
     autoPathfinder,
+    submitAction: async (intent: ActionIntent) => {
+      inputManager.setRequestPending(true);
+      try {
+        await sendActionToServer(intent);
+      } finally {
+        inputManager.setRequestPending(false);
+      }
+    },
   };
 
   fsm.setContext(context);
@@ -486,6 +502,10 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     }
 
     if (action === GameAction.PAUSE) {
+      if (gameStore.getState().deadDropModalVisible) {
+        gameStore.getState().closeDeadDropModal();
+        return;
+      }
       if (gameStore.getState().groundTransferVisible) {
         gameStore.getState().closeGroundTransfer();
         return;
@@ -562,9 +582,75 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
         }
       }
 
+      if (action === GameAction.INTERACT_STAIRCASE) {
+        const playerPos = world.getComponent(pId, Position);
+        if (playerPos) {
+          const currentOccupants = grid.getEntitiesAt(playerPos.x, playerPos.y);
+          for (const eid of currentOccupants) {
+            const stairs = world.getComponent(eid, StaircaseMarker);
+            if (stairs) {
+              const floorState = world.getComponent(pId, FloorState);
+              const nextFloor = stairs.targetFloor || (floorState?.currentFloor ?? 1) + 1;
+              gameStore.getState().showStaircaseOverlay({
+                targetFloor: nextFloor,
+                staircaseId: eid,
+              });
+              return;
+            }
+          }
+        }
+      }
+
       if (action === GameAction.INTERACT_ANCHOR) {
         const playerPos = world.getComponent(pId, Position);
         if (playerPos) {
+          // 1. Check if the player is standing on an active Stability Anchor first
+          const currentOccupants = grid.getEntitiesAt(playerPos.x, playerPos.y);
+          let activeAnchorId: number | null = null;
+          for (const eid of currentOccupants) {
+            const anchor = world.getComponent(eid, AnchorMarker);
+            if (anchor && !anchor.used) {
+              activeAnchorId = eid;
+              break;
+            }
+          }
+
+          if (activeAnchorId !== null) {
+            const floorState = world.getComponent(pId, FloorState);
+            const stability = world.getComponent(pId, Stability);
+            const fSlots = world.getComponent(pId, FirmwareSlots);
+            const aSlots = world.getComponent(pId, AugmentSlots);
+            const inventory = world.getComponent(pId, RunInventory);
+            const currentFloor = floorState?.currentFloor ?? 1;
+            const stabilityVal = stability?.current ?? 0;
+            const stabilityMax = stability?.max ?? 100;
+            const stabilityPercent = (stabilityVal / stabilityMax) * 100;
+            const firmware = (fSlots?.equipped || []).map(
+              (id) => world.getComponent(id, AbilityDef)?.name || 'Unknown',
+            );
+            const augments = (aSlots?.equipped || []).map(
+              (id) => world.getComponent(id, AugmentData)?.name || 'Unknown',
+            );
+            const software = (inventory?.software || []).map((item) => {
+              const def = world.getComponent(item.entityId, SoftwareDefComp);
+              return def?.name || 'Unknown';
+            });
+            const scrap = getCurrencyAmount(world, pId, 'scrap');
+            const descendCost = 20 + currentFloor * 5;
+            const estimatedStabilityAfterDescent = Math.min(100, Math.round(stabilityPercent + 40));
+
+            gameStore.getState().showAnchorOverlay({
+              floorNumber: currentFloor,
+              stabilityPercent,
+              inventory: { firmware, augments, software, scrap },
+              descendCost,
+              nextFloorEnemyTier: 'Standard',
+              estimatedStabilityAfterDescent,
+              anchorId: activeAnchorId,
+            });
+            return;
+          }
+
           const offsets = [
             [0, 0],
             [0, -1],
@@ -592,6 +678,22 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
             if (targetPropId !== null) break;
           }
           if (targetPropId !== null) {
+            const targetProp = world.getComponent(targetPropId, Prop);
+            const targetLock = world.getComponent(targetPropId, SecurityLock);
+            const targetCorrupted = world.getComponent(targetPropId, CorruptedNode);
+            const isUntrappedDeadDrop =
+              targetProp?.propClass === 'dead_drop_uplink' &&
+              !targetProp.isSearched &&
+              !targetLock?.isLocked &&
+              (!targetCorrupted || targetCorrupted.isDisarmed || targetCorrupted.triggered);
+
+            if (isUntrappedDeadDrop) {
+              gameStore
+                .getState()
+                .openDeadDropModal(targetPropId, targetProp.deadDropFluxCost ?? 25);
+              return;
+            }
+
             inputManager.setRequestPending(true);
             await sendActionToServer({
               type: 'INTERACT_PROP',

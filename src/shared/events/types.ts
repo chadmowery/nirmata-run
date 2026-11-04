@@ -225,8 +225,11 @@ export interface GameplayEvents extends EngineEvents {
   /** Queued when an item or blueprint is transmitted via Dead-Drop Uplink. */
   DEAD_DROP_TRANSMITTED: {
     entityId: EntityId;
+    propId?: EntityId;
     itemEntityId?: EntityId;
+    vaultItem?: VaultItem;
     blueprintId?: string;
+    blueprintType?: 'firmware' | 'augment';
   };
 
   /** Queued when an input buffer should be cleared on client following a bump safeguard halt. */

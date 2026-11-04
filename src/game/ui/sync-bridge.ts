@@ -12,7 +12,7 @@ import { AugmentSlots } from '@shared/components/augment-slots';
 import { SoftwareSlots } from '@shared/components/software-slots';
 import { Heat } from '@shared/components/heat';
 import { Shell } from '@shared/components/shell';
-import { EquipmentSlots, TemplateId } from '@shared/components';
+import { EquipmentSlots, TemplateId, Prop } from '@shared/components';
 import { AbilityDef } from '@shared/components/ability-def';
 import { SoftwareDef } from '@shared/components/software-def';
 import { StatusEffects } from '@shared/components/status-effects';
@@ -301,6 +301,27 @@ export function syncEngineToStore(context: GameContext) {
         targetFloor: event.targetFloor,
         staircaseId: event.staircaseId,
       });
+    }
+  });
+
+  // Dead-Drop Uplink interaction - show modal when ready
+  eventBus.on('PROP_INTERACTED', (event) => {
+    if (
+      event.entityId === context.playerId &&
+      event.propClass === 'dead_drop_uplink' &&
+      event.outcome === 'ready'
+    ) {
+      const propComp = world.getComponent(event.propId, Prop);
+      const fluxCost = propComp?.deadDropFluxCost ?? 25;
+      gameStore.getState().openDeadDropModal(event.propId, fluxCost);
+    }
+  });
+
+  eventBus.on('DEAD_DROP_TRANSMITTED', (event) => {
+    if (event.entityId === context.playerId) {
+      gameStore.getState().closeDeadDropModal();
+      gameStore.getState().incrementInventoryRevision();
+      refreshPlayerStats();
     }
   });
 

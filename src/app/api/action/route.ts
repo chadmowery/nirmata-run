@@ -155,7 +155,74 @@ export async function POST(req: Request) {
       });
     }
 
-    // 4. Handle Run Persistence
+    // 4. Handle Dead-Drop Uplink & Run Persistence
+    const deadDropEvents = capturedEvents.filter((e) => e.type === 'DEAD_DROP_TRANSMITTED');
+    if (deadDropEvents.length > 0) {
+      let profile = await profileRepository.load(sessionId);
+      if (!profile) {
+        profile = createDefaultProfile(sessionId);
+      }
+
+      for (const evt of deadDropEvents) {
+        const ddPayload = evt.payload as GameplayEvents['DEAD_DROP_TRANSMITTED'];
+        if (ddPayload.vaultItem) {
+          const item = { ...ddPayload.vaultItem };
+          let stackedFully = false;
+          if (item.itemType === 'consumable') {
+            const existing = profile.vault.find(
+              (v) =>
+                v.itemType === 'consumable' &&
+                v.templateId === item.templateId &&
+                (v.quantity ?? 1) < 10,
+            );
+            if (existing) {
+              const addAmount = item.quantity ?? 1;
+              const available = 10 - (existing.quantity ?? 1);
+              const actual = Math.min(addAmount, available);
+              existing.quantity = (existing.quantity ?? 1) + actual;
+              const remainder = addAmount - actual;
+              if (remainder <= 0) {
+                stackedFully = true;
+              } else {
+                item.quantity = remainder;
+              }
+            }
+          }
+          if (!stackedFully) {
+            if (profile.vault.length < VAULT_MAX_SLOTS) {
+              profile.vault.push(item);
+            } else {
+              profile.overflow.push(item);
+            }
+          }
+          logger.info(
+            `Dead-Drop Uplink: Transmitted item ${item.templateId} to profile vault for ${sessionId}`,
+            'API',
+          );
+        } else if (ddPayload.blueprintId) {
+          const alreadyOwned = profile.blueprintLibrary.some(
+            (b) => b.blueprintId === ddPayload.blueprintId,
+          );
+          if (alreadyOwned) {
+            const duplicateFlux = economy.conversion?.duplicateBlueprintToFlux ?? 20;
+            profile.wallet.flux = Math.min(economy.caps.flux, profile.wallet.flux + duplicateFlux);
+          } else {
+            profile.blueprintLibrary.push({
+              blueprintId: ddPayload.blueprintId,
+              type: ddPayload.blueprintType ?? 'firmware',
+              compiledAt: Date.now(),
+            });
+          }
+          logger.info(
+            `Dead-Drop Uplink: Transmitted blueprint ${ddPayload.blueprintId} to profile for ${sessionId}`,
+            'API',
+          );
+        }
+      }
+
+      await profileRepository.save(profile);
+    }
+
     const runEndedEvent = capturedEvents.find((e) => e.type === 'RUN_ENDED');
     if (runEndedEvent) {
       const payload = runEndedEvent.payload as GameplayEvents['RUN_ENDED'];
