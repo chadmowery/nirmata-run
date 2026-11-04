@@ -306,7 +306,10 @@ The handoff claims risky bumps *"halt player movement with **0 turn cost**, flas
 - Loud template failure logging: Replaced silent `catch {}` with `logger.error` during container loot materialization.
 - Verified in [`tests/game/m9-container-loot.test.ts`](../../tests/game/m9-container-loot.test.ts) and [`src/components/ui/inventory/__tests__/ContainerOverlay.test.tsx`](../../src/components/ui/inventory/__tests__/ContainerOverlay.test.tsx).
 
-**M10. Prop placement can disconnect the map.** Placement does not re-validate connectivity after adding `BlocksMovement` props. 6 of 404 sampled floors (1.5%) had a walkable region cut off (potentially including stairs, items or enemies). Anchor filtering only avoids tiles within distance 1 of a door.
+**M10. Prop placement can disconnect the map — ✅ RESOLVED.**
+- Full-map connectivity re-validation: Implemented `wouldDisconnectMap` in [`entity-placement.ts`](../../src/game/generation/entity-placement.ts) using `validateConnectivity` from `@engine/generation/flood-fill`. Every prop placement (guaranteed authored anchors, reality stabilizers, cooling vents, and procedural anchors) checks that all walkable non-vault tiles remain 100% reachable from the player spawn room.
+- Vault interior preservation: Validates mutual reachability inside locked vault boundaries to guarantee vault props do not disconnect interior loot or terminals.
+- Verified in [`tests/game/m10-prop-connectivity.test.ts`](../../tests/game/m10-prop-connectivity.test.ts) across depths 1–15 and varied seeds.
 
 **M11. Error logger issues.** [`error-logger.ts` L110](../../src/server/utils/error-logger.ts): the ANSI string is `\x1b[31${separator}` (missing the `m`), so the closing line prints garbage escape codes. The logger appends full component dumps for the player to an unbounded `logs/game-errors.log` with no rotation, size cap or PII review. `logs/` was added to `.gitignore`, but the file will grow forever in long-lived server processes. `await`-ing disk I/O inside the request path of a failing turn adds latency to the failure case.
 

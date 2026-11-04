@@ -4,6 +4,7 @@ import { EntityFactory } from '../../engine/entity/factory';
 import { EntityId } from '../../engine/ecs/types';
 import { ComponentRegistry } from '../../engine/entity/types';
 import { Room } from '../../engine/generation/types';
+import { validateConnectivity } from '../../engine/generation/flood-fill';
 import depthDistribution from '../entities/templates/spawn-tables/depth-distribution.json';
 import lootDistribution from './loot-distribution.json';
 import depthConfig from './depth-config.json';
@@ -416,6 +417,20 @@ export function placeEntities<T extends EngineEvents>(
       if (occupiedPropPositions.has(posKey)) continue;
 
       const template = anchor.guaranteedTemplate!.replace(/_/g, '-');
+      // If template is not vault-door, verify it does not disconnect walkable regions
+      if (
+        template !== 'prop-vault-door' &&
+        wouldDisconnectMap(
+          grid,
+          spawnRoom,
+          anchor.x,
+          anchor.y,
+          occupiedPropPositions,
+          cfg.vaultFaradayBounds,
+        )
+      ) {
+        continue;
+      }
       const propId = factory.create(world, template, componentRegistry, {
         position: { x: anchor.x, y: anchor.y },
       });
@@ -462,6 +477,18 @@ export function placeEntities<T extends EngineEvents>(
         const anchor = candidateAnchors.splice(anchorIdx, 1)[0];
         const posKey = `${anchor.x},${anchor.y}`;
         if (wouldPinchWalkability(grid, anchor.x, anchor.y, occupiedPropPositions)) continue;
+        if (
+          wouldDisconnectMap(
+            grid,
+            spawnRoom,
+            anchor.x,
+            anchor.y,
+            occupiedPropPositions,
+            cfg.vaultFaradayBounds,
+          )
+        ) {
+          continue;
+        }
 
         const stabId = factory.create(world, 'prop-stabilizer', componentRegistry, {
           position: { x: anchor.x, y: anchor.y },
@@ -485,12 +512,23 @@ export function placeEntities<T extends EngineEvents>(
         const anchorIdx = Math.floor(rng.random() * ventAnchors.length);
         const anchor = ventAnchors[anchorIdx];
         const posKey = `${anchor.x},${anchor.y}`;
-        const ventId = factory.create(world, 'prop-cooling-vent', componentRegistry, {
-          position: { x: anchor.x, y: anchor.y },
-        });
-        grid.addEntity(ventId, anchor.x, anchor.y);
-        propIds.push(ventId);
-        occupiedPropPositions.add(posKey);
+        if (
+          !wouldDisconnectMap(
+            grid,
+            spawnRoom,
+            anchor.x,
+            anchor.y,
+            occupiedPropPositions,
+            cfg.vaultFaradayBounds,
+          )
+        ) {
+          const ventId = factory.create(world, 'prop-cooling-vent', componentRegistry, {
+            position: { x: anchor.x, y: anchor.y },
+          });
+          grid.addEntity(ventId, anchor.x, anchor.y);
+          propIds.push(ventId);
+          occupiedPropPositions.add(posKey);
+        }
       }
     }
 
@@ -549,6 +587,18 @@ export function placeEntities<T extends EngineEvents>(
       const posKey = `${anchor.x},${anchor.y}`;
       if (occupiedPropPositions.has(posKey)) continue;
       if (wouldPinchWalkability(grid, anchor.x, anchor.y, occupiedPropPositions)) continue;
+      if (
+        wouldDisconnectMap(
+          grid,
+          spawnRoom,
+          anchor.x,
+          anchor.y,
+          occupiedPropPositions,
+          cfg.vaultFaradayBounds,
+        )
+      ) {
+        continue;
+      }
 
       const template = pickTemplateForAnchor(anchor.anchorType, faction, rng, depth);
 
@@ -775,6 +825,99 @@ function findMatchingFaradayBounds(
       (b.doorX === x && b.doorY === y) ||
       (x >= b.x - 1 && x <= b.x + b.width && y >= b.y - 1 && y <= b.y + b.height),
   );
+}
+
+/**
+ * Re-validates full-map connectivity using flood-fill to ensure placing a blocking prop
+ * at (px, py) will not disconnect any non-vault reachable walkable tiles from the spawn room.
+ */
+function wouldDisconnectMap(
+  grid: Grid,
+  spawnRoom: Room,
+  px: number,
+  py: number,
+  occupiedPropPositions: Set<string>,
+  vaultFaradayBounds?: FaradayBounds[],
+): boolean {
+  if (grid.getTile(px, py)?.terrain === 'door') return true;
+  const dirs = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+  ];
+  for (const [dx, dy] of dirs) {
+    if (grid.getTile(px + dx, py + dy)?.terrain === 'door') {
+      return true;
+    }
+  }
+
+  const isInsideVault = (x: number, y: number): boolean => {
+    if (!vaultFaradayBounds || vaultFaradayBounds.length === 0) return false;
+    return vaultFaradayBounds.some(
+      (b) => x >= b.x && x < b.x + b.width && y >= b.y && y < b.y + b.height,
+    );
+  };
+
+  // If the prop is placed inside a vault, check that it does not disconnect the vault's interior tiles
+  if (isInsideVault(px, py)) {
+    const bound = vaultFaradayBounds!.find(
+      (b) => px >= b.x && px < b.x + b.width && py >= b.y && py < b.y + b.height,
+    )!;
+    let startX = -1;
+    let startY = -1;
+    for (let y = bound.y; y < bound.y + bound.height; y++) {
+      for (let x = bound.x; x < bound.x + bound.width; x++) {
+        if (
+          grid.inBounds(x, y) &&
+          grid.isWalkable(x, y) &&
+          !(x === px && y === py) &&
+          !occupiedPropPositions.has(`${x},${y}`)
+        ) {
+          startX = x;
+          startY = y;
+          break;
+        }
+      }
+      if (startX !== -1) break;
+    }
+    if (startX === -1) return false;
+
+    const isVaultPassable = (x: number, y: number): boolean => {
+      if (x < bound.x || x >= bound.x + bound.width || y < bound.y || y >= bound.y + bound.height) {
+        return false;
+      }
+      return (
+        grid.inBounds(x, y) &&
+        grid.isWalkable(x, y) &&
+        !(x === px && y === py) &&
+        !occupiedPropPositions.has(`${x},${y}`)
+      );
+    };
+
+    const conn = validateConnectivity(grid.width, grid.height, isVaultPassable, startX, startY);
+    return !conn.connected;
+  }
+
+  // Non-vault tiles: flood fill from spawnRoom.centerX, spawnRoom.centerY
+  const isPassable = (x: number, y: number): boolean => {
+    if (!grid.inBounds(x, y) || !grid.isWalkable(x, y)) return false;
+    if (x === px && y === py) return false;
+    if (x !== spawnRoom.centerX || y !== spawnRoom.centerY) {
+      if (occupiedPropPositions.has(`${x},${y}`)) return false;
+    }
+    if (isInsideVault(x, y)) return false;
+    return true;
+  };
+
+  const conn = validateConnectivity(
+    grid.width,
+    grid.height,
+    isPassable,
+    spawnRoom.centerX,
+    spawnRoom.centerY,
+  );
+  return !conn.connected;
 }
 
 /**
