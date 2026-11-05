@@ -112,6 +112,7 @@ nirmata-run/
   - [`docs/architecture/DEATH_PROTOCOL.md`](./docs/architecture/DEATH_PROTOCOL.md) — The `Dying` component lifecycle and `GravediggerSystem`
 - **Game Design Specifications**:
   - [`docs/design/DESIGN-BRIEF.md`](./docs/design/DESIGN-BRIEF.md) — Core hook, customization hierarchy, and "Vibrant Decay" aesthetic
+  - [`docs/design/INTERACTIVE-ENVIRONMENTS.md`](./docs/design/INTERACTIVE-ENVIRONMENTS.md) — Hybrid procgen, interactive props, directional cover, and environmental hazard systems
   - [`docs/design/FIRMWARE-AUGMENTS-SYSTEM.md`](./docs/design/FIRMWARE-AUGMENTS-SYSTEM.md) — Neural Heat, Firmware abilities, Augment triggers, and Kernel Panic table
   - [`docs/design/ENEMY-HIERARCHY.md`](./docs/design/ENEMY-HIERARCHY.md) — Tier 1–3 enemy archetypes and AI behaviors
   - [`docs/design/RUN-ECONOMY.md`](./docs/design/RUN-ECONOMY.md) — Scrap/Blueprints/Flux economy, Neural Deck Hub, Vault, and Weekly Reset

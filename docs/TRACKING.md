@@ -1,7 +1,7 @@
 # Nirmata Runner — Project Tracking & Future Work
 
 > **Last Updated:** 2026-11-05  
-> **Baseline State:** v2.6 (C1–C8 + M1–M14 + U1–U12 + R1–R4 Remediation Complete)
+> **Baseline State:** v2.7 (Interactive Environments Arc Complete: ENV-01–ENV-05 + C1–C8 + M1–M14 + U1–U12 + R1–R4 + A1 Verification)
 
 ---
 
@@ -10,6 +10,7 @@
 - [x] **Phase-Driven Intent & Death Protocols**: Systems communicate via Intent/Tag components across 6 deterministic phases (`PRE_TURN`, `GATHER_INTENT`, `ACTION`, `REACTION`, `CLEANUP`, `POST_TURN`); `GravediggerSystem` exclusively handles `world.destroyEntity()`.
 - [x] **Client Prediction & Delta Replication**: Client runs prediction-only systems (`isClient: true`) with a 2-slot FIFO input buffer; server executes full turn cycles and returns component-level deltas (`createECSWorldDelta`) with `EventOriginContext` deduplication and `EntitySpriteMap` reconciliation.
 - [x] **Core Extraction Loop & Hub UI**: 3 Shells (`VANGUARD-v1`, `BASTION-v1`, `GHOST-v1`), Neural Heat & Kernel Panic, 6 enemies across 3 tiers, 15-floor progression with Staircases and Stability Anchors (Floors 5/10/15), Neural Deck Hub (Shell, Loadout, Workshop, Vault, Initialize), in-run drag-and-drop inventory & tooltips, and `/dev/gamedata` authoring studio.
+- [x] **Interactive Environments & Hybrid ProcGen**: Bespoke prefab stamping (`server-core`, `freight-bay`, `decon-airlock`, `zero-day-vault`) alongside BSP procedural rooms; 13 interactive prop fixtures (containers, cover, hazards, terminals); directional cover system; volatile destruction cascades (cryo-vats, capacitor banks); two-tier bump safeguards; anti-cheat server-side loot redaction; dynamic corporate forensics audio lore; tactical zoom & hover inspector. All milestones and adversarial remediation items (ENV-01–ENV-05, C1–C8, M1–M14, U1–U12, R1–R4, A1) are complete and fully verified.
 
 ---
 
