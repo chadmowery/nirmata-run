@@ -32,12 +32,14 @@ interface GameContext {
   };
 }
 
+import { getActiveGameContext } from '@/game/setup';
+
 export const BackpackGrid: React.FC = () => {
   const [hoveredEntityId, setHoveredEntityId] = useState<number | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
 
-  const gameContext = (window as unknown as { gameContext: GameContext }).gameContext;
+  const gameContext = getActiveGameContext() as unknown as GameContext | null;
 
   // Connect to Zustand game store to subscribe to revisions and handle updates
   useStore(gameStore, (s) => s.inventoryRevision);

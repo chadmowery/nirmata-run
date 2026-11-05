@@ -88,6 +88,8 @@ function resolveArchetype(rawName?: string): ArchetypeMeta {
   };
 }
 
+import { getActiveGameContext } from '@/game/setup';
+
 export const ChassisTelemetrySidebar: React.FC = () => {
   const player = useStore(gameStore, (s) => s.player);
   const abilities = useStore(gameStore, (s) => s.abilities);
@@ -109,7 +111,7 @@ export const ChassisTelemetrySidebar: React.FC = () => {
   } | null>(null);
 
   // Read current stats and components from gameContext world if present
-  const gameContext = (typeof window !== 'undefined'
+  const gameContext = (getActiveGameContext() as unknown as GameContext | null) || (typeof window !== 'undefined'
     ? (window as unknown as { gameContext?: GameContext }).gameContext
     : undefined);
 

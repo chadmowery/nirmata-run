@@ -16,6 +16,8 @@ import {
   Item,
 } from '@shared/components';
 
+import { getActiveGameContext } from '@/game/setup';
+
 interface DeadDropModalProps {
   onClose: () => void;
 }
@@ -37,7 +39,7 @@ export const DeadDropModal: React.FC<DeadDropModalProps> = ({ onClose }) => {
   void inventoryRevision;
 
   const getContext = (): GameContext | undefined => {
-    return typeof window !== 'undefined' ? window.gameContext : undefined;
+    return getActiveGameContext() ?? undefined;
   };
 
   useEffect(() => {

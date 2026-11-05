@@ -4,28 +4,48 @@ import { AIBehaviorType } from '@shared/components/ai-state';
 
 export type PropVisualState = 'safe' | 'locked' | 'corrupted' | 'searched';
 
+const activePropFilters = new Map<Sprite, Filter[]>();
+
 /**
  * Applies a visual outline/glitch effect to an interactive prop sprite based on its state:
  * - 'safe': #00F0FF (Cyan) clean outline
  * - 'locked': #FF9500 (Orange) security barrier outline
  * - 'corrupted': #FF0055 (Pink) outline with subtle glitch jitter
  * - 'searched': Dimmed alpha (0.6) with no outline
+ *
+ * Composes safely with existing filters (e.g. damage glitch) and destroys replaced filters.
  */
 export function applyPropOutline(sprite: Sprite, state: PropVisualState): void {
   if (!sprite || sprite.destroyed) return;
 
+  // Retrieve and clean up existing prop outline filters
+  const existingPropFilters = activePropFilters.get(sprite) || [];
+  for (const f of existingPropFilters) {
+    if (typeof f.destroy === 'function') {
+      f.destroy();
+    }
+  }
+  activePropFilters.delete(sprite);
+
+  // Preserve other filters on the sprite (such as temporary damage filters)
+  const currentFilters = Array.isArray(sprite.filters)
+    ? sprite.filters
+    : sprite.filters
+      ? [sprite.filters]
+      : [];
+  const nonPropFilters = currentFilters.filter((f) => !existingPropFilters.includes(f));
+
   if (state === 'searched') {
+    sprite.filters = nonPropFilters.length > 0 ? nonPropFilters : null;
     sprite.alpha = 0.6;
-    sprite.filters = null;
     return;
   }
 
-  sprite.alpha = 1.0;
-  const filters: Filter[] = [];
+  const newFilters: Filter[] = [];
 
   switch (state) {
     case 'safe':
-      filters.push(
+      newFilters.push(
         new OutlineFilter({
           thickness: 1,
           color: 0x00f0ff,
@@ -34,7 +54,7 @@ export function applyPropOutline(sprite: Sprite, state: PropVisualState): void {
       break;
 
     case 'locked':
-      filters.push(
+      newFilters.push(
         new OutlineFilter({
           thickness: 1,
           color: 0xff9500,
@@ -43,13 +63,13 @@ export function applyPropOutline(sprite: Sprite, state: PropVisualState): void {
       break;
 
     case 'corrupted':
-      filters.push(
+      newFilters.push(
         new OutlineFilter({
           thickness: 1,
           color: 0xff0055,
         }) as Filter,
       );
-      filters.push(
+      newFilters.push(
         new GlitchFilter({
           slices: 2,
           offset: 3,
@@ -59,7 +79,9 @@ export function applyPropOutline(sprite: Sprite, state: PropVisualState): void {
       break;
   }
 
-  sprite.filters = filters.length > 0 ? filters : null;
+  activePropFilters.set(sprite, newFilters);
+  const combined = [...nonPropFilters, ...newFilters];
+  sprite.filters = combined.length > 0 ? combined : null;
 }
 
 /**
@@ -247,6 +269,15 @@ export function removePersistentGlitch(sprite: Sprite): void {
   if (state) {
     clearTimeout(state.timeoutId);
     activeDamageFilters.delete(sprite);
+  }
+
+  // Clear any active prop outline filters and destroy them
+  const propFilters = activePropFilters.get(sprite);
+  if (propFilters) {
+    for (const f of propFilters) {
+      if (typeof f.destroy === 'function') f.destroy();
+    }
+    activePropFilters.delete(sprite);
   }
 
   sprite.filters = null;

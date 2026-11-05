@@ -113,17 +113,29 @@ export function createRenderSystem(config: RenderSystemConfig) {
   const rememberedTileItems = new Map<string, Set<EntityId>>();
   let cameraTarget = { x: 0, y: 0 };
   let cameraPanOffset = { x: 0, y: 0 };
+  let cameraZoom = 1.0;
   let isMapRevealed = false;
   let isDragging = false;
   let dragStartX = 0;
   let dragStartY = 0;
   let initialPanX = 0;
   let initialPanY = 0;
+  const lastPropOutlineState = new Map<EntityId, string>();
 
   const targetingCursor = new Graphics();
   layers.effectsLayer.addChild(targetingCursor);
 
   let lastPointerEvent: { clientX: number; clientY: number } | null = null;
+  let lastHoverCheckState: {
+    clientX: number;
+    clientY: number;
+    camX: number;
+    camY: number;
+    zoom: number;
+    playerX: number;
+    playerY: number;
+    isMapRevealed: boolean;
+  } | null = null;
   let currentFovSet: Set<string> = new Set();
 
   const syncPropOutline = (entityId: EntityId, targetSprite?: Sprite) => {
@@ -202,6 +214,15 @@ export function createRenderSystem(config: RenderSystemConfig) {
       return;
     }
 
+    const elem =
+      typeof document !== 'undefined' && typeof document.elementFromPoint === 'function'
+        ? document.elementFromPoint(e.clientX, e.clientY)
+        : null;
+    if (elem && elem !== canvas && elem.closest && elem.closest('#ui-root')) {
+      gameStore.getState().setHoveredEntity(null);
+      return;
+    }
+
     const storeState = gameStore.getState();
     if (
       storeState.inventoryVisible ||
@@ -220,8 +241,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
     const scaleY = canvas.height / rect.height;
     const canvasX = (e.clientX - rect.left) * scaleX;
     const canvasY = (e.clientY - rect.top) * scaleY;
-    const worldX = canvasX - layers.worldContainer.x;
-    const worldY = canvasY - layers.worldContainer.y;
+    const worldX = (canvasX - layers.worldContainer.x) / cameraZoom;
+    const worldY = (canvasY - layers.worldContainer.y) / cameraZoom;
     const gx = Math.floor(worldX / TILE_SIZE);
     const gy = Math.floor(worldY / TILE_SIZE);
 
@@ -244,12 +265,15 @@ export function createRenderSystem(config: RenderSystemConfig) {
   };
 
   const handlePointerDown = (e: PointerEvent) => {
-    isDragging = true;
-    gameStore.getState().setHoveredEntity(null);
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    initialPanX = cameraPanOffset.x;
-    initialPanY = cameraPanOffset.y;
+    // Only middle click (button 1) or right click (button 2) triggers free-pan dragging
+    if (e.button === 1 || e.button === 2) {
+      isDragging = true;
+      gameStore.getState().setHoveredEntity(null);
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      initialPanX = cameraPanOffset.x;
+      initialPanY = cameraPanOffset.y;
+    }
   };
 
   const handlePointerMove = (e: PointerEvent) => {
@@ -269,19 +293,21 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
   const handlePointerLeave = () => {
     lastPointerEvent = null;
+    lastHoverCheckState = null;
     gameStore.getState().setHoveredEntity(null);
   };
 
-  const handlePointerUp = () => {
-    isDragging = false;
+  const handlePointerUp = (e: PointerEvent) => {
+    if (e.button === 1 || e.button === 2 || isDragging) {
+      isDragging = false;
+    }
   };
 
   const handleWheel = (e: WheelEvent) => {
     e.preventDefault();
-    cameraPanOffset = {
-      x: cameraPanOffset.x - e.deltaX,
-      y: cameraPanOffset.y - e.deltaY,
-    };
+    const zoomDelta = e.deltaY < 0 ? 0.1 : -0.1;
+    cameraZoom = Math.min(1.5, Math.max(0.75, Math.round((cameraZoom + zoomDelta) * 100) / 100));
+    layers.worldContainer.scale.set(cameraZoom);
   };
 
   const handleContextMenu = (e: MouseEvent) => {
@@ -300,6 +326,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
   const handleRecenterCamera = () => {
     cameraPanOffset = { x: 0, y: 0 };
+    cameraZoom = 1.0;
+    layers.worldContainer.scale.set(1.0);
   };
 
   const handleEntityCreated = (payload: { entityId: EntityId }) => {
@@ -681,15 +709,25 @@ export function createRenderSystem(config: RenderSystemConfig) {
         targetingCursor.lineTo(tx + margin, ty + TILE_SIZE - margin - len);
       }
 
+      // Refresh dynamic prop outlines if state has changed
+      const props = world.query(Prop);
+      for (const propId of props) {
+        const outlineState = resolvePropOutlineState(world, propId) ?? 'none';
+        if (lastPropOutlineState.get(propId) !== outlineState) {
+          lastPropOutlineState.set(propId, outlineState);
+          syncPropOutline(propId);
+        }
+      }
+
       // 2. Camera
-      const baseTarget = computeCameraTarget(playerPos.x, playerPos.y);
+      const baseTarget = computeCameraTarget(playerPos.x, playerPos.y, cameraZoom);
       cameraTarget = {
         x: baseTarget.x + cameraPanOffset.x,
         y: baseTarget.y + cameraPanOffset.y,
       };
 
       // 3. Tilemap
-      const visibleRange = getVisibleTileRange(layers.worldContainer.x, layers.worldContainer.y);
+      const visibleRange = getVisibleTileRange(layers.worldContainer.x, layers.worldContainer.y, cameraZoom);
       buildTilemap(getGrid(), layers.terrainLayer, {
         visibleRange,
         fovSet,
@@ -727,6 +765,11 @@ export function createRenderSystem(config: RenderSystemConfig) {
           playerSprite = sprite;
         }
 
+        const propComp = world.getComponent(entityId, Prop);
+        if (propComp?.isSearched) {
+          alpha = alpha * 0.6;
+        }
+
         sprite.visible = visible;
         sprite.alpha = alpha;
 
@@ -742,12 +785,39 @@ export function createRenderSystem(config: RenderSystemConfig) {
       }
 
       if (lastPointerEvent) {
-        updateHoverInspection(lastPointerEvent);
+        const needsHoverUpdate =
+          !lastHoverCheckState ||
+          lastHoverCheckState.clientX !== lastPointerEvent.clientX ||
+          lastHoverCheckState.clientY !== lastPointerEvent.clientY ||
+          lastHoverCheckState.camX !== layers.worldContainer.x ||
+          lastHoverCheckState.camY !== layers.worldContainer.y ||
+          lastHoverCheckState.zoom !== cameraZoom ||
+          lastHoverCheckState.playerX !== playerPos.x ||
+          lastHoverCheckState.playerY !== playerPos.y ||
+          lastHoverCheckState.isMapRevealed !== isMapRevealed;
+
+        if (needsHoverUpdate) {
+          lastHoverCheckState = {
+            clientX: lastPointerEvent.clientX,
+            clientY: lastPointerEvent.clientY,
+            camX: layers.worldContainer.x,
+            camY: layers.worldContainer.y,
+            zoom: cameraZoom,
+            playerX: playerPos.x,
+            playerY: playerPos.y,
+            isMapRevealed,
+          };
+          updateHoverInspection(lastPointerEvent);
+        }
       }
     },
 
     onDungeonGenerated() {
       cameraPanOffset = { x: 0, y: 0 };
+      cameraZoom = 1.0;
+      layers.worldContainer.scale.set(1.0);
+      lastPropOutlineState.clear();
+      lastHoverCheckState = null;
       isMapRevealed = false;
       clearExplored(exploredSet);
       rememberedProps.clear();
@@ -760,7 +830,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       const playerEntity = getPlayerEntity();
       const playerPos = world.getComponent(playerEntity, Position);
       if (playerPos) {
-        cameraTarget = computeCameraTarget(playerPos.x, playerPos.y);
+        cameraTarget = computeCameraTarget(playerPos.x, playerPos.y, cameraZoom);
         layers.worldContainer.x = cameraTarget.x;
         layers.worldContainer.y = cameraTarget.y;
       }
@@ -815,6 +885,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
       clearExplored(exploredSet);
       rememberedProps.clear();
       rememberedTileItems.clear();
+      lastPropOutlineState.clear();
+      lastHoverCheckState = null;
       clearAllSprites();
       clearAnimations();
       disposeScreenEffects();
@@ -830,6 +902,19 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
     exposeMap() {
       handleDebugRevealMap();
+    },
+
+    getCameraZoom(): number {
+      return cameraZoom;
+    },
+
+    setCameraZoom(zoom: number) {
+      cameraZoom = Math.min(1.5, Math.max(0.75, Math.round(zoom * 100) / 100));
+      layers.worldContainer.scale.set(cameraZoom);
+    },
+
+    getCameraPanOffset(): { x: number; y: number } {
+      return { ...cameraPanOffset };
     },
   };
 }

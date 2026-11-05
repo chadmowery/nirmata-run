@@ -109,9 +109,6 @@ export default function GamePage() {
         profile: store.playerProfile || undefined,
       });
       contextRef.current = context;
-      // Expose for debugging
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).gameContext = context;
 
       // 3. Init Render System
       const layers = createWorldContainer();

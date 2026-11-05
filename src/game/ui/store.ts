@@ -7,6 +7,7 @@ import { ShellTemplate } from '@/game/shells/shared';
 import { RunInventory } from '@shared/components/run-inventory';
 import { EquipmentSlots } from '@shared/components/equipment-slots';
 import type { GameContext } from '../types';
+import { getActiveGameContext } from '../active-context';
 
 declare global {
   interface Window {
@@ -661,7 +662,33 @@ export const gameStore = createStore<UIState>((set, get) => ({
   updateHeatTier: (tier, value, maxSafe) =>
     set({ heatTier: tier, heatValue: value, heatMaxSafe: maxSafe }),
   setDraggedRunItemEntityId: (entityId) => set({ draggedRunItemEntityId: entityId }),
-  setHoveredEntity: (info) => set({ hoveredEntity: info }),
+  setHoveredEntity: (info) =>
+    set((state) => {
+      const prev = state.hoveredEntity;
+      if (prev === info) return state;
+      if (!prev && !info) return state;
+      if (
+        prev &&
+        info &&
+        prev.type === info.type &&
+        prev.entityId === info.entityId &&
+        prev.name === info.name &&
+        prev.gridX === info.gridX &&
+        prev.gridY === info.gridY &&
+        prev.hp === info.hp &&
+        prev.maxHp === info.maxHp &&
+        prev.heat === info.heat &&
+        prev.stability === info.stability &&
+        prev.badge === info.badge &&
+        prev.description === info.description &&
+        prev.interactionHint === info.interactionHint &&
+        Math.abs(prev.screenX - info.screenX) < 1 &&
+        Math.abs(prev.screenY - info.screenY) < 1
+      ) {
+        return state;
+      }
+      return { hoveredEntity: info };
+    }),
   toggleDetailedFlavorText: () =>
     set((state) => ({ detailedFlavorTextEnabled: !state.detailedFlavorTextEnabled })),
   setDetailedFlavorTextEnabled: (enabled) => set({ detailedFlavorTextEnabled: enabled }),
@@ -670,7 +697,7 @@ export const gameStore = createStore<UIState>((set, get) => ({
       const currentWeapon = slot === 'weapon' ? entityId : state.optimisticWeapon;
       const currentArmor = slot === 'armor' ? entityId : state.optimisticArmor;
 
-      const context = typeof window !== 'undefined' ? window.gameContext : undefined;
+      const context = getActiveGameContext();
       let newEquipmentIds: number[] = [];
       if (context && context.playerId) {
         const inv = context.world.getComponent(context.playerId, RunInventory);
@@ -690,7 +717,7 @@ export const gameStore = createStore<UIState>((set, get) => ({
     }),
   optimisticUnequipItem: (slot) =>
     set((state) => {
-      const context = typeof window !== 'undefined' ? window.gameContext : undefined;
+      const context = getActiveGameContext();
       let unequippedEntityId: number | null = null;
       if (context && context.playerId) {
         const eq = context.world.getComponent(context.playerId, EquipmentSlots);

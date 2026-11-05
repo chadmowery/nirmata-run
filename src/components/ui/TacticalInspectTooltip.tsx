@@ -68,7 +68,6 @@ export const TacticalInspectTooltip: React.FC = () => {
     <div
       ref={tooltipRef}
       role="tooltip"
-      aria-live="polite"
       className={`${styles.tooltipRoot} ${variantClass}`}
       style={{
         left: `${coords.x}px`,

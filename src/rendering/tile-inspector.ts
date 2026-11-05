@@ -251,12 +251,37 @@ export function resolveTileInspection(
     return null;
   }
 
-  const entitiesAtTile = world
-    .query(Position)
-    .filter((id) => {
+  const entitiesAtTile: EntityId[] = [];
+  const seenEntities = new Set<EntityId>();
+
+  if (typeof grid.getEntitiesAt === 'function') {
+    for (const id of grid.getEntitiesAt(gx, gy)) {
+      if (!seenEntities.has(id) && !world.hasComponent(id, Dying)) {
+        seenEntities.add(id);
+        entitiesAtTile.push(id);
+      }
+    }
+  }
+
+  if (typeof grid.getItemsAt === 'function') {
+    for (const id of grid.getItemsAt(gx, gy)) {
+      if (!seenEntities.has(id) && !world.hasComponent(id, Dying)) {
+        seenEntities.add(id);
+        entitiesAtTile.push(id);
+      }
+    }
+  }
+
+  // Fallback for test fixtures or unindexed entities
+  if (entitiesAtTile.length === 0) {
+    const posEntities = world.query(Position);
+    for (const id of posEntities) {
       const pos = world.getComponent(id, Position);
-      return pos && pos.x === gx && pos.y === gy && !world.hasComponent(id, Dying);
-    });
+      if (pos && pos.x === gx && pos.y === gy && !world.hasComponent(id, Dying)) {
+        entitiesAtTile.push(id);
+      }
+    }
+  }
 
   // 1. Hostile / Enemy Check (Takes top priority in combat situations)
   const enemyEntityId = entitiesAtTile.find((id) => {

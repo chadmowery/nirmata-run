@@ -28,6 +28,8 @@ interface GameContext {
   };
 }
 
+import { getActiveGameContext } from '@/game/setup';
+
 export const EquipmentPanel: React.FC = () => {
   const [hoveredEntityId, setHoveredEntityId] = useState<number | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -38,7 +40,7 @@ export const EquipmentPanel: React.FC = () => {
     softwareName: string;
   } | null>(null);
 
-  const gameContext = (window as unknown as { gameContext: GameContext }).gameContext;
+  const gameContext = getActiveGameContext() as unknown as GameContext | null;
 
   // Connect to Zustand game store to subscribe to revisions and handle updates
   const inventoryRevision = useStore(gameStore, (s) => s.inventoryRevision);

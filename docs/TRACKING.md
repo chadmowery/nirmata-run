@@ -1,7 +1,7 @@
 # Nirmata Runner — Project Tracking & Future Work
 
 > **Last Updated:** 2026-11-04  
-> **Baseline State:** v2.5 (C1–C8 + M1–M14 + U1–U4 Remediation Complete)
+> **Baseline State:** v2.5 (C1–C8 + M1–M14 + U1–U5 + R1–R4 Remediation Complete)
 
 ---
 
@@ -210,6 +210,30 @@
   - Wired prop outline updates into [`src/rendering/render-system.ts`](../src/rendering/render-system.ts) on entity creation and `PROP_INTERACTED` / `LOCK_UNLOCKED` events.
   - Built [`src/components/ui/inventory/ContainerOverlay.tsx`](../src/components/ui/inventory/ContainerOverlay.tsx) and [`ContainerOverlay.module.css`](../src/components/ui/inventory/ContainerOverlay.module.css) for 2-column container vs. backpack item swapping with ESC keyboard navigation.
   - Verified with 8 unit tests in `tests/rendering/glitch-effects.test.ts` and 6 unit tests in `src/components/ui/inventory/__tests__/ContainerOverlay.test.tsx`.
+
+### 5.1 Adversarial Review Remediation (Phase 2)
+- [x] **[P2-U5] Vault Item ID Collision Remediation (`src/shared/profile.ts`, `src/app/api/vault/`)**
+  - Minted stable unique `vaultItemId` UUIDs at extraction time (`run-ender.ts`, `action/route.ts`, `prop-interaction.ts`), populated default IDs on legacy profile parse, updated all vault routes (`equip-from-vault`, `sell`, `discard`, `socket-software`) and `vault-manager.ts` to locate and manipulate items by `vaultItemId` instead of run-local `entityId`.
+  - Re-keyed Hub UI components (`VaultGrid`, `VaultTab`, `LoadoutTab`, `VaultOverflowBanner`, `StashItemList`) by `item.vaultItemId`, eliminating `idx` key reconciliations.
+  - Deprecated React duplicate-key console interceptor in `src/game/diagnostics/react-key-interceptor.ts`. Verified in `tests/game/u5-vault-collision.test.ts`.
+- [x] **[P2-R1] Hover Inspection Optimization & UI Isolation (`src/rendering/tile-inspector.ts`, `src/rendering/render-system.ts`, `src/game/ui/store.ts`)**
+  - Replaced O(N) full ECS scan in `tile-inspector.ts` with O(1) spatial lookups `grid.getEntitiesAt` and `grid.getItemsAt`.
+  - Added deep equality check to `gameStore.setHoveredEntity` to eliminate 60 Hz React re-render thrashing when hovered tile data remains unchanged.
+  - Throttled per-frame hover inspection in `renderSystem()` ticker loop to only run when pointer, camera position, zoom, player position, or map revealed states change.
+  - Dropped `aria-live="polite"` from `TacticalInspectTooltip.tsx` root to protect screen-reader users, and added `document.elementFromPoint` check against `#ui-root` to suppress tooltips over HUD elements. Verified in `tests/rendering/r1-r4-render-controls.test.ts`.
+- [x] **[P2-R2] Prop Outline Freshness & Persistent Searched Dimming (`src/rendering/render-system.ts`, `src/rendering/filters/glitch-effects.ts`)**
+  - Fixed visibility loop in `renderSystem()` to persist `alpha * 0.6` for searched props across FOV and fog passes without being overwritten back to 1.0.
+  - Updated `applyPropOutline` to track `activePropFilters` via WeakMap, preserve non-prop filters (e.g. temporary damage glitches), and call `destroy()` on replaced filters to eliminate WebGL shader leaks.
+  - Added dynamic outline synchronization in `renderSystem()` to immediately update prop outlines when `CorruptedNode` is revealed or disarmed or unlocked without requiring sprite recreation. Verified in `tests/rendering/r1-r4-render-controls.test.ts`.
+- [x] **[P2-R3] Camera Input Alignment & Tactical Optical Zoom (`src/rendering/render-system.ts`, `src/rendering/camera.ts`)**
+  - Restricted drag panning in `handlePointerDown` strictly to middle-click (`e.button === 1`) and right-click (`e.button === 2`), ignoring left-click (`e.button === 0`).
+  - Implemented mouse wheel optical zoom in `handleWheel` clamped strictly between 0.75x and 1.5x with container scaling, updating visible tile ranges and screen-to-world hover coordinate conversion.
+  - Recenter camera ('C' key) and `onDungeonGenerated` reset both camera pan offset and optical zoom to 1.0. Verified in `tests/rendering/r1-r4-render-controls.test.ts`.
+- [x] **[P2-R4] Game Context Scoping & Non-Development Protection (`src/game/active-context.ts`, `src/app/page.tsx`)**
+  - Eliminated unconditional assignment to `window.gameContext` in `src/app/page.tsx`.
+  - Implemented decoupled context singleton manager `setActiveGameContext` and `getActiveGameContext` in `src/game/active-context.ts`, scrubbing `window.gameContext` in non-development environments.
+  - Migrated UI components to `getActiveGameContext()`. Verified in `tests/rendering/r1-r4-render-controls.test.ts`.
+
 
 
 

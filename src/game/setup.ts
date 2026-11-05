@@ -50,20 +50,21 @@ import { AutoPathfinder } from './debug/auto-pathfind';
 import { useDebugStore } from './debug/debug-store';
 import { EventOriginContext } from '@engine/utils/event-context';
 import { DebugAPI } from './debug/debug-api';
-import { installReactKeyLogger } from './diagnostics/react-key-interceptor';
+
+export { setActiveGameContext, getActiveGameContext } from './active-context';
+import { setActiveGameContext, getActiveGameContext } from './active-context';
 
 /**
  * Canonically resolves the active client sessionId with a consistent fallback chain.
  */
 export function resolveActiveSessionId(explicitSessionId?: string): string {
   const storeState = gameStore.getState();
-  const windowCtxSessionId =
-    typeof window !== 'undefined' ? window.gameContext?.sessionId : undefined;
+  const activeCtxSessionId = getActiveGameContext()?.sessionId;
   const storedSessionId =
     typeof window !== 'undefined' ? window.localStorage?.getItem('nimrata_sessionId') : null;
   return (
     explicitSessionId ||
-    windowCtxSessionId ||
+    activeCtxSessionId ||
     storeState.launchConfig?.sessionId ||
     storedSessionId ||
     storeState.playerProfile?.sessionId ||
@@ -71,8 +72,6 @@ export function resolveActiveSessionId(explicitSessionId?: string): string {
   );
 }
 
-// Install diagnostic interceptor for React key collision warnings on client
-installReactKeyLogger();
 
 declare global {
   interface Window {
@@ -247,6 +246,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   };
 
   fsm.setContext(context);
+  setActiveGameContext(context);
 
   if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
     window.__DEBUG__ = new DebugAPI(context, (intent) => sendActionToServer(intent));
@@ -862,4 +862,5 @@ export function destroyGame(context: GameContext) {
   context.autoPathfinder?.cancel();
   context.inputManager.disable();
   context.eventBus.clear();
+  setActiveGameContext(null);
 }

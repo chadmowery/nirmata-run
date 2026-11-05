@@ -7,9 +7,10 @@ import { TILE_SIZE, VIEWPORT_W, VIEWPORT_H } from './constants';
 export function computeCameraTarget(
   playerGridX: number,
   playerGridY: number,
+  zoom: number = 1.0,
 ): { x: number; y: number } {
-  const x = VIEWPORT_W / 2 - playerGridX * TILE_SIZE - TILE_SIZE / 2;
-  const y = VIEWPORT_H / 2 - playerGridY * TILE_SIZE - TILE_SIZE / 2;
+  const x = VIEWPORT_W / 2 - (playerGridX * TILE_SIZE + TILE_SIZE / 2) * zoom;
+  const y = VIEWPORT_H / 2 - (playerGridY * TILE_SIZE + TILE_SIZE / 2) * zoom;
   return { x, y };
 }
 
@@ -48,11 +49,13 @@ export function lerpCamera(
 export function getVisibleTileRange(
   cameraX: number,
   cameraY: number,
+  zoom: number = 1.0,
 ): { startX: number; startY: number; endX: number; endY: number } {
-  const startX = Math.floor(-cameraX / TILE_SIZE) - 1;
-  const startY = Math.floor(-cameraY / TILE_SIZE) - 1;
-  const endX = startX + Math.ceil(VIEWPORT_W / TILE_SIZE) + 2;
-  const endY = startY + Math.ceil(VIEWPORT_H / TILE_SIZE) + 2;
+  const effectiveTileSize = TILE_SIZE * zoom;
+  const startX = Math.floor(-cameraX / effectiveTileSize) - 1;
+  const startY = Math.floor(-cameraY / effectiveTileSize) - 1;
+  const endX = startX + Math.ceil(VIEWPORT_W / effectiveTileSize) + 2;
+  const endY = startY + Math.ceil(VIEWPORT_H / effectiveTileSize) + 2;
 
   return { startX, startY, endX, endY };
 }

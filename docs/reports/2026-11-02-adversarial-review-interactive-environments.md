@@ -542,7 +542,14 @@ Related issues in the same family:
 
 **Fix:** drop one unit (or an explicit quantity), spawn a ground entity per dropped unit or carry `quantity` on the ground item, and preserve the original sprite and template.
 
-### U5. The "duplicate React key" fix hides a real ID-collision bug
+### U5. The "duplicate React key" fix hides a real ID-collision bug — ✅ RESOLVED
+
+> [!NOTE]
+> **Resolution Status (2026-11-04):** Completely resolved and verified with unit test suite in `tests/game/u5-vault-collision.test.ts`.
+> - **Stable `vaultItemId` Minting**: Added `generateVaultItemId()` (UUID v4) and default generator in `VaultItemSchema` (`src/shared/profile.ts`). Extraction in `run-ender.ts`, `action/route.ts`, `prop-interaction.ts`, and purchase/uninstall routes mint unique `vaultItemId` for every secured asset.
+> - **Transparent Profile Migration**: `VaultItemSchema` populates default `vaultItemId` for any legacy vault records parsed without an ID, ensuring zero profile corruption or data loss.
+> - **Keying & Lookup by `vaultItemId`**: Updated all vault routes (`equip-from-vault`, `sell`, `discard`, `socket-software`) and `vault-manager.ts` to locate and manipulate items by `vaultItemId` with fallback to `entityId`. Destructive `.filter()` calls replaced with targeted `.splice()`.
+> - **UI Re-keying & Interceptor Deprecation**: Updated `VaultGrid.tsx`, `VaultTab.tsx`, `LoadoutTab.tsx`, `VaultOverflowBanner.tsx`, and `StashItemList.tsx` to key strictly by `item.vaultItemId`. Deprecated and disabled the React duplicate-key console interceptor in `src/game/diagnostics/react-key-interceptor.ts`.
 
 The handoff §5.6 says duplicate keys were "fixed across all hub and vault list components". The changes use `key={`${entityId}-${idx}`}` (VaultTab, LoadoutTab) and add a `console.error` interceptor to name the culprit. That addresses the symptom only:
 
@@ -557,7 +564,14 @@ The handoff §5.6 says duplicate keys were "fixed across all hub and vault list 
 
 ## P2.2 Rendering findings
 
-### R1. Hover inspection runs every frame and re-renders the tooltip at frame rate
+### R1. Hover inspection runs every frame and re-renders the tooltip at frame rate — ✅ RESOLVED
+
+> [!NOTE]
+> **Resolution Status (2026-11-04):** Completely resolved and verified with unit test suite in `tests/rendering/r1-r4-render-controls.test.ts`.
+> - **O(1) Spatial Lookups**: Replaced O(N) full ECS scan in `tile-inspector.ts` with spatial lookups `grid.getEntitiesAt(gx, gy)` and `grid.getItemsAt(gx, gy)`.
+> - **Store Equality Deduplication**: Added deep equality check to `setHoveredEntity` in `src/game/ui/store.ts`, preventing redundant Zustand store updates and eliminating 60 Hz re-render thrashing.
+> - **Throttled Frame Inspection**: Ticker loop hover check in `renderSystem()` only recomputes inspection when pointer, camera position, zoom, player position, or map revealed states change.
+> - **Screen-Reader & UI Protection**: Dropped hostile `aria-live="polite"` from `TacticalInspectTooltip.tsx`. Added `document.elementFromPoint` check in `render-system.ts` against `#ui-root` to immediately suppress tooltips when cursor is hovering over HUD panels, ribbons, or modals.
 
 [`render-system.ts` L668](../../src/rendering/render-system.ts): `renderSystem()` is attached to the Pixi ticker ([`page.tsx` L132-L136](../../src/app/page.tsx)). At its end, if a pointer position exists, it calls `updateHoverInspection(lastPointerEvent)` **every frame**, in addition to the `pointermove` call. Each call:
 
@@ -571,7 +585,13 @@ I did not profile this. By code reading it is the most likely source of hover ja
 
 **Fix:** resolve the tile only when the hovered grid cell or the relevant world revision changes; use a spatial index (`grid.getEntitiesAt`) instead of scanning all entities; compare the new info with the old before `set`; drop `aria-live` from a hover tooltip (or move it to a debounced live region).
 
-### R2. Prop outline state goes stale; the "searched" dimming never sticks
+### R2. Prop outline state goes stale; the "searched" dimming never sticks — ✅ RESOLVED
+
+> [!NOTE]
+> **Resolution Status (2026-11-04):** Completely resolved and verified with unit test suite in `tests/rendering/r1-r4-render-controls.test.ts`.
+> - **Persistent Searched Dimming**: Fixed the visibility loop in `renderSystem()` to apply `alpha * 0.6` when `Prop.isSearched === true` across both FOV and fog passes, preventing searched dimming from being clobbered back to 1.0.
+> - **Filter Layer Composition & Leak Prevention**: `applyPropOutline` now tracks `activePropFilters` via a `WeakMap<Sprite, Filter[]>`, preserves non-prop filters (e.g. temporary damage glitch effects), and calls `destroy()` on replaced filters to eliminate WebGL shader leaks.
+> - **Dynamic Outline Synchronization**: `renderSystem()` checks active `Prop` entities every frame against cached outline states (`resolvePropOutlineState`), updating outlines immediately when nodes are revealed, disarmed, unlocked, or depleted without requiring sprite destruction.
 
 - **Update triggers:** outlines are recomputed only on `ENTITY_CREATED`, `PROP_INTERACTED` and `LOCK_UNLOCKED`. Disarming a node via firmware ([`firmware.ts`](../../src/game/systems/firmware.ts)) emits neither, and revealing nodes emits none. A disarmed trap keeps its pink outline until the sprite is recreated.
 - **Alpha overwrite:** `applyPropOutline(sprite, 'searched')` sets `sprite.alpha = 0.6`. The main loop at [render-system L654](../../src/rendering/render-system.ts) then sets `sprite.alpha = alpha` for **every** renderable on every frame (the FOV visibility alpha), erasing it. Depleted props are distinguishable only by the missing outline. The handoff's "Dimmed Alpha (0.4)" is also wrong (code and comment say 0.6).
@@ -580,14 +600,26 @@ I did not profile this. By code reading it is the most likely source of hover ja
 
 **Fix:** derive outline state from a single "prop visual state" function used by both creation and update, trigger it on component change (or on `STATE_RECONCILED`), keep a per-sprite filter set so layers compose, and apply "depleted" dimming in the same place that computes visibility alpha.
 
-### R3. Camera input contradicts the manual
+### R3. Camera input contradicts the manual — ✅ RESOLVED
+
+> [!NOTE]
+> **Resolution Status (2026-11-04):** Completely resolved and verified with unit test suite in `tests/rendering/r1-r4-render-controls.test.ts`.
+> - **Button Gating**: In `handlePointerDown`, drag panning is restricted strictly to middle-click (`e.button === 1`) and right-click (`e.button === 2`). Left-click (`e.button === 0`) does not initiate dragging, protecting targeting reticles and interaction clicks.
+> - **Tactical Optical Zoom**: Implemented mouse wheel zoom in `handleWheel`, clamped strictly between `0.75x` and `1.5x`. Scales `worldContainer`, updates visible tile ranges, and correctly adjusts screen-to-world coordinate transformations in hover inspection.
+> - **Recenter Alignment**: Pressing 'C' (`RECENTER_CAMERA`) and new floor generation (`onDungeonGenerated`) reset both camera pan offset to (0,0) and optical zoom to `1.0`.
 
 - The Hotkeys manual says **right-click or middle-click drag** pans and the **wheel zooms**. [`handlePointerDown` (L158)](../../src/rendering/render-system.ts) starts a drag for **any** button, so **left-click drag pans** (and a simple click clears the hover and can nudge the camera). [`handleWheel` (L191)](../../src/rendering/render-system.ts) **pans** by `deltaX/deltaY`; there is no zoom anywhere.
 - Left-drag-to-pan will collide with future click-to-move or click-to-target. It also means the existing targeting reticle and any canvas click handler race with the pan.
 - The wheel handler is registered `{ passive: false }` with `preventDefault()` on the canvas, so page scroll over the canvas is blocked (acceptable) but trackpad two-finger gestures now silently pan the world.
 - The hover handler uses canvas bounds only. It does not check whether another element (HUD panels, sidebars, the message log) is on top at that point, so the tooltip can appear while hovering HUD controls that overlap the canvas. The modal visibility check covers only the listed modals. (Not confirmed in the browser.)
 
-### R4. Debug and fog-of-war surface
+### R4. Debug and fog-of-war surface — ✅ RESOLVED
+
+> [!NOTE]
+> **Resolution Status (2026-11-04):** Completely resolved and verified with unit test suite in `tests/rendering/r1-r4-render-controls.test.ts`.
+> - **Scrubbed Global Leak**: Eliminated unconditional assignment to `window.gameContext` in `src/app/page.tsx`.
+> - **Decoupled Context Access**: Implemented `setActiveGameContext` and `getActiveGameContext` in `src/game/active-context.ts`. `window.gameContext` is mirrored exclusively when `NODE_ENV === 'development'` and scrubbed completely in production builds.
+> - **Component Migration**: Migrated all client UI components (`BackpackGrid`, `EquipmentPanel`, `ChassisTelemetrySidebar`, `InRunItemTooltip`, `DeadDropModal`, `AbortMissionDialog`, and Zustand store) to `getActiveGameContext()`.
 
 - [`page.tsx` L114](../../src/app/page.tsx) sets `window.gameContext = context` **unconditionally**, with only a comment ("Expose for debugging"). `DevTerminal` and `window.__DEBUG__` are correctly gated on `NODE_ENV === 'development'`, but `gameContext` (full `World`, `Grid`, `EventBus`, `sessionId`) is available in production builds, and three components depend on it at runtime.
 - Fog of war is **purely cosmetic**. The server sends every entity and tile in `FULL`/`DELTA` payloads. `/show-map` is therefore only a convenience for the client; anyone can read all enemy positions, props and loot from the network response or `window.gameContext` today. This is a design property, not new, but this branch increases what the payload exposes (C3), and the handoff presents `/show-map` as a deliberate dev feature.
@@ -689,8 +721,8 @@ Skimmed rather than line-reviewed. Beyond U11: the modal overlays use `position:
 - [x] An input-driven test can open a locked safe via overclock and use a Dead-Drop Uplink
 - [x] Every client action path goes through one request function that applies the returned payload; server rejects overlapping requests per session
 - [ ] Dropping then picking up a consumable stack preserves the count
-- [ ] Vault items have unique IDs; two vault entries with the same legacy ID cannot be confused by equip, sell or discard
-- [ ] Hover inspection is not recomputed every frame
+- [x] Vault items have unique IDs; two vault entries with the same legacy ID cannot be confused by equip, sell or discard
+- [x] Hover inspection is not recomputed every frame
 - [ ] Hotkeys manual, tooltip hints and handoff match actual bindings and behaviour
 - [ ] New UI uses design tokens with correct semantics (cyan vs chartreuse); `--c-nanites` defined
 

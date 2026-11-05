@@ -7,6 +7,7 @@ import { GameState } from '@/game/states/types';
 import { dispatchUIAction } from '@/game/input/input-bridge';
 import { GameAction } from '@/game/input/actions';
 import { GameContext } from '@/game/types';
+import { getActiveGameContext } from '@/game/setup';
 import { TaikokuPlacard, BtnLever } from './atomic';
 import styles from './AbortMissionDialog.module.css';
 
@@ -45,8 +46,8 @@ export const AbortMissionDialog: React.FC<AbortMissionDialogProps> = ({
     setAbortDialogVisible(false);
 
     // Retrieve active session ID
-    let sessionId = 'default-player-session';
-    if (typeof window !== 'undefined') {
+    let sessionId = getActiveGameContext()?.sessionId || 'default-player-session';
+    if (typeof window !== 'undefined' && sessionId === 'default-player-session') {
       sessionId =
         localStorage.getItem('nimrata_sessionId') ||
         (window as unknown as { gameContext?: { sessionId?: string } }).gameContext?.sessionId ||
@@ -69,7 +70,7 @@ export const AbortMissionDialog: React.FC<AbortMissionDialogProps> = ({
         // Server handles turn, emits RUN_ENDED, and returns delta payload
         if (data.payload) {
           const { applyStateDelta } = await import('@shared/reconciliation');
-          const context = (window as unknown as { gameContext?: GameContext }).gameContext;
+          const context = getActiveGameContext() || (typeof window !== 'undefined' ? (window as unknown as { gameContext?: GameContext }).gameContext : undefined);
           if (context) {
             applyStateDelta(
               context.world,
