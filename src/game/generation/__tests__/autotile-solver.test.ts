@@ -146,16 +146,9 @@ describe('AutotileSolver (Milestone 2)', () => {
 
       const result = AutotileSolver.resolveWallTile(grid, 2, 2, false);
       expect(result.bitmask).toBe(mask);
-
-      // If mask is 15 and all diagonals are floor, it resolves an inner corner (e.g. NW)
-      if (mask === 15) {
-        expect(result.tileClass).toBe('corner_inner');
-        expect(result.frameKey).toBe('wall_corner_inner_nw');
-      } else {
-        expect(result.tileClass).toBe(CARDINAL_AUTOTILE_TABLE[mask].tileClass);
-        expect(result.frameKey).toBe(CARDINAL_AUTOTILE_TABLE[mask].frameKey);
-        expect(result.orientation).toBe(CARDINAL_AUTOTILE_TABLE[mask].orientation);
-      }
+      expect(result.tileClass).toBe(CARDINAL_AUTOTILE_TABLE[mask].tileClass);
+      expect(result.frameKey).toBe(CARDINAL_AUTOTILE_TABLE[mask].frameKey);
+      expect(result.orientation).toBe(CARDINAL_AUTOTILE_TABLE[mask].orientation);
     }
   });
 
@@ -294,6 +287,17 @@ describe('AutotileSolver (Milestone 2)', () => {
       expect(res.tileClass).toBe('corner_inner');
       expect(res.frameKey).toBe('wall_corner_inner_sw');
       expect(res.orientation).toBe('WEST');
+    });
+
+    it('falls back to wall_cross when multiple diagonal neighbors are walkable floor', () => {
+      const grid = createSolid3x3Grid();
+      grid.setTile(0, 0, { terrain: 'floor', walkable: true, transparent: true }); // NW
+      grid.setTile(2, 2, { terrain: 'floor', walkable: true, transparent: true }); // SE
+
+      const res = AutotileSolver.resolveWallTile(grid, 1, 1, false);
+      expect(res.bitmask).toBe(15);
+      expect(res.tileClass).toBe('cross');
+      expect(res.frameKey).toBe('wall_cross');
     });
   });
 

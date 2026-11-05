@@ -15,6 +15,8 @@ import {
   SecurityLock,
   Container,
   CorruptedNode,
+  DirectionalProp,
+  vectorToOrientation,
   InteractPropIntent,
   PropInteractedThisTurn,
   FactionTheme,
@@ -130,6 +132,27 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
 
       const prop = w.getComponent(targetId, Prop)!;
       const propClass = prop.propClass;
+
+      // Validate DirectionalProp front-facing access
+      if (w.hasComponent(targetId, DirectionalProp)) {
+        const directional = w.getComponent(targetId, DirectionalProp)!;
+        if (directional.requiresFrontAccess && actorPos && propPos) {
+          const dxToPlayer = actorPos.x - propPos.x;
+          const dyToPlayer = actorPos.y - propPos.y;
+          const fx = directional.frontFacingVector.x;
+          const fy = directional.frontFacingVector.y;
+
+          if (dxToPlayer !== fx || dyToPlayer !== fy) {
+            const facingOrientation = vectorToOrientation(fx, fy);
+            bus.emit('MESSAGE_EMITTED', {
+              text: `[NOTICE] ${propClass.toUpperCase()} FRONT INTERFACE IS TO THE ${facingOrientation}.`,
+              type: 'warning',
+            });
+            w.removeComponent(actorId, InteractPropIntent);
+            continue;
+          }
+        }
+      }
 
       // 1. Resolve SecurityLock
       if (w.hasComponent(targetId, SecurityLock)) {

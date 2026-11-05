@@ -27,8 +27,8 @@ The Directional Tilemaps & Themed Tileset feature branch implements:
 | :--- | :--- | :--- | :--- |
 | **M1: Core Schemas & Types** | `TileOrientation`, `AutotileState`, `DirectionalProp` Zod schemas, `ThemedTilesetManifestSchema`, registration in `COMPONENTS_REGISTRY`. | 🟢 Complete | `src/shared/components/environment.ts`, `src/shared/tileset-types.ts`, `src/shared/components/__tests__/directional-environment.test.ts`, `src/shared/__tests__/tileset-types.test.ts` (8/8 pass) |
 | **M2: Autotile & Wall Cap Solver** | `AutotileSolver` (4-bit cardinal + 8-bit corner bitmasks, wall cap inversion, door alignments), dungeon generator wiring. | 🟢 Complete | `src/game/generation/autotile-solver.ts`, `src/game/generation/__tests__/autotile-solver.test.ts` (14/14 pass), 750-floor sweep verified |
-| **M3: Directional Props & Cover** | Front-facing access constraint in `MovementSystem` & `PropInteractionSystem`, dot product cover in `CombatSystem`, entity templates. | 🟡 In Progress | Systems, templates, unit tests |
-| **M4: PixiJS 8 Rendering Layer** | `tilemap.ts` & `sprite-map.ts` sprite rotation and directional frame key lookups, themed faction asset loading. | ⚪ Pending | Rendering tests |
+| **M3: Directional Props & Cover** | Front-facing access constraint in `MovementSystem` & `PropInteractionSystem`, dot product cover in `CombatSystem`, entity templates. | 🟢 Complete | Systems updated, 18 directional entity templates registered, `src/game/systems/__tests__/directional-prop-cover.test.ts` (5/5 pass) |
+| **M4: PixiJS 8 Rendering Layer** | `tilemap.ts` & `sprite-map.ts` sprite rotation and directional frame key lookups, themed faction asset loading. | 🟡 In Progress | Rendering tests |
 | **M5: Gamedata Studio & Polish** | PrefabEditor directional controls, real-time preview, frame validator API, regression test suite. | ⚪ Pending | Dev UI tests, typecheck, lint |
 
 ---
@@ -64,3 +64,10 @@ The Directional Tilemaps & Themed Tileset feature branch implements:
     - Wired `TileOrientation` and `DirectionalProp` attachment to environmental props in `entity-placement.ts`.
     - Authored comprehensive test suite in `src/game/generation/__tests__/autotile-solver.test.ts` (14/14 tests pass).
     - Verified 750-floor generation sweep and full typecheck/lint.
+  - **Milestone 3 Complete**:
+    - Confirmed user alignment on vector signs, orthogonal bump access, multiple diagonal floor fallback (`wall_cross`), and manifest fallback frames.
+    - Updated `AutotileSolver` Pass 3 to fallback to `wall_cross` when multiple diagonal neighbors are floor.
+    - Updated `MovementSystem` and `PropInteractionSystem` to enforce front-facing access constraints on props with `requiresFrontAccess === true`, halting movement at 0 turn cost with `[NOTICE] <PROP> FRONT INTERFACE IS TO THE <DIRECTION>` and clearing input queues.
+    - Updated `CombatSystem.checkDirectionalCover` to evaluate threat vector against cover normal $(P_{\text{attacker}} - P_{\text{target}}) \cdot N_{\text{cover}} > 0$, bypassing cover on flanks.
+    - Authored 18 directional entity templates (`prop-workstation-{n,e,s,w}`, `prop-locker-{n,e,s,w}`, `prop-biocabinet-{n,e,s,w}`, `prop-vault-door-{n,e,s,w}`, `prop-crate-cover-{h,v}`) and registered them in `EntityRegistry`.
+    - Added unit test suite in `src/game/systems/__tests__/directional-prop-cover.test.ts` (5/5 pass) and verified regression in `cover-and-hazards.test.ts` (13/13 pass).

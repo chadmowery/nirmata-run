@@ -1,0 +1,32 @@
+{
+  "name": "prop-workstation-e",
+  "mixins": [],
+  "components": {
+    "position": { "x": 0, "y": 0 },
+    "prop": {
+      "propId": "workstation",
+      "faction": "cyberacme",
+      "propClass": "workstation",
+      "heatCostOnAccess": 10
+    },
+    "container": {
+      "containerId": "workstation",
+      "capacity": 4
+    },
+    "tileOrientation": {
+      "facing": "EAST",
+      "angleDegrees": 90,
+      "isRotatable": false
+    },
+    "directionalProp": {
+      "requiresFrontAccess": true,
+      "frontFacingVector": { "x": 1, "y": 0 },
+      "hasDirectionalCover": true,
+      "coverArcDegrees": 180
+    },
+    "blocksMovement": {}
+  },
+  "overrides": {
+    "sprite": { "key": "prop_workstation_e" }
+  }
+}

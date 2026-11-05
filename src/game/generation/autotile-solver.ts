@@ -117,41 +117,48 @@ export class AutotileSolver {
       const seFloor = AutotileSolver.isWalkableFloor(grid, x + 1, y + 1);
       const swFloor = AutotileSolver.isWalkableFloor(grid, x - 1, y + 1);
 
-      if (nwFloor) {
-        return {
-          bitmask,
-          tileClass: 'corner_inner',
-          frameKey: 'wall_corner_inner_nw',
-          orientation: 'NORTH',
-          angleDegrees: ORIENTATION_ANGLES.NORTH,
-        };
-      }
-      if (neFloor) {
-        return {
-          bitmask,
-          tileClass: 'corner_inner',
-          frameKey: 'wall_corner_inner_ne',
-          orientation: 'EAST',
-          angleDegrees: ORIENTATION_ANGLES.EAST,
-        };
-      }
-      if (seFloor) {
-        return {
-          bitmask,
-          tileClass: 'corner_inner',
-          frameKey: 'wall_corner_inner_se',
-          orientation: 'SOUTH',
-          angleDegrees: ORIENTATION_ANGLES.SOUTH,
-        };
-      }
-      if (swFloor) {
-        return {
-          bitmask,
-          tileClass: 'corner_inner',
-          frameKey: 'wall_corner_inner_sw',
-          orientation: 'WEST',
-          angleDegrees: ORIENTATION_ANGLES.WEST,
-        };
+      const floorCount =
+        (nwFloor ? 1 : 0) + (neFloor ? 1 : 0) + (seFloor ? 1 : 0) + (swFloor ? 1 : 0);
+
+      // If exactly one diagonal neighbor is walkable floor, resolve the corresponding inner corner.
+      // If multiple diagonals or none are floor, fallback to wall_cross.
+      if (floorCount === 1) {
+        if (nwFloor) {
+          return {
+            bitmask,
+            tileClass: 'corner_inner',
+            frameKey: 'wall_corner_inner_nw',
+            orientation: 'NORTH',
+            angleDegrees: ORIENTATION_ANGLES.NORTH,
+          };
+        }
+        if (neFloor) {
+          return {
+            bitmask,
+            tileClass: 'corner_inner',
+            frameKey: 'wall_corner_inner_ne',
+            orientation: 'EAST',
+            angleDegrees: ORIENTATION_ANGLES.EAST,
+          };
+        }
+        if (seFloor) {
+          return {
+            bitmask,
+            tileClass: 'corner_inner',
+            frameKey: 'wall_corner_inner_se',
+            orientation: 'SOUTH',
+            angleDegrees: ORIENTATION_ANGLES.SOUTH,
+          };
+        }
+        if (swFloor) {
+          return {
+            bitmask,
+            tileClass: 'corner_inner',
+            frameKey: 'wall_corner_inner_sw',
+            orientation: 'WEST',
+            angleDegrees: ORIENTATION_ANGLES.WEST,
+          };
+        }
       }
     }
 
