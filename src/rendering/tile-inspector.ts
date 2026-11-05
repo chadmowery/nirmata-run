@@ -15,6 +15,7 @@ import {
   Container,
   CorruptedNode,
   InteractiveSurface,
+  FactionTheme,
 } from '@shared/components/environment';
 import { StaircaseMarker } from '@shared/components/staircase-marker';
 import { AnchorMarker } from '@shared/components/anchor-marker';
@@ -98,107 +99,172 @@ const ENEMY_LORE: Record<
   },
 };
 
-const PROP_CLASS_LORE: Record<
-  string,
-  { name: string; kanjiSub: string; subTitle: string; description: string; flavorText: string }
+export const FACTION_LORE: Record<
+  FactionTheme,
+  { fullName: string; shortName: string; descriptor: string }
 > = {
-  workstation: {
-    name: 'CYBERACME TERMINAL WORKSTATION',
-    kanjiSub: '端末操作盤',
-    subTitle: 'SUBNET ACCESS CONSOLE',
-    description: 'Industrial mainframe terminal connected to sub-deck fiber lines.',
-    flavorText:
-      'Displays flickering administrative logs and encrypted memory registers. May yield valuable software binaries or corporate telemetry.',
+  traxus: {
+    fullName: 'Traxus Heavy Industries',
+    shortName: 'TRAXUS',
+    descriptor: 'heavy industrial',
   },
-  locker: {
-    name: 'REINFORCED CARGO LOCKER',
-    kanjiSub: '補給金庫',
-    subTitle: 'HEAVY STORAGE RECEPTACLE',
-    description: 'Heavy-gauge corporate utility locker sealed against corrosion.',
-    flavorText:
-      'Standard-issue Traxus freight storage constructed from reinforced plasteel. Contains physical weapon components and modular armor plates.',
+  cyberacme: {
+    fullName: 'CyberAcme Systems',
+    shortName: 'CYBERACME',
+    descriptor: 'computational network',
   },
-  cabinet: {
-    name: 'BIO-CONTAINMENT CABINET',
-    kanjiSub: '医療格納庫',
-    subTitle: 'STERILIZED MEDICAL VAULT',
-    description: 'Hermetically sealed pharmaceutical refrigeration unit.',
-    flavorText:
-      'Pressurized containment chamber designed by Sekiguchi Gene-Labs. Houses concentrated nanite repair serums and biological stabilizers.',
+  sekiguchi: {
+    fullName: 'Sekiguchi Genetics',
+    shortName: 'SEKIGUCHI',
+    descriptor: 'biomedical synthesis',
   },
-  surface_table: {
-    name: 'LOW-COVER WORKTABLE',
-    kanjiSub: '作業遮蔽台',
-    subTitle: 'TACTICAL CARBON COVER',
-    description: 'Hardened composite industrial workbench.',
-    flavorText:
-      'Dense carbon-fiber workbench reinforced to absorb ballistic impact and projectile ricochets. Provides tactical kinetic cover during firefights.',
+  nucaloric: {
+    fullName: 'NuCaloric Energy Corp',
+    shortName: 'NUCALORIC',
+    descriptor: 'thermal power',
   },
-  encrypted_safe: {
-    name: 'SECURE HARDWARE VAULT',
-    kanjiSub: '暗号保管庫',
-    subTitle: 'CIPHER-LOCKED CONTAINER',
-    description: 'Hardened alloy safe secured by multi-factor biometric locks.',
-    flavorText:
-      'High-security Traxus vault shielded against unauthorized electromagnetic probes. Contains military-grade scrap reserves and rare tech.',
-  },
-  vault_door: {
-    name: 'FARADAY REINFORCED AIRLOCK',
-    kanjiSub: '遮蔽気密扉',
-    subTitle: 'SECURE FARADAY BULKHEAD',
-    description: 'Heavy blast-door isolating high-priority corporate data chambers.',
-    flavorText:
-      'Dense lead-lined Faraday perimeter bulkhead. Prevents remote sensor scans and phased teleportation until the primary lock is overridden.',
-  },
-  dead_drop_uplink: {
-    name: 'DEAD-DROP TRANSMISSION NODE',
-    kanjiSub: '暗号中継機',
-    subTitle: 'QUANTUM VAULT TRANSCEIVER',
-    description: 'Direct quantum uplink to the operator surface vault.',
-    flavorText:
-      'One-way secure quantum transceiver capable of offloading salvaged software and equipment directly to your persistent vault before extraction.',
-  },
-  reality_stabilizer: {
-    name: 'REALITY STABILIZER NODE',
-    kanjiSub: '現実固定装置',
-    subTitle: 'MICRO-SINGULARITY HARMONIC UNIT',
-    description: 'Micro-singularity field generator that counters dimensional decay.',
-    flavorText:
-      'Projects a localized dimensional harmonic wave that temporarily recalibrates Reality Stability, offsetting the entropic sector bleed.',
-  },
-  cooling_vent: {
-    name: 'CRYOGENIC BYPASS VENT',
-    kanjiSub: '冷媒排出弁',
-    subTitle: 'HIGH-PRESSURE FREON VENT',
-    description: 'Pressurized exhaust vent connected to cryogenic fluid pipes.',
-    flavorText:
-      'Purges extreme thermal buildup directly from chassis heatsinks when accessed, resetting dangerous accumulated thermal heat.',
-  },
-  subnet_console: {
-    name: 'DISTRIBUTED SUBNET CONSOLE',
-    kanjiSub: '回線中継盤',
-    subTitle: 'SECTOR NETWORK ROUTER',
-    description: 'Central telemetric router governing sector surveillance grids.',
-    flavorText:
-      'Interfacing with this terminal allows operators to trigger sector overclock routines or download full facility architecture schematics.',
-  },
-  volatile_vat: {
-    name: 'PRESSURIZED CHEMICAL RESERVOIR',
-    kanjiSub: '化学貯蔵槽',
-    subTitle: 'REACTIVE FLUID TANK',
-    description: 'Fragile industrial vat holding pressurized reactive compounds.',
-    flavorText:
-      'Structural integrity is critically compromised. Extreme ballistic or thermal shocks will trigger a catastrophic chemical hazard spill.',
-  },
-  capacitor_bank: {
-    name: 'HIGH-VOLTAGE CAPACITOR BANK',
-    kanjiSub: '高圧蓄電体',
-    subTitle: 'MEGAWATT POWER CONDUIT',
-    description: 'Heavy power transformer storing high-yield electromagnetic potential.',
-    flavorText:
-      'Contains volatile electrical reserves. Breaching or overloading this unit discharges a devastating kinetic EMP arc into adjacent tiles.',
+  system: {
+    fullName: 'System Infrastructure',
+    shortName: 'SYSTEM',
+    descriptor: 'automated facility',
   },
 };
+
+export function resolvePropLore(
+  propClass: string,
+  factionTheme: FactionTheme = 'system',
+  hasFaradayBounds: boolean = false,
+): { name: string; kanjiSub: string; subTitle: string; description: string; flavorText: string } {
+  const faction = FACTION_LORE[factionTheme] || FACTION_LORE.system;
+
+  switch (propClass) {
+    case 'workstation':
+      return {
+        name: `${faction.shortName} TERMINAL WORKSTATION`,
+        kanjiSub: '端末操作盤',
+        subTitle: 'SUBNET ACCESS CONSOLE',
+        description: 'Industrial mainframe terminal connected to sub-deck fiber lines.',
+        flavorText: `Displays flickering administrative logs and encrypted memory registers maintained by ${faction.fullName}. May yield valuable software binaries or corporate telemetry.`,
+      };
+    case 'locker':
+      return {
+        name: 'REINFORCED CARGO LOCKER',
+        kanjiSub: '補給金庫',
+        subTitle: 'HEAVY STORAGE RECEPTACLE',
+        description: 'Heavy-gauge corporate utility locker sealed against corrosion.',
+        flavorText: `Standard-issue ${faction.fullName} freight storage constructed from reinforced plasteel. Contains physical weapon components and modular armor plates.`,
+      };
+    case 'cabinet':
+      return {
+        name: 'BIO-CONTAINMENT CABINET',
+        kanjiSub: '医療格納庫',
+        subTitle: 'STERILIZED MEDICAL VAULT',
+        description: 'Hermetically sealed pharmaceutical refrigeration unit.',
+        flavorText: `Pressurized containment chamber designed by ${faction.fullName}. Houses concentrated nanite repair serums and biological stabilizers.`,
+      };
+    case 'surface_table':
+      return {
+        name: 'LOW-COVER WORKTABLE',
+        kanjiSub: '作業遮蔽台',
+        subTitle: 'TACTICAL CARBON COVER',
+        description: 'Hardened composite industrial workbench.',
+        flavorText: `Dense carbon-fiber workbench reinforced to absorb ballistic impact and projectile ricochets. Manufactured for ${faction.fullName} facility operations.`,
+      };
+    case 'encrypted_safe':
+      return {
+        name: 'SECURE HARDWARE VAULT',
+        kanjiSub: '暗号保管庫',
+        subTitle: 'CIPHER-LOCKED CONTAINER',
+        description: 'Hardened alloy safe secured by multi-factor biometric locks.',
+        flavorText: `High-security ${faction.fullName} vault shielded against unauthorized electromagnetic probes. Contains military-grade scrap reserves and rare tech.`,
+      };
+    case 'vault_door':
+      if (hasFaradayBounds) {
+        return {
+          name: `${faction.shortName} REINFORCED AIRLOCK`,
+          kanjiSub: '遮蔽気密扉',
+          subTitle: 'FARADAY PERIMETER BULKHEAD',
+          description: 'Heavy blast-door isolating high-priority corporate data chambers.',
+          flavorText: `Dense lead-lined Faraday perimeter bulkhead installed by ${faction.fullName}. Prevents remote sensor scans and phased teleportation until the primary lock is overridden.`,
+        };
+      }
+      return {
+        name: `${faction.shortName} SECURITY AIRLOCK`,
+        kanjiSub: '遮蔽気密扉',
+        subTitle: 'REINFORCED BLAST BULKHEAD',
+        description: 'Heavy blast-door isolating high-priority facility sectors.',
+        flavorText: `Dense perimeter security blast bulkhead installed by ${faction.fullName}. Isolates high-value chambers and prevents unauthorized physical passage until the primary lock is overridden.`,
+      };
+    case 'dead_drop_uplink':
+      return {
+        name: 'DEAD-DROP TRANSMISSION NODE',
+        kanjiSub: '暗号中継機',
+        subTitle: 'QUANTUM VAULT TRANSCEIVER',
+        description: 'Direct quantum uplink to the operator surface vault.',
+        flavorText:
+          'One-way secure quantum transceiver capable of offloading salvaged software and equipment directly to your persistent vault before extraction.',
+      };
+    case 'reality_stabilizer':
+      return {
+        name: 'REALITY STABILIZER NODE',
+        kanjiSub: '現実固定装置',
+        subTitle: 'MICRO-SINGULARITY HARMONIC UNIT',
+        description: 'Micro-singularity field generator that counters dimensional decay.',
+        flavorText:
+          'Projects a localized dimensional harmonic wave that temporarily recalibrates Reality Stability, offsetting the entropic sector bleed.',
+      };
+    case 'cooling_vent':
+      return {
+        name: 'CRYOGENIC BYPASS VENT',
+        kanjiSub: '冷媒排出弁',
+        subTitle: 'HIGH-PRESSURE FREON VENT',
+        description: 'Pressurized exhaust vent connected to cryogenic fluid pipes.',
+        flavorText: `Purges extreme thermal buildup directly from chassis heatsinks when accessed, resetting dangerous accumulated thermal heat across ${faction.fullName} sectors.`,
+      };
+    case 'subnet_console':
+      return {
+        name: 'DISTRIBUTED SUBNET CONSOLE',
+        kanjiSub: '回線中継盤',
+        subTitle: 'SECTOR NETWORK ROUTER',
+        description: 'Central telemetric router governing sector surveillance grids.',
+        flavorText: `Interfacing with this ${faction.fullName} terminal allows operators to trigger sector overclock routines or download full facility architecture schematics.`,
+      };
+    case 'volatile_vat':
+      return {
+        name: 'PRESSURIZED CHEMICAL RESERVOIR',
+        kanjiSub: '化学貯蔵槽',
+        subTitle: 'REACTIVE FLUID TANK',
+        description: 'Fragile industrial vat holding pressurized reactive compounds.',
+        flavorText: `Structural integrity is critically compromised. Extreme ballistic or thermal shocks will trigger a catastrophic chemical hazard spill across ${faction.fullName} workspaces.`,
+      };
+    case 'capacitor_bank':
+      return {
+        name: 'HIGH-VOLTAGE CAPACITOR BANK',
+        kanjiSub: '高圧蓄電体',
+        subTitle: 'MEGAWATT POWER CONDUIT',
+        description: 'Heavy power transformer storing high-yield electromagnetic potential.',
+        flavorText: `Contains volatile electrical reserves maintained by ${faction.fullName}. Breaching or overloading this unit discharges a devastating kinetic EMP arc into adjacent tiles.`,
+      };
+    default:
+      return {
+        name: `${propClass.toUpperCase().replace(/_/g, ' ')} UNIT`,
+        kanjiSub: '設備端末',
+        subTitle: 'INTERACTIVE PROP NODE',
+        description: 'Corporate infrastructure fixture.',
+        flavorText: `An environmental fixture installed within the ${faction.fullName} corporate facility.`,
+      };
+  }
+}
+
+export const PROP_CLASS_LORE: Record<
+  string,
+  { name: string; kanjiSub: string; subTitle: string; description: string; flavorText: string }
+> = new Proxy(
+  {},
+  {
+    get: (_, propClass: string) => resolvePropLore(propClass, 'system'),
+  },
+);
 
 export interface RememberedPropState {
   isSearched: boolean;
@@ -435,13 +501,11 @@ export function resolveTileInspection(
     const container = world.getComponent(propEntityId, Container);
     const surface = world.getComponent(propEntityId, InteractiveSurface);
 
-    const lore = PROP_CLASS_LORE[prop.propClass] || {
-      name: `${prop.propClass.toUpperCase().replace(/_/g, ' ')} UNIT`,
-      kanjiSub: '設備端末',
-      subTitle: 'INTERACTIVE PROP NODE',
-      description: 'Corporate infrastructure fixture.',
-      flavorText: 'An environmental fixture installed within the corporate facility.',
-    };
+    const lore = resolvePropLore(
+      prop.propClass,
+      prop.faction,
+      Boolean(lock?.faradayBounds),
+    );
 
     // Determine effective client-visible state (live when in FOV, remembered when explored out of FOV)
     let isSearched = false;
@@ -489,11 +553,11 @@ export function resolveTileInspection(
     } else if (isCorruptedVisible) {
       badge = `CORRUPTED NODE [LVL ${corruptionLevel}]`;
       badgeVariant = 'danger';
-      hint = '[E] to force bypass (Hazardous trap payload active)';
+      hint = '[E] to force bypass (Hazardous trap payload active) | Bump blocked by trap safeguard';
     } else if (isLocked) {
       badge = 'ENCRYPTED / LOCKED';
       badgeVariant = 'orange';
-      hint = '[BUMP] to attempt bypass | [E] to overclock (Keycard or overclock required)';
+      hint = '[BUMP] to attempt bypass with Keycard | [E] to overclock (Bump halts without key)';
     } else if (container) {
       badge = 'UNOPENED SALVAGE';
       badgeVariant = 'cyan';
