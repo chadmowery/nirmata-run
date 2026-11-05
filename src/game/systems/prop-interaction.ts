@@ -33,7 +33,7 @@ import { SpriteComponent } from '@shared/components/sprite';
 import { Children } from '@shared/components/children';
 import { AbilityDef } from '@shared/components/ability-def';
 import { AugmentData } from '@shared/components/augment-data';
-import { VaultItem } from '@shared/profile';
+import { VaultItem, generateVaultItemId } from '@shared/profile';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { addCurrency, getCurrencyAmount, removeCurrency } from '@shared/utils/inventory-util';
 import RNG from 'rot-js/lib/rng';
@@ -375,6 +375,7 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
                 const item = runInv.software[swIdx];
                 transmittedItemEntityId = item.entityId;
                 transmittedVaultItem = {
+                  vaultItemId: generateVaultItemId(),
                   entityId: item.entityId,
                   templateId: item.templateId,
                   rarityTier: item.rarityTier,
@@ -416,6 +417,7 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
                     itemType = 'augment';
                   }
                   transmittedVaultItem = {
+                    vaultItemId: generateVaultItemId(),
                     entityId: item.entityId,
                     templateId: item.templateId,
                     rarityTier: item.rarityTier,

@@ -1,4 +1,4 @@
-import { VaultItem } from '../profile';
+import { VaultItem, generateVaultItemId } from '../profile';
 
 export interface EconomyConfig {
   pity: { deathScrapPercent: number };
@@ -54,6 +54,7 @@ export function mapInventoryToVaultItems(
   itemType: 'software' | 'equipment' | 'firmware' | 'augment' = 'software',
 ): VaultItem[] {
   return items.map((item) => ({
+    vaultItemId: generateVaultItemId(),
     entityId: item.entityId,
     templateId: item.templateId,
     rarityTier: item.rarityTier,

@@ -45,6 +45,8 @@ vi.mock('@server/session/session-manager', () => ({
   sessionManager: {
     createSession: vi.fn(),
     getSession: vi.fn(),
+    tryAcquireSessionLock: vi.fn(() => true),
+    releaseSessionLock: vi.fn(),
   },
 }));
 

@@ -26,7 +26,7 @@ import { GameplayEvents } from '@shared/events/types';
 import { logger } from '@engine/utils/logger';
 import { GameEvents } from '../events/types';
 import { RunMode } from '@shared/run-mode';
-import { VaultItem } from '@shared/profile';
+import { VaultItem, generateVaultItemId } from '@shared/profile';
 import {
   calculatePityScrap,
   calculateExtractionFluxBonus,
@@ -121,6 +121,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
           }
           const itemType = item.isConsumable ? ('consumable' as const) : ('equipment' as const);
           return {
+            vaultItemId: generateVaultItemId(),
             entityId: item.entityId,
             templateId: item.templateId,
             rarityTier: item.rarityTier,
@@ -148,6 +149,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
             }
           }
           equippedExtracted.push({
+            vaultItemId: generateVaultItemId(),
             entityId: wId,
             templateId: tmpl?.id || 'rifle-v1',
             rarityTier: rarity?.tier || 'common',
@@ -170,6 +172,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
             }
           }
           equippedExtracted.push({
+            vaultItemId: generateVaultItemId(),
             entityId: aId,
             templateId: tmpl?.id || 'armor-v1',
             rarityTier: rarity?.tier || 'common',

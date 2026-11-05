@@ -65,7 +65,7 @@ export const StashItemList: React.FC<StashItemListProps> = ({
         {filteredItems.length > 0 ? (
           filteredItems.map((item, idx) => (
             <ItemCard
-              key={`${item.entityId}-${idx}`}
+              key={item.vaultItemId || `${item.entityId}-${idx}`}
               item={item}
               onDragStart={onDragStart}
               onHover={handleHover}

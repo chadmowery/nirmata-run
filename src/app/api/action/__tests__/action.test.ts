@@ -310,6 +310,7 @@ describe('Action API Route', () => {
       // Intercept action to emit RUN_ENDED
       turnManager.setPlayerActionHandler(() => {
         const items = Array.from({ length: VAULT_MAX_SLOTS + 5 }, (_, i) => ({
+          vaultItemId: `vault-item-${i}`,
           entityId: 100 + i,
           templateId: `item-${i}`,
           rarityTier: 'rare' as const,

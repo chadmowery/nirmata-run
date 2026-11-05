@@ -8,6 +8,7 @@ import { PlayerProfile, VaultItem } from '@/shared/profile';
 describe('Vault Sorting Logic (sortVaultItems & getVaultItemValue)', () => {
   const sampleItems: VaultItem[] = [
     {
+      vaultItemId: 'vault-sample-1',
       entityId: 1,
       templateId: 'rifle-v1',
       itemType: 'weapon',
@@ -16,6 +17,7 @@ describe('Vault Sorting Logic (sortVaultItems & getVaultItemValue)', () => {
       extractedAtTimestamp: 1000,
     },
     {
+      vaultItemId: 'vault-sample-2',
       entityId: 2,
       templateId: 'bleed-v1',
       itemType: 'software',
@@ -24,6 +26,7 @@ describe('Vault Sorting Logic (sortVaultItems & getVaultItemValue)', () => {
       extractedAtTimestamp: 1000,
     },
     {
+      vaultItemId: 'vault-sample-3',
       entityId: 3,
       templateId: 'phased-overdrive',
       itemType: 'augment',
@@ -32,6 +35,7 @@ describe('Vault Sorting Logic (sortVaultItems & getVaultItemValue)', () => {
       extractedAtTimestamp: 1000,
     },
     {
+      vaultItemId: 'vault-sample-4',
       entityId: 4,
       templateId: 'armor-v3',
       itemType: 'armor',
@@ -41,6 +45,7 @@ describe('Vault Sorting Logic (sortVaultItems & getVaultItemValue)', () => {
       socketedSoftware: ['bleed-v3'],
     },
     {
+      vaultItemId: 'vault-sample-5',
       entityId: 5,
       templateId: 'phase-shift',
       itemType: 'firmware',
@@ -140,6 +145,7 @@ describe('VaultTab UI', () => {
       shellUpgrades: {},
       vault: [
         {
+          vaultItemId: 'vault-item-301',
           entityId: 301,
           templateId: 'rifle-v1',
           itemType: 'weapon',
@@ -148,6 +154,7 @@ describe('VaultTab UI', () => {
           extractedAtTimestamp: 1000,
         },
         {
+          vaultItemId: 'vault-item-302',
           entityId: 302,
           templateId: 'bleed-v1',
           itemType: 'software',
@@ -199,6 +206,7 @@ describe('VaultTab UI', () => {
               ...mockProfile,
               vault: [
                 {
+                  vaultItemId: 'vault-item-301',
                   entityId: 301,
                   templateId: 'rifle-v1',
                   itemType: 'weapon',
@@ -234,7 +242,9 @@ describe('VaultTab UI', () => {
         body: JSON.stringify({
           sessionId: 'test-session',
           targetEntityId: 301,
+          targetVaultItemId: 'vault-item-301',
           softwareEntityId: 302,
+          softwareVaultItemId: 'vault-item-302',
         }),
       }),
     );
@@ -243,6 +253,7 @@ describe('VaultTab UI', () => {
   it('renders sort controls toolbar and toggles sorting directions and reset', () => {
     // Add 3rd item with high rarity/value
     mockProfile.vault.push({
+      vaultItemId: 'vault-item-303',
       entityId: 303,
       templateId: 'phased-overdrive',
       itemType: 'augment',
@@ -339,6 +350,7 @@ describe('VaultTab UI', () => {
         method: 'POST',
         body: JSON.stringify({
           sessionId: 'test-session',
+          vaultItemId: 'vault-item-301',
           entityId: 301,
         }),
       }),

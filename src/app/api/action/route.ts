@@ -9,7 +9,7 @@ import { diff } from 'json-diff-ts';
 import { logger } from '@engine/utils/logger';
 import { GameplayEvents } from '@shared/events/types';
 import { EngineInstance } from '@game/engine-factory';
-import { createDefaultProfile, VaultItem } from '@shared/profile';
+import { createDefaultProfile, VaultItem, generateVaultItemId } from '@shared/profile';
 import { VAULT_MAX_SLOTS } from '@shared/vault';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import economy from '@game/entities/templates/economy.json';
@@ -175,7 +175,10 @@ export async function POST(req: Request) {
       for (const evt of deadDropEvents) {
         const ddPayload = evt.payload as GameplayEvents['DEAD_DROP_TRANSMITTED'];
         if (ddPayload.vaultItem) {
-          const item = { ...ddPayload.vaultItem };
+          const item = {
+            ...ddPayload.vaultItem,
+            vaultItemId: ddPayload.vaultItem.vaultItemId || generateVaultItemId(),
+          };
           let stackedFully = false;
           if (item.itemType === 'consumable') {
             const existing = profile.vault.find(
@@ -255,6 +258,9 @@ export async function POST(req: Request) {
           logger.info(`Processing extraction for ${sessionId}: ${items.length} items.`, 'API');
 
           for (const item of items) {
+            if (!item.vaultItemId) {
+              item.vaultItemId = generateVaultItemId();
+            }
             if (item.itemType === 'consumable') {
               const existing = profile.vault.find(
                 (v) => v.itemType === 'consumable' && v.templateId === item.templateId && (v.quantity ?? 1) < 10,

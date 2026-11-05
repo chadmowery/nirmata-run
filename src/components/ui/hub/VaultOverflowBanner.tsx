@@ -9,8 +9,8 @@ import styles from './VaultOverflowBanner.module.css';
 
 interface VaultOverflowBannerProps {
   overflowItems: VaultItem[];
-  onSell: (entityId: number) => void;
-  onDiscard: (entityId: number) => void;
+  onSell: (itemIdentifier: string | number, item?: VaultItem) => void;
+  onDiscard: (itemIdentifier: string | number, item?: VaultItem) => void;
 }
 
 const VaultOverflowBanner: React.FC<VaultOverflowBannerProps> = ({
@@ -65,7 +65,7 @@ const VaultOverflowBanner: React.FC<VaultOverflowBannerProps> = ({
 
           return (
             <div
-              key={`${item.entityId}-${idx}`}
+              key={item.vaultItemId || `${item.entityId}-${idx}`}
               className={styles.itemRow}
               tabIndex={0}
               onPointerEnter={(e) =>
@@ -87,7 +87,7 @@ const VaultOverflowBanner: React.FC<VaultOverflowBannerProps> = ({
                   holdToConfirm={true}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDiscard(item.entityId);
+                    onDiscard(item.vaultItemId, item);
                   }}
                   style={{ padding: '3px 8px', fontSize: '10px' }}
                 >
@@ -98,7 +98,7 @@ const VaultOverflowBanner: React.FC<VaultOverflowBannerProps> = ({
                   holdToConfirm={true}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onSell(item.entityId);
+                    onSell(item.vaultItemId, item);
                   }}
                   style={{ padding: '3px 8px', fontSize: '10px' }}
                   rightSlot={`${getSellPrice(item.rarityTier)} CR`}

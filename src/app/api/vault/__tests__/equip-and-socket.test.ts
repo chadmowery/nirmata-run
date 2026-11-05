@@ -18,6 +18,7 @@ describe('Vault Loadout & Software Socketing API', () => {
       shellUpgrades: {},
       vault: [
         {
+          vaultItemId: 'vault-item-101',
           entityId: 101,
           templateId: 'rifle-v1',
           itemType: 'weapon',
@@ -26,6 +27,7 @@ describe('Vault Loadout & Software Socketing API', () => {
           extractedAtTimestamp: 1000,
         },
         {
+          vaultItemId: 'vault-item-102',
           entityId: 102,
           templateId: 'armor-v1',
           itemType: 'armor',
@@ -34,6 +36,7 @@ describe('Vault Loadout & Software Socketing API', () => {
           extractedAtTimestamp: 1000,
         },
         {
+          vaultItemId: 'vault-item-103',
           entityId: 103,
           templateId: 'bleed-v1',
           itemType: 'software',
@@ -42,6 +45,7 @@ describe('Vault Loadout & Software Socketing API', () => {
           extractedAtTimestamp: 1000,
         },
         {
+          vaultItemId: 'vault-item-104',
           entityId: 104,
           templateId: 'vampire-v1',
           itemType: 'software',

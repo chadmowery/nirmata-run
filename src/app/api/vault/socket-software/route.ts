@@ -4,11 +4,20 @@ import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { logger } from '@engine/utils/logger';
 import { getSoftwareTargetSlot, getEquipmentSlotType } from '@/shared/utils/equipment-util';
 
-const SocketSoftwareRequestSchema = z.object({
-  sessionId: z.string().min(1),
-  targetEntityId: z.coerce.number().int(),
-  softwareEntityId: z.coerce.number().int(),
-});
+const SocketSoftwareRequestSchema = z
+  .object({
+    sessionId: z.string().min(1),
+    targetEntityId: z.coerce.number().int().optional(),
+    targetVaultItemId: z.string().optional(),
+    softwareEntityId: z.coerce.number().int().optional(),
+    softwareVaultItemId: z.string().optional(),
+  })
+  .refine(
+    (data) =>
+      (data.targetEntityId !== undefined || data.targetVaultItemId !== undefined) &&
+      (data.softwareEntityId !== undefined || data.softwareVaultItemId !== undefined),
+    { message: 'Both target and software identifiers must be provided' },
+  );
 
 /**
  * POST /api/vault/socket-software
@@ -25,7 +34,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { sessionId, targetEntityId, softwareEntityId } = parsed.data;
+    const { sessionId, targetEntityId, targetVaultItemId, softwareEntityId, softwareVaultItemId } =
+      parsed.data;
 
     const profile = await profileRepository.load(sessionId);
     if (!profile) {
@@ -33,7 +43,9 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Find software in Vault
-    const swIndex = profile.vault.findIndex((i) => i.entityId === softwareEntityId);
+    const swIndex = softwareVaultItemId
+      ? profile.vault.findIndex((i) => i.vaultItemId === softwareVaultItemId)
+      : profile.vault.findIndex((i) => i.entityId === softwareEntityId);
     if (swIndex === -1) {
       return NextResponse.json({ error: 'Software not found in Vault' }, { status: 404 });
     }
@@ -48,8 +60,15 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Find target gear (can be in vault or in installedItems)
-    const vaultGear = profile.vault.find((i) => i.entityId === targetEntityId);
-    const installedGear = profile.installedItems.find((i) => i.entityId === targetEntityId);
+    const vaultGear = targetVaultItemId
+      ? profile.vault.find((i) => i.vaultItemId === targetVaultItemId)
+      : targetEntityId !== undefined
+        ? profile.vault.find((i) => i.entityId === targetEntityId)
+        : undefined;
+    const installedGear =
+      targetEntityId !== undefined
+        ? profile.installedItems.find((i) => i.entityId === targetEntityId)
+        : undefined;
 
     if (!vaultGear && !installedGear) {
       return NextResponse.json({ error: 'Target weapon or armor not found' }, { status: 404 });

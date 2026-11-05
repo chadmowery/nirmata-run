@@ -19,7 +19,10 @@ interface LoadoutSlotPanelProps {
   shellId: string;
   onSlotDrop: (slotType: string, slotIndex: number) => void;
   onSlotDragStart: (item: InstalledItem) => void;
-  onSoftwareSocket?: (targetEntityId: number, softwareEntityId: number) => void;
+  onSoftwareSocket?: (
+    targetEntityId: number,
+    software: { entityId?: number; vaultItemId?: string; templateId?: string },
+  ) => void;
 }
 
 export const LoadoutSlotPanel: React.FC<LoadoutSlotPanelProps> = ({
@@ -87,7 +90,7 @@ export const LoadoutSlotPanel: React.FC<LoadoutSlotPanelProps> = ({
       const handlePointerUp = () => {
         if (isOver && isCompatible) {
           if (isSocketDrop && item && onSoftwareSocket && draggedItem) {
-            onSoftwareSocket(item.entityId, draggedItem.entityId);
+            onSoftwareSocket(item.entityId, draggedItem);
           } else if (!item) {
             onSlotDrop(type, i);
           }

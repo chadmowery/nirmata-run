@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { generateShopStock } from '../../../../game/systems/shop-rotation';
 import { VAULT_MAX_SLOTS, inferItemType } from '@/shared/vault';
-import { VaultItem } from '@/shared/profile';
+import { VaultItem, generateVaultItemId } from '@/shared/profile';
 
 const PurchaseRequestSchema = z.object({
   sessionId: z.string(),
@@ -68,6 +68,7 @@ export async function POST(req: Request) {
     // Persist purchased item to Vault
     const now = Date.now();
     const vaultItem: VaultItem = {
+      vaultItemId: generateVaultItemId(),
       entityId: now,
       templateId: item.templateId,
       rarityTier: item.rarity,

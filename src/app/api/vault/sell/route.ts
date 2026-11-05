@@ -4,10 +4,15 @@ import { sellOverflowItem } from '@/game/systems/vault-manager';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { logger } from '@engine/utils/logger';
 
-const VaultSellRequestSchema = z.object({
-  sessionId: z.string().min(1),
-  entityId: z.number().int(),
-});
+const VaultSellRequestSchema = z
+  .object({
+    sessionId: z.string().min(1),
+    vaultItemId: z.string().optional(),
+    entityId: z.coerce.number().int().optional(),
+  })
+  .refine((data) => data.vaultItemId !== undefined || data.entityId !== undefined, {
+    message: 'Missing vaultItemId or entityId',
+  });
 
 /**
  * POST /api/vault/sell
@@ -19,14 +24,18 @@ export async function POST(req: NextRequest) {
     const parsed = VaultSellRequestSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Missing sessionId or entityId', details: parsed.error },
+        { error: 'Missing sessionId, vaultItemId or entityId', details: parsed.error },
         { status: 400 },
       );
     }
 
-    const { sessionId, entityId } = parsed.data;
+    const { sessionId, vaultItemId, entityId } = parsed.data;
 
-    const result = await sellOverflowItem(profileRepository, sessionId, entityId);
+    const result = await sellOverflowItem(
+      profileRepository,
+      sessionId,
+      vaultItemId || entityId!,
+    );
     if (!result.success) {
       return NextResponse.json({ error: 'Item not found in overflow' }, { status: 404 });
     }

@@ -81,6 +81,7 @@ describe('Vault & Economy Transactions API', () => {
 
     it('rejects purchase when vault is at max capacity', async () => {
       const fullVault: VaultItem[] = Array.from({ length: VAULT_MAX_SLOTS }, (_, i) => ({
+        vaultItemId: `vault-item-${i + 1}`,
         entityId: i + 1,
         templateId: 'test-item',
         rarityTier: 'common',
@@ -174,6 +175,7 @@ describe('Vault & Economy Transactions API', () => {
   describe('POST /api/vault/sell & /api/vault/discard', () => {
     it('sells item from overflow, adding scrap and removing from overflow', async () => {
       const overflowItem: VaultItem = {
+        vaultItemId: 'overflow-item-42',
         entityId: 42,
         templateId: 'test-software',
         rarityTier: 'rare',
@@ -210,6 +212,7 @@ describe('Vault & Economy Transactions API', () => {
 
     it('discards item from overflow without adding scrap', async () => {
       const overflowItem: VaultItem = {
+        vaultItemId: 'overflow-item-42-junk',
         entityId: 42,
         templateId: 'junk-item',
         rarityTier: 'common',
@@ -266,6 +269,7 @@ describe('Vault & Economy Transactions API', () => {
       const profile = createMockProfile({
         vault: [
           {
+            vaultItemId: 'vault-1',
             entityId: 1,
             templateId: 'v1',
             rarityTier: 'common',
@@ -276,6 +280,7 @@ describe('Vault & Economy Transactions API', () => {
         ],
         overflow: [
           {
+            vaultItemId: 'overflow-2',
             entityId: 2,
             templateId: 'v2',
             rarityTier: 'rare',

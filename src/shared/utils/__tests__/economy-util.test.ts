@@ -46,6 +46,7 @@ describe('Economy Utilities Unit Tests', () => {
 
       expect(vaultItems).toHaveLength(2);
       expect(vaultItems[0]).toEqual({
+        vaultItemId: expect.any(String),
         entityId: 101,
         templateId: 'vampire-v1',
         rarityTier: 'rare',
@@ -54,6 +55,7 @@ describe('Economy Utilities Unit Tests', () => {
         extractedAtTimestamp: expect.any(Number),
       });
       expect(vaultItems[1]).toEqual({
+        vaultItemId: expect.any(String),
         entityId: 102,
         templateId: 'firewall-v1',
         rarityTier: 'common',
@@ -61,6 +63,7 @@ describe('Economy Utilities Unit Tests', () => {
         extractedAtFloor: 5,
         extractedAtTimestamp: expect.any(Number),
       });
+      expect(vaultItems[0].vaultItemId).not.toBe(vaultItems[1].vaultItemId);
     });
   });
 });

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { VAULT_MAX_SLOTS } from '@/shared/vault';
-import { VaultItem } from '@/shared/profile';
+import { VaultItem, generateVaultItemId } from '@/shared/profile';
 import { isWeaponItem, isArmorItem } from '@/shared/utils/equipment-util';
 
 const UninstallRequestSchema = z.object({
@@ -60,6 +60,7 @@ export async function POST(req: Request) {
 
     // Create a VaultItem to restore it, preserving the existing entityId and socketedSoftware
     const restoredItem: VaultItem = {
+      vaultItemId: generateVaultItemId(),
       entityId: item.entityId || Date.now(),
       templateId: item.blueprintId,
       rarityTier: 'common',

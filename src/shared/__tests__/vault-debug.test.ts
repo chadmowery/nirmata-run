@@ -36,6 +36,7 @@ describe('grantDebugVaultAndCurrencies', () => {
     // Pre-populate with 27 dummy items (only 3 slots remaining)
     for (let i = 0; i < 27; i++) {
       profile.vault.push({
+        vaultItemId: `dummy-${i}`,
         entityId: 1000 + i,
         templateId: 'dummy-item',
         rarityTier: 'common',
@@ -69,6 +70,7 @@ describe('grantDebugVaultAndCurrencies', () => {
     // Fill vault to max
     for (let i = 0; i < VAULT_MAX_SLOTS; i++) {
       profile.vault.push({
+        vaultItemId: `existing-${i}`,
         entityId: 2000 + i,
         templateId: 'existing-item',
         rarityTier: 'rare',

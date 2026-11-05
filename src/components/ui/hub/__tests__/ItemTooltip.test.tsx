@@ -44,6 +44,7 @@ describe('ItemTooltip Component', () => {
 
   it('automatically resolves metadata from a VaultItem prop', () => {
     const vaultItem: VaultItem = {
+      vaultItemId: 'vault-item-90021',
       entityId: 90021,
       templateId: 'displacement-venting',
       rarityTier: 'uncommon',
@@ -87,6 +88,7 @@ describe('ItemTooltip Component', () => {
 
   it('renders loaded software modifiers preview when item has socketed software', () => {
     const vaultItem: VaultItem = {
+      vaultItemId: 'vault-item-90022',
       entityId: 90022,
       templateId: 'rifle-v1',
       rarityTier: 'common',

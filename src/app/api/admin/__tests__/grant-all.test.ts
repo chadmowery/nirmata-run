@@ -63,6 +63,7 @@ describe('POST /api/admin/grant-all', () => {
     const mockProfile = createDefaultProfile(sessionId);
     for (let i = 0; i < VAULT_MAX_SLOTS; i++) {
       mockProfile.vault.push({
+        vaultItemId: `admin-item-${i}`,
         entityId: 900 + i,
         templateId: 'item',
         rarityTier: 'common',

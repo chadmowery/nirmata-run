@@ -1,4 +1,4 @@
-import type { PlayerProfile, VaultItem } from './profile';
+import { generateVaultItemId, type PlayerProfile, type VaultItem } from './profile';
 
 export const VAULT_MAX_SLOTS = 30;
 
@@ -126,6 +126,7 @@ export function grantDebugVaultAndCurrencies(profile: PlayerProfile): DebugGrant
       existingIds.add(nextEntityId);
 
       const vaultItem: VaultItem = {
+        vaultItemId: generateVaultItemId(),
         entityId: nextEntityId,
         templateId: itemDef.templateId,
         rarityTier: itemDef.rarityTier,
