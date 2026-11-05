@@ -474,12 +474,12 @@ Update these docs as part of the fix, not as a follow-up. The handoff also shoul
 | U2 | ✅ **RESOLVED:** **Overclock bypass, forced interaction and Dead-Drop Uplink are unreachable from the UI.** No client code ever sends `INTERACT_PROP` or `DEAD_DROP_ITEM`. | 🔴 High (Fixed) |
 | U3 | ✅ **RESOLVED:** **Quick-use consumable discards the server delta**, and several modals run their own `fetch` outside the input and reconciliation pipeline. The server has no per-session request serialization. | 🔴 High (Fixed) |
 | U4 | ✅ **RESOLVED:** **Dropping a consumable stack destroys all but one item.** (Residual: dropped units could not be picked up again and lost their sprite key.) | 🟠 High (Fixed) |
-| U5 | **The "duplicate React key" fix masks a real vault ID-collision bug.** | 🟠 High |
-| R1 | Tile hover inspection re-runs a full-world query and pushes a new object into the store **every frame**; the tooltip then re-renders and re-lays-out at ~60 Hz with `aria-live`. | 🟠 Medium-High |
-| R2 | The prop outline state is stale after disarm or reveal, and the "searched" dimming is **overwritten every frame** by the FOV pass. | 🟡 Medium |
-| R3 | Camera input contradicts the Hotkeys manual (left-drag pans, wheel pans instead of zooming). | 🟡 Medium |
-| R4 | `window.gameContext` is exposed in production. The server sends all entities regardless of FOV, so `/show-map` is cosmetic. | 🟡 Medium |
-| U6–U12 | Capacity and display mismatch, doc and hint inaccuracies, fabricated abort results, duplicated upgrade math, design-system violations. | 🟡 / 🔵 |
+| U5 | ✅ **RESOLVED:** **The "duplicate React key" fix masks a real vault ID-collision bug.** | 🟠 High (Fixed) |
+| R1 | ✅ **RESOLVED:** Tile hover inspection re-runs a full-world query and pushes a new object into the store **every frame**; the tooltip then re-renders and re-lays-out at ~60 Hz with `aria-live`. | 🟠 Medium-High (Fixed) |
+| R2 | ✅ **RESOLVED:** The prop outline state is stale after disarm or reveal, and the "searched" dimming is **overwritten every frame** by the FOV pass. | 🟡 Medium (Fixed) |
+| R3 | ✅ **RESOLVED:** Camera input contradicts the Hotkeys manual (left-drag pans, wheel pans instead of zooming). | 🟡 Medium (Fixed) |
+| R4 | ✅ **RESOLVED:** `window.gameContext` is exposed in production. The server sends all entities regardless of FOV, so `/show-map` is cosmetic. | 🟡 Medium (Fixed) |
+| U6–U12 | ✅ **RESOLVED:** Capacity and display mismatch, doc and hint inaccuracies, fabricated abort results, duplicated upgrade math, design-system violations. | 🟡 / 🔵 (Fixed) |
 | A1 | Asset claims are inaccurate (16×16 vs 32×32; "state" sprites are identical copies). | 🔵 Low |
 
 **What held up:** `npm run build` passes; the atlas has no slot collisions; every entity template sprite key resolves to a frame (except a pre-existing `dead_zone`); the renderer's event listener registration and cleanup are symmetric; fog gating for *enemies* in the inspector is correct; damage-filter cleanup is safe against destroyed sprites. See P2.7.
@@ -629,7 +629,13 @@ I did not profile this. By code reading it is the most likely source of hover ja
 
 ## P2.3 UI findings
 
-### U6. `GroundTransferModal` (458 lines)
+### U6. `GroundTransferModal` (458 lines) — ✅ RESOLVED
+
+> [!NOTE]
+> **Resolution Status (2026-11-04):** Completely resolved and verified with unit test suite in `src/components/ui/inventory/__tests__/GroundTransferModal.test.tsx` (commit `6942e437`).
+> - **Dynamic Item Labels**: Replaced hard-coded `"Nanite Canister"` labels with dynamic item metadata resolution (`Item`, `resolveItemMetadata`) across `GroundTransferModal.tsx` and `BackpackGrid.tsx`.
+> - **Stack-Aware Capacity Check**: Allowed taking ground consumables into a full backpack if a matching stack with capacity exists (`quantity < 10`).
+> - **Accessibility & Architecture**: Extracted inline styles into `GroundTransferModal.module.css` with semantic tokens; implemented focus trap with initial focus; routed all actions through `getActiveGameContext()?.submitAction()`; updated `sync-bridge.ts` to trigger inventory revision increments on `ITEM_PICKED_UP` and `STATE_RECONCILED`.
 
 Beyond U3:
 - Backpack names are hard-coded: any `isConsumable` item without a definition is labelled `'Nanite Canister'` (or `'Repair Nanites'` only for template `nanite-canister`). The health potion (`health-potion`) shows up as **"Nanite Canister"** in the modal and in the backpack grid.
@@ -638,13 +644,24 @@ Beyond U3:
 - 90% of styling is inline `style={{…}}` with literal colours. It reuses [`ContainerOverlay.module.css`](../../src/components/ui/inventory/ContainerOverlay.module.css), and `ContainerOverlay.tsx` itself is unmounted (Part 1 M9).
 - `role="dialog" aria-modal` with no focus trap, no initial focus, and background click closing. ESC handling is fine.
 
-### U7. Backpack capacity and display disagree
+### U7. Backpack capacity and display disagree — ✅ RESOLVED
+
+> [!NOTE]
+> **Resolution Status (2026-11-04):** Completely resolved and verified with unit test suite in `src/components/ui/inventory/__tests__/BackpackGrid.test.tsx` (commit `7423df57`).
+> - **Dynamic Backpack Slots**: Replaced hardcoded `Array(15)` with `Array(inv?.maxSlots ?? 30)` in `BackpackGrid.tsx`, allowing full visibility, selection, and burning across all 30 slots.
+> - **Capacity Unification**: Aligned default `maxSlots` across `RunInventory` (`src/shared/components/run-inventory.ts`) and `inventory-util.ts` to 30.
+> - **Port-Aware Burning**: Updated `BackpackGrid.tsx` to read `FirmwareSlots` and `AugmentSlots`, generating dynamic overwrite buttons and passing explicit `slotIndex` matching the shell's port configuration.
 
 - Run backpack capacity is `RunInventory.maxSlots`: **5** by default (schema), **30** when a loadout supplies reserve items ([`engine-factory.ts` L312](../../src/game/engine-factory.ts)), and `|| 20` in `addConsumable` and the modal.
 - [`BackpackGrid.tsx` L76](../../src/components/ui/inventory/BackpackGrid.tsx) renders a fixed `Array(15)`. When capacity is 30, slots 16–30 can hold items that **cannot be seen, selected, burned or used** from the grid. Because this branch routes firmware, augments and consumables into the backpack instead of auto-equipping them, this limit is now reachable.
 - Firmware burn buttons are hard-coded to `[0, 1, 2]` and the augment burn sends no `slotIndex`, regardless of the shell's port configuration. This is the UI half of C8.
 
-### U8. Hotkeys manual and handoff are inaccurate
+### U8. Hotkeys manual and handoff are inaccurate — ✅ RESOLVED
+
+> [!NOTE]
+> **Resolution Status (2026-11-04):** Completely resolved and verified with unit test suite in `src/components/ui/__tests__/HotkeysModal.test.tsx` (commit `0a1eb4cf`).
+> - **Manual Directives Aligned with Engine**: Corrected descriptions in `HotkeysModal.tsx`: clarifies bump disarms vs halts on armed traps with warning; clarifies field terminal availability (`[Dev Build only]`); footer updated to `v1.0.0`; `[E]` clarifies anchor/terminal/adjacent prop/cargo offload.
+> - **Destructive Action Safety**: Increased hold duration for permanent destructive firmware and augment burning in `BackpackGrid.tsx` to 1500 ms (1.5s).
 
 | Claim | Reality |
 |---|---|
@@ -659,15 +676,33 @@ Beyond U3:
 
 A 600 ms hold on *permanent, irreversible* actions (burning firmware or augments, which also destroy the replaced item) is a weak confirmation.
 
-### U9. `AbortMissionDialog` fabricates run results client-side
+### U9. `AbortMissionDialog` fabricates run results client-side — ✅ RESOLVED
+
+> [!NOTE]
+> **Resolution Status (2026-11-04):** Completely resolved and verified with unit test suite in `src/components/ui/__tests__/AbortMissionDialog.test.tsx` (commit `fa751ac9`).
+> - **Authoritative Pipeline Routing**: Removed client-side fabricated `runResultsData` calculation and artificial BSOD screen override in `AbortMissionDialog.tsx`.
+> - **Authoritative Mission Abort**: Routed mission abort directly through canonical `getActiveGameContext()?.submitAction({ type: 'ABORT_RUN' })`, preserving server-authoritative scoring and persistence.
 
 [`AbortMissionDialog.tsx`](../../src/components/ui/AbortMissionDialog.tsx): if the sync bridge has not moved the game to `GameOver`, the dialog builds its own `RunResultsData` with `score = currentFloor * 100 + kills * 10`, `itemsSecured` all zero except `scrap = floor(xp * 0.5)`, and a made-up reason `OPERATOR_MANUAL_DESYNC`, then forces the BSOD state. These numbers can contradict the authoritative result the server already persisted (leaderboard score, extracted items). Authoritative results should never be recreated in the client.
 
-### U10. Shell upgrade math duplicated, and the server's version is heuristic
+### U10. Shell upgrade math duplicated, and the server's version is heuristic — ✅ RESOLVED
+
+> [!NOTE]
+> **Resolution Status (2026-11-04):** Completely resolved and verified with unit test suite in `tests/shared/shell-upgrade-util.test.ts` (commit `9385971a`).
+> - **Unified Shared Math**: Created `src/shared/utils/shell-upgrade-util.ts` exporting canonical `calculateShellStatBonuses`, `calculateEffectiveShellStats`, and `calculateEffectivePortConfig`.
+> - **Eliminated Level Heuristic**: Refactored `applyShellUpgradesToRecord` in `src/game/shells/server/shell-registry.ts` to use shared utility, eliminating the `upgrades.speed > 5` heuristic.
+> - **UI Synchronization**: Refactored `ShellStatCard.tsx` and `LoadoutTab.tsx` to use the shared utility and correctly display expanded software port counts.
 
 [`ShellTab.tsx`](../../src/components/ui/hub/ShellTab.tsx) and [`LoadoutTab.tsx`](../../src/components/ui/hub/LoadoutTab.tsx) hard-code the formulas (`speed × 5`, `armor × 1`, `stability × 10`, additional ports added to firmware, augment, and software). [`applyShellUpgradesToRecord`](../../src/game/shells/server/shell-registry.ts) uses `upgrades.speed > 5 ? upgrades.speed : upgrades.speed * 5` (same for stability), i.e. it guesses whether a stored value is a *level* or a *raw bonus*. For any level > 5 the hub shows `level × 5` while the server applies `level`. `ShellTab` shows only FW and AG ports, while the server also raises the software port count. Put the formula in `@shared` and call it from both places; remove the `> 5` heuristic by storing one unit consistently.
 
-### U11. Design-system violations ([`UI-DESIGN-SYSTEM.md`](../design/UI-DESIGN-SYSTEM.md))
+### U11. Design-system violations (`UI-DESIGN-SYSTEM.md`) — ✅ RESOLVED
+
+> [!NOTE]
+> **Resolution Status (2026-11-04):** Completely resolved and verified with build and unit test suites (commit `9b772e1b`).
+> - **Token Semantics Restored**: Inverted usages of `--c-accent` (Acid Chartreuse `#d8ff00`) and `--c-accent-secondary` (Solaris Cyan `#00f0ff`) swapped to correct semantics across `HUDOverlay.tsx`, `BackpackGrid.tsx`, `EquipmentPanel.tsx`, `ChassisTelemetrySidebar.module.css`, `ChassisTelemetrySidebar.tsx`, `TacticalInspectTooltip.module.css`, `SlotBox.module.css`, and `item-metadata.ts`.
+> - **Defined Missing Tokens**: Added `--c-nanites: #10b981;` and canonical z-index scale (`--z-hud` through `--z-bsod`) to `src/app/globals.css`.
+> - **Z-Index Harmonization**: Standardized tooltip to `var(--z-tooltip, 1800)` and modals/dialogs to `var(--z-modal, 1550)` / `var(--z-dialog, 2000)`.
+> - **Accessibility**: Added `@media (prefers-reduced-motion: reduce)` rules across all animated overlays/tooltips and `:focus-visible` outline styles for lever buttons.
 
 - **Token semantics are inverted.** In [`globals.css`](../../src/app/globals.css), `--c-accent` is **acid chartreuse `#d8ff00`** and `--c-accent-secondary` is **cyan `#00f0ff`**. The new inline styles are written as `var(--c-accent, #00f0ff)` (cyan intended) and `var(--c-accent-secondary, #d8ff00)` (chartreuse intended). Because the variables are defined, the fallbacks never apply, so the **Flux chip, backpack selection highlight, hold buttons and many borders render chartreuse where cyan was intended, and the Blueprints chip renders cyan instead of chartreuse.** The HUD currency strip is colour-coded inconsistently with the sidebar.
 - `--c-nanites` is used with a fallback but is **not defined** in `globals.css`.
@@ -676,7 +711,13 @@ A 600 ms hold on *permanent, irreversible* actions (burning firmware or augments
 - Ad-hoc z-index values (`1500` inventory, `1550` hotkeys, `1600` container, `9999` abort dialog, `99999` tooltip) with no scale. The tooltip can sit above the abort dialog.
 - No `prefers-reduced-motion` handling for the new fade-ins; no visible `:focus` styles in the new modals; hold-to-confirm is pointer-driven (keyboard users cannot complete it unless the pre-existing `BtnLever` key handling covers it; I did not verify).
 
-### U12. Tooltip text contradicts behaviour
+### U12. Tooltip text contradicts behaviour — ✅ RESOLVED
+
+> [!NOTE]
+> **Resolution Status (2026-11-04):** Completely resolved and verified with unit test suite in `tests/rendering/u12-tooltip-lore.test.ts` (commit `50fc7be8`).
+> - **Accurate Interaction Hints**: Updated `src/rendering/tile-inspector.ts` hints to clarify that bumping armed Corrupted Nodes is halted by safety safeguards (`[E]` forces bypass), and bumping locked props halts without keycard (`[E]` overclocks).
+> - **Dynamic Corporate Faction Lore**: Implemented `resolvePropLore` with `FACTION_LORE` in `tile-inspector.ts` to dynamically interpolate `prop.faction` (`traxus`, `cyberacme`, `sekiguchi`, `nucaloric`, `system`) instead of hardcoding Traxus/CyberAcme across workstations, lockers, cabinets, and safes.
+> - **Vault Door Lore Realism**: Scoped Faraday bulkhead descriptions strictly to vault doors configured with `faradayBounds`, referencing reinforced security airlocks otherwise.
 
 - Armed Corrupted Node: "`[BUMP]` to scavenge (Hazardous trap payload active)": bump is blocked (C5/U2).
 - Locked prop: "`[BUMP]` to attempt bypass (Keycard or overclock required)": bump halts; overclock is unreachable (U2).
@@ -720,11 +761,11 @@ Skimmed rather than line-reviewed. Beyond U11: the modal overlays use `position:
 - [x] Trap outlines and inspector badges depend on `revealed`; explored-but-unseen tiles show remembered state only
 - [x] An input-driven test can open a locked safe via overclock and use a Dead-Drop Uplink
 - [x] Every client action path goes through one request function that applies the returned payload; server rejects overlapping requests per session
-- [ ] Dropping then picking up a consumable stack preserves the count
+- [x] Dropping then picking up a consumable stack preserves the count
 - [x] Vault items have unique IDs; two vault entries with the same legacy ID cannot be confused by equip, sell or discard
 - [x] Hover inspection is not recomputed every frame
-- [ ] Hotkeys manual, tooltip hints and handoff match actual bindings and behaviour
-- [ ] New UI uses design tokens with correct semantics (cyan vs chartreuse); `--c-nanites` defined
+- [x] Hotkeys manual, tooltip hints and handoff match actual bindings and behaviour
+- [x] New UI uses design tokens with correct semantics (cyan vs chartreuse); `--c-nanites` defined
 
 ## P2.7 What was checked and held up
 
