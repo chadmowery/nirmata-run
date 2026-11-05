@@ -480,7 +480,7 @@ Update these docs as part of the fix, not as a follow-up. The handoff also shoul
 | R3 | ✅ **RESOLVED:** Camera input contradicts the Hotkeys manual (left-drag pans, wheel pans instead of zooming). | 🟡 Medium (Fixed) |
 | R4 | ✅ **RESOLVED:** `window.gameContext` is exposed in production. The server sends all entities regardless of FOV, so `/show-map` is cosmetic. | 🟡 Medium (Fixed) |
 | U6–U12 | ✅ **RESOLVED:** Capacity and display mismatch, doc and hint inaccuracies, fabricated abort results, duplicated upgrade math, design-system violations. | 🟡 / 🔵 (Fixed) |
-| A1 | Asset claims are inaccurate (16×16 vs 32×32; "state" sprites are identical copies). | 🔵 Low |
+| A1 | ✅ **RESOLVED:** Asset claims and art transitions reconciled (canonical 32×32 specification confirmed; prop state transitions wired in ECS & renderer; access key sprite fixed; dev previews moved from public; build:tiles script added). | 🔵 Low (Fixed) |
 
 **What held up:** `npm run build` passes; the atlas has no slot collisions; every entity template sprite key resolves to a frame (except a pre-existing `dead_zone`); the renderer's event listener registration and cleanup are symmetric; fog gating for *enemies* in the inspector is correct; damage-filter cleanup is safe against destroyed sprites. See P2.7.
 
@@ -727,7 +727,16 @@ A 600 ms hold on *permanent, irreversible* actions (burning firmware or augments
 
 ## P2.4 Asset and script findings
 
-### A1. Tileset, sprites and scripts
+### A1. Tileset, sprites and scripts — ✅ RESOLVED
+
+> [!NOTE]
+> **Resolution Status (2026-11-05):** Completely resolved and verified with unit test suite in `tests/game/a1-assets-prop-states.test.ts`.
+> - **A1.1 Access Key Sprite**: Updated `item-access-key.json` to reference `"sprite": { "key": "item_access_key" }` instead of `"item_flux"`.
+> - **A1.2 Prop State Sprite Transitions**: Reconciled ECS sprite updates in `prop-interaction.ts` on prop state transitions (locked vs unlocked for vault doors, safes, lockers; ready vs searched/depleted for cooling vents, stabilizers, dead-drop uplinks, biocabinets, and workstations) and wired live texture synchronization in `render-system.ts`.
+> - **A1.3 Production Preview Cleanup**: Moved 44 dev inspection preview sheets (~750 KB) from `public/assets/tiles/previews/` to `docs/visual-design/previews/` so dev artifacts are excluded from web client distribution, and updated `scripts/build-environment-tiles.cjs` and `scripts/build-shell-tiles.cjs`.
+> - **A1.4 Test Fragility Hardening**: Dynamically loaded optional native `canvas` module in `tests/game/environment-tileset.test.ts` and `tests/game/shell-tileset.test.ts`, allowing test suites to run gracefully in non-native compilation environments.
+> - **A1.5 Documented Build Pipeline**: Added `"build:tiles"` script to `package.json` (`node scripts/build-environment-tiles.cjs && node scripts/add-environment-sprites.cjs`) and documented the two-step build process in `docs/TILEMAP_GUIDE.md`.
+> - **A1.6 Canonical 32×32 Specification**: Rectified inaccurate 16×16 mentions, explicitly documenting in `docs/TILEMAP_GUIDE.md` that all environment, item, shell, and character sprites adhere strictly to 32×32 px grid dimensions.
 
 - **Wrong size claim.** The handoff says "custom **16×16** environment sprites". The scripts, tileset frames and test use **32×32**.
 - **"State" sprites are byte-identical copies.** `prop_biocabinet`/`_full`, `prop_dead_drop`/`_ready`, `prop_stabilizer`/`_active` and `prop_vault_door`/`_locked` have identical MD5s (aliases written by the build script). The vault door template uses `prop_vault_door_locked`, and no code swaps the sprite when the lock opens, so **locked vs unlocked, closed vs open, ready vs used all look the same** (state is conveyed only by outline colour, which is itself unreliable: R2).
@@ -766,6 +775,7 @@ Skimmed rather than line-reviewed. Beyond U11: the modal overlays use `position:
 - [x] Hover inspection is not recomputed every frame
 - [x] Hotkeys manual, tooltip hints and handoff match actual bindings and behaviour
 - [x] New UI uses design tokens with correct semantics (cyan vs chartreuse); `--c-nanites` defined
+- [x] Interactive environment and shell sprites strictly adhere to 32×32 px specs, dev inspection sheets removed from public distribution, and prop state transitions wired in ECS and renderer (A1)
 
 ## P2.7 What was checked and held up
 

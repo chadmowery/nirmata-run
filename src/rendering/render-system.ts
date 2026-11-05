@@ -370,6 +370,10 @@ export function createRenderSystem(config: RenderSystemConfig) {
   const handlePropUpdated = (payload: { propId: number }) => {
     const entityId = payload.propId;
     if (entityId) {
+      const spriteComp = world.getComponent(entityId, SpriteComponent);
+      if (spriteComp) {
+        createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
+      }
       syncPropOutline(entityId);
       const pos = world.getComponent(entityId, Position);
       if (pos && currentFovSet.has(`${pos.x},${pos.y}`)) {
@@ -620,8 +624,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
       // Instantiate sprites for any active entity missing its sprite and refresh prop outlines
       for (const entityId of activeEntities) {
         let sprite = getEntitySprite(entityId);
+        const spriteComp = world.getComponent(entityId, SpriteComponent);
         if (!sprite) {
-          const spriteComp = world.getComponent(entityId, SpriteComponent);
           const pos = world.getComponent(entityId, Position);
           if (spriteComp) {
             sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
@@ -630,6 +634,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
               sprite.y = pos.y * TILE_SIZE;
             }
           }
+        } else if (spriteComp) {
+          createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
         }
         if (sprite) {
           syncPropOutline(entityId, sprite);

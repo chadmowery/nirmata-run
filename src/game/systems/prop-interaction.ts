@@ -147,8 +147,21 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
             }
             w.patchComponent(targetId, SecurityLock, { isLocked: false });
 
-            if (w.hasComponent(targetId, BlocksMovement) && propClass === 'vault_door') {
-              w.removeComponent(targetId, BlocksMovement);
+            if (propClass === 'vault_door') {
+              if (w.hasComponent(targetId, SpriteComponent)) {
+                w.patchComponent(targetId, SpriteComponent, { key: 'prop_vault_door' });
+              }
+              if (w.hasComponent(targetId, BlocksMovement)) {
+                w.removeComponent(targetId, BlocksMovement);
+              }
+            } else if (propClass === 'encrypted_safe') {
+              if (w.hasComponent(targetId, SpriteComponent)) {
+                w.patchComponent(targetId, SpriteComponent, { key: 'prop_safe' });
+              }
+            } else if (propClass === 'locker') {
+              if (w.hasComponent(targetId, SpriteComponent)) {
+                w.patchComponent(targetId, SpriteComponent, { key: 'prop_locker' });
+              }
             }
 
             // Increment vaults breached score on clean key unlock
@@ -197,8 +210,21 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
             wasOverclockBypass = true;
             w.patchComponent(targetId, SecurityLock, { isLocked: false });
 
-            if (w.hasComponent(targetId, BlocksMovement) && propClass === 'vault_door') {
-              w.removeComponent(targetId, BlocksMovement);
+            if (propClass === 'vault_door') {
+              if (w.hasComponent(targetId, SpriteComponent)) {
+                w.patchComponent(targetId, SpriteComponent, { key: 'prop_vault_door' });
+              }
+              if (w.hasComponent(targetId, BlocksMovement)) {
+                w.removeComponent(targetId, BlocksMovement);
+              }
+            } else if (propClass === 'encrypted_safe') {
+              if (w.hasComponent(targetId, SpriteComponent)) {
+                w.patchComponent(targetId, SpriteComponent, { key: 'prop_safe' });
+              }
+            } else if (propClass === 'locker') {
+              if (w.hasComponent(targetId, SpriteComponent)) {
+                w.patchComponent(targetId, SpriteComponent, { key: 'prop_locker' });
+              }
             }
 
             // Increment vaults breached score
@@ -286,6 +312,9 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
           });
         }
         w.patchComponent(targetId, Prop, { isSearched: true });
+        if (w.hasComponent(targetId, SpriteComponent)) {
+          w.patchComponent(targetId, SpriteComponent, { key: 'prop_stabilizer' });
+        }
         bus.emit('PROP_INTERACTED', {
           entityId: actorId,
           propId: targetId,
@@ -309,6 +338,9 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
           });
         }
         w.patchComponent(targetId, Prop, { isSearched: true });
+        if (w.hasComponent(targetId, SpriteComponent)) {
+          w.patchComponent(targetId, SpriteComponent, { key: 'prop_cooling_vent' });
+        }
         bus.emit('PROP_INTERACTED', {
           entityId: actorId,
           propId: targetId,
@@ -489,6 +521,9 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
                 type: 'info',
               });
               w.patchComponent(targetId, Prop, { isSearched: true });
+              if (w.hasComponent(targetId, SpriteComponent)) {
+                w.patchComponent(targetId, SpriteComponent, { key: 'prop_dead_drop' });
+              }
             }
           }
         } else {
@@ -711,6 +746,17 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
         bus.emit('MESSAGE_EMITTED', { text: logText, type: 'info' });
 
         w.patchComponent(targetId, Prop, { isSearched: true });
+        if (w.hasComponent(targetId, SpriteComponent)) {
+          if (propClass === 'locker') {
+            w.patchComponent(targetId, SpriteComponent, { key: 'prop_locker' });
+          } else if (propClass === 'cabinet') {
+            w.patchComponent(targetId, SpriteComponent, { key: 'prop_biocabinet' });
+          } else if (propClass === 'workstation') {
+            w.patchComponent(targetId, SpriteComponent, { key: 'prop_workstation' });
+          } else if (propClass === 'encrypted_safe') {
+            w.patchComponent(targetId, SpriteComponent, { key: 'prop_safe' });
+          }
+        }
         bus.emit('PROP_INTERACTED', {
           entityId: actorId,
           propId: targetId,

@@ -878,7 +878,9 @@ async function main() {
     console.log(`Generating inspection preview: ${t.key}_sheet...`);
     const previewCanvas = await generateInspectionSheet(canvas, t.key, floorImg);
     const previewBuf = previewCanvas.toBuffer('image/png');
-    const previewOutPath = path.resolve(__dirname, `../public/assets/tiles/previews/${t.key}_sheet.png`);
+    const previewDir = path.resolve(__dirname, '../docs/visual-design/previews');
+    if (!fs.existsSync(previewDir)) fs.mkdirSync(previewDir, { recursive: true });
+    const previewOutPath = path.join(previewDir, `${t.key}_sheet.png`);
     fs.writeFileSync(previewOutPath, previewBuf);
     console.log(`Saved ${previewOutPath} (${previewBuf.length} bytes)`);
   }

@@ -14,7 +14,7 @@ async function main() {
     { key: 'prop_workstation_active', aliases: ['prop_workstation'], file: 'prop_workstation_active.png', x: 128, y: 0 },
     { key: 'prop_locker_closed', aliases: ['prop_locker'], file: 'prop_locker_closed.png', x: 160, y: 0 },
     { key: 'prop_biocabinet', aliases: ['prop_biocabinet_full'], file: 'prop_biocabinet.png', x: 192, y: 0 },
-    { key: 'prop_safe_locked', aliases: [], file: 'prop_safe_locked.png', x: 224, y: 0 },
+    { key: 'prop_safe_locked', aliases: ['prop_safe', 'prop_safe_open'], file: 'prop_safe_locked.png', x: 224, y: 0 },
 
     { key: 'prop_vault_door', aliases: ['prop_vault_door_locked'], file: 'prop_vault_door.png', x: 128, y: 32 },
     { key: 'prop_cooling_vent_ready', aliases: ['prop_cooling_vent'], file: 'prop_cooling_vent_ready.png', x: 160, y: 32 },

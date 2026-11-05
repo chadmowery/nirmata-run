@@ -52,15 +52,15 @@ export function consumeAccessKey<T extends EngineEvents>(
 
   const runInv = world.getComponent(playerId, RunInventory);
   if (runInv) {
-    const swIdx = runInv.software.findIndex((s) => isAccessKeyTemplate(s.templateId));
-    if (swIdx !== -1) {
+    const swIdx = runInv.software?.findIndex((s) => isAccessKeyTemplate(s.templateId)) ?? -1;
+    if (swIdx !== -1 && runInv.software) {
       const sw = [...runInv.software];
       sw.splice(swIdx, 1);
       world.patchComponent(playerId, RunInventory, { software: sw });
       return true;
     }
-    const eqIdx = runInv.equipment.findIndex((e) => isAccessKeyTemplate(e.templateId));
-    if (eqIdx !== -1) {
+    const eqIdx = runInv.equipment?.findIndex((e) => isAccessKeyTemplate(e.templateId)) ?? -1;
+    if (eqIdx !== -1 && runInv.equipment) {
       const eq = [...runInv.equipment];
       eq.splice(eqIdx, 1);
       world.patchComponent(playerId, RunInventory, { equipment: eq });

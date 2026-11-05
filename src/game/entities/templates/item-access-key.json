@@ -10,6 +10,6 @@
     }
   },
   "overrides": {
-    "sprite": { "key": "item_flux" }
+    "sprite": { "key": "item_access_key" }
   }
 }
