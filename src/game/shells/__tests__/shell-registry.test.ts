@@ -58,21 +58,24 @@ describe('ShellRegistry', () => {
     registry.register(mockTemplate);
     const record = registry.createRecord('inst-upgrades', 'test-shell');
 
+    // Upgrade levels: speed level 3 (+15), armor level 2 (+2), stability level 1 (+10), ports level 2 (+2)
     const upgraded = applyShellUpgradesToRecord(record, {
-      speed: 15,
+      speed: 3,
       armor: 2,
-      stability: 10,
+      stability: 1,
       additionalPorts: 2,
     });
 
     expect(upgraded.currentStats.speed).toBe(115);
     expect(upgraded.currentStats.armor).toBe(3);
     expect(upgraded.currentStats.stability).toBe(15);
+    expect(upgraded.portConfig.maxFirmware).toBe(4);
+    expect(upgraded.portConfig.maxAugment).toBe(3);
     expect(upgraded.portConfig.maxSoftware).toBe(4);
 
     // Guard against double application
     const reapplied = applyShellUpgradesToRecord(upgraded, {
-      speed: 15,
+      speed: 3,
       armor: 2,
     });
     expect(reapplied.currentStats.speed).toBe(115);

@@ -3,6 +3,10 @@ import styles from './ShellStatCard.module.css';
 import { ShellTemplate } from '@/game/shells/shared';
 import { ShellUpgrades, InstalledItem } from '@/shared/profile';
 import { SlotBox } from './SlotBox';
+import {
+  calculateShellStatBonuses,
+  calculateEffectivePortConfig,
+} from '@shared/utils/shell-upgrade-util';
 
 interface ShellStatCardProps {
   shell: ShellTemplate;
@@ -17,13 +21,11 @@ export const ShellStatCard: React.FC<ShellStatCardProps> = ({
 }) => {
   const getStatTotal = (stat: 'speed' | 'stability' | 'armor' | 'maxHealth') => {
     const base = shell.baseStats[stat];
-    let upgrade = 0;
-    if (upgrades) {
-      if (stat === 'speed') upgrade = upgrades.speed * 5;
-      if (stat === 'stability') upgrade = upgrades.stability * 10;
-      if (stat === 'armor') upgrade = upgrades.armor * 1;
-      // maxHealth doesn't have an upgrade in the current schema, using 0
+    if (stat === 'maxHealth') {
+      return { base, upgrade: 0, total: base };
     }
+    const bonuses = calculateShellStatBonuses(upgrades);
+    const upgrade = bonuses[stat];
     return { base, upgrade, total: base + upgrade };
   };
 
@@ -44,6 +46,8 @@ export const ShellStatCard: React.FC<ShellStatCardProps> = ({
   const augmentSlots = installedItems.filter((i) => i.type === 'augment');
   // Software slots are virtual for now as per spec
   const softwareSlots: Array<{ name?: string }> = [];
+
+  const effectivePorts = calculateEffectivePortConfig(shell.basePorts, upgrades);
 
   return (
     <div className={styles.card}>
@@ -78,7 +82,7 @@ export const ShellStatCard: React.FC<ShellStatCardProps> = ({
         <div className={styles.portGroup}>
           <div className={styles.portLabel}>FIRMWARE</div>
           <div className={styles.slots}>
-            {Array.from({ length: shell.basePorts.maxFirmware + (upgrades?.additionalPorts || 0) }).map((_, i) => (
+            {Array.from({ length: effectivePorts.maxFirmware }).map((_, i) => (
               <SlotBox
                 key={`fw-${i}`}
                 filled={i < firmwareSlots.length}
@@ -94,7 +98,7 @@ export const ShellStatCard: React.FC<ShellStatCardProps> = ({
         <div className={styles.portGroup}>
           <div className={styles.portLabel}>AUGMENT</div>
           <div className={styles.slots}>
-            {Array.from({ length: shell.basePorts.maxAugment + (upgrades?.additionalPorts || 0) }).map((_, i) => (
+            {Array.from({ length: effectivePorts.maxAugment }).map((_, i) => (
               <SlotBox
                 key={`aug-${i}`}
                 filled={i < augmentSlots.length}
@@ -110,12 +114,13 @@ export const ShellStatCard: React.FC<ShellStatCardProps> = ({
         <div className={styles.portGroup}>
           <div className={styles.portLabel}>SOFTWARE</div>
           <div className={styles.slots}>
-            {Array.from({ length: shell.basePorts.maxSoftware }).map((_, i) => (
+            {Array.from({ length: effectivePorts.maxSoftware }).map((_, i) => (
               <SlotBox
                 key={`sw-${i}`}
                 filled={i < softwareSlots.length}
                 itemName={softwareSlots[i]?.name}
                 slotType="software"
+                isUnlockedExpansion={i >= shell.basePorts.maxSoftware}
               />
             ))}
           </div>

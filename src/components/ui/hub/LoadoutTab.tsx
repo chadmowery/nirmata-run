@@ -17,6 +17,7 @@ import { StashItemList, StashFilter } from './StashItemList';
 import { PanelCard, DottedSpecRow, TaikokuStamp, BtnLever } from '../atomic';
 import { ItemTooltip } from './ItemTooltip';
 import { ItemMetadata, resolveItemMetadata, getSoftwareModificationInfo } from './item-metadata';
+import { calculateEffectivePortConfig } from '@shared/utils/shell-upgrade-util';
 import styles from './LoadoutTab.module.css';
 
 export const LoadoutTab: React.FC = () => {
@@ -76,11 +77,10 @@ export const LoadoutTab: React.FC = () => {
     additionalPorts: 0,
   };
 
-  const effectivePortConfig = {
-    maxFirmware: (activeShellTemplate.basePorts?.maxFirmware ?? 2) + (shellUpgrades.additionalPorts || 0),
-    maxAugment: (activeShellTemplate.basePorts?.maxAugment ?? 2) + (shellUpgrades.additionalPorts || 0),
-    maxSoftware: (activeShellTemplate.basePorts?.maxSoftware ?? 2) + (shellUpgrades.additionalPorts || 0),
-  };
+  const effectivePortConfig = calculateEffectivePortConfig(
+    activeShellTemplate.basePorts ?? { maxFirmware: 2, maxAugment: 2, maxSoftware: 2 },
+    shellUpgrades,
+  );
 
   const equippedItems = playerProfile.installedItems.filter(
     (item) => item.shellId === activeShellId,
