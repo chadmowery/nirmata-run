@@ -4,8 +4,9 @@ import { GeneratorConfig, Room } from '../../engine/generation/types';
 import { generateBSP } from '../../engine/generation/bsp';
 import { validateConnectivity } from '../../engine/generation/flood-fill';
 import depthConfig from './depth-config.json';
-import { SectorCondition, FactionTheme } from '@shared/components/environment';
+import { SectorCondition, FactionTheme, Orientation } from '@shared/components/environment';
 import { PropAnchorTag, getPrefabsForFloor } from './prefabs';
+import { AutotileSolver, AutotileResult } from './autotile-solver';
 
 /**
  * Configuration for game-layer dungeon generation.
@@ -22,6 +23,7 @@ export interface PropAnchor {
   anchorType: PropAnchorTag;
   guaranteedTemplate?: string;
   roomId?: number;
+  orientation?: Orientation;
 }
 
 export interface FaradayBounds {
@@ -65,6 +67,8 @@ export interface DungeonResult {
   vaultFaradayBounds: FaradayBounds[];
   /** All candidate/authored prop anchor coordinates. */
   propAnchors: PropAnchor[];
+  /** Pre-computed autotile results for all wall tiles. */
+  autotiledWalls?: Map<string, AutotileResult>;
 }
 
 const MAX_ATTEMPTS = 10;
@@ -472,6 +476,7 @@ export function generateDungeon(config: DungeonConfig): DungeonResult {
         bespokeRooms,
         vaultFaradayBounds,
         propAnchors,
+        autotiledWalls: AutotileSolver.solveAllWalls(grid),
       };
     }
   }
@@ -531,6 +536,7 @@ export function generateDungeon(config: DungeonConfig): DungeonResult {
         bespokeRooms: [],
         vaultFaradayBounds: [],
         propAnchors: fPropAnchors,
+        autotiledWalls: AutotileSolver.solveAllWalls(fGrid),
       };
     }
   }
@@ -654,19 +660,33 @@ export function tagProceduralRoomAnchors(
         (southWall && westWall);
 
       if (isPerpendicularCorner) {
+        let orientation: Orientation = 'SOUTH';
+        if (northWall) orientation = 'SOUTH';
+        else if (southWall) orientation = 'NORTH';
+        else if (westWall) orientation = 'EAST';
+        else if (eastWall) orientation = 'WEST';
+
         anchors.push({
           x,
           y,
           anchorType: 'PROP_DESK_CORNER',
           roomId,
+          orientation,
         });
       } else if (wallCount === 1) {
         // Floor tile adjacent to a straight wall with an unobstructed opposite tile
+        let orientation: Orientation = 'SOUTH';
+        if (northWall) orientation = 'SOUTH';
+        else if (southWall) orientation = 'NORTH';
+        else if (westWall) orientation = 'EAST';
+        else if (eastWall) orientation = 'WEST';
+
         anchors.push({
           x,
           y,
           anchorType: 'PROP_LOCKER_WALL',
           roomId,
+          orientation,
         });
       } else if (wallCount === 0) {
         // Interior tile away from walls

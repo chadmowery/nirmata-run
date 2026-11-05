@@ -26,8 +26,8 @@ The Directional Tilemaps & Themed Tileset feature branch implements:
 | Milestone | Description | Status | Verification / Artifacts |
 | :--- | :--- | :--- | :--- |
 | **M1: Core Schemas & Types** | `TileOrientation`, `AutotileState`, `DirectionalProp` Zod schemas, `ThemedTilesetManifestSchema`, registration in `COMPONENTS_REGISTRY`. | 🟢 Complete | `src/shared/components/environment.ts`, `src/shared/tileset-types.ts`, `src/shared/components/__tests__/directional-environment.test.ts`, `src/shared/__tests__/tileset-types.test.ts` (8/8 pass) |
-| **M2: Autotile & Wall Cap Solver** | `AutotileSolver` (4-bit cardinal + 8-bit corner bitmasks, wall cap inversion, door alignments), dungeon generator wiring. | 🟡 In Progress | `src/game/generation/autotile-solver.ts`, unit tests |
-| **M3: Directional Props & Cover** | Front-facing access constraint in `MovementSystem` & `PropInteractionSystem`, dot product cover in `CombatSystem`, entity templates. | ⚪ Pending | Systems, templates, unit tests |
+| **M2: Autotile & Wall Cap Solver** | `AutotileSolver` (4-bit cardinal + 8-bit corner bitmasks, wall cap inversion, door alignments), dungeon generator wiring. | 🟢 Complete | `src/game/generation/autotile-solver.ts`, `src/game/generation/__tests__/autotile-solver.test.ts` (14/14 pass), 750-floor sweep verified |
+| **M3: Directional Props & Cover** | Front-facing access constraint in `MovementSystem` & `PropInteractionSystem`, dot product cover in `CombatSystem`, entity templates. | 🟡 In Progress | Systems, templates, unit tests |
 | **M4: PixiJS 8 Rendering Layer** | `tilemap.ts` & `sprite-map.ts` sprite rotation and directional frame key lookups, themed faction asset loading. | ⚪ Pending | Rendering tests |
 | **M5: Gamedata Studio & Polish** | PrefabEditor directional controls, real-time preview, frame validator API, regression test suite. | ⚪ Pending | Dev UI tests, typecheck, lint |
 
@@ -57,3 +57,10 @@ The Directional Tilemaps & Themed Tileset feature branch implements:
     - Authored `ThemedTilesetManifestSchema` in `src/shared/tileset-types.ts`.
     - Authored unit test suites verifying math, schema defaults, and ECS world serialization (`8/8` tests pass).
     - Verified clean typecheck and lint.
+  - **Milestone 2 Complete**:
+    - Implemented `AutotileSolver` in `src/game/generation/autotile-solver.ts` with 4-bit cardinal bitmask lookup (`CARDINAL_AUTOTILE_TABLE`), Pass 2 wall cap direction inversion, and Pass 3 8-bit diagonal corner refinement.
+    - Added door alignment resolution (`resolveDoorTile`).
+    - Wired pre-computed `autotiledWalls` and anchor orientation into `dungeon-generator.ts`.
+    - Wired `TileOrientation` and `DirectionalProp` attachment to environmental props in `entity-placement.ts`.
+    - Authored comprehensive test suite in `src/game/generation/__tests__/autotile-solver.test.ts` (14/14 tests pass).
+    - Verified 750-floor generation sweep and full typecheck/lint.
