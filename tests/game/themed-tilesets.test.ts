@@ -14,19 +14,19 @@ describe('Themed Tilesets Integration', () => {
       id: 'traxus_foundry',
       png: 'public/assets/tileset_traxus_foundry.png',
       json: 'public/assets/tileset_traxus_foundry.json',
-      preview: 'public/assets/tiles/previews/tileset_traxus_foundry_sheet.png',
+      preview: 'docs/visual-design/previews/tileset_traxus_foundry_sheet.png',
     },
     {
       id: 'sekiguchi_biolabs',
       png: 'public/assets/tileset_sekiguchi_biolabs.png',
       json: 'public/assets/tileset_sekiguchi_biolabs.json',
-      preview: 'public/assets/tiles/previews/tileset_sekiguchi_biolabs_sheet.png',
+      preview: 'docs/visual-design/previews/tileset_sekiguchi_biolabs_sheet.png',
     },
     {
       id: 'dark_subnet',
       png: 'public/assets/tileset_dark_subnet.png',
       json: 'public/assets/tileset_dark_subnet.json',
-      preview: 'public/assets/tiles/previews/tileset_dark_subnet_sheet.png',
+      preview: 'docs/visual-design/previews/tileset_dark_subnet_sheet.png',
     },
   ];
 

@@ -206,3 +206,119 @@
   color: var(--vibrant-cyan);
   font-size: var(--font-size-label);
 }
+
+/* Prefab Editor Styles (DIRECTIONAL-TILEMAPS.md §7) */
+.prefabToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  align-items: center;
+  margin-bottom: var(--space-md);
+  padding: var(--space-sm);
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.brushButton {
+  padding: var(--space-xs) var(--space-sm);
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.8);
+  font-family: 'Courier New', monospace;
+  font-size: var(--font-size-label);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.brushButton:hover {
+  border-color: var(--vibrant-cyan);
+  color: var(--vibrant-cyan);
+}
+
+.brushButtonActive {
+  background: rgba(0, 240, 255, 0.15);
+  border-color: var(--vibrant-cyan);
+  color: var(--vibrant-cyan);
+  font-weight: bold;
+}
+
+.prefabCanvasWrapper {
+  overflow: auto;
+  max-width: 100%;
+  padding: var(--space-md);
+  background: #080b10;
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  margin-bottom: var(--space-md);
+}
+
+.prefabGrid {
+  display: grid;
+  gap: 1px;
+  background: #141c26;
+  user-select: none;
+  width: fit-content;
+}
+
+.prefabCell {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  cursor: pointer;
+  position: relative;
+  transition: filter 0.05s ease;
+}
+
+.prefabCell:hover {
+  filter: brightness(1.4);
+  outline: 1px solid var(--vibrant-cyan);
+  z-index: 2;
+}
+
+.cellWall {
+  background: #1a2230;
+  color: #7b9bb5;
+}
+
+.cellFloor {
+  background: #0e141d;
+  color: #3b5065;
+}
+
+.cellDoor {
+  background: #2a2312;
+  color: #e5a93b;
+}
+
+.cellVault {
+  background: #2b1325;
+  color: #ff3399;
+}
+
+.cellHazard {
+  background: #331414;
+  color: #ff4444;
+}
+
+.propOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: bold;
+  pointer-events: none;
+}
+
+.directionArrow {
+  font-size: 14px;
+  line-height: 1;
+}
+

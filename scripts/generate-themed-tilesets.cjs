@@ -878,7 +878,11 @@ async function main() {
       theme.accentColor
     );
     const masterBuf = masterSheet.toBuffer('image/png');
-    const masterOutPath = path.join(rootDir, 'public/assets/tiles/previews', theme.previewFilename);
+    const previewDir = path.join(rootDir, 'docs/visual-design/previews');
+    if (!fs.existsSync(previewDir)) {
+      fs.mkdirSync(previewDir, { recursive: true });
+    }
+    const masterOutPath = path.join(previewDir, theme.previewFilename);
     fs.writeFileSync(masterOutPath, masterBuf);
     console.log(`- Saved inspection preview to ${masterOutPath} (${masterBuf.length} bytes)`);
   }
