@@ -11,6 +11,8 @@ vi.mock('pixi.js', () => {
       alpha: 1,
       visible: true,
       texture: {},
+      pivot: { set: vi.fn() },
+      rotation: 0,
       destroy: vi.fn(),
     };
   });
@@ -24,10 +26,14 @@ vi.mock('pixi.js', () => {
     // Hardcode 16 for TILE_SIZE here to avoid hoisting ReferenceError
     from: vi.fn().mockReturnValue({ width: 16, height: 16 }),
   };
+  const Assets = {
+    get: vi.fn(),
+  };
   return {
     Sprite,
     Container,
     Texture,
+    Assets,
   };
 });
 

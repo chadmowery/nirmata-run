@@ -1,20 +1,89 @@
 import { Sprite, Container, Texture, Assets } from 'pixi.js';
 import { EntityId } from '../engine/ecs/types';
 import { TILE_SIZE } from './constants';
+import { getActiveThemeId } from './assets';
+import { logger } from '../engine/utils/logger';
 
 const entitySprites = new Map<EntityId, Sprite>();
 
-import { logger } from '../engine/utils/logger';
+/**
+ * Resolves a canonical fallback frame key for a directional or variant sprite key.
+ */
+export function resolveFallbackSpriteKey(spriteKey: string): string | undefined {
+  if (spriteKey.startsWith('prop_workstation_')) return 'prop_workstation';
+  if (spriteKey.startsWith('prop_locker_')) return 'prop_locker';
+  if (spriteKey.startsWith('prop_biocabinet_')) return 'prop_biocabinet';
+  if (spriteKey.startsWith('prop_vault_door_locked_')) return 'prop_vault_door_locked';
+  if (spriteKey.startsWith('prop_vault_door_')) return 'prop_vault_door';
+  if (spriteKey.startsWith('prop_crate_cover_')) return 'prop_crate_cover';
+  if (spriteKey.startsWith('wall_')) return 'wall';
+  if (spriteKey.startsWith('door_')) return 'door';
+  return undefined;
+}
 
 /**
- * Resolves a PixiJS Texture for a given sprite key from the tileset atlas or global cache.
+ * Resolves a PixiJS Texture for a given sprite key from the active themed atlas,
+ * default tileset atlas, or global cache. Supports fallback frame keys.
  */
-export function getTextureForSpriteKey(spriteKey: string): Texture {
-  const asset = Assets.get('tileset');
-  if (asset && asset.textures && asset.textures[spriteKey]) {
-    return asset.textures[spriteKey];
+export function getTextureForSpriteKey(spriteKey: string, explicitFallbackKey?: string): Texture {
+  const activeTheme = getActiveThemeId?.() ?? 'default';
+
+  const hasAssets = typeof Assets !== 'undefined' && typeof Assets?.get === 'function';
+
+  // 1. Check active themed atlas if present
+  if (hasAssets && activeTheme !== 'default') {
+    const themedAsset = Assets.get(`tileset_${activeTheme}`);
+    if (themedAsset && themedAsset.textures && themedAsset.textures[spriteKey]) {
+      return themedAsset.textures[spriteKey];
+    }
   }
+
+  // 2. Check base tileset atlas
+  const baseAsset = hasAssets ? Assets.get('tileset') : null;
+  if (baseAsset && baseAsset.textures && baseAsset.textures[spriteKey]) {
+    return baseAsset.textures[spriteKey];
+  }
+
+  // 3. Check fallback key if provided or derived
+  const fallbackKey = explicitFallbackKey ?? resolveFallbackSpriteKey(spriteKey);
+  if (fallbackKey && fallbackKey !== spriteKey) {
+    if (hasAssets && activeTheme !== 'default') {
+      const themedAsset = Assets.get(`tileset_${activeTheme}`);
+      if (themedAsset && themedAsset.textures && themedAsset.textures[fallbackKey]) {
+        return themedAsset.textures[fallbackKey];
+      }
+    }
+    if (baseAsset && baseAsset.textures && baseAsset.textures[fallbackKey]) {
+      return baseAsset.textures[fallbackKey];
+    }
+    try {
+      const fbTex = Texture.from(fallbackKey);
+      if (fbTex && fbTex !== Texture.EMPTY && (fbTex.width ?? 0) > 1) {
+        return fbTex;
+      }
+    } catch {
+      // Fallback to Texture.from(spriteKey) below
+    }
+  }
+
   return Texture.from(spriteKey);
+}
+
+/**
+ * Updates an entity sprite's pivot and rotation based on angle in degrees.
+ */
+export function updateEntitySpriteOrientation(sprite: Sprite, angleDegrees: number = 0): void {
+  if (angleDegrees !== 0) {
+    if (sprite.pivot?.set) {
+      sprite.pivot.set(TILE_SIZE / 2, TILE_SIZE / 2);
+    }
+    sprite.rotation = (angleDegrees * Math.PI) / 180;
+  } else {
+    if (sprite.pivot?.set) {
+      sprite.pivot.set(0, 0);
+    }
+    sprite.rotation = 0;
+  }
 }
 
 /**

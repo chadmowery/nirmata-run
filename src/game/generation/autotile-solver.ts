@@ -62,7 +62,10 @@ export class AutotileSolver {
     y: number,
     outOfBoundsIsSolid: boolean = true,
   ): boolean {
-    if (!grid.inBounds(x, y)) {
+    const inBounds = typeof grid.inBounds === 'function' 
+      ? grid.inBounds(x, y) 
+      : (x >= 0 && x < grid.width && y >= 0 && y < grid.height);
+    if (!inBounds) {
       return outOfBoundsIsSolid;
     }
     const tile = grid.getTile(x, y);
@@ -74,7 +77,10 @@ export class AutotileSolver {
    * Returns true if the tile at (x, y) is walkable open space / floor.
    */
   public static isWalkableFloor(grid: Grid, x: number, y: number): boolean {
-    if (!grid.inBounds(x, y)) return false;
+    const inBounds = typeof grid.inBounds === 'function'
+      ? grid.inBounds(x, y)
+      : (x >= 0 && x < grid.width && y >= 0 && y < grid.height);
+    if (!inBounds) return false;
     const tile = grid.getTile(x, y);
     if (!tile) return false;
     return tile.terrain === 'floor' && tile.walkable;
