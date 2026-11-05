@@ -23,7 +23,7 @@ vi.mock('pixi.js', () => {
       scale: {
         x: 1,
         y: 1,
-        set: vi.fn(function (val: number) {
+        set: vi.fn(function (this: any, val: number) {
           this.x = val;
           this.y = val;
         }),
@@ -120,10 +120,7 @@ describe('R1–R4 Rendering and Controls Review Specifications', () => {
     playerEntity = world.createEntity();
     world.addComponent(playerEntity, Position, { x: 5, y: 5 });
     world.addComponent(playerEntity, Actor, {
-      name: 'Test Runner',
       isPlayer: true,
-      energy: 1000,
-      speed: 100,
     });
     world.addComponent(playerEntity, SpriteComponent, { key: 'player' });
 
@@ -164,7 +161,7 @@ describe('R1–R4 Rendering and Controls Review Specifications', () => {
         scale: {
           x: 1,
           y: 1,
-          set: vi.fn(function (val: number) {
+          set: vi.fn(function (this: any, val: number) {
             this.x = val;
             this.y = val;
           }),
@@ -228,11 +225,14 @@ describe('R1–R4 Rendering and Controls Review Specifications', () => {
 
       const initialCount = storeNotifications;
       const dummyEntityInfo = {
-        name: 'TERMINAL_CONSOLE',
+        type: 'prop' as const,
         category: 'prop' as const,
+        name: 'TERMINAL_CONSOLE',
         description: 'Subnet terminal.',
         screenX: 100,
         screenY: 100,
+        gridX: 5,
+        gridY: 5,
       };
 
       // First set: should notify
@@ -284,10 +284,10 @@ describe('R1–R4 Rendering and Controls Review Specifications', () => {
       world.addComponent(propId, Position, { x: 5, y: 6 });
       world.addComponent(propId, SpriteComponent, { key: 'prop_crate' });
       world.addComponent(propId, Prop, {
-        propClass: 'crate',
-        passable: false,
+        propId: 'prop-crate-1',
+        faction: 'traxus',
+        propClass: 'locker',
         isSearched: true, // Searched/depleted prop
-        destroyed: false,
       });
 
       const renderSystem = createRenderSystem({
@@ -306,11 +306,11 @@ describe('R1–R4 Rendering and Controls Review Specifications', () => {
       const sprite = getEntitySprite(propId);
       expect(sprite).toBeDefined();
       // Alpha should be 1.0 * 0.6 = 0.6 in FOV
-      expect(sprite.alpha).toBeCloseTo(0.6, 2);
+      expect(sprite!.alpha).toBeCloseTo(0.6, 2);
 
       // Execute a second render cycle: verify it stays 0.6 and does not revert to 1.0
       renderSystem.renderSystem();
-      expect(sprite.alpha).toBeCloseTo(0.6, 2);
+      expect(sprite!.alpha).toBeCloseTo(0.6, 2);
 
       renderSystem.destroy();
     });
@@ -341,10 +341,10 @@ describe('R1–R4 Rendering and Controls Review Specifications', () => {
       world.addComponent(propId, Position, { x: 6, y: 5 });
       world.addComponent(propId, SpriteComponent, { key: 'prop_terminal' });
       world.addComponent(propId, Prop, {
+        propId: 'prop-term-1',
+        faction: 'cyberacme',
         propClass: 'workstation',
-        passable: false,
         isSearched: false,
-        destroyed: false,
       });
       world.addComponent(propId, CorruptedNode, {
         trapType: 'acoustic_alert',
@@ -369,20 +369,21 @@ describe('R1–R4 Rendering and Controls Review Specifications', () => {
 
       const sprite = getEntitySprite(propId);
       // Safe / unrevealed outline applied
-      expect(sprite.filters).toBeDefined();
+      expect(sprite).toBeDefined();
+      expect(sprite!.filters).toBeDefined();
 
       // Now reveal the corrupted node (e.g. sensor probe)
       world.patchComponent(propId, CorruptedNode, { revealed: true });
 
       // In the next render loop, renderSystem() detects the changed state and refreshes outline
       renderSystem.renderSystem();
-      expect(sprite.filters).toHaveLength(2); // Corrupted outline + glitch filter
+      expect(sprite!.filters).toHaveLength(2); // Corrupted outline + glitch filter
 
       // Now disarm the node via firmware
       world.patchComponent(propId, CorruptedNode, { isDisarmed: true });
       renderSystem.renderSystem();
       // Should refresh to safe outline
-      expect(sprite.filters).toHaveLength(1);
+      expect(sprite!.filters).toHaveLength(1);
 
       renderSystem.destroy();
     });
@@ -505,7 +506,7 @@ describe('R1–R4 Rendering and Controls Review Specifications', () => {
     it('does not expose window.gameContext in non-development environments', () => {
       const originalEnv = process.env.NODE_ENV;
       try {
-        process.env.NODE_ENV = 'production';
+        (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
         const dummyContext = { sessionId: 'prod-session', world, eventBus } as any;
 
         setActiveGameContext(dummyContext);
@@ -520,7 +521,7 @@ describe('R1–R4 Rendering and Controls Review Specifications', () => {
         setActiveGameContext(null);
         expect(getActiveGameContext()).toBeNull();
       } finally {
-        process.env.NODE_ENV = originalEnv;
+        (process.env as Record<string, string | undefined>).NODE_ENV = originalEnv;
       }
     });
   });
