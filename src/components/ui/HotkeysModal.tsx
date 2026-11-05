@@ -54,8 +54,8 @@ const HOTKEY_CATEGORIES: HotkeyCategory[] = [
     badge: 'ENV-04',
     items: [
       { keys: ['G'], description: 'Ground loot recovery & backpack transfer (radial 1-tile)' },
-      { keys: ['E'], description: 'Engage Stability Anchor / Access Terminal' },
-      { keys: ['BUMP'], description: 'Pry open crates, lockers & forensic nodes' },
+      { keys: ['E'], description: 'Engage Anchor / Terminal / Adjacent Prop / Offload Cargo' },
+      { keys: ['BUMP'], description: 'Pry open crates, lockers & disarmed nodes (armed traps halt with warning)' },
       { keys: ['>', 'SHIFT + .'], description: 'Descend through Staircase to lower floor' },
     ],
   },
@@ -75,8 +75,8 @@ const HOTKEY_CATEGORIES: HotkeyCategory[] = [
     title: 'Field Terminal & Manuals',
     badge: 'CMD-06',
     items: [
-      { keys: ['`'], description: 'Toggle Cyber-Command Console (Backtick)' },
-      { keys: ['/show-map'], description: 'Terminal command: reveal full sector map' },
+      { keys: ['`'], description: 'Toggle Cyber-Command Console [Dev Build only]' },
+      { keys: ['/show-map'], description: 'Developer command: reveal sector map [Dev Build only]' },
       { keys: ['?', 'H'], description: 'Toggle this Operator Directives Manual' },
     ],
   },
@@ -152,7 +152,7 @@ export const HotkeysModal: React.FC<HotkeysModalProps> = ({ onClose }) => {
             <span>PRESS [ESC] OR [H] AT ANY TIME TO RESUME REAL-TIME SIMULATION</span>
           </div>
           <div className={styles.footerHint}>
-            <span>NIRMATA OS // REV 2.6.0</span>
+            <span>NIRMATA RUNNER // v1.0.0</span>
           </div>
         </div>
       </div>

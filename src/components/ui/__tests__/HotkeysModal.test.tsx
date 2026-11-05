@@ -70,6 +70,16 @@ describe('HotkeysModal Component', () => {
     expect(onCloseMock).not.toHaveBeenCalled();
   });
 
+  it('renders accurate descriptions for bump, developer console, and version footer (U8)', () => {
+    render(<HotkeysModal onClose={onCloseMock} />);
+
+    expect(
+      screen.getByText(/Pry open crates, lockers & disarmed nodes/i),
+    ).toBeDefined();
+    expect(screen.getByText(/Toggle Cyber-Command Console \[Dev Build only\]/i)).toBeDefined();
+    expect(screen.getByText(/NIRMATA RUNNER \/\/ v1.0.0/i)).toBeDefined();
+  });
+
   it('removes the keydown listener when unmounted', () => {
     const { unmount } = render(<HotkeysModal onClose={onCloseMock} />);
     unmount();

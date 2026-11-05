@@ -124,7 +124,7 @@ export const BackpackGrid: React.FC = () => {
           label: `⚡ BURN ON ${swDef.targetSlot.toUpperCase()}`,
           variant: 'cyan',
           holdToConfirm: true,
-          holdDurationMs: 600,
+          holdDurationMs: 1500,
           rightSlot: 'HOLD',
           action: () => {
             eventBus?.emit('BURN_SOFTWARE_REQUESTED', {
@@ -162,7 +162,7 @@ export const BackpackGrid: React.FC = () => {
               : `⚡ BURN FIRMWARE (SLOT ${slotIdx + 1})`,
             variant: 'cyan',
             holdToConfirm: true,
-            holdDurationMs: 600,
+            holdDurationMs: 1500,
             rightSlot: 'HOLD',
             action: () => {
               eventBus?.emit('BURN_FIRMWARE_REQUESTED', {
@@ -186,7 +186,7 @@ export const BackpackGrid: React.FC = () => {
               label: `🧬 OVERWRITE AUGMENT (SLOT ${slotIdx + 1})`,
               variant: 'cyan',
               holdToConfirm: true,
-              holdDurationMs: 600,
+              holdDurationMs: 1500,
               rightSlot: 'HOLD',
               action: () => {
                 eventBus?.emit('BURN_AUGMENT_REQUESTED', {
@@ -205,7 +205,7 @@ export const BackpackGrid: React.FC = () => {
             label: `🧬 BURN AUGMENT INTO CHASSIS (SLOT ${equippedAg.length + 1})`,
             variant: 'cyan',
             holdToConfirm: true,
-            holdDurationMs: 600,
+            holdDurationMs: 1500,
             rightSlot: 'HOLD',
             action: () => {
               eventBus?.emit('BURN_AUGMENT_REQUESTED', {
@@ -462,7 +462,7 @@ export const BackpackGrid: React.FC = () => {
               key={idx}
               variant={act.variant || 'cyan'}
               holdToConfirm={act.holdToConfirm}
-              holdDurationMs={act.holdDurationMs ?? 600}
+              holdDurationMs={act.holdDurationMs ?? 1500}
               onHoldComplete={act.holdToConfirm ? act.action : undefined}
               onClick={!act.holdToConfirm ? act.action : undefined}
               rightSlot={act.rightSlot}
