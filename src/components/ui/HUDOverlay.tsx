@@ -91,14 +91,14 @@ export const HUDOverlay: React.FC = () => {
 
           <div className={styles.hudChip}>
             <span className={styles.hudChipLabel}>FLUX MATRIX</span>
-            <span className={styles.hudChipVal} style={{ color: 'var(--c-accent, #00f0ff)' }}>
+            <span className={styles.hudChipVal} style={{ color: 'var(--c-accent-secondary, #00f0ff)' }}>
               {flux.toLocaleString()} FX
             </span>
           </div>
 
           <div className={styles.hudChip}>
             <span className={styles.hudChipLabel}>LOCKED FILES</span>
-            <span className={styles.hudChipVal} style={{ color: 'var(--c-accent-secondary, #d8ff00)' }}>
+            <span className={styles.hudChipVal} style={{ color: 'var(--c-accent, #d8ff00)' }}>
               {blueprintCount} BP
             </span>
           </div>

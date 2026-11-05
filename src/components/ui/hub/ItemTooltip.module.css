@@ -1,6 +1,6 @@
 .tooltipRoot {
   position: fixed;
-  z-index: 99999;
+  z-index: var(--z-tooltip, 1800);
   width: 320px;
   max-width: calc(100vw - 32px);
   max-height: calc(100vh - 32px);
@@ -186,4 +186,10 @@
 .footerLink {
   color: var(--c-accent);
   font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tooltipRoot {
+    animation: none !important;
+  }
 }

@@ -20,6 +20,18 @@
   --c-danger: #ff2a4b;           /* Taikoku Stamp Crimson */
   --c-warning: #ff6600;          /* Industrial Thermal Orange */
   --c-scrap: #ffaa00;            /* Scrap / Caution Amber */
+  --c-nanites: #10b981;          /* Medical Repair Emerald Nanites */
+
+  /* Canonical Z-Index Scale */
+  --z-hud: 100;
+  --z-drawer: 500;
+  --z-panel: 1000;
+  --z-modal: 1500;
+  --z-overlay: 1600;
+  --z-tooltip: 1800;
+  --z-dialog: 2000;
+  --z-critical-dialog: 2500;
+  --z-bsod: 3000;
 
   /* Text Hierarchy */
   --c-text: #ffffff;
@@ -368,6 +380,15 @@ canvas {
   color: #ffffff;
   border-color: var(--c-danger);
   box-shadow: 0 0 14px rgba(255, 42, 75, 0.5);
+}
+
+.btn-lever:focus-visible {
+  outline: 2px solid var(--c-accent-secondary);
+  outline-offset: 2px;
+}
+
+.btn-lever.danger:focus-visible {
+  outline-color: var(--c-danger);
 }
 
 .btn-lever:disabled {

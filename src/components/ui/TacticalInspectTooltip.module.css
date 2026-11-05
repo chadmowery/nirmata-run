@@ -1,11 +1,11 @@
 .tooltipRoot {
   position: fixed;
-  z-index: 99999;
+  z-index: var(--z-tooltip, 1800);
   width: 310px;
   max-width: calc(100vw - 32px);
   background: rgba(4, 6, 10, 0.96);
   border: 1px solid #1c2638;
-  border-left: 3px solid var(--c-accent, #00f0ff);
+  border-left: 3px solid var(--c-accent-secondary, #00f0ff);
   box-shadow:
     0 0 30px rgba(0, 0, 0, 0.95),
     0 0 15px rgba(0, 240, 255, 0.15);
@@ -32,24 +32,24 @@
 }
 
 .variantDanger {
-  border-left-color: var(--c-danger, #ff0055);
+  border-left-color: var(--c-danger, #ff2a4b);
   box-shadow:
     0 0 30px rgba(0, 0, 0, 0.95),
-    0 0 15px rgba(255, 0, 85, 0.2);
+    0 0 15px rgba(255, 42, 75, 0.2);
 }
 
 .variantOrange {
-  border-left-color: var(--c-warning, #ff9500);
+  border-left-color: var(--c-warning, #ff6600);
   box-shadow:
     0 0 30px rgba(0, 0, 0, 0.95),
-    0 0 15px rgba(255, 149, 0, 0.2);
+    0 0 15px rgba(255, 102, 0, 0.2);
 }
 
 .variantYellow {
-  border-left-color: #ffd700;
+  border-left-color: var(--c-scrap, #ffaa00);
   box-shadow:
     0 0 30px rgba(0, 0, 0, 0.95),
-    0 0 15px rgba(255, 215, 0, 0.2);
+    0 0 15px rgba(255, 170, 0, 0.2);
 }
 
 .cornerMark {
@@ -97,7 +97,7 @@
   font-family: var(--font-mono, monospace);
   font-size: 9px;
   letter-spacing: 0.18em;
-  color: var(--c-accent, #00f0ff);
+  color: var(--c-accent-secondary, #00f0ff);
   opacity: 0.75;
   text-transform: uppercase;
 }
@@ -132,23 +132,23 @@
 }
 
 .badgeCyan {
-  color: var(--c-accent, #00f0ff);
+  color: var(--c-accent-secondary, #00f0ff);
   background: rgba(0, 240, 255, 0.08);
 }
 
 .badgeDanger {
-  color: var(--c-danger, #ff0055);
-  background: rgba(255, 0, 85, 0.1);
+  color: var(--c-danger, #ff2a4b);
+  background: rgba(255, 42, 75, 0.1);
 }
 
 .badgeOrange {
-  color: var(--c-warning, #ff9500);
-  background: rgba(255, 149, 0, 0.1);
+  color: var(--c-warning, #ff6600);
+  background: rgba(255, 102, 0, 0.1);
 }
 
 .badgeYellow {
-  color: #ffd700;
-  background: rgba(255, 215, 0, 0.1);
+  color: var(--c-scrap, #ffaa00);
+  background: rgba(255, 170, 0, 0.1);
 }
 
 .vitalsRow {
@@ -181,19 +181,19 @@
 
 .statBarFillHp {
   height: 100%;
-  background: var(--c-danger, #ff0055);
+  background: var(--c-danger, #ff2a4b);
   transition: width 0.15s ease-out;
 }
 
 .statBarFillHeat {
   height: 100%;
-  background: var(--c-warning, #ff9500);
+  background: var(--c-warning, #ff6600);
   transition: width 0.15s ease-out;
 }
 
 .statBarFillStability {
   height: 100%;
-  background: var(--c-accent, #00f0ff);
+  background: var(--c-accent-secondary, #00f0ff);
   transition: width 0.15s ease-out;
 }
 
@@ -213,9 +213,9 @@
 .statusChip {
   font-family: var(--font-mono, monospace);
   font-size: 9px;
-  color: #ff0055;
-  background: rgba(255, 0, 85, 0.12);
-  border: 1px solid rgba(255, 0, 85, 0.3);
+  color: var(--c-danger, #ff2a4b);
+  background: rgba(255, 42, 75, 0.12);
+  border: 1px solid rgba(255, 42, 75, 0.3);
   padding: 1px 4px;
 }
 
@@ -232,7 +232,7 @@
   font-family: var(--font-mono, monospace);
   font-size: 8.5px;
   letter-spacing: 0.12em;
-  color: var(--c-accent, #00f0ff);
+  color: var(--c-accent-secondary, #00f0ff);
   opacity: 0.7;
 }
 
@@ -268,4 +268,15 @@
   color: #64748b;
   display: flex;
   justify-content: space-between;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tooltipRoot {
+    animation: none !important;
+  }
+  .statBarFillHp,
+  .statBarFillHeat,
+  .statBarFillStability {
+    transition: none !important;
+  }
 }

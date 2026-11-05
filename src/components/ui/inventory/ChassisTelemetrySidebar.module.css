@@ -17,7 +17,7 @@
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.08em;
-  color: var(--c-accent, #00f0ff);
+  color: var(--c-accent-secondary, #00f0ff);
   text-transform: uppercase;
   border-bottom: 1px solid rgba(0, 240, 255, 0.2);
   padding-bottom: 4px;
@@ -43,7 +43,7 @@
 .shellCard:hover,
 .shellCard:focus-visible {
   background: rgba(0, 240, 255, 0.08);
-  border-color: var(--c-accent, #00f0ff);
+  border-color: var(--c-accent-secondary, #00f0ff);
   box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
   outline: none;
 }
@@ -66,7 +66,7 @@
 .kanjiBadge {
   font-family: var(--font-jp, sans-serif);
   font-size: 9px;
-  color: var(--c-accent-secondary, #d8ff00);
+  color: var(--c-accent, #d8ff00);
   background: rgba(216, 255, 0, 0.1);
   border: 1px solid rgba(216, 255, 0, 0.3);
   padding: 1px 5px;
@@ -87,13 +87,13 @@
   border: 1px dashed rgba(0, 240, 255, 0.3);
   padding: 6px 8px;
   font-size: 8px;
-  color: var(--c-accent, #00f0ff);
+  color: var(--c-accent-secondary, #00f0ff);
 }
 
 .cornerMark {
   position: absolute;
   font-size: 9px;
-  color: var(--c-accent, #00f0ff);
+  color: var(--c-accent-secondary, #00f0ff);
   pointer-events: none;
   line-height: 1;
 }
@@ -143,7 +143,7 @@
 .abilityCard:hover,
 .abilityCard:focus-visible {
   background: #111a2a;
-  border-color: var(--c-accent, #00f0ff);
+  border-color: var(--c-accent-secondary, #00f0ff);
   box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
   outline: none;
 }
@@ -170,7 +170,7 @@
 .hotkeyTag {
   font-size: 9px;
   font-weight: 800;
-  color: var(--c-accent, #00f0ff);
+  color: var(--c-accent-secondary, #00f0ff);
   flex-shrink: 0;
 }
 
@@ -202,7 +202,7 @@
 .rangeTag {
   font-size: 8px;
   font-weight: 700;
-  color: var(--c-accent-secondary, #d8ff00);
+  color: var(--c-accent, #d8ff00);
   background: rgba(216, 255, 0, 0.1);
   border: 1px solid rgba(216, 255, 0, 0.3);
   padding: 1px 4px;
@@ -221,7 +221,7 @@
 
 .statesContainer:hover,
 .statesContainer:focus-visible {
-  border-color: var(--c-accent, #00f0ff);
+  border-color: var(--c-accent-secondary, #00f0ff);
   background: rgba(0, 240, 255, 0.05);
   outline: none;
 }
@@ -229,7 +229,7 @@
 .nominalState {
   font-size: 9px;
   font-weight: 700;
-  color: var(--c-accent-secondary, #d8ff00);
+  color: var(--c-accent, #d8ff00);
   display: flex;
   align-items: center;
   gap: 4px;
@@ -243,4 +243,13 @@
   border: 1px solid var(--c-danger, #ff3b30);
   padding: 2px 6px;
   text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shellCard,
+  .statRowWrapper,
+  .abilityCard,
+  .statesContainer {
+    transition: none !important;
+  }
 }

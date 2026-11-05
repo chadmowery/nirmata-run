@@ -134,12 +134,12 @@ export const ChassisTelemetrySidebar: React.FC = () => {
     {
       label: 'MAX HEALTH',
       value: `${hp} / ${maxHp} HP`,
-      valueColor: 'var(--c-accent-secondary, #d8ff00)',
+      valueColor: 'var(--c-accent, #d8ff00)',
     },
     {
       label: 'REALITY STABILITY',
       value: `${stability}%`,
-      valueColor: 'var(--c-accent, #00f0ff)',
+      valueColor: 'var(--c-accent-secondary, #00f0ff)',
     },
     {
       label: 'CORE HEAT',
@@ -154,19 +154,19 @@ export const ChassisTelemetrySidebar: React.FC = () => {
     {
       label: 'FLUX ENERGY',
       value: `${flux.toLocaleString()} FX`,
-      valueColor: 'var(--c-accent, #00f0ff)',
+      valueColor: 'var(--c-accent-secondary, #00f0ff)',
     },
     {
       label: 'LOCKED FILES',
       value: `${blueprintCount} BP`,
-      valueColor: 'var(--c-accent-secondary, #d8ff00)',
+      valueColor: 'var(--c-accent, #d8ff00)',
     },
     ...(nanites > 0
       ? [
           {
             label: 'NANITE CORES',
             value: `${nanites.toLocaleString()} NT`,
-            valueColor: '#10b981',
+            valueColor: 'var(--c-nanites, #10b981)',
           },
         ]
       : []),
@@ -528,7 +528,7 @@ export const ChassisTelemetrySidebar: React.FC = () => {
                   style={{
                     fontSize: '8px',
                     fontWeight: 700,
-                    color: 'var(--c-accent)',
+                    color: 'var(--c-accent-secondary)',
                     background: 'rgba(0, 240, 255, 0.1)',
                     border: '1px solid rgba(0, 240, 255, 0.3)',
                     padding: '1px 4px',
@@ -583,7 +583,7 @@ export const ChassisTelemetrySidebar: React.FC = () => {
                   style={{
                     fontSize: '8px',
                     fontWeight: 700,
-                    color: 'var(--c-accent-secondary)',
+                    color: 'var(--c-accent)',
                     background: 'rgba(216, 255, 0, 0.1)',
                     border: '1px solid rgba(216, 255, 0, 0.3)',
                     padding: '1px 4px',
@@ -641,7 +641,7 @@ export const ChassisTelemetrySidebar: React.FC = () => {
                   {
                     label: 'ACTIVE STATUSES',
                     value: player.statuses?.length ? player.statuses.join(', ') : 'NONE // OPTIMAL',
-                    color: player.statuses?.length ? 'var(--c-warning, #f59e0b)' : 'var(--c-accent, #00f0ff)',
+                    color: player.statuses?.length ? 'var(--c-warning, #f59e0b)' : 'var(--c-accent-secondary, #00f0ff)',
                   },
                 ],
                 footerText: 'CHASSIS NEURAL TELEMETRY LINK',

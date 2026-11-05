@@ -357,9 +357,9 @@ export const EquipmentPanel: React.FC = () => {
                       setOpenSocketMenuSlot(isMenuOpen ? null : slotType);
                     }}
                     style={{
-                      background: isMenuOpen ? 'var(--c-accent, #00f0ff)' : 'rgba(0, 240, 255, 0.1)',
-                      color: isMenuOpen ? '#000000' : 'var(--c-accent, #00f0ff)',
-                      border: '1px solid var(--c-accent, #00f0ff)',
+                      background: isMenuOpen ? 'var(--c-accent-secondary, #00f0ff)' : 'rgba(0, 240, 255, 0.1)',
+                      color: isMenuOpen ? '#000000' : 'var(--c-accent-secondary, #00f0ff)',
+                      border: '1px solid var(--c-accent-secondary, #00f0ff)',
                       padding: '3px 8px',
                       fontSize: '9px',
                       fontWeight: 800,
@@ -377,7 +377,7 @@ export const EquipmentPanel: React.FC = () => {
                       style={{
                         marginTop: '6px',
                         background: '#070c14',
-                        border: '1px solid var(--c-accent, #00f0ff)',
+                        border: '1px solid var(--c-accent-secondary, #00f0ff)',
                         borderRadius: '2px',
                         padding: '6px',
                         display: 'flex',

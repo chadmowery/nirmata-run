@@ -860,7 +860,7 @@ export const SHELL_STAT_DEFINITIONS: Record<string, StatDefinition> = {
     description:
       'Rare concentrated quantum flux retrieved from anomaly breaches and deep sector boss encounters. Used to decode proprietary blueprint archives and synthesize permanent augmentations.',
     specs: [
-      { label: 'CURRENCY TYPE', value: 'HIGH-TIER RESEARCH FLUX', color: 'var(--c-accent, #00f0ff)' },
+      { label: 'CURRENCY TYPE', value: 'HIGH-TIER RESEARCH FLUX', color: 'var(--c-accent-secondary, #00f0ff)' },
       { label: 'ACQUISITION', value: 'ELITE FOES & EXTRACTION BONUS' },
       { label: 'TECH ARCHIVE', value: 'BLUEPRINT COMPILATION & UPGRADES' },
     ],
@@ -872,7 +872,7 @@ export const SHELL_STAT_DEFINITIONS: Record<string, StatDefinition> = {
     description:
       'Encrypted schematic files secured from corporate dead-drops, classified lockers, and forensic nodes. Must be extracted alive to compile in the Workshop library.',
     specs: [
-      { label: 'DATA TYPE', value: 'SCHEMATIC INTEL PAYLOAD', color: 'var(--c-accent-secondary, #d8ff00)' },
+      { label: 'DATA TYPE', value: 'SCHEMATIC INTEL PAYLOAD', color: 'var(--c-accent, #d8ff00)' },
       { label: 'EXTRACTION POLICY', value: 'LOST UPON KIA UNLESS EXTRACTED' },
       { label: 'UNLOCK TARGET', value: 'WORKSHOP BLUEPRINT LIBRARY' },
     ],
@@ -884,7 +884,7 @@ export const SHELL_STAT_DEFINITIONS: Record<string, StatDefinition> = {
     description:
       'Coagulating molecular nanites harvested from cybernetic cores. Directly utilized to stabilize chassis integrity and repair structural damage.',
     specs: [
-      { label: 'MATERIAL ROLE', value: 'STRUCTURAL CELLULAR REPAIR', color: '#10b981' },
+      { label: 'MATERIAL ROLE', value: 'STRUCTURAL CELLULAR REPAIR', color: 'var(--c-nanites, #10b981)' },
       { label: 'BIO-COMPATIBILITY', value: '100% REPAIR ACCELERATION' },
     ],
   },

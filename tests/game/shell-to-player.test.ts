@@ -80,7 +80,7 @@ describe('Shell To Player Integration', () => {
         vault: [],
         shellUpgrades: {
           'vanguard-v1': {
-            speed: 20,
+            speed: 4,
             armor: 3,
             stability: 15,
             additionalPorts: 2,

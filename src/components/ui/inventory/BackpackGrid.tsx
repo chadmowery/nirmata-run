@@ -295,7 +295,7 @@ export const BackpackGrid: React.FC = () => {
                 padding: '4px',
                 textAlign: 'center',
                 position: 'relative',
-                border: isSelected ? '2px solid var(--c-accent, #00f0ff)' : undefined,
+                border: isSelected ? '2px solid var(--c-accent-secondary, #00f0ff)' : undefined,
                 background: isSelected ? 'rgba(0, 240, 255, 0.1)' : undefined,
               }}
               draggable={!!entityId}
