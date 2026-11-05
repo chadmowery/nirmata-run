@@ -255,6 +255,36 @@
   - Initialized `TacticalInspectTooltip` coords to prevent initial (0,0) placement.
   - Added unit test in `tests/rendering/r1-r4-render-controls.test.ts` verifying hover inspection functions over canvas and viewport bays while suppressing over interactive HUD elements. Verified full test suite passes (169/169 files, 1045/1045 tests).
 
+---
+
+## Workstream 4: Directional Tilemaps, Wall Caps & Themed Tileset Architecture
+
+> **Specification**: [`docs/design/DIRECTIONAL-TILEMAPS.md`](./design/DIRECTIONAL-TILEMAPS.md)  
+> **Status**: Completed (Branch: `directional-tilemaps`)
+
+- [x] **[DIR-01] Milestone 1: Core Schemas & Orientation Types (`src/shared/components/environment.ts`, `src/shared/tileset-types.ts`)**
+  - Implemented `TileOrientation`, `AutotileState`, and `DirectionalProp` Zod components registered in `COMPONENTS_REGISTRY`.
+  - Added orientation vector and angle maps (`ORIENTATION_ANGLES`, `ORIENTATION_VECTORS`, `vectorToOrientation`, `orientationToVector`).
+  - Defined `ThemedTilesetManifestSchema`, `FrameDefSchema`, and `RectSchema`. Verified with 8 unit tests in `src/shared/components/__tests__/directional-environment.test.ts` and `src/shared/__tests__/tileset-types.test.ts`.
+- [x] **[DIR-02] Milestone 2: Autotile & Wall Cap Bitmask Engine (`src/game/generation/autotile-solver.ts`, `src/game/generation/dungeon-generator.ts`)**
+  - Implemented 4-bit cardinal bitmask solver (`CARDINAL_AUTOTILE_TABLE`) mapping 16 neighborhood connectivity topologies to directional frames (`wall_straight_h`, `wall_straight_v`, `wall_corner_*`, `wall_t_*`, `wall_cap_*`, `wall_cross`, `wall_single`).
+  - Implemented Pass 2 outward-facing wall cap inversion and Pass 3 8-bit diagonal floor corner refinement (`wall_corner_*_inner`).
+  - Added door orientation resolver (`resolveDoorTile`) evaluating neighbor wall connectivity (`door_h_closed`, `door_v_closed`, `door_h_open`, `door_v_open`).
+  - Stamped `autotiledWalls` map and prop anchor orientations (`PROP_LOCKER_WALL`, `PROP_DESK_CORNER`) during dungeon generation, attaching `TileOrientation` and `DirectionalProp` on all spawned fixtures. Verified with 15 unit tests in `src/game/generation/__tests__/autotile-solver.test.ts` and 750-floor sweep.
+- [x] **[DIR-03] Milestone 3: Directional Props, Front-Facing Interaction & Cover Calculus (`src/game/systems/movement.ts`, `src/game/systems/prop-interaction.ts`, `src/game/systems/combat.ts`)**
+  - Enforced front-facing interaction requirement for props (`requiresFrontAccess: true`), halting movement at 0 turn cost when bumping orthogonal/rear sides with notice `[NOTICE] <PROP> FRONT INTERFACE IS TO THE <DIRECTION>.`
+  - Updated `CombatSystem.checkDirectionalCover` to evaluate threat vector against cover normal: $(P_{\text{attacker}} - P_{\text{target}}) \cdot N_{\text{cover}} > 0$.
+  - Authored and registered 18 directional entity templates (`prop-workstation-{n,e,s,w}`, `prop-locker-{n,e,s,w}`, `prop-biocabinet-{n,e,s,w}`, `prop-vault-door-{n,e,s,w}`, `prop-crate-cover-{h,v}`). Verified with 5 unit tests in `src/game/systems/__tests__/directional-prop-cover.test.ts`.
+- [x] **[DIR-04] Milestone 4: PixiJS 8 Rendering Layer & Themed Atlas Support (`src/rendering/tilemap.ts`, `src/rendering/sprite-map.ts`, `src/rendering/assets.ts`, `src/rendering/render-system.ts`)**
+  - Integrated `resolveTerrainTile` and `AutotileSolver` into `buildTilemap`, setting center pivot `(16, 16)` and rotation angle when falling back to base frames.
+  - Implemented `resolveFallbackSpriteKey` and `getTextureForSpriteKey` resolving textures from active themed atlas and falling back to isotropic base frames.
+  - Extended `loadThemedAssets` to dynamically register and load theme manifests (`THEME_MANIFEST_MAP`), tracking `activeThemeId`.
+  - Updated entity sprite transformations in `render-system.ts` (`applySpriteTransform`) on initial creation, reconciliation, and animation ticks. Verified with 10 unit tests in `tests/rendering/directional-render.test.ts`.
+- [x] **[DIR-05] Milestone 5: Gamedata Studio Prefab Editor & Manifest Validation (`src/app/dev/gamedata/editors/PrefabEditor.tsx`, `src/app/api/dev/gamedata/tileset-validator.ts`)**
+  - Built interactive `PrefabEditor` in `/dev/gamedata` supporting directional brush tools, 'R' key clockwise rotation cycling (`NORTH -> EAST -> SOUTH -> WEST`), directional arrow overlays (`↑`, `→`, `↓`, `←`), and real-time autotile preview rendering.
+  - Implemented `validateTilesetManifest` and `/api/dev/gamedata/tileset/validate` route checking manifest dimensions, required wall autotiles, doors, and directional prop coverage against `ThemedTilesetManifestSchema`.
+  - Verified full test suite passes (182/182 files, 1115/1115 tests), 0 type errors (`tsc --noEmit`), 0 lint warnings (`eslint src/`), and clean Next.js build (`next build`).
+
 
 
 
