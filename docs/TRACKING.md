@@ -233,6 +233,12 @@
   - Eliminated unconditional assignment to `window.gameContext` in `src/app/page.tsx`.
   - Implemented decoupled context singleton manager `setActiveGameContext` and `getActiveGameContext` in `src/game/active-context.ts`, scrubbing `window.gameContext` in non-development environments.
   - Migrated UI components to `getActiveGameContext()`. Verified in `tests/rendering/r1-r4-render-controls.test.ts`.
+- [x] **[REGRESSION-FIX] In-Game Tactical Tooltip Restoration & HUD Pointer-Events Specificity (`src/rendering/render-system.ts`, `src/app/globals.css`, `src/components/ui/styles.module.css`, `TacticalInspectTooltip.tsx`)**
+  - Diagnosed regression where `#ui-root > * { pointer-events: auto }` had higher CSS specificity than `.hudConstruct { pointer-events: none }`, causing the 100vw × 100vh HUD layout container to intercept hit tests across the entire screen and causing `elementFromPoint` in `render-system.ts` to clear `hoveredEntity(null)` on every mouse move.
+  - Excluded `.hudConstruct` from `#ui-root > *` in `globals.css` via `:not([class*="hudConstruct"])` and reinforced `.hudConstruct`, `.hudMainGrid`, and `.tacticalViewportBay` with `pointer-events: none !important`.
+  - Refined `updateHoverInspection` in `render-system.ts` to distinguish transparent viewport bays framing the canvas from solid interactive HUD controls, sidebars, ribbons, and modals.
+  - Initialized `TacticalInspectTooltip` coords to prevent initial (0,0) placement.
+  - Added unit test in `tests/rendering/r1-r4-render-controls.test.ts` verifying hover inspection functions over canvas and viewport bays while suppressing over interactive HUD elements. Verified full test suite passes (169/169 files, 1045/1045 tests).
 
 
 

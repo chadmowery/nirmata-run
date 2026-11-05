@@ -10,7 +10,10 @@ export const TacticalInspectTooltip: React.FC = () => {
   const hoveredEntity = useStore(gameStore, (s) => s.hoveredEntity);
   const detailedFlavorTextEnabled = useStore(gameStore, (s) => s.detailedFlavorTextEnabled);
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const [coords, setCoords] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [coords, setCoords] = useState<{ x: number; y: number }>(() => ({
+    x: hoveredEntity ? hoveredEntity.screenX + 16 : 0,
+    y: hoveredEntity ? hoveredEntity.screenY + 16 : 0,
+  }));
 
   useLayoutEffect(() => {
     if (typeof window === 'undefined' || !hoveredEntity) return;

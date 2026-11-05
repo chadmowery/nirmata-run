@@ -95,6 +95,8 @@ import { Grid } from '../../src/engine/grid/grid';
 import { Position } from '../../src/shared/components/position';
 import { SpriteComponent } from '../../src/shared/components/sprite';
 import { Actor } from '../../src/shared/components/actor';
+import { AIState, AIBehavior, AIBehaviorType } from '../../src/shared/components/ai-state';
+import { Health } from '../../src/shared/components/health';
 import { Prop, CorruptedNode, SecurityLock } from '../../src/shared/components/environment';
 import { gameStore } from '../../src/game/ui/store';
 import { setActiveGameContext, getActiveGameContext } from '../../src/game/active-context';
@@ -272,6 +274,57 @@ describe('R1–R4 Rendering and Controls Review Specifications', () => {
       windowListeners['pointermove']({ clientX: 100, clientY: 100 });
 
       expect(gameStore.getState().hoveredEntity).toBeNull();
+      delete (document as any).elementFromPoint;
+
+      renderSystem.destroy();
+    });
+
+    it('allows hover inspection when cursor is over the canvas or transparent tactical viewport bay', () => {
+      const enemyId = world.createEntity();
+      world.addComponent(enemyId, Position, { x: 5, y: 5 });
+      world.addComponent(enemyId, Actor, { isPlayer: false });
+      world.addComponent(enemyId, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.NULL_POINTER,
+        sightRadius: 6,
+      });
+      world.addComponent(enemyId, Health, { current: 30, max: 30, isAlive: true });
+      grid.addEntity(enemyId, 5, 5);
+
+      const renderSystem = createRenderSystem({
+        app,
+        layers,
+        world,
+        eventBus,
+        getGrid: () => grid,
+        getPlayerEntity: () => playerEntity,
+        lightPasses: () => true,
+      });
+
+      renderSystem.init();
+      renderSystem.renderSystem();
+
+      // Reset world container offsets to 0,0 for deterministic coordinate testing
+      layers.worldContainer.x = 0;
+      layers.worldContainer.y = 0;
+
+      // Mock document.elementFromPoint returning tacticalViewportBay
+      const mockViewportBay = {
+        closest: (selector: string) => {
+          if (selector === '#ui-root' || selector.includes('tacticalViewportBay')) {
+            return {};
+          }
+          return null;
+        },
+      };
+      (document as any).elementFromPoint = vi.fn().mockReturnValue(mockViewportBay as any);
+
+      // (5, 5) * 32 + 10 = 170
+      windowListeners['pointermove']({ clientX: 170, clientY: 170 });
+
+      const hovered = gameStore.getState().hoveredEntity;
+      expect(hovered).not.toBeNull();
+      expect(hovered?.name).toBe('NULL-POINTER SPECTER');
       delete (document as any).elementFromPoint;
 
       renderSystem.destroy();

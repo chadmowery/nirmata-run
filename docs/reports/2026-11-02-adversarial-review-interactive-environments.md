@@ -571,7 +571,7 @@ The handoff §5.6 says duplicate keys were "fixed across all hub and vault list 
 > - **O(1) Spatial Lookups**: Replaced O(N) full ECS scan in `tile-inspector.ts` with spatial lookups `grid.getEntitiesAt(gx, gy)` and `grid.getItemsAt(gx, gy)`.
 > - **Store Equality Deduplication**: Added deep equality check to `setHoveredEntity` in `src/game/ui/store.ts`, preventing redundant Zustand store updates and eliminating 60 Hz re-render thrashing.
 > - **Throttled Frame Inspection**: Ticker loop hover check in `renderSystem()` only recomputes inspection when pointer, camera position, zoom, player position, or map revealed states change.
-> - **Screen-Reader & UI Protection**: Dropped hostile `aria-live="polite"` from `TacticalInspectTooltip.tsx`. Added `document.elementFromPoint` check in `render-system.ts` against `#ui-root` to immediately suppress tooltips when cursor is hovering over HUD panels, ribbons, or modals.
+> - **Screen-Reader & UI Protection**: Dropped hostile `aria-live="polite"` from `TacticalInspectTooltip.tsx`. Added `document.elementFromPoint` check in `render-system.ts` against UI panels/modals inside `#ui-root` to suppress tooltips when cursor is hovering over HUD panels or buttons while preserving hover inspection over the game canvas and tactical viewport bay. Reinforced `.hudConstruct` with `pointer-events: none !important` and excluded it from `#ui-root > *` to prevent CSS specificity interference.
 
 [`render-system.ts` L668](../../src/rendering/render-system.ts): `renderSystem()` is attached to the Pixi ticker ([`page.tsx` L132-L136](../../src/app/page.tsx)). At its end, if a pointer position exists, it calls `updateHoverInspection(lastPointerEvent)` **every frame**, in addition to the `pointermove` call. Each call:
 

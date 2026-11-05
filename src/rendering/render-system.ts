@@ -218,9 +218,29 @@ export function createRenderSystem(config: RenderSystemConfig) {
       typeof document !== 'undefined' && typeof document.elementFromPoint === 'function'
         ? document.elementFromPoint(e.clientX, e.clientY)
         : null;
-    if (elem && elem !== canvas && elem.closest && elem.closest('#ui-root')) {
-      gameStore.getState().setHoveredEntity(null);
-      return;
+
+    if (elem && elem !== canvas) {
+      const isCanvasWrapper =
+        elem.id === 'canvas-container' || (canvas && canvas.parentElement === elem);
+      if (!isCanvasWrapper && elem.closest && elem.closest('#ui-root')) {
+        // Suppress tile inspect only if cursor is over actual UI controls, panels, or dialogues,
+        // rather than transparent layout bays framing the canvas.
+        const isInteractiveOrPanel = elem.closest(
+          'button, [role="dialog"], [role="alertdialog"], [role="tooltip"], input, select, textarea, aside, header, footer, nav, section, .panel-card, [data-hud-panel], [class*="hudRibbon"], [class*="hudColLeft"], [class*="hudColRight"], [class*="hudBottomBar"]',
+        );
+        const isTransparentBay =
+          !isInteractiveOrPanel &&
+          Boolean(
+            elem.closest(
+              '[class*="tacticalViewportBay"], [class*="hudConstruct"], [class*="hudMainGrid"]',
+            ),
+          );
+
+        if (!isTransparentBay) {
+          gameStore.getState().setHoveredEntity(null);
+          return;
+        }
+      }
     }
 
     const storeState = gameStore.getState();
