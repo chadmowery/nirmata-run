@@ -68,4 +68,29 @@ describe('AbortMissionDialog', () => {
 
     expect(handleConfirm).toHaveBeenCalledTimes(1);
   });
+
+  it('submits canonical ABORT_RUN action via GameContext without fabricating client results (U9)', async () => {
+    const submitAction = vi.fn().mockResolvedValue(undefined);
+    const { setActiveGameContext } = await import('@/game/active-context');
+    setActiveGameContext({
+      submitAction,
+      world: {} as any,
+      playerId: 1,
+    } as any);
+
+    render(<AbortMissionDialog />);
+
+    const abortBtn = screen.getByRole('button', { name: /CONFIRM DESYNC & ABORT/i });
+
+    act(() => {
+      fireEvent.pointerDown(abortBtn, { button: 0 });
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(submitAction).toHaveBeenCalledWith({ type: 'ABORT_RUN' });
+    setActiveGameContext(null);
+  });
 });
