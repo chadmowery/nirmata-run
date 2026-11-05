@@ -13,6 +13,7 @@ import {
   Children,
   PortConfig,
   AugmentSlots,
+  FirmwareSlots,
   Item,
 } from '@shared/components';
 import { resolveItemMetadata } from '../hub/item-metadata';
@@ -74,7 +75,8 @@ export const BackpackGrid: React.FC = () => {
     equipmentItems = inv.equipment;
   }
 
-  const slots = Array(15).fill(null);
+  const maxSlots = inv?.maxSlots ?? 30;
+  const slots = Array(maxSlots).fill(null);
 
   // Selected item details for action panel
   interface ActionConfig {
@@ -149,9 +151,15 @@ export const BackpackGrid: React.FC = () => {
       } else if (abilityDef) {
         const portConfig = gameContext.world.getComponent(gameContext.playerId, PortConfig);
         const maxFirmware = portConfig?.maxFirmware ?? 2;
+        const fwSlots = gameContext.world.getComponent(gameContext.playerId, FirmwareSlots);
+        const equippedFw = fwSlots?.equipped || [];
+
         Array.from({ length: maxFirmware }, (_, i) => i).forEach((slotIdx) => {
+          const isOverwrite = slotIdx < equippedFw.length;
           selectedItemActions.push({
-            label: `⚡ BURN FIRMWARE (SLOT ${slotIdx + 1})`,
+            label: isOverwrite
+              ? `⚡ OVERWRITE FIRMWARE (SLOT ${slotIdx + 1})`
+              : `⚡ BURN FIRMWARE (SLOT ${slotIdx + 1})`,
             variant: 'cyan',
             holdToConfirm: true,
             holdDurationMs: 600,
@@ -169,10 +177,11 @@ export const BackpackGrid: React.FC = () => {
         const portConfig = gameContext.world.getComponent(gameContext.playerId, PortConfig);
         const maxAugment = portConfig?.maxAugment ?? 3;
         const agSlots = gameContext.world.getComponent(gameContext.playerId, AugmentSlots);
+        const equippedAg = agSlots?.equipped || [];
 
         // Allow overwriting existing equipped augment slots
-        if (agSlots && agSlots.equipped.length > 0) {
-          agSlots.equipped.forEach((_, slotIdx) => {
+        if (equippedAg.length > 0) {
+          equippedAg.forEach((_, slotIdx) => {
             selectedItemActions.push({
               label: `🧬 OVERWRITE AUGMENT (SLOT ${slotIdx + 1})`,
               variant: 'cyan',
@@ -191,9 +200,9 @@ export const BackpackGrid: React.FC = () => {
         }
 
         // Allow burning into chassis if available ports remain
-        if (!agSlots || agSlots.equipped.length < maxAugment) {
+        if (equippedAg.length < maxAugment) {
           selectedItemActions.push({
-            label: `🧬 BURN AUGMENT INTO CHASSIS`,
+            label: `🧬 BURN AUGMENT INTO CHASSIS (SLOT ${equippedAg.length + 1})`,
             variant: 'cyan',
             holdToConfirm: true,
             holdDurationMs: 600,
@@ -201,6 +210,7 @@ export const BackpackGrid: React.FC = () => {
             action: () => {
               eventBus?.emit('BURN_AUGMENT_REQUESTED', {
                 augmentEntityId: item.entityId,
+                slotIndex: equippedAg.length,
               });
               setSelectedSlotIndex(null);
             },
@@ -212,7 +222,7 @@ export const BackpackGrid: React.FC = () => {
 
   return (
     <div className={styles.panel}>
-      <h3>Backpack</h3>
+      <h3>Backpack ({softwareItems.length + equipmentItems.length} / {maxSlots})</h3>
       <div className={styles.gridContainer}>
         {slots.map((_, i) => {
           const isSoftware = i < softwareItems.length;

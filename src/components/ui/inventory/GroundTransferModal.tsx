@@ -166,13 +166,13 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
     isConsumable?: boolean;
   }> = [];
 
-  let maxSlots = 20;
+  let maxSlots = 30;
 
   const currentCtx = getActiveGameContext();
   if (currentCtx?.world && currentCtx?.playerId) {
     const inv = currentCtx.world.getComponent(currentCtx.playerId, RunInventory);
     if (inv) {
-      maxSlots = inv.maxSlots || 20;
+      maxSlots = inv.maxSlots || 30;
       for (const sw of inv.software) {
         const swDef = currentCtx.world.getComponent(sw.entityId, SoftwareDef);
         const itemComp = currentCtx.world.getComponent(sw.entityId, Item);
@@ -257,7 +257,7 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
       if (!activeCtx?.world || !activeCtx?.playerId) break;
       const inv = activeCtx.world.getComponent(activeCtx.playerId, RunInventory);
       if (!inv) break;
-      const limit = inv.maxSlots || 20;
+      const limit = inv.maxSlots || 30;
       const currentCount = inv.software.length + inv.equipment.length;
       const isConsumable = item.isConsumable || item.type === 'consumable';
       const canStack =

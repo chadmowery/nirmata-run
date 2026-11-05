@@ -259,7 +259,7 @@ export function addConsumable<T extends EngineEvents>(
 
   // Check capacity against maxSlots
   const totalItems = inv.software.length + equipment.length;
-  if (totalItems >= (inv.maxSlots || 20)) {
+  if (totalItems >= (inv.maxSlots ?? 30)) {
     return false;
   }
 
