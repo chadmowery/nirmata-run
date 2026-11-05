@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useStore } from 'zustand';
 import { gameStore, GroundItemInfo } from '@/game/ui/store';
-import type { GameContext } from '@/game/types';
+import { getActiveGameContext } from '@/game/active-context';
 import { TaikokuPlacard, ItemIcon, BtnLever } from '../atomic';
-import styles from './ContainerOverlay.module.css';
+import styles from './GroundTransferModal.module.css';
+import { resolveItemMetadata } from '../hub/item-metadata';
 import {
   RunInventory,
   SoftwareDef,
@@ -16,6 +17,7 @@ import {
   RarityTier,
   Position,
   Item,
+  PickupEffect,
   Dying,
 } from '@shared/components';
 
@@ -28,31 +30,50 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
   const inventoryRevision = useStore(gameStore, (s) => s.inventoryRevision);
   void inventoryRevision;
 
-  const getContext = (): GameContext | undefined => {
-    return (
-      (typeof window !== 'undefined'
-        ? (window as unknown as {
-            gameContext?: GameContext;
-          }).gameContext
-        : undefined)
-    );
-  };
+  const modalRef = useRef<HTMLDivElement>(null);
 
+  // Focus trap and keyboard handling
   useEffect(() => {
+    modalRef.current?.focus();
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
         onClose();
+        return;
+      }
+
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusableElements = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        if (focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement || document.activeElement === modalRef.current) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
       }
     };
+
     window.addEventListener('keydown', handleKeyDown, true);
     return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [onClose]);
 
   // Helper to re-scan ground items nearby after a take or drop
   const rescanNearby = () => {
-    const ctx = getContext();
+    const ctx = getActiveGameContext();
     if (!ctx?.world || !ctx?.grid || !ctx?.playerId) return;
     const playerPos = ctx.world.getComponent(ctx.playerId, Position);
     if (!playerPos) return;
@@ -79,21 +100,34 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
           const ability = ctx.world.getComponent(itemId, AbilityDef);
           const augment = ctx.world.getComponent(itemId, AugmentData);
           const itemComp = ctx.world.getComponent(itemId, Item);
+          const pickupEffect = ctx.world.getComponent(itemId, PickupEffect);
 
-          let name = itemComp?.name || tmpl?.id || `Item #${itemId}`;
+          let name = itemComp?.name;
           let type = 'equipment';
+          let isConsumable = false;
+
           if (sw) {
-            name = sw.name;
+            name = name || sw.name;
             type = 'software';
           } else if (eq) {
-            name = eq.name;
+            name = name || eq.name;
             type = eq.slotType;
           } else if (ability) {
-            name = ability.name;
+            name = name || ability.name;
             type = 'firmware';
           } else if (augment) {
-            name = augment.name;
+            name = name || augment.name;
             type = 'augment';
+          } else if (pickupEffect?.type === 'heal' || itemComp?.type === 'consumable') {
+            name =
+              name ||
+              (tmpl?.id === 'nanite-canister'
+                ? 'Repair Nanites'
+                : resolveItemMetadata({ templateId: tmpl?.id || '' }).name || tmpl?.id || 'Consumable');
+            type = 'consumable';
+            isConsumable = true;
+          } else {
+            name = name || tmpl?.id || `Item #${itemId}`;
           }
 
           let directionLabel = 'CURRENT TILE';
@@ -113,6 +147,7 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
             y: ty,
             isPlayerTile: dx === 0 && dy === 0,
             directionLabel,
+            isConsumable,
           });
         }
       }
@@ -133,17 +168,18 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
 
   let maxSlots = 20;
 
-  const currentCtx = getContext();
+  const currentCtx = getActiveGameContext();
   if (currentCtx?.world && currentCtx?.playerId) {
     const inv = currentCtx.world.getComponent(currentCtx.playerId, RunInventory);
     if (inv) {
       maxSlots = inv.maxSlots || 20;
       for (const sw of inv.software) {
         const swDef = currentCtx.world.getComponent(sw.entityId, SoftwareDef);
+        const itemComp = currentCtx.world.getComponent(sw.entityId, Item);
         backpackItems.push({
           entityId: sw.entityId,
           templateId: sw.templateId,
-          name: swDef?.name || sw.templateId,
+          name: itemComp?.name || swDef?.name || sw.templateId,
           rarityTier: sw.rarityTier,
           type: 'software',
           quantity: sw.quantity ?? 1,
@@ -154,20 +190,27 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
         const eqDef = currentCtx.world.getComponent(eq.entityId, EquipmentDef);
         const ability = currentCtx.world.getComponent(eq.entityId, AbilityDef);
         const augment = currentCtx.world.getComponent(eq.entityId, AugmentData);
-        let name = eq.templateId;
+        const itemComp = currentCtx.world.getComponent(eq.entityId, Item);
+        let name = itemComp?.name;
         let type = 'equipment';
         if (eqDef) {
-          name = eqDef.name;
+          name = name || eqDef.name;
           type = eqDef.slotType;
         } else if (ability) {
-          name = ability.name;
+          name = name || ability.name;
           type = 'firmware';
         } else if (augment) {
-          name = augment.name;
+          name = name || augment.name;
           type = 'augment';
         } else if (eq.isConsumable) {
-          name = eq.templateId === 'nanite-canister' ? 'Repair Nanites' : 'Nanite Canister';
+          name =
+            name ||
+            (eq.templateId === 'nanite-canister'
+              ? 'Repair Nanites'
+              : resolveItemMetadata({ templateId: eq.templateId }).name || eq.templateId);
           type = 'consumable';
+        } else {
+          name = name || eq.templateId;
         }
 
         backpackItems.push({
@@ -183,8 +226,20 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
     }
   }
 
+  // Capacity check taking stacking into account
+  const canTakeItem = (item: GroundItemInfo): boolean => {
+    if (backpackItems.length < maxSlots) return true;
+    const isConsumable = item.isConsumable || item.type === 'consumable';
+    if (isConsumable) {
+      return backpackItems.some(
+        (b) => b.isConsumable && b.templateId === item.templateId && (b.quantity ?? 1) < 10,
+      );
+    }
+    return false;
+  };
+
   const handleTakeItem = async (itemId: number, targetX?: number, targetY?: number) => {
-    const activeCtx = getContext();
+    const activeCtx = getActiveGameContext();
     if (!activeCtx?.submitAction) return;
     await activeCtx.submitAction({
       type: 'PICKUP',
@@ -198,23 +253,28 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
   const handleTakeAll = async () => {
     const itemsToTake = [...groundItems];
     for (const item of itemsToTake) {
-      let currentBackpackCount = 0;
-      let limit = 20;
-      const activeCtx = getContext();
-      if (activeCtx?.world && activeCtx?.playerId) {
-        const inv = activeCtx.world.getComponent(activeCtx.playerId, RunInventory);
-        if (inv) {
-          limit = inv.maxSlots || 20;
-          currentBackpackCount = inv.software.length + inv.equipment.length;
-        }
+      const activeCtx = getActiveGameContext();
+      if (!activeCtx?.world || !activeCtx?.playerId) break;
+      const inv = activeCtx.world.getComponent(activeCtx.playerId, RunInventory);
+      if (!inv) break;
+      const limit = inv.maxSlots || 20;
+      const currentCount = inv.software.length + inv.equipment.length;
+      const isConsumable = item.isConsumable || item.type === 'consumable';
+      const canStack =
+        isConsumable &&
+        inv.equipment.some(
+          (e) => e.isConsumable && e.templateId === item.templateId && (e.quantity ?? 1) < 10,
+        );
+
+      if (currentCount >= limit && !canStack) {
+        continue;
       }
-      if (currentBackpackCount >= limit) break;
       await handleTakeItem(item.itemId, item.x, item.y);
     }
   };
 
   const handleDropItem = async (itemEntityId: number) => {
-    const activeCtx = getContext();
+    const activeCtx = getActiveGameContext();
     if (!activeCtx?.submitAction) return;
     await activeCtx.submitAction({
       type: 'DROP_ITEM',
@@ -225,13 +285,18 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
 
   return (
     <div
-      className={styles.containerOverlay}
+      className={styles.overlay}
       role="dialog"
       aria-modal="true"
       aria-label="Ground Loot Transfer Modal"
       onClick={onClose}
     >
-      <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={modalRef}
+        tabIndex={-1}
+        className={styles.modalContent}
+        onClick={(e) => e.stopPropagation()}
+      >
         <TaikokuPlacard
           kanji="戦術回収 // 物資移送"
           title="TACTICAL GROUND RECOVERY & BACKPACK TRANSFER"
@@ -239,7 +304,7 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
           stampVariant="cyan"
           onClose={onClose}
           closeLabel="✕ CLOSE [ESC]"
-          style={{ marginBottom: 0, border: 'none', borderBottom: '3px solid #000000' }}
+          className={styles.placardHeader}
         />
 
         <div className={styles.splitLayout}>
@@ -247,48 +312,39 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
           <div className={styles.panel}>
             <div className={styles.panelHeader}>
               <span className={styles.panelTitle}>GROUND OBJECTS ({groundItems.length})</span>
-              {groundItems.length > 0 && backpackItems.length < maxSlots && (
+              {groundItems.length > 0 && groundItems.some(canTakeItem) && (
                 <BtnLever
                   variant="cyan"
                   onClick={handleTakeAll}
-                  style={{ fontSize: '9px', padding: '3px 8px' }}
+                  className={styles.takeAllBtn}
                 >
                   TAKE ALL
                 </BtnLever>
               )}
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div className={styles.itemList}>
               {groundItems.length === 0 ? (
-                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--c-text-muted)', fontSize: '11px' }}>
+                <div className={styles.emptyState}>
                   NO LOOT ON GROUND WITHIN REACH.
                 </div>
               ) : (
                 groundItems.map((item) => (
-                  <div
-                    key={item.itemId}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      background: 'rgba(0, 240, 255, 0.04)',
-                      border: '1px solid rgba(0, 240, 255, 0.2)',
-                      padding: '6px 10px',
-                      borderRadius: '2px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div key={item.itemId} className={styles.itemRowGround}>
+                    <div className={styles.itemLeft}>
                       <ItemIcon
                         templateId={item.templateId}
                         itemType={item.type}
                         rarityTier={item.rarityTier}
                         size="sm"
                       />
-                      <div>
-                        <div style={{ fontSize: '11px', fontWeight: 800, color: '#ffffff' }}>
-                          {item.name}
-                        </div>
-                        <div style={{ fontSize: '9px', color: item.isPlayerTile ? 'var(--c-accent, #00f0ff)' : 'var(--c-warning, #f59e0b)', fontWeight: 700 }}>
+                      <div className={styles.itemText}>
+                        <div className={styles.itemName}>{item.name}</div>
+                        <div
+                          className={
+                            item.isPlayerTile ? styles.itemMetaCurrentTile : styles.itemMetaAdjacent
+                          }
+                        >
                           {item.directionLabel} • [{item.type.toUpperCase()}]
                         </div>
                       </div>
@@ -297,8 +353,8 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
                     <BtnLever
                       variant="cyan"
                       onClick={() => handleTakeItem(item.itemId, item.x, item.y)}
-                      disabled={backpackItems.length >= maxSlots}
-                      style={{ fontSize: '9px', padding: '3px 10px' }}
+                      disabled={!canTakeItem(item)}
+                      className={styles.actionBtn}
                     >
                       TAKE
                     </BtnLever>
@@ -312,42 +368,31 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
           <div className={styles.panel}>
             <div className={styles.panelHeader}>
               <span className={styles.panelTitle}>BACKPACK INVENTORY</span>
-              <span style={{ fontSize: '10px', color: 'var(--c-accent-secondary, #d8ff00)', fontWeight: 800 }}>
+              <span className={styles.slotBadge}>
                 {backpackItems.length} / {maxSlots} SLOTS
               </span>
             </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div className={styles.itemList}>
               {backpackItems.length === 0 ? (
-                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--c-text-muted)', fontSize: '11px' }}>
+                <div className={styles.emptyState}>
                   BACKPACK IS EMPTY.
                 </div>
               ) : (
                 backpackItems.map((item) => (
-                  <div
-                    key={item.entityId}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      border: '1px solid rgba(255, 255, 255, 0.12)',
-                      padding: '6px 10px',
-                      borderRadius: '2px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div key={item.entityId} className={styles.itemRowBackpack}>
+                    <div className={styles.itemLeft}>
                       <ItemIcon
                         templateId={item.templateId}
                         itemType={item.type}
                         rarityTier={item.rarityTier}
                         size="sm"
                       />
-                      <div>
-                        <div style={{ fontSize: '11px', fontWeight: 800, color: '#ffffff' }}>
+                      <div className={styles.itemText}>
+                        <div className={styles.itemName}>
                           {item.name} {item.quantity && item.quantity > 1 ? `x${item.quantity}` : ''}
                         </div>
-                        <div style={{ fontSize: '9px', color: 'var(--c-text-dim)', fontWeight: 700 }}>
+                        <div className={styles.itemMetaDim}>
                           [{item.type.toUpperCase()}] • {item.rarityTier.toUpperCase()}
                         </div>
                       </div>
@@ -356,7 +401,7 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
                     <BtnLever
                       variant="danger"
                       onClick={() => handleDropItem(item.entityId)}
-                      style={{ fontSize: '9px', padding: '3px 10px' }}
+                      className={styles.actionBtn}
                       title="Drop item onto floor to make room"
                     >
                       DROP

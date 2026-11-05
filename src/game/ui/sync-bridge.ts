@@ -179,8 +179,15 @@ export function syncEngineToStore(context: GameContext) {
   // Item pickup
   eventBus.on('ITEM_PICKED_UP', (event) => {
     if (event.entityId === context.playerId) {
+      gameStore.getState().incrementInventoryRevision();
       refreshPlayerStats();
     }
+  });
+
+  // Authoritative state reconciliation
+  eventBus.on('STATE_RECONCILED', () => {
+    gameStore.getState().incrementInventoryRevision();
+    refreshPlayerStats();
   });
 
   eventBus.on('CURRENCY_PICKED_UP', () => {

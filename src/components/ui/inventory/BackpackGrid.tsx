@@ -13,7 +13,9 @@ import {
   Children,
   PortConfig,
   AugmentSlots,
+  Item,
 } from '@shared/components';
+import { resolveItemMetadata } from '../hub/item-metadata';
 import type { ComponentDef } from '@engine/ecs/types';
 import type { EventBus } from '@engine/events/event-bus';
 import type { GameEvents } from '@/game/events/types';
@@ -96,8 +98,14 @@ export const BackpackGrid: React.FC = () => {
       const eventBus = gameContext.eventBus;
 
       if (item.isConsumable) {
+        const itemComp = gameContext.world.getComponent(item.entityId, Item);
+        const cName =
+          itemComp?.name ||
+          (item.templateId === 'nanite-canister'
+            ? 'Repair Nanites'
+            : resolveItemMetadata({ templateId: item.templateId }).name || 'Consumable');
         selectedItemActions.push({
-          label: `💊 USE REPAIR CANISTER`,
+          label: `💊 USE ${cName.toUpperCase()}`,
           variant: 'primary',
           action: async () => {
             if (gameContext.submitAction) {
@@ -251,7 +259,12 @@ export const BackpackGrid: React.FC = () => {
               itemName = augment.name;
               itemType = 'augment';
             } else if (equipmentItem?.isConsumable) {
-              itemName = itemTemplateId === 'nanite-canister' ? 'Repair Nanites' : 'Nanite Canister';
+              const itemComp = gameContext.world.getComponent(entityId, Item);
+              itemName =
+                itemComp?.name ||
+                (itemTemplateId === 'nanite-canister'
+                  ? 'Repair Nanites'
+                  : resolveItemMetadata({ templateId: itemTemplateId }).name || itemTemplateId || 'Consumable');
               itemType = 'consumable';
             } else {
               itemName = itemTemplateId || `Entity #${entityId}`;
