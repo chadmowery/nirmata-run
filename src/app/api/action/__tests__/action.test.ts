@@ -13,7 +13,19 @@ import { GameplayEvents } from '@shared/events/types';
 import { registerCoreSystems } from '@game/systems/registration';
 import { AIState, FovAwareness } from '@shared/components';
 import { AIBehaviorType, AIBehavior } from '@shared/components/ai-state';
-import { EquipIntent, UnequipIntent, DescentIntent, ExtractionIntent, EquipmentSlots, Shell } from '@shared/components';
+import {
+  EquipIntent,
+  UnequipIntent,
+  DescentIntent,
+  ExtractionIntent,
+  EquipmentSlots,
+  Shell,
+  RunInventory,
+  Stability,
+  HealIntent,
+  ApplyStatusEffectIntent,
+  StatusEffects,
+} from '@shared/components';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { submitLeaderboardEntry } from '@/server/leaderboard/leaderboard-service';
 import { RunMode } from '@shared/run-mode';
@@ -298,6 +310,7 @@ describe('Action API Route', () => {
       // Intercept action to emit RUN_ENDED
       turnManager.setPlayerActionHandler(() => {
         const items = Array.from({ length: VAULT_MAX_SLOTS + 5 }, (_, i) => ({
+          vaultItemId: `vault-item-${i}`,
           entityId: 100 + i,
           templateId: `item-${i}`,
           rarityTier: 'rare' as const,
@@ -572,6 +585,53 @@ describe('Action API Route', () => {
 
       // Verify DescentIntent is not left dangling on player
       expect(world.hasComponent(playerId, DescentIntent)).toBe(false);
+    });
+
+    it('executes USE_CONSUMABLE action with healing, stability restore, and regeneration status effect', async () => {
+      world.addComponent(playerId, Stability, { current: 40, max: 100 });
+      world.patchComponent(playerId, Health, { current: 5, max: 10 });
+      world.addComponent(playerId, RunInventory, {
+        software: [],
+        equipment: [
+          {
+            entityId: 999,
+            templateId: 'health-potion',
+            rarityTier: 'common',
+            pickedUpAtFloor: 1,
+            pickedUpAtTimestamp: Date.now(),
+            quantity: 2,
+            isConsumable: true,
+          },
+        ],
+        maxSlots: 10,
+      });
+
+      const req = new Request('http://localhost/api/action', {
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId,
+          action: { type: 'USE_CONSUMABLE', inventoryIndex: 0 },
+        }),
+      });
+
+      const res = await POST(req);
+      expect(res.status).toBe(200);
+
+      const inv = world.getComponent(playerId, RunInventory);
+      expect(inv?.equipment[0].quantity).toBe(1);
+
+      // Verify HealIntent was resolved during turn to restore 5 HP (5 -> 10)
+      expect(world.getComponent(playerId, Health)?.current).toBe(10);
+
+      // Verify ApplyStatusEffectIntent was resolved to active StatusEffects component with regeneration
+      const statusEffects = world.getComponent(playerId, StatusEffects);
+      expect(statusEffects?.effects).toContainEqual(
+        expect.objectContaining({ name: 'regeneration' }),
+      );
+
+      // Verify Stability increased by 10 (40 -> 50, minus floor 1 turn bleed)
+      const stability = world.getComponent(playerId, Stability);
+      expect(stability?.current).toBeCloseTo(50, 1);
     });
   });
 });

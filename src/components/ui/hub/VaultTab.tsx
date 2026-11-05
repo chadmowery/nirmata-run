@@ -39,6 +39,7 @@ export const TYPE_SORT_WEIGHT: Record<string, number> = {
   software: 2,
   equipment: 1,
   backpack: 1,
+  consumable: 1,
   item: 0,
 };
 
@@ -63,7 +64,7 @@ export function sortVaultItems(
       // Tertiary tiebreaker: templateId
       const tmplDiff = a.templateId.localeCompare(b.templateId);
       if (tmplDiff !== 0) return tmplDiff;
-      return a.entityId - b.entityId;
+      return a.vaultItemId.localeCompare(b.vaultItemId);
     }
 
     if (field === 'type') {
@@ -79,7 +80,7 @@ export function sortVaultItems(
       // Tertiary tiebreaker: templateId
       const tmplDiff = a.templateId.localeCompare(b.templateId);
       if (tmplDiff !== 0) return tmplDiff;
-      return a.entityId - b.entityId;
+      return a.vaultItemId.localeCompare(b.vaultItemId);
     }
 
     if (field === 'value') {
@@ -95,7 +96,7 @@ export function sortVaultItems(
       // Tertiary tiebreaker: templateId
       const tmplDiff = a.templateId.localeCompare(b.templateId);
       if (tmplDiff !== 0) return tmplDiff;
-      return a.entityId - b.entityId;
+      return a.vaultItemId.localeCompare(b.vaultItemId);
     }
 
     return 0;
@@ -119,78 +120,104 @@ export const VaultTab: React.FC = () => {
 
   if (!profile) return null;
 
-  const handleSell = async (entityId: number) => {
+  const handleSell = async (itemIdentifier: string | number, itemObj?: VaultItem) => {
     try {
+      const targetItem = itemObj || profile.vault.find((i) => i.vaultItemId === itemIdentifier || i.entityId === itemIdentifier);
+      const vaultItemId = targetItem?.vaultItemId || (typeof itemIdentifier === 'string' ? itemIdentifier : undefined);
+      const entityId = targetItem?.entityId ?? (typeof itemIdentifier === 'number' ? itemIdentifier : undefined);
+
       const response = await fetch('/api/vault/sell', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId: profile.sessionId,
+          vaultItemId,
           entityId,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
+        const isTarget = (i: VaultItem) =>
+          targetItem?.vaultItemId ? i.vaultItemId === targetItem.vaultItemId : (typeof itemIdentifier === 'string' ? i.vaultItemId === itemIdentifier : i.entityId === itemIdentifier);
+
         updateProfileOptimistic((p) => ({
           ...p,
           wallet: {
             ...p.wallet,
             scrap: p.wallet.scrap + (data.scrapGained || 0),
           },
-          vault: p.vault.filter((item) => item.entityId !== entityId),
-          overflow: p.overflow.filter((item) => item.entityId !== entityId),
+          vault: p.vault.filter((item) => !isTarget(item)),
+          overflow: p.overflow.filter((item) => !isTarget(item)),
         }));
-        if (selectedItem?.entityId === entityId) setSelectedItem(null);
+        if (selectedItem && isTarget(selectedItem)) setSelectedItem(null);
       }
     } catch (error) {
       logger.error('Sell failed:', 'UI', error);
     }
   };
 
-  const handleDiscard = async (entityId: number) => {
+  const handleDiscard = async (itemIdentifier: string | number, itemObj?: VaultItem) => {
     try {
+      const targetItem = itemObj || profile.vault.find((i) => i.vaultItemId === itemIdentifier || i.entityId === itemIdentifier);
+      const vaultItemId = targetItem?.vaultItemId || (typeof itemIdentifier === 'string' ? itemIdentifier : undefined);
+      const entityId = targetItem?.entityId ?? (typeof itemIdentifier === 'number' ? itemIdentifier : undefined);
+
       const response = await fetch('/api/vault/discard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId: profile.sessionId,
+          vaultItemId,
           entityId,
         }),
       });
 
       if (response.ok) {
+        const isTarget = (i: VaultItem) =>
+          targetItem?.vaultItemId ? i.vaultItemId === targetItem.vaultItemId : (typeof itemIdentifier === 'string' ? i.vaultItemId === itemIdentifier : i.entityId === itemIdentifier);
+
         updateProfileOptimistic((p) => ({
           ...p,
-          vault: p.vault.filter((item) => item.entityId !== entityId),
-          overflow: p.overflow.filter((item) => item.entityId !== entityId),
+          vault: p.vault.filter((item) => !isTarget(item)),
+          overflow: p.overflow.filter((item) => !isTarget(item)),
         }));
-        if (selectedItem?.entityId === entityId) setSelectedItem(null);
+        if (selectedItem && isTarget(selectedItem)) setSelectedItem(null);
       }
     } catch (error) {
       logger.error('Discard failed:', 'UI', error);
     }
   };
 
-  const handleSocketSoftware = async (targetEntityId: number, softwareEntityId: number) => {
-    logger.debug(`[Vault] Socketing software ${softwareEntityId} onto gear ${targetEntityId}`, 'UI');
-    const previousProfile = { ...profile };
-    const softwareItem = profile.vault.find((i) => i.entityId === softwareEntityId);
+  const handleSocketSoftware = async (
+    targetGear: { entityId?: number; vaultItemId?: string; templateId?: string },
+    software: { entityId?: number; vaultItemId?: string; templateId?: string },
+  ) => {
+    logger.debug(`[Vault] Socketing software ${software.vaultItemId || software.entityId} onto gear ${targetGear.vaultItemId || targetGear.entityId}`, 'UI');
+    const softwareItem = profile.vault.find((i) =>
+      software.vaultItemId ? i.vaultItemId === software.vaultItemId : i.entityId === software.entityId,
+    );
     if (!softwareItem) return;
 
+    const isSoftware = (i: VaultItem) =>
+      software.vaultItemId ? i.vaultItemId === software.vaultItemId : i.entityId === software.entityId;
+    const isTargetGear = (i: VaultItem) =>
+      targetGear.vaultItemId ? i.vaultItemId === targetGear.vaultItemId : i.entityId === targetGear.entityId;
+
     // Optimistic UI update
+    const previousProfile = structuredClone(profile);
     updateProfileOptimistic((p) => {
       const newVault = p.vault
-        .filter((i) => i.entityId !== softwareEntityId)
+        .filter((i) => !isSoftware(i))
         .map((i) =>
-          i.entityId === targetEntityId
+          isTargetGear(i)
             ? { ...i, socketedSoftware: [softwareItem.templateId] }
             : i,
         );
       return { ...p, vault: newVault };
     });
 
-    if (selectedItem && selectedItem.entityId === targetEntityId) {
+    if (selectedItem && isTargetGear(selectedItem)) {
       setSelectedItem({
         ...selectedItem,
         socketedSoftware: [softwareItem.templateId],
@@ -203,8 +230,10 @@ export const VaultTab: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sessionId: profile.sessionId,
-          targetEntityId,
-          softwareEntityId,
+          targetEntityId: targetGear.entityId,
+          targetVaultItemId: targetGear.vaultItemId,
+          softwareEntityId: software.entityId,
+          softwareVaultItemId: software.vaultItemId,
         }),
       });
 
@@ -283,6 +312,8 @@ export const VaultTab: React.FC = () => {
           canSocketSoftware(v.templateId, selectedItem.templateId, selectedItem.itemType),
       )
     : [];
+
+  const allSoftwareInVault = profile.vault.filter((v) => isSoftwareItem(v));
 
   const isSelectedSoftware = selectedItem && isSoftwareItem(selectedItem);
   const compatibleGearInVault = isSelectedSoftware
@@ -388,7 +419,7 @@ export const VaultTab: React.FC = () => {
 
               return (
                 <div
-                  key={item.entityId}
+                  key={item.vaultItemId || `${item.entityId}-${idx}`}
                   className={`
                     ${styles.vaultSlot} 
                     ${isSelected ? styles.selected : ''}
@@ -405,7 +436,7 @@ export const VaultTab: React.FC = () => {
                     if (isDropTargetValid) e.preventDefault();
                   }}
                   onDragEnter={() => {
-                    if (isDropTargetValid) setDragOverEntityId(item.entityId);
+                    if (isDropTargetValid) setDragOverEntityId(item.entityId ?? null);
                   }}
                   onDragLeave={() => {
                     if (dragOverEntityId === item.entityId) setDragOverEntityId(null);
@@ -413,7 +444,7 @@ export const VaultTab: React.FC = () => {
                   onDrop={(e) => {
                     e.preventDefault();
                     if (draggedVaultItem && isDropTargetValid) {
-                      handleSocketSoftware(item.entityId, draggedVaultItem.entityId);
+                      handleSocketSoftware(item, draggedVaultItem);
                     }
                   }}
                   onClick={() => setSelectedItem(item)}
@@ -442,6 +473,24 @@ export const VaultTab: React.FC = () => {
                       ? 'SW+'
                       : item.itemType.substring(0, 4).toUpperCase()}
                   </span>
+                  {item.quantity && item.quantity > 1 ? (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        bottom: '2px',
+                        right: '4px',
+                        background: 'rgba(0, 240, 255, 0.9)',
+                        color: '#000000',
+                        fontSize: '9px',
+                        fontWeight: 900,
+                        padding: '1px 3px',
+                        borderRadius: '2px',
+                        lineHeight: '9px',
+                      }}
+                    >
+                      x{item.quantity}
+                    </span>
+                  ) : null}
                 </div>
               );
             })}
@@ -476,7 +525,7 @@ export const VaultTab: React.FC = () => {
                           color: 'var(--c-accent-secondary)',
                         }}
                       >
-                        SERIAL: TK-VLT-{selectedItem.entityId.toString().slice(-6)}
+                        SERIAL: TK-VLT-{(selectedItem.vaultItemId || selectedItem.entityId?.toString() || '000000').slice(-6)}
                       </div>
                       <h3
                         style={{
@@ -616,13 +665,20 @@ export const VaultTab: React.FC = () => {
                           fontSize: '9px',
                           color: 'var(--c-text-muted)',
                           marginBottom: '8px',
+                          lineHeight: 1.4,
                         }}
                       >
                         NO COMPATIBLE SOFTWARE CORES IN VAULT
+                        {allSoftwareInVault.length > 0 && (
+                          <div style={{ color: 'var(--c-warning)', marginTop: '3px' }}>
+                            ({allSoftwareInVault.length} software chips in vault require{' '}
+                            {isWeaponItem(selectedItem) ? 'Armor' : 'Weapon'} hardware)
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className={styles.actionList}>
-                        {compatibleSoftwareInVault.map((sw) => {
+                        {compatibleSoftwareInVault.map((sw, idx) => {
                           const swMeta = resolveItemMetadata({
                             templateId: sw.templateId,
                             type: sw.itemType,
@@ -632,7 +688,8 @@ export const VaultTab: React.FC = () => {
                           });
                           return (
                             <div
-                              key={sw.entityId}
+                              key={sw.vaultItemId || `${sw.entityId}-${idx}`}
+                              style={{ width: '100%' }}
                               onPointerEnter={(e) =>
                                 setHoveredSlot({ metadata: swMeta, x: e.clientX, y: e.clientY })
                               }
@@ -648,8 +705,9 @@ export const VaultTab: React.FC = () => {
                               <BtnLever
                                 variant="cyan"
                                 holdToConfirm={true}
-                                onClick={() => handleSocketSoftware(selectedItem.entityId, sw.entityId)}
+                                onClick={() => handleSocketSoftware(selectedItem, sw)}
                                 rightSlot="LOAD"
+                                style={{ width: '100%' }}
                               >
                                 {sw.templateId.toUpperCase()}
                               </BtnLever>
@@ -687,12 +745,12 @@ export const VaultTab: React.FC = () => {
                       </div>
                     ) : (
                       <div className={styles.actionList}>
-                        {compatibleGearInVault.map((gear) => (
+                        {compatibleGearInVault.map((gear, idx) => (
                           <BtnLever
-                            key={gear.entityId}
+                            key={gear.vaultItemId || `${gear.entityId}-${idx}`}
                             variant="cyan"
                             holdToConfirm={true}
-                            onClick={() => handleSocketSoftware(gear.entityId, selectedItem.entityId)}
+                            onClick={() => handleSocketSoftware(gear, selectedItem)}
                             rightSlot="ATTACH"
                           >
                             {gear.templateId.toUpperCase()}
@@ -731,7 +789,7 @@ export const VaultTab: React.FC = () => {
                 <BtnLever
                   variant="danger"
                   holdToConfirm={true}
-                  onClick={() => handleSell(selectedItem.entityId)}
+                  onClick={() => handleSell(selectedItem.vaultItemId, selectedItem)}
                   rightSlot={`+${getVaultItemValue(selectedItem)} CR`}
                 >
                   SALVAGE FOR SCRAP

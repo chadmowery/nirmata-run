@@ -1,26 +1,32 @@
 import { SerializedWorld, ECSWorldDelta } from './types';
+import { redactWorldForClient } from './serialization';
 
 /**
  * Computes a fine-grained, component-level delta between two serialized ECS World states.
  * This replaces transmitting the entire multi-kilobyte world JSON on every single turn.
+ * Optionally redacts secret/server-authoritative component fields if redactForClient is true.
  */
 export function createECSWorldDelta(
   oldWorld: SerializedWorld,
   newWorld: SerializedWorld,
+  options?: { redactForClient?: boolean },
 ): ECSWorldDelta {
-  const oldEntitiesSet = new Set(oldWorld.entities);
-  const newEntitiesSet = new Set(newWorld.entities);
+  const sourceOld = options?.redactForClient ? redactWorldForClient(oldWorld) : oldWorld;
+  const sourceNew = options?.redactForClient ? redactWorldForClient(newWorld) : newWorld;
+
+  const oldEntitiesSet = new Set(sourceOld.entities);
+  const newEntitiesSet = new Set(sourceNew.entities);
 
   const entitiesAdded: number[] = [];
   const entitiesRemoved: number[] = [];
 
-  for (const id of newWorld.entities) {
+  for (const id of sourceNew.entities) {
     if (!oldEntitiesSet.has(id)) {
       entitiesAdded.push(id);
     }
   }
 
-  for (const id of oldWorld.entities) {
+  for (const id of sourceOld.entities) {
     if (!newEntitiesSet.has(id)) {
       entitiesRemoved.push(id);
     }
@@ -30,8 +36,8 @@ export function createECSWorldDelta(
   const componentsRemoved: ECSWorldDelta['componentsRemoved'] = [];
 
   // 1. Detect updated or added components
-  for (const [componentKey, newStore] of Object.entries(newWorld.stores)) {
-    const oldStore = oldWorld.stores[componentKey];
+  for (const [componentKey, newStore] of Object.entries(sourceNew.stores)) {
+    const oldStore = sourceOld.stores[componentKey];
 
     for (const [entityIdStr, newData] of Object.entries(newStore)) {
       const entityId = Number(entityIdStr);
@@ -51,8 +57,8 @@ export function createECSWorldDelta(
 
   // 2. Detect removed components (for entities that are still alive)
   const removedEntitySet = new Set(entitiesRemoved);
-  for (const [componentKey, oldStore] of Object.entries(oldWorld.stores)) {
-    const newStore = newWorld.stores[componentKey];
+  for (const [componentKey, oldStore] of Object.entries(sourceOld.stores)) {
+    const newStore = sourceNew.stores[componentKey];
 
     for (const entityIdStr of Object.keys(oldStore)) {
       const entityId = Number(entityIdStr);
@@ -68,7 +74,7 @@ export function createECSWorldDelta(
   }
 
   return {
-    nextId: newWorld.nextId,
+    nextId: sourceNew.nextId,
     entitiesAdded,
     entitiesRemoved,
     componentsSet,

@@ -14,15 +14,20 @@ import styles from './LoadoutSlotPanel.module.css';
 
 interface LoadoutSlotPanelProps {
   portConfig: PortConfig;
+  basePortConfig?: PortConfig;
   equippedItems: InstalledItem[];
   shellId: string;
   onSlotDrop: (slotType: string, slotIndex: number) => void;
   onSlotDragStart: (item: InstalledItem) => void;
-  onSoftwareSocket?: (targetEntityId: number, softwareEntityId: number) => void;
+  onSoftwareSocket?: (
+    targetEntityId: number,
+    software: { entityId?: number; vaultItemId?: string; templateId?: string },
+  ) => void;
 }
 
 export const LoadoutSlotPanel: React.FC<LoadoutSlotPanelProps> = ({
   portConfig,
+  basePortConfig,
   equippedItems,
   onSlotDrop,
   onSlotDragStart,
@@ -36,6 +41,7 @@ export const LoadoutSlotPanel: React.FC<LoadoutSlotPanelProps> = ({
     type: 'firmware' | 'augment' | 'software' | 'weapon' | 'armor' | 'backpack',
     max: number,
     customLabel?: string,
+    baseCount?: number,
   ) => {
     const slots = [];
     const typeEquipped = equippedItems.filter((i) => i.type === type);
@@ -44,6 +50,7 @@ export const LoadoutSlotPanel: React.FC<LoadoutSlotPanelProps> = ({
       const item = typeEquipped[i];
       const slotId = `${type}-${i}`;
       const isOver = dragOverSlot === slotId;
+      const isUnlockedExpansion = baseCount !== undefined && i >= baseCount;
 
       let isCompatible = false;
       let isSocketDrop = false;
@@ -83,7 +90,7 @@ export const LoadoutSlotPanel: React.FC<LoadoutSlotPanelProps> = ({
       const handlePointerUp = () => {
         if (isOver && isCompatible) {
           if (isSocketDrop && item && onSoftwareSocket && draggedItem) {
-            onSoftwareSocket(item.entityId, draggedItem.entityId);
+            onSoftwareSocket(item.entityId, draggedItem);
           } else if (!item) {
             onSlotDrop(type, i);
           }
@@ -116,6 +123,7 @@ export const LoadoutSlotPanel: React.FC<LoadoutSlotPanelProps> = ({
             slotType={type}
             legacy={item?.isLegacy}
             socketedSoftware={item?.socketedSoftware}
+            isUnlockedExpansion={isUnlockedExpansion}
           />
         </div>,
       );
@@ -131,9 +139,24 @@ export const LoadoutSlotPanel: React.FC<LoadoutSlotPanelProps> = ({
 
   return (
     <div className={styles.panelContainer}>
-      {renderSlotGroup('firmware', portConfig.maxFirmware, 'FIRMWARE PORTS')}
-      {renderSlotGroup('augment', portConfig.maxAugment, 'AUGMENT PORTS')}
-      {renderSlotGroup('software', portConfig.maxSoftware, 'SOFTWARE PORTS')}
+      {renderSlotGroup(
+        'firmware',
+        portConfig.maxFirmware,
+        'FIRMWARE PORTS',
+        basePortConfig?.maxFirmware,
+      )}
+      {renderSlotGroup(
+        'augment',
+        portConfig.maxAugment,
+        'AUGMENT PORTS',
+        basePortConfig?.maxAugment,
+      )}
+      {renderSlotGroup(
+        'software',
+        portConfig.maxSoftware,
+        'SOFTWARE PORTS',
+        basePortConfig?.maxSoftware,
+      )}
       {renderSlotGroup('weapon', 1, 'PRIMARY WEAPON')}
       {renderSlotGroup('armor', 1, 'TACTICAL ARMOR')}
       {renderSlotGroup('backpack', 5, 'RUN BACKPACK (RESERVE)')}

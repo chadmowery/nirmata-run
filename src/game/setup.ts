@@ -1,4 +1,4 @@
-import { gameStore } from './ui/store';
+import { gameStore, GroundItemInfo } from './ui/store';
 import { createEngineInstance } from './engine-factory';
 import { GameContext, GameSystem } from './types';
 import { syncEngineToStore } from './ui/sync-bridge';
@@ -16,15 +16,62 @@ import {
   getFirmwareSlotIndex,
 } from './input/actions';
 import { createTargetingManager } from './input/targeting';
-import { AbilityDef, FirmwareSlots, Position, MoveIntent, VentIntent } from '@shared/components';
+import {
+  AbilityDef,
+  FirmwareSlots,
+  Position,
+  MoveIntent,
+  VentIntent,
+  TemplateId,
+  RarityTier,
+  SoftwareDef,
+  EquipmentDef,
+  AugmentData,
+  Item,
+  Dying,
+  Prop,
+  SecurityLock,
+  CorruptedNode,
+  AnchorMarker,
+  StaircaseMarker,
+  FloorState,
+  Stability,
+  RunInventory,
+  AugmentSlots,
+  SoftwareDef as SoftwareDefComp,
+} from '@shared/components';
+import { getCurrencyAmount } from '@shared/utils/inventory-util';
 import { ActionIntent } from '@shared/types';
 import { RunMode } from '@shared/run-mode';
 import { PlayerProfile } from '@shared/profile';
+import { DEFAULT_SHELL_ID } from '@shared/constants';
 import { logger } from '@engine/utils/logger';
 import { AutoPathfinder } from './debug/auto-pathfind';
 import { useDebugStore } from './debug/debug-store';
 import { EventOriginContext } from '@engine/utils/event-context';
 import { DebugAPI } from './debug/debug-api';
+
+export { setActiveGameContext, getActiveGameContext } from './active-context';
+import { setActiveGameContext, getActiveGameContext } from './active-context';
+
+/**
+ * Canonically resolves the active client sessionId with a consistent fallback chain.
+ */
+export function resolveActiveSessionId(explicitSessionId?: string): string {
+  const storeState = gameStore.getState();
+  const activeCtxSessionId = getActiveGameContext()?.sessionId;
+  const storedSessionId =
+    typeof window !== 'undefined' ? window.localStorage?.getItem('nimrata_sessionId') : null;
+  return (
+    explicitSessionId ||
+    activeCtxSessionId ||
+    storeState.launchConfig?.sessionId ||
+    storedSessionId ||
+    storeState.playerProfile?.sessionId ||
+    'default-session'
+  );
+}
+
 
 declare global {
   interface Window {
@@ -50,12 +97,12 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   const seed = config.seed ?? `run-${Date.now()}`;
 
   // Fetch shell record for the player
-  const shellId = config.shellId || 'player-shell-default';
+  const shellId = config.shellId || DEFAULT_SHELL_ID;
   let shellRecord = globalShellRegistry.get(shellId);
   if (!shellRecord) {
     const isKnownArchetype =
-      config.shellId && globalShellRegistry.getTemplates().some((t) => t.id === config.shellId);
-    const archetypeId = isKnownArchetype ? config.shellId! : 'vanguard-v1';
+      globalShellRegistry.getTemplates().some((t) => t.id === shellId);
+    const archetypeId = isKnownArchetype ? shellId : DEFAULT_SHELL_ID;
     shellRecord = globalShellRegistry.createRecord(shellId, archetypeId);
   }
 
@@ -72,6 +119,12 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
   const { world, grid, eventBus, turnManager, entityFactory, systems, playerId } = instance;
   const inputManager = new InputManager(DEFAULT_BINDINGS);
+
+  // Flush queued buffered inputs on bump safeguards and security faults
+  eventBus.on('INPUT_BUFFER_CLEARED', () => {
+    logger.info('[INPUT] Input buffer flushed by safeguard', 'INPUT');
+    inputManager.clearQueue();
+  });
 
   const contextBase: Omit<GameContext, 'fsm'> = {
     world,
@@ -182,9 +235,18 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     ...contextBase,
     fsm,
     autoPathfinder,
+    submitAction: async (intent: ActionIntent) => {
+      inputManager.setRequestPending(true);
+      try {
+        await sendActionToServer(intent);
+      } finally {
+        inputManager.setRequestPending(false);
+      }
+    },
   };
 
   fsm.setContext(context);
+  setActiveGameContext(context);
 
   if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
     window.__DEBUG__ = new DebugAPI(context, (intent) => sendActionToServer(intent));
@@ -251,7 +313,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   eventBus.on('EQUIP_REQUESTED', async (payload) => {
     const { Shell } = await import('@shared/components/shell');
     const shell = world.getComponent(playerId, Shell);
-    const shellId = shell?.archetypeId || 'player-shell-default';
+    const shellId = shell?.archetypeId || DEFAULT_SHELL_ID;
 
     inputManager.setRequestPending(true);
     await sendActionToServer({
@@ -278,7 +340,37 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     await sendActionToServer({
       type: 'BURN_SOFTWARE',
       runInventoryIndex: payload.runInventoryIndex,
+      softwareEntityId: payload.softwareEntityId,
       targetSlot: payload.targetSlot,
+    });
+    inputManager.setRequestPending(false);
+  });
+
+  eventBus.on('PURGE_SOFTWARE_REQUESTED', async (payload) => {
+    inputManager.setRequestPending(true);
+    await sendActionToServer({
+      type: 'PURGE_SOFTWARE',
+      targetSlot: payload.targetSlot,
+    });
+    inputManager.setRequestPending(false);
+  });
+
+  eventBus.on('BURN_FIRMWARE_REQUESTED', async (payload) => {
+    inputManager.setRequestPending(true);
+    await sendActionToServer({
+      type: 'BURN_FIRMWARE',
+      firmwareEntityId: payload.firmwareEntityId,
+      slotIndex: payload.slotIndex,
+    });
+    inputManager.setRequestPending(false);
+  });
+
+  eventBus.on('BURN_AUGMENT_REQUESTED', async (payload) => {
+    inputManager.setRequestPending(true);
+    await sendActionToServer({
+      type: 'BURN_AUGMENT',
+      augmentEntityId: payload.augmentEntityId,
+      slotIndex: payload.slotIndex,
     });
     inputManager.setRequestPending(false);
   });
@@ -308,12 +400,137 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
   // The shared handler for both Keyboard (InputManager) and UI Buttons (InputBridge)
   async function handlePlayerInput(action: GameAction) {
+    if (action === GameAction.TOGGLE_HOTKEYS) {
+      gameStore.getState().toggleHotkeysModal();
+      return;
+    }
+
     if (action === GameAction.TOGGLE_INVENTORY) {
       gameStore.getState().toggleInventory();
       return;
     }
 
+    if (action === GameAction.TOGGLE_FLAVOR_TEXT) {
+      gameStore.getState().toggleDetailedFlavorText();
+      const active = gameStore.getState().detailedFlavorTextEnabled;
+      gameStore.getState().addMessage(
+        active
+          ? '[SENSORS] DETAILED FORENSIC TELEMETRY: ACTIVE (Hover over any tile or object for lore)'
+          : '[SENSORS] DETAILED FORENSIC TELEMETRY: STANDBY (Interactive entities only)',
+        'info',
+      );
+      return;
+    }
+
+    if (action === GameAction.PICKUP_GROUND) {
+      if (gameStore.getState().groundTransferVisible) {
+        gameStore.getState().closeGroundTransfer();
+        return;
+      }
+      if (!context.playerId) return;
+      const playerPos = world.getComponent(context.playerId, Position);
+      if (!playerPos) return;
+
+      const nearby: GroundItemInfo[] = [];
+      for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          const tx = playerPos.x + dx;
+          const ty = playerPos.y + dy;
+          const cellItems = grid.getItemsAt(tx, ty);
+          for (const itemId of cellItems) {
+            if (!world.entityExists(itemId) || world.hasComponent(itemId, Dying)) {
+              continue;
+            }
+            const pos = world.getComponent(itemId, Position);
+            if (!pos || pos.x !== tx || pos.y !== ty) {
+              continue;
+            }
+
+            const tmpl = world.getComponent(itemId, TemplateId);
+            const rarity = world.getComponent(itemId, RarityTier);
+            const sw = world.getComponent(itemId, SoftwareDef);
+            const eq = world.getComponent(itemId, EquipmentDef);
+            const ability = world.getComponent(itemId, AbilityDef);
+            const augment = world.getComponent(itemId, AugmentData);
+            const itemComp = world.getComponent(itemId, Item);
+
+            let name = itemComp?.name || tmpl?.id || `Item #${itemId}`;
+            let type = 'equipment';
+            if (sw) {
+              name = sw.name;
+              type = 'software';
+            } else if (eq) {
+              name = eq.name;
+              type = eq.slotType;
+            } else if (ability) {
+              name = ability.name;
+              type = 'firmware';
+            } else if (augment) {
+              name = augment.name;
+              type = 'augment';
+            }
+
+            let directionLabel = 'CURRENT TILE';
+            if (dx !== 0 || dy !== 0) {
+              const ns = dy < 0 ? 'N' : dy > 0 ? 'S' : '';
+              const ew = dx < 0 ? 'W' : dx > 0 ? 'E' : '';
+              directionLabel = `ADJACENT (${ns}${ew})`;
+            }
+
+            nearby.push({
+              itemId,
+              templateId: tmpl?.id || 'unknown',
+              name,
+              rarityTier: rarity?.tier || 'v1.x',
+              type,
+              x: tx,
+              y: ty,
+              isPlayerTile: dx === 0 && dy === 0,
+              directionLabel,
+            });
+          }
+        }
+      }
+
+      if (nearby.length === 0) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'No loot on the ground nearby to pick up.',
+          type: 'info',
+        });
+        return;
+      }
+
+      // If only 1 item and it is on the player's current tile, directly pick it up!
+      if (nearby.length === 1 && nearby[0].isPlayerTile) {
+        inputManager.setRequestPending(true);
+        await sendActionToServer({
+          type: 'PICKUP',
+          itemId: nearby[0].itemId,
+          targetX: nearby[0].x,
+          targetY: nearby[0].y,
+        });
+        inputManager.setRequestPending(false);
+        return;
+      }
+
+      // If multiple items or items on adjacent tiles, open the Ground Transfer Modal!
+      gameStore.getState().openGroundTransfer(nearby);
+      return;
+    }
+
     if (action === GameAction.PAUSE) {
+      if (gameStore.getState().deadDropModalVisible) {
+        gameStore.getState().closeDeadDropModal();
+        return;
+      }
+      if (gameStore.getState().groundTransferVisible) {
+        gameStore.getState().closeGroundTransfer();
+        return;
+      }
+      if (gameStore.getState().hotkeysModalVisible) {
+        gameStore.getState().setHotkeysModalVisible(false);
+        return;
+      }
       if (gameStore.getState().inventoryVisible) {
         gameStore.getState().toggleInventory();
         return;
@@ -341,6 +558,11 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
     if (action === GameAction.DEBUG_TOGGLE_TIMELINE) {
       useDebugStore.getState().toggleTimeline();
+      return;
+    }
+
+    if (action === GameAction.RECENTER_CAMERA) {
+      eventBus.emit('RECENTER_CAMERA', {});
       return;
     }
 
@@ -377,6 +599,130 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
         }
       }
 
+      if (action === GameAction.INTERACT_STAIRCASE) {
+        const playerPos = world.getComponent(pId, Position);
+        if (playerPos) {
+          const currentOccupants = grid.getEntitiesAt(playerPos.x, playerPos.y);
+          for (const eid of currentOccupants) {
+            const stairs = world.getComponent(eid, StaircaseMarker);
+            if (stairs) {
+              const floorState = world.getComponent(pId, FloorState);
+              const nextFloor = stairs.targetFloor || (floorState?.currentFloor ?? 1) + 1;
+              gameStore.getState().showStaircaseOverlay({
+                targetFloor: nextFloor,
+                staircaseId: eid,
+              });
+              return;
+            }
+          }
+        }
+      }
+
+      if (action === GameAction.INTERACT_ANCHOR) {
+        const playerPos = world.getComponent(pId, Position);
+        if (playerPos) {
+          // 1. Check if the player is standing on an active Stability Anchor first
+          const currentOccupants = grid.getEntitiesAt(playerPos.x, playerPos.y);
+          let activeAnchorId: number | null = null;
+          for (const eid of currentOccupants) {
+            const anchor = world.getComponent(eid, AnchorMarker);
+            if (anchor && !anchor.used) {
+              activeAnchorId = eid;
+              break;
+            }
+          }
+
+          if (activeAnchorId !== null) {
+            const floorState = world.getComponent(pId, FloorState);
+            const stability = world.getComponent(pId, Stability);
+            const fSlots = world.getComponent(pId, FirmwareSlots);
+            const aSlots = world.getComponent(pId, AugmentSlots);
+            const inventory = world.getComponent(pId, RunInventory);
+            const currentFloor = floorState?.currentFloor ?? 1;
+            const stabilityVal = stability?.current ?? 0;
+            const stabilityMax = stability?.max ?? 100;
+            const stabilityPercent = (stabilityVal / stabilityMax) * 100;
+            const firmware = (fSlots?.equipped || []).map(
+              (id) => world.getComponent(id, AbilityDef)?.name || 'Unknown',
+            );
+            const augments = (aSlots?.equipped || []).map(
+              (id) => world.getComponent(id, AugmentData)?.name || 'Unknown',
+            );
+            const software = (inventory?.software || []).map((item) => {
+              const def = world.getComponent(item.entityId, SoftwareDefComp);
+              return def?.name || 'Unknown';
+            });
+            const scrap = getCurrencyAmount(world, pId, 'scrap');
+            const descendCost = 20 + currentFloor * 5;
+            const estimatedStabilityAfterDescent = Math.min(100, Math.round(stabilityPercent + 40));
+
+            gameStore.getState().showAnchorOverlay({
+              floorNumber: currentFloor,
+              stabilityPercent,
+              inventory: { firmware, augments, software, scrap },
+              descendCost,
+              nextFloorEnemyTier: 'Standard',
+              estimatedStabilityAfterDescent,
+              anchorId: activeAnchorId,
+            });
+            return;
+          }
+
+          const offsets = [
+            [0, 0],
+            [0, -1],
+            [0, 1],
+            [-1, 0],
+            [1, 0],
+          ];
+          let targetPropId: number | null = null;
+          for (const [dx, dy] of offsets) {
+            const entities = grid.getEntitiesAt(playerPos.x + dx, playerPos.y + dy);
+            for (const eid of entities) {
+              const prop = world.getComponent(eid, Prop);
+              if (!prop) continue;
+              const lock = world.getComponent(eid, SecurityLock);
+              const corrupted = world.getComponent(eid, CorruptedNode);
+              if (
+                lock?.isLocked ||
+                (corrupted && !corrupted.isDisarmed && !corrupted.triggered) ||
+                !prop.isSearched
+              ) {
+                targetPropId = eid;
+                break;
+              }
+            }
+            if (targetPropId !== null) break;
+          }
+          if (targetPropId !== null) {
+            const targetProp = world.getComponent(targetPropId, Prop);
+            const targetLock = world.getComponent(targetPropId, SecurityLock);
+            const targetCorrupted = world.getComponent(targetPropId, CorruptedNode);
+            const isUntrappedDeadDrop =
+              targetProp?.propClass === 'dead_drop_uplink' &&
+              !targetProp.isSearched &&
+              !targetLock?.isLocked &&
+              (!targetCorrupted || targetCorrupted.isDisarmed || targetCorrupted.triggered);
+
+            if (isUntrappedDeadDrop) {
+              gameStore
+                .getState()
+                .openDeadDropModal(targetPropId, targetProp.deadDropFluxCost ?? 25);
+              return;
+            }
+
+            inputManager.setRequestPending(true);
+            await sendActionToServer({
+              type: 'INTERACT_PROP',
+              targetPropId,
+              forceOverride: true,
+            });
+            inputManager.setRequestPending(false);
+            return;
+          }
+        }
+      }
+
       inputManager.setRequestPending(true);
       turnManager.submitAction(action);
       await sendActionToServer(getActionIntent(action));
@@ -386,16 +732,17 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
   async function sendActionToServer(intent: ActionIntent | null) {
     if (!intent) return;
+    const activeSessionId = resolveActiveSessionId(context.sessionId);
     try {
       logger.info(
-        `[CLIENT] Sending action to server. SessionId: ${context.sessionId || 'default-session'}`,
+        `[CLIENT] Sending action to server. SessionId: ${activeSessionId}`,
         'NETWORK',
       );
       const response = await fetch('/api/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sessionId: context.sessionId || 'default-session',
+          sessionId: activeSessionId,
           action: intent,
         }),
       });
@@ -409,11 +756,34 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
           context.playerId = serverState.playerId;
           applyStateDelta(world, grid, turnManager, eventBus, serverState);
         }
-      } else if (response.status === 404) {
-        logger.warn(`[API] Session NOT FOUND: ${context.sessionId || 'default-session'}`, 'API');
+      } else {
+        let errorMessage = `Action failed (HTTP ${response.status})`;
+        try {
+          const errData = await response.json();
+          if (errData?.error) {
+            errorMessage = errData.error;
+          }
+        } catch {
+          // Ignore non-JSON error body
+        }
+        if (response.status === 404) {
+          logger.warn(`[API] Session NOT FOUND: ${activeSessionId}`, 'API');
+        } else {
+          logger.warn(`[API] Action rejected (${response.status}): ${errorMessage}`, 'API');
+        }
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `[NETWORK FAULT]: ${errorMessage}`,
+          type: 'error',
+        });
+        eventBus.flush();
       }
     } catch (error) {
       logger.error('Failed to sync with server:', 'NETWORK', error);
+      eventBus.emit('MESSAGE_EMITTED', {
+        text: '[NETWORK FAULT]: Failed to synchronize action with server.',
+        type: 'error',
+      });
+      eventBus.flush();
     } finally {
       gameStore.getState().clearOptimisticUpdates();
       gameStore.getState().incrementInventoryRevision();
@@ -492,4 +862,5 @@ export function destroyGame(context: GameContext) {
   context.autoPathfinder?.cancel();
   context.inputManager.disable();
   context.eventBus.clear();
+  setActiveGameContext(null);
 }

@@ -10,11 +10,11 @@ import {
   DescentIntent,
   HeatIntent,
   ApplyStatusEffectIntent,
-  HealIntent,
   DamageIntent,
   VentIntent,
 } from '@shared/components';
 import { EntityId } from '@engine/ecs/types';
+import { addHealIntent } from '../systems/combat';
 import { GameplayEvents } from '@shared/events/types';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { sessionManager } from '@server/session/session-manager';
@@ -113,7 +113,7 @@ export function handleServerDebugCommand(
       if (healthComp) {
         const diff = amount - healthComp.current;
         if (diff > 0) {
-          world.addComponent(playerId, HealIntent, { targetId: playerId, amount: diff });
+          addHealIntent(world, playerId, playerId, diff);
         } else if (diff < 0) {
           world.addComponent(playerId, DamageIntent, {
             targetId: playerId,
@@ -188,6 +188,12 @@ export function handleServerDebugCommand(
 
     case 'CLEAR_SESSIONS': {
       sessionManager.clear();
+      break;
+    }
+
+    case 'REVEAL_MAP':
+    case 'EXPOSE_MAP': {
+      logger.info(`Server debug command ${command} received for player ${playerId}`, 'DEBUG');
       break;
     }
 

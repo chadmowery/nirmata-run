@@ -13,6 +13,13 @@ export const ShellUpgradesSchema = z.object({
   additionalPorts: z.number().int().min(0).default(0),
 });
 
+export function generateVaultItemId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `vault-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+}
+
 export const InstalledItemSchema = z.object({
   entityId: z.number(),
   blueprintId: z.string(),
@@ -23,14 +30,20 @@ export const InstalledItemSchema = z.object({
 });
 
 export const VaultItemSchema = z.object({
-  entityId: z.number(),
+  vaultItemId: z.string().default(() => generateVaultItemId()),
+  entityId: z.number().optional(),
   templateId: z.string(),
   rarityTier: z.string(),
-  itemType: z.enum(['firmware', 'augment', 'software', 'equipment', 'weapon', 'armor', 'backpack']),
+  itemType: z.enum(['firmware', 'augment', 'software', 'equipment', 'weapon', 'armor', 'backpack', 'consumable']),
   extractedAtFloor: z.number(),
   extractedAtTimestamp: z.number(),
   socketedSoftware: z.array(z.string()).optional(),
+  quantity: z.number().int().min(1).default(1).optional(),
 });
+
+export function getVaultItemId(item: { vaultItemId?: string; entityId?: number }): string {
+  return item.vaultItemId || (item.entityId !== undefined ? String(item.entityId) : generateVaultItemId());
+}
 
 export const AttemptTrackingSchema = z
   .object({

@@ -24,9 +24,9 @@
       "range": { "min": 6, "max": 10 },
       "label": "STATIC_HORRORS",
       "bspConfig": {
-        "minRoomSize": 5,
-        "maxRoomSize": 10,
-        "minRooms": 8,
+        "minRoomSize": 6,
+        "maxRoomSize": 14,
+        "minRooms": 6,
         "corridorWidth": 1
       },
       "palette": {

@@ -40,6 +40,7 @@ import { TemplateId } from './template-id';
 import {
   MoveIntent,
   AttackIntent,
+  AlertIntent,
   VentIntent,
   DamageIntent,
   DescentIntent,
@@ -54,7 +55,9 @@ import {
   BurnSoftwareIntent,
   FirmwareIntent,
   Acting,
+  ActionAbortedTag,
   PickupIntent,
+  DropItemIntent,
 } from './intents';
 import { MovedThisTurn } from './moved-this-turn';
 import { Dying } from './dying';
@@ -64,6 +67,15 @@ import { FloorTransitioned } from './floor-transitioned';
 import { Parent } from './parent';
 import { Children } from './children';
 import { EquipmentDef } from './equipment-def';
+import {
+  Prop,
+  SecurityLock,
+  Container,
+  InteractiveSurface,
+  CorruptedNode,
+  InteractPropIntent,
+  PropInteractedThisTurn,
+} from './environment';
 
 export * from './position';
 export * from './health';
@@ -113,6 +125,7 @@ export * from './floor-transitioned';
 export * from './parent';
 export * from './children';
 export * from './equipment-def';
+export * from './environment';
 
 export const COMPONENTS_REGISTRY = [
   Position,
@@ -157,6 +170,7 @@ export const COMPONENTS_REGISTRY = [
   TemplateId,
   MoveIntent,
   AttackIntent,
+  AlertIntent,
   VentIntent,
   MovedThisTurn,
   Dying,
@@ -176,8 +190,17 @@ export const COMPONENTS_REGISTRY = [
   BurnSoftwareIntent,
   FirmwareIntent,
   Acting,
+  ActionAbortedTag,
   PickupIntent,
+  DropItemIntent,
   Parent,
   Children,
   EquipmentDef,
+  Prop,
+  SecurityLock,
+  Container,
+  InteractiveSurface,
+  CorruptedNode,
+  InteractPropIntent,
+  PropInteractedThisTurn,
 ] as const;

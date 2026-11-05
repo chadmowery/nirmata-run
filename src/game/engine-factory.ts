@@ -6,6 +6,7 @@ import { GameTurnAdapter } from './turn/game-turn-adapter';
 import { EntityRegistry } from '../engine/entity/registry';
 import { EntityFactory } from '../engine/entity/factory';
 import { COMPONENTS_REGISTRY } from '@shared/components';
+import { redactWorldForClient } from '@shared/serialization';
 import { ComponentRegistry } from '../engine/entity/types';
 import { ComponentDef } from '../engine/ecs/types';
 import { registerGameTemplates } from './entities';
@@ -175,16 +176,28 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     augmentState: { activationsThisTurn: {}, cooldownsRemaining: {} },
     heat: { current: 0, maxSafe: 100, baseDissipation: 5, ventPercentage: 0.5, isVenting: false },
     stability: { current: 100, max: 100 },
-    floorState: { currentFloor: 1, maxFloor: 15, runSeed: config.seed },
+    floorState: {
+      currentFloor: 1,
+      maxFloor: 15,
+      runSeed: config.seed,
+      sectorCondition: dungeonResult.sectorCondition,
+      accessKeysHeld: 0,
+      vaultsBreached: 0,
+      trapsDisarmed: 0,
+    },
   };
 
   // If a profile is provided, populate slots from installed items
   if (config.profile) {
-    const activeShellId = config.shellRecord ? config.shellRecord.id : null;
+    const targetShellId = config.shellRecord?.archetypeId || config.shellRecord?.id || null;
 
     // Filter installed items for this specific shell
     const items = config.profile.installedItems.filter(
-      (item) => !activeShellId || item.shellId === activeShellId,
+      (item) =>
+        !targetShellId ||
+        item.shellId === targetShellId ||
+        item.shellId === config.shellRecord?.id ||
+        item.shellId === config.shellRecord?.archetypeId,
     );
 
     const firmwareIds: number[] = [];
@@ -192,8 +205,26 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     const augmentIds: number[] = [];
     let weaponId: number | null = null;
     let armorId: number | null = null;
-    const backpackSoftware: Array<{ entityId: number; templateId: string; rarityTier: string }> = [];
-    const backpackEquipment: Array<{ entityId: number; templateId: string; rarityTier: string }> = [];
+    const backpackSoftware: Array<{
+      entityId: number;
+      templateId: string;
+      rarityTier: string;
+      pickedUpAtFloor: number;
+      pickedUpAtTimestamp: number;
+      gridIndex?: number;
+      quantity?: number;
+      isConsumable?: boolean;
+    }> = [];
+    const backpackEquipment: Array<{
+      entityId: number;
+      templateId: string;
+      rarityTier: string;
+      pickedUpAtFloor: number;
+      pickedUpAtTimestamp: number;
+      gridIndex?: number;
+      quantity?: number;
+      isConsumable?: boolean;
+    }> = [];
 
     for (const item of items) {
       // Spawn the item entity (D-15/D-16 Fix)
@@ -218,24 +249,52 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
         world.addComponent(itemId, Children, { entityIds: swEntityIds });
       }
 
-      if (item.type === 'firmware') {
-        firmwareIds.push(itemId);
-      } else if (item.type === 'software') {
-        softwareIds.push(itemId);
-      } else if (item.type === 'augment') {
+      const hasAugment = world.hasComponent(itemId, AugmentData);
+      const hasSoftware = world.hasComponent(itemId, SoftwareDef);
+      const hasAbility = world.hasComponent(itemId, AbilityDef);
+
+      if (item.type === 'backpack') {
+        const isSw = world.hasComponent(itemId, SoftwareDef);
+        const rarity = world.getComponent(itemId, RarityTier)?.tier || 'common';
+        const isConsumable =
+          item.blueprintId.includes('health') ||
+          item.blueprintId.includes('potion') ||
+          item.blueprintId.includes('injector') ||
+          item.blueprintId.includes('canister');
+        const itemObj = {
+          entityId: itemId,
+          templateId: item.blueprintId,
+          rarityTier: rarity,
+          pickedUpAtFloor: 1,
+          pickedUpAtTimestamp: Date.now(),
+          gridIndex: isSw ? backpackSoftware.length : backpackEquipment.length,
+          quantity: 1,
+          isConsumable: isConsumable || undefined,
+        };
+        if (isConsumable) {
+          const existing = backpackEquipment.find(
+            (e) => e.templateId === item.blueprintId && e.isConsumable && (e.quantity ?? 1) < 10,
+          );
+          if (existing) {
+            existing.quantity = Math.min(10, (existing.quantity ?? 1) + 1);
+          } else {
+            backpackEquipment.push(itemObj);
+          }
+        } else if (isSw) {
+          backpackSoftware.push(itemObj);
+        } else {
+          backpackEquipment.push(itemObj);
+        }
+      } else if (item.type === 'augment' || hasAugment) {
         augmentIds.push(itemId);
+      } else if (item.type === 'software' || hasSoftware) {
+        softwareIds.push(itemId);
+      } else if (item.type === 'firmware' || hasAbility) {
+        firmwareIds.push(itemId);
       } else if (item.type === 'weapon') {
         weaponId = itemId;
       } else if (item.type === 'armor') {
         armorId = itemId;
-      } else if (item.type === 'backpack') {
-        const isSw = world.hasComponent(itemId, SoftwareDef);
-        const rarity = world.getComponent(itemId, RarityTier)?.tier || 'common';
-        if (isSw) {
-          backpackSoftware.push({ entityId: itemId, templateId: item.blueprintId, rarityTier: rarity });
-        } else {
-          backpackEquipment.push({ entityId: itemId, templateId: item.blueprintId, rarityTier: rarity });
-        }
       }
     }
 
@@ -327,7 +386,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
       shellRecord.id ||
       ''
     ).toLowerCase();
-    let spriteKey = 'player';
+    let spriteKey = 'player_vanguard';
     if (shellKey.includes('bastion')) {
       spriteKey = 'player_bastion';
     } else if (shellKey.includes('ghost')) {
@@ -348,8 +407,20 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     dungeonResult.rooms,
     dungeonResult.playerSpawnRoom,
     rng,
-    { playerOverrides, depth: 1 },
+    {
+      playerOverrides,
+      depth: 1,
+      propAnchors: dungeonResult.propAnchors,
+      bespokeRooms: dungeonResult.bespokeRooms,
+      vaultFaradayBounds: dungeonResult.vaultFaradayBounds,
+      sectorCondition: dungeonResult.sectorCondition,
+      factionTheme: dungeonResult.factionTheme,
+    },
   );
+
+  if (config.isClient === true) {
+    world.loadSerializableState(redactWorldForClient(world.getSerializableState()));
+  }
 
   // Turn Manager Handlers
   // Turn Manager Handlers
@@ -377,7 +448,10 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
     } else if (
       action === GameAction.ANCHOR_DESCEND ||
       action === GameAction.STAIRCASE_DESCEND ||
-      action === GameAction.ANCHOR_EXTRACT
+      action === GameAction.ANCHOR_EXTRACT ||
+      action === 'INTERACT_PROP' ||
+      action === 'DEAD_DROP_ITEM' ||
+      action === 'ABORT_RUN'
     ) {
       // Intent already added by API, we just need to satisfy the turn cycle
     }

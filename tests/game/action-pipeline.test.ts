@@ -3,7 +3,8 @@ import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { GameplayEvents } from '@shared/events/types';
-import { runActionPipeline } from '@game/pipeline/action-pipeline';
+import { runActionPipeline, processAction } from '@game/pipeline/action-pipeline';
+import { createItemPickupSystem } from '@game/systems/item-pickup';
 import {
   Position,
   Health,
@@ -19,6 +20,13 @@ import {
   VentIntent,
   BurnSoftwareIntent,
   PickupIntent,
+  DropItemIntent,
+  InteractPropIntent,
+  HealIntent,
+  Stability,
+  Dying,
+  ApplyStatusEffectIntent,
+  SpriteComponent,
 } from '@shared/components';
 
 describe('ActionPipeline', () => {
@@ -175,9 +183,13 @@ describe('ActionPipeline', () => {
     });
 
     it('should process PICKUP_CURRENCY intent', () => {
+      const currencyId = world.createEntity();
+      world.addComponent(currencyId, Position, { x: 5, y: 5 });
+      grid.addItem(currencyId, 5, 5);
+
       const action = {
         type: 'PICKUP_CURRENCY' as const,
-        itemId: 50,
+        itemId: currencyId,
         currencyType: 'scrap' as const,
         amount: 10,
       };
@@ -207,6 +219,124 @@ describe('ActionPipeline', () => {
       };
       const { world: newWorld } = runActionPipeline(world, grid, PLAYER_ID, action);
       expect(newWorld.getComponent(PLAYER_ID, Position)).toBeDefined();
+    });
+  });
+
+  describe('processAction unified intent handling', () => {
+    it('attaches InteractPropIntent and returns actionKey for INTERACT_PROP', () => {
+      const actionKey = processAction(world, grid, eventBus, PLAYER_ID, {
+        type: 'INTERACT_PROP',
+        targetPropId: 99,
+        forceOverride: true,
+      });
+
+      expect(actionKey).toBe('INTERACT_PROP');
+      const intent = world.getComponent(PLAYER_ID, InteractPropIntent);
+      expect(intent).toEqual({
+        targetPropId: 99,
+        forceOverride: true,
+        deadDropSelectionId: undefined,
+      });
+    });
+
+    it('processes USE_CONSUMABLE by attaching HealIntent, ApplyStatusEffectIntent, and updating Stability', () => {
+      world.addComponent(PLAYER_ID, Stability, { current: 50, max: 100 });
+      world.addComponent(PLAYER_ID, RunInventory, {
+        software: [],
+        equipment: [
+          {
+            entityId: 10,
+            templateId: 'repair-canister',
+            rarityTier: 'common',
+            pickedUpAtFloor: 1,
+            pickedUpAtTimestamp: 1000,
+            isConsumable: true,
+            quantity: 2,
+          },
+        ],
+        maxSlots: 10,
+      });
+
+      let stabilityEventFired = false;
+      eventBus.on('STABILITY_CHANGED', () => {
+        stabilityEventFired = true;
+      });
+
+      const actionKey = processAction(world, grid, eventBus, PLAYER_ID, {
+        type: 'USE_CONSUMABLE',
+        inventoryIndex: 0,
+      });
+
+      eventBus.flush();
+
+      expect(actionKey).toBe('USE_CONSUMABLE');
+      expect(world.getComponent(PLAYER_ID, HealIntent)).toEqual({
+        targetId: PLAYER_ID,
+        amount: 5,
+      });
+      expect(world.getComponent(PLAYER_ID, Stability)?.current).toBe(60);
+      expect(stabilityEventFired).toBe(true);
+
+      const statusIntent = world.getComponent(PLAYER_ID, ApplyStatusEffectIntent);
+      expect(statusIntent?.effect.name).toBe('regeneration');
+      expect(statusIntent?.effect.duration).toBe(3);
+
+      const inventory = world.getComponent(PLAYER_ID, RunInventory);
+      expect(inventory?.equipment[0].quantity).toBe(1);
+    });
+
+    it('processes DROP_ITEM by attaching DropItemIntent and resolving it via ItemPickupSystem', () => {
+      const dropId = world.createEntity();
+      world.addComponent(PLAYER_ID, RunInventory, {
+        software: [
+          {
+            entityId: dropId,
+            templateId: 'neural-spike',
+            rarityTier: 'common',
+            pickedUpAtFloor: 1,
+            pickedUpAtTimestamp: 1000,
+          },
+        ],
+        equipment: [],
+        maxSlots: 10,
+      });
+
+      const actionKey = processAction(world, grid, eventBus, PLAYER_ID, {
+        type: 'DROP_ITEM',
+        itemEntityId: dropId,
+      });
+
+      expect(actionKey).toBe('DROP_ITEM');
+      expect(world.getComponent(PLAYER_ID, DropItemIntent)).toEqual({
+        actorId: PLAYER_ID,
+        itemEntityId: dropId,
+        targetX: 5,
+        targetY: 5,
+      });
+
+      const itemPickupSystem = createItemPickupSystem(world, grid, eventBus);
+      itemPickupSystem.update(world);
+
+      expect(world.getComponent(dropId, Position)).toEqual({ x: 5, y: 5 });
+      expect(world.getComponent(dropId, SpriteComponent)).toBeDefined();
+      expect(grid.getItemsAt(5, 5)).toContain(dropId);
+
+      const inventory = world.getComponent(PLAYER_ID, RunInventory);
+      expect(inventory?.software).toHaveLength(0);
+      expect(world.hasComponent(PLAYER_ID, DropItemIntent)).toBe(false);
+    });
+
+    it('attaches Dying component and returns actionKey for ABORT_RUN', () => {
+      const actionKey = processAction(world, grid, eventBus, PLAYER_ID, {
+        type: 'ABORT_RUN',
+      });
+
+      expect(actionKey).toBe('ABORT_RUN');
+      const dying = world.getComponent(PLAYER_ID, Dying);
+      expect(dying).toEqual({
+        killerId: PLAYER_ID,
+        reason: 'OPERATOR_MANUAL_DESYNC',
+      });
     });
   });
 });

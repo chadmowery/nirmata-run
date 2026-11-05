@@ -9,6 +9,10 @@ import { NearbyEntities } from './NearbyEntities';
 import { AbilityBar } from './AbilityBar';
 import EventTimelinePanel from './EventTimelinePanel';
 import { InventoryOverlay } from './inventory/InventoryOverlay';
+import { GroundTransferModal } from './inventory/GroundTransferModal';
+import { DeadDropModal } from './inventory/DeadDropModal';
+import { HotkeysModal } from './HotkeysModal';
+import { TacticalInspectTooltip } from './TacticalInspectTooltip';
 import { BtnLever } from './atomic';
 import styles from './styles.module.css';
 
@@ -16,12 +20,22 @@ export const HUDOverlay: React.FC = () => {
   const heatTier = useStore(gameStore, (s) => s.heatTier);
   const inventoryVisible = useStore(gameStore, (s) => s.inventoryVisible);
   const toggleInventory = () => gameStore.getState().toggleInventory();
+  const hotkeysModalVisible = useStore(gameStore, (s) => s.hotkeysModalVisible);
+  const toggleHotkeysModal = () => gameStore.getState().toggleHotkeysModal();
+  const groundTransferVisible = useStore(gameStore, (s) => s.groundTransferVisible);
+  const closeGroundTransfer = () => gameStore.getState().closeGroundTransfer();
+  const deadDropModalVisible = useStore(gameStore, (s) => s.deadDropModalVisible);
+  const closeDeadDropModal = () => gameStore.getState().closeDeadDropModal();
+  const detailedFlavorTextEnabled = useStore(gameStore, (s) => s.detailedFlavorTextEnabled);
 
   const selectedRunMode = useStore(gameStore, (s) => s.selectedRunMode);
   const currentFloor = useStore(gameStore, (s) => s.currentFloor);
   const depthBand = useStore(gameStore, (s) => s.depthBand);
   const stats = useStore(gameStore, (s) => s.stats);
   const scrap = useStore(gameStore, (s) => s.scrap);
+  const flux = useStore(gameStore, (s) => s.flux);
+  const blueprintCount = useStore(gameStore, (s) => s.blueprintCount);
+  const nanites = useStore(gameStore, (s) => s.nanites);
   const stability = useStore(gameStore, (s) => s.stability);
   const maxStability = useStore(gameStore, (s) => s.maxStability);
 
@@ -70,8 +84,29 @@ export const HUDOverlay: React.FC = () => {
 
           <div className={styles.hudChip}>
             <span className={styles.hudChipLabel}>SCRAP RECOVERED</span>
-            <span className={styles.hudChipVal} style={{ color: 'var(--c-scrap)' }}>
+            <span className={styles.hudChipVal} style={{ color: 'var(--c-scrap, #f59e0b)' }}>
               {scrap.toLocaleString()} CR
+            </span>
+          </div>
+
+          <div className={styles.hudChip}>
+            <span className={styles.hudChipLabel}>FLUX MATRIX</span>
+            <span className={styles.hudChipVal} style={{ color: 'var(--c-accent-secondary, #00f0ff)' }}>
+              {flux.toLocaleString()} FX
+            </span>
+          </div>
+
+          <div className={styles.hudChip}>
+            <span className={styles.hudChipLabel}>LOCKED FILES</span>
+            <span className={styles.hudChipVal} style={{ color: 'var(--c-accent, #d8ff00)' }}>
+              {blueprintCount} BP
+            </span>
+          </div>
+
+          <div className={styles.hudChip}>
+            <span className={styles.hudChipLabel}>NANITES</span>
+            <span className={styles.hudChipVal} style={{ color: 'var(--c-nanites, #10b981)' }}>
+              {nanites} NT
             </span>
           </div>
         </div>
@@ -110,11 +145,13 @@ export const HUDOverlay: React.FC = () => {
           </div>
 
           <div className={styles.viewportControlsHint}>
-            <span>[WASD / ARROWS] Move</span>
-            <span>[SPACE] Wait Turn</span>
+            <span>[WASD] Move</span>
+            <span>[SPACE] Wait</span>
             <span>[1-3] Subroutine</span>
             <span>[I] Inventory</span>
-            <span>[E] Anchor Terminal</span>
+            <span>[G] Loot</span>
+            <span>[T] Forensics: {detailedFlavorTextEnabled ? 'ON' : 'OFF'}</span>
+            <span>[?] Controls</span>
           </div>
         </div>
 
@@ -133,14 +170,30 @@ export const HUDOverlay: React.FC = () => {
         <AbilityBar />
 
         <div style={{ display: 'flex', gap: '8px' }}>
+          <BtnLever
+            variant={detailedFlavorTextEnabled ? 'cyan' : undefined}
+            onClick={() => gameStore.getState().toggleDetailedFlavorText()}
+            rightSlot="[T]"
+          >
+            {detailedFlavorTextEnabled ? 'FORENSICS ON' : 'TILE FORENSICS'}
+          </BtnLever>
+          <BtnLever variant="cyan" onClick={toggleHotkeysModal} rightSlot="[?]">
+            CONTROLS GUIDE
+          </BtnLever>
           <BtnLever variant="primary" onClick={toggleInventory} rightSlot="[I]">
             TACTICAL INVENTORY
           </BtnLever>
         </div>
       </footer>
 
+      {/* Tactical Inspection Tooltip */}
+      <TacticalInspectTooltip />
+
       {/* Modal Overlays */}
       {inventoryVisible && <InventoryOverlay onClose={toggleInventory} />}
+      {hotkeysModalVisible && <HotkeysModal onClose={toggleHotkeysModal} />}
+      {groundTransferVisible && <GroundTransferModal onClose={closeGroundTransfer} />}
+      {deadDropModalVisible && <DeadDropModal onClose={closeDeadDropModal} />}
     </div>
   );
 };

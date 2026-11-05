@@ -26,7 +26,7 @@ import { GameplayEvents } from '@shared/events/types';
 import { logger } from '@engine/utils/logger';
 import { GameEvents } from '../events/types';
 import { RunMode } from '@shared/run-mode';
-import { VaultItem } from '@shared/profile';
+import { VaultItem, generateVaultItemId } from '@shared/profile';
 import {
   calculatePityScrap,
   calculateExtractionFluxBonus,
@@ -119,11 +119,14 @@ export function createRunEnderSystem<T extends GameplayEvents>(
               if (cTmpl?.id) swList.push(cTmpl.id);
             }
           }
+          const itemType = item.isConsumable ? ('consumable' as const) : ('equipment' as const);
           return {
+            vaultItemId: generateVaultItemId(),
             entityId: item.entityId,
             templateId: item.templateId,
             rarityTier: item.rarityTier,
-            itemType: 'equipment' as const,
+            itemType,
+            quantity: item.quantity ?? 1,
             extractedAtFloor: floorNumber,
             extractedAtTimestamp: Date.now(),
             socketedSoftware: swList.length > 0 ? swList : undefined,
@@ -146,6 +149,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
             }
           }
           equippedExtracted.push({
+            vaultItemId: generateVaultItemId(),
             entityId: wId,
             templateId: tmpl?.id || 'rifle-v1',
             rarityTier: rarity?.tier || 'common',
@@ -168,6 +172,7 @@ export function createRunEnderSystem<T extends GameplayEvents>(
             }
           }
           equippedExtracted.push({
+            vaultItemId: generateVaultItemId(),
             entityId: aId,
             templateId: tmpl?.id || 'armor-v1',
             rarityTier: rarity?.tier || 'common',
@@ -217,6 +222,9 @@ export function createRunEnderSystem<T extends GameplayEvents>(
       }
     }
 
+    const vaultsBreached = floorState?.vaultsBreached ?? 0;
+    const trapsDisarmed = floorState?.trapsDisarmed ?? 0;
+
     eventBus.emit('RUN_ENDED', {
       reason,
       entityId: playerId,
@@ -229,8 +237,10 @@ export function createRunEnderSystem<T extends GameplayEvents>(
         pityAwarded,
         itemsExtracted,
         blueprintsExtracted,
+        vaultsBreached,
+        trapsDisarmed,
       },
-    } as unknown as T['RUN_ENDED']);
+    });
 
     const message = isSuccess
       ? `SUCCESS: Extraction protocol complete. ${finalScrap} Scrap, ${finalFlux} Flux secured.`
@@ -301,7 +311,9 @@ export function createRunEnderSystem<T extends GameplayEvents>(
     for (const entityId of dyingEntities) {
       const actor = w.getComponent(entityId, Actor);
       if (actor?.isPlayer) {
-        executeRunEnd(entityId, 'death', false);
+        const dying = w.getComponent(entityId, Dying);
+        const reason = dying?.reason || 'death';
+        executeRunEnd(entityId, reason, false);
       }
     }
 

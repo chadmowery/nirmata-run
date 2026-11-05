@@ -11,6 +11,8 @@ interface GameContext {
   };
 }
 
+import { getActiveGameContext } from '@/game/setup';
+
 interface InRunItemTooltipProps {
   entityId: number;
   position?: { x: number; y: number };
@@ -76,8 +78,8 @@ export const InRunItemTooltip: React.FC<InRunItemTooltipProps> = ({ entityId, po
 
   if (!mounted) return null;
 
-  // Access world from window.gameContext (mocked/available at runtime)
-  const world = (window as unknown as { gameContext?: GameContext }).gameContext?.world;
+  // Access world from active gameContext
+  const world = (getActiveGameContext() as unknown as GameContext | null)?.world || (typeof window !== 'undefined' ? (window as unknown as { gameContext?: GameContext }).gameContext?.world : undefined);
   if (!world) return null;
 
   const equipment = world.getComponent(entityId, EquipmentDef);

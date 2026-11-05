@@ -5,7 +5,7 @@ import { ItemCard } from './ItemCard';
 import { ItemTooltip } from './ItemTooltip';
 import styles from './StashItemList.module.css';
 
-export type StashFilter = 'all' | 'firmware' | 'augment' | 'software' | 'weapon' | 'armor';
+export type StashFilter = 'all' | 'firmware' | 'augment' | 'software' | 'weapon' | 'armor' | 'consumable';
 
 interface StashItemListProps {
   items: VaultItem[];
@@ -45,7 +45,7 @@ export const StashItemList: React.FC<StashItemListProps> = ({
     setHoveredItem(null);
   };
 
-  const filters: StashFilter[] = ['all', 'firmware', 'augment', 'software', 'weapon', 'armor'];
+  const filters: StashFilter[] = ['all', 'firmware', 'augment', 'software', 'weapon', 'armor', 'consumable'];
 
   return (
     <div className={styles.container}>
@@ -63,9 +63,9 @@ export const StashItemList: React.FC<StashItemListProps> = ({
 
       <div className={styles.itemList}>
         {filteredItems.length > 0 ? (
-          filteredItems.map((item) => (
+          filteredItems.map((item, idx) => (
             <ItemCard
-              key={item.entityId}
+              key={item.vaultItemId || `${item.entityId}-${idx}`}
               item={item}
               onDragStart={onDragStart}
               onHover={handleHover}

@@ -1,5 +1,5 @@
 {
-  "name": "PHASED_OVERDRIVE",
+  "name": "phased-overdrive",
   "sprite": { "key": "item_phase_shift" },
   "components": {
     "abilityDef": {
@@ -15,9 +15,16 @@
       "isActive": false,
       "isLegacy": false
     },
+    "augmentData": {
+      "name": "PHASED_OVERDRIVE.arc",
+      "trigger": { "type": "ON_ACTIVATION" },
+      "payloads": [{ "type": "DAMAGE_BONUS", "magnitude": 20, "statusEffectDuration": 1 }],
+      "maxTriggersPerTurn": 1,
+      "cooldownTurns": 1
+    },
     "item": {
       "name": "PHASED_OVERDRIVE.exe",
-      "description": "Architected winner's firmware. Long-range dash attack."
+      "description": "Architected winner's firmware and augment. Long-range dash attack and damage boost."
     }
   }
 }

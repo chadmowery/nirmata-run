@@ -1,5 +1,5 @@
 {
-  "name": "VOID_ECHO",
+  "name": "void-echo",
   "sprite": { "key": "item_bleed" },
   "components": {
     "softwareDef": {

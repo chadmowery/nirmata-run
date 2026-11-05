@@ -17,6 +17,7 @@ export function createGravediggerSystem<T extends GameplayEvents>(world: World<T
       const pos = w.getComponent(entityId, Position);
       if (pos) {
         grid.removeEntity(entityId, pos.x, pos.y);
+        grid.removeItem(entityId, pos.x, pos.y);
       }
 
       // 2. Final purge

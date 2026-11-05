@@ -1,0 +1,17 @@
+{
+  "name": "prop-cooling-vent",
+  "mixins": [],
+  "components": {
+    "position": { "x": 0, "y": 0 },
+    "prop": {
+      "propId": "cooling_vent",
+      "faction": "nucaloric",
+      "propClass": "cooling_vent",
+      "ventAmount": 40
+    },
+    "blocksMovement": {}
+  },
+  "overrides": {
+    "sprite": { "key": "prop_cooling_vent_ready" }
+  }
+}

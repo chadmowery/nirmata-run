@@ -1,4 +1,4 @@
-import type { PlayerProfile, VaultItem } from './profile';
+import { generateVaultItemId, type PlayerProfile, type VaultItem } from './profile';
 
 export const VAULT_MAX_SLOTS = 30;
 
@@ -56,7 +56,7 @@ export interface DebugGrantResult {
 export const DEBUG_VAULT_CATALOG: Array<{
   templateId: string;
   rarityTier: string;
-  itemType: 'firmware' | 'augment' | 'software' | 'equipment' | 'weapon' | 'armor';
+  itemType: 'firmware' | 'augment' | 'software' | 'equipment' | 'weapon' | 'armor' | 'consumable';
 }> = [
   // Round 1: 1 of each of all 5 distinct item types (guarantees diverse representation)
   { templateId: 'phase-shift', rarityTier: 'common', itemType: 'firmware' },
@@ -82,7 +82,7 @@ export const DEBUG_VAULT_CATALOG: Array<{
   // Round 4: 4th item of types
   { templateId: 'logic-jam', rarityTier: 'common', itemType: 'firmware' },
   { templateId: 'neural-recursion', rarityTier: 'legendary', itemType: 'augment' },
-  { templateId: 'health-potion', rarityTier: 'common', itemType: 'software' },
+  { templateId: 'health-potion', rarityTier: 'common', itemType: 'consumable' },
   { templateId: 'extended-sight', rarityTier: 'uncommon', itemType: 'firmware' },
   { templateId: 'static-collapse', rarityTier: 'legendary', itemType: 'augment' },
 
@@ -91,7 +91,7 @@ export const DEBUG_VAULT_CATALOG: Array<{
   { templateId: 'neural-feedback', rarityTier: 'rare', itemType: 'augment' },
   { templateId: 'bleed-v2', rarityTier: 'rare', itemType: 'software' },
   { templateId: 'auto-loader-v2', rarityTier: 'rare', itemType: 'software' },
-  { templateId: 'void-echo', rarityTier: 'legendary', itemType: 'augment' },
+  { templateId: 'void-echo', rarityTier: 'legendary', itemType: 'software' },
 
   // Round 6: Remaining items up to 30
   { templateId: 'kinetic-link', rarityTier: 'common', itemType: 'firmware' },
@@ -126,6 +126,7 @@ export function grantDebugVaultAndCurrencies(profile: PlayerProfile): DebugGrant
       existingIds.add(nextEntityId);
 
       const vaultItem: VaultItem = {
+        vaultItemId: generateVaultItemId(),
         entityId: nextEntityId,
         templateId: itemDef.templateId,
         rarityTier: itemDef.rarityTier,

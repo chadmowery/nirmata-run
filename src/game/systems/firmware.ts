@@ -8,6 +8,9 @@ import {
   Position,
   StatusEffects,
   FirmwareActivatedThisTurn,
+  CorruptedNode,
+  FloorState,
+  PropInteractedThisTurn,
 } from '@shared/components';
 import {
   DamageIntent,
@@ -178,6 +181,18 @@ export function createFirmwareSystem<T extends GameplayEvents>(
         const nextActive = !abilityDef.isActive;
         world.patchComponent(firmwareId, AbilityDef, { isActive: nextActive });
 
+        if (nextActive) {
+          const radius = abilityDef.visionRadius || 12;
+          const corruptedNodes = world.query(CorruptedNode, Position);
+          for (const nodeId of corruptedNodes) {
+            const nPos = world.getComponent(nodeId, Position)!;
+            const dist = Math.sqrt((nPos.x - pos.x) ** 2 + (nPos.y - pos.y) ** 2);
+            if (dist <= radius) {
+              world.patchComponent(nodeId, CorruptedNode, { revealed: true });
+            }
+          }
+        }
+
         eventBus.emit('MESSAGE_EMITTED', {
           text: `${abilityDef.name} ${nextActive ? 'activated' : 'deactivated'}.`,
           type: 'info',
@@ -197,7 +212,17 @@ export function createFirmwareSystem<T extends GameplayEvents>(
           }
         }
 
-        eventBus.emit('FOV_UPDATED', { visibleSet } as unknown as T['FOV_UPDATED']);
+        // Reveal Corrupted Nodes within pulse radius
+        const corruptedNodes = world.query(CorruptedNode, Position);
+        for (const nodeId of corruptedNodes) {
+          const nPos = world.getComponent(nodeId, Position)!;
+          const dist = Math.sqrt((nPos.x - pulseCenterX) ** 2 + (nPos.y - pulseCenterY) ** 2);
+          if (dist <= radius) {
+            world.patchComponent(nodeId, CorruptedNode, { revealed: true });
+          }
+        }
+
+        eventBus.emit('FOV_UPDATED', { visibleSet });
         eventBus.emit('MESSAGE_EMITTED', {
           text: `${abilityDef.name} activated! Sensor sweep reveals sector (radius ${radius}).`,
           type: 'info',
@@ -205,6 +230,38 @@ export function createFirmwareSystem<T extends GameplayEvents>(
       } else if (abilityDef.effectType === 'stun') {
         const targets = grid.getEntitiesAt(targetX, targetY);
         let hit = false;
+
+        // Counterplay: Disarm CorruptedNode at target tile
+        const allPos = world.query(Position);
+        for (const candidateId of allPos) {
+          if (candidateId === entityId) continue;
+          const cPos = world.getComponent(candidateId, Position);
+          if (cPos && cPos.x === targetX && cPos.y === targetY) {
+            const corrupted = world.getComponent(candidateId, CorruptedNode);
+            if (corrupted && !corrupted.isDisarmed) {
+              world.patchComponent(candidateId, CorruptedNode, { isDisarmed: true, revealed: true });
+              const floorState = world.getComponent(entityId, FloorState);
+              if (floorState) {
+                world.patchComponent(entityId, FloorState, {
+                  trapsDisarmed: (floorState.trapsDisarmed ?? 0) + 1,
+                });
+              }
+              // Trigger ON_HACK augment synergy
+              world.addComponent(entityId, PropInteractedThisTurn, {
+                propEntityId: candidateId,
+                propClass: 'corrupted_node',
+                wasCorruptedTrap: false,
+                interactedBy: entityId,
+              });
+              eventBus.emit('MESSAGE_EMITTED', {
+                text: `[DISARMED]: Corrupted Node disarmed by ${abilityDef.name} (+50 Score).`,
+                type: 'info',
+              });
+              hit = true;
+            }
+          }
+        }
+
         for (const targetId of targets) {
           if (targetId === entityId) continue;
           world.addComponent(entityId, ApplyStatusEffectIntent, {
@@ -219,12 +276,17 @@ export function createFirmwareSystem<T extends GameplayEvents>(
           hit = true;
         }
 
-        eventBus.emit('MESSAGE_EMITTED', {
-          text: hit
-            ? `${abilityDef.name} activated! Overloaded target logic circuits (DISRUPT applied for 2 turns).`
-            : `${abilityDef.name} discharged at (${targetX}, ${targetY}) with no target.`,
-          type: hit ? 'info' : 'warning',
-        });
+        if (!hit) {
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: `${abilityDef.name} discharged at (${targetX}, ${targetY}) with no target.`,
+            type: 'warning',
+          });
+        } else if (targets.size > 0) {
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: `${abilityDef.name} activated! Overloaded target logic circuits (DISRUPT applied for 2 turns).`,
+            type: 'info',
+          });
+        }
       }
 
       eventBus.emit('FIRMWARE_ACTIVATED', {

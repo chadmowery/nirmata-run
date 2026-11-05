@@ -35,6 +35,7 @@ describe('LoadoutTab UI', () => {
       shellUpgrades: {},
       vault: [
         {
+          vaultItemId: 'vault-item-201',
           entityId: 201,
           templateId: 'bleed-v1',
           itemType: 'software',
@@ -43,6 +44,7 @@ describe('LoadoutTab UI', () => {
           extractedAtTimestamp: 1000,
         },
         {
+          vaultItemId: 'vault-item-202',
           entityId: 202,
           templateId: 'rifle-v2',
           itemType: 'weapon',
@@ -115,6 +117,7 @@ describe('LoadoutTab UI', () => {
   it('renders all reserve stash items in scroll container when ALL filter is selected', async () => {
     // Add 10 items to vault
     const extraVault = Array.from({ length: 10 }, (_, i) => ({
+      vaultItemId: `vault-extra-${i}`,
       entityId: 99000 + i,
       templateId: `item-${i}`,
       itemType: 'software' as const,
@@ -144,6 +147,7 @@ describe('LoadoutTab UI', () => {
   it('double clicking an equipable item equips to shell if slot open, or otherwise places in backpack', async () => {
     // Add an augment to vault
     mockProfile.vault.push({
+      vaultItemId: 'vault-item-203',
       entityId: 203,
       templateId: 'static-siphon',
       itemType: 'augment',
@@ -199,6 +203,7 @@ describe('LoadoutTab UI', () => {
         method: 'POST',
         body: JSON.stringify({
           sessionId: 'test-session',
+          vaultItemId: 'vault-item-203',
           entityId: 203,
           shellId: 'vanguard-v1',
           targetSlotType: 'augment',
@@ -217,11 +222,52 @@ describe('LoadoutTab UI', () => {
         method: 'POST',
         body: JSON.stringify({
           sessionId: 'test-session',
+          vaultItemId: 'vault-item-202',
           entityId: 202,
           shellId: 'vanguard-v1',
           targetSlotType: 'backpack',
         }),
       }),
     );
+  });
+
+  it('reflects shell additionalPorts in loadout slots and marks unlocked expansion ports', async () => {
+    const upgradedProfile = {
+      ...mockProfile,
+      shellUpgrades: {
+        'vanguard-v1': {
+          speed: 1,
+          armor: 1,
+          stability: 1,
+          additionalPorts: 1,
+        },
+      },
+    };
+    gameStore.setState({ playerProfile: upgradedProfile, selectedShellIndex: 0 });
+
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        templates: [
+          {
+            id: 'vanguard-v1',
+            name: 'Vanguard Alpha',
+            archetype: 'assault',
+            baseStats: { maxHealth: 100, armor: 5, speed: 10, stability: 100 },
+            basePorts: { maxFirmware: 2, maxAugment: 2, maxSoftware: 2 },
+          },
+        ],
+      }),
+    } as unknown as Response);
+
+    render(<LoadoutTab />);
+
+    await waitFor(() => {
+      // With additionalPorts: 1, basePorts 2 becomes 3, and the 3rd slot is marked as unlocked expansion in aria-label
+      const unlockedSlots = screen.getAllByLabelText(/UNLOCKED EXPANSION/i);
+      expect(unlockedSlots.length).toBeGreaterThanOrEqual(1);
+      // Overlapping "UNLOCKED" text label should be removed
+      expect(screen.queryByText(/^UNLOCKED$/)).toBeNull();
+    });
   });
 });

@@ -8,6 +8,8 @@ import {
   Dying,
   FirmwareActivatedThisTurn,
   DealtDamageThisTurn,
+  InteractiveSurface,
+  PropInteractedThisTurn,
 } from '@shared/components';
 
 export interface TriggerContext {
@@ -17,6 +19,8 @@ export interface TriggerContext {
   heatAboveMax: boolean;
   currentHeat: number;
   hpPercent: number;
+  onHack?: boolean;
+  onCoverBroken?: boolean;
 }
 
 /**
@@ -34,9 +38,30 @@ export function createTriggerContext<T extends EngineEvents = EngineEvents>(
   // Count kills: find all Dying entities where killerId matches entityId
   const dyingEntities = world.query(Dying);
   let killCount = 0;
+  let onCoverBroken = false;
   for (const dyingId of dyingEntities) {
-    if (world.getComponent(dyingId, Dying)?.killerId === entityId) {
+    const dying = world.getComponent(dyingId, Dying);
+    if (dying?.killerId === entityId) {
       killCount++;
+      if (
+        dying.reason === 'environmental_destruction' ||
+        dying.reason === 'destroyed' ||
+        world.hasComponent(dyingId, InteractiveSurface)
+      ) {
+        onCoverBroken = true;
+      }
+    }
+  }
+
+  // Check onHack: transient PropInteractedThisTurn tagged on entityId or with interactedBy === entityId
+  let onHack = !!world.getComponent(entityId, PropInteractedThisTurn);
+  if (!onHack) {
+    const allInteracted = world.query(PropInteractedThisTurn);
+    for (const id of allInteracted) {
+      if (world.getComponent(id, PropInteractedThisTurn)?.interactedBy === entityId) {
+        onHack = true;
+        break;
+      }
     }
   }
 
@@ -47,6 +72,8 @@ export function createTriggerContext<T extends EngineEvents = EngineEvents>(
     heatAboveMax: heat ? heat.current > heat.maxSafe : false,
     currentHeat: heat?.current ?? 0,
     hpPercent: health ? (health.current / health.max) * 100 : 100,
+    onHack,
+    onCoverBroken,
   };
 }
 
@@ -79,6 +106,10 @@ export function evaluateCondition(
       return ctx.currentHeat >= (node.value ?? 0);
     case 'HP_BELOW_PERCENT':
       return ctx.hpPercent <= (node.value ?? 0);
+    case 'ON_HACK':
+      return !!ctx.onHack;
+    case 'ON_COVER_BROKEN':
+      return !!ctx.onCoverBroken;
     default:
       return false;
   }

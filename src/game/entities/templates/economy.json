@@ -35,7 +35,9 @@
     "scrapCollected": 1,
     "enemiesDefeated": 50,
     "softwareExtracted": 500,
-    "fluxExtracted": 10
+    "fluxExtracted": 10,
+    "vaultsBreached": 150,
+    "trapsDisarmed": 50
   },
   "winnersItems": ["PHASED_OVERDRIVE", "NEURAL_RECURSION", "STATIC_COLLAPSE", "VOID_ECHO"]
 }

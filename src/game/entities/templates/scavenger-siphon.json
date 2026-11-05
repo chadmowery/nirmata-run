@@ -1,0 +1,18 @@
+{
+  "name": "scavenger-siphon",
+  "sprite": { "key": "item_scavenger_siphon" },
+  "components": {
+    "augmentData": {
+      "name": "Scavenger_Siphon.arc",
+      "trigger": {
+        "type": "ON_HACK"
+      },
+      "payloads": [
+        { "type": "SHIELD", "magnitude": 6 },
+        { "type": "VENT_HEAT", "magnitude": 10 }
+      ],
+      "maxTriggersPerTurn": 1,
+      "cooldownTurns": 1
+    }
+  }
+}

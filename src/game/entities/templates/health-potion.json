@@ -2,7 +2,7 @@
   "name": "health-potion",
   "mixins": ["physical"],
   "components": {
-    "item": { "name": "Health Potion", "description": "Restores 5 HP" },
+    "item": { "name": "Health Potion", "description": "Restores 5 HP and 10 Stability immediately, plus 3 turns of regenerative repair nanites. Stacks up to 10 per slot.", "type": "consumable" },
     "pickupEffect": { "type": "heal", "value": 5 },
     "sprite": { "key": "item_potion" }
   }

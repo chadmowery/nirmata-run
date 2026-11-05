@@ -9,8 +9,8 @@ import styles from './VaultOverflowBanner.module.css';
 
 interface VaultOverflowBannerProps {
   overflowItems: VaultItem[];
-  onSell: (entityId: number) => void;
-  onDiscard: (entityId: number) => void;
+  onSell: (itemIdentifier: string | number, item?: VaultItem) => void;
+  onDiscard: (itemIdentifier: string | number, item?: VaultItem) => void;
 }
 
 const VaultOverflowBanner: React.FC<VaultOverflowBannerProps> = ({
@@ -52,7 +52,7 @@ const VaultOverflowBanner: React.FC<VaultOverflowBannerProps> = ({
     <div className={styles.banner}>
       <h3 className={styles.heading}>OVERFLOW: {overflowItems.length} IN_LIMBO</h3>
       <div className={styles.itemList}>
-        {overflowItems.map((item) => {
+        {overflowItems.map((item, idx) => {
           const meta = resolveItemMetadata({
             templateId: item.templateId,
             type: item.itemType,
@@ -65,7 +65,7 @@ const VaultOverflowBanner: React.FC<VaultOverflowBannerProps> = ({
 
           return (
             <div
-              key={item.entityId}
+              key={item.vaultItemId || `${item.entityId}-${idx}`}
               className={styles.itemRow}
               tabIndex={0}
               onPointerEnter={(e) =>
@@ -87,7 +87,7 @@ const VaultOverflowBanner: React.FC<VaultOverflowBannerProps> = ({
                   holdToConfirm={true}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDiscard(item.entityId);
+                    onDiscard(item.vaultItemId, item);
                   }}
                   style={{ padding: '3px 8px', fontSize: '10px' }}
                 >
@@ -98,7 +98,7 @@ const VaultOverflowBanner: React.FC<VaultOverflowBannerProps> = ({
                   holdToConfirm={true}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onSell(item.entityId);
+                    onSell(item.vaultItemId, item);
                   }}
                   style={{ padding: '3px 8px', fontSize: '10px' }}
                   rightSlot={`${getSellPrice(item.rarityTier)} CR`}

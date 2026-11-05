@@ -2,7 +2,7 @@ import { World } from '@engine/ecs/world';
 import { EntityId } from '@engine/ecs/types';
 import { TurnSchedulerAdapter } from '@engine/turn/types';
 import { EngineEvents } from '@engine/events/types';
-import { Actor, Energy, Health, Acting, StatusEffects } from '@shared/components';
+import { Actor, Energy, Health, Acting, StatusEffects, Dying, ActionAbortedTag, MoveIntent } from '@shared/components';
 
 export interface GameTurnAdapterConfig {
   defaultActionCost?: number;
@@ -11,7 +11,7 @@ export interface GameTurnAdapterConfig {
 
 /**
  * Concrete turn scheduler adapter connecting the generic engine TurnManager
- * to Nirmata Runner's ECS components (Actor, Energy, Health, Acting).
+ * to Nirmata Runner's ECS components (Actor, Energy, Health, Acting, Dying).
  */
 export class GameTurnAdapter<
   TEvents extends EngineEvents = EngineEvents,
@@ -22,20 +22,26 @@ export class GameTurnAdapter<
   ) {}
 
   getCandidateActors(): EntityId[] {
-    return this.world.query(Actor, Energy);
+    return this.world
+      .query(Actor, Energy)
+      .filter((id) => !this.world.hasComponent(id, Dying));
   }
 
   isActorActive(actorId: EntityId): boolean {
+    if (!this.world.entityExists(actorId)) return false;
+    if (this.world.hasComponent(actorId, Dying)) return false;
     const health = this.world.getComponent(actorId, Health);
     return !health || health.isAlive;
   }
 
   canActorAct(actorId: EntityId, threshold: number): boolean {
+    if (!this.world.entityExists(actorId) || this.world.hasComponent(actorId, Dying)) return false;
     const energy = this.world.getComponent(actorId, Energy);
     return Boolean(energy && energy.current >= threshold);
   }
 
   accumulateEnergy(actorId: EntityId): void {
+    if (!this.world.entityExists(actorId) || this.world.hasComponent(actorId, Dying)) return;
     const energy = this.world.getComponent(actorId, Energy);
     if (energy) {
       const currentData = { ...energy };
@@ -45,6 +51,7 @@ export class GameTurnAdapter<
   }
 
   deductActionCost(actorId: EntityId, cost: number): void {
+    if (!this.world.entityExists(actorId)) return;
     const energy = this.world.getComponent(actorId, Energy);
     if (energy) {
       const updatedData = { ...energy, current: energy.current - cost };
@@ -53,6 +60,7 @@ export class GameTurnAdapter<
   }
 
   isPrimaryActor(actorId: EntityId): boolean {
+    if (!this.world.entityExists(actorId)) return false;
     const actor = this.world.getComponent(actorId, Actor);
     return Boolean(actor?.isPlayer);
   }
@@ -66,7 +74,13 @@ export class GameTurnAdapter<
     return null;
   }
 
+  allowsInactiveActorAction(action: string): boolean {
+    return action === 'ABORT_RUN';
+  }
+
   getActionCost(actorId: EntityId, action: string): number {
+    if (action === 'ABORT_RUN') return 0;
+    if (!this.world.entityExists(actorId)) return 1000;
     if (action === 'WAIT') {
       return this.config?.waitActionCost ?? 500;
     }
@@ -86,10 +100,41 @@ export class GameTurnAdapter<
   }
 
   onBeforeActorAct(actorId: EntityId): void {
+    if (!this.world.entityExists(actorId) || this.world.hasComponent(actorId, Dying)) return;
+    if (this.world.hasComponent(actorId, ActionAbortedTag)) {
+      this.world.removeComponent(actorId, ActionAbortedTag);
+    }
     this.world.addComponent(actorId, Acting, {});
   }
 
   onAfterActorAct(actorId: EntityId): void {
-    this.world.removeComponent(actorId, Acting);
+    if (!this.world.entityExists(actorId)) return;
+    if (this.world.hasComponent(actorId, Acting)) {
+      this.world.removeComponent(actorId, Acting);
+    }
+  }
+
+  wasActionAborted(actorId: EntityId): boolean {
+    if (!this.world.entityExists(actorId)) return false;
+    return this.world.hasComponent(actorId, ActionAbortedTag);
+  }
+
+  refundActionCost(actorId: EntityId, cost: number): void {
+    if (!this.world.entityExists(actorId)) return;
+    const energy = this.world.getComponent(actorId, Energy);
+    if (energy) {
+      const updatedData = { ...energy, current: energy.current + cost };
+      this.world.addComponent(actorId, Energy, updatedData);
+    }
+  }
+
+  clearActionAborted(actorId: EntityId): void {
+    if (!this.world.entityExists(actorId)) return;
+    if (this.world.hasComponent(actorId, ActionAbortedTag)) {
+      this.world.removeComponent(actorId, ActionAbortedTag);
+    }
+    if (this.world.hasComponent(actorId, MoveIntent)) {
+      this.world.removeComponent(actorId, MoveIntent);
+    }
   }
 }

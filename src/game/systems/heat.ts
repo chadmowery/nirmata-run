@@ -7,6 +7,7 @@ import {
   FirmwareSlots,
   AbilityDef,
   Actor,
+  FloorState,
   VentIntent,
   HeatIntent,
 } from '@shared/components';
@@ -25,7 +26,11 @@ export function createHeatSystem<T extends GameplayEvents>(world: World<T>, even
 
     const oldHeat = heat.current;
     const stability = shell?.stability ?? 0;
-    const effectiveDissipation = heat.baseDissipation + stability * 0.5;
+    let effectiveDissipation = heat.baseDissipation + stability * 0.5;
+    const floorState = world.getComponent(entityId, FloorState);
+    if (floorState?.sectorCondition === 'THERMAL_SURGE') {
+      effectiveDissipation *= 0.5;
+    }
 
     let nextHeat = Math.max(0, heat.current - effectiveDissipation);
 

@@ -49,6 +49,8 @@ export interface ScoringWeights {
   enemiesDefeated: number;
   softwareExtracted: number;
   fluxExtracted: number;
+  vaultsBreached?: number;
+  trapsDisarmed?: number;
 }
 
 export interface ShopConfig {

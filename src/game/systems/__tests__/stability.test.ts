@@ -8,6 +8,9 @@ import {
   FloorState,
   FloorTransitioned,
   DamageIntent,
+  Actor,
+  Dying,
+  Hostile,
 } from '@shared/components';
 import { createStabilitySystem, DEFAULT_STABILITY_CONFIG } from '../stability';
 import { Phase } from '@engine/ecs/types';
@@ -107,5 +110,50 @@ describe('StabilitySystem Unit Tests', () => {
     world.executeSystems(Phase.PRE_TURN);
 
     expect(world.hasComponent(playerId, DamageIntent)).toBe(false);
+  });
+
+  it('restores stability in Phase.REACTION when player eliminates a hostile entity', () => {
+    world.addComponent(playerId, Actor, { isPlayer: true });
+    world.patchComponent(playerId, Stability, { current: 50 });
+
+    const enemyId = world.createEntity();
+    world.addComponent(enemyId, Actor, { isPlayer: false });
+    world.addComponent(enemyId, Hostile, {});
+    world.addComponent(enemyId, Dying, { killerId: playerId, reason: 'damage' });
+
+    const stabilityChangeHandler = vi.fn();
+    eventBus.on('STABILITY_CHANGED', stabilityChangeHandler);
+
+    world.executeSystems(Phase.REACTION);
+    eventBus.flush();
+
+    const stability = world.getComponent(playerId, Stability);
+    expect(stability?.current).toBe(52);
+    expect(stabilityChangeHandler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        entityId: playerId,
+        oldValue: 50,
+        newValue: 52,
+        reason: 'threat_purged',
+      }),
+    );
+  });
+
+  it('does not restore stability when player destroys a non-hostile object (crate/trap)', () => {
+    world.addComponent(playerId, Actor, { isPlayer: true });
+    world.patchComponent(playerId, Stability, { current: 50 });
+
+    const crateId = world.createEntity();
+    world.addComponent(crateId, Dying, { killerId: playerId, reason: 'environmental_destruction' });
+
+    const stabilityChangeHandler = vi.fn();
+    eventBus.on('STABILITY_CHANGED', stabilityChangeHandler);
+
+    world.executeSystems(Phase.REACTION);
+    eventBus.flush();
+
+    const stability = world.getComponent(playerId, Stability);
+    expect(stability?.current).toBe(50);
+    expect(stabilityChangeHandler).not.toHaveBeenCalled();
   });
 });

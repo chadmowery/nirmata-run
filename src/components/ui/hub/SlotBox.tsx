@@ -7,6 +7,7 @@ interface SlotBoxProps {
   itemName?: string;
   slotType: 'firmware' | 'augment' | 'software' | 'weapon' | 'armor' | 'backpack';
   socketedSoftware?: string[];
+  isUnlockedExpansion?: boolean;
   onHover?: (name: string) => void;
   onHoverEnd?: () => void;
 }
@@ -17,6 +18,7 @@ export const SlotBox: React.FC<SlotBoxProps> = ({
   itemName,
   slotType,
   socketedSoftware,
+  isUnlockedExpansion = false,
   onHover,
   onHoverEnd,
 }) => {
@@ -34,11 +36,12 @@ export const SlotBox: React.FC<SlotBoxProps> = ({
         ${styles.slotBox} 
         ${filled ? styles.filled : styles.empty} 
         ${legacy ? styles.legacy : ''}
+        ${isUnlockedExpansion ? styles.unlockedExpansion : ''}
         ${styles[slotType] || ''}
       `}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={onHoverEnd}
-      aria-label={`${slotType} slot: ${filled ? itemName || 'equipped' : 'empty'}${legacy ? ' (LEGACY)' : ''}`}
+      aria-label={`${slotType} slot: ${filled ? itemName || 'equipped' : 'empty'}${legacy ? ' (LEGACY)' : ''}${isUnlockedExpansion ? ' (UNLOCKED EXPANSION)' : ''}`}
     >
       <div className={styles.icon}>
         {filled ? (

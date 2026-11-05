@@ -8,16 +8,18 @@ export const RunInventoryItemSchema = z.object({
   entityId: z.number(),
   templateId: z.string(),
   rarityTier: z.string(),
-  pickedUpAtFloor: z.number(),
-  pickedUpAtTimestamp: z.number(),
+  pickedUpAtFloor: z.number().default(1),
+  pickedUpAtTimestamp: z.number().default(() => Date.now()),
   gridIndex: z.number().optional(),
+  quantity: z.number().int().min(1).optional(),
+  isConsumable: z.boolean().optional(),
 });
 
 /**
  * Schema for a currency stack in the run inventory.
  */
 export const CurrencyStackSchema = z.object({
-  currencyType: z.enum(['scrap', 'blueprint', 'flux']),
+  currencyType: z.enum(['scrap', 'blueprint', 'flux', 'nanites']),
   amount: z.number().int().min(0),
   blueprintId: z.string().optional(),
   blueprintType: z.enum(['firmware', 'augment']).optional(),
@@ -29,7 +31,7 @@ export const CurrencyStackSchema = z.object({
 export const RunInventory = defineComponent(
   'run_inventory',
   z.object({
-    maxSlots: z.number().int().default(5),
+    maxSlots: z.number().int().default(30),
     software: z.array(RunInventoryItemSchema).default([]),
     equipment: z.array(RunInventoryItemSchema).default([]),
   }),

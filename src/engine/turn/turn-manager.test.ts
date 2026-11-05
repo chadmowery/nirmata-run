@@ -69,6 +69,27 @@ class TestTurnSchedulerAdapter implements TurnSchedulerAdapter<number> {
     const actor = this.actors.get(actorId);
     if (actor) actor.acting = false;
   }
+
+  allowsInactiveActorAction(action: string): boolean {
+    return action === 'special_meta_action';
+  }
+
+  public abortedActors: Set<number> = new Set();
+
+  refundActionCost(actorId: number, cost: number): void {
+    const actor = this.actors.get(actorId);
+    if (actor) {
+      actor.energy += cost;
+    }
+  }
+
+  wasActionAborted(actorId: number): boolean {
+    return this.abortedActors.has(actorId);
+  }
+
+  clearActionAborted(actorId: number): void {
+    this.abortedActors.delete(actorId);
+  }
 }
 
 describe('TurnManager (Generic Engine)', () => {
@@ -297,5 +318,122 @@ describe('TurnManager (Generic Engine)', () => {
 
     expect(startSpy).toHaveBeenCalled();
     expect(endSpy).toHaveBeenCalled();
+  });
+
+  it('skips enemies destroyed mid-enemy-turn-phase without throwing or freezing', () => {
+    const enemy1 = world.createEntity();
+    const enemy2 = world.createEntity();
+
+    adapter.addActor({
+      id: enemy1,
+      isPlayer: false,
+      isAlive: true,
+      energy: 1000,
+      speed: 100,
+      acting: false,
+    });
+
+    adapter.addActor({
+      id: enemy2,
+      isPlayer: false,
+      isAlive: true,
+      energy: 1000,
+      speed: 100,
+      acting: false,
+    });
+
+    // When enemy1 acts in ACTION phase, it kills enemy2
+    const originalExecute = world.executeSystems.bind(world);
+    vi.spyOn(world, 'executeSystems').mockImplementation((phase) => {
+      if (phase === Phase.ACTION && adapter.actors.get(enemy1)?.acting) {
+        // Enemy 2 dies
+        const e2 = adapter.actors.get(enemy2)!;
+        e2.isAlive = false;
+      }
+      originalExecute(phase);
+    });
+
+    turnManager.start();
+    expect(turnManager.getPhase()).toBe(TurnPhase.AWAIT_INPUT);
+
+    // Player acts
+    expect(() => turnManager.submitAction('move')).not.toThrow();
+
+    // Verify enemy2 never had onBeforeActorAct called while dead
+    expect(turnManager.getPhase()).toBe(TurnPhase.AWAIT_INPUT);
+    expect(turnManager.canAcceptInput()).toBe(true);
+  });
+
+  it('resets phase to AWAIT_INPUT when turn execution throws an unexpected error', () => {
+    vi.spyOn(world, 'executeSystems').mockImplementationOnce(() => {
+      throw new Error('Simulated critical turn error');
+    });
+
+    turnManager.start();
+    expect(() => turnManager.submitAction('move')).toThrow('Simulated critical turn error');
+    expect(turnManager.getPhase()).toBe(TurnPhase.AWAIT_INPUT);
+    expect(turnManager.canAcceptInput()).toBe(true);
+  });
+
+  it('allows actions that bypass active player check via adapter.allowsInactiveActorAction', () => {
+    // Kill the player actor
+    adapter.actors.get(playerEntity)!.isAlive = false;
+
+    let handlerCalledWith = '';
+    turnManager.setPlayerActionHandler((action) => {
+      handlerCalledWith = action;
+    });
+
+    turnManager.start();
+    // Normal move should be rejected
+    turnManager.submitAction('move');
+    expect(handlerCalledWith).toBe('');
+
+    // Meta action allowed via adapter
+    turnManager.submitAction('special_meta_action');
+    expect(handlerCalledWith).toBe('special_meta_action');
+  });
+
+  describe('Two-Tier Bump Safeguard (0-turn action abort outcome)', () => {
+    it('refunds action cost, does not advance turnNumber, and skips enemy turns when action is aborted', () => {
+      // Add a ready enemy with 1000 energy
+      const enemyEntity = world.createEntity();
+      adapter.addActor({
+        id: enemyEntity,
+        isPlayer: false,
+        isAlive: true,
+        energy: 1000,
+        speed: 100,
+        acting: false,
+      });
+
+      turnManager.start();
+      expect(turnManager.getTurnNumber()).toBe(0);
+      expect(adapter.actors.get(playerEntity)!.energy).toBe(1000);
+      expect(adapter.actors.get(enemyEntity)!.energy).toBe(1000);
+
+      // Handler simulates a bump safeguard halt (marks actor as aborted in ACTION phase)
+      turnManager.setPlayerActionHandler(() => {
+        adapter.abortedActors.add(playerEntity);
+      });
+
+      turnManager.submitAction('move');
+
+      // 1. Energy must be refunded to 1000 (0 turn cost)
+      expect(adapter.actors.get(playerEntity)!.energy).toBe(1000);
+
+      // 2. Turn number must remain 0 (not incremented)
+      expect(turnManager.getTurnNumber()).toBe(0);
+
+      // 3. Enemy must NOT have acted (energy remains 1000, not deducted)
+      expect(adapter.actors.get(enemyEntity)!.energy).toBe(1000);
+
+      // 4. Aborted tag must have been cleared
+      expect(adapter.abortedActors.has(playerEntity)).toBe(false);
+
+      // 5. Phase must be reset to AWAIT_INPUT
+      expect(turnManager.getPhase()).toBe(TurnPhase.AWAIT_INPUT);
+      expect(turnManager.canAcceptInput()).toBe(true);
+    });
   });
 });

@@ -3,33 +3,46 @@ import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import {
   RunInventory,
+  RunInventoryItem,
   SoftwareDef,
   EquipmentDef,
+  AbilityDef,
+  AugmentData,
   TemplateId,
   RarityTier,
   Children,
+  PortConfig,
+  AugmentSlots,
+  FirmwareSlots,
+  Item,
 } from '@shared/components';
+import { resolveItemMetadata } from '../hub/item-metadata';
 import type { ComponentDef } from '@engine/ecs/types';
 import type { EventBus } from '@engine/events/event-bus';
 import type { GameEvents } from '@/game/events/types';
+import type { ActionIntent } from '@shared/types';
 import styles from './InventoryOverlay.module.css';
 import { InRunItemTooltip } from './InRunItemTooltip';
-import { ItemIcon } from '../atomic';
+import { ItemIcon, BtnLever } from '../atomic';
 
 interface GameContext {
   playerId: number;
   eventBus?: EventBus<GameEvents>;
+  submitAction?: (intent: ActionIntent) => Promise<void>;
   world: {
     getComponent: <T>(entityId: number, component: ComponentDef<T>) => T | undefined;
     hasComponent: (entityId: number, component: ComponentDef<unknown>) => boolean;
   };
 }
 
+import { getActiveGameContext } from '@/game/setup';
+
 export const BackpackGrid: React.FC = () => {
   const [hoveredEntityId, setHoveredEntityId] = useState<number | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [selectedSlotIndex, setSelectedSlotIndex] = useState<number | null>(null);
 
-  const gameContext = (window as unknown as { gameContext: GameContext }).gameContext;
+  const gameContext = getActiveGameContext() as unknown as GameContext | null;
 
   // Connect to Zustand game store to subscribe to revisions and handle updates
   useStore(gameStore, (s) => s.inventoryRevision);
@@ -44,7 +57,7 @@ export const BackpackGrid: React.FC = () => {
 
   // Construct the lists of items
   const softwareItems = inv?.software || [];
-  let equipmentItems: Array<{ entityId: number; templateId: string; rarityTier: string }> = [];
+  let equipmentItems: RunInventoryItem[] = [];
 
   if (optimisticInventoryEquipmentIds !== null) {
     equipmentItems = optimisticInventoryEquipmentIds.map((id) => {
@@ -54,17 +67,162 @@ export const BackpackGrid: React.FC = () => {
         entityId: id,
         templateId: templateRef?.id || 'unknown',
         rarityTier: rarity?.tier || 'v1.x',
+        pickedUpAtFloor: 1,
+        pickedUpAtTimestamp: Date.now(),
       };
     });
   } else if (inv?.equipment) {
     equipmentItems = inv.equipment;
   }
 
-  const slots = Array(15).fill(null);
+  const maxSlots = inv?.maxSlots ?? 30;
+  const slots = Array(maxSlots).fill(null);
+
+  // Selected item details for action panel
+  interface ActionConfig {
+    label: string;
+    variant?: 'primary' | 'cyan' | 'danger';
+    holdToConfirm?: boolean;
+    holdDurationMs?: number;
+    action: () => void;
+    rightSlot?: string;
+  }
+  const selectedItemActions: ActionConfig[] = [];
+
+  if (selectedSlotIndex !== null) {
+    const isSw = selectedSlotIndex < softwareItems.length;
+    const item = isSw ? softwareItems[selectedSlotIndex] : equipmentItems[selectedSlotIndex - softwareItems.length];
+    if (item?.entityId) {
+      const swDef = gameContext.world.getComponent(item.entityId, SoftwareDef);
+      const eqDef = gameContext.world.getComponent(item.entityId, EquipmentDef);
+      const abilityDef = gameContext.world.getComponent(item.entityId, AbilityDef);
+      const augmentData = gameContext.world.getComponent(item.entityId, AugmentData);
+      const eventBus = gameContext.eventBus;
+
+      if (item.isConsumable) {
+        const itemComp = gameContext.world.getComponent(item.entityId, Item);
+        const cName =
+          itemComp?.name ||
+          (item.templateId === 'nanite-canister'
+            ? 'Repair Nanites'
+            : resolveItemMetadata({ templateId: item.templateId }).name || 'Consumable');
+        selectedItemActions.push({
+          label: `💊 USE ${cName.toUpperCase()}`,
+          variant: 'primary',
+          action: async () => {
+            if (gameContext.submitAction) {
+              await gameContext.submitAction({
+                type: 'USE_CONSUMABLE',
+                inventoryIndex: isSw ? selectedSlotIndex : selectedSlotIndex - softwareItems.length,
+              });
+            }
+            setSelectedSlotIndex(null);
+          },
+        });
+      } else if (swDef) {
+        selectedItemActions.push({
+          label: `⚡ BURN ON ${swDef.targetSlot.toUpperCase()}`,
+          variant: 'cyan',
+          holdToConfirm: true,
+          holdDurationMs: 1500,
+          rightSlot: 'HOLD',
+          action: () => {
+            eventBus?.emit('BURN_SOFTWARE_REQUESTED', {
+              softwareEntityId: item.entityId,
+              runInventoryIndex: isSw ? selectedSlotIndex : selectedSlotIndex - softwareItems.length,
+              targetSlot: swDef.targetSlot,
+            });
+            setSelectedSlotIndex(null);
+          },
+        });
+      } else if (eqDef) {
+        selectedItemActions.push({
+          label: `EQUIP ${eqDef.name.toUpperCase()} TO ${eqDef.slotType.toUpperCase()}`,
+          variant: 'primary',
+          action: () => {
+            gameStore.getState().optimisticEquipItem(item.entityId, eqDef.slotType);
+            eventBus?.emit('EQUIP_REQUESTED', {
+              slotType: eqDef.slotType,
+              itemEntityId: item.entityId,
+            });
+            setSelectedSlotIndex(null);
+          },
+        });
+      } else if (abilityDef) {
+        const portConfig = gameContext.world.getComponent(gameContext.playerId, PortConfig);
+        const maxFirmware = portConfig?.maxFirmware ?? 2;
+        const fwSlots = gameContext.world.getComponent(gameContext.playerId, FirmwareSlots);
+        const equippedFw = fwSlots?.equipped || [];
+
+        Array.from({ length: maxFirmware }, (_, i) => i).forEach((slotIdx) => {
+          const isOverwrite = slotIdx < equippedFw.length;
+          selectedItemActions.push({
+            label: isOverwrite
+              ? `⚡ OVERWRITE FIRMWARE (SLOT ${slotIdx + 1})`
+              : `⚡ BURN FIRMWARE (SLOT ${slotIdx + 1})`,
+            variant: 'cyan',
+            holdToConfirm: true,
+            holdDurationMs: 1500,
+            rightSlot: 'HOLD',
+            action: () => {
+              eventBus?.emit('BURN_FIRMWARE_REQUESTED', {
+                firmwareEntityId: item.entityId,
+                slotIndex: slotIdx,
+              });
+              setSelectedSlotIndex(null);
+            },
+          });
+        });
+      } else if (augmentData) {
+        const portConfig = gameContext.world.getComponent(gameContext.playerId, PortConfig);
+        const maxAugment = portConfig?.maxAugment ?? 3;
+        const agSlots = gameContext.world.getComponent(gameContext.playerId, AugmentSlots);
+        const equippedAg = agSlots?.equipped || [];
+
+        // Allow overwriting existing equipped augment slots
+        if (equippedAg.length > 0) {
+          equippedAg.forEach((_, slotIdx) => {
+            selectedItemActions.push({
+              label: `🧬 OVERWRITE AUGMENT (SLOT ${slotIdx + 1})`,
+              variant: 'cyan',
+              holdToConfirm: true,
+              holdDurationMs: 1500,
+              rightSlot: 'HOLD',
+              action: () => {
+                eventBus?.emit('BURN_AUGMENT_REQUESTED', {
+                  augmentEntityId: item.entityId,
+                  slotIndex: slotIdx,
+                });
+                setSelectedSlotIndex(null);
+              },
+            });
+          });
+        }
+
+        // Allow burning into chassis if available ports remain
+        if (equippedAg.length < maxAugment) {
+          selectedItemActions.push({
+            label: `🧬 BURN AUGMENT INTO CHASSIS (SLOT ${equippedAg.length + 1})`,
+            variant: 'cyan',
+            holdToConfirm: true,
+            holdDurationMs: 1500,
+            rightSlot: 'HOLD',
+            action: () => {
+              eventBus?.emit('BURN_AUGMENT_REQUESTED', {
+                augmentEntityId: item.entityId,
+                slotIndex: equippedAg.length,
+              });
+              setSelectedSlotIndex(null);
+            },
+          });
+        }
+      }
+    }
+  }
 
   return (
     <div className={styles.panel}>
-      <h3>Backpack</h3>
+      <h3>Backpack ({softwareItems.length + equipmentItems.length} / {maxSlots})</h3>
       <div className={styles.gridContainer}>
         {slots.map((_, i) => {
           const isSoftware = i < softwareItems.length;
@@ -72,6 +230,7 @@ export const BackpackGrid: React.FC = () => {
           const equipmentItem = !isSoftware ? equipmentItems[i - softwareItems.length] : null;
           const item = softwareItem || equipmentItem;
           const entityId = item?.entityId || null;
+          const isSelected = selectedSlotIndex === i;
 
           // Get item name and details if entityId is present
           let itemName = '';
@@ -83,6 +242,8 @@ export const BackpackGrid: React.FC = () => {
           if (entityId) {
             const sw = gameContext.world.getComponent(entityId, SoftwareDef);
             const eq = gameContext.world.getComponent(entityId, EquipmentDef);
+            const ability = gameContext.world.getComponent(entityId, AbilityDef);
+            const augment = gameContext.world.getComponent(entityId, AugmentData);
             const tmpl = gameContext.world.getComponent(entityId, TemplateId);
             const rarity = gameContext.world.getComponent(entityId, RarityTier);
 
@@ -101,8 +262,22 @@ export const BackpackGrid: React.FC = () => {
               if (children && children.entityIds.length > 0) {
                 hasSocketedSoftware = true;
               }
+            } else if (ability) {
+              itemName = ability.name;
+              itemType = 'firmware';
+            } else if (augment) {
+              itemName = augment.name;
+              itemType = 'augment';
+            } else if (equipmentItem?.isConsumable) {
+              const itemComp = gameContext.world.getComponent(entityId, Item);
+              itemName =
+                itemComp?.name ||
+                (itemTemplateId === 'nanite-canister'
+                  ? 'Repair Nanites'
+                  : resolveItemMetadata({ templateId: itemTemplateId }).name || itemTemplateId || 'Consumable');
+              itemType = 'consumable';
             } else {
-              itemName = `Entity #${entityId}`;
+              itemName = itemTemplateId || `Entity #${entityId}`;
             }
           }
 
@@ -111,7 +286,7 @@ export const BackpackGrid: React.FC = () => {
               key={i}
               className={`${styles.slot} ${entityId ? styles.slotFilled : ''}`}
               style={{
-                cursor: entityId ? 'grab' : 'default',
+                cursor: entityId ? 'pointer' : 'default',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -120,8 +295,17 @@ export const BackpackGrid: React.FC = () => {
                 padding: '4px',
                 textAlign: 'center',
                 position: 'relative',
+                border: isSelected ? '2px solid var(--c-accent-secondary, #00f0ff)' : undefined,
+                background: isSelected ? 'rgba(0, 240, 255, 0.1)' : undefined,
               }}
               draggable={!!entityId}
+              onClick={() => {
+                if (entityId) {
+                  setSelectedSlotIndex(isSelected ? null : i);
+                } else {
+                  setSelectedSlotIndex(null);
+                }
+              }}
               onDragStart={(e) => {
                 if (entityId) {
                   const dragData = {
@@ -158,6 +342,16 @@ export const BackpackGrid: React.FC = () => {
               }}
               onDoubleClick={() => {
                 if (entityId) {
+                  if (equipmentItem?.isConsumable) {
+                    if (gameContext.submitAction) {
+                      void gameContext.submitAction({
+                        type: 'USE_CONSUMABLE',
+                        inventoryIndex: isSoftware ? i : i - softwareItems.length,
+                      });
+                    }
+                    return;
+                  }
+
                   const isSw = gameContext.world.hasComponent(entityId, SoftwareDef);
                   const swDef = gameContext.world.getComponent(entityId, SoftwareDef);
                   const isEq = gameContext.world.hasComponent(entityId, EquipmentDef);
@@ -215,6 +409,25 @@ export const BackpackGrid: React.FC = () => {
                       SW
                     </div>
                   )}
+                  {equipmentItem?.isConsumable && (equipmentItem.quantity ?? 1) > 1 && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '-2px',
+                        right: '-2px',
+                        background: 'rgba(0, 240, 255, 0.9)',
+                        color: '#000000',
+                        fontSize: '8px',
+                        fontWeight: 900,
+                        padding: '0 3px',
+                        borderRadius: '2px',
+                        lineHeight: '10px',
+                      }}
+                      title={`Stack: ${equipmentItem.quantity}`}
+                    >
+                      x{equipmentItem.quantity}
+                    </div>
+                  )}
                   <div
                     style={{
                       fontWeight: 'bold',
@@ -240,6 +453,26 @@ export const BackpackGrid: React.FC = () => {
           );
         })}
       </div>
+
+      {/* Quick Action Buttons for Selected Item */}
+      {selectedItemActions.length > 0 && (
+        <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {selectedItemActions.map((act, idx) => (
+            <BtnLever
+              key={idx}
+              variant={act.variant || 'cyan'}
+              holdToConfirm={act.holdToConfirm}
+              holdDurationMs={act.holdDurationMs ?? 1500}
+              onHoldComplete={act.holdToConfirm ? act.action : undefined}
+              onClick={!act.holdToConfirm ? act.action : undefined}
+              rightSlot={act.rightSlot}
+              style={{ width: '100%', fontSize: '9px', padding: '5px 10px' }}
+            >
+              {act.label}
+            </BtnLever>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

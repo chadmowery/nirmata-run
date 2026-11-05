@@ -9,6 +9,9 @@ import { GameEvents } from '../events/types';
 import { FloorTransitioned } from '@shared/components/floor-transitioned';
 import { FloorState } from '@shared/components/floor-state';
 import { DamageIntent } from '@shared/components/intents';
+import { Actor } from '@shared/components/actor';
+import { Dying } from '@shared/components/dying';
+import { Hostile } from '@shared/components/hostile';
 
 /**
  * Configuration for the Reality Stability system.
@@ -26,10 +29,10 @@ export interface StabilityConfig {
 /** Default configuration values for Stability. */
 export const DEFAULT_STABILITY_CONFIG: StabilityConfig = {
   initialStability: 100,
-  perFloorChunkBase: 5,
-  perFloorChunkScale: 0.5,
-  perTurnBleedBase: 0.01,
-  perTurnBleedScale: 0.1,
+  perFloorChunkBase: 3,
+  perFloorChunkScale: 0.2,
+  perTurnBleedBase: 0.005,
+  perTurnBleedScale: 0.02,
   degradedDamagePerTurn: 2,
 };
 
@@ -61,7 +64,7 @@ export function createStabilitySystem<T extends GameplayEvents>(
       oldValue,
       newValue,
       reason: 'floor_entry',
-    } as unknown as T['STABILITY_CHANGED']);
+    });
 
     logger.debug(
       `Stability Floor Drain for entity ${entityId}: ${oldValue.toFixed(2)} -> ${newValue.toFixed(2)}`,
@@ -77,7 +80,11 @@ export function createStabilitySystem<T extends GameplayEvents>(
     if (!stability) return;
 
     const oldValue = stability.current;
-    const bleed = config.perTurnBleedBase + (floorNumber - 1) * config.perTurnBleedScale;
+    let bleed = config.perTurnBleedBase + (floorNumber - 1) * config.perTurnBleedScale;
+    const floorState = world.getComponent(entityId, FloorState);
+    if (floorState?.sectorCondition === 'OVERCLOCKED_GRID') {
+      bleed *= 1.25;
+    }
     const newValue = Math.max(0, stability.current - bleed);
 
     world.patchComponent(entityId, Stability, { current: newValue });
@@ -87,7 +94,7 @@ export function createStabilitySystem<T extends GameplayEvents>(
       oldValue,
       newValue,
       reason: 'turn_bleed',
-    } as unknown as T['STABILITY_CHANGED']);
+    });
 
     logger.debug(
       `Stability Turn Bleed for entity ${entityId}: ${oldValue.toFixed(2)} -> ${newValue.toFixed(2)}`,
@@ -113,7 +120,7 @@ export function createStabilitySystem<T extends GameplayEvents>(
     eventBus.emit('DEGRADED_DAMAGE', {
       entityId,
       damage: config.degradedDamagePerTurn,
-    } as unknown as T['DEGRADED_DAMAGE']);
+    });
 
     logger.info(
       `Degraded Damage applied to entity ${entityId}: ${config.degradedDamagePerTurn} HP`,
@@ -136,16 +143,57 @@ export function createStabilitySystem<T extends GameplayEvents>(
       applyDegradedDamage(entityId);
     }
   };
+  const updateReaction = (w: World<T>) => {
+    const dyingEntities = w.query(Dying);
+    for (const dyingId of dyingEntities) {
+      const dyingComp = w.getComponent(dyingId, Dying);
+      if (!dyingComp?.killerId) continue;
+
+      // Only eliminate hostile threats (not crates/traps or player self-damage)
+      const isHostile = w.hasComponent(dyingId, Hostile);
+      const dyingActor = w.getComponent(dyingId, Actor);
+      if (dyingActor?.isPlayer || !isHostile) continue;
+
+      const killerActor = w.getComponent(dyingComp.killerId, Actor);
+      if (killerActor?.isPlayer) {
+        const stability = w.getComponent<StabilityData>(dyingComp.killerId, Stability);
+        if (stability) {
+          const restoreAmount = 2; // +2% Reality Stability per eliminated hostile
+          const oldValue = stability.current;
+          const newValue = Math.min(stability.max, stability.current + restoreAmount);
+          w.patchComponent(dyingComp.killerId, Stability, { current: newValue });
+
+          eventBus.emit('STABILITY_CHANGED', {
+            entityId: dyingComp.killerId,
+            oldValue,
+            newValue,
+            reason: 'threat_purged',
+          });
+
+          eventBus.emit('MESSAGE_EMITTED', {
+            text: `[REALITY STABILIZED]: +${restoreAmount}% Stability restored from threat purged.`,
+            type: 'info',
+          });
+        }
+      }
+    }
+  };
+
   const init = () => {
-    world.registerSystem(Phase.PRE_TURN, updatePreTurn, 'StabilitySystem');
+    world.registerSystem(Phase.PRE_TURN, updatePreTurn, 'StabilitySystem_PreTurn');
+    world.registerSystem(Phase.REACTION, updateReaction, 'StabilitySystem_Reaction');
+  };
+
+  const dispose = () => {
+    world.unregisterSystem(Phase.PRE_TURN, updatePreTurn);
+    world.unregisterSystem(Phase.REACTION, updateReaction);
   };
 
   return {
     init,
-    dispose: () => {
-      world.unregisterSystem(Phase.PRE_TURN, updatePreTurn);
-    },
+    dispose,
     update: updatePreTurn,
+    updateReaction,
     applyFloorDrain,
     applyTurnBleed,
     applyDegradedDamage,

@@ -33,6 +33,7 @@ interface SessionEntry<T extends EngineEvents = EngineEvents, S = unknown> {
 export class SessionManager {
   private static instance: SessionManager;
   private sessions = new Map<string, SessionEntry<EngineEvents, unknown>>();
+  private activeSessionLocks = new Set<string>();
   private ttlMs = 60 * 60 * 1000; // 60 minutes default TTL
   private maxSessions = 1000;
 
@@ -126,6 +127,23 @@ export class SessionManager {
   public deleteSession(sessionId: string): void {
     logger.info(`Session Deleted: ${sessionId}`, 'SESSION');
     this.sessions.delete(sessionId);
+    this.activeSessionLocks.delete(sessionId);
+  }
+
+  public tryAcquireSessionLock(sessionId: string): boolean {
+    if (this.activeSessionLocks.has(sessionId)) {
+      return false;
+    }
+    this.activeSessionLocks.add(sessionId);
+    return true;
+  }
+
+  public releaseSessionLock(sessionId: string): void {
+    this.activeSessionLocks.delete(sessionId);
+  }
+
+  public isSessionLocked(sessionId: string): boolean {
+    return this.activeSessionLocks.has(sessionId);
   }
 
   public listSessions(): string[] {
@@ -141,6 +159,7 @@ export class SessionManager {
   public clear(): void {
     logger.info('All Sessions Cleared', 'SESSION');
     this.sessions.clear();
+    this.activeSessionLocks.clear();
   }
 
   /**

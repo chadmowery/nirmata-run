@@ -169,6 +169,7 @@ export const ShellTab: React.FC = () => {
   const selectedShellIndex = useStore(gameStore, (s) => s.selectedShellIndex);
   const setSelectedShellIndex = useStore(gameStore, (s) => s.setSelectedShellIndex);
   const setShellTemplates = useStore(gameStore, (s) => s.setShellTemplates);
+  const playerProfile = useStore(gameStore, (s) => s.playerProfile);
 
   const [hoveredAbility, setHoveredAbility] = useState<{
     metadata: ItemMetadata;
@@ -469,45 +470,62 @@ export const ShellTab: React.FC = () => {
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {[
-            { label: 'BASE SPEED', value: `${activeShell?.baseStats?.speed ?? 100} T/SEC` },
-            { label: 'ARMOR RATING', value: `${activeShell?.baseStats?.armor ?? 0} DMG RED` },
-            {
-              label: 'MAX HEALTH',
-              value: `${activeShell?.baseStats?.maxHealth ?? 100} HP`,
-              valueColor: 'var(--c-accent-secondary)',
-            },
-            {
-              label: 'STABILITY RETENTION',
-              value: `${activeShell?.baseStats?.stability ?? 80}%`,
-              valueColor: 'var(--c-accent)',
-            },
-            {
-              label: 'SOCKET PORTS',
-              value: `FW:${activeShell?.basePorts?.maxFirmware ?? 2} / AG:${activeShell?.basePorts?.maxAugment ?? 2}`,
-            },
-          ].map((stat) => (
-            <div
-              key={stat.label}
-              style={{ cursor: 'pointer' }}
-              onPointerEnter={(e) => {
-                const info = SHELL_STAT_DEFINITIONS[stat.label];
-                if (info) {
-                  setHoveredStat({ label: stat.label, info, x: e.clientX, y: e.clientY });
-                }
-              }}
-              onPointerMove={(e) => {
-                if (hoveredStat?.label === stat.label) {
-                  setHoveredStat((prev) =>
-                    prev ? { ...prev, x: e.clientX, y: e.clientY } : null,
-                  );
-                }
-              }}
-              onPointerLeave={() => setHoveredStat(null)}
-            >
-              <DottedSpecRow label={stat.label} value={stat.value} valueColor={stat.valueColor} />
-            </div>
-          ))}
+          {(() => {
+            const shellUpgrades = playerProfile?.shellUpgrades?.[activeShell?.id ?? ''] || {
+              speed: 0,
+              armor: 0,
+              stability: 0,
+              additionalPorts: 0,
+            };
+            return [
+              {
+                label: 'BASE SPEED',
+                value: `${(activeShell?.baseStats?.speed ?? 100) + shellUpgrades.speed * 5} T/SEC`,
+                valueColor: shellUpgrades.speed > 0 ? 'var(--c-accent)' : undefined,
+              },
+              {
+                label: 'ARMOR RATING',
+                value: `${(activeShell?.baseStats?.armor ?? 0) + shellUpgrades.armor * 1} DMG RED`,
+                valueColor: shellUpgrades.armor > 0 ? 'var(--c-accent)' : undefined,
+              },
+              {
+                label: 'MAX HEALTH',
+                value: `${activeShell?.baseStats?.maxHealth ?? 100} HP`,
+                valueColor: 'var(--c-accent-secondary)',
+              },
+              {
+                label: 'STABILITY RETENTION',
+                value: `${(activeShell?.baseStats?.stability ?? 80) + shellUpgrades.stability * 10}%`,
+                valueColor: shellUpgrades.stability > 0 ? 'var(--c-accent-secondary)' : 'var(--c-accent)',
+              },
+              {
+                label: 'SOCKET PORTS',
+                value: `FW:${(activeShell?.basePorts?.maxFirmware ?? 2) + shellUpgrades.additionalPorts} / AG:${(activeShell?.basePorts?.maxAugment ?? 2) + shellUpgrades.additionalPorts}`,
+                valueColor: shellUpgrades.additionalPorts > 0 ? 'var(--c-accent)' : undefined,
+              },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                style={{ cursor: 'pointer' }}
+                onPointerEnter={(e) => {
+                  const info = SHELL_STAT_DEFINITIONS[stat.label];
+                  if (info) {
+                    setHoveredStat({ label: stat.label, info, x: e.clientX, y: e.clientY });
+                  }
+                }}
+                onPointerMove={(e) => {
+                  if (hoveredStat?.label === stat.label) {
+                    setHoveredStat((prev) =>
+                      prev ? { ...prev, x: e.clientX, y: e.clientY } : null,
+                    );
+                  }
+                }}
+                onPointerLeave={() => setHoveredStat(null)}
+              >
+                <DottedSpecRow label={stat.label} value={stat.value} valueColor={stat.valueColor} />
+              </div>
+            ));
+          })()}
         </div>
 
         {/* Default / Starter Firmware Subsystem Suite */}

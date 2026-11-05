@@ -31,38 +31,49 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     logger.info(`Player submitting action: ${action}`, 'TURN');
     this.phase = TurnPhase.PLAYER_ACTION;
     const playerEntity = this.adapter.getPrimaryActor();
-    if (playerEntity === null || !this.adapter.isActorActive(playerEntity)) {
+    const allowsInactive = this.adapter.allowsInactiveActorAction?.(action) ?? false;
+    if (
+      !allowsInactive &&
+      (playerEntity === null || !this.adapter.isActorActive(playerEntity))
+    ) {
       this.phase = TurnPhase.AWAIT_INPUT;
       return;
     }
 
     // Process player action
-    if (!this.config.isClient) {
-      const cost = this.adapter.getActionCost
+    let cost = 0;
+    if (!this.config.isClient && playerEntity !== null) {
+      cost = this.adapter.getActionCost
         ? this.adapter.getActionCost(playerEntity, action)
         : action === 'WAIT'
           ? this.config.waitActionCost
           : this.config.defaultActionCost;
-      this.adapter.deductActionCost(playerEntity, cost);
+      if (cost > 0) {
+        this.adapter.deductActionCost(playerEntity, cost);
+      }
     }
 
-    if (this.playerActionHandler) {
+    if (this.playerActionHandler && playerEntity !== null) {
       this.playerActionHandler(action, playerEntity);
     }
 
     // Complete cycle
-    this.executeTurnCycle();
+    try {
+      this.executeTurnCycle(cost);
+    } catch (err) {
+      this.phase = TurnPhase.AWAIT_INPUT;
+      throw err;
+    }
   }
 
   /**
    * Run the full turn cycle: pre-turn -> action resolution -> enemy turns -> post-turn -> energy tick.
    */
-  private executeTurnCycle(): void {
+  private executeTurnCycle(deductedCost: number = 0): void {
     if (this._paused) return;
 
-    this.turnNumber++;
-    logger.info(`STARTING TURN ${this.turnNumber}`, 'TURN');
-    this.eventBus.emit('TURN_START', { turnNumber: this.turnNumber });
+    // Snapshot world state before PRE_TURN so aborted actions (0 turn cost) cannot farm free PRE_TURN ticks
+    const preTurnSnapshot = JSON.parse(JSON.stringify(this.world.getSerializableState()));
 
     // 1. Pre-turn phase
     this.phase = TurnPhase.PRE_TURN;
@@ -83,6 +94,23 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     }
 
     if (this._paused) return;
+
+    // Check if player action was halted / aborted with 0 turn cost (e.g. Two-Tier Bump Safeguard)
+    if (playerId !== null && this.adapter.wasActionAborted?.(playerId)) {
+      logger.info(`Action halted with 0 turn cost for actor ${playerId}`, 'TURN');
+      this.world.loadSerializableState(preTurnSnapshot);
+      if (!this.config.isClient && deductedCost > 0) {
+        this.adapter.refundActionCost?.(playerId, deductedCost);
+      }
+      this.adapter.clearActionAborted?.(playerId);
+      this.phase = TurnPhase.AWAIT_INPUT;
+      this.eventBus.flush();
+      return;
+    }
+
+    this.turnNumber++;
+    logger.info(`STARTING TURN ${this.turnNumber}`, 'TURN');
+    this.eventBus.emit('TURN_START', { turnNumber: this.turnNumber });
 
     if (this.config.isClient) {
       // In client prediction mode, only the player's immediate movement was predicted.
@@ -154,6 +182,10 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
     readyEnemies.sort((a, b) => Number(a) - Number(b));
 
     for (const enemyId of readyEnemies) {
+      if (!this.adapter.isActorActive(enemyId)) {
+        continue;
+      }
+
       logger.info(`Enemy Acting: ${enemyId}`, 'TURN');
       this.adapter.onBeforeActorAct?.(enemyId);
 
@@ -235,6 +267,13 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
    */
   loadState(turnNumber: number, phase: TurnPhase): void {
     this.turnNumber = turnNumber;
+    this.phase = phase;
+  }
+
+  /**
+   * Resets the active turn phase (typically back to AWAIT_INPUT during checkpoint recovery).
+   */
+  resetPhase(phase: TurnPhase = TurnPhase.AWAIT_INPUT): void {
     this.phase = phase;
   }
 

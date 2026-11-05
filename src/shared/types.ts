@@ -17,6 +17,8 @@ export const AttackActionSchema = z.object({
 export const PickupActionSchema = z.object({
   type: z.literal('PICKUP'),
   itemId: z.number(),
+  targetX: z.number().int().optional(),
+  targetY: z.number().int().optional(),
 });
 
 export const WaitActionSchema = z.object({
@@ -59,15 +61,33 @@ export const VentActionSchema = z.object({
 
 export const BurnSoftwareActionSchema = z.object({
   type: z.literal('BURN_SOFTWARE'),
-  runInventoryIndex: z.number().int().min(0).max(4),
+  runInventoryIndex: z.number().int().min(0).max(50).optional(),
+  softwareEntityId: z.number().int().optional(),
   targetSlot: z.enum(['weapon', 'armor']),
+});
+
+export const PurgeSoftwareActionSchema = z.object({
+  type: z.literal('PURGE_SOFTWARE'),
+  targetSlot: z.enum(['weapon', 'armor']),
+});
+
+export const BurnFirmwareActionSchema = z.object({
+  type: z.literal('BURN_FIRMWARE'),
+  firmwareEntityId: z.number().int(),
+  slotIndex: z.number().int().min(0).max(10),
+});
+
+export const BurnAugmentActionSchema = z.object({
+  type: z.literal('BURN_AUGMENT'),
+  augmentEntityId: z.number().int(),
+  slotIndex: z.number().int().min(0).max(10).optional(),
 });
 
 export const MoveAndUseFirmwareActionSchema = z.object({
   type: z.literal('MOVE_AND_USE_FIRMWARE'),
   dx: z.number(),
   dy: z.number(),
-  firmwareSlotIndex: z.number().int().min(0).max(2),
+  firmwareSlotIndex: z.number().int().min(0).max(10),
   targetX: z.number().int(),
   targetY: z.number().int(),
 });
@@ -91,8 +111,14 @@ export const StaircaseDescendActionSchema = z.object({
 export const PickupCurrencyActionSchema = z.object({
   type: z.literal('PICKUP_CURRENCY'),
   itemId: z.number(),
-  currencyType: z.enum(['scrap', 'blueprint', 'flux']),
+  currencyType: z.enum(['scrap', 'blueprint', 'flux', 'nanites']),
   amount: z.number().int().min(1),
+});
+
+export const UseConsumableActionSchema = z.object({
+  type: z.literal('USE_CONSUMABLE'),
+  inventoryIndex: z.number().int(),
+  targetEntityId: z.number().int().optional(),
 });
 
 export const DebugActionSchema = z.object({
@@ -109,6 +135,26 @@ export const InventorySwapActionSchema = z.object({
 
 export const AbortRunActionSchema = z.object({
   type: z.literal('ABORT_RUN'),
+});
+
+export const DropItemActionSchema = z.object({
+  type: z.literal('DROP_ITEM'),
+  itemEntityId: z.number().int(),
+  targetX: z.number().int().optional(),
+  targetY: z.number().int().optional(),
+});
+
+export const InteractPropActionSchema = z.object({
+  type: z.literal('INTERACT_PROP'),
+  targetPropId: z.number().int(),
+  forceOverride: z.boolean().default(false),
+  deadDropSelectionId: z.union([z.number().int(), z.string()]).optional(),
+});
+
+export const DeadDropItemActionSchema = z.object({
+  type: z.literal('DEAD_DROP_ITEM'),
+  targetPropId: z.number().int(),
+  itemId: z.union([z.number().int(), z.string()]),
 });
 
 export const ActionIntentSchema = z.discriminatedUnion('type', [
@@ -131,6 +177,13 @@ export const ActionIntentSchema = z.discriminatedUnion('type', [
   DebugActionSchema,
   InventorySwapActionSchema,
   AbortRunActionSchema,
+  InteractPropActionSchema,
+  DeadDropItemActionSchema,
+  UseConsumableActionSchema,
+  PurgeSoftwareActionSchema,
+  BurnFirmwareActionSchema,
+  BurnAugmentActionSchema,
+  DropItemActionSchema,
 ]);
 
 export type ActionIntent = z.infer<typeof ActionIntentSchema>;

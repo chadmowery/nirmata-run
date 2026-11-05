@@ -9,7 +9,7 @@ import { RunInventory, RunCurrency, RunInventoryItem } from '../components/run-i
 export function getCurrencyAmount<T extends EngineEvents>(
   world: World<T>,
   playerId: number,
-  currencyType: 'scrap' | 'blueprint' | 'flux',
+  currencyType: 'scrap' | 'blueprint' | 'flux' | 'nanites',
 ): number {
   const runCurrency = world.getComponent(playerId, RunCurrency);
   if (!runCurrency) return 0;
@@ -21,7 +21,7 @@ export function getCurrencyAmount<T extends EngineEvents>(
 export function addCurrency<T extends EngineEvents>(
   world: World<T>,
   playerId: number,
-  currencyType: 'scrap' | 'blueprint' | 'flux',
+  currencyType: 'scrap' | 'blueprint' | 'flux' | 'nanites',
   amount: number,
   meta?: { blueprintId?: string; blueprintType?: 'firmware' | 'augment' },
 ): boolean {
@@ -196,11 +196,105 @@ export function removeEquipment<T extends EngineEvents>(
   return removed;
 }
 
+export function removeItemByEntityId<T extends EngineEvents>(
+  world: World<T>,
+  playerId: number,
+  entityId: number,
+): RunInventoryItem | null {
+  const runInventory = world.getComponent(playerId, RunInventory);
+  if (!runInventory) return null;
+
+  const swIdx = runInventory.software.findIndex((s) => s.entityId === entityId);
+  if (swIdx !== -1) {
+    return removeSoftware(world, playerId, swIdx);
+  }
+
+  const eqIdx = runInventory.equipment.findIndex((e) => e.entityId === entityId);
+  if (eqIdx !== -1) {
+    return removeEquipment(world, playerId, eqIdx);
+  }
+
+  return null;
+}
+
 export function clearInventory<T extends EngineEvents>(world: World<T>, playerId: number): void {
   if (world.hasComponent(playerId, RunInventory)) {
     world.patchComponent(playerId, RunInventory, { software: [], equipment: [] });
   }
   if (world.hasComponent(playerId, RunCurrency)) {
     world.patchComponent(playerId, RunCurrency, { stacks: [] });
+  }
+}
+
+export function addConsumable<T extends EngineEvents>(
+  world: World<T>,
+  playerId: number,
+  item: {
+    entityId: number;
+    templateId: string;
+    rarityTier: string;
+    pickedUpAtFloor: number;
+    pickedUpAtTimestamp: number;
+  },
+  maxStackSize: number = 10,
+): boolean {
+  const inv = world.getComponent(playerId, RunInventory);
+  if (!inv) return false;
+
+  const equipment = [...inv.equipment];
+  // Look for existing consumable stack with the same templateId and room (< maxStackSize)
+  const existingIdx = equipment.findIndex(
+    (e) => e.templateId === item.templateId && e.isConsumable && (e.quantity ?? 1) < maxStackSize,
+  );
+
+  if (existingIdx !== -1) {
+    const existing = equipment[existingIdx];
+    equipment[existingIdx] = {
+      ...existing,
+      quantity: (existing.quantity ?? 1) + 1,
+    };
+    world.patchComponent(playerId, RunInventory, { equipment });
+    return true;
+  }
+
+  // Check capacity against maxSlots
+  const totalItems = inv.software.length + equipment.length;
+  if (totalItems >= (inv.maxSlots ?? 30)) {
+    return false;
+  }
+
+  equipment.push({
+    ...item,
+    quantity: 1,
+    isConsumable: true,
+  });
+  world.patchComponent(playerId, RunInventory, { equipment });
+  return true;
+}
+
+export function consumeConsumable<T extends EngineEvents>(
+  world: World<T>,
+  playerId: number,
+  index: number,
+): RunInventoryItem | null {
+  const inv = world.getComponent(playerId, RunInventory);
+  if (!inv || index < 0 || index >= inv.equipment.length) return null;
+
+  const equipment = [...inv.equipment];
+  const item = equipment[index];
+  if (!item || !item.isConsumable) return null;
+
+  const currentQty = item.quantity ?? 1;
+  if (currentQty > 1) {
+    equipment[index] = {
+      ...item,
+      quantity: currentQty - 1,
+    };
+    world.patchComponent(playerId, RunInventory, { equipment });
+    return item;
+  } else {
+    const [removed] = equipment.splice(index, 1);
+    world.patchComponent(playerId, RunInventory, { equipment });
+    return removed;
   }
 }

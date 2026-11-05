@@ -77,6 +77,7 @@ export class InputManager {
   private isImmediateAction(action: GameAction): boolean {
     return (
       action === GameAction.TOGGLE_INVENTORY ||
+      action === GameAction.TOGGLE_HOTKEYS ||
       action === GameAction.PAUSE ||
       action === GameAction.DEBUG_PATHFIND_ANCHOR ||
       action === GameAction.DEBUG_TOGGLE_TIMELINE

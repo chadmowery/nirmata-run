@@ -25,6 +25,7 @@ import { createTeleportSystem } from './teleport';
 import { createAISystem } from './ai';
 import { createFirmwareSystem } from './firmware';
 import { createTileCorruptionSystem } from './tile-corruption';
+import { createPropInteractionSystem } from './prop-interaction';
 import { RunMode } from '@shared/run-mode';
 
 /**
@@ -40,7 +41,7 @@ export function registerCoreSystems<T extends GameplayEvents>(
   options: { skipLoot?: boolean; runMode?: RunMode; isClient?: boolean } = {},
 ) {
   const teleport = createTeleportSystem(world, grid, eventBus);
-  const movement = createMovementSystem(world, grid, eventBus);
+  const movement = createMovementSystem(world, grid, eventBus, options.isClient === true);
   const combat = createCombatSystem(
     world,
     grid,
@@ -80,37 +81,45 @@ export function registerCoreSystems<T extends GameplayEvents>(
   );
 
   const anchorInteraction = createAnchorInteractionSystem(world, grid, eventBus);
+  const propInteraction = createPropInteractionSystem(
+    world,
+    grid,
+    eventBus,
+    entityFactory,
+    componentRegistry,
+  );
 
   const isClient = options.isClient === true;
 
   // Initialize systems in phased order
   // Pre-turn phase
   shellStats.init();
-  if (!isClient) {
-    stability.init();
-  }
 
   // Action / Reaction
   teleport.init();
   movement.init();
+  if (!isClient) {
+    propInteraction.init();
+  }
   equipment.init();
   anchorInteraction.init();
   firmware.init();
 
   if (!isClient) {
     combat.init();
+    stability.init();
   }
   augment.init();
   software.init();
 
   if (!isClient) {
-    heal.init();
     itemPickup.init();
     deadZone.init();
     statusEffect.init();
     packCoordinator.init();
     ai.init();
     tileCorruption.init();
+    heal.init();
   }
 
   // Cleanup & Death Processing
@@ -158,5 +167,6 @@ export function registerCoreSystems<T extends GameplayEvents>(
     ai,
     firmware,
     tileCorruption,
+    propInteraction,
   };
 }

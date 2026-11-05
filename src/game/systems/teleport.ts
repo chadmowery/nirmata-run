@@ -5,11 +5,12 @@ import { EventBus } from '@engine/events/event-bus';
 import { Phase } from '@engine/ecs/types';
 import { Position } from '@shared/components/position';
 import { TeleportIntent, MovedThisTurn } from '@shared/components/index';
+import { SecurityLock } from '@shared/components/environment';
 import { GameplayEvents } from '@shared/events/types';
 
 /**
  * Teleport system that resolves TeleportIntent during the ACTION phase.
- * Teleports bypass walkability and collision checks by default.
+ * Teleports bypass walkability and collision checks by default, but are blocked by active Faraday shields.
  */
 export function createTeleportSystem<T extends GameplayEvents>(
   world: World<T>,
@@ -28,6 +29,34 @@ export function createTeleportSystem<T extends GameplayEvents>(
 
       // Basic bounds check to prevent engine crashes, though AI/Firmware should validate this
       if (!grid.inBounds(targetX, targetY)) {
+        w.removeComponent(entityId, TeleportIntent);
+        continue;
+      }
+
+      // Check for active Faraday shield bounds protecting Zero-Day Vaults
+      let faradayBlocked = false;
+      const lockEntities = w.query(SecurityLock);
+      for (const lockId of lockEntities) {
+        const lock = w.getComponent(lockId, SecurityLock);
+        if (lock && lock.isLocked && lock.faradayBounds) {
+          const b = lock.faradayBounds;
+          if (
+            targetX >= b.x &&
+            targetX < b.x + b.width &&
+            targetY >= b.y &&
+            targetY < b.y + b.height
+          ) {
+            faradayBlocked = true;
+            break;
+          }
+        }
+      }
+
+      if (faradayBlocked) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: '[FARADAY SHIELD]: Vault telemetry blocked. Cannot Phase-Shift through encrypted blast shielding.',
+          type: 'error',
+        });
         w.removeComponent(entityId, TeleportIntent);
         continue;
       }

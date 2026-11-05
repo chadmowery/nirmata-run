@@ -1,4 +1,9 @@
 import { ShellTemplate, ShellRecord } from './types';
+import type { ShellUpgrades } from '@shared/profile';
+import {
+  calculateEffectiveShellStats,
+  calculateEffectivePortConfig,
+} from '@shared/utils/shell-upgrade-util';
 
 /**
  * Registry for managing Shell archetypes and active Shell records.
@@ -136,22 +141,14 @@ export class ShellRegistry {
  */
 export function applyShellUpgradesToRecord(
   record: ShellRecord,
-  upgrades?: { speed?: number; armor?: number; stability?: number; additionalPorts?: number },
+  upgrades?: Partial<ShellUpgrades>,
 ): ShellRecord {
   if (!upgrades || (record as unknown as Record<string, unknown>)._upgradesApplied) return record;
 
   return {
     ...record,
-    currentStats: {
-      ...record.currentStats,
-      speed: record.currentStats.speed + (upgrades.speed || 0),
-      armor: record.currentStats.armor + (upgrades.armor || 0),
-      stability: record.currentStats.stability + (upgrades.stability || 0),
-    },
-    portConfig: {
-      ...record.portConfig,
-      maxSoftware: record.portConfig.maxSoftware + (upgrades.additionalPorts || 0),
-    },
+    currentStats: calculateEffectiveShellStats(record.currentStats, upgrades),
+    portConfig: calculateEffectivePortConfig(record.portConfig, upgrades),
     _upgradesApplied: true,
   } as ShellRecord;
 }

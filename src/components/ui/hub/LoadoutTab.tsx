@@ -5,7 +5,7 @@ import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import { ShellTemplate } from '@/game/shells/shared';
-import { VaultItem, InstalledItem } from '@/shared/profile';
+import { VaultItem, InstalledItem, generateVaultItemId } from '@/shared/profile';
 import {
   isWeaponItem,
   isArmorItem,
@@ -17,6 +17,7 @@ import { StashItemList, StashFilter } from './StashItemList';
 import { PanelCard, DottedSpecRow, TaikokuStamp, BtnLever } from '../atomic';
 import { ItemTooltip } from './ItemTooltip';
 import { ItemMetadata, resolveItemMetadata, getSoftwareModificationInfo } from './item-metadata';
+import { calculateEffectivePortConfig } from '@shared/utils/shell-upgrade-util';
 import styles from './LoadoutTab.module.css';
 
 export const LoadoutTab: React.FC = () => {
@@ -69,6 +70,18 @@ export const LoadoutTab: React.FC = () => {
   const activeShellTemplate = templates[selectedShellIndex] || templates[0];
   const activeShellId = activeShellTemplate?.id;
 
+  const shellUpgrades = playerProfile.shellUpgrades?.[activeShellId] || {
+    speed: 0,
+    armor: 0,
+    stability: 0,
+    additionalPorts: 0,
+  };
+
+  const effectivePortConfig = calculateEffectivePortConfig(
+    activeShellTemplate.basePorts ?? { maxFirmware: 2, maxAugment: 2, maxSoftware: 2 },
+    shellUpgrades,
+  );
+
   const equippedItems = playerProfile.installedItems.filter(
     (item) => item.shellId === activeShellId,
   );
@@ -91,6 +104,7 @@ export const LoadoutTab: React.FC = () => {
 
   const handleDragStartFromSlot = (item: InstalledItem) => {
     setDraggedItem({
+      vaultItemId: `installed-${item.entityId}`,
       entityId: item.entityId,
       templateId: item.blueprintId,
       itemType: item.type,
@@ -114,20 +128,24 @@ export const LoadoutTab: React.FC = () => {
   const handleEquipItem = async (item: VaultItem, targetSlotType: string) => {
     logger.debug(`[Loadout] Equipping ${item.templateId} into ${targetSlotType}`, 'UI');
     const sessionId = playerProfile.sessionId;
+    const vaultItemId = item.vaultItemId;
     const entityId = item.entityId;
     const shellId = activeShellId;
-    const previousProfile = { ...playerProfile };
+    const previousProfile = structuredClone(playerProfile);
+
+    const isTarget = (i: VaultItem) =>
+      vaultItemId ? i.vaultItemId === vaultItemId : i.entityId === entityId;
 
     // Optimistic UI update
     updateProfileOptimistic((prev) => {
-      const isInVault = prev.vault.some((i) => i.entityId === entityId);
+      const isInVault = prev.vault.some(isTarget);
       if (!isInVault) return prev;
 
-      const newVault = prev.vault.filter((i) => i.entityId !== entityId);
+      const newVault = prev.vault.filter((i) => !isTarget(i));
       const newInstalled = [
         ...prev.installedItems,
         {
-          entityId,
+          entityId: entityId ?? Date.now(),
           blueprintId: item.templateId,
           type: targetSlotType as 'firmware' | 'augment' | 'software' | 'weapon' | 'armor' | 'backpack',
           shellId,
@@ -142,7 +160,7 @@ export const LoadoutTab: React.FC = () => {
       const response = await fetch('/api/vault/equip-from-vault', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, entityId, shellId, targetSlotType }),
+        body: JSON.stringify({ sessionId, vaultItemId, entityId, shellId, targetSlotType }),
       });
 
       if (!response.ok) {
@@ -181,9 +199,9 @@ export const LoadoutTab: React.FC = () => {
 
     const typeEquippedCount = equippedItems.filter((i) => i.type === primarySlotType).length;
     let maxForType = 1;
-    if (primarySlotType === 'firmware') maxForType = activeShellTemplate.basePorts.maxFirmware;
-    else if (primarySlotType === 'augment') maxForType = activeShellTemplate.basePorts.maxAugment;
-    else if (primarySlotType === 'software') maxForType = activeShellTemplate.basePorts.maxSoftware;
+    if (primarySlotType === 'firmware') maxForType = effectivePortConfig.maxFirmware;
+    else if (primarySlotType === 'augment') maxForType = effectivePortConfig.maxAugment;
+    else if (primarySlotType === 'software') maxForType = effectivePortConfig.maxSoftware;
 
     let targetSlot: string | null = null;
     if (typeEquippedCount < maxForType) {
@@ -201,15 +219,23 @@ export const LoadoutTab: React.FC = () => {
     }
   };
 
-  const handleSoftwareSocket = async (targetEntityId: number, softwareEntityId: number) => {
-    logger.debug(`[Loadout] Socketing software ${softwareEntityId} onto ${targetEntityId}`, 'UI');
+  const handleSoftwareSocket = async (
+    targetEntityId: number,
+    software: { entityId?: number; vaultItemId?: string; templateId?: string },
+  ) => {
+    logger.debug(`[Loadout] Socketing software ${software.vaultItemId || software.entityId} onto ${targetEntityId}`, 'UI');
     const sessionId = playerProfile.sessionId;
-    const previousProfile = { ...playerProfile };
-    const softwareItem = playerProfile.vault.find((i) => i.entityId === softwareEntityId);
+    const previousProfile = structuredClone(playerProfile);
+    const softwareItem = playerProfile.vault.find((i) =>
+      software.vaultItemId ? i.vaultItemId === software.vaultItemId : i.entityId === software.entityId,
+    );
     if (!softwareItem) return;
 
+    const isSoftware = (i: VaultItem) =>
+      software.vaultItemId ? i.vaultItemId === software.vaultItemId : i.entityId === software.entityId;
+
     updateProfileOptimistic((prev) => {
-      const newVault = prev.vault.filter((i) => i.entityId !== softwareEntityId);
+      const newVault = prev.vault.filter((i) => !isSoftware(i));
       const newInstalled = prev.installedItems.map((i) =>
         i.entityId === targetEntityId
           ? { ...i, socketedSoftware: [softwareItem.templateId] }
@@ -222,7 +248,12 @@ export const LoadoutTab: React.FC = () => {
       const res = await fetch('/api/vault/socket-software', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, targetEntityId, softwareEntityId }),
+        body: JSON.stringify({
+          sessionId,
+          targetEntityId,
+          softwareEntityId: software.entityId,
+          softwareVaultItemId: software.vaultItemId,
+        }),
       });
       if (!res.ok) throw new Error('Socket software failed');
       const data = await res.json();
@@ -245,14 +276,15 @@ export const LoadoutTab: React.FC = () => {
     const entityId = draggedItem.entityId;
     const shellId = activeShellId;
     const sessionId = playerProfile.sessionId;
-    const previousProfile = { ...playerProfile };
+    const previousProfile = structuredClone(playerProfile);
 
     updateProfileOptimistic((prev) => {
       const newInstalled = prev.installedItems.filter(
         (i) => !(i.entityId === entityId && i.shellId === shellId),
       );
       const restoredItem: VaultItem = {
-        entityId: entityId,
+        vaultItemId: generateVaultItemId(),
+        entityId: entityId || Date.now(),
         templateId: blueprintId,
         itemType: (draggedItem.itemType === 'backpack'
           ? 'software'
@@ -314,7 +346,8 @@ export const LoadoutTab: React.FC = () => {
       {/* Column 1: Installed Hardware Matrix */}
       <PanelCard title="INSTALLED HARDWARE" badge={activeShellTemplate.name}>
         <LoadoutSlotPanel
-          portConfig={activeShellTemplate.basePorts}
+          portConfig={effectivePortConfig}
+          basePortConfig={activeShellTemplate.basePorts}
           equippedItems={equippedItems}
           shellId={activeShellId}
           onSlotDrop={handleSlotDrop}
@@ -446,7 +479,7 @@ export const LoadoutTab: React.FC = () => {
                     </div>
                   ) : (
                     <div className={styles.socketSoftwareList}>
-                      {compatibleStashSoftware.map((sw) => {
+                      {compatibleStashSoftware.map((sw, idx) => {
                         const swMeta = resolveItemMetadata({
                           templateId: sw.templateId,
                           type: sw.itemType,
@@ -456,7 +489,8 @@ export const LoadoutTab: React.FC = () => {
                         });
                         return (
                           <div
-                            key={sw.entityId}
+                            key={sw.vaultItemId || `${sw.entityId}-${idx}`}
+                            style={{ width: '100%' }}
                             onPointerEnter={(e) =>
                               setHoveredSoftware({ metadata: swMeta, x: e.clientX, y: e.clientY })
                             }
@@ -470,8 +504,9 @@ export const LoadoutTab: React.FC = () => {
                             <BtnLever
                               variant="cyan"
                               holdToConfirm={true}
-                              onClick={() => handleSoftwareSocket(inspectedItem.entityId!, sw.entityId)}
+                              onClick={() => handleSoftwareSocket(inspectedItem.entityId!, sw)}
                               rightSlot="LOAD"
+                              style={{ width: '100%' }}
                             >
                               {sw.templateId.toUpperCase()}
                             </BtnLever>

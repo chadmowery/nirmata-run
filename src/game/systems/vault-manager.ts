@@ -19,39 +19,42 @@ export async function depositToOverflow(
 }
 
 /**
- * Removes an item from overflow or vault by entityId.
+ * Removes an item from overflow or vault by vaultItemId or entityId.
  * Returns true if item was found and removed.
  */
 export async function discardOverflowItem(
   repo: ProfileRepository,
   sessionId: string,
-  entityId: number,
+  itemIdentifier: string | number,
 ): Promise<boolean> {
   const profile = await repo.load(sessionId);
   if (!profile) return false;
 
-  const initialOverflowLength = profile.overflow?.length ?? 0;
-  if (profile.overflow) {
-    profile.overflow = profile.overflow.filter((item) => item.entityId !== entityId);
-  }
-  const removedFromOverflow = (profile.overflow?.length ?? 0) < initialOverflowLength;
+  const isTarget = (item: VaultItem) =>
+    typeof itemIdentifier === 'string'
+      ? item.vaultItemId === itemIdentifier || (item.entityId !== undefined && String(item.entityId) === itemIdentifier)
+      : item.entityId === itemIdentifier || item.vaultItemId === String(itemIdentifier);
 
-  let removedFromVault = false;
-  if (!removedFromOverflow && profile.vault) {
-    const initialVaultLength = profile.vault.length;
-    profile.vault = profile.vault.filter((item) => item.entityId !== entityId);
-    removedFromVault = profile.vault.length < initialVaultLength;
+  let itemIndex = profile.overflow ? profile.overflow.findIndex(isTarget) : -1;
+  let inOverflow = true;
+  if (itemIndex === -1 && profile.vault) {
+    itemIndex = profile.vault.findIndex(isTarget);
+    inOverflow = false;
+  }
+  if (itemIndex === -1) return false;
+
+  if (inOverflow) {
+    profile.overflow.splice(itemIndex, 1);
+  } else {
+    profile.vault.splice(itemIndex, 1);
   }
 
-  const success = removedFromOverflow || removedFromVault;
-  if (success) {
-    await repo.save(profile);
-    logger.info(
-      `Vault Manager: Discarded item ${entityId} from ${removedFromOverflow ? 'overflow' : 'vault'} for session ${sessionId}`,
-      'SYSTEM',
-    );
-  }
-  return success;
+  await repo.save(profile);
+  logger.info(
+    `Vault Manager: Discarded item ${itemIdentifier} from ${inOverflow ? 'overflow' : 'vault'} for session ${sessionId}`,
+    'SYSTEM',
+  );
+  return true;
 }
 
 /**
@@ -61,15 +64,20 @@ export async function discardOverflowItem(
 export async function sellOverflowItem(
   repo: ProfileRepository,
   sessionId: string,
-  entityId: number,
+  itemIdentifier: string | number,
 ): Promise<{ success: boolean; scrapGained: number }> {
   const profile = await repo.load(sessionId);
   if (!profile) return { success: false, scrapGained: 0 };
 
-  let itemIndex = profile.overflow ? profile.overflow.findIndex((item) => item.entityId === entityId) : -1;
+  const isTarget = (item: VaultItem) =>
+    typeof itemIdentifier === 'string'
+      ? item.vaultItemId === itemIdentifier || (item.entityId !== undefined && String(item.entityId) === itemIdentifier)
+      : item.entityId === itemIdentifier || item.vaultItemId === String(itemIdentifier);
+
+  let itemIndex = profile.overflow ? profile.overflow.findIndex(isTarget) : -1;
   let inOverflow = true;
   if (itemIndex === -1 && profile.vault) {
-    itemIndex = profile.vault.findIndex((item) => item.entityId === entityId);
+    itemIndex = profile.vault.findIndex(isTarget);
     inOverflow = false;
   }
   if (itemIndex === -1) return { success: false, scrapGained: 0 };
@@ -90,7 +98,7 @@ export async function sellOverflowItem(
 
   await repo.save(profile);
   logger.info(
-    `Vault Manager: Sold item ${entityId} from ${inOverflow ? 'overflow' : 'vault'} for ${scrapGained} scrap for session ${sessionId}`,
+    `Vault Manager: Sold item ${itemIdentifier} from ${inOverflow ? 'overflow' : 'vault'} for ${scrapGained} scrap for session ${sessionId}`,
     'SYSTEM',
   );
   return { success: true, scrapGained };

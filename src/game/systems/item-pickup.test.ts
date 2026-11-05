@@ -10,7 +10,7 @@ import { MovedThisTurn } from '@shared/components/moved-this-turn';
 import { Item } from '@shared/components/item';
 import { PickupEffect, EffectType } from '@shared/components/pickup-effect';
 import { Health } from '@shared/components/health';
-import { HealIntent, Dying } from '@shared/components';
+import { HealIntent, Dying, RunInventory, RunCurrency, CurrencyItem, PickupIntent } from '@shared/components';
 import { GameplayEvents } from '@shared/events/types';
 
 describe('ItemPickupSystem', () => {
@@ -69,15 +69,10 @@ describe('ItemPickupSystem', () => {
     );
   });
 
-  it('should pick up an item when player moves onto its tile', () => {
-    // Setup mocks
-    vi.mocked(world.getComponent).mockImplementation((id, def) => {
-      if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
-      if (id === ITEM_ID && def === Item) return { name: 'Health Potion' };
-      return undefined;
-    });
+  it('should auto-pick up currency items when player moves onto its tile', () => {
+    // Setup mocks for currency auto pickup
     vi.mocked(world.hasComponent).mockImplementation((id, def) => {
-      if (id === ITEM_ID && def === Item) return true;
+      if (id === ITEM_ID && (def === Item || def === CurrencyItem)) return true;
       return false;
     });
 
@@ -92,23 +87,86 @@ describe('ItemPickupSystem', () => {
       if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
       if (id === PLAYER_ID && def === MovedThisTurn) return { fromX: 5, fromY: 5, toX: 6, toY: 5 };
       if (id === PLAYER_ID && def === Position) return { x: 6, y: 5 };
-      if (id === ITEM_ID && def === Item) return { name: 'Health Potion' };
+      if (id === PLAYER_ID && def === RunCurrency) return { stacks: [] };
+      if (id === PLAYER_ID && def === RunInventory) return { software: [], equipment: [], maxSlots: 10 };
+      if (id === ITEM_ID && def === Item) return { name: 'Scrap Cluster' };
+      if (id === ITEM_ID && def === CurrencyItem) return { currencyType: 'scrap', amount: 25 };
       return undefined;
     });
 
     itemPickupSystem.update(world);
 
     // Verification
-    expect(eventBus.emit).toHaveBeenCalledWith('ITEM_PICKED_UP', {
+    expect(eventBus.emit).toHaveBeenCalledWith('CURRENCY_PICKED_UP', expect.objectContaining({
       entityId: PLAYER_ID,
-      itemId: ITEM_ID,
-    });
+      amount: 25,
+      currencyType: 'scrap',
+    }));
     expect(grid.getItemsAt(6, 5).has(ITEM_ID)).toBe(false);
     expect(world.addComponent).toHaveBeenCalledWith(
       ITEM_ID,
       expect.anything(),
       expect.objectContaining({ reason: 'pickup' }),
     );
+  });
+
+  it('should not auto-pick up non-currency equipment on move, but emit prompt to press G', () => {
+    vi.mocked(world.hasComponent).mockImplementation((id, def) => {
+      if (id === ITEM_ID && def === Item) return true;
+      return false;
+    });
+
+    grid.addEntity(PLAYER_ID, 5, 5);
+    grid.addItem(ITEM_ID, 6, 5);
+
+    vi.mocked(world.query).mockImplementation((...args) =>
+      args.includes(MovedThisTurn) ? [PLAYER_ID] : [],
+    );
+    vi.mocked(world.getComponent).mockImplementation((id, def) => {
+      if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
+      if (id === PLAYER_ID && def === MovedThisTurn) return { fromX: 5, fromY: 5, toX: 6, toY: 5 };
+      if (id === PLAYER_ID && def === Position) return { x: 6, y: 5 };
+      if (id === ITEM_ID && def === Item) return { name: 'Kinetic Shotgun' };
+      return undefined;
+    });
+
+    itemPickupSystem.update(world);
+
+    // Item must remain on the ground
+    expect(grid.getItemsAt(6, 5).has(ITEM_ID)).toBe(true);
+    expect(eventBus.emit).toHaveBeenCalledWith(
+      'MESSAGE_EMITTED',
+      expect.objectContaining({ text: expect.stringContaining('[G]') }),
+    );
+  });
+
+  it('should pick up item when explicit PickupIntent is present', () => {
+    grid.addEntity(PLAYER_ID, 6, 5);
+    grid.addItem(ITEM_ID, 6, 5);
+
+    vi.mocked(world.hasComponent).mockImplementation((id, def) => {
+      if (id === ITEM_ID && def === Item) return true;
+      return false;
+    });
+
+    vi.mocked(world.query).mockImplementation((...args) =>
+      args.includes(PickupIntent) ? [PLAYER_ID] : [],
+    );
+    vi.mocked(world.getComponent).mockImplementation((id, def) => {
+      if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
+      if (id === PLAYER_ID && def === PickupIntent) return { actorId: PLAYER_ID, itemId: ITEM_ID };
+      if (id === ITEM_ID && def === Position) return { x: 6, y: 5 };
+      if (id === ITEM_ID && def === Item) return { name: 'Kinetic Shotgun' };
+      return undefined;
+    });
+
+    itemPickupSystem.update(world);
+
+    expect(eventBus.emit).toHaveBeenCalledWith('ITEM_PICKED_UP', {
+      entityId: PLAYER_ID,
+      itemId: ITEM_ID,
+    });
+    expect(grid.getItemsAt(6, 5).has(ITEM_ID)).toBe(false);
   });
 
   it('should apply heal effect when picking up a health potion', () => {
@@ -282,7 +340,8 @@ describe('ItemPickupSystem', () => {
       targetId: PLAYER_ID,
       amount: 5,
     });
-    expect(eventBus.emit).toHaveBeenCalledTimes(2);
+    expect(eventBus.emit).toHaveBeenCalledWith('ITEM_PICKED_UP', { entityId: PLAYER_ID, itemId: ITEM_ID });
+    expect(eventBus.emit).toHaveBeenCalledWith('ITEM_PICKED_UP', { entityId: PLAYER_ID, itemId: ITEM_ID_2 });
     expect(grid.getItemsAt(6, 5).size).toBe(0);
     expect(world.addComponent).toHaveBeenCalledWith(
       ITEM_ID,
@@ -293,6 +352,102 @@ describe('ItemPickupSystem', () => {
       ITEM_ID_2,
       expect.anything(),
       expect.objectContaining({ reason: 'pickup' }),
+    );
+  });
+
+  it('should store consumable in backpack when player is already at full health via explicit pickup', () => {
+    grid.addItem(ITEM_ID, 6, 5);
+    const mockInventory = {
+      software: [],
+      equipment: [],
+      maxSlots: 20,
+    };
+    vi.mocked(world.getComponent).mockImplementation((id, def) => {
+      if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
+      if (id === PLAYER_ID && def === Health) return { current: 20, max: 20 };
+      if (id === PLAYER_ID && def === PickupIntent) return { actorId: PLAYER_ID, itemId: ITEM_ID };
+      if (id === PLAYER_ID && def === Position) return { x: 6, y: 5 };
+      if (id === PLAYER_ID && def === RunInventory) return mockInventory;
+      if (id === ITEM_ID) {
+        if (def === Position) return { x: 6, y: 5 };
+        if (def === Item) return { name: 'Health Potion' };
+        if (def === PickupEffect) return { type: EffectType.HEAL, value: 5 };
+      }
+      return undefined;
+    });
+    vi.mocked(world.hasComponent).mockImplementation((id, def) => {
+      if (id === ITEM_ID && def === Item) return true;
+      return false;
+    });
+    vi.mocked(world.query).mockImplementation((...args) =>
+      args.includes(PickupIntent) ? [PLAYER_ID] : [],
+    );
+
+    itemPickupSystem.update(world);
+
+    // Should NOT have created HealIntent
+    expect(world.addComponent).not.toHaveBeenCalledWith(PLAYER_ID, HealIntent, expect.anything());
+    // Should have patched inventory with consumable
+    expect(world.patchComponent).toHaveBeenCalledWith(
+      PLAYER_ID,
+      RunInventory,
+      expect.objectContaining({
+        equipment: expect.arrayContaining([
+          expect.objectContaining({
+            entityId: ITEM_ID,
+            isConsumable: true,
+            quantity: 1,
+          }),
+        ]),
+      }),
+    );
+  });
+
+  it('should store consumable in backpack during explicit pickup even when player is damaged', () => {
+    grid.addItem(ITEM_ID, 6, 5);
+    const mockInventory = {
+      software: [],
+      equipment: [],
+      maxSlots: 20,
+    };
+    vi.mocked(world.getComponent).mockImplementation((id, def) => {
+      if (id === PLAYER_ID && def === Actor) return { isPlayer: true };
+      if (id === PLAYER_ID && def === Health) return { current: 10, max: 20 }; // Damaged
+      if (id === PLAYER_ID && def === PickupIntent) return { actorId: PLAYER_ID, itemId: ITEM_ID };
+      if (id === PLAYER_ID && def === Position) return { x: 6, y: 5 };
+      if (id === PLAYER_ID && def === RunInventory) return mockInventory;
+      if (id === ITEM_ID) {
+        if (def === Position) return { x: 6, y: 5 };
+        if (def === Item) return { name: 'Health Potion' };
+        if (def === PickupEffect) return { type: EffectType.HEAL, value: 5 };
+      }
+      return undefined;
+    });
+    vi.mocked(world.hasComponent).mockImplementation((id, def) => {
+      if (id === ITEM_ID && def === Item) return true;
+      return false;
+    });
+    vi.mocked(world.query).mockImplementation((...args) =>
+      args.includes(PickupIntent) ? [PLAYER_ID] : [],
+    );
+
+    itemPickupSystem.update(world);
+
+    // Should NOT have created HealIntent because it was an explicit pickup
+    expect(world.addComponent).not.toHaveBeenCalledWith(PLAYER_ID, HealIntent, expect.anything());
+    // Should have stored consumable in backpack
+    expect(world.patchComponent).toHaveBeenCalledWith(
+      PLAYER_ID,
+      RunInventory,
+      expect.objectContaining({
+        equipment: expect.arrayContaining([
+          expect.objectContaining({
+            entityId: ITEM_ID,
+            isConsumable: true,
+            quantity: 1,
+          }),
+        ]),
+      }),
     );
   });
 });

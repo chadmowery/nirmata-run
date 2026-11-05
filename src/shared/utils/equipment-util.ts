@@ -2,8 +2,9 @@
  * Shared utility functions for equipment slots and software socketing.
  */
 
-export function getSoftwareTargetSlot(templateId: string): 'weapon' | 'armor' | null {
-  const tid = templateId.toLowerCase();
+export function getSoftwareTargetSlot(templateId?: string): 'weapon' | 'armor' | null {
+  if (!templateId) return null;
+  const tid = templateId.toLowerCase().trim();
   if (
     tid.startsWith('bleed') ||
     tid.startsWith('auto-loader') ||
@@ -17,7 +18,9 @@ export function getSoftwareTargetSlot(templateId: string): 'weapon' | 'armor' | 
     tid.startsWith('vampire') ||
     tid.includes('vamp') ||
     tid.includes('weave') ||
-    tid.includes('nano-weave')
+    tid.includes('nano-weave') ||
+    tid.includes('barrier') ||
+    tid.includes('repair')
   ) {
     return 'armor';
   }
@@ -25,13 +28,14 @@ export function getSoftwareTargetSlot(templateId: string): 'weapon' | 'armor' | 
 }
 
 export function getEquipmentSlotType(
-  templateId: string,
+  templateId?: string,
   itemType?: string,
 ): 'weapon' | 'armor' | null {
-  if (itemType === 'weapon') return 'weapon';
-  if (itemType === 'armor') return 'armor';
+  const normType = itemType?.toLowerCase().trim();
+  if (normType === 'weapon') return 'weapon';
+  if (normType === 'armor') return 'armor';
 
-  const tid = templateId.toLowerCase();
+  const tid = (templateId || '').toLowerCase().trim();
   if (tid.startsWith('rifle') || tid.includes('railgun') || tid.includes('weapon')) {
     return 'weapon';
   }
@@ -41,26 +45,34 @@ export function getEquipmentSlotType(
   return null;
 }
 
-export function isWeaponItem(item: { templateId: string; itemType: string }): boolean {
-  return getEquipmentSlotType(item.templateId, item.itemType) === 'weapon';
+export function isWeaponItem(item: { templateId?: string; itemType?: string; type?: string }): boolean {
+  const type = item.itemType || item.type;
+  return getEquipmentSlotType(item.templateId, type) === 'weapon';
 }
 
-export function isArmorItem(item: { templateId: string; itemType: string }): boolean {
-  return getEquipmentSlotType(item.templateId, item.itemType) === 'armor';
+export function isArmorItem(item: { templateId?: string; itemType?: string; type?: string }): boolean {
+  const type = item.itemType || item.type;
+  return getEquipmentSlotType(item.templateId, type) === 'armor';
 }
 
-export function isSoftwareItem(item: { templateId: string; itemType: string }): boolean {
-  if (item.itemType === 'software') return true;
+export function isSoftwareItem(item: { templateId?: string; itemType?: string; type?: string }): boolean {
+  const rawType = (item.itemType || item.type)?.toLowerCase().trim();
+  if (rawType === 'software') return true;
+  if (rawType && rawType !== 'software' && rawType !== 'equipment') {
+    // Explicitly another type (e.g. firmware, augment, weapon, armor)
+    return false;
+  }
   return getSoftwareTargetSlot(item.templateId) !== null;
 }
 
 export function canSocketSoftware(
   softwareTemplateId: string,
   gearTemplateId: string,
-  gearItemType: string,
+  gearItemType?: string,
 ): boolean {
-  const swSlot = getSoftwareTargetSlot(softwareTemplateId);
+  // If target slot is explicit on template, use it; otherwise fallback to 'weapon' for generic software
+  const swSlot = getSoftwareTargetSlot(softwareTemplateId) || 'weapon';
   const gearSlot = getEquipmentSlotType(gearTemplateId, gearItemType);
-  if (!swSlot || !gearSlot) return false;
+  if (!gearSlot) return false;
   return swSlot === gearSlot;
 }

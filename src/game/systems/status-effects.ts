@@ -2,6 +2,7 @@ import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
 import { EntityId, Phase } from '@engine/ecs/types';
 import { StatusEffects, ApplyStatusEffectIntent } from '@shared/components';
+import { addHealIntent } from './combat';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 import { logger } from '@engine/utils/logger';
@@ -71,6 +72,9 @@ export function createStatusEffectSystem<T extends GameplayEvents>(
 
     const remainingEffects = [];
     for (const effect of statusEffects.effects) {
+      if (effect.name === 'regeneration' && effect.magnitude > 0) {
+        addHealIntent(world, entityId, entityId, effect.magnitude);
+      }
       const nextDuration = effect.duration - 1;
       if (nextDuration > 0) {
         remainingEffects.push({ ...effect, duration: nextDuration });

@@ -192,4 +192,26 @@ export class DebugAPI {
   async seedVault(sessionId?: string) {
     return this.grantAll(sessionId);
   }
+
+  /**
+   * Fully exposes the map tiles and removes fog of war.
+   */
+  exposeMap(): void {
+    this.context.eventBus.emit('DEBUG_REVEAL_MAP', {});
+    logger.info('DEBUG: Map fully revealed', 'DEBUG');
+  }
+
+  /**
+   * Alias for exposeMap.
+   */
+  revealMap(): void {
+    this.exposeMap();
+  }
+
+  /**
+   * Shows the entire floor map and clears fog of war (triggered by /show-map).
+   */
+  showMap(): void {
+    this.exposeMap();
+  }
 }

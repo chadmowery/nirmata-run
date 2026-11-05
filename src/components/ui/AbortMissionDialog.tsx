@@ -3,10 +3,10 @@
 import React, { useEffect, useCallback } from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
-import { GameState } from '@/game/states/types';
 import { dispatchUIAction } from '@/game/input/input-bridge';
 import { GameAction } from '@/game/input/actions';
-import { GameContext } from '@/game/types';
+import { getActiveGameContext } from '@/game/active-context';
+import { Dying } from '@shared/components';
 import { TaikokuPlacard, BtnLever } from './atomic';
 import styles from './AbortMissionDialog.module.css';
 
@@ -20,11 +20,6 @@ export const AbortMissionDialog: React.FC<AbortMissionDialogProps> = ({
   onConfirmAbort,
 }) => {
   const setAbortDialogVisible = useStore(gameStore, (s) => s.setAbortDialogVisible);
-  const showBSOD = useStore(gameStore, (s) => s.showBSOD);
-  const setGameStatus = useStore(gameStore, (s) => s.setGameStatus);
-  const currentFloor = useStore(gameStore, (s) => s.currentFloor);
-  const stats = useStore(gameStore, (s) => s.stats);
-  const player = useStore(gameStore, (s) => s.player);
 
   const handleClose = useCallback(() => {
     if (onClose) {
@@ -44,78 +39,23 @@ export const AbortMissionDialog: React.FC<AbortMissionDialogProps> = ({
 
     setAbortDialogVisible(false);
 
-    // Retrieve active session ID
-    let sessionId = 'default-player-session';
-    if (typeof window !== 'undefined') {
-      sessionId =
-        localStorage.getItem('nimrata_sessionId') ||
-        (window as unknown as { gameContext?: { sessionId?: string } }).gameContext?.sessionId ||
-        sessionId;
-    }
+    const ctx = getActiveGameContext();
+    if (!ctx) return;
 
     try {
-      // 1. Dispatch authoritative ABORT_RUN action to server
-      const res = await fetch('/api/action', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId,
-          action: { type: 'ABORT_RUN' },
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        // Server handles turn, emits RUN_ENDED, and returns delta payload
-        if (data.payload) {
-          const { applyStateDelta } = await import('@shared/reconciliation');
-          const context = (window as unknown as { gameContext?: GameContext }).gameContext;
-          if (context) {
-            applyStateDelta(
-              context.world,
-              context.grid,
-              context.turnManager,
-              context.eventBus,
-              data.payload,
-            );
-          }
-        }
-      } else {
-        throw new Error(`Server returned ${res.status}`);
+      if (ctx.submitAction) {
+        await ctx.submitAction({ type: 'ABORT_RUN' });
+      } else if (ctx.world && ctx.playerId) {
+        // Fallback for standalone/local test environments: attach Dying via Death Protocol
+        ctx.world.addComponent(ctx.playerId, Dying, {
+          killerId: ctx.playerId,
+          reason: 'OPERATOR_MANUAL_DESYNC',
+        });
       }
     } catch (err) {
-      console.warn('[AbortMissionDialog] Fallback to client-side desync:', err);
-
-      // Local fallback in standalone/offline/test scenarios
-      const calculatedScore = currentFloor * 100 + stats.kills * 10;
-      gameStore.getState().setRunResultsData({
-        reason: 'OPERATOR_MANUAL_DESYNC',
-        deathReason: 'OPERATOR EMERGENCY LINK ABORT',
-        floorNumber: currentFloor,
-        turnsElapsed: stats.turns,
-        enemiesKilled: stats.kills,
-        peakHeat: player.heat ?? 0,
-        itemsSecured: {
-          firmware: 0,
-          augments: 0,
-          software: 0,
-          scrap: Math.floor(player.xp * 0.5),
-        },
-        score: calculatedScore,
-      });
-
-      showBSOD('OPERATOR_MANUAL_DESYNC [EMERGENCY CORE EJECT]');
-      setGameStatus(GameState.GameOver);
+      console.error('[AbortMissionDialog] Failed to abort run:', err);
     }
-  }, [
-    onConfirmAbort,
-    setAbortDialogVisible,
-    currentFloor,
-    stats,
-    player,
-    showBSOD,
-    setGameStatus,
-  ]);
+  }, [onConfirmAbort, setAbortDialogVisible]);
 
   // Handle ESC key to dismiss abort dialog and resume game
   useEffect(() => {

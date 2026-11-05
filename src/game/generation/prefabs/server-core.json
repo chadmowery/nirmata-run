@@ -1,0 +1,32 @@
+{
+  "id": "server-core",
+  "name": "The Server Core",
+  "faction": "cyberacme",
+  "minFloor": 1,
+  "maxFloor": 15,
+  "width": 10,
+  "height": 10,
+  "layout": [
+    "####+#####",
+    "#...+....#",
+    "#.##..##.#",
+    "#.##..##.#",
+    "#........#",
+    "#.##..##.#",
+    "#.##..##.#",
+    "#........#",
+    "#...+....#",
+    "####+#####"
+  ],
+  "portals": [
+    { "x": 4, "y": 0, "direction": "north" },
+    { "x": 4, "y": 9, "direction": "south" }
+  ],
+  "propSpawns": [
+    { "x": 1, "y": 1, "anchorType": "PROP_DESK_CORNER", "guaranteedTemplate": "prop-workstation" },
+    { "x": 8, "y": 1, "anchorType": "PROP_DESK_CORNER", "guaranteedTemplate": "prop-workstation" },
+    { "x": 1, "y": 4, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop-capacitor-bank" },
+    { "x": 8, "y": 7, "anchorType": "PROP_LOCKER_WALL", "guaranteedTemplate": "prop-capacitor-bank" },
+    { "x": 1, "y": 8, "anchorType": "PROP_DESK_CORNER", "guaranteedTemplate": "prop-subnet-console" }
+  ]
+}

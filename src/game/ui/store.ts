@@ -7,6 +7,7 @@ import { ShellTemplate } from '@/game/shells/shared';
 import { RunInventory } from '@shared/components/run-inventory';
 import { EquipmentSlots } from '@shared/components/equipment-slots';
 import type { GameContext } from '../types';
+import { getActiveGameContext } from '../active-context';
 
 declare global {
   interface Window {
@@ -33,6 +34,7 @@ export interface MessageEntry {
   text: string;
   count: number;
   type: MessageType;
+  timestamp?: number;
 }
 
 export interface PlayerStats {
@@ -69,6 +71,20 @@ export interface VisibleEntity {
   maxHp: number;
 }
 
+export interface GroundItemInfo {
+  itemId: number;
+  templateId: string;
+  name: string;
+  rarityTier: string;
+  type: string;
+  x: number;
+  y: number;
+  isPlayerTile: boolean;
+  directionLabel?: string;
+  quantity?: number;
+  isConsumable?: boolean;
+}
+
 export interface RunStats {
   turns: number;
   kills: number;
@@ -100,6 +116,33 @@ export interface RunResultsData {
   deathReason?: string;
 }
 
+export interface HoveredEntityInfo {
+  type: 'enemy' | 'player' | 'prop' | 'item' | 'tile';
+  entityId?: number;
+  name: string;
+  kanjiSub?: string;
+  subTitle?: string;
+  badge?: string;
+  badgeVariant?: 'cyan' | 'orange' | 'danger' | 'yellow';
+  description?: string;
+  flavorText?: string;
+  hp?: number;
+  maxHp?: number;
+  heat?: number;
+  maxHeat?: number;
+  stability?: number;
+  threatLevel?: string;
+  behavior?: string;
+  statusEffects?: string[];
+  rarity?: string;
+  interactionHint?: string;
+  screenX: number;
+  screenY: number;
+  gridX: number;
+  gridY: number;
+  isDetailedOnly?: boolean;
+}
+
 export interface UIState {
   player: PlayerStats;
   messages: MessageEntry[];
@@ -114,6 +157,9 @@ export interface UIState {
   depthBand: string; // "CORRUPTED_DATA" | "STATIC_HORRORS" | "LOGIC_BREAKERS"
   scrap: number; // Current Scrap amount
   walletScrap: number; // Session-level persistent Scrap
+  flux: number; // Current Flux amount
+  blueprintCount: number; // Current Blueprint count
+  nanites: number; // Current Nanites amount
 
   // Overlays
   anchorOverlayVisible: boolean;
@@ -158,6 +204,14 @@ export interface UIState {
   inventoryVisible: boolean;
   inventoryRevision: number;
   abortDialogVisible: boolean;
+  hotkeysModalVisible: boolean;
+  groundTransferVisible: boolean;
+  nearbyGroundItems: GroundItemInfo[];
+  deadDropModalVisible: boolean;
+  deadDropPropId: number | null;
+  deadDropFluxCost: number;
+  hoveredEntity: HoveredEntityInfo | null;
+  detailedFlavorTextEnabled: boolean;
 
   // Drag and drop / optimistic updates state
   draggedRunItemEntityId: number | null;
@@ -173,7 +227,17 @@ export interface UIState {
   updateStats: (stats: Partial<RunStats>) => void;
   toggleInventory: () => void;
   incrementInventoryRevision: () => void;
+  toggleHotkeysModal: () => void;
+  setHotkeysModalVisible: (visible: boolean) => void;
+  openGroundTransfer: (items: GroundItemInfo[]) => void;
+  closeGroundTransfer: () => void;
+  updateNearbyGroundItems: (items: GroundItemInfo[]) => void;
+  openDeadDropModal: (propId: number, fluxCost: number) => void;
+  closeDeadDropModal: () => void;
   setDraggedRunItemEntityId: (entityId: number | null) => void;
+  setHoveredEntity: (info: HoveredEntityInfo | null) => void;
+  toggleDetailedFlavorText: () => void;
+  setDetailedFlavorTextEnabled: (enabled: boolean) => void;
   optimisticEquipItem: (entityId: number, slot: 'weapon' | 'armor') => void;
   optimisticUnequipItem: (slot: 'weapon' | 'armor') => void;
   clearOptimisticUpdates: () => void;
@@ -182,6 +246,12 @@ export interface UIState {
   updateStability: (stability: number, max: number) => void;
   updateFloor: (floor: number, band: string) => void;
   updateScrap: (amount: number) => void;
+  updateCurrencies: (currencies: {
+    scrap?: number;
+    flux?: number;
+    nanites?: number;
+    blueprintCount?: number;
+  }) => void;
   showAnchorOverlay: (data: AnchorOverlayData) => void;
   hideAnchorOverlay: () => void;
   makeAnchorDecision: (decision: 'extract' | 'descend') => void;
@@ -273,6 +343,9 @@ export const gameStore = createStore<UIState>((set, get) => ({
   depthBand: 'CORRUPTED_DATA',
   scrap: 0,
   walletScrap: 0,
+  flux: 0,
+  blueprintCount: 0,
+  nanites: 0,
   anchorOverlayVisible: false,
   anchorData: null,
   staircaseOverlayVisible: false,
@@ -308,6 +381,14 @@ export const gameStore = createStore<UIState>((set, get) => ({
   inventoryVisible: false,
   inventoryRevision: 0,
   abortDialogVisible: false,
+  hotkeysModalVisible: false,
+  groundTransferVisible: false,
+  nearbyGroundItems: [],
+  deadDropModalVisible: false,
+  deadDropPropId: null,
+  deadDropFluxCost: 25,
+  hoveredEntity: null,
+  detailedFlavorTextEnabled: false,
   draggedRunItemEntityId: null,
   optimisticWeapon: undefined,
   optimisticArmor: undefined,
@@ -329,6 +410,7 @@ export const gameStore = createStore<UIState>((set, get) => ({
   addMessage: (text, type) =>
     set((state) => {
       const lastMessage = state.messages[0];
+      const now = Date.now();
 
       if (lastMessage && lastMessage.text === text && lastMessage.type === type) {
         // Update count of identical consecutive message
@@ -336,6 +418,7 @@ export const gameStore = createStore<UIState>((set, get) => ({
         updatedMessages[0] = {
           ...lastMessage,
           count: lastMessage.count + 1,
+          timestamp: now,
         };
         return { messages: updatedMessages };
       }
@@ -346,6 +429,7 @@ export const gameStore = createStore<UIState>((set, get) => ({
         text,
         count: 1,
         type,
+        timestamp: now,
       };
 
       const newMessages = [newMessage, ...state.messages];
@@ -364,6 +448,14 @@ export const gameStore = createStore<UIState>((set, get) => ({
   updateStability: (stability, max) => set({ stability, maxStability: max }),
   updateFloor: (floor, band) => set({ currentFloor: floor, depthBand: band }),
   updateScrap: (amount) => set({ scrap: amount }),
+  updateCurrencies: (currencies) =>
+    set((state) => ({
+      scrap: currencies.scrap !== undefined ? currencies.scrap : state.scrap,
+      flux: currencies.flux !== undefined ? currencies.flux : state.flux,
+      nanites: currencies.nanites !== undefined ? currencies.nanites : state.nanites,
+      blueprintCount:
+        currencies.blueprintCount !== undefined ? currencies.blueprintCount : state.blueprintCount,
+    })),
   showAnchorOverlay: (data) => set({ anchorOverlayVisible: true, anchorData: data }),
   hideAnchorOverlay: () => set({ anchorOverlayVisible: false, anchorData: null }),
   makeAnchorDecision: (decision: 'extract' | 'descend') => {
@@ -445,6 +537,7 @@ export const gameStore = createStore<UIState>((set, get) => ({
       currentFloor: 1,
       runResults: null,
       runResultsVisible: false,
+      hoveredEntity: null,
       bsodVisible: false,
       bsodReason: '',
       heatTier: 0,
@@ -553,18 +646,58 @@ export const gameStore = createStore<UIState>((set, get) => ({
     }),
   updateTargetingCursor: (x, y) => set({ targetingX: x, targetingY: y }),
   toggleInventory: () => set((state) => ({ inventoryVisible: !state.inventoryVisible })),
+  toggleHotkeysModal: () =>
+    set((state) => ({ hotkeysModalVisible: !state.hotkeysModalVisible })),
+  setHotkeysModalVisible: (visible) => set({ hotkeysModalVisible: visible }),
+  openGroundTransfer: (items) => set({ groundTransferVisible: true, nearbyGroundItems: items }),
+  closeGroundTransfer: () => set({ groundTransferVisible: false }),
+  updateNearbyGroundItems: (items) => set({ nearbyGroundItems: items }),
+  openDeadDropModal: (propId, fluxCost) =>
+    set({ deadDropModalVisible: true, deadDropPropId: propId, deadDropFluxCost: fluxCost }),
+  closeDeadDropModal: () =>
+    set({ deadDropModalVisible: false, deadDropPropId: null }),
   setAbortDialogVisible: (visible) => set({ abortDialogVisible: visible }),
   incrementInventoryRevision: () =>
     set((state) => ({ inventoryRevision: state.inventoryRevision + 1 })),
   updateHeatTier: (tier, value, maxSafe) =>
     set({ heatTier: tier, heatValue: value, heatMaxSafe: maxSafe }),
   setDraggedRunItemEntityId: (entityId) => set({ draggedRunItemEntityId: entityId }),
+  setHoveredEntity: (info) =>
+    set((state) => {
+      const prev = state.hoveredEntity;
+      if (prev === info) return state;
+      if (!prev && !info) return state;
+      if (
+        prev &&
+        info &&
+        prev.type === info.type &&
+        prev.entityId === info.entityId &&
+        prev.name === info.name &&
+        prev.gridX === info.gridX &&
+        prev.gridY === info.gridY &&
+        prev.hp === info.hp &&
+        prev.maxHp === info.maxHp &&
+        prev.heat === info.heat &&
+        prev.stability === info.stability &&
+        prev.badge === info.badge &&
+        prev.description === info.description &&
+        prev.interactionHint === info.interactionHint &&
+        Math.abs(prev.screenX - info.screenX) < 1 &&
+        Math.abs(prev.screenY - info.screenY) < 1
+      ) {
+        return state;
+      }
+      return { hoveredEntity: info };
+    }),
+  toggleDetailedFlavorText: () =>
+    set((state) => ({ detailedFlavorTextEnabled: !state.detailedFlavorTextEnabled })),
+  setDetailedFlavorTextEnabled: (enabled) => set({ detailedFlavorTextEnabled: enabled }),
   optimisticEquipItem: (entityId, slot) =>
     set((state) => {
       const currentWeapon = slot === 'weapon' ? entityId : state.optimisticWeapon;
       const currentArmor = slot === 'armor' ? entityId : state.optimisticArmor;
 
-      const context = typeof window !== 'undefined' ? window.gameContext : undefined;
+      const context = getActiveGameContext();
       let newEquipmentIds: number[] = [];
       if (context && context.playerId) {
         const inv = context.world.getComponent(context.playerId, RunInventory);
@@ -584,7 +717,7 @@ export const gameStore = createStore<UIState>((set, get) => ({
     }),
   optimisticUnequipItem: (slot) =>
     set((state) => {
-      const context = typeof window !== 'undefined' ? window.gameContext : undefined;
+      const context = getActiveGameContext();
       let unequippedEntityId: number | null = null;
       if (context && context.playerId) {
         const eq = context.world.getComponent(context.playerId, EquipmentSlots);

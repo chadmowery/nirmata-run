@@ -145,7 +145,14 @@ export function createSoftwareSystem<T extends GameplayEvents>(
           [targetSlot]: softwareEntityId,
         });
       }
-      InventoryUtil.removeSoftware(w, entityId, inventoryIndex);
+      if (intent.isEquipmentList) {
+        InventoryUtil.removeEquipment(w, entityId, inventoryIndex);
+      } else {
+        const removed = InventoryUtil.removeSoftware(w, entityId, inventoryIndex);
+        if (!removed) {
+          InventoryUtil.removeItemByEntityId(w, entityId, softwareEntityId);
+        }
+      }
 
       eventBus.emit('MESSAGE_EMITTED', {
         text: `Successfully burned ${swDef.name} onto ${targetSlot}.`,

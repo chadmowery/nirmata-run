@@ -12,7 +12,7 @@ import { AugmentSlots } from '@shared/components/augment-slots';
 import { SoftwareSlots } from '@shared/components/software-slots';
 import { Heat } from '@shared/components/heat';
 import { Shell } from '@shared/components/shell';
-import { EquipmentSlots, TemplateId } from '@shared/components';
+import { EquipmentSlots, TemplateId, Prop } from '@shared/components';
 import { AbilityDef } from '@shared/components/ability-def';
 import { SoftwareDef } from '@shared/components/software-def';
 import { StatusEffects } from '@shared/components/status-effects';
@@ -20,6 +20,7 @@ import { getDepthBand } from '../generation/dungeon-generator';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { getHeatTier } from '../config/heat-tiers';
 import { calculateScore } from '../scoring';
+import { DEFAULT_SHELL_ID } from '@shared/constants';
 
 export function syncEngineToStore(context: GameContext) {
   const { eventBus, world } = context;
@@ -37,8 +38,11 @@ export function syncEngineToStore(context: GameContext) {
     const burned = world.getComponent(context.playerId, EquipmentSlots);
     const fSlots = world.getComponent(context.playerId, FirmwareSlots);
 
-    // New authoritative source for run currency
+    // Authoritative source for run currencies
     const scrapAmount = InventoryUtil.getCurrencyAmount(world, context.playerId, 'scrap');
+    const fluxAmount = InventoryUtil.getCurrencyAmount(world, context.playerId, 'flux');
+    const blueprintAmount = InventoryUtil.getCurrencyAmount(world, context.playerId, 'blueprint');
+    const naniteAmount = InventoryUtil.getCurrencyAmount(world, context.playerId, 'nanites');
 
     const store = gameStore.getState();
 
@@ -75,6 +79,12 @@ export function syncEngineToStore(context: GameContext) {
     const statusEffects = world.getComponent(context.playerId, StatusEffects);
     const statuses = statusEffects?.effects.map((e) => e.name) || [];
 
+    const activeShellId =
+      shell?.archetypeId ||
+      store.launchConfig?.shellId ||
+      store.shellTemplates[store.selectedShellIndex]?.id ||
+      DEFAULT_SHELL_ID;
+
     store.updatePlayerStats({
       hp: health?.current ?? 0,
       maxHp: health?.max ?? 0,
@@ -82,7 +92,7 @@ export function syncEngineToStore(context: GameContext) {
       level: progression?.level ?? 1,
       heat: heat?.current ?? 0,
       maxHeat: heat?.maxSafe ?? 100,
-      shellName: shell?.archetypeId || 'Default Shell',
+      shellName: activeShellId,
       mods,
       statuses,
     });
@@ -93,8 +103,14 @@ export function syncEngineToStore(context: GameContext) {
       store.updateStability(stability.current, stability.max);
     }
 
-    // Update with registry scrap (D-06/D-11 migration complete)
+    // Update with registry currencies
     store.updateScrap(scrapAmount);
+    store.updateCurrencies({
+      scrap: scrapAmount,
+      flux: fluxAmount,
+      blueprintCount: blueprintAmount,
+      nanites: naniteAmount,
+    });
 
     if (floorState) {
       const band = getDepthBand(floorState.currentFloor);
@@ -163,8 +179,15 @@ export function syncEngineToStore(context: GameContext) {
   // Item pickup
   eventBus.on('ITEM_PICKED_UP', (event) => {
     if (event.entityId === context.playerId) {
+      gameStore.getState().incrementInventoryRevision();
       refreshPlayerStats();
     }
+  });
+
+  // Authoritative state reconciliation
+  eventBus.on('STATE_RECONCILED', () => {
+    gameStore.getState().incrementInventoryRevision();
+    refreshPlayerStats();
   });
 
   eventBus.on('CURRENCY_PICKED_UP', () => {
@@ -240,8 +263,7 @@ export function syncEngineToStore(context: GameContext) {
   });
 
   // Floor updates
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  eventBus.on('FLOOR_TRANSITION', (event) => {
+  eventBus.on('FLOOR_TRANSITION', () => {
     gameStore.getState().clearMessages();
     refreshPlayerStats();
   });
@@ -289,6 +311,27 @@ export function syncEngineToStore(context: GameContext) {
     }
   });
 
+  // Dead-Drop Uplink interaction - show modal when ready
+  eventBus.on('PROP_INTERACTED', (event) => {
+    if (
+      event.entityId === context.playerId &&
+      event.propClass === 'dead_drop_uplink' &&
+      event.outcome === 'ready'
+    ) {
+      const propComp = world.getComponent(event.propId, Prop);
+      const fluxCost = propComp?.deadDropFluxCost ?? 25;
+      gameStore.getState().openDeadDropModal(event.propId, fluxCost);
+    }
+  });
+
+  eventBus.on('DEAD_DROP_TRANSMITTED', (event) => {
+    if (event.entityId === context.playerId) {
+      gameStore.getState().closeDeadDropModal();
+      gameStore.getState().incrementInventoryRevision();
+      refreshPlayerStats();
+    }
+  });
+
   // Targeting Listeners
   eventBus.on('TARGETING_STARTED', (event) => {
     gameStore
@@ -316,6 +359,8 @@ export function syncEngineToStore(context: GameContext) {
       scrapExtracted?: number;
       fluxExtracted?: number;
       softwareExtracted?: number;
+      vaultsBreached?: number;
+      trapsDisarmed?: number;
     },
   ) => {
     const player = context.playerId;
@@ -346,6 +391,8 @@ export function syncEngineToStore(context: GameContext) {
       scrapExtracted: runScrap,
       softwareExtracted: eventStats?.softwareExtracted ?? softwareCount,
       fluxExtracted: eventStats?.fluxExtracted ?? 0,
+      vaultsBreached: eventStats?.vaultsBreached ?? 0,
+      trapsDisarmed: eventStats?.trapsDisarmed ?? 0,
     });
 
     const results = {

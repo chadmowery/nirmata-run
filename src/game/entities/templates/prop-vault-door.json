@@ -1,0 +1,22 @@
+{
+  "name": "prop-vault-door",
+  "mixins": [],
+  "components": {
+    "position": { "x": 0, "y": 0 },
+    "prop": {
+      "propId": "vault_door",
+      "faction": "cyberacme",
+      "propClass": "vault_door"
+    },
+    "securityLock": {
+      "isLocked": true,
+      "keyIdRequired": "access_key",
+      "overclockHeatCost": 35,
+      "alertRadiusOnBypass": 12
+    },
+    "blocksMovement": {}
+  },
+  "overrides": {
+    "sprite": { "key": "prop_vault_door_locked" }
+  }
+}

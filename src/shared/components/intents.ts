@@ -33,8 +33,22 @@ export const VentIntent = defineComponent('ventIntent', z.object({}));
 export const DamageIntent = defineComponent(
   'damageIntent',
   z.object({
+    attackerId: z.number().optional(),
     targetId: z.number(),
     amount: z.number(), // Raw damage before defense
+    damageType: z.enum(['physical', 'neural', 'environmental']).optional(),
+  }),
+);
+
+/**
+ * Intent indicating an entity was alerted by an acoustic event.
+ * Consumed by AISystem in Phase.GATHER_INTENT to update FovAwareness and AIState.
+ */
+export const AlertIntent = defineComponent(
+  'alertIntent',
+  z.object({
+    sourceX: z.number(),
+    sourceY: z.number(),
   }),
 );
 
@@ -141,6 +155,7 @@ export const BurnSoftwareIntent = defineComponent(
     softwareEntityId: z.number(),
     targetSlot: z.enum(['weapon', 'armor']),
     inventoryIndex: z.number(),
+    isEquipmentList: z.boolean().optional(),
   }),
 );
 
@@ -163,6 +178,12 @@ export const FirmwareIntent = defineComponent(
 export const Acting = defineComponent('acting', z.object({}));
 
 /**
+ * Tag indicating that an actor's turn action was halted/aborted with 0 turn cost
+ * (e.g. Two-Tier Bump Safeguard).
+ */
+export const ActionAbortedTag = defineComponent('actionAbortedTag', z.object({}));
+
+/**
  * Tag indicating that shell stats need to be re-synchronized.
  */
 export const ShellUpdateTag = defineComponent('shellUpdateTag', z.object({}));
@@ -175,5 +196,20 @@ export const PickupIntent = defineComponent(
   z.object({
     actorId: z.number(),
     itemId: z.number(),
+    targetX: z.number().int().optional(),
+    targetY: z.number().int().optional(),
+  }),
+);
+
+/**
+ * Intent to drop an item from inventory onto a floor tile.
+ */
+export const DropItemIntent = defineComponent(
+  'dropItemIntent',
+  z.object({
+    actorId: z.number(),
+    itemEntityId: z.number(),
+    targetX: z.number().int(),
+    targetY: z.number().int(),
   }),
 );

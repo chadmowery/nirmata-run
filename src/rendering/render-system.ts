@@ -1,4 +1,4 @@
-import { Application, Ticker, Graphics } from 'pixi.js';
+import { Application, Ticker, Graphics, Sprite } from 'pixi.js';
 import { World } from '../engine/ecs/world';
 import { EventBus } from '../engine/events/event-bus';
 import { GameEvents } from '../game/events/types';
@@ -7,8 +7,10 @@ import { EntityId } from '../engine/ecs/types';
 import { Position } from '@shared/components/position';
 import { SpriteComponent } from '@shared/components/sprite';
 import { Actor } from '@shared/components/actor';
+import { FloorState } from '@shared/components/floor-state';
 import { AbilityDef } from '@shared/components/ability-def';
 import { FirmwareSlots } from '@shared/components/firmware-slots';
+import { Prop, SecurityLock, CorruptedNode } from '@shared/components/environment';
 import { gameStore } from '../game/ui/store';
 import { WorldLayers } from './layers';
 import { TILE_SIZE, FOV_RADIUS } from './constants';
@@ -36,7 +38,11 @@ import {
   clearAnimations,
   hasActiveAnimation,
 } from './animations';
-import { applyPersistentGlitch, applyDamageDistortion } from './filters/glitch-effects';
+import {
+  applyPersistentGlitch,
+  applyDamageDistortion,
+  applyPropOutline,
+} from './filters/glitch-effects';
 import { queueTypedDeathAnimation } from './filters/death-effects';
 import { AIState } from '@shared/components/ai-state';
 import {
@@ -59,6 +65,36 @@ import {
 } from './filters/particle-emitters';
 import { spawnDamageText, updateDamageTexts, disposeDamageTexts } from './filters/damage-text';
 import { EventOriginContext } from '../engine/utils/event-context';
+import { resolveTileInspection, RememberedPropState } from './tile-inspector';
+import { Item } from '@shared/components/item';
+import { CurrencyItem } from '@shared/components/currency-item';
+
+/**
+ * Resolves the client-visible prop outline state.
+ * Only flags a prop as 'corrupted' when the CorruptedNode has been revealed
+ * (or triggered) and is not yet disarmed.
+ */
+export function resolvePropOutlineState(
+  world: World<GameEvents>,
+  entityId: EntityId,
+): 'searched' | 'corrupted' | 'locked' | 'safe' | null {
+  const propComp = world.getComponent(entityId, Prop);
+  if (!propComp) return null;
+
+  const corrupted = world.getComponent(entityId, CorruptedNode);
+  const lock = world.getComponent(entityId, SecurityLock);
+
+  if (propComp.isSearched) {
+    return 'searched';
+  }
+  if (corrupted && !corrupted.isDisarmed && !corrupted.triggered && corrupted.revealed) {
+    return 'corrupted';
+  }
+  if (lock && lock.isLocked) {
+    return 'locked';
+  }
+  return 'safe';
+}
 
 export interface RenderSystemConfig {
   app: Application;
@@ -73,9 +109,246 @@ export interface RenderSystemConfig {
 export function createRenderSystem(config: RenderSystemConfig) {
   const { app, layers, world, eventBus, getGrid, getPlayerEntity, lightPasses } = config;
   const exploredSet = createExploredSet();
+  const rememberedProps = new Map<EntityId, RememberedPropState>();
+  const rememberedTileItems = new Map<string, Set<EntityId>>();
   let cameraTarget = { x: 0, y: 0 };
+  let cameraPanOffset = { x: 0, y: 0 };
+  let cameraZoom = 1.0;
+  let isMapRevealed = false;
+  let isDragging = false;
+  let dragStartX = 0;
+  let dragStartY = 0;
+  let initialPanX = 0;
+  let initialPanY = 0;
+  const lastPropOutlineState = new Map<EntityId, string>();
+
   const targetingCursor = new Graphics();
   layers.effectsLayer.addChild(targetingCursor);
+
+  let lastPointerEvent: { clientX: number; clientY: number } | null = null;
+  let lastHoverCheckState: {
+    clientX: number;
+    clientY: number;
+    camX: number;
+    camY: number;
+    zoom: number;
+    playerX: number;
+    playerY: number;
+    isMapRevealed: boolean;
+  } | null = null;
+  let currentFovSet: Set<string> = new Set();
+
+  const syncPropOutline = (entityId: EntityId, targetSprite?: Sprite) => {
+    const outlineState = resolvePropOutlineState(world, entityId);
+    if (!outlineState) return;
+    const sprite = targetSprite ?? getEntitySprite(entityId);
+    if (sprite) {
+      applyPropOutline(sprite, outlineState);
+    }
+  };
+
+  const recordPropMemory = (entityId: EntityId) => {
+    const propComp = world.getComponent(entityId, Prop);
+    if (!propComp) return;
+    const lock = world.getComponent(entityId, SecurityLock);
+    const corrupted = world.getComponent(entityId, CorruptedNode);
+    rememberedProps.set(entityId, {
+      isSearched: Boolean(propComp.isSearched),
+      isLocked: Boolean(lock?.isLocked),
+      corruptedRevealed: Boolean(corrupted?.revealed || corrupted?.triggered),
+      corruptedDisarmed: Boolean(corrupted?.isDisarmed),
+      corruptedTriggered: Boolean(corrupted?.triggered),
+      corruptionLevel: corrupted?.corruptionLevel,
+    });
+  };
+
+  const snapshotVisibleMemory = (visibleSet: Set<string>) => {
+    const props = world.query(Prop, Position);
+    for (const propId of props) {
+      const pos = world.getComponent(propId, Position);
+      if (pos && visibleSet.has(`${pos.x},${pos.y}`)) {
+        recordPropMemory(propId);
+      }
+    }
+
+    for (const key of visibleSet) {
+      rememberedTileItems.set(key, new Set());
+    }
+    const posEntities = world.query(Position);
+    for (const id of posEntities) {
+      if (!world.hasComponent(id, Item) && !world.hasComponent(id, CurrencyItem)) continue;
+      const pos = world.getComponent(id, Position);
+      if (!pos) continue;
+      const key = `${pos.x},${pos.y}`;
+      if (visibleSet.has(key)) {
+        let set = rememberedTileItems.get(key);
+        if (!set) {
+          set = new Set();
+          rememberedTileItems.set(key, set);
+        }
+        set.add(id);
+      }
+    }
+  };
+
+  const updateHoverInspection = (e: { clientX: number; clientY: number }) => {
+    if (isDragging) {
+      gameStore.getState().setHoveredEntity(null);
+      return;
+    }
+
+    const canvas = app.canvas;
+    if (!canvas || typeof canvas.getBoundingClientRect !== 'function') {
+      gameStore.getState().setHoveredEntity(null);
+      return;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+    if (
+      e.clientX < rect.left ||
+      e.clientX > rect.right ||
+      e.clientY < rect.top ||
+      e.clientY > rect.bottom
+    ) {
+      gameStore.getState().setHoveredEntity(null);
+      return;
+    }
+
+    const elem =
+      typeof document !== 'undefined' && typeof document.elementFromPoint === 'function'
+        ? document.elementFromPoint(e.clientX, e.clientY)
+        : null;
+
+    if (elem && elem !== canvas) {
+      const isCanvasWrapper =
+        elem.id === 'canvas-container' || (canvas && canvas.parentElement === elem);
+      if (!isCanvasWrapper && elem.closest && elem.closest('#ui-root')) {
+        // Suppress tile inspect only if cursor is over actual UI controls, panels, or dialogues,
+        // rather than transparent layout bays framing the canvas.
+        const isInteractiveOrPanel = elem.closest(
+          'button, [role="dialog"], [role="alertdialog"], [role="tooltip"], input, select, textarea, aside, header, footer, nav, section, .panel-card, [data-hud-panel], [class*="hudRibbon"], [class*="hudColLeft"], [class*="hudColRight"], [class*="hudBottomBar"]',
+        );
+        const isTransparentBay =
+          !isInteractiveOrPanel &&
+          Boolean(
+            elem.closest(
+              '[class*="tacticalViewportBay"], [class*="hudConstruct"], [class*="hudMainGrid"]',
+            ),
+          );
+
+        if (!isTransparentBay) {
+          gameStore.getState().setHoveredEntity(null);
+          return;
+        }
+      }
+    }
+
+    const storeState = gameStore.getState();
+    if (
+      storeState.inventoryVisible ||
+      storeState.groundTransferVisible ||
+      storeState.deadDropModalVisible ||
+      storeState.hotkeysModalVisible ||
+      storeState.abortDialogVisible ||
+      storeState.bsodVisible ||
+      storeState.runResultsVisible
+    ) {
+      storeState.setHoveredEntity(null);
+      return;
+    }
+
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const canvasX = (e.clientX - rect.left) * scaleX;
+    const canvasY = (e.clientY - rect.top) * scaleY;
+    const worldX = (canvasX - layers.worldContainer.x) / cameraZoom;
+    const worldY = (canvasY - layers.worldContainer.y) / cameraZoom;
+    const gx = Math.floor(worldX / TILE_SIZE);
+    const gy = Math.floor(worldY / TILE_SIZE);
+
+    const info = resolveTileInspection({
+      world,
+      grid: getGrid(),
+      gx,
+      gy,
+      screenX: e.clientX,
+      screenY: e.clientY,
+      isVisibleInFov: currentFovSet.has(`${gx},${gy}`),
+      isExplored: exploredSet.has(`${gx},${gy}`) || isMapRevealed,
+      playerEntity: getPlayerEntity(),
+      detailedFlavorTextEnabled: storeState.detailedFlavorTextEnabled,
+      rememberedProps,
+      rememberedTileItems,
+    });
+
+    storeState.setHoveredEntity(info);
+  };
+
+  const handlePointerDown = (e: PointerEvent) => {
+    // Only middle click (button 1) or right click (button 2) triggers free-pan dragging
+    if (e.button === 1 || e.button === 2) {
+      isDragging = true;
+      gameStore.getState().setHoveredEntity(null);
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      initialPanX = cameraPanOffset.x;
+      initialPanY = cameraPanOffset.y;
+    }
+  };
+
+  const handlePointerMove = (e: PointerEvent) => {
+    lastPointerEvent = { clientX: e.clientX, clientY: e.clientY };
+    if (isDragging) {
+      const dx = e.clientX - dragStartX;
+      const dy = e.clientY - dragStartY;
+      cameraPanOffset = {
+        x: initialPanX + dx,
+        y: initialPanY + dy,
+      };
+      gameStore.getState().setHoveredEntity(null);
+      return;
+    }
+    updateHoverInspection(e);
+  };
+
+  const handlePointerLeave = () => {
+    lastPointerEvent = null;
+    lastHoverCheckState = null;
+    gameStore.getState().setHoveredEntity(null);
+  };
+
+  const handlePointerUp = (e: PointerEvent) => {
+    if (e.button === 1 || e.button === 2 || isDragging) {
+      isDragging = false;
+    }
+  };
+
+  const handleWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    const zoomDelta = e.deltaY < 0 ? 0.1 : -0.1;
+    cameraZoom = Math.min(1.5, Math.max(0.75, Math.round((cameraZoom + zoomDelta) * 100) / 100));
+    layers.worldContainer.scale.set(cameraZoom);
+  };
+
+  const handleContextMenu = (e: MouseEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDebugRevealMap = () => {
+    isMapRevealed = true;
+    const grid = getGrid();
+    for (let y = 0; y < grid.height; y++) {
+      for (let x = 0; x < grid.width; x++) {
+        exploredSet.add(`${x},${y}`);
+      }
+    }
+  };
+
+  const handleRecenterCamera = () => {
+    cameraPanOffset = { x: 0, y: 0 };
+    cameraZoom = 1.0;
+    layers.worldContainer.scale.set(1.0);
+  };
 
   const handleEntityCreated = (payload: { entityId: EntityId }) => {
     const spriteComp = world.getComponent(payload.entityId, SpriteComponent);
@@ -87,6 +360,24 @@ export function createRenderSystem(config: RenderSystemConfig) {
       if (aiState) {
         applyPersistentGlitch(sprite, aiState.behaviorType);
         attachNeonEmitter(sprite, aiState.behaviorType, layers.effectsLayer);
+      }
+
+      // Apply client-visible prop outline for interactive props
+      syncPropOutline(payload.entityId, sprite);
+    }
+  };
+
+  const handlePropUpdated = (payload: { propId: number }) => {
+    const entityId = payload.propId;
+    if (entityId) {
+      const spriteComp = world.getComponent(entityId, SpriteComponent);
+      if (spriteComp) {
+        createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
+      }
+      syncPropOutline(entityId);
+      const pos = world.getComponent(entityId, Position);
+      if (pos && currentFovSet.has(`${pos.x},${pos.y}`)) {
+        recordPropMemory(entityId);
       }
     }
   };
@@ -106,6 +397,10 @@ export function createRenderSystem(config: RenderSystemConfig) {
         });
       }
     }
+  };
+
+  const handleItemPickedUp = (payload: { entityId?: EntityId; itemId: EntityId }) => {
+    destroyEntitySprite(payload.itemId);
   };
 
   // Track last predicted player move to avoid duplicate tweens when server reconciles
@@ -173,6 +468,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
     const origin = EventOriginContext.current;
 
     if (isPlayer) {
+      cameraPanOffset = { x: 0, y: 0 };
       if (origin === 'client') {
         // Record predicted player movement and queue visual tween
         lastPredictedPlayerMove = {
@@ -282,14 +578,30 @@ export function createRenderSystem(config: RenderSystemConfig) {
     init() {
       eventBus.on('ENTITY_CREATED', handleEntityCreated);
       eventBus.on('ENTITY_DESTROYED', handleEntityDestroyed);
+      eventBus.on('ITEM_PICKED_UP', handleItemPickedUp);
       eventBus.on('ENTITY_MOVED', handleEntityMoved);
       eventBus.on('DAMAGE_DEALT', handleDamageDealt);
       eventBus.on('APPLY_WORLD_FILTER', handleApplyWorldFilter);
       eventBus.on('REMOVE_WORLD_FILTER', handleRemoveWorldFilter);
       eventBus.on('STABILITY_CHANGED', handleStabilityChanged);
       eventBus.on('HEAT_CHANGED', handleHeatChanged);
+      eventBus.on('PROP_INTERACTED', handlePropUpdated);
+      eventBus.on('LOCK_UNLOCKED', handlePropUpdated);
+      eventBus.on('DEBUG_REVEAL_MAP', handleDebugRevealMap);
+      eventBus.on('RECENTER_CAMERA', handleRecenterCamera);
       eventBus.on('DUNGEON_GENERATED', () => this.onDungeonGenerated());
       eventBus.on('STATE_RECONCILED', () => this.reconcileSprites());
+
+      const canvas = app.canvas;
+      if (canvas && typeof canvas.addEventListener === 'function') {
+        canvas.addEventListener('pointerdown', handlePointerDown);
+        canvas.addEventListener('pointerleave', handlePointerLeave);
+        window.addEventListener('pointermove', handlePointerMove);
+        window.addEventListener('pointerup', handlePointerUp);
+        window.addEventListener('pointercancel', handlePointerUp);
+        canvas.addEventListener('wheel', handleWheel, { passive: false });
+        canvas.addEventListener('contextmenu', handleContextMenu);
+      }
 
       app.ticker.add(updateCameraFrame);
 
@@ -301,25 +613,32 @@ export function createRenderSystem(config: RenderSystemConfig) {
         const sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
         sprite.x = pos.x * TILE_SIZE;
         sprite.y = pos.y * TILE_SIZE;
+        syncPropOutline(entityId, sprite);
       }
     },
 
     reconcileSprites() {
-      const activeEntities = new Set(world.query(SpriteComponent));
+      const activeEntities = new Set(world.query(SpriteComponent, Position));
       purgeOrphanedSprites(activeEntities);
 
-      // Instantiate sprites for any active entity missing its sprite
+      // Instantiate sprites for any active entity missing its sprite and refresh prop outlines
       for (const entityId of activeEntities) {
-        if (!getEntitySprite(entityId)) {
-          const spriteComp = world.getComponent(entityId, SpriteComponent);
+        let sprite = getEntitySprite(entityId);
+        const spriteComp = world.getComponent(entityId, SpriteComponent);
+        if (!sprite) {
           const pos = world.getComponent(entityId, Position);
           if (spriteComp) {
-            const sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
+            sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
             if (pos) {
               sprite.x = pos.x * TILE_SIZE;
               sprite.y = pos.y * TILE_SIZE;
             }
           }
+        } else if (spriteComp) {
+          createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
+        }
+        if (sprite) {
+          syncPropOutline(entityId, sprite);
         }
       }
     },
@@ -333,6 +652,10 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
       // 1. Dynamic FOV (D-15 Extended Sight Logic)
       let effectiveRadius = FOV_RADIUS;
+      const floorState = world.getComponent(playerEntity, FloorState);
+      if (floorState?.sectorCondition === 'DARK_SUBNET') {
+        effectiveRadius = Math.max(2, effectiveRadius - 2);
+      }
       const fSlots = world.getComponent(playerEntity, FirmwareSlots);
       if (fSlots) {
         for (const firmwareId of fSlots.equipped) {
@@ -350,6 +673,17 @@ export function createRenderSystem(config: RenderSystemConfig) {
         lightPasses,
         exploredSet,
       );
+
+      // Snapshot remembered state for tiles currently visible in player's real FOV
+      snapshotVisibleMemory(fovSet);
+      currentFovSet = new Set(fovSet);
+
+      if (isMapRevealed) {
+        for (const key of exploredSet) {
+          fovSet.add(key);
+        }
+      }
+
       eventBus.emit('FOV_UPDATED', { visibleSet: fovSet });
 
       // 1.5. Targeting UI Rendering
@@ -401,11 +735,25 @@ export function createRenderSystem(config: RenderSystemConfig) {
         targetingCursor.lineTo(tx + margin, ty + TILE_SIZE - margin - len);
       }
 
+      // Refresh dynamic prop outlines if state has changed
+      const props = world.query(Prop);
+      for (const propId of props) {
+        const outlineState = resolvePropOutlineState(world, propId) ?? 'none';
+        if (lastPropOutlineState.get(propId) !== outlineState) {
+          lastPropOutlineState.set(propId, outlineState);
+          syncPropOutline(propId);
+        }
+      }
+
       // 2. Camera
-      cameraTarget = computeCameraTarget(playerPos.x, playerPos.y);
+      const baseTarget = computeCameraTarget(playerPos.x, playerPos.y, cameraZoom);
+      cameraTarget = {
+        x: baseTarget.x + cameraPanOffset.x,
+        y: baseTarget.y + cameraPanOffset.y,
+      };
 
       // 3. Tilemap
-      const visibleRange = getVisibleTileRange(layers.worldContainer.x, layers.worldContainer.y);
+      const visibleRange = getVisibleTileRange(layers.worldContainer.x, layers.worldContainer.y, cameraZoom);
       buildTilemap(getGrid(), layers.terrainLayer, {
         visibleRange,
         fovSet,
@@ -415,6 +763,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
       // 4. Entity Sprites Sync & Visibility
       const renderables = world.query(SpriteComponent, Position);
+      let playerSprite: Sprite | null = null;
       for (const entityId of renderables) {
         let sprite = getEntitySprite(entityId);
 
@@ -439,20 +788,66 @@ export function createRenderSystem(config: RenderSystemConfig) {
         if (entityType === 'player') {
           visible = true;
           alpha = 1.0;
+          playerSprite = sprite;
+        }
+
+        const propComp = world.getComponent(entityId, Prop);
+        if (propComp?.isSearched) {
+          alpha = alpha * 0.6;
         }
 
         sprite.visible = visible;
         sprite.alpha = alpha;
 
-        // Ensure sprite is on top within its container
-        if (visible && sprite.parent) {
+        // Layer visible entities; player will be placed on the absolute top
+        if (entityType !== 'player' && visible && sprite.parent) {
           sprite.parent.addChild(sprite);
+        }
+      }
+
+      // Ensure player sprite is ALWAYS on the topmost z-layer of entityLayer
+      if (playerSprite && playerSprite.parent) {
+        playerSprite.parent.addChild(playerSprite);
+      }
+
+      if (lastPointerEvent) {
+        const needsHoverUpdate =
+          !lastHoverCheckState ||
+          lastHoverCheckState.clientX !== lastPointerEvent.clientX ||
+          lastHoverCheckState.clientY !== lastPointerEvent.clientY ||
+          lastHoverCheckState.camX !== layers.worldContainer.x ||
+          lastHoverCheckState.camY !== layers.worldContainer.y ||
+          lastHoverCheckState.zoom !== cameraZoom ||
+          lastHoverCheckState.playerX !== playerPos.x ||
+          lastHoverCheckState.playerY !== playerPos.y ||
+          lastHoverCheckState.isMapRevealed !== isMapRevealed;
+
+        if (needsHoverUpdate) {
+          lastHoverCheckState = {
+            clientX: lastPointerEvent.clientX,
+            clientY: lastPointerEvent.clientY,
+            camX: layers.worldContainer.x,
+            camY: layers.worldContainer.y,
+            zoom: cameraZoom,
+            playerX: playerPos.x,
+            playerY: playerPos.y,
+            isMapRevealed,
+          };
+          updateHoverInspection(lastPointerEvent);
         }
       }
     },
 
     onDungeonGenerated() {
+      cameraPanOffset = { x: 0, y: 0 };
+      cameraZoom = 1.0;
+      layers.worldContainer.scale.set(1.0);
+      lastPropOutlineState.clear();
+      lastHoverCheckState = null;
+      isMapRevealed = false;
       clearExplored(exploredSet);
+      rememberedProps.clear();
+      rememberedTileItems.clear();
       clearTilemap(layers.terrainLayer);
       clearAnimations();
       clearAllSprites();
@@ -461,7 +856,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       const playerEntity = getPlayerEntity();
       const playerPos = world.getComponent(playerEntity, Position);
       if (playerPos) {
-        cameraTarget = computeCameraTarget(playerPos.x, playerPos.y);
+        cameraTarget = computeCameraTarget(playerPos.x, playerPos.y, cameraZoom);
         layers.worldContainer.x = cameraTarget.x;
         layers.worldContainer.y = cameraTarget.y;
       }
@@ -480,6 +875,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
         if (aiState) {
           attachNeonEmitter(sprite, aiState.behaviorType, layers.effectsLayer);
         }
+        syncPropOutline(entityId, sprite);
       }
 
       this.renderSystem();
@@ -494,16 +890,57 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.off('REMOVE_WORLD_FILTER', handleRemoveWorldFilter);
       eventBus.off('STABILITY_CHANGED', handleStabilityChanged);
       eventBus.off('HEAT_CHANGED', handleHeatChanged);
+      eventBus.off('PROP_INTERACTED', handlePropUpdated);
+      eventBus.off('LOCK_UNLOCKED', handlePropUpdated);
+      eventBus.off('DEBUG_REVEAL_MAP', handleDebugRevealMap);
+      eventBus.off('RECENTER_CAMERA', handleRecenterCamera);
+
+      const canvas = app.canvas;
+      if (canvas && typeof canvas.removeEventListener === 'function') {
+        canvas.removeEventListener('pointerdown', handlePointerDown);
+        canvas.removeEventListener('pointerleave', handlePointerLeave);
+        window.removeEventListener('pointermove', handlePointerMove);
+        window.removeEventListener('pointerup', handlePointerUp);
+        window.removeEventListener('pointercancel', handlePointerUp);
+        canvas.removeEventListener('wheel', handleWheel);
+        canvas.removeEventListener('contextmenu', handleContextMenu);
+      }
 
       app.ticker.remove(updateCameraFrame);
       clearTilemap(layers.terrainLayer);
       clearExplored(exploredSet);
+      rememberedProps.clear();
+      rememberedTileItems.clear();
+      lastPropOutlineState.clear();
+      lastHoverCheckState = null;
       clearAllSprites();
       clearAnimations();
       disposeScreenEffects();
       disposeHeatEffects();
       disposeAllEmitters();
       disposeDamageTexts();
+      gameStore.getState().setHoveredEntity(null);
+    },
+
+    recenterCamera() {
+      handleRecenterCamera();
+    },
+
+    exposeMap() {
+      handleDebugRevealMap();
+    },
+
+    getCameraZoom(): number {
+      return cameraZoom;
+    },
+
+    setCameraZoom(zoom: number) {
+      cameraZoom = Math.min(1.5, Math.max(0.75, Math.round(zoom * 100) / 100));
+      layers.worldContainer.scale.set(cameraZoom);
+    },
+
+    getCameraPanOffset(): { x: number; y: number } {
+      return { ...cameraPanOffset };
     },
   };
 }

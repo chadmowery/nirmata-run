@@ -1,19 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
-import { globalShellRegistry } from '@/game/shells/server';
+import { globalShellRegistry, applyShellUpgradesToRecord } from '@/game/shells/server';
 import { logger } from '@engine/utils/logger';
-import { VaultItem } from '@/shared/profile';
+import { VaultItem, generateVaultItemId } from '@/shared/profile';
 import { isWeaponItem, isArmorItem } from '@/shared/utils/equipment-util';
 
-const EquipFromVaultRequestSchema = z.object({
-  sessionId: z.string().min(1),
-  shellId: z.string().min(1),
-  entityId: z.coerce.number().int(),
-  targetSlotType: z
-    .enum(['firmware', 'augment', 'software', 'weapon', 'armor', 'backpack'])
-    .optional(),
-});
+const EquipFromVaultRequestSchema = z
+  .object({
+    sessionId: z.string().min(1),
+    shellId: z.string().min(1),
+    vaultItemId: z.string().optional(),
+    entityId: z.coerce.number().int().optional(),
+    targetSlotType: z
+      .enum(['firmware', 'augment', 'software', 'weapon', 'armor', 'backpack'])
+      .optional(),
+  })
+  .refine((data) => data.vaultItemId !== undefined || data.entityId !== undefined, {
+    message: 'Either vaultItemId or entityId must be provided',
+  });
 
 /**
  * POST /api/vault/equip-from-vault
@@ -30,7 +35,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { sessionId, shellId, entityId, targetSlotType } = parsed.data;
+    const { sessionId, shellId, vaultItemId, entityId, targetSlotType } = parsed.data;
 
     const profile = await profileRepository.load(sessionId);
     if (!profile) {
@@ -38,10 +43,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
-    // 1. Find item in Vault
-    const vaultIndex = profile.vault.findIndex((item) => item.entityId === entityId);
+    // 1. Find item in Vault (prefer stable unique vaultItemId, fallback to legacy entityId)
+    const vaultIndex = vaultItemId
+      ? profile.vault.findIndex((item) => item.vaultItemId === vaultItemId)
+      : profile.vault.findIndex((item) => item.entityId === entityId);
     if (vaultIndex === -1) {
-      logger.warn(`[VaultEquipFromVault] Item not found in Vault: ${entityId}`, 'API');
+      logger.warn(`[VaultEquipFromVault] Item not found in Vault: ${vaultItemId || entityId}`, 'API');
       return NextResponse.json({ error: 'Item not found in Vault' }, { status: 404 });
     }
 
@@ -68,6 +75,7 @@ export async function POST(req: NextRequest) {
         const old = profile.installedItems[existingIdx];
         profile.installedItems.splice(existingIdx, 1);
         const restored: VaultItem = {
+          vaultItemId: generateVaultItemId(),
           entityId: old.entityId,
           templateId: old.blueprintId,
           rarityTier: 'common',
@@ -80,7 +88,7 @@ export async function POST(req: NextRequest) {
       }
 
       profile.installedItems.push({
-        entityId: item.entityId,
+        entityId: item.entityId ?? Date.now(),
         blueprintId: item.templateId,
         type: 'weapon',
         shellId,
@@ -100,6 +108,7 @@ export async function POST(req: NextRequest) {
         const old = profile.installedItems[existingIdx];
         profile.installedItems.splice(existingIdx, 1);
         const restored: VaultItem = {
+          vaultItemId: generateVaultItemId(),
           entityId: old.entityId,
           templateId: old.blueprintId,
           rarityTier: 'common',
@@ -112,7 +121,7 @@ export async function POST(req: NextRequest) {
       }
 
       profile.installedItems.push({
-        entityId: item.entityId,
+        entityId: item.entityId ?? Date.now(),
         blueprintId: item.templateId,
         type: 'armor',
         shellId,
@@ -132,7 +141,7 @@ export async function POST(req: NextRequest) {
       }
 
       profile.installedItems.push({
-        entityId: item.entityId,
+        entityId: item.entityId ?? Date.now(),
         blueprintId: item.templateId,
         type: 'backpack',
         shellId,
@@ -151,6 +160,13 @@ export async function POST(req: NextRequest) {
           if (template) {
             shellRecord = globalShellRegistry.createRecord(shellId, template.id);
           }
+        }
+      }
+
+      if (shellRecord) {
+        const upgradeData = profile.shellUpgrades?.[shellId];
+        if (upgradeData) {
+          shellRecord = applyShellUpgradesToRecord(shellRecord, upgradeData);
         }
       }
 
@@ -173,7 +189,7 @@ export async function POST(req: NextRequest) {
       }
 
       profile.installedItems.push({
-        entityId: item.entityId,
+        entityId: item.entityId ?? Date.now(),
         blueprintId: item.templateId,
         type: resolvedSlot as 'firmware' | 'augment' | 'software',
         shellId,

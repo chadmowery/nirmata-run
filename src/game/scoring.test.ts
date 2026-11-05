@@ -24,4 +24,25 @@ describe('calculateScore', () => {
 
     expect(score).toBe(0);
   });
+
+  it('includes environmental scoring bonuses for vaults breached and traps disarmed', () => {
+    const baseScore = calculateScore({
+      floorNumber: 5,
+      scrapExtracted: 100,
+      softwareExtracted: 1,
+      fluxExtracted: 10,
+    });
+
+    const envScore = calculateScore({
+      floorNumber: 5,
+      scrapExtracted: 100,
+      softwareExtracted: 1,
+      fluxExtracted: 10,
+      vaultsBreached: 2,
+      trapsDisarmed: 3,
+    });
+
+    // 2 * 150 = 300, 3 * 50 = 150 -> total +450
+    expect(envScore).toBe(baseScore + 450);
+  });
 });

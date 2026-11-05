@@ -21,7 +21,11 @@ export enum GameAction {
   STAIRCASE_DESCEND = 'STAIRCASE_DESCEND',
   DEBUG_PATHFIND_ANCHOR = 'DEBUG_PATHFIND_ANCHOR',
   DEBUG_TOGGLE_TIMELINE = 'DEBUG_TOGGLE_TIMELINE',
+  RECENTER_CAMERA = 'RECENTER_CAMERA',
   TOGGLE_INVENTORY = 'TOGGLE_INVENTORY',
+  TOGGLE_HOTKEYS = 'TOGGLE_HOTKEYS',
+  PICKUP_GROUND = 'PICKUP_GROUND',
+  TOGGLE_FLAVOR_TEXT = 'TOGGLE_FLAVOR_TEXT',
 }
 
 /**
@@ -46,6 +50,8 @@ export const DEFAULT_BINDINGS: Record<string, GameAction> = {
 
   // UI
   Escape: GameAction.PAUSE,
+  KeyH: GameAction.TOGGLE_HOTKEYS,
+  'Shift+Slash': GameAction.TOGGLE_HOTKEYS,
 
   // Firmware
   Digit1: GameAction.USE_FIRMWARE_0,
@@ -54,11 +60,14 @@ export const DEFAULT_BINDINGS: Record<string, GameAction> = {
   KeyV: GameAction.VENT,
   KeyP: GameAction.DEBUG_PATHFIND_ANCHOR,
   'Shift+Backquote': GameAction.DEBUG_TOGGLE_TIMELINE,
+  KeyC: GameAction.RECENTER_CAMERA,
 
   // Interaction
   'Shift+Period': GameAction.INTERACT_STAIRCASE,
   KeyE: GameAction.INTERACT_ANCHOR,
   KeyI: GameAction.TOGGLE_INVENTORY,
+  KeyG: GameAction.PICKUP_GROUND,
+  KeyT: GameAction.TOGGLE_FLAVOR_TEXT,
 };
 
 /**

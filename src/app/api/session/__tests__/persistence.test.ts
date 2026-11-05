@@ -45,6 +45,8 @@ vi.mock('@server/session/session-manager', () => ({
   sessionManager: {
     createSession: vi.fn(),
     getSession: vi.fn(),
+    tryAcquireSessionLock: vi.fn(() => true),
+    releaseSessionLock: vi.fn(),
   },
 }));
 
@@ -82,7 +84,9 @@ vi.mock('@game/engine-factory', () => ({
 }));
 
 vi.mock('@shared/serialization', () => ({
-  serializeWorld: vi.fn(() => ({ entities: [], components: {} })),
+  serializeWorld: vi.fn(() => ({ entities: [], components: {}, stores: {} })),
+  redactWorldForClient: vi.fn((data) => data),
+  redactDeltaForClient: vi.fn((delta) => delta),
   serializeGrid: vi.fn(() => ({ width: 10, height: 10, tiles: [] })),
   deserializeWorld: vi.fn((data, bus) => ({
     loadSerializableState: vi.fn(),

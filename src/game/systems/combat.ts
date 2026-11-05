@@ -22,9 +22,16 @@ import {
   AIState,
   AIBehaviorType,
   ApplyStatusEffectIntent,
+  Position,
+  InteractiveSurface,
+  CorruptedNode,
+  Shell,
+  Hostile,
+  DeadZone,
 } from '@shared/components';
 import { AttackIntent, DamageIntent, HealIntent } from '@shared/components/intents';
 import { createTriggerContext, evaluateCondition } from './augment-util';
+import { applyStatusEffect } from './status-effects';
 
 import { GameplayEvents } from '@shared/events/types';
 import { logger } from '@engine/utils/logger';
@@ -157,6 +164,351 @@ export function collectDamageModifiers<T extends GameplayEvents>(
 }
 
 /**
+ * Bresenham line algorithm to trace points from (x0, y0) to (x1, y1).
+ */
+export function bresenhamLine(
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+): Array<{ x: number; y: number }> {
+  const points: Array<{ x: number; y: number }> = [];
+  const dx = Math.abs(x1 - x0);
+  const dy = Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1;
+  const sy = y0 < y1 ? 1 : -1;
+  let err = dx - dy;
+
+  let x = x0;
+  let y = y0;
+
+  while (true) {
+    points.push({ x, y });
+    if (x === x1 && y === y1) break;
+    const e2 = 2 * err;
+    if (e2 > -dy) {
+      err -= dy;
+      x += sx;
+    }
+    if (e2 < dx) {
+      err += dx;
+      y += sy;
+    }
+  }
+
+  return points;
+}
+
+/**
+ * Checks if directional cover mitigates incoming ranged damage against defender.
+ * Traces a ray from attacker to defender and evaluates intervening orthogonal cover adjacent to defender.
+ */
+export function checkDirectionalCover<T extends GameplayEvents>(
+  world: World<T>,
+  attackerId: EntityId,
+  defenderId: EntityId,
+  grid?: Grid,
+): { hasCover: boolean; reduction: number; coverId?: EntityId } {
+  if (world.hasComponent(defenderId, InteractiveSurface)) {
+    return { hasCover: false, reduction: 0 };
+  }
+
+  const attackerPos = world.getComponent(attackerId, Position);
+  const defenderPos = world.getComponent(defenderId, Position);
+  if (!attackerPos || !defenderPos) {
+    return { hasCover: false, reduction: 0 };
+  }
+
+  const distToAttacker =
+    Math.abs(attackerPos.x - defenderPos.x) + Math.abs(attackerPos.y - defenderPos.y);
+  // Melee attacks (distance <= 1) are never mitigated by cover
+  if (distToAttacker <= 1) {
+    return { hasCover: false, reduction: 0 };
+  }
+
+  const ray = bresenhamLine(attackerPos.x, attackerPos.y, defenderPos.x, defenderPos.y);
+  if (ray.length < 3) {
+    return { hasCover: false, reduction: 0 };
+  }
+
+  // Intervening point immediately preceding defender on the attack trajectory
+  const stepBeforeDefender = ray[ray.length - 2];
+
+  // Candidates for intervening cover:
+  // 1. Direct step before defender on ray
+  // 2. For diagonal attacks, the orthogonal projection tiles between attacker and defender
+  const candidateCoverTiles: Array<{ x: number; y: number }> = [];
+  candidateCoverTiles.push(stepBeforeDefender);
+
+  const dx = Math.sign(attackerPos.x - defenderPos.x);
+  const dy = Math.sign(attackerPos.y - defenderPos.y);
+  if (dx !== 0 && dy !== 0) {
+    candidateCoverTiles.push({ x: defenderPos.x + dx, y: defenderPos.y });
+    candidateCoverTiles.push({ x: defenderPos.x, y: defenderPos.y + dy });
+  }
+
+  // Check candidate tiles for an active InteractiveSurface providing cover
+  for (const tile of candidateCoverTiles) {
+    if (Math.abs(tile.x - defenderPos.x) + Math.abs(tile.y - defenderPos.y) !== 1) {
+      continue;
+    }
+    const distToAttackerFromTile =
+      Math.abs(tile.x - attackerPos.x) + Math.abs(tile.y - attackerPos.y);
+    if (distToAttackerFromTile >= distToAttacker) {
+      continue;
+    }
+
+    const gridEntities = grid ? Array.from(grid.getEntitiesAt(tile.x, tile.y)) : [];
+    const entitiesAtTile =
+      gridEntities.length > 0
+        ? gridEntities
+        : world.query(InteractiveSurface, Position).filter((id) => {
+            const p = world.getComponent(id, Position);
+            return p && p.x === tile.x && p.y === tile.y;
+          });
+
+    for (const surfaceId of entitiesAtTile) {
+      if (surfaceId === defenderId || surfaceId === attackerId) continue;
+      if (world.hasComponent(surfaceId, Dying)) continue;
+
+      const surface = world.getComponent(surfaceId, InteractiveSurface);
+      if (!surface || surface.providesCover === false) continue;
+
+      const defenderShell = world.getComponent(defenderId, Shell);
+      const isBastion = defenderShell?.archetypeId?.toLowerCase().includes('bastion');
+      const baseReduction = surface.coverDamageReduction ?? 0.25;
+      const reduction = isBastion ? Math.max(0.35, baseReduction) : baseReduction;
+
+      return { hasCover: true, reduction, coverId: surfaceId };
+    }
+  }
+
+  return { hasCover: false, reduction: 0 };
+}
+
+/**
+ * Handles destruction of props with InteractiveSurface, triggering hazard spills and cascade reactions
+ * by attaching DamageIntent components to affected entities.
+ */
+export function handlePropDestruction<T extends GameplayEvents>(
+  world: World<T>,
+  grid: Grid,
+  eventBus: EventBus<T>,
+  destroyedId: EntityId,
+  killerId: EntityId,
+  visited: Set<EntityId> = new Set(),
+  options: { friendlyFire?: boolean } = {},
+): void {
+  if (visited.has(destroyedId)) return;
+  visited.add(destroyedId);
+
+  const surface = world.getComponent(destroyedId, InteractiveSurface);
+  const pos = world.getComponent(destroyedId, Position);
+  if (!surface || !pos) return;
+
+  const killerActor = world.getComponent(killerId, Actor);
+  const isKillerPlayer = killerActor?.isPlayer ?? false;
+  const allowFriendlyFire = options.friendlyFire ?? surface.friendlyFire ?? true;
+
+  const isFriendlyTarget = (targetId: EntityId): boolean => {
+    if (allowFriendlyFire) return false;
+    const targetActor = world.getComponent(targetId, Actor);
+    return isKillerPlayer && (targetActor?.isPlayer ?? false);
+  };
+
+  // 1. Cryo-Vat hazard footprint (3x3 default, or data-driven hazardRadius)
+  if (surface.hazardOnDestroy === 'cryo_spill') {
+    eventBus.emit('MESSAGE_EMITTED', {
+      text: '[CRYO SPILL]: Cryo-vat shattered into a cryogenic hazard!',
+      type: 'combat',
+    });
+
+    const hazardRadius = surface.hazardRadius ?? 1;
+
+    // Spawn persistent DeadZone hazard entities across walkable tiles in footprint
+    for (let dx = -hazardRadius; dx <= hazardRadius; dx++) {
+      for (let dy = -hazardRadius; dy <= hazardRadius; dy++) {
+        const tx = pos.x + dx;
+        const ty = pos.y + dy;
+        if (grid && !grid.isWalkable(tx, ty)) continue;
+
+        // Check if there is already an active DeadZone at this tile
+        let existingDz: EntityId | undefined;
+        if (grid) {
+          const atTile = grid.getEntitiesAt(tx, ty);
+          for (const eid of atTile) {
+            if (world.hasComponent(eid, DeadZone) && !world.hasComponent(eid, Dying)) {
+              existingDz = eid;
+              break;
+            }
+          }
+        }
+        if (existingDz) {
+          const currentDz = world.getComponent(existingDz, DeadZone)!;
+          world.patchComponent(existingDz, DeadZone, {
+            remainingTurns: Math.max(currentDz.remainingTurns, 3),
+            damagePerTick: Math.max(currentDz.damagePerTick, 4),
+          });
+        } else {
+          const dzId = world.createEntity();
+          world.addComponent(dzId, Position, { x: tx, y: ty });
+          world.addComponent(dzId, DeadZone, {
+            remainingTurns: 3,
+            damagePerTick: 4,
+            creatorId: killerId,
+          });
+          if (grid) {
+            grid.addEntity(dzId, tx, ty);
+          }
+        }
+      }
+    }
+
+    // Apply immediate blast damage & MOVEMENT_SLOW to entities in footprint
+    const allPositions = world.query(Position);
+    for (const eid of allPositions) {
+      if (eid === destroyedId || visited.has(eid) || world.hasComponent(eid, Dying)) continue;
+      if (isFriendlyTarget(eid)) continue;
+
+      const ePos = world.getComponent(eid, Position)!;
+      if (Math.abs(ePos.x - pos.x) <= hazardRadius && Math.abs(ePos.y - pos.y) <= hazardRadius) {
+        const h = world.getComponent(eid, Health);
+        if (h && h.isAlive !== false && h.current > 0) {
+          world.addComponent(eid, DamageIntent, {
+            attackerId: killerId,
+            targetId: eid,
+            amount: 4,
+            damageType: 'environmental',
+          });
+        }
+        applyStatusEffect(world, eventBus, eid, {
+          name: 'MOVEMENT_SLOW',
+          duration: 2,
+          magnitude: 50,
+          source: 'cryo_spill',
+        });
+      }
+    }
+  } else if (surface.hazardOnDestroy === 'emp_arc') {
+    eventBus.emit('MESSAGE_EMITTED', {
+      text: '[EMP ARC]: Capacitor bank discharged an electromagnetic shockwave!',
+      type: 'combat',
+    });
+
+    const hazardRadius = surface.hazardRadius ?? 2;
+    const allPositions = world.query(Position);
+    for (const eid of allPositions) {
+      if (eid === destroyedId || visited.has(eid) || world.hasComponent(eid, Dying)) continue;
+      if (isFriendlyTarget(eid)) continue;
+
+      const ePos = world.getComponent(eid, Position)!;
+      const dist = Math.abs(ePos.x - pos.x) + Math.abs(ePos.y - pos.y);
+      if (dist <= hazardRadius) {
+        const h = world.getComponent(eid, Health);
+        if (h && h.isAlive !== false && h.current > 0) {
+          world.addComponent(eid, DamageIntent, {
+            attackerId: killerId,
+            targetId: eid,
+            amount: 10,
+            damageType: 'environmental',
+          });
+        }
+        const actor = world.getComponent(eid, Actor);
+        const hostile = world.getComponent(eid, Hostile);
+        if (hostile || (actor && !actor.isPlayer)) {
+          applyStatusEffect(world, eventBus, eid, {
+            name: 'DISRUPT',
+            duration: 2,
+            magnitude: 1,
+            source: 'emp_arc',
+          });
+        }
+      }
+    }
+  } else if (surface.hazardOnDestroy === 'thermal_burst') {
+    eventBus.emit('MESSAGE_EMITTED', {
+      text: '[THERMAL BURST]: Superheated manifold ruptured into a fiery shockwave!',
+      type: 'combat',
+    });
+
+    const hazardRadius = surface.hazardRadius ?? 2;
+    const allPositions = world.query(Position);
+    for (const eid of allPositions) {
+      if (eid === destroyedId || visited.has(eid) || world.hasComponent(eid, Dying)) continue;
+      if (isFriendlyTarget(eid)) continue;
+
+      const ePos = world.getComponent(eid, Position)!;
+      const dist = Math.abs(ePos.x - pos.x) + Math.abs(ePos.y - pos.y);
+      if (dist <= hazardRadius) {
+        const h = world.getComponent(eid, Health);
+        if (h && h.isAlive !== false && h.current > 0) {
+          world.addComponent(eid, DamageIntent, {
+            attackerId: killerId,
+            targetId: eid,
+            amount: 8,
+            damageType: 'environmental',
+          });
+        }
+        const heat = world.getComponent(eid, Heat);
+        if (heat) {
+          const newHeat = Math.min(100, heat.current + 25);
+          world.patchComponent(eid, Heat, { current: newHeat });
+          eventBus.emit('HEAT_CHANGED', {
+            entityId: eid,
+            oldHeat: heat.current,
+            newHeat,
+            maxSafe: heat.maxSafe ?? 100,
+          });
+        }
+      }
+    }
+  }
+
+  // 2. Cascade Chain Reaction Rule (15 structural damage within Manhattan distance <= cascadeRadius)
+  if (surface.hazardOnDestroy && surface.hazardOnDestroy !== 'none') {
+    const cascadeCandidates = world.query(Position);
+    for (const targetId of cascadeCandidates) {
+      if (
+        targetId === destroyedId ||
+        visited.has(targetId) ||
+        world.hasComponent(targetId, Dying)
+      ) {
+        continue;
+      }
+      const tPos = world.getComponent(targetId, Position)!;
+      const dist = Math.abs(tPos.x - pos.x) + Math.abs(tPos.y - pos.y);
+      if (dist <= (surface.cascadeRadius ?? 2)) {
+        const targetSurface = world.getComponent(targetId, InteractiveSurface);
+        const targetCorrupted = world.getComponent(targetId, CorruptedNode);
+
+        if (targetSurface && targetSurface.destructible !== false) {
+          const h = world.getComponent(targetId, Health);
+          if (h && h.isAlive !== false && h.current > 0) {
+            world.addComponent(targetId, DamageIntent, {
+              attackerId: killerId,
+              targetId,
+              amount: 15,
+              damageType: 'environmental',
+            });
+          }
+        } else if (targetCorrupted && !targetCorrupted.isDisarmed) {
+          const h = world.getComponent(targetId, Health);
+          if (!h) {
+            world.addComponent(targetId, Health, { current: 15, max: 15, isAlive: true });
+          }
+          world.addComponent(targetId, DamageIntent, {
+            attackerId: killerId,
+            targetId,
+            amount: 15,
+            damageType: 'environmental',
+          });
+        }
+      }
+    }
+  }
+}
+
+/**
  * Combat system that resolves AttackIntent during the REACTION phase.
  */
 export function createCombatSystem<T extends GameplayEvents>(
@@ -170,23 +522,40 @@ export function createCombatSystem<T extends GameplayEvents>(
   void entityFactory;
   void componentRegistry;
   void options;
-  const handleDeath = (entityId: EntityId, killerId: EntityId) => {
+  const handleDeath = (
+    entityId: EntityId,
+    killerId: EntityId,
+    visitedProps: Set<EntityId> = new Set(),
+  ) => {
     const actor = world.getComponent(entityId, Actor);
     const isPlayer = !!actor?.isPlayer;
 
     // 1. Mark entity as dying
     // Per the Death Protocol, RewardDropSystem and GravediggerSystem will handle the rest in Phase.CLEANUP
-    logger.info(`Entity ${entityId} CONDEMNED by killer ${killerId}`, 'COMBAT');
-    world.addComponent(entityId, Dying, { killerId });
+    const surface = world.getComponent(entityId, InteractiveSurface);
+    const reason = surface ? 'environmental_destruction' : 'damage';
+    logger.info(`Entity ${entityId} CONDEMNED by killer ${killerId} (reason: ${reason})`, 'COMBAT');
+    world.addComponent(entityId, Dying, { killerId, reason });
+
+    const health = world.getComponent(entityId, Health);
+    if (health) {
+      world.patchComponent(entityId, Health, { isAlive: false, current: 0 });
+    }
 
     eventBus.emit('ENTITY_DIED', {
       entityId,
       killerId,
       isPlayer,
     });
+
+    if (surface) {
+      handlePropDestruction(world, grid, eventBus, entityId, killerId, visitedProps);
+    }
   };
 
   const update = (w: World<T>) => {
+    const visitedProps = new Set<EntityId>();
+
     // 1. Process AttackIntents (Melee/Ranged weapon attacks)
     const attackEntities = w.query(AttackIntent);
     for (const attackerId of attackEntities) {
@@ -196,7 +565,7 @@ export function createCombatSystem<T extends GameplayEvents>(
       const attackerAttack = w.getComponent(attackerId, Attack);
       const defenderHealth = w.getComponent(defenderId, Health);
 
-      if (!attackerAttack || !defenderHealth) {
+      if (!attackerAttack || !defenderHealth || w.hasComponent(defenderId, Dying)) {
         w.removeComponent(attackerId, AttackIntent);
         continue;
       }
@@ -205,7 +574,21 @@ export function createCombatSystem<T extends GameplayEvents>(
       const defenderHeat = w.getComponent(defenderId, Heat);
       const effectiveArmor = getEffectiveArmor(w, defenderId, defenderHeat?.isVenting ?? false);
 
-      const damage = resolveDamage(attackerAttack.power, modifiers, effectiveArmor);
+      let damage = resolveDamage(attackerAttack.power, modifiers, effectiveArmor);
+
+      // Check Directional Cover
+      const cover = checkDirectionalCover(w, attackerId, defenderId, grid);
+      if (cover.hasCover) {
+        damage = Math.max(1, Math.floor(damage * (1 - cover.reduction)));
+        const pct = Math.round(cover.reduction * 100);
+        const defActor = w.getComponent(defenderId, Actor);
+        const defName = defActor?.isPlayer ? 'You' : (defActor ? 'The enemy' : 'The obstacle');
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: `[COVER]: ${defName} absorbed damage behind cover (${pct}% reduction).`,
+          type: 'combat',
+        });
+      }
+
       const oldHealth = defenderHealth.current;
       const newHealth = Math.max(0, oldHealth - damage);
 
@@ -241,7 +624,7 @@ export function createCombatSystem<T extends GameplayEvents>(
       const attackerActor = w.getComponent(attackerId, Actor);
       const defenderActor = w.getComponent(defenderId, Actor);
       const attackerName = attackerActor?.isPlayer ? 'You' : 'The enemy';
-      const defenderName = defenderActor?.isPlayer ? 'you' : 'the enemy';
+      const defenderName = defenderActor?.isPlayer ? 'you' : (defenderActor ? 'the enemy' : 'the obstacle');
 
       eventBus.emit('MESSAGE_EMITTED', {
         text: `${attackerName} hit ${defenderName} for ${damage} damage.`,
@@ -263,51 +646,76 @@ export function createCombatSystem<T extends GameplayEvents>(
       }
 
       if (newHealth <= 0) {
-        handleDeath(defenderId, attackerId);
+        handleDeath(defenderId, attackerId, visitedProps);
       }
 
       // Cleanup intent
       w.removeComponent(attackerId, AttackIntent);
     }
 
-    // 2. Process DamageIntents (Fixed damage from Firmware/Abilities)
-    const damageEntities = w.query(DamageIntent);
-    for (const requesterId of damageEntities) {
-      const intent = w.getComponent(requesterId, DamageIntent)!;
-      const targetId = intent.targetId;
-      const targetHealth = w.getComponent(targetId, Health);
+    // 2. Process DamageIntents in a bounded fixed-point loop (handles abilities and cascades)
+    const MAX_CASCADE_DEPTH = 10;
+    let iteration = 0;
 
-      if (!targetHealth) {
+    while (iteration < MAX_CASCADE_DEPTH) {
+      iteration++;
+      const damageEntities = w.query(DamageIntent);
+      if (damageEntities.length === 0) break;
+
+      for (const requesterId of damageEntities) {
+        const intent = w.getComponent(requesterId, DamageIntent)!;
+        const targetId = intent.targetId ?? requesterId;
+        const attackerId = intent.attackerId ?? requesterId;
+        const targetHealth = w.getComponent(targetId, Health);
+
+        if (!targetHealth || w.hasComponent(targetId, Dying)) {
+          w.removeComponent(requesterId, DamageIntent);
+          continue;
+        }
+
+        const targetHeat = w.getComponent(targetId, Heat);
+        const effectiveArmor = getEffectiveArmor(w, targetId, targetHeat?.isVenting ?? false);
+
+        // Abilities and environmental use raw amount minus armor
+        let finalDamage = Math.max(1, intent.amount - effectiveArmor);
+
+        // Check Directional Cover (only if not environmental)
+        if (intent.damageType !== 'environmental') {
+          const cover = checkDirectionalCover(w, attackerId, targetId, grid);
+          if (cover.hasCover) {
+            finalDamage = Math.max(1, Math.floor(finalDamage * (1 - cover.reduction)));
+            const pct = Math.round(cover.reduction * 100);
+            const defActor = w.getComponent(targetId, Actor);
+            const defName = defActor?.isPlayer ? 'You' : (defActor ? 'The enemy' : 'The obstacle');
+            eventBus.emit('MESSAGE_EMITTED', {
+              text: `[COVER]: ${defName} absorbed damage behind cover (${pct}% reduction).`,
+              type: 'combat',
+            });
+          }
+        }
+
+        const oldHealth = targetHealth.current;
+        const newHealth = Math.max(0, oldHealth - finalDamage);
+
+        logger.info(
+          `Damage Intent Resolved: ${attackerId} -> ${targetId} | DMG: ${finalDamage} (Health: ${oldHealth} -> ${newHealth})`,
+          'COMBAT',
+        );
+
+        w.patchComponent(targetId, Health, { current: newHealth });
+
+        eventBus.emit('DAMAGE_DEALT', {
+          attackerId,
+          defenderId: targetId,
+          amount: finalDamage,
+        });
+
+        if (newHealth <= 0) {
+          handleDeath(targetId, attackerId, visitedProps);
+        }
+
         w.removeComponent(requesterId, DamageIntent);
-        continue;
       }
-
-      const targetHeat = w.getComponent(targetId, Heat);
-      const effectiveArmor = getEffectiveArmor(w, targetId, targetHeat?.isVenting ?? false);
-
-      // Abilities use raw amount minus armor
-      const finalDamage = Math.max(1, intent.amount - effectiveArmor);
-      const oldHealth = targetHealth.current;
-      const newHealth = Math.max(0, oldHealth - finalDamage);
-
-      logger.info(
-        `Damage Intent Resolved: ${requesterId} -> ${targetId} | DMG: ${finalDamage} (Health: ${oldHealth} -> ${newHealth})`,
-        'COMBAT',
-      );
-
-      w.patchComponent(targetId, Health, { current: newHealth });
-
-      eventBus.emit('DAMAGE_DEALT', {
-        attackerId: requesterId,
-        defenderId: targetId,
-        amount: finalDamage,
-      });
-
-      if (newHealth <= 0) {
-        handleDeath(targetId, requesterId);
-      }
-
-      w.removeComponent(requesterId, DamageIntent);
     }
 
     // 3. Process HealIntents
@@ -326,6 +734,23 @@ export function createCombatSystem<T extends GameplayEvents>(
 }
 
 /**
+ * Attaches or stacks a HealIntent on an entity without overwriting existing heal amounts in the same turn.
+ */
+export function addHealIntent<T extends GameplayEvents>(
+  world: World<T>,
+  requesterId: EntityId,
+  targetId: EntityId,
+  amount: number,
+): void {
+  const existing = world.getComponent(requesterId, HealIntent);
+  const totalAmount = (existing ? existing.amount : 0) + amount;
+  world.addComponent(requesterId, HealIntent, {
+    targetId,
+    amount: totalAmount,
+  });
+}
+
+/**
  * Pure intent-driven resolver for HealIntent components.
  */
 export function resolveHealIntents<T extends GameplayEvents>(
@@ -338,7 +763,7 @@ export function resolveHealIntents<T extends GameplayEvents>(
     const targetId = intent.targetId;
     const targetHealth = world.getComponent(targetId, Health);
 
-    if (targetHealth) {
+    if (targetHealth && targetHealth.isAlive && !world.hasComponent(targetId, Dying)) {
       const oldVal = targetHealth.current;
       const newVal = Math.min(targetHealth.max, oldVal + intent.amount);
 
@@ -362,25 +787,30 @@ export function resolveHealIntents<T extends GameplayEvents>(
 }
 
 /**
- * Dedicated system running at the tail of Phase.REACTION to resolve
- * on-kill and reaction heal intents (e.g. Vampire.exe, heal augments) in the same turn.
+ * Dedicated system running at the tail of Phase.PRE_TURN and Phase.REACTION to resolve
+ * regeneration, on-kill, and reaction heal intents in the same turn.
  */
 export function createHealSystem<T extends GameplayEvents>(
   world: World<T>,
   eventBus: EventBus<T>,
 ) {
-  const update = (w: World<T>) => {
+  const updatePreTurn = (w: World<T>) => {
+    resolveHealIntents(w, eventBus);
+  };
+  const updateReaction = (w: World<T>) => {
     resolveHealIntents(w, eventBus);
   };
 
   return {
     init() {
-      world.registerSystem(Phase.REACTION, update, 'HealSystem');
+      world.registerSystem(Phase.PRE_TURN, updatePreTurn, 'HealSystem_PreTurn');
+      world.registerSystem(Phase.REACTION, updateReaction, 'HealSystem_Reaction');
     },
     dispose() {
-      world.unregisterSystem(Phase.REACTION, update);
+      world.unregisterSystem(Phase.PRE_TURN, updatePreTurn);
+      world.unregisterSystem(Phase.REACTION, updateReaction);
     },
-    update,
+    update: updateReaction,
   };
 }
 

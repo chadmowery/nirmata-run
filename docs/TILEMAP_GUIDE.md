@@ -32,6 +32,9 @@ A practical guide for developers, artists, and AI agents creating new 2D tilemap
   - Atlas descriptor: [`public/assets/tileset.json`](../public/assets/tileset.json)
   - Atlas texture: [`public/assets/tileset.png`](../public/assets/tileset.png)
 
+> [!NOTE]
+> All tiles, props, items, and character/shell sprites are strictly **32×32 pixels** (`TILE_SIZE = 32`). Any legacy references to 16×16 in early design notes or handoff reports are obsolete and inaccurate. All sprite coordinates align to 32px boundaries on the 256×256 master atlas.
+
 ---
 
 ## 2. Spritesheet Schema & File Specifications
@@ -247,6 +250,24 @@ For procedural pixel art or automated theme generation:
    - Row 3: `enemy_null_pointer` (0,96), `enemy_buffer_overflow` (32,96), `enemy_seed_eater` (64,96), `enemy_system_admin` (96,96)
    - Row 4+: Augments and item drops (`item_auto_loader`, `item_bleed`, etc.)
 3. Export the PNG and write the matching `tileset.json` frame definitions.
+
+### Option C: Interactive Environment & Shell Tileset Pipeline
+For the interactive environments and shell variants, the project provides an automated two-step build process:
+1. **Render individual 32×32 tiles and development previews**:
+   ```bash
+   node scripts/build-environment-tiles.cjs
+   ```
+   Renders individual tiles into `public/assets/tiles/` and inspection preview sheets to `docs/visual-design/previews/` (kept out of production distribution).
+2. **Composite into master tileset**:
+   ```bash
+   node scripts/add-environment-sprites.cjs
+   ```
+   Composites tiles onto `public/assets/tileset.png` and registers frames and aliases in `public/assets/tileset.json`.
+
+**Shortcut:** Run both steps sequentially with:
+```bash
+npm run build:tiles
+```
 
 ---
 

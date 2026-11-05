@@ -1,0 +1,17 @@
+{
+  "name": "prop-subnet-console",
+  "mixins": [],
+  "components": {
+    "position": { "x": 0, "y": 0 },
+    "prop": {
+      "propId": "subnet_console",
+      "faction": "cyberacme",
+      "propClass": "subnet_console",
+      "heatCostOnAccess": 15
+    },
+    "blocksMovement": {}
+  },
+  "overrides": {
+    "sprite": { "key": "prop_subnet_console" }
+  }
+}
