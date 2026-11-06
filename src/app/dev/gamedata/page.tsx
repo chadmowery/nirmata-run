@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { notFound } from 'next/navigation';
 import { GamedataTool } from './GamedataTool';
 
 const ENTITY_DIR = path.join(process.cwd(), 'src/game/entities/templates');
@@ -18,13 +19,19 @@ async function listJson(dir: string): Promise<string[]> {
 }
 
 export default async function GamedataPage() {
-  const [entities, mixins, spawnTables, shells, prefabs] = await Promise.all([
+  if (process.env.NODE_ENV === 'production') {
+    notFound();
+  }
+
+  const [rawEntities, mixins, spawnTables, shells, prefabs] = await Promise.all([
     listJson(ENTITY_DIR),
     listJson(MIXIN_DIR),
     listJson(SPAWN_DIR),
     listJson(SHELL_DIR),
     listJson(PREFAB_DIR),
   ]);
+
+  const entities = rawEntities.filter((name) => name !== 'economy');
 
   return (
     <GamedataTool

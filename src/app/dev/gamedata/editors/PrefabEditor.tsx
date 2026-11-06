@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { RoomPrefabTemplate, PropAnchorTag } from '@/game/generation/prefabs/types';
 import { Grid } from '@/engine/grid/grid';
 import { AutotileSolver } from '@/game/generation/autotile-solver';
+import { useGamedataStore } from '../store';
 import styles from './editors.module.css';
 
 interface Props {
@@ -55,6 +56,7 @@ export interface EditorPropSpawn {
 }
 
 export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
+  const { setCloneSource, selectItem, clearSelection, setDirty } = useGamedataStore();
   const [prefabData, setPrefabData] = useState<RoomPrefabTemplate | null>(null);
   const [propSpawnsWithOrient, setPropSpawnsWithOrient] = useState<EditorPropSpawn[]>([]);
   const [selectedBrush, setSelectedBrush] = useState<BrushType>('#');
@@ -73,9 +75,10 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
           setPropSpawnsWithOrient(
             (data.propSpawns || []).map((p) => ({
               ...p,
-              orientation: 'NORTH',
+              orientation: (p as EditorPropSpawn).orientation || 'NORTH',
             })),
           );
+          setDirty(true);
         })
         .catch(() => setErrors(['Failed to load clone source']));
     } else if (!isNew && name) {
@@ -86,9 +89,10 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
           setPropSpawnsWithOrient(
             (data.propSpawns || []).map((p) => ({
               ...p,
-              orientation: 'NORTH',
+              orientation: (p as EditorPropSpawn).orientation || 'NORTH',
             })),
           );
+          setDirty(false);
         })
         .catch(() => setErrors(['Failed to load prefab']));
     } else {
@@ -300,6 +304,7 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
         x: p.x,
         y: p.y,
         anchorType: p.anchorType,
+        orientation: p.orientation,
         guaranteedTemplate: p.guaranteedTemplate,
       })),
     };
@@ -319,10 +324,40 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
       }
 
       setSaveStatus('success');
+      setDirty(false);
       onRefresh?.();
+
+      if (isNew) {
+        selectItem('prefabs', payload.id);
+      }
     } catch (err) {
       setSaveStatus('error');
       setErrors([err instanceof Error ? err.message : 'Save error']);
+    }
+  };
+
+  const handleClone = () => {
+    if (!prefabData) return;
+    setCloneSource(prefabData.id || name);
+    selectItem('prefabs', '__new__');
+  };
+
+  const handleDelete = async () => {
+    if (!name || isNew) return;
+    const confirmed = window.confirm(`Are you sure you want to delete room prefab '${name}'?`);
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`/api/dev/gamedata/prefabs/${name}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to delete prefab');
+      }
+      setDirty(false);
+      onRefresh?.();
+      clearSelection();
+    } catch (err) {
+      setErrors([err instanceof Error ? err.message : 'Failed to delete prefab']);
     }
   };
 
@@ -349,6 +384,16 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
           >
             {saveStatus === 'saving' ? 'Saving...' : 'Save Prefab'}
           </button>
+          {!isNew && (
+            <>
+              <button className={styles.cloneButton} onClick={handleClone}>
+                CLONE
+              </button>
+              <button className={styles.deleteButton} onClick={handleDelete}>
+                DELETE
+              </button>
+            </>
+          )}
         </div>
       </div>
 

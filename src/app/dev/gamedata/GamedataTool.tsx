@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { useGamedataStore } from './store';
-import { Section } from './types';
+import { Section, SECTIONS } from './types';
 import {
   EntityTemplateEditor,
   MixinEditor,
@@ -25,6 +25,20 @@ interface Props {
 
 export function GamedataTool({ initialData }: Props) {
   const { setSectionItems, selectedItem, cloneSource } = useGamedataStore();
+
+  const refreshSection = async (section: Section) => {
+    const secConfig = SECTIONS.find((s) => s.id === section);
+    if (!secConfig) return;
+    try {
+      const res = await fetch(secConfig.apiPath);
+      const data = await res.json();
+      if (data.items) {
+        setSectionItems(section, data.items);
+      }
+    } catch {
+      // ignore network errors
+    }
+  };
 
   // Hydrate store with server-loaded data on mount
   useEffect(() => {
@@ -55,55 +69,62 @@ export function GamedataTool({ initialData }: Props) {
   function renderEditor(item: { section: Section; name: string }) {
     const isNew = item.name === '__new__';
     const cloneFrom = isNew ? cloneSource : undefined;
+    const editorKey = `${item.section}-${item.name}-${cloneFrom ?? 'fresh'}`;
+    const onRefresh = () => refreshSection(item.section);
 
     switch (item.section) {
       case 'entities':
         return (
           <EntityTemplateEditor
-            key={item.name}
+            key={editorKey}
             name={item.name}
             isNew={isNew}
             cloneFrom={cloneFrom ?? undefined}
+            onRefresh={onRefresh}
           />
         );
       case 'mixins':
         return (
           <MixinEditor
-            key={item.name}
+            key={editorKey}
             name={item.name}
             isNew={isNew}
             cloneFrom={cloneFrom ?? undefined}
+            onRefresh={onRefresh}
           />
         );
       case 'spawnTables':
         return (
           <SpawnTableEditor
-            key={item.name}
+            key={editorKey}
             name={item.name}
             isNew={isNew}
             cloneFrom={cloneFrom ?? undefined}
+            onRefresh={onRefresh}
           />
         );
       case 'shells':
         return (
           <ShellEditor
-            key={item.name}
+            key={editorKey}
             id={item.name}
             isNew={isNew}
             cloneFrom={cloneFrom ?? undefined}
+            onRefresh={onRefresh}
           />
         );
       case 'prefabs':
         return (
           <PrefabEditor
-            key={item.name}
+            key={editorKey}
             name={item.name}
             isNew={isNew}
             cloneFrom={cloneFrom ?? undefined}
+            onRefresh={onRefresh}
           />
         );
       case 'componentSchemas':
-        return <ComponentSchemaViewer key={item.name} name={item.name} />;
+        return <ComponentSchemaViewer key={editorKey} name={item.name} />;
       default:
         return (
           <div className={styles.emptyState}>
