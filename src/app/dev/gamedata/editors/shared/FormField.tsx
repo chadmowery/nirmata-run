@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import type { FieldMeta } from '@/app/api/dev/gamedata/schema-introspect';
+import { SpritePicker } from '../../shared/SpritePicker';
 import styles from '../editors.module.css';
 
 interface FormFieldProps {
@@ -8,9 +9,10 @@ interface FormFieldProps {
   value: unknown;
   onChange: (key: string, value: unknown) => void;
   disabled?: boolean;
+  componentKey?: string;
 }
 
-export function FormField({ meta, value, onChange, disabled }: FormFieldProps) {
+export function FormField({ meta, value, onChange, disabled, componentKey }: FormFieldProps) {
   const { key, type, enumValues, optional } = meta;
 
   // Local draft state for array / object JSON editing
@@ -151,6 +153,23 @@ export function FormField({ meta, value, onChange, disabled }: FormFieldProps) {
           }}
           disabled={disabled}
         />
+      </div>
+    );
+  }
+
+  if (key === 'sprite' || (componentKey === 'sprite' && key === 'key')) {
+    return (
+      <div className={styles.fieldRow}>
+        <label className={styles.fieldLabel} htmlFor={`field-${key}`}>
+          {key}
+        </label>
+        <div style={{ flex: 1 }}>
+          <SpritePicker
+            value={String(value ?? '')}
+            onChange={(val) => handleChange(val)}
+            disabled={disabled}
+          />
+        </div>
       </div>
     );
   }

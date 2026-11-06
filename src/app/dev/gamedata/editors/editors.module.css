@@ -1,5 +1,7 @@
 .editor {
-  max-width: 800px;
+  max-width: 900px;
+  font-family: var(--font-mono, monospace);
+  color: var(--c-text, #ffffff);
 }
 
 .editorHeader {
@@ -8,15 +10,16 @@
   justify-content: space-between;
   margin-bottom: var(--space-lg);
   padding-bottom: var(--space-md);
-  border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+  border-bottom: 1px solid var(--c-border, #1c2638);
 }
 
 .editorTitle {
-  font-family: var(--font-body);
-  font-size: var(--font-size-heading);
-  color: var(--vibrant-cyan);
+  font-family: var(--font-display, sans-serif);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--c-accent-secondary, #00f0ff);
   text-transform: uppercase;
-  letter-spacing: 2px;
+  letter-spacing: 0.08em;
   margin: 0;
 }
 
@@ -26,19 +29,21 @@
 }
 
 .saveButton {
-  padding: var(--space-sm) var(--space-md);
+  padding: 6px var(--space-md);
   background: transparent;
-  border: 1px solid var(--vibrant-cyan);
-  color: var(--vibrant-cyan);
-  font-family: 'Courier New', monospace;
-  font-size: var(--font-size-body);
+  border: 1px solid var(--c-accent-secondary, #00f0ff);
+  color: var(--c-accent-secondary, #00f0ff);
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 700;
   cursor: pointer;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  transition: background 0.1s;
+  letter-spacing: 0.08em;
+  border-radius: 2px;
+  transition: all var(--transition-fast, 150ms ease);
 }
 .saveButton:hover {
-  background: rgba(0, 240, 255, 0.1);
+  background: rgba(0, 240, 255, 0.15);
 }
 .saveButton:disabled {
   opacity: 0.4;
@@ -46,40 +51,47 @@
 }
 
 .cloneButton {
-  padding: var(--space-sm) var(--space-md);
+  padding: 6px var(--space-md);
   background: transparent;
-  border: 1px solid var(--safety-orange);
-  color: var(--safety-orange);
-  font-family: 'Courier New', monospace;
-  font-size: var(--font-size-body);
+  border: 1px solid var(--c-warning, #ff6600);
+  color: var(--c-warning, #ff6600);
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 700;
   cursor: pointer;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  transition: background 0.1s;
+  letter-spacing: 0.08em;
+  border-radius: 2px;
+  transition: all var(--transition-fast, 150ms ease);
 }
 .cloneButton:hover {
-  background: rgba(255, 149, 0, 0.1);
+  background: rgba(255, 102, 0, 0.15);
 }
 
 .deleteButton {
-  padding: var(--space-sm) var(--space-md);
+  padding: 6px var(--space-md);
   background: transparent;
-  border: 1px solid var(--vibrant-pink);
-  color: var(--vibrant-pink);
-  font-family: 'Courier New', monospace;
-  font-size: var(--font-size-body);
+  border: 1px solid var(--c-danger, #ff2a4b);
+  color: var(--c-danger, #ff2a4b);
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 700;
   cursor: pointer;
   text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-radius: 2px;
+  transition: all var(--transition-fast, 150ms ease);
 }
 .deleteButton:hover {
-  background: rgba(255, 0, 85, 0.1);
+  background: rgba(255, 42, 75, 0.15);
 }
 
 .fieldGroup {
   margin-bottom: var(--space-md);
   padding: var(--space-md);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--c-border, #1c2638);
   border-radius: 2px;
+  background: var(--c-surface, #0a0e15);
 }
 
 .fieldGroupHeader {
@@ -87,13 +99,17 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--space-sm);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--c-border, #1c2638);
 }
 
 .fieldGroupTitle {
-  color: var(--vibrant-cyan);
-  font-size: var(--font-size-body);
+  color: var(--c-accent-secondary, #00f0ff);
+  font-family: var(--font-display, sans-serif);
+  font-size: 12px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.08em;
 }
 
 .fieldRow {
@@ -105,220 +121,190 @@
 
 .fieldLabel {
   min-width: 140px;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: var(--font-size-label);
-  font-family: 'Courier New', monospace;
+  color: var(--c-text-dim, #79889e);
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 500;
 }
 
 .fieldInput {
   flex: 1;
-  padding: var(--space-xs) var(--space-sm);
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: var(--white);
-  font-family: 'Courier New', monospace;
-  font-size: var(--font-size-body);
+  padding: 6px var(--space-sm);
+  background: var(--c-surface-elevated, #111722);
+  border: 1px solid var(--c-border, #1c2638);
+  color: var(--c-text, #ffffff);
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  border-radius: 2px;
 }
 .fieldInput:focus {
   outline: none;
-  border-color: var(--vibrant-cyan);
+  border-color: var(--c-accent-secondary, #00f0ff);
 }
 
 .fieldCheckbox {
   width: 16px;
   height: 16px;
-  accent-color: var(--vibrant-cyan);
+  accent-color: var(--c-accent-secondary, #00f0ff);
+  cursor: pointer;
 }
 
 .fieldSelect {
-  padding: var(--space-xs) var(--space-sm);
-  background: rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: var(--white);
-  font-family: 'Courier New', monospace;
-  font-size: var(--font-size-body);
+  padding: 6px var(--space-sm);
+  background: var(--c-surface-elevated, #111722);
+  border: 1px solid var(--c-border, #1c2638);
+  color: var(--c-text, #ffffff);
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  border-radius: 2px;
+}
+.fieldSelect:focus {
+  outline: none;
+  border-color: var(--c-accent-secondary, #00f0ff);
 }
 
 .errorMessage {
-  color: var(--vibrant-pink);
-  font-size: var(--font-size-label);
+  color: var(--c-danger, #ff2a4b);
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
   margin-top: var(--space-xs);
   padding: var(--space-xs) var(--space-sm);
-  border-left: 2px solid var(--vibrant-pink);
+  border-left: 2px solid var(--c-danger, #ff2a4b);
+  background: rgba(255, 42, 75, 0.08);
 }
 
 .successMessage {
-  color: var(--vibrant-cyan);
-  font-size: var(--font-size-label);
+  color: var(--c-accent-secondary, #00f0ff);
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
   margin-top: var(--space-xs);
-}
-
-.addComponentButton {
   padding: var(--space-xs) var(--space-sm);
-  background: transparent;
-  border: 1px dashed rgba(0, 240, 255, 0.4);
-  color: var(--vibrant-cyan);
-  font-family: 'Courier New', monospace;
-  font-size: var(--font-size-label);
-  cursor: pointer;
-  width: 100%;
-  margin-top: var(--space-md);
-}
-.addComponentButton:hover {
-  border-color: var(--vibrant-cyan);
-  background: rgba(0, 240, 255, 0.05);
+  border-left: 2px solid var(--c-accent-secondary, #00f0ff);
+  background: rgba(0, 240, 255, 0.08);
 }
 
 .removeButton {
+  padding: 2px 8px;
   background: transparent;
-  border: none;
-  color: var(--vibrant-pink);
+  border: 1px solid var(--c-danger, #ff2a4b);
+  color: var(--c-danger, #ff2a4b);
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
   cursor: pointer;
-  padding: var(--space-xs);
-  font-size: var(--font-size-label);
+  text-transform: uppercase;
+  border-radius: 2px;
+}
+.removeButton:hover {
+  background: rgba(255, 42, 75, 0.15);
 }
 
 .componentSelect {
-  width: 100%;
-  padding: var(--space-sm);
-  background: rgba(0, 0, 0, 0.8);
-  border: 1px solid var(--vibrant-cyan);
-  color: var(--white);
-  font-family: 'Courier New', monospace;
-  margin-bottom: var(--space-md);
+  margin-top: var(--space-md);
+  padding: 6px var(--space-md);
+  background: var(--c-surface, #0a0e15);
+  border: 1px dashed var(--c-border-bright, #36445d);
+  color: var(--c-accent-secondary, #00f0ff);
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 2px;
 }
 
-.readOnlyField {
-  padding: var(--space-xs) var(--space-sm);
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.6);
-  font-family: 'Courier New', monospace;
-  font-size: var(--font-size-body);
+.addComponentButton {
+  padding: 4px var(--space-sm);
+  background: transparent;
+  border: 1px solid var(--c-border, #1c2638);
+  color: var(--c-accent-secondary, #00f0ff);
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 2px;
+  margin-top: var(--space-xs);
 }
-
-.mixinTag {
-  display: inline-block;
-  padding: 2px var(--space-sm);
-  margin-right: var(--space-xs);
+.addComponentButton:hover {
   background: rgba(0, 240, 255, 0.1);
-  border: 1px solid rgba(0, 240, 255, 0.3);
-  color: var(--vibrant-cyan);
-  font-size: var(--font-size-label);
 }
 
-/* Prefab Editor Styles (DIRECTIONAL-TILEMAPS.md §7) */
-.prefabToolbar {
+/* Prefab Editor Styles */
+.toolBar {
   display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
   flex-wrap: wrap;
-  gap: var(--space-xs);
-  align-items: center;
-  margin-bottom: var(--space-md);
-  padding: var(--space-sm);
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(0, 240, 255, 0.2);
 }
 
-.brushButton {
-  padding: var(--space-xs) var(--space-sm);
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.8);
-  font-family: 'Courier New', monospace;
-  font-size: var(--font-size-label);
+.toolButton {
+  padding: 6px var(--space-sm);
+  background: var(--c-surface-elevated, #111722);
+  border: 1px solid var(--c-border, #1c2638);
+  color: var(--c-text-dim, #79889e);
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  border-radius: 2px;
 }
-
-.brushButton:hover {
-  border-color: var(--vibrant-cyan);
-  color: var(--vibrant-cyan);
+.toolButton:hover {
+  border-color: var(--c-accent-secondary, #00f0ff);
+  color: var(--c-text, #ffffff);
 }
-
-.brushButtonActive {
+.toolButtonActive {
   background: rgba(0, 240, 255, 0.15);
-  border-color: var(--vibrant-cyan);
-  color: var(--vibrant-cyan);
-  font-weight: bold;
+  border-color: var(--c-accent-secondary, #00f0ff);
+  color: var(--c-accent-secondary, #00f0ff);
+  font-weight: 700;
 }
 
-.prefabCanvasWrapper {
+.canvasContainer {
+  margin-top: var(--space-md);
   overflow: auto;
-  max-width: 100%;
+  border: 1px solid var(--c-border, #1c2638);
+  background: var(--c-bg, #040609);
   padding: var(--space-md);
-  background: #080b10;
-  border: 1px solid rgba(0, 240, 255, 0.3);
-  margin-bottom: var(--space-md);
+  display: flex;
+  justify-content: center;
 }
 
-.prefabGrid {
-  display: grid;
-  gap: 1px;
-  background: #141c26;
-  user-select: none;
-  width: fit-content;
+.gridRow {
+  display: flex;
 }
 
-.prefabCell {
-  width: 32px;
-  height: 32px;
+.gridCell {
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono, monospace);
   font-size: 13px;
-  cursor: pointer;
+  border: 1px solid rgba(28, 38, 56, 0.4);
+  cursor: crosshair;
+  user-select: none;
+}
+.gridCell:hover {
+  border-color: var(--c-accent-secondary, #00f0ff);
+}
+.gridCellWall {
+  background: #151d2a;
+  color: #79889e;
+}
+.gridCellFloor {
+  background: #080d14;
+  color: #36445d;
+}
+.gridCellDoor {
+  background: #102636;
+  color: var(--c-accent-secondary, #00f0ff);
+}
+.gridCellVault {
+  background: #2a1f0a;
+  color: var(--c-scrap, #ffaa00);
+}
+.gridCellHazard {
+  background: #2e0814;
+  color: var(--c-danger, #ff2a4b);
+}
+.gridCellProp {
   position: relative;
-  transition: filter 0.05s ease;
-}
-
-.prefabCell:hover {
-  filter: brightness(1.4);
-  outline: 1px solid var(--vibrant-cyan);
-  z-index: 2;
-}
-
-.cellWall {
-  background: #1a2230;
-  color: #7b9bb5;
-}
-
-.cellFloor {
-  background: #0e141d;
-  color: #3b5065;
-}
-
-.cellDoor {
-  background: #2a2312;
-  color: #e5a93b;
-}
-
-.cellVault {
-  background: #2b1325;
-  color: #ff3399;
-}
-
-.cellHazard {
-  background: #331414;
-  color: #ff4444;
-}
-
-.propOverlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
   font-weight: bold;
-  pointer-events: none;
+  color: var(--c-accent, #d8ff00);
 }
-
-.directionArrow {
-  font-size: 14px;
-  line-height: 1;
-}
-

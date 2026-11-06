@@ -1,7 +1,8 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { ShellTemplate, ShellUpgrade } from '@/game/shells/server/types';
 import { useGamedataStore } from '../store';
+import { SpritePicker } from '../shared/SpritePicker';
 import styles from './editors.module.css';
 
 interface Props {
@@ -12,10 +13,28 @@ interface Props {
 }
 
 export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
-  const { setCloneSource, selectItem, clearSelection, setDirty } = useGamedataStore();
+  const {
+    setCloneSource,
+    selectItem,
+    clearSelection,
+    setDirty,
+    setActiveEffectiveData,
+    setActiveValidationStatus,
+  } = useGamedataStore();
   const [shellData, setShellData] = useState<ShellTemplate | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+
+  // Sync to telemetry store
+  useEffect(() => {
+    if (shellData) {
+      setActiveEffectiveData(shellData);
+      const valid = Boolean(shellData.id && shellData.name);
+      setActiveValidationStatus({
+        zodValid: valid,
+      });
+    }
+  }, [shellData, setActiveEffectiveData, setActiveValidationStatus]);
 
   useEffect(() => {
     if (isNew && cloneFrom) {
@@ -48,7 +67,7 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
     }
   }, [id, isNew, cloneFrom, setDirty]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!shellData) return;
     setSaveStatus('saving');
     setErrors([]);
@@ -84,7 +103,15 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
       setErrors([err instanceof Error ? err.message : 'Save failed']);
       setSaveStatus('error');
     }
-  };
+  }, [shellData, isNew, id, setDirty, onRefresh, selectItem]);
+
+  useEffect(() => {
+    const onSaveKey = () => {
+      handleSave();
+    };
+    window.addEventListener('gamedata-save', onSaveKey);
+    return () => window.removeEventListener('gamedata-save', onSaveKey);
+  }, [handleSave]);
 
   const handleClone = () => {
     if (!shellData) return;
@@ -208,16 +235,16 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
       </div>
 
       <div className={styles.fieldRow}>
-        <label className={styles.fieldLabel}>Sprite Key</label>
-        <input
-          className={styles.fieldInput}
-          value={shellData.sprite || ''}
-          placeholder="e.g. player_vanguard"
-          onChange={(e) => {
-            setShellData({ ...shellData, sprite: e.target.value });
-            setDirty(true);
-          }}
-        />
+        <label className={styles.fieldLabel}>Sprite</label>
+        <div style={{ flex: 1 }}>
+          <SpritePicker
+            value={shellData.sprite || ''}
+            onChange={(val) => {
+              setShellData({ ...shellData, sprite: val });
+              setDirty(true);
+            }}
+          />
+        </div>
       </div>
 
       {/* Base Stats */}

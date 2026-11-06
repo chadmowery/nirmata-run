@@ -1,10 +1,34 @@
 .container {
   display: flex;
+  flex-direction: column;
   height: 100vh;
   width: 100vw;
-  background: var(--black);
-  color: var(--white);
-  font-family: 'Courier New', Courier, monospace;
+  background: var(--c-bg, #040609);
+  color: var(--c-text, #ffffff);
+  font-family: var(--font-mono, monospace);
+  overflow: hidden;
+}
+
+.headerPlacard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 38px;
+  min-height: 38px;
+  padding: 0 var(--space-md);
+  background: var(--c-surface-header, #0c121c);
+  border-bottom: 1px solid var(--c-border, #1c2638);
+  font-family: var(--font-display, sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.workspaceRow {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - 38px);
   overflow: hidden;
 }
 
@@ -12,22 +36,22 @@
   width: 280px;
   min-width: 280px;
   height: 100%;
-  border-right: 1px solid var(--vibrant-cyan);
+  border-right: 1px solid var(--c-border, #1c2638);
   overflow-y: auto;
   padding: var(--space-sm) 0;
-  background: rgba(0, 20, 20, 0.95);
+  background: var(--c-surface, #0a0e15);
 }
 
 .sidebarTitle {
-  font-family: var(--font-body);
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--vibrant-cyan);
-  padding: var(--space-md);
+  font-family: var(--font-display, sans-serif);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--c-accent-secondary, #00f0ff);
+  padding: var(--space-sm) var(--space-md);
   margin: 0;
-  border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+  border-bottom: 1px solid var(--c-border, #1c2638);
   text-transform: uppercase;
-  letter-spacing: 2px;
+  letter-spacing: 0.12em;
 }
 
 .sectionHeader {
@@ -36,35 +60,34 @@
   gap: var(--space-xs);
   padding: var(--space-sm) var(--space-md);
   cursor: pointer;
-  color: var(--vibrant-cyan);
-  font-size: 14px;
-  font-weight: 600;
+  color: var(--c-accent-secondary, #00f0ff);
+  font-family: var(--font-display, sans-serif);
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.08em;
   user-select: none;
-  transition: background 0.1s;
+  transition: background var(--transition-fast, 150ms ease);
 }
 
 .sectionHeader:hover {
-  background: rgba(0, 240, 255, 0.08);
+  background: rgba(0, 240, 255, 0.06);
 }
 
 .sectionItems {
-  padding-left: var(--space-lg);
+  padding-left: var(--space-md);
 }
 
 .sectionItem {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  padding: var(--space-xs) var(--space-md);
+  padding: 4px var(--space-md);
   cursor: pointer;
-  color: var(--white);
+  color: var(--c-text-dim, #79889e);
   font-size: 12px;
-  font-family: 'Courier New', Courier, monospace;
-  transition:
-    background 0.1s,
-    color 0.1s;
+  font-family: var(--font-mono, monospace);
+  transition: all var(--transition-fast, 150ms ease);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -72,13 +95,14 @@
 
 .sectionItem:hover {
   background: rgba(0, 240, 255, 0.05);
-  color: var(--vibrant-cyan);
+  color: var(--c-accent-secondary, #00f0ff);
 }
 
 .sectionItemActive {
   background: rgba(0, 240, 255, 0.12);
-  color: var(--vibrant-cyan);
-  border-left: 2px solid var(--vibrant-cyan);
+  color: var(--c-accent-secondary, #00f0ff);
+  border-left: 2px solid var(--c-accent-secondary, #00f0ff);
+  font-weight: 600;
 }
 
 .mainPanel {
@@ -86,6 +110,7 @@
   height: 100%;
   overflow-y: auto;
   padding: var(--space-lg);
+  background: var(--c-bg, #040609);
 }
 
 .emptyState {
@@ -94,30 +119,32 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: rgba(255, 255, 255, 0.3);
-  font-size: 24px;
+  color: var(--c-text-muted, #4a5668);
+  font-family: var(--font-display, sans-serif);
+  font-size: 16px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 3px;
+  letter-spacing: 0.12em;
 }
 
 .addButton {
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  padding: var(--space-xs) var(--space-sm);
+  padding: 4px var(--space-sm);
   margin: var(--space-xs) var(--space-md);
   background: transparent;
-  border: 1px solid rgba(0, 240, 255, 0.3);
-  color: var(--vibrant-cyan);
-  font-size: 12px;
-  font-family: 'Courier New', Courier, monospace;
+  border: 1px solid var(--c-border, #1c2638);
+  color: var(--c-accent-secondary, #00f0ff);
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
   cursor: pointer;
-  transition:
-    background 0.1s,
-    border-color 0.1s;
+  border-radius: 2px;
+  transition: all var(--transition-fast, 150ms ease);
 }
 
 .addButton:hover {
   background: rgba(0, 240, 255, 0.1);
-  border-color: var(--vibrant-cyan);
+  border-color: var(--c-accent-secondary, #00f0ff);
 }

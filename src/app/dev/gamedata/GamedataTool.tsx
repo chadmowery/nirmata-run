@@ -1,8 +1,9 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { Sidebar } from './Sidebar';
 import { useGamedataStore } from './store';
 import { Section, SECTIONS } from './types';
+import { ResolvedPreviewPanel } from './shared/ResolvedPreviewPanel';
 import {
   EntityTemplateEditor,
   MixinEditor,
@@ -24,7 +25,14 @@ interface Props {
 }
 
 export function GamedataTool({ initialData }: Props) {
-  const { setSectionItems, selectedItem, cloneSource } = useGamedataStore();
+  const {
+    setSectionItems,
+    selectedItem,
+    cloneSource,
+    isDirty,
+    activeEffectiveData,
+    activeValidationStatus,
+  } = useGamedataStore();
 
   const refreshSection = async (section: Section) => {
     const secConfig = SECTIONS.find((s) => s.id === section);
@@ -65,6 +73,31 @@ export function GamedataTool({ initialData }: Props) {
       })
       .catch(() => {});
   }, [setSectionItems]);
+
+  // Global Cmd+S / Ctrl+S key listener
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      window.dispatchEvent(new CustomEvent('gamedata-save'));
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  // Unsaved changes warning
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   function renderEditor(item: { section: Section; name: string }) {
     const isNew = item.name === '__new__';
@@ -134,18 +167,59 @@ export function GamedataTool({ initialData }: Props) {
     }
   }
 
+  const activeName = selectedItem ? `${selectedItem.section} // ${selectedItem.name}` : 'NONE';
+
   return (
     <div className={styles.container}>
-      <Sidebar />
-      <main className={styles.mainPanel}>
-        {selectedItem ? (
-          renderEditor(selectedItem)
-        ) : (
-          <div className={styles.emptyState}>
-            <span>SELECT_ITEM</span>
-          </div>
-        )}
-      </main>
+      <header className={styles.headerPlacard}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ color: 'var(--c-accent-secondary, #00f0ff)' }}>
+            [ 開発環境 // GAMEDATA STUDIO ]
+          </span>
+          <span style={{ color: 'var(--c-text-dim, #79889e)' }}>
+            ACTIVE: <span style={{ color: 'var(--c-text-ivory, #f4f4f0)' }}>{activeName}</span>
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <span
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: isDirty ? 'var(--c-warning, #ff6600)' : 'var(--c-accent-secondary, #00f0ff)',
+            }}
+          >
+            ● {isDirty ? 'UNSAVED' : 'SAVED'}
+          </span>
+          <button
+            type="button"
+            className={styles.addButton}
+            onClick={() => window.dispatchEvent(new CustomEvent('gamedata-save'))}
+            style={{ margin: 0, padding: '2px 8px' }}
+          >
+            CMD+S SAVE
+          </button>
+        </div>
+      </header>
+
+      <div className={styles.workspaceRow}>
+        <Sidebar />
+        <main className={styles.mainPanel}>
+          {selectedItem ? (
+            renderEditor(selectedItem)
+          ) : (
+            <div className={styles.emptyState}>
+              <span>SELECT_ITEM</span>
+            </div>
+          )}
+        </main>
+        <ResolvedPreviewPanel
+          selectedItem={selectedItem}
+          effectiveData={activeEffectiveData}
+          validationStatus={activeValidationStatus ?? undefined}
+        />
+      </div>
     </div>
   );
 }
