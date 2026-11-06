@@ -1,24 +1,32 @@
 import { NextResponse } from 'next/server';
 import path from 'path';
-import { listJsonFiles, atomicWrite, resolveFilePath, errorResponse } from '../utils';
 import { access } from 'fs/promises';
+import { checkNonProductionOnly } from '@/server/security/env-gate';
+import { listJsonFiles, atomicWrite, resolveFilePath, errorResponse, regenerateTemplateIndex } from '../utils';
+import { ShellTemplateSchema } from '../schemas';
 
 const DIR = path.join(process.cwd(), 'src/game/shells/shared/templates');
 
 export async function GET() {
+  const gate = checkNonProductionOnly();
+  if (gate) return gate;
+
   const names = await listJsonFiles(DIR);
   return NextResponse.json({ items: names });
 }
 
 export async function POST(req: Request) {
+  const gate = checkNonProductionOnly();
+  if (gate) return gate;
+
   try {
     const body = await req.json();
-    if (!body.id || !body.name || !body.baseStats || !body.basePorts) {
-      return errorResponse(
-        'Shell template requires id, name, baseStats, and basePorts fields',
-        400,
-      );
+
+    const parseResult = ShellTemplateSchema.safeParse(body);
+    if (!parseResult.success) {
+      return errorResponse(`Invalid shell template schema: ${parseResult.error.message}`, 400);
     }
+
     const filePath = resolveFilePath(DIR, body.id);
     if (!filePath) return errorResponse('Invalid shell id', 400);
 
@@ -30,6 +38,8 @@ export async function POST(req: Request) {
     }
 
     await atomicWrite(filePath, body);
+    await regenerateTemplateIndex();
+
     return NextResponse.json({ success: true, id: body.id }, { status: 201 });
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Internal server error', 500);

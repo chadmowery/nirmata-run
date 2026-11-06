@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
-import { resolveFilePath, atomicWrite, errorResponse } from '../../utils';
+import { checkNonProductionOnly } from '@/server/security/env-gate';
+import { resolveFilePath, atomicWrite, errorResponse, regenerateTemplateIndex } from '../../utils';
+import { RoomPrefabTemplateSchema } from '../../schemas';
+import { validatePrefabRules } from '../../prefab-validator';
 
 const DIR = path.join(process.cwd(), 'src/game/generation/prefabs');
 
 export async function GET(_req: Request, { params }: { params: Promise<{ name: string }> }) {
+  const gate = checkNonProductionOnly();
+  if (gate) return gate;
+
   const { name } = await params;
   const filePath = resolveFilePath(DIR, name);
   if (!filePath) return errorResponse('Invalid name', 400);
@@ -19,15 +25,33 @@ export async function GET(_req: Request, { params }: { params: Promise<{ name: s
 }
 
 export async function PUT(req: Request, { params }: { params: Promise<{ name: string }> }) {
+  const gate = checkNonProductionOnly();
+  if (gate) return gate;
+
   const { name } = await params;
   const filePath = resolveFilePath(DIR, name);
   if (!filePath) return errorResponse('Invalid name', 400);
 
   try {
     const body = await req.json();
-    if (!body.id || !body.name || !body.layout || !Array.isArray(body.layout)) {
-      return errorResponse('Prefab requires id, name, and layout (array of strings) fields', 400);
+
+    if (body.id && body.id !== name) {
+      return errorResponse(`Prefab id in body ('${body.id}') does not match route param ('${name}')`, 400);
     }
+
+    const parseResult = RoomPrefabTemplateSchema.safeParse(body);
+    if (!parseResult.success) {
+      return errorResponse(`Invalid room prefab schema: ${parseResult.error.message}`, 400);
+    }
+
+    const valResult = validatePrefabRules(body);
+    if (!valResult.valid) {
+      return errorResponse(
+        `Structural Prefab Validation Failed: ${valResult.errors.map((e) => e.message).join('; ')}`,
+        422,
+      );
+    }
+
     await atomicWrite(filePath, body);
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -36,12 +60,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ name: st
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ name: string }> }) {
+  const gate = checkNonProductionOnly();
+  if (gate) return gate;
+
   const { name } = await params;
   const filePath = resolveFilePath(DIR, name);
   if (!filePath) return errorResponse('Invalid name', 400);
 
   try {
     await fs.unlink(filePath);
+    await regenerateTemplateIndex();
     return NextResponse.json({ success: true });
   } catch {
     return errorResponse('Not found', 404);

@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
-import { resolveFilePath, atomicWrite, errorResponse } from '../../utils';
+import { checkNonProductionOnly } from '@/server/security/env-gate';
+import { resolveFilePath, atomicWrite, errorResponse, regenerateTemplateIndex } from '../../utils';
+import { ShellTemplateSchema } from '../../schemas';
 
 const DIR = path.join(process.cwd(), 'src/game/shells/shared/templates');
 
 export async function GET(_req: Request, { params }: { params: Promise<{ name: string }> }) {
+  const gate = checkNonProductionOnly();
+  if (gate) return gate;
+
   const { name } = await params;
   const filePath = resolveFilePath(DIR, name);
   if (!filePath) return errorResponse('Invalid name', 400);
@@ -19,18 +24,25 @@ export async function GET(_req: Request, { params }: { params: Promise<{ name: s
 }
 
 export async function PUT(req: Request, { params }: { params: Promise<{ name: string }> }) {
+  const gate = checkNonProductionOnly();
+  if (gate) return gate;
+
   const { name } = await params;
   const filePath = resolveFilePath(DIR, name);
   if (!filePath) return errorResponse('Invalid name', 400);
 
   try {
     const body = await req.json();
-    if (!body.id || !body.name || !body.baseStats || !body.basePorts) {
-      return errorResponse(
-        'Shell template requires id, name, baseStats, and basePorts fields',
-        400,
-      );
+
+    if (body.id && body.id !== name) {
+      return errorResponse(`Shell id in body ('${body.id}') does not match route param ('${name}')`, 400);
     }
+
+    const parseResult = ShellTemplateSchema.safeParse(body);
+    if (!parseResult.success) {
+      return errorResponse(`Invalid shell template schema: ${parseResult.error.message}`, 400);
+    }
+
     await atomicWrite(filePath, body);
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -39,12 +51,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ name: st
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ name: string }> }) {
+  const gate = checkNonProductionOnly();
+  if (gate) return gate;
+
   const { name } = await params;
   const filePath = resolveFilePath(DIR, name);
   if (!filePath) return errorResponse('Invalid name', 400);
 
   try {
     await fs.unlink(filePath);
+    await regenerateTemplateIndex();
     return NextResponse.json({ success: true });
   } catch {
     return errorResponse('Not found', 404);
