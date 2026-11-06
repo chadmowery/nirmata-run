@@ -32,6 +32,7 @@ export default async function GamedataPage() {
   ]);
 
   const entities = rawEntities.filter((name) => name !== 'economy');
+  const configs = ['economy', 'depth-config', 'loot-distribution'];
 
   return (
     <GamedataTool
@@ -41,6 +42,7 @@ export default async function GamedataPage() {
         spawnTables,
         shells,
         prefabs,
+        configs,
       }}
     />
   );

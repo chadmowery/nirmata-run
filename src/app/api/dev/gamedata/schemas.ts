@@ -102,3 +102,58 @@ export const ShellTemplateSchema = z.object({
   upgrades: z.array(z.unknown()).default([]),
   starterLoadout: z.array(z.string()).optional(),
 });
+
+export const EconomyConfigSchema = z
+  .object({
+    version: z.string().default('1.0.0'),
+    currencyDrops: z.record(z.string(), z.unknown()),
+    costs: z.record(z.string(), z.unknown()),
+    caps: z.record(z.string(), z.number()),
+    pity: z.record(z.string(), z.number()),
+    shop: z.record(z.string(), z.unknown()),
+    conversion: z.record(z.string(), z.number()),
+    scoring: z.record(z.string(), z.number()),
+    winnersItems: z.array(z.string()),
+  })
+  .passthrough();
+
+export const DepthConfigSchema = z
+  .object({
+    depthBands: z
+      .array(
+        z.object({
+          range: z.object({ min: z.number().int().min(1), max: z.number().int().min(1) }),
+          label: z.string().min(1),
+          bspConfig: z.record(z.string(), z.unknown()),
+          palette: z.object({
+            floor: z.string(),
+            wall: z.string(),
+            tint: z.string(),
+          }),
+          specialRoomProbability: z.record(z.string(), z.number()).optional(),
+        }),
+      )
+      .min(1),
+  })
+  .passthrough();
+
+export const LootDistributionSchema = z
+  .object({
+    depthBands: z
+      .array(
+        z.object({
+          depthRange: z.object({ min: z.number().int().min(1), max: z.number().int().min(1) }),
+          loot: z
+            .array(
+              z.object({
+                template: z.string().min(1),
+                weight: z.number().int().positive(),
+                note: z.string().optional(),
+              }),
+            )
+            .min(1),
+        }),
+      )
+      .min(1),
+  })
+  .passthrough();

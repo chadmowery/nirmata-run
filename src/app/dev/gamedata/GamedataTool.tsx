@@ -11,6 +11,7 @@ import {
   ShellEditor,
   ComponentSchemaViewer,
   PrefabEditor,
+  ConfigEditor,
 } from './editors';
 import styles from './gamedata.module.css';
 
@@ -21,6 +22,7 @@ interface Props {
     spawnTables: string[];
     shells: string[];
     prefabs?: string[];
+    configs?: string[];
   };
 }
 
@@ -56,6 +58,9 @@ export function GamedataTool({ initialData }: Props) {
     setSectionItems('shells', initialData.shells);
     if (initialData.prefabs) {
       setSectionItems('prefabs', initialData.prefabs);
+    }
+    if (initialData.configs) {
+      setSectionItems('configs', initialData.configs);
     }
   }, [initialData, setSectionItems]);
 
@@ -158,6 +163,8 @@ export function GamedataTool({ initialData }: Props) {
         );
       case 'componentSchemas':
         return <ComponentSchemaViewer key={editorKey} name={item.name} />;
+      case 'configs':
+        return <ConfigEditor key={editorKey} name={item.name} onRefresh={onRefresh} />;
       default:
         return (
           <div className={styles.emptyState}>
