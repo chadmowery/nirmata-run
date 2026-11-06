@@ -663,10 +663,10 @@ async function generateThemedMasterSheet(tilesetCanvas, themeName, themeTitle, t
   // Column Headers above panels
   sCtx.fillStyle = '#94a3b8';
   sCtx.font = '10px monospace';
-  sCtx.fillText('SPRITESHEET ATLAS (256x256 RGBA8888)', 24, 46);
+  sCtx.fillText(`SPRITESHEET ATLAS (${tilesetCanvas.width}x${tilesetCanvas.height} RGBA8888)`, 24, 46);
   sCtx.fillText('SECTOR GAMEPLAY MOCKUP (9x9 TILES)', 420, 46);
 
-  // --- PANEL 1: LEFT 256x256 ATLAS (x: 24, y: 56) ---
+  // --- PANEL 1: LEFT ATLAS PREVIEW (x: 24, y: 56) ---
   const p1X = 24, p1Y = 56, p1W = 256, p1H = 256;
   // Checkerboard for alpha transparency inspection (#0a0d1c and #12162a)
   const checkSize = 16;
@@ -678,7 +678,7 @@ async function generateThemedMasterSheet(tilesetCanvas, themeName, themeTitle, t
     }
   }
   // Draw atlas
-  sCtx.drawImage(tilesetCanvas, 0, 0, 256, 256, p1X, p1Y, p1W, p1H);
+  sCtx.drawImage(tilesetCanvas, 0, 0, tilesetCanvas.width, tilesetCanvas.height, p1X, p1Y, p1W, p1H);
   // Border box
   sCtx.strokeStyle = themeAccentColor;
   sCtx.lineWidth = 1;
@@ -776,7 +776,7 @@ async function main() {
   const baseJsonRaw = fs.readFileSync(baseJsonPath, 'utf-8');
   const baseJson = JSON.parse(baseJsonRaw);
 
-  const baseCanvas = createCanvas(256, 256);
+  const baseCanvas = createCanvas(baseTilesetImg.width, baseTilesetImg.height);
   const baseCtx = baseCanvas.getContext('2d');
   baseCtx.drawImage(baseTilesetImg, 0, 0);
 
@@ -821,7 +821,7 @@ async function main() {
     console.log(`Generating Themed Tileset: ${theme.title}`);
     console.log(`======================================================`);
 
-    const themedCanvas = createCanvas(256, 256);
+    const themedCanvas = createCanvas(baseTilesetImg.width, baseTilesetImg.height);
     const themedCtx = themedCanvas.getContext('2d');
     themedCtx.imageSmoothingEnabled = false;
 

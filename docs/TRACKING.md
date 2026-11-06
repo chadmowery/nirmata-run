@@ -282,7 +282,12 @@
   - Updated entity sprite transformations in `render-system.ts` (`applySpriteTransform`) on initial creation, reconciliation, and animation ticks. Verified with 10 unit tests in `tests/rendering/directional-render.test.ts`.
 - [x] **[DIR-05] Milestone 5: Gamedata Studio Prefab Editor & Manifest Validation (`src/app/dev/gamedata/editors/PrefabEditor.tsx`, `src/app/api/dev/gamedata/tileset-validator.ts`)**
   - Built interactive `PrefabEditor` in `/dev/gamedata` supporting directional brush tools, 'R' key clockwise rotation cycling (`NORTH -> EAST -> SOUTH -> WEST`), directional arrow overlays (`↑`, `→`, `↓`, `←`), and real-time autotile preview rendering.
-  - Implemented `validateTilesetManifest` and `/api/dev/gamedata/tileset/validate` route checking manifest dimensions, required wall autotiles, doors, and directional prop coverage against `ThemedTilesetManifestSchema`.
+  - Implemented `validateTilesetManifest` and `/api/dev/gamedata/tileset-validator.ts` checking manifest dimensions, required wall autotiles, doors, and directional prop coverage against `ThemedTilesetManifestSchema`.
+- [x] **[DIR-06] Directional Tileset Master Atlas Compositing & Themed Manifest Integration (`public/assets/`, `scripts/add-directional-tiles.cjs`, `scripts/generate-themed-tilesets.cjs`)**
+  - Expanded master atlas from 256×256 to 512×512 (supporting up to 256 32×32 tiles) preserving legacy [0..224, 0..224] coordinates.
+  - Composited 42 directional tiles (16 cardinal wall autotiles, 4 inner diagonal corners, 4 directional doors, 18 directional props/crates/vault doors) into `public/assets/tileset.png` and registered in `public/assets/tileset.json`.
+  - Updated `scripts/generate-themed-tilesets.cjs` with dynamic dimensions, regenerating all 3 corporate faction atlases (`traxus_foundry`, `sekiguchi_biolabs`, `dark_subnet`) to 512×512.
+  - Updated `package.json` `"build:tiles"` script and adjusted atlas dimension assertions in `shell-tileset.test.ts`, `environment-tileset.test.ts`, and `themed-tilesets.test.ts`.
   - Verified full test suite passes (182/182 files, 1115/1115 tests), 0 type errors (`tsc --noEmit`), 0 lint warnings (`eslint src/`), and clean Next.js build (`next build`).
 
 

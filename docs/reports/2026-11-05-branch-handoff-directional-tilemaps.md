@@ -5,7 +5,7 @@
 > **Author / Agent:** Antigravity  
 > **Date:** 2026-11-05  
 > **Feature Spec:** [`docs/design/DIRECTIONAL-TILEMAPS.md`](../design/DIRECTIONAL-TILEMAPS.md)  
-> **Status:** 🟢 Complete (All 5 Milestones Fully Implemented & Verified)
+> **Status:** 🟢 Complete (All Milestones & 42 Directional Tiles Master Compositing Fully Implemented & Verified)
 
 ---
 
@@ -30,6 +30,7 @@ The Directional Tilemaps & Themed Tileset feature branch delivers:
 | **M3: Directional Props & Cover** | Front-facing access constraint in `MovementSystem` & `PropInteractionSystem`, dot product cover in `CombatSystem`, 18 entity templates. | 🟢 Complete | Systems updated, 18 directional entity templates registered, `src/game/systems/__tests__/directional-prop-cover.test.ts` (5/5 pass) |
 | **M4: PixiJS 8 Rendering Layer** | `tilemap.ts` & `sprite-map.ts` sprite rotation and directional frame key lookups, themed faction asset loading. | 🟢 Complete | `tests/rendering/directional-render.test.ts` (10/10 pass), all 16 rendering test files pass (81/81 pass) |
 | **M5: Gamedata Studio & Polish** | PrefabEditor directional controls, real-time preview, frame validator API, full regression test suite. | 🟢 Complete | `src/app/dev/gamedata/editors/PrefabEditor.tsx`, `src/app/api/dev/gamedata/tileset-validator.ts`, 182/182 test files pass (1115/1115 pass) |
+| **M6: Master Atlas Compositing** | Expansion to 512×512, compositing all 42 directional tiles into master atlas & manifests, dynamic themed faction generation. | 🟢 Complete | `public/assets/tileset.png`, `public/assets/tileset.json`, `scripts/add-directional-tiles.cjs`, `scripts/generate-themed-tilesets.cjs` (182/182 test files pass) |
 
 ---
 
@@ -40,6 +41,7 @@ The Directional Tilemaps & Themed Tileset feature branch delivers:
 3. `bf5b0e4d` - `feat(gameplay): implement directional prop interactions, threat cover math, and directional templates (M3)`
 4. `d1ca69f3` - `feat(rendering): integrate autotile frame resolution, sprite matrix rotation, and themed asset loading (M4)`
 5. `a8143f2c` - `feat(studio): add directional tile brush controls, preview overlays, and manifest validation (M5)`
+6. `Pending` - `feat(assets): composite 42 directional tiles into 512x512 master tileset and manifests (M6)`
 
 ---
 
@@ -52,9 +54,9 @@ The Directional Tilemaps & Themed Tileset feature branch delivers:
 
 ---
 
-## 5. Tile Inventory Deliverable: New Tile Designs Required for Pixel Artists
+## 5. Tile Inventory Deliverable: Directional Tiles Created and Composited
 
-Per specification §2, §3, and §5 in `docs/design/DIRECTIONAL-TILEMAPS.md`, the following new 32×32 pixel art tiles must be illustrated by pixel artists to replace procedural texture rotation fallbacks with bespoke artwork:
+All 42 bespoke 32×32 pixel art tiles specified in §2, §3, and §5 in `docs/design/DIRECTIONAL-TILEMAPS.md` have been generated, composited into the 512×512 master atlas (`public/assets/tileset.png`, `public/assets/tileset.json`), and transformed into all 3 corporate faction tilesets:
 
 ### A. Wall Autotile Frames (16 Tiles)
 All wall tiles are 32×32 pixels, rendered in top-down isometric/orthographic perspective matching current dungeon walls.
