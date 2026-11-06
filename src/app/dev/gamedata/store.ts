@@ -46,6 +46,7 @@ export const useGamedataStore = create<GamedataStore>((set) => ({
     spawnTables: [],
     componentSchemas: [],
     shells: [],
+    prefabs: [],
   },
   setSectionItems: (section, items) =>
     set((state) => ({

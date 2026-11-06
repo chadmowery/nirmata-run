@@ -1,6 +1,8 @@
-import { Container, Sprite, Texture } from 'pixi.js';
+import { Container, Sprite, Assets } from 'pixi.js';
 import { Grid } from '../engine/grid/grid';
 import { TILE_SIZE } from './constants';
+import { AutotileSolver } from '../game/generation/autotile-solver';
+import { getTextureForSpriteKey } from './sprite-map';
 
 export interface BuildTilemapOptions {
   visibleRange?: {
@@ -47,6 +49,48 @@ function computeAlpha(x: number, y: number, options?: BuildTilemapOptions): numb
 
 const spritePool: Map<string, Sprite> = new Map();
 
+export interface ResolvedTerrainTile {
+  frameKey: string;
+  fallbackFrame: string;
+  angleDegrees: number;
+  isDirectional: boolean;
+}
+
+export function resolveTerrainTile(grid: Grid, x: number, y: number): ResolvedTerrainTile {
+  const tile = grid.getTile(x, y);
+  if (!tile) {
+    return { frameKey: 'floor', fallbackFrame: 'floor', angleDegrees: 0, isDirectional: false };
+  }
+
+  if (tile.terrain === 'wall') {
+    const autotile = AutotileSolver.resolveWallTile(grid, x, y);
+    return {
+      frameKey: autotile.frameKey,
+      fallbackFrame: 'wall',
+      angleDegrees: autotile.angleDegrees,
+      isDirectional: true,
+    };
+  }
+
+  if (tile.terrain === 'door') {
+    const doorAutotile = AutotileSolver.resolveDoorTile(grid, x, y);
+    return {
+      frameKey: doorAutotile.frameKey,
+      fallbackFrame: 'door',
+      angleDegrees: doorAutotile.angleDegrees,
+      isDirectional: true,
+    };
+  }
+
+  const baseFrame = tileTerrainToFrame(tile.terrain);
+  return {
+    frameKey: baseFrame,
+    fallbackFrame: baseFrame,
+    angleDegrees: 0,
+    isDirectional: false,
+  };
+}
+
 /**
  * Syncs the terrain layer using a pool of sprites.
  */
@@ -78,14 +122,36 @@ export function buildTilemap(
 
       if (!sprite) {
         sprite = new Sprite();
-        sprite.x = x * TILE_SIZE;
-        sprite.y = y * TILE_SIZE;
         container.addChild(sprite);
         spritePool.set(key, sprite);
       }
 
-      const frame = tileTerrainToFrame(tile.terrain);
-      sprite.texture = Texture.from(frame);
+      const { frameKey, fallbackFrame, angleDegrees, isDirectional } = resolveTerrainTile(grid, x, y);
+      const texture = getTextureForSpriteKey(frameKey, fallbackFrame);
+
+      // Check if explicit directional texture exists in atlas vs falling back to base frame
+      const baseAsset = Assets.get?.('tileset');
+      const hasExplicitFrame = Boolean(baseAsset?.textures?.[frameKey]);
+
+      if (!hasExplicitFrame && isDirectional && angleDegrees !== 0) {
+        // Strategy B: Pivot around tile center and rotate
+        if (sprite.pivot?.set) {
+          sprite.pivot.set(TILE_SIZE / 2, TILE_SIZE / 2);
+        }
+        sprite.x = x * TILE_SIZE + TILE_SIZE / 2;
+        sprite.y = y * TILE_SIZE + TILE_SIZE / 2;
+        sprite.rotation = (angleDegrees * Math.PI) / 180;
+      } else {
+        // Strategy A: Regular top-left alignment
+        if (sprite.pivot?.set) {
+          sprite.pivot.set(0, 0);
+        }
+        sprite.x = x * TILE_SIZE;
+        sprite.y = y * TILE_SIZE;
+        sprite.rotation = 0;
+      }
+
+      sprite.texture = texture;
       sprite.alpha = alpha;
       sprite.visible = true;
     }

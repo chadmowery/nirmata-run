@@ -1,0 +1,31 @@
+{
+  "name": "prop-biocabinet-s",
+  "mixins": [],
+  "components": {
+    "position": { "x": 0, "y": 0 },
+    "prop": {
+      "propId": "biocabinet",
+      "faction": "sekiguchi",
+      "propClass": "cabinet"
+    },
+    "container": {
+      "containerId": "biocabinet",
+      "capacity": 4
+    },
+    "tileOrientation": {
+      "facing": "SOUTH",
+      "angleDegrees": 180,
+      "isRotatable": false
+    },
+    "directionalProp": {
+      "requiresFrontAccess": true,
+      "frontFacingVector": { "x": 0, "y": 1 },
+      "hasDirectionalCover": true,
+      "coverArcDegrees": 180
+    },
+    "blocksMovement": {}
+  },
+  "overrides": {
+    "sprite": { "key": "prop_biocabinet_s" }
+  }
+}

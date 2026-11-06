@@ -9,6 +9,7 @@ import {
   SpawnTableEditor,
   ShellEditor,
   ComponentSchemaViewer,
+  PrefabEditor,
 } from './editors';
 import styles from './gamedata.module.css';
 
@@ -18,6 +19,7 @@ interface Props {
     mixins: string[];
     spawnTables: string[];
     shells: string[];
+    prefabs?: string[];
   };
 }
 
@@ -30,6 +32,9 @@ export function GamedataTool({ initialData }: Props) {
     setSectionItems('mixins', initialData.mixins);
     setSectionItems('spawnTables', initialData.spawnTables);
     setSectionItems('shells', initialData.shells);
+    if (initialData.prefabs) {
+      setSectionItems('prefabs', initialData.prefabs);
+    }
   }, [initialData, setSectionItems]);
 
   // Load component schemas
@@ -84,6 +89,15 @@ export function GamedataTool({ initialData }: Props) {
           <ShellEditor
             key={item.name}
             id={item.name}
+            isNew={isNew}
+            cloneFrom={cloneFrom ?? undefined}
+          />
+        );
+      case 'prefabs':
+        return (
+          <PrefabEditor
+            key={item.name}
+            name={item.name}
             isNew={isNew}
             cloneFrom={cloneFrom ?? undefined}
           />

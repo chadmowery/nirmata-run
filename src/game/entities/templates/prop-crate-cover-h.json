@@ -1,0 +1,33 @@
+{
+  "name": "prop-crate-cover-h",
+  "mixins": [],
+  "components": {
+    "position": { "x": 0, "y": 0 },
+    "interactiveSurface": {
+      "surfaceId": "crate_cover",
+      "providesCover": true,
+      "coverDamageReduction": 0.25,
+      "destructible": true
+    },
+    "tileOrientation": {
+      "facing": "EAST",
+      "angleDegrees": 90,
+      "isRotatable": false
+    },
+    "directionalProp": {
+      "requiresFrontAccess": false,
+      "frontFacingVector": { "x": 1, "y": 0 },
+      "hasDirectionalCover": true,
+      "coverArcDegrees": 180
+    },
+    "health": {
+      "max": 15,
+      "current": 15,
+      "isAlive": true
+    },
+    "blocksMovement": {}
+  },
+  "overrides": {
+    "sprite": { "key": "prop_crate_cover_h" }
+  }
+}

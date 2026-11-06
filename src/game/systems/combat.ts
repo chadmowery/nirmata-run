@@ -28,6 +28,9 @@ import {
   Shell,
   Hostile,
   DeadZone,
+  TileOrientation,
+  DirectionalProp,
+  ORIENTATION_VECTORS,
 } from '@shared/components';
 import { AttackIntent, DamageIntent, HealIntent } from '@shared/components/intents';
 import { createTriggerContext, evaluateCondition } from './augment-util';
@@ -273,6 +276,28 @@ export function checkDirectionalCover<T extends GameplayEvents>(
 
       const surface = world.getComponent(surfaceId, InteractiveSurface);
       if (!surface || surface.providesCover === false) continue;
+
+      // Check Directional Cover (DIRECTIONAL-TILEMAPS.md §4.2)
+      const directional = world.getComponent(surfaceId, DirectionalProp);
+      const orientation = world.getComponent(surfaceId, TileOrientation);
+
+      if (directional?.hasDirectionalCover && (directional.frontFacingVector || orientation?.facing)) {
+        const coverNormal =
+          directional.frontFacingVector ??
+          (orientation ? ORIENTATION_VECTORS[orientation.facing] : { x: 0, y: 1 });
+
+        // Vector towards the attacker: (attackerPos - defenderPos)
+        const threatX = attackerPos.x - defenderPos.x;
+        const threatY = attackerPos.y - defenderPos.y;
+
+        // Dot product between threat vector and cover normal
+        const dot = threatX * coverNormal.x + threatY * coverNormal.y;
+
+        // If dot <= 0, attacker flanked the cover and attacks from the rear/unprotected side: bypass cover!
+        if (dot <= 0) {
+          continue;
+        }
+      }
 
       const defenderShell = world.getComponent(defenderId, Shell);
       const isBastion = defenderShell?.archetypeId?.toLowerCase().includes('bastion');

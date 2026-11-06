@@ -144,3 +144,109 @@ export const PropInteractedThisTurn = defineComponent(
   }),
 );
 export type PropInteractedThisTurnData = z.infer<typeof PropInteractedThisTurn.schema>;
+
+// ============================================================================
+// Directional & Rotational Tile Architecture (DIRECTIONAL-TILEMAPS.md §2 & §6)
+// ============================================================================
+
+export const OrientationSchema = z.enum(['NORTH', 'EAST', 'SOUTH', 'WEST']);
+export type Orientation = z.infer<typeof OrientationSchema>;
+
+export const ORIENTATION_ANGLES: Record<Orientation, number> = {
+  NORTH: 0,
+  EAST: 90,
+  SOUTH: 180,
+  WEST: 270,
+};
+
+export const ORIENTATION_VECTORS: Record<Orientation, { x: number; y: number }> = {
+  NORTH: { x: 0, y: -1 },
+  EAST: { x: 1, y: 0 },
+  SOUTH: { x: 0, y: 1 },
+  WEST: { x: -1, y: 0 },
+};
+
+export const OPPOSITE_ORIENTATION: Record<Orientation, Orientation> = {
+  NORTH: 'SOUTH',
+  EAST: 'WEST',
+  SOUTH: 'NORTH',
+  WEST: 'EAST',
+};
+
+/**
+ * Converts vector displacement (dx, dy) to canonical cardinal orientation.
+ *
+ * Orientation(dx, dy) =
+ *   NORTH if dy < 0 and |dy| >= |dx|
+ *   EAST  if dx > 0 and |dx| >  |dy|
+ *   SOUTH if dy > 0 and |dy| >= |dx|
+ *   WEST  if dx < 0 and |dx| >  |dy|
+ */
+export function vectorToOrientation(dx: number, dy: number): Orientation {
+  const absX = Math.abs(dx);
+  const absY = Math.abs(dy);
+
+  if (dy < 0 && absY >= absX) return 'NORTH';
+  if (dx > 0 && absX > absY) return 'EAST';
+  if (dy > 0 && absY >= absX) return 'SOUTH';
+  if (dx < 0 && absX > absY) return 'WEST';
+  return 'NORTH';
+}
+
+export function orientationToAngleDegrees(orientation: Orientation): number {
+  return ORIENTATION_ANGLES[orientation] ?? 0;
+}
+
+export function orientationToAngleRadians(orientation: Orientation): number {
+  return ((ORIENTATION_ANGLES[orientation] ?? 0) * Math.PI) / 180;
+}
+
+export const TileOrientation = defineComponent(
+  'tileOrientation',
+  z.object({
+    facing: OrientationSchema.default('NORTH'),
+    /** Degrees rotation for client renderer fallback (0, 90, 180, 270) */
+    angleDegrees: z.number().int().min(0).max(270).default(0),
+    /** Allow dynamic rotation by player or abilities */
+    isRotatable: z.boolean().default(false),
+  }),
+);
+export type TileOrientationData = z.infer<typeof TileOrientation.schema>;
+
+export const AutotileClassSchema = z.enum([
+  'pillar',
+  'cap',
+  'straight',
+  'corner_outer',
+  'corner_inner',
+  'tjunction',
+  'cross',
+]);
+export type AutotileClass = z.infer<typeof AutotileClassSchema>;
+
+export const AutotileState = defineComponent(
+  'autotileState',
+  z.object({
+    bitmask: z.number().int().min(0).max(15).default(0),
+    tileClass: AutotileClassSchema.default('pillar'),
+    resolvedFrameKey: z.string().default('wall_pillar'),
+  }),
+);
+export type AutotileStateData = z.infer<typeof AutotileState.schema>;
+
+export const DirectionalProp = defineComponent(
+  'directionalProp',
+  z.object({
+    requiresFrontAccess: z.boolean().default(true),
+    frontFacingVector: z
+      .object({
+        x: z.number().int().min(-1).max(1),
+        y: z.number().int().min(-1).max(1),
+      })
+      .default({ x: 0, y: 1 }), // Default facing South (+Y)
+    hasDirectionalCover: z.boolean().default(true),
+    coverArcDegrees: z.number().default(180), // 180 degree forward cover arc
+  }),
+);
+export type DirectionalPropData = z.infer<typeof DirectionalProp.schema>;
+

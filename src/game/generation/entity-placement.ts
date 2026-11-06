@@ -17,6 +17,11 @@ import {
   CorruptedNode,
   SectorCondition,
   FactionTheme,
+  TileOrientation,
+  DirectionalProp,
+  Orientation,
+  ORIENTATION_VECTORS,
+  ORIENTATION_ANGLES,
 } from '@shared/components/environment';
 
 /**
@@ -456,6 +461,16 @@ export function placeEntities<T extends EngineEvents>(
         seedContainerLoot(world, propId, depth, condition, lootTable, rng);
       }
 
+      applyDirectionalPropComponents(
+        world,
+        grid,
+        propId,
+        template,
+        anchor.x,
+        anchor.y,
+        anchor.orientation,
+      );
+
       grid.addEntity(propId, anchor.x, anchor.y);
       propIds.push(propId);
       occupiedPropPositions.add(posKey);
@@ -493,6 +508,15 @@ export function placeEntities<T extends EngineEvents>(
         const stabId = factory.create(world, 'prop-stabilizer', componentRegistry, {
           position: { x: anchor.x, y: anchor.y },
         });
+        applyDirectionalPropComponents(
+          world,
+          grid,
+          stabId,
+          'prop-stabilizer',
+          anchor.x,
+          anchor.y,
+          anchor.orientation,
+        );
         grid.addEntity(stabId, anchor.x, anchor.y);
         propIds.push(stabId);
         occupiedPropPositions.add(posKey);
@@ -525,6 +549,15 @@ export function placeEntities<T extends EngineEvents>(
           const ventId = factory.create(world, 'prop-cooling-vent', componentRegistry, {
             position: { x: anchor.x, y: anchor.y },
           });
+          applyDirectionalPropComponents(
+            world,
+            grid,
+            ventId,
+            'prop-cooling-vent',
+            anchor.x,
+            anchor.y,
+            anchor.orientation,
+          );
           grid.addEntity(ventId, anchor.x, anchor.y);
           propIds.push(ventId);
           occupiedPropPositions.add(posKey);
@@ -633,6 +666,16 @@ export function placeEntities<T extends EngineEvents>(
         seedContainerLoot(world, propId, depth, condition, lootTable, rng);
       }
 
+      applyDirectionalPropComponents(
+        world,
+        grid,
+        propId,
+        template,
+        anchor.x,
+        anchor.y,
+        anchor.orientation,
+      );
+
       grid.addEntity(propId, anchor.x, anchor.y);
       propIds.push(propId);
       occupiedPropPositions.add(posKey);
@@ -707,6 +750,54 @@ export function placeEntities<T extends EngineEvents>(
   }
 
   return { playerId, enemyIds, itemIds, propIds };
+}
+
+/**
+ * Attaches TileOrientation and DirectionalProp components to spawned environmental props.
+ */
+function applyDirectionalPropComponents<T extends EngineEvents>(
+  world: World<T>,
+  grid: Grid,
+  propId: EntityId,
+  template: string,
+  x: number,
+  y: number,
+  preferredOrientation?: Orientation,
+): void {
+  let facing: Orientation = preferredOrientation ?? 'SOUTH';
+  if (!preferredOrientation) {
+    const northWall = grid.getTile(x, y - 1)?.terrain === 'wall';
+    const southWall = grid.getTile(x, y + 1)?.terrain === 'wall';
+    const eastWall = grid.getTile(x + 1, y)?.terrain === 'wall';
+    const westWall = grid.getTile(x - 1, y)?.terrain === 'wall';
+    if (northWall) facing = 'SOUTH';
+    else if (southWall) facing = 'NORTH';
+    else if (westWall) facing = 'EAST';
+    else if (eastWall) facing = 'WEST';
+  }
+
+  const angleDegrees = ORIENTATION_ANGLES[facing] ?? 0;
+  const frontFacingVector = ORIENTATION_VECTORS[facing] ?? { x: 0, y: 1 };
+
+  if (!world.hasComponent(propId, TileOrientation)) {
+    world.addComponent(propId, TileOrientation, {
+      facing,
+      angleDegrees,
+      isRotatable: false,
+    });
+  }
+
+  const isCrate = template.includes('crate');
+  const requiresFrontAccess = !isCrate;
+
+  if (!world.hasComponent(propId, DirectionalProp)) {
+    world.addComponent(propId, DirectionalProp, {
+      requiresFrontAccess,
+      frontFacingVector,
+      hasDirectionalCover: true,
+      coverArcDegrees: 180,
+    });
+  }
 }
 
 /**

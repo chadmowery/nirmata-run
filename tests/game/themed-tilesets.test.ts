@@ -14,19 +14,19 @@ describe('Themed Tilesets Integration', () => {
       id: 'traxus_foundry',
       png: 'public/assets/tileset_traxus_foundry.png',
       json: 'public/assets/tileset_traxus_foundry.json',
-      preview: 'public/assets/tiles/previews/tileset_traxus_foundry_sheet.png',
+      preview: 'docs/visual-design/previews/tileset_traxus_foundry_sheet.png',
     },
     {
       id: 'sekiguchi_biolabs',
       png: 'public/assets/tileset_sekiguchi_biolabs.png',
       json: 'public/assets/tileset_sekiguchi_biolabs.json',
-      preview: 'public/assets/tiles/previews/tileset_sekiguchi_biolabs_sheet.png',
+      preview: 'docs/visual-design/previews/tileset_sekiguchi_biolabs_sheet.png',
     },
     {
       id: 'dark_subnet',
       png: 'public/assets/tileset_dark_subnet.png',
       json: 'public/assets/tileset_dark_subnet.json',
-      preview: 'public/assets/tiles/previews/tileset_dark_subnet_sheet.png',
+      preview: 'docs/visual-design/previews/tileset_dark_subnet_sheet.png',
     },
   ];
 
@@ -40,8 +40,8 @@ describe('Themed Tilesets Integration', () => {
       const raw = fs.readFileSync(jsonPath, 'utf-8');
       const json = JSON.parse(raw);
 
-      expect(json.meta.size.w).toBe(256);
-      expect(json.meta.size.h).toBe(256);
+      expect(json.meta.size.w).toBe(512);
+      expect(json.meta.size.h).toBe(512);
       expect(json.meta.format).toBe('RGBA8888');
 
       const themeFrameKeys = Object.keys(json.frames).sort();
@@ -58,14 +58,14 @@ describe('Themed Tilesets Integration', () => {
     }
   });
 
-  it('all 3 themed tileset PNGs exist, have 256x256 dimensions, and opaque terrain tiles', async () => {
+  it('all 3 themed tileset PNGs exist, have 512x512 dimensions, and opaque terrain tiles', async () => {
     for (const theme of themes) {
       const pngPath = path.join(rootDir, theme.png);
       expect(fs.existsSync(pngPath), `Missing PNG ${theme.png}`).toBe(true);
 
       const img = await loadImage(pngPath);
-      expect(img.width).toBe(256);
-      expect(img.height).toBe(256);
+      expect(img.width).toBe(512);
+      expect(img.height).toBe(512);
 
       const canvas = createCanvas(img.width, img.height);
       const ctx = canvas.getContext('2d');

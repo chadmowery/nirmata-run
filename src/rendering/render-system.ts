@@ -10,7 +10,7 @@ import { Actor } from '@shared/components/actor';
 import { FloorState } from '@shared/components/floor-state';
 import { AbilityDef } from '@shared/components/ability-def';
 import { FirmwareSlots } from '@shared/components/firmware-slots';
-import { Prop, SecurityLock, CorruptedNode } from '@shared/components/environment';
+import { Prop, SecurityLock, CorruptedNode, TileOrientation } from '@shared/components/environment';
 import { gameStore } from '../game/ui/store';
 import { WorldLayers } from './layers';
 import { TILE_SIZE, FOV_RADIUS } from './constants';
@@ -68,6 +68,32 @@ import { EventOriginContext } from '../engine/utils/event-context';
 import { resolveTileInspection, RememberedPropState } from './tile-inspector';
 import { Item } from '@shared/components/item';
 import { CurrencyItem } from '@shared/components/currency-item';
+
+/**
+ * Positions and rotates a sprite taking into account cardinal tile orientation.
+ */
+function applySpriteTransform(
+  sprite: Sprite,
+  x: number,
+  y: number,
+  angleDegrees: number = 0,
+): void {
+  if (angleDegrees !== 0) {
+    if (sprite.pivot?.set) {
+      sprite.pivot.set(TILE_SIZE / 2, TILE_SIZE / 2);
+    }
+    sprite.x = x * TILE_SIZE + TILE_SIZE / 2;
+    sprite.y = y * TILE_SIZE + TILE_SIZE / 2;
+    sprite.rotation = (angleDegrees * Math.PI) / 180;
+  } else {
+    if (sprite.pivot?.set) {
+      sprite.pivot.set(0, 0);
+    }
+    sprite.x = x * TILE_SIZE;
+    sprite.y = y * TILE_SIZE;
+    sprite.rotation = 0;
+  }
+}
 
 /**
  * Resolves the client-visible prop outline state.
@@ -610,9 +636,9 @@ export function createRenderSystem(config: RenderSystemConfig) {
       for (const entityId of entities) {
         const spriteComp = world.getComponent(entityId, SpriteComponent)!;
         const pos = world.getComponent(entityId, Position)!;
+        const orientation = world.getComponent(entityId, TileOrientation);
         const sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
-        sprite.x = pos.x * TILE_SIZE;
-        sprite.y = pos.y * TILE_SIZE;
+        applySpriteTransform(sprite, pos.x, pos.y, orientation?.angleDegrees ?? 0);
         syncPropOutline(entityId, sprite);
       }
     },
@@ -630,8 +656,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
           if (spriteComp) {
             sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
             if (pos) {
-              sprite.x = pos.x * TILE_SIZE;
-              sprite.y = pos.y * TILE_SIZE;
+              const orientation = world.getComponent(entityId, TileOrientation);
+              applySpriteTransform(sprite, pos.x, pos.y, orientation?.angleDegrees ?? 0);
             }
           }
         } else if (spriteComp) {
@@ -773,11 +799,11 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
         const pos = world.getComponent(entityId, Position)!;
         const actor = world.getComponent(entityId, Actor);
+        const orientation = world.getComponent(entityId, TileOrientation);
 
         // Update position if not animating
         if (!hasActiveAnimation(entityId)) {
-          sprite.x = pos.x * TILE_SIZE;
-          sprite.y = pos.y * TILE_SIZE;
+          applySpriteTransform(sprite, pos.x, pos.y, orientation?.angleDegrees ?? 0);
         }
 
         // Visibility gating
@@ -866,9 +892,9 @@ export function createRenderSystem(config: RenderSystemConfig) {
       for (const entityId of entities) {
         const spriteComp = world.getComponent(entityId, SpriteComponent)!;
         const pos = world.getComponent(entityId, Position)!;
+        const orientation = world.getComponent(entityId, TileOrientation);
         const sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
-        sprite.x = pos.x * TILE_SIZE;
-        sprite.y = pos.y * TILE_SIZE;
+        applySpriteTransform(sprite, pos.x, pos.y, orientation?.angleDegrees ?? 0);
 
         // Ensure emitters are attached to enemies on re-init
         const aiState = world.getComponent(entityId, AIState);

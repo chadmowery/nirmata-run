@@ -50,8 +50,8 @@ describe('Shell Tileset and In-Game Launch Integration', () => {
     }
     const { createCanvas, loadImage } = canvasModule;
     const img = await loadImage(tilesetPngPath);
-    expect(img.width).toBe(256);
-    expect(img.height).toBe(256);
+    expect(img.width).toBe(512);
+    expect(img.height).toBe(512);
 
     const canvas = createCanvas(img.width, img.height);
     const ctx = canvas.getContext('2d');

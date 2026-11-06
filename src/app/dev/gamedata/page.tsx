@@ -6,6 +6,7 @@ const ENTITY_DIR = path.join(process.cwd(), 'src/game/entities/templates');
 const MIXIN_DIR = path.join(process.cwd(), 'src/game/entities/templates/mixins');
 const SPAWN_DIR = path.join(process.cwd(), 'src/game/entities/templates/spawn-tables');
 const SHELL_DIR = path.join(process.cwd(), 'src/game/shells/shared/templates');
+const PREFAB_DIR = path.join(process.cwd(), 'src/game/generation/prefabs');
 
 async function listJson(dir: string): Promise<string[]> {
   try {
@@ -17,11 +18,12 @@ async function listJson(dir: string): Promise<string[]> {
 }
 
 export default async function GamedataPage() {
-  const [entities, mixins, spawnTables, shells] = await Promise.all([
+  const [entities, mixins, spawnTables, shells, prefabs] = await Promise.all([
     listJson(ENTITY_DIR),
     listJson(MIXIN_DIR),
     listJson(SPAWN_DIR),
     listJson(SHELL_DIR),
+    listJson(PREFAB_DIR),
   ]);
 
   return (
@@ -31,6 +33,7 @@ export default async function GamedataPage() {
         mixins,
         spawnTables,
         shells,
+        prefabs,
       }}
     />
   );

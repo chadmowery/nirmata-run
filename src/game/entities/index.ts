@@ -68,6 +68,30 @@ import scavenger_siphon from './templates/scavenger-siphon.json';
 import kinetic_breacher from './templates/kinetic-breacher.json';
 import thermal_bypass from './templates/thermal-bypass.json';
 
+// Directional prop templates (DIRECTIONAL-TILEMAPS.md §5.2)
+import prop_workstation_n from './templates/prop-workstation-n.json';
+import prop_workstation_e from './templates/prop-workstation-e.json';
+import prop_workstation_s from './templates/prop-workstation-s.json';
+import prop_workstation_w from './templates/prop-workstation-w.json';
+
+import prop_locker_n from './templates/prop-locker-n.json';
+import prop_locker_e from './templates/prop-locker-e.json';
+import prop_locker_s from './templates/prop-locker-s.json';
+import prop_locker_w from './templates/prop-locker-w.json';
+
+import prop_biocabinet_n from './templates/prop-biocabinet-n.json';
+import prop_biocabinet_e from './templates/prop-biocabinet-e.json';
+import prop_biocabinet_s from './templates/prop-biocabinet-s.json';
+import prop_biocabinet_w from './templates/prop-biocabinet-w.json';
+
+import prop_vault_door_n from './templates/prop-vault-door-n.json';
+import prop_vault_door_e from './templates/prop-vault-door-e.json';
+import prop_vault_door_s from './templates/prop-vault-door-s.json';
+import prop_vault_door_w from './templates/prop-vault-door-w.json';
+
+import prop_crate_cover_h from './templates/prop-crate-cover-h.json';
+import prop_crate_cover_v from './templates/prop-crate-cover-v.json';
+
 /**
  * Registers all game entity templates and mixins.
  */
@@ -145,4 +169,28 @@ export function registerGameTemplates(registry: EntityRegistry): void {
   registry.register(scavenger_siphon as unknown as RawTemplate);
   registry.register(kinetic_breacher as unknown as RawTemplate);
   registry.register(thermal_bypass as unknown as RawTemplate);
+
+  // Directional props
+  registry.register(prop_workstation_n as unknown as RawTemplate);
+  registry.register(prop_workstation_e as unknown as RawTemplate);
+  registry.register(prop_workstation_s as unknown as RawTemplate);
+  registry.register(prop_workstation_w as unknown as RawTemplate);
+
+  registry.register(prop_locker_n as unknown as RawTemplate);
+  registry.register(prop_locker_e as unknown as RawTemplate);
+  registry.register(prop_locker_s as unknown as RawTemplate);
+  registry.register(prop_locker_w as unknown as RawTemplate);
+
+  registry.register(prop_biocabinet_n as unknown as RawTemplate);
+  registry.register(prop_biocabinet_e as unknown as RawTemplate);
+  registry.register(prop_biocabinet_s as unknown as RawTemplate);
+  registry.register(prop_biocabinet_w as unknown as RawTemplate);
+
+  registry.register(prop_vault_door_n as unknown as RawTemplate);
+  registry.register(prop_vault_door_e as unknown as RawTemplate);
+  registry.register(prop_vault_door_s as unknown as RawTemplate);
+  registry.register(prop_vault_door_w as unknown as RawTemplate);
+
+  registry.register(prop_crate_cover_h as unknown as RawTemplate);
+  registry.register(prop_crate_cover_v as unknown as RawTemplate);
 }

@@ -1,0 +1,33 @@
+{
+  "name": "prop-vault-door-e",
+  "mixins": [],
+  "components": {
+    "position": { "x": 0, "y": 0 },
+    "prop": {
+      "propId": "vault_door",
+      "faction": "cyberacme",
+      "propClass": "vault_door"
+    },
+    "securityLock": {
+      "isLocked": true,
+      "keyIdRequired": "access_key",
+      "overclockHeatCost": 35,
+      "alertRadiusOnBypass": 12
+    },
+    "tileOrientation": {
+      "facing": "EAST",
+      "angleDegrees": 90,
+      "isRotatable": false
+    },
+    "directionalProp": {
+      "requiresFrontAccess": true,
+      "frontFacingVector": { "x": 1, "y": 0 },
+      "hasDirectionalCover": true,
+      "coverArcDegrees": 180
+    },
+    "blocksMovement": {}
+  },
+  "overrides": {
+    "sprite": { "key": "vault_door_locked_e" }
+  }
+}

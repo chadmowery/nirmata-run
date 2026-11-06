@@ -14,6 +14,8 @@ import {
   Prop,
   SecurityLock,
   CorruptedNode,
+  DirectionalProp,
+  vectorToOrientation,
   InteractPropIntent,
 } from '@shared/components/environment';
 import { playerHasAccessKey } from '@shared/utils/access-key-util';
@@ -137,6 +139,30 @@ export function createMovementSystem<T extends GameplayEvents>(
                     type: 'warning',
                   });
                 }
+              }
+              eventBus.emit('INPUT_BUFFER_CLEARED', {});
+              w.addComponent(entityId, ActionAbortedTag, {});
+              blocked = true;
+              break;
+            }
+          }
+
+          // Check DirectionalProp (Front-facing access constraint)
+          const directional = w.getComponent(occupantId, DirectionalProp);
+          if (directional && directional.requiresFrontAccess) {
+            const dxToPlayer = pos.x - targetX;
+            const dyToPlayer = pos.y - targetY;
+            const fx = directional.frontFacingVector.x;
+            const fy = directional.frontFacingVector.y;
+
+            if (dxToPlayer !== fx || dyToPlayer !== fy) {
+              if (!isClient) {
+                const facingOrientation = vectorToOrientation(fx, fy);
+                const propName = (prop.propClass ?? 'prop').toUpperCase();
+                eventBus.emit('MESSAGE_EMITTED', {
+                  text: `[NOTICE] ${propName} FRONT INTERFACE IS TO THE ${facingOrientation}.`,
+                  type: 'warning',
+                });
               }
               eventBus.emit('INPUT_BUFFER_CLEARED', {});
               w.addComponent(entityId, ActionAbortedTag, {});

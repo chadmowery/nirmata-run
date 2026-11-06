@@ -75,6 +75,9 @@ import {
   CorruptedNode,
   InteractPropIntent,
   PropInteractedThisTurn,
+  TileOrientation,
+  AutotileState,
+  DirectionalProp,
 } from './environment';
 
 export * from './position';
@@ -203,4 +206,7 @@ export const COMPONENTS_REGISTRY = [
   CorruptedNode,
   InteractPropIntent,
   PropInteractedThisTurn,
+  TileOrientation,
+  AutotileState,
+  DirectionalProp,
 ] as const;

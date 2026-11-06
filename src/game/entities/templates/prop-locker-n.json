@@ -1,0 +1,31 @@
+{
+  "name": "prop-locker-n",
+  "mixins": [],
+  "components": {
+    "position": { "x": 0, "y": 0 },
+    "prop": {
+      "propId": "locker",
+      "faction": "traxus",
+      "propClass": "locker"
+    },
+    "container": {
+      "containerId": "locker",
+      "capacity": 4
+    },
+    "tileOrientation": {
+      "facing": "NORTH",
+      "angleDegrees": 0,
+      "isRotatable": false
+    },
+    "directionalProp": {
+      "requiresFrontAccess": true,
+      "frontFacingVector": { "x": 0, "y": -1 },
+      "hasDirectionalCover": true,
+      "coverArcDegrees": 180
+    },
+    "blocksMovement": {}
+  },
+  "overrides": {
+    "sprite": { "key": "prop_locker_n" }
+  }
+}
