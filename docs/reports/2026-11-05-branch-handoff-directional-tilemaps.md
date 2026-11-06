@@ -41,7 +41,7 @@ The Directional Tilemaps & Themed Tileset feature branch delivers:
 3. `bf5b0e4d` - `feat(gameplay): implement directional prop interactions, threat cover math, and directional templates (M3)`
 4. `d1ca69f3` - `feat(rendering): integrate autotile frame resolution, sprite matrix rotation, and themed asset loading (M4)`
 5. `a8143f2c` - `feat(studio): add directional tile brush controls, preview overlays, and manifest validation (M5)`
-6. `Pending` - `feat(assets): composite 42 directional tiles into 512x512 master tileset and manifests (M6)`
+6. `ef1b58aa` - `feat(assets): composite 42 directional tiles into 512x512 master tileset and manifests (M6)`
 
 ---
 
