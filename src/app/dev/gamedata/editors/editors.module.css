@@ -1,7 +1,9 @@
 .editor {
-  max-width: 900px;
+  width: 100%;
+  max-width: 100%;
   font-family: var(--font-mono, monospace);
   color: var(--c-text, #ffffff);
+  box-sizing: border-box;
 }
 
 .editorHeader {

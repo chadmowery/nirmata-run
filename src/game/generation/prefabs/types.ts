@@ -21,8 +21,8 @@ export interface RoomPrefabTemplate {
   faradayShielded?: boolean;
   minFloor: number;
   maxFloor: number;
-  width: number; // 10 to 16 tiles
-  height: number; // 10 to 16 tiles
+  width: number; // 8 to 24 tiles
+  height: number; // 8 to 24 tiles
   /** ASCII rows: '#' = wall, '.' = floor, '+' = door, 'V' = encrypted vault door, '~' = dead-zone hazard */
   layout: string[];
   /** Explicit corridor attachment portals on the room perimeter */

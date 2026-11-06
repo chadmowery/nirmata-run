@@ -29,6 +29,7 @@ All operations adhere strictly to the project rules:
 | `c6ab3d70` | `feat(studio)` | Phase 3: Taikoku Vector Layout, 3-Column Telemetry Panel, and Mixin Overrides Engine |
 | `8e9ae66d` | `feat(procgen)`| Phase 4: Deterministic Room Synthesis Engine and Multi-Layer HTML5 Prefab Canvas |
 | `HEAD` (pending) | `feat(studio)` | Phase 5: System Config Editors, Augment AST Builder, Themed Tileset Inspector, and Handoff Report |
+| `HEAD` (current) | `fix(prefab)`  | Height/Width 8-24 support, auto-reroll seed on generate, and full-width center preview canvas |
 
 ---
 
@@ -107,6 +108,21 @@ All operations adhere strictly to the project rules:
   - Updated `docs/TRACKING.md` with Workstream 5.
   - Authored this comprehensive branch handoff report.
 
+### Phase 6: Prefab Dimension Relaxation, Auto-Seed Reroll & Full-Width Center Preview
+- **Room Dimension Expansion (`width: 8..24`, `height: 8..24`)**:
+  - Relaxed minimum height and width from 10 to 8 across `RoomGeneratorConfigSchema` (`room-generator.ts`), `RoomPrefabTemplateSchema` (`schemas.ts`), and `RoomPrefabTemplate` types (`types.ts`).
+  - Fixed `ZodError: height: Too small: expected number to be >=10` when opening or generating rooms like `zero-day-vault.json` (which has `width: 10, height: 8`).
+  - Hardened archetype generators (`DECON_AIRLOCK`, `FREIGHT_BAY`, `ZERO_DAY_VAULT`) to cleanly support compact 8×8 and 10×8 geometries while maintaining 100% pass rates across `VAL-PRF-01`–`VAL-PRF-05`.
+- **Auto-Reroll Seed on Generation**:
+  - Clicking `[⚡ GENERATE ROOM]` automatically generates a fresh seed `TK-####`, updates the seed input state, and generates a new room configuration, allowing rapid generation iterations.
+- **Center Preview Display Expansion & Responsive Zoom**:
+  - Removed `.editor { max-width: 900px; }` in `editors.module.css`, allowing all editors to expand to 100% of the available horizontal space.
+  - Added `min-width: 0; width: 100%;` to `.mainPanel` and `.workspaceRow` in `gamedata.module.css`.
+  - Moved the `STRUCTURAL AUDIT` card from the right column into the left column beneath Mutation Levers, eliminating the 240px right column completely.
+  - Added interactive Zoom controls (`[1x]`, `[1.5x]`, `[2x]`, `[2.5x]`) defaulting to `1.5x` (48px tiles).
+  - Scaled HTML5 sprite canvas, autotile glyph grid, and RAW ASCII view dynamically with `tileSize = Math.round(32 * zoomScale)`, aligning mouse hit-testing and reticle tracking 1:1.
+  - Added Width and Height numeric inputs (8-24) to the Metadata card with real-time grid resizing.
+
 ---
 
 ## 4. Verification & Quality Gate Metrics
@@ -127,7 +143,7 @@ $ npm run lint
 # 3. Test Suite
 $ npm test
 # Test Files  186 passed (186)
-# Tests       1149 passed (1149)
+# Tests       1152 passed (1152)
 # Exit code: 0
 
 # 4. Production Build

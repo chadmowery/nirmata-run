@@ -16,8 +16,8 @@ export const RoomGeneratorConfigSchema = z.object({
   seed: z.string().min(1).default('TK-8890'),
   archetype: RoomArchetypeSchema.default('SERVER_CORE'),
   faction: z.enum(['traxus', 'cyberacme', 'sekiguchi', 'nucaloric']).default('cyberacme'),
-  width: z.number().int().min(10).max(16).default(12),
-  height: z.number().int().min(10).max(16).default(12),
+  width: z.number().int().min(8).max(24).default(12),
+  height: z.number().int().min(8).max(24).default(12),
   symmetry: z.enum(['none', 'horizontal', 'vertical', 'bilateral']).default('bilateral'),
   complexity: z.number().min(0).max(1).default(0.5),
   propDensity: z.number().min(0).max(1).default(0.5),
@@ -146,7 +146,8 @@ export function generateRoomPrefab(rawConfig: RoomGeneratorConfig): RoomPrefabTe
       }
 
       // 2x2 cargo pillar islands
-      const pillarCount = Math.max(1, Math.round(complexity * 3));
+      const maxPossiblePillars =
+        width <= 10 || height <= 10 ? 1 : Math.max(1, Math.round(complexity * 3));
       const midX = Math.floor(width / 2);
       const midY = Math.floor(height / 2);
 
@@ -157,12 +158,14 @@ export function generateRoomPrefab(rawConfig: RoomGeneratorConfig): RoomPrefabTe
         [Math.min(width - 4, midX + 2), Math.min(height - 4, midY + 2)],
       ];
 
-      for (let i = 0; i < Math.min(pillarCount, possiblePillars.length); i++) {
+      for (let i = 0; i < Math.min(maxPossiblePillars, possiblePillars.length); i++) {
         const [px, py] = possiblePillars[i];
-        grid[py][px] = '#';
-        grid[py][px + 1] = '#';
-        grid[py + 1][px] = '#';
-        grid[py + 1][px + 1] = '#';
+        if (px >= 1 && px + 1 < width - 1 && py >= 1 && py + 1 < height - 1) {
+          grid[py][px] = '#';
+          grid[py][px + 1] = '#';
+          grid[py + 1][px] = '#';
+          grid[py + 1][px + 1] = '#';
+        }
       }
       break;
     }
@@ -192,10 +195,22 @@ export function generateRoomPrefab(rawConfig: RoomGeneratorConfig): RoomPrefabTe
       // Central containment vat hazard tiles
       const midY = Math.floor(height / 2);
       if (hazardDensity > 0 || complexity > 0.4) {
-        grid[midY - 1][midX - 1] = '~';
-        grid[midY - 1][midX + 1] = '~';
-        grid[midY + 1][midX - 1] = '~';
-        grid[midY + 1][midX + 1] = '~';
+        const hazardCoords: [number, number][] = [
+          [midX - 1, midY - 1],
+          [midX + 1, midY - 1],
+          [midX - 1, midY + 1],
+          [midX + 1, midY + 1],
+        ];
+        for (const [hx, hy] of hazardCoords) {
+          if (
+            hy > topDividerY &&
+            hy < bottomDividerY &&
+            hx > 0 &&
+            hx < width - 1
+          ) {
+            grid[hy][hx] = '~';
+          }
+        }
       }
       break;
     }
@@ -209,10 +224,25 @@ export function generateRoomPrefab(rawConfig: RoomGeneratorConfig): RoomPrefabTe
       }
 
       // Inner vault reinforced wall ring
-      const vX1 = Math.max(3, Math.floor(width * 0.25));
-      const vX2 = Math.min(width - 4, Math.floor(width * 0.75));
-      const vY1 = Math.max(3, Math.floor(height * 0.25));
-      const vY2 = Math.min(height - 4, Math.floor(height * 0.75));
+      let vX1 = Math.max(2, Math.floor(width * 0.25));
+      let vX2 = Math.min(width - 3, Math.floor(width * 0.75));
+      let vY1 = Math.max(2, Math.floor(height * 0.25));
+      let vY2 = Math.min(height - 3, Math.floor(height * 0.75));
+
+      if (vX2 < vX1 + 2) {
+        vX2 = vX1 + 2;
+        if (vX2 >= width - 1) {
+          vX1 = Math.max(1, width - 4);
+          vX2 = width - 2;
+        }
+      }
+      if (vY2 < vY1 + 2) {
+        vY2 = vY1 + 2;
+        if (vY2 >= height - 1) {
+          vY1 = Math.max(1, height - 4);
+          vY2 = height - 2;
+        }
+      }
 
       for (let y = vY1; y <= vY2; y++) {
         for (let x = vX1; x <= vX2; x++) {

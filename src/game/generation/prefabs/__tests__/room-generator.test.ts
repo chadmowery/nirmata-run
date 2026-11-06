@@ -108,4 +108,93 @@ describe('Room Generator Engine', () => {
     expect(vault.layout.some((r) => r.includes('V'))).toBe(true);
     expect(vault.propSpawns.some((p) => p.anchorType === 'CONTAINER_RARE')).toBe(true);
   });
+
+  it('generates valid compact 10x8 rooms (like zero-day-vault) across all archetypes', () => {
+    for (const archetype of ARCHETYPES) {
+      const prefab = generateRoomPrefab({
+        seed: `COMPACT-10x8-${archetype}`,
+        archetype,
+        faction: 'cyberacme',
+        width: 10,
+        height: 8,
+        symmetry: archetype === 'CORRUPTED_SECTOR' ? 'none' : 'bilateral',
+        complexity: 0.5,
+        propDensity: 0.5,
+        hazardDensity: archetype === 'CORRUPTED_SECTOR' ? 0.2 : 0,
+        portalCount: archetype === 'ZERO_DAY_VAULT' ? 1 : 2,
+        minFloor: 1,
+        maxFloor: 15,
+      });
+
+      expect(prefab.width).toBe(10);
+      expect(prefab.height).toBe(8);
+      expect(prefab.layout).toHaveLength(8);
+      for (const row of prefab.layout) {
+        expect(row).toHaveLength(10);
+      }
+
+      const audit = validatePrefabRules(prefab);
+      if (!audit.valid) {
+        console.error(`10x8 failed for ${archetype}:`, audit.errors);
+      }
+      expect(audit.valid).toBe(true);
+      expect(audit.errors).toHaveLength(0);
+    }
+  });
+
+  it('generates valid minimum dimension 8x8 rooms across all archetypes', () => {
+    for (const archetype of ARCHETYPES) {
+      const prefab = generateRoomPrefab({
+        seed: `MIN-8x8-${archetype}`,
+        archetype,
+        faction: 'traxus',
+        width: 8,
+        height: 8,
+        symmetry: archetype === 'CORRUPTED_SECTOR' ? 'none' : 'horizontal',
+        complexity: 0.4,
+        propDensity: 0.4,
+        hazardDensity: 0,
+        portalCount: archetype === 'ZERO_DAY_VAULT' ? 1 : 2,
+        minFloor: 1,
+        maxFloor: 15,
+      });
+
+      expect(prefab.width).toBe(8);
+      expect(prefab.height).toBe(8);
+      const audit = validatePrefabRules(prefab);
+      if (!audit.valid) {
+        console.error(`8x8 failed for ${archetype}:`, audit.errors);
+      }
+      expect(audit.valid).toBe(true);
+      expect(audit.errors).toHaveLength(0);
+    }
+  });
+
+  it('generates valid large dimension 24x24 rooms across all archetypes', () => {
+    for (const archetype of ARCHETYPES) {
+      const prefab = generateRoomPrefab({
+        seed: `LARGE-24x24-${archetype}`,
+        archetype,
+        faction: 'sekiguchi',
+        width: 24,
+        height: 24,
+        symmetry: 'bilateral',
+        complexity: 0.7,
+        propDensity: 0.7,
+        hazardDensity: archetype === 'CORRUPTED_SECTOR' ? 0.3 : 0.1,
+        portalCount: archetype === 'ZERO_DAY_VAULT' ? 1 : 4,
+        minFloor: 1,
+        maxFloor: 15,
+      });
+
+      expect(prefab.width).toBe(24);
+      expect(prefab.height).toBe(24);
+      const audit = validatePrefabRules(prefab);
+      if (!audit.valid) {
+        console.error(`24x24 failed for ${archetype}:`, audit.errors);
+      }
+      expect(audit.valid).toBe(true);
+      expect(audit.errors).toHaveLength(0);
+    }
+  });
 });

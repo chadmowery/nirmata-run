@@ -104,6 +104,7 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
   const [genPropDensity, setGenPropDensity] = useState(0.5);
   const [genHazardDensity, setGenHazardDensity] = useState(0.0);
   const [genPortalCount, setGenPortalCount] = useState(2);
+  const [zoomScale, setZoomScale] = useState<number>(1.5);
 
   const [errors, setErrors] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
@@ -402,7 +403,7 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
     if (!ctx) return;
 
     const { width, height, layout, portals, faradayShielded } = prefabData;
-    const tileSize = 32;
+    const tileSize = Math.round(32 * zoomScale);
 
     canvas.width = width * tileSize;
     canvas.height = height * tileSize;
@@ -458,7 +459,7 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
 
       // Cyan arrow badge
       ctx.fillStyle = '#00f0ff';
-      ctx.font = 'bold 14px monospace';
+      ctx.font = `bold ${Math.max(12, Math.round(14 * zoomScale))}px monospace`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       const arrow =
@@ -507,13 +508,19 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
       }
 
       // Translucent directional indicator
+      const badgeSize = Math.max(12, Math.round(14 * zoomScale));
+      const offset = tileSize - badgeSize;
       ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(px + 18, py + 18, 14, 14);
+      ctx.fillRect(px + offset, py + offset, badgeSize, badgeSize);
       ctx.fillStyle = '#d8ff00';
-      ctx.font = '10px monospace';
+      ctx.font = `${Math.max(9, Math.round(10 * zoomScale))}px monospace`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(ORIENTATION_ARROWS[prop.orientation], px + 25, py + 25);
+      ctx.fillText(
+        ORIENTATION_ARROWS[prop.orientation],
+        px + offset + badgeSize / 2,
+        py + offset + badgeSize / 2,
+      );
     }
 
     // Layer 5: Faraday Cage Scanline Shroud
@@ -527,9 +534,9 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
       }
 
       ctx.fillStyle = 'rgba(0, 240, 255, 0.8)';
-      ctx.font = 'bold 9px monospace';
+      ctx.font = `bold ${Math.max(8, Math.round(9 * zoomScale))}px monospace`;
       ctx.textAlign = 'left';
-      ctx.fillText('⚡ FARADAY SHIELDED', tileSize + 4, tileSize + 12);
+      ctx.fillText('⚡ FARADAY SHIELDED', tileSize + 4, tileSize + Math.round(12 * zoomScale));
     }
 
     // Grid Overlay
@@ -578,7 +585,16 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
       ctx.lineWidth = 1;
       ctx.strokeRect(hoverPos.x * tileSize, hoverPos.y * tileSize, tileSize, tileSize);
     }
-  }, [viewMode, prefabData, propSpawnsWithOrient, autotiledGrid, hoverPos, boxStart, activeTool]);
+  }, [
+    viewMode,
+    prefabData,
+    propSpawnsWithOrient,
+    autotiledGrid,
+    hoverPos,
+    boxStart,
+    activeTool,
+    zoomScale,
+  ]);
 
   // Painting handlers
   const paintCell = useCallback(
@@ -731,8 +747,9 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const x = Math.floor((e.clientX - rect.left) / 32);
-    const y = Math.floor((e.clientY - rect.top) / 32);
+    const tileSize = Math.round(32 * zoomScale);
+    const x = Math.floor((e.clientX - rect.left) / tileSize);
+    const y = Math.floor((e.clientY - rect.top) / tileSize);
 
     setIsMouseDown(true);
     if (activeTool === 'box') {
@@ -748,8 +765,9 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const x = Math.floor((e.clientX - rect.left) / 32);
-    const y = Math.floor((e.clientY - rect.top) / 32);
+    const tileSize = Math.round(32 * zoomScale);
+    const x = Math.floor((e.clientX - rect.left) / tileSize);
+    const y = Math.floor((e.clientY - rect.top) / tileSize);
     setHoverPos({ x, y });
 
     if (isMouseDown && activeTool === 'pencil') {
@@ -765,16 +783,73 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
     setBoxStart(null);
   };
 
+  // Resize Handlers
+  const handleResizeGrid = (newW: number, newH: number) => {
+    if (!prefabData) return;
+    pushHistory();
+    const targetW = Math.max(8, Math.min(24, newW));
+    const targetH = Math.max(8, Math.min(24, newH));
+
+    const newLayout: string[] = [];
+    for (let y = 0; y < targetH; y++) {
+      if (y < prefabData.layout.length) {
+        let row = prefabData.layout[y].slice(0, targetW);
+        while (row.length < targetW) {
+          row += y === 0 || y === targetH - 1 ? '#' : '.';
+        }
+        const chars = row.split('');
+        if (y === 0 || y === targetH - 1) {
+          for (let x = 0; x < targetW; x++) chars[x] = '#';
+        } else {
+          chars[0] = '#';
+          chars[targetW - 1] = '#';
+        }
+        newLayout.push(chars.join(''));
+      } else {
+        newLayout.push('#'.repeat(targetW));
+      }
+    }
+
+    const validPortals = prefabData.portals
+      .filter((p) => p.x < targetW && p.y < targetH)
+      .map((p) => {
+        let x = p.x;
+        let y = p.y;
+        if (p.direction === 'east' && x >= targetW - 1) x = targetW - 1;
+        if (p.direction === 'south' && y >= targetH - 1) y = targetH - 1;
+        return { ...p, x, y };
+      });
+
+    const validProps = propSpawnsWithOrient.filter((p) => p.x < targetW && p.y < targetH);
+
+    setPrefabData({
+      ...prefabData,
+      width: targetW,
+      height: targetH,
+      layout: newLayout,
+      portals:
+        validPortals.length > 0
+          ? validPortals
+          : [{ x: Math.floor(targetW / 2), y: 0, direction: 'north' }],
+    });
+    setPropSpawnsWithOrient(validProps);
+    setDirty(true);
+  };
+
   // Mutation operators
   const handleGenerateRoom = () => {
     if (!prefabData) return;
     pushHistory();
+    const newSeed = `TK-${Math.floor(1000 + Math.random() * 9000)}`;
+    setGenSeed(newSeed);
+    const safeWidth = Math.max(8, Math.min(24, Number(prefabData.width) || 12));
+    const safeHeight = Math.max(8, Math.min(24, Number(prefabData.height) || 12));
     const config: RoomGeneratorConfig = {
-      seed: genSeed,
+      seed: newSeed,
       archetype: genArchetype,
       faction: genFaction,
-      width: prefabData.width,
-      height: prefabData.height,
+      width: safeWidth,
+      height: safeHeight,
       symmetry: genSymmetry,
       complexity: genComplexity,
       propDensity: genPropDensity,
@@ -1007,6 +1082,31 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
                 <option value="sekiguchi">Sekiguchi</option>
                 <option value="nucaloric">NuCaloric</option>
               </select>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+              <div className={styles.fieldRow}>
+                <label className={styles.fieldLabel}>Width (8-24)</label>
+                <input
+                  type="number"
+                  min={8}
+                  max={24}
+                  className={styles.fieldInput}
+                  value={prefabData.width}
+                  onChange={(e) => handleResizeGrid(Number(e.target.value) || 8, prefabData.height)}
+                />
+              </div>
+              <div className={styles.fieldRow}>
+                <label className={styles.fieldLabel}>Height (8-24)</label>
+                <input
+                  type="number"
+                  min={8}
+                  max={24}
+                  className={styles.fieldInput}
+                  value={prefabData.height}
+                  onChange={(e) => handleResizeGrid(prefabData.width, Number(e.target.value) || 8)}
+                />
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
@@ -1282,10 +1382,76 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
               </button>
             </div>
           </div>
+
+          {/* Structural Audit Card */}
+          <div
+            style={{
+              background: 'var(--c-surface-elevated, #111722)',
+              border: '1px solid var(--c-border, #1c2638)',
+              padding: '10px',
+              borderRadius: '2px',
+            }}
+          >
+            <div
+              style={{
+                fontFamily: 'var(--font-display, sans-serif)',
+                fontSize: '11px',
+                fontWeight: 700,
+                color: 'var(--c-accent-secondary, #00f0ff)',
+                letterSpacing: '0.08em',
+                marginBottom: '8px',
+              }}
+            >
+              STRUCTURAL AUDIT
+            </div>
+
+            {(['VAL-PRF-01', 'VAL-PRF-02', 'VAL-PRF-03', 'VAL-PRF-04', 'VAL-PRF-05'] as const).map(
+              (ruleId) => {
+                const error = auditResult.errors.find((e: PrefabValidationError) => e.id === ruleId);
+                const hasError = Boolean(error);
+                return (
+                  <div
+                    key={ruleId}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '4px 6px',
+                      background: hasError ? 'rgba(255, 42, 75, 0.1)' : 'rgba(0, 240, 255, 0.05)',
+                      border: `1px solid ${hasError ? 'var(--c-danger, #ff2a4b)' : 'rgba(0, 240, 255, 0.2)'}`,
+                      borderRadius: '2px',
+                      marginBottom: '4px',
+                      fontSize: '10px',
+                      fontFamily: 'var(--font-mono, monospace)',
+                    }}
+                    title={error?.message || 'Rule passed'}
+                  >
+                    <span>{ruleId}</span>
+                    <span style={{ color: hasError ? 'var(--c-danger, #ff2a4b)' : 'var(--c-accent-secondary, #00f0ff)' }}>
+                      {hasError ? '✕ FAIL' : '✓ PASS'}
+                    </span>
+                  </div>
+                );
+              },
+            )}
+
+            {auditResult.warnings.length > 0 && (
+              <div style={{ marginTop: '8px' }}>
+                <span style={{ fontSize: '10px', color: 'var(--c-warning, #ff6600)' }}>
+                  WARNINGS:
+                </span>
+                {auditResult.warnings.map((w: PrefabValidationError, i: number) => (
+                  <div key={i} style={{ fontSize: '10px', color: 'var(--c-warning, #ff6600)', marginTop: '2px' }}>
+                    • {w.message}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Center Column: Toolbar & Multi-Layer Canvas / Glyph Grid */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ flex: 1, minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {/* Top Bar: View Modes & Active Tool */}
           <div
             style={{
@@ -1296,6 +1462,8 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
               border: '1px solid var(--c-border, #1c2638)',
               padding: '6px 12px',
               borderRadius: '2px',
+              width: '100%',
+              boxSizing: 'border-box',
             }}
           >
             <div style={{ display: 'flex', gap: '4px' }}>
@@ -1335,6 +1503,30 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
               >
                 RAW ASCII
               </button>
+            </div>
+
+            {/* Zoom Controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '10px', color: 'var(--c-text-dim, #79889e)', marginRight: '2px' }}>
+                ZOOM:
+              </span>
+              {([1, 1.5, 2, 2.5] as const).map((z) => (
+                <button
+                  key={z}
+                  type="button"
+                  className={styles.toolButton}
+                  onClick={() => setZoomScale(z)}
+                  style={{
+                    background: zoomScale === z ? 'var(--c-accent-secondary, #00f0ff)' : undefined,
+                    color: zoomScale === z ? '#040609' : undefined,
+                    fontWeight: 700,
+                    fontSize: '10px',
+                    padding: '2px 6px',
+                  }}
+                >
+                  {z}x
+                </button>
+              ))}
             </div>
 
             {/* Tools (P, B, G, O) */}
@@ -1460,7 +1652,9 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
               alignItems: 'center',
               justifyContent: 'center',
               overflow: 'auto',
-              minHeight: '440px',
+              minHeight: '560px',
+              width: '100%',
+              boxSizing: 'border-box',
             }}
           >
             {viewMode === 'SPRITE' && (
@@ -1485,12 +1679,12 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: `repeat(${prefabData.width}, 32px)`,
+                  gridTemplateColumns: `repeat(${prefabData.width}, ${Math.round(32 * zoomScale)}px)`,
                   gap: '1px',
                   background: '#1c2638',
                   padding: '1px',
                   fontFamily: 'var(--font-mono, monospace)',
-                  fontSize: '14px',
+                  fontSize: `${Math.max(12, Math.round(14 * zoomScale))}px`,
                   userSelect: 'none',
                 }}
               >
@@ -1500,8 +1694,8 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
                       key={`${x},${y}`}
                       onClick={() => paintCell(x, y)}
                       style={{
-                        width: '32px',
-                        height: '32px',
+                        width: `${Math.round(32 * zoomScale)}px`,
+                        height: `${Math.round(32 * zoomScale)}px`,
                         background: '#0a0e15',
                         display: 'flex',
                         alignItems: 'center',
@@ -1527,9 +1721,9 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
               <div
                 style={{
                   fontFamily: 'var(--font-mono, monospace)',
-                  fontSize: '14px',
-                  lineHeight: '20px',
-                  letterSpacing: '4px',
+                  fontSize: `${Math.round(14 * zoomScale)}px`,
+                  lineHeight: `${Math.round(20 * zoomScale)}px`,
+                  letterSpacing: `${Math.round(4 * zoomScale)}px`,
                   whiteSpace: 'pre',
                   color: 'var(--c-accent-secondary, #00f0ff)',
                 }}
@@ -1547,77 +1741,10 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
               }}
             >
               POS: {hoverPos ? `${hoverPos.x}, ${hoverPos.y}` : '--, --'} | SIZE:{' '}
-              {prefabData.width} × {prefabData.height} | TOOL: {activeTool.toUpperCase()} | PORTALS:{' '}
-              {prefabData.portals.length} | PROPS: {propSpawnsWithOrient.length}
+              {prefabData.width} × {prefabData.height} | ZOOM: {zoomScale}x ({Math.round(32 * zoomScale)}px) | TOOL:{' '}
+              {activeTool.toUpperCase()} | PORTALS: {prefabData.portals.length} | PROPS:{' '}
+              {propSpawnsWithOrient.length}
             </div>
-          </div>
-        </div>
-
-        {/* Right Column: Live Structural Audit */}
-        <div style={{ width: '240px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div
-            style={{
-              background: 'var(--c-surface-elevated, #111722)',
-              border: '1px solid var(--c-border, #1c2638)',
-              padding: '10px',
-              borderRadius: '2px',
-            }}
-          >
-            <div
-              style={{
-                fontFamily: 'var(--font-display, sans-serif)',
-                fontSize: '11px',
-                fontWeight: 700,
-                color: 'var(--c-accent-secondary, #00f0ff)',
-                letterSpacing: '0.08em',
-                marginBottom: '8px',
-              }}
-            >
-              STRUCTURAL AUDIT
-            </div>
-
-            {(['VAL-PRF-01', 'VAL-PRF-02', 'VAL-PRF-03', 'VAL-PRF-04', 'VAL-PRF-05'] as const).map(
-              (ruleId) => {
-                const error = auditResult.errors.find((e: PrefabValidationError) => e.id === ruleId);
-                const hasError = Boolean(error);
-                return (
-                  <div
-                    key={ruleId}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '4px 6px',
-                      background: hasError ? 'rgba(255, 42, 75, 0.1)' : 'rgba(0, 240, 255, 0.05)',
-                      border: `1px solid ${hasError ? 'var(--c-danger, #ff2a4b)' : 'rgba(0, 240, 255, 0.2)'}`,
-                      borderRadius: '2px',
-                      marginBottom: '4px',
-                      fontSize: '10px',
-                      fontFamily: 'var(--font-mono, monospace)',
-                    }}
-                    title={error?.message || 'Rule passed'}
-                  >
-                    <span>{ruleId}</span>
-                    <span style={{ color: hasError ? 'var(--c-danger, #ff2a4b)' : 'var(--c-accent-secondary, #00f0ff)' }}>
-                      {hasError ? '✕ FAIL' : '✓ PASS'}
-                    </span>
-                  </div>
-                );
-              },
-            )}
-
-            {auditResult.warnings.length > 0 && (
-              <div style={{ marginTop: '8px' }}>
-                <span style={{ fontSize: '10px', color: 'var(--c-warning, #ff6600)' }}>
-                  WARNINGS:
-                </span>
-                {auditResult.warnings.map((w: PrefabValidationError, i: number) => (
-                  <div key={i} style={{ fontSize: '10px', color: 'var(--c-warning, #ff6600)', marginTop: '2px' }}>
-                    • {w.message}
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       </div>
