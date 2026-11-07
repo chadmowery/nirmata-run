@@ -4,7 +4,7 @@ import { EventBus } from '@engine/events/event-bus';
 import { GameEvents } from '@game/events/types';
 import { Grid } from '@engine/grid/grid';
 import { EventOriginContext } from '@engine/utils/event-context';
-import { Position, Shell, AudioProfile, AmbientEmitter, Prop } from '@shared/components';
+import { Position, Shell, AudioProfile, AmbientEmitter, Prop, FloorState } from '@shared/components';
 import { createGameAudioSystem } from '../game-audio-system';
 import { IAudioEngine } from '@engine/audio';
 
@@ -352,6 +352,42 @@ describe('GameAudioSystem Bridge', () => {
     eventBus.flush();
 
     expect(mockAudioEngine.stopCue).toHaveBeenCalledWith('amb_emitter_vent');
+
+    audioSystem.destroy();
+  });
+
+  it('updates ambiance track and passes active sectorCondition on floor transition', () => {
+    const floorEnt = world.createEntity();
+    world.addComponent(floorEnt, FloorState, {
+      currentFloor: 7,
+      maxFloor: 15,
+      runSeed: 'seed-42',
+      sectorCondition: 'THERMAL_SURGE',
+    });
+
+    const audioSystem = createGameAudioSystem({
+      world,
+      eventBus,
+      getPlayerEntity: () => playerId,
+      getGrid: () => grid,
+      audioEngine: mockAudioEngine,
+    });
+
+    eventBus.emit('FLOOR_TRANSITION', {
+      floorNumber: 7,
+      depthBand: 'STATIC_HORRORS',
+    });
+    eventBus.flush();
+
+    expect(mockAudioEngine.setAmbianceState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        depthBand: 'STATIC_HORRORS',
+        sectorCondition: 'THERMAL_SURGE',
+      }),
+    );
+    expect(mockAudioEngine.playAmbianceCue).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'amb_band_2_static' }),
+    );
 
     audioSystem.destroy();
   });

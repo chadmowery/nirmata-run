@@ -17,7 +17,7 @@ import {
   PredictionDeduplicator,
   SpatialCoords,
 } from '@engine/audio';
-import { Position, Shell, AudioProfile, Heat, AmbientEmitter, Prop } from '@shared/components';
+import { Position, Shell, AudioProfile, Heat, AmbientEmitter, Prop, FloorState } from '@shared/components';
 import { getSoundCue } from './cue-registry';
 
 export interface GameAudioSystemOptions {
@@ -407,11 +407,27 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
       depthBand = 'STATIC_HORRORS';
     }
 
+    // Query FloorState from world for active sector condition
+    const floorEntity = world.query(FloorState)[0];
+    const floorState = floorEntity ? world.getComponent(floorEntity, FloorState) : null;
+    const condition =
+      floorState?.sectorCondition && floorState.sectorCondition !== 'NOMINAL'
+        ? floorState.sectorCondition
+        : null;
+
+    // Check if there is an optional specialized track override for this sector condition (e.g. amb_condition_thermal_surge)
+    if (condition) {
+      const conditionCueId = `amb_condition_${condition.toLowerCase()}`;
+      if (getSoundCue(conditionCueId)) {
+        cueId = conditionCueId;
+      }
+    }
+
     const cue = getSoundCue(cueId);
     if (cue && 'playAmbianceCue' in audioEngine) {
       (audioEngine as AudioEngine).playAmbianceCue(cue);
     }
-    audioEngine.setAmbianceState({ depthBand });
+    audioEngine.setAmbianceState({ depthBand, sectorCondition: condition });
     updateAmbientEmitters();
   };
 
