@@ -1,0 +1,106 @@
+.telemetryPanel {
+  width: 340px;
+  min-width: 340px;
+  height: 100%;
+  background: var(--c-surface, #0a0e15);
+  border-left: 1px solid var(--c-border, #1c2638);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--c-surface-header, #0c121c);
+  border-bottom: 1px solid var(--c-border, #1c2638);
+  font-family: var(--font-display, sans-serif);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--c-accent-secondary, #00f0ff);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sectionCard {
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--c-border, #1c2638);
+}
+
+.cardTitle {
+  font-family: var(--font-display, sans-serif);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--c-text-dim, #79889e);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: var(--space-sm);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.badgeSuccess {
+  background: rgba(0, 240, 255, 0.15);
+  color: var(--c-accent-secondary, #00f0ff);
+  border: 1px solid var(--c-accent-secondary, #00f0ff);
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.badgeDanger {
+  background: rgba(255, 42, 75, 0.15);
+  color: var(--c-danger, #ff2a4b);
+  border: 1px solid var(--c-danger, #ff2a4b);
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.badgeWarning {
+  background: rgba(255, 102, 0, 0.15);
+  color: var(--c-warning, #ff6600);
+  border: 1px solid var(--c-warning, #ff6600);
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.jsonViewer {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-md);
+  background: var(--c-bg, #040609);
+  color: var(--c-text-ivory, #f4f4f0);
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: text;
+}
+
+.copyButton {
+  background: transparent;
+  border: 1px solid var(--c-border-bright, #36445d);
+  color: var(--c-accent-secondary, #00f0ff);
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  padding: 2px 6px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 150ms ease;
+}
+
+.copyButton:hover {
+  background: rgba(0, 240, 255, 0.1);
+  border-color: var(--c-accent-secondary, #00f0ff);
+}

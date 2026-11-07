@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { AutoPathfinder } from '@/game/debug/auto-pathfind';
+import { AutoPathfinder } from '@dev-tool/debug/auto-pathfind';
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
 import { Grid } from '@engine/grid/grid';

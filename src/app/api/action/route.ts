@@ -79,6 +79,13 @@ export async function POST(req: Request) {
     let turnExecutionFailed = false;
     let turnErrorMessage = '';
 
+    if (process.env.NODE_ENV === 'production' && action.type === 'DEBUG_COMMAND') {
+      return NextResponse.json(
+        { error: 'Debug commands are disabled in production' },
+        { status: 403 },
+      );
+    }
+
     try {
       const bypassInputGate = action.type === 'ABORT_RUN' || action.type === 'DEBUG_COMMAND';
       if (bypassInputGate || turnManager.canAcceptInput()) {

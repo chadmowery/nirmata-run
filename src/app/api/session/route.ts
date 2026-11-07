@@ -8,6 +8,9 @@ import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT, DEFAULT_SHELL_ID } from '@/sha
 import { RunMode } from '@shared/run-mode';
 import { logger } from '@engine/utils/logger';
 import { globalShellRegistry, applyShellUpgradesToRecord } from '@/game/shells/server';
+import { serializeWorld, serializeGrid } from '@shared/serialization';
+import { FullSyncPayload } from '@shared/types';
+import { TurnPhase } from '@engine/turn/types';
 
 const CreateSessionRequestSchema = z.object({
   seed: z.string().min(1),
@@ -86,7 +89,26 @@ export async function POST(req: Request) {
 
     logger.info(`Session created: ${sessionId} (seed: ${seed})`, 'API');
 
-    return NextResponse.json({ sessionId });
+    let initialState: FullSyncPayload | undefined;
+    if (
+      typeof instance.world?.getSerializableState === 'function' &&
+      typeof instance.grid?.getSerializableTiles === 'function'
+    ) {
+      initialState = {
+        type: 'FULL',
+        world: serializeWorld(instance.world, { redactForClient: true }),
+        grid: serializeGrid(instance.grid),
+        playerId: instance.playerId,
+        turnNumber: instance.turnManager?.getTurnNumber?.() ?? 0,
+        phase: instance.turnManager?.getPhase?.() ?? TurnPhase.AWAIT_INPUT,
+        events: [],
+      };
+    }
+
+    return NextResponse.json({
+      sessionId,
+      ...(initialState ? { initialState } : {}),
+    });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     logger.error('API Error (session creation)', 'API', { error });

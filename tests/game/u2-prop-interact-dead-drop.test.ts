@@ -134,16 +134,14 @@ describe('U2: Overclock Bypass, Forced Interaction & Dead-Drop Uplink via Client
     await vi.waitFor(() => {
       const serverLock = serverInstance.world.getComponent(serverSafeId, SecurityLock);
       expect(serverLock?.isLocked).toBe(false);
+      const clientLock = clientContext.world.getComponent(serverSafeId, SecurityLock);
+      expect(clientLock?.isLocked).toBe(false);
     });
 
     const serverPropAfter = serverInstance.world.getComponent(serverSafeId, Prop);
     expect(serverPropAfter?.isSearched).toBe(true);
     const serverHeat = serverInstance.world.getComponent(serverPlayerId, Heat);
     expect(serverHeat?.current).toBeGreaterThanOrEqual(30);
-
-    // Client state should also be reconciled with unlocked + searched state
-    const clientLock = clientContext.world.getComponent(serverSafeId, SecurityLock);
-    expect(clientLock?.isLocked).toBe(false);
 
     // 5. Now test Dead-Drop Uplink: place a dead_drop_uplink at (x, y+1)
     const uplinkX = playerPos.x;

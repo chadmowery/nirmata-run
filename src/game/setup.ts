@@ -1,5 +1,7 @@
 import { gameStore, GroundItemInfo } from './ui/store';
-import { createEngineInstance } from './engine-factory';
+import { createEngineInstance, EngineInstance } from './engine-factory';
+import { createClientEngine, ClientEngineInstance } from '@client/game/client-engine-factory';
+import { applyStateDelta } from '@shared/reconciliation';
 import { GameContext, GameSystem } from './types';
 import { syncEngineToStore } from './ui/sync-bridge';
 import { registerInputBridge } from './input/input-bridge';
@@ -7,6 +9,7 @@ import { StateMachine } from '../engine/state-machine/state-machine';
 import { StateConfig } from '../engine/state-machine/types';
 import { GameState } from './states/types';
 import { GAME_TRANSITIONS } from './states/game-states';
+import { GameEvents } from './events/types';
 import { InputManager } from './input/input-manager';
 import {
   GameAction,
@@ -41,15 +44,12 @@ import {
   SoftwareDef as SoftwareDefComp,
 } from '@shared/components';
 import { getCurrencyAmount } from '@shared/utils/inventory-util';
-import { ActionIntent } from '@shared/types';
+import { ActionIntent, FullSyncPayload } from '@shared/types';
 import { RunMode } from '@shared/run-mode';
 import { PlayerProfile } from '@shared/profile';
 import { DEFAULT_SHELL_ID } from '@shared/constants';
 import { logger } from '@engine/utils/logger';
-import { AutoPathfinder } from './debug/auto-pathfind';
-import { useDebugStore } from './debug/debug-store';
 import { EventOriginContext } from '@engine/utils/event-context';
-import { DebugAPI } from './debug/debug-api';
 
 export { setActiveGameContext, getActiveGameContext } from './active-context';
 import { setActiveGameContext, getActiveGameContext } from './active-context';
@@ -73,11 +73,6 @@ export function resolveActiveSessionId(explicitSessionId?: string): string {
 }
 
 
-declare global {
-  interface Window {
-    __DEBUG__?: DebugAPI;
-  }
-}
 
 export interface GameConfig {
   gridWidth: number;
@@ -86,6 +81,7 @@ export interface GameConfig {
   shellId?: string;
   runMode?: RunMode;
   profile?: PlayerProfile;
+  initialState?: FullSyncPayload;
 }
 
 import { globalShellRegistry } from './shells/client';
@@ -96,28 +92,48 @@ import { globalShellRegistry } from './shells/client';
 export function createGame(config: GameConfig & { sessionId?: string }): GameContext {
   const seed = config.seed ?? `run-${Date.now()}`;
 
-  // Fetch shell record for the player
-  const shellId = config.shellId || DEFAULT_SHELL_ID;
-  let shellRecord = globalShellRegistry.get(shellId);
-  if (!shellRecord) {
-    const isKnownArchetype =
-      globalShellRegistry.getTemplates().some((t) => t.id === shellId);
-    const archetypeId = isKnownArchetype ? shellId : DEFAULT_SHELL_ID;
-    shellRecord = globalShellRegistry.createRecord(shellId, archetypeId);
+  let instance: ClientEngineInstance | EngineInstance<GameEvents>;
+
+  if (config.initialState) {
+    const clientInstance = createClientEngine({
+      width: config.gridWidth,
+      height: config.gridHeight,
+      sessionId: config.sessionId,
+      playerId: config.initialState.playerId,
+    });
+    applyStateDelta(
+      clientInstance.world,
+      clientInstance.grid,
+      clientInstance.turnManager,
+      clientInstance.eventBus,
+      config.initialState,
+    );
+    instance = clientInstance;
+  } else {
+    // Fetch shell record for the player (legacy/test fallback)
+    const shellId = config.shellId || DEFAULT_SHELL_ID;
+    let shellRecord = globalShellRegistry.get(shellId);
+    if (!shellRecord) {
+      const isKnownArchetype =
+        globalShellRegistry.getTemplates().some((t) => t.id === shellId);
+      const archetypeId = isKnownArchetype ? shellId : DEFAULT_SHELL_ID;
+      shellRecord = globalShellRegistry.createRecord(shellId, archetypeId);
+    }
+
+    instance = createEngineInstance({
+      width: config.gridWidth,
+      height: config.gridHeight,
+      seed,
+      isClient: true,
+      shellRecord,
+      profile: config.profile,
+      sessionId: config.sessionId,
+      runMode: config.runMode,
+    });
   }
 
-  const instance = createEngineInstance({
-    width: config.gridWidth,
-    height: config.gridHeight,
-    seed,
-    isClient: true,
-    shellRecord,
-    profile: config.profile,
-    sessionId: config.sessionId,
-    runMode: config.runMode,
-  });
-
-  const { world, grid, eventBus, turnManager, entityFactory, systems, playerId } = instance;
+  const { world, grid, eventBus, turnManager, systems } = instance;
+  const playerId = config.initialState?.playerId ?? instance.playerId;
   const inputManager = new InputManager(DEFAULT_BINDINGS);
 
   // Flush queued buffered inputs on bump safeguards and security faults
@@ -131,34 +147,12 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     grid,
     eventBus,
     turnManager,
-    entityFactory,
     playerId,
     inputManager,
     sessionId: config.sessionId,
     currentSeed: seed,
-    movementSystem: systems.movement,
-    combatSystem: systems.combat,
-    aiSystem: systems.ai,
-    itemPickupSystem: systems.itemPickup,
-    heatSystem: systems.heat,
-    statusEffectSystem: systems.statusEffect,
-    firmwareSystem: systems.firmware,
-    kernelPanicSystem: systems.kernelPanic,
-    augmentSystem: systems.augment,
-    packCoordinatorSystem: systems.packCoordinator,
-    tileCorruptionSystem: systems.tileCorruption,
-    runEnderSystem: systems.runEnder,
-    stabilitySystem: systems.stability,
-    floorManagerSystem: systems.floorManager,
-    anchorInteractionSystem: systems.anchorInteraction,
-    gravediggerSystem: systems.gravedigger,
-    rewardDropSystem: systems.rewardDrop,
-    tagCleanupSystem: systems.tagCleanup,
-    deadZoneSystem: systems.deadZone,
-    equipmentSystem: systems.equipment,
-    shellStatsSystem: systems.shellStats,
-    teleportSystem: systems.teleport,
-    softwareSystem: systems.software,
+    movementSystem: systems?.movement,
+    systems: systems as unknown as Record<string, GameSystem>,
   };
 
   const stateConfigs: Record<GameState, StateConfig<GameState, GameContext>> = {
@@ -211,30 +205,9 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     GAME_TRANSITIONS,
   );
 
-  const autoPathfinder = new AutoPathfinder(
-    async (intent) => {
-      inputManager.setRequestPending(true);
-      await sendActionToServer(intent);
-      inputManager.setRequestPending(false);
-    },
-    (action) => {
-      if (DIRECTIONS[action]) {
-        return { type: 'MOVE', dx: DIRECTIONS[action].dx, dy: DIRECTIONS[action].dy };
-      }
-      if (action === GameAction.WAIT) {
-        return { type: 'WAIT' };
-      }
-      if (action === GameAction.VENT) {
-        return { type: 'VENT' };
-      }
-      return null;
-    },
-  );
-
   const context: GameContext = {
     ...contextBase,
     fsm,
-    autoPathfinder,
     submitAction: async (intent: ActionIntent) => {
       inputManager.setRequestPending(true);
       try {
@@ -248,16 +221,45 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   fsm.setContext(context);
   setActiveGameContext(context);
 
-  if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
-    window.__DEBUG__ = new DebugAPI(context, (intent) => sendActionToServer(intent));
+  if (process.env.NODE_ENV === 'development') {
+    if (typeof window !== 'undefined') {
+      import('@dev-tool/debug/debug-api').then(({ DebugAPI }) => {
+        (window as unknown as { __DEBUG__?: unknown }).__DEBUG__ = new DebugAPI(context, (intent) => sendActionToServer(intent));
+      });
+    }
+
+    import('@dev-tool/debug/debug-store').then(({ useDebugStore }) => {
+      eventBus.onAny((type, payload) => {
+        useDebugStore.getState().addTimelineEvent(type, payload, EventOriginContext.current);
+      });
+    });
+
+    import('@dev-tool/debug/auto-pathfind').then(({ AutoPathfinder }) => {
+      const autoPathfinder = new AutoPathfinder(
+        async (intent) => {
+          inputManager.setRequestPending(true);
+          await sendActionToServer(intent);
+          inputManager.setRequestPending(false);
+        },
+        (action) => {
+          if (DIRECTIONS[action]) {
+            return { type: 'MOVE', dx: DIRECTIONS[action].dx, dy: DIRECTIONS[action].dy };
+          }
+          if (action === GameAction.WAIT) {
+            return { type: 'WAIT' };
+          }
+          if (action === GameAction.VENT) {
+            return { type: 'VENT' };
+          }
+          return null;
+        },
+      );
+      autoPathfinder.setContext(context);
+      context.autoPathfinder = autoPathfinder;
+    });
   }
 
   syncEngineToStore(context);
-
-  // Hook EventBus to Debug Timeline
-  eventBus.onAny((type, payload) => {
-    useDebugStore.getState().addTimelineEvent(type, payload, EventOriginContext.current);
-  });
 
   const targetingManager = createTargetingManager(eventBus, (slotIndex, targetX, targetY) => {
     handleConfirmedTarget(slotIndex, targetX, targetY);
@@ -552,12 +554,18 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     }
 
     if (action === GameAction.DEBUG_PATHFIND_ANCHOR) {
-      autoPathfinder.toggle();
+      if (process.env.NODE_ENV === 'development') {
+        context.autoPathfinder?.toggle();
+      }
       return;
     }
 
     if (action === GameAction.DEBUG_TOGGLE_TIMELINE) {
-      useDebugStore.getState().toggleTimeline();
+      if (process.env.NODE_ENV === 'development') {
+        import('@dev-tool/debug/debug-store').then(({ useDebugStore }) => {
+          useDebugStore.getState().toggleTimeline();
+        });
+      }
       return;
     }
 
@@ -566,7 +574,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
       return;
     }
 
-    autoPathfinder.cancel();
+    context.autoPathfinder?.cancel();
 
     const pId = context.playerId;
     if (fsm.getCurrentState() === GameState.Playing && turnManager.canAcceptInput() && pId) {
@@ -792,7 +800,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
   inputManager.setActionHandler(handlePlayerInput);
 
-  autoPathfinder.setContext(context);
+  context.autoPathfinder?.setContext(context);
 
   function getActionIntent(action: GameAction): ActionIntent | null {
     if (DIRECTIONS[action]) {
@@ -829,34 +837,10 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
  * Cleans up game resources and systems.
  */
 export function destroyGame(context: GameContext) {
-  const systems: GameSystem[] = [
-    context.combatSystem,
-    context.itemPickupSystem,
-    context.aiSystem,
-    context.movementSystem,
-    context.heatSystem,
-    context.statusEffectSystem,
-    context.firmwareSystem,
-    context.kernelPanicSystem,
-    context.augmentSystem,
-    context.packCoordinatorSystem,
-    context.tileCorruptionSystem,
-    context.runEnderSystem,
-    context.stabilitySystem,
-    context.floorManagerSystem,
-    context.anchorInteractionSystem,
-    context.gravediggerSystem,
-    context.rewardDropSystem,
-    context.tagCleanupSystem,
-    context.deadZoneSystem,
-    context.equipmentSystem,
-    context.shellStatsSystem,
-    context.teleportSystem,
-    context.softwareSystem,
-  ];
-
-  for (const sys of systems) {
-    sys.dispose?.();
+  if (context.systems) {
+    for (const sys of Object.values(context.systems)) {
+      sys?.dispose?.();
+    }
   }
 
   context.autoPathfinder?.cancel();

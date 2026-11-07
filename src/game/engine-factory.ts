@@ -55,6 +55,11 @@ import { ShellRecord } from './shells/shared';
 import { applyShellUpgradesToRecord } from './shells/server/shell-registry';
 import { PlayerProfile } from '@shared/profile';
 import { RunMode } from '@shared/run-mode';
+import { createServerEngine, ServerEngineInstance, ServerEngineInitConfig } from '@server/game/server-engine-factory';
+import { createClientEngine, ClientEngineInstance, ClientEngineInitConfig } from '@client/game/client-engine-factory';
+
+export { createServerEngine, createClientEngine };
+export type { ServerEngineInstance, ServerEngineInitConfig, ClientEngineInstance, ClientEngineInitConfig };
 
 export interface EngineInitConfig {
   width: number;
@@ -107,6 +112,10 @@ export interface EngineInstance<T extends GameplayEvents = GameEvents> {
  * Shared between client and server.
  */
 export function createEngineInstance(config: EngineInitConfig): EngineInstance<GameEvents> {
+  if (!config.isClient) {
+    return createServerEngine(config);
+  }
+
   const eventBus = new EventBus<GameEvents>();
   const world = new World<GameEvents>(eventBus, { childComponentKey: 'children' });
 

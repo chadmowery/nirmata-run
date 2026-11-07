@@ -7,6 +7,9 @@ import { createEngineInstance } from '@/game/engine-factory';
 import { globalShellRegistry, applyShellUpgradesToRecord } from '@/game/shells/server';
 import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT } from '@/shared/constants';
 import { logger } from '@engine/utils/logger';
+import { serializeWorld, serializeGrid } from '@shared/serialization';
+import { FullSyncPayload } from '@shared/types';
+import { TurnPhase } from '@engine/turn/types';
 
 const LaunchRequestSchema = z.object({
   sessionId: z.string().min(1),
@@ -117,14 +120,32 @@ export async function POST(req: NextRequest) {
       shellId: shellId || undefined,
     });
 
+    let initialState: FullSyncPayload | undefined;
+    if (
+      typeof engine.world?.getSerializableState === 'function' &&
+      typeof engine.grid?.getSerializableTiles === 'function'
+    ) {
+      initialState = {
+        type: 'FULL',
+        world: serializeWorld(engine.world, { redactForClient: true }),
+        grid: serializeGrid(engine.grid),
+        playerId: engine.playerId,
+        turnNumber: engine.turnManager?.getTurnNumber?.() ?? 0,
+        phase: engine.turnManager?.getPhase?.() ?? TurnPhase.AWAIT_INPUT,
+        events: [],
+      };
+    }
+
     return NextResponse.json({
       success: true,
+      sessionId,
       config: {
         mode: config.mode,
         seed: config.seed,
         name: config.name,
         shellId: shellId || undefined,
       },
+      ...(initialState ? { initialState } : {}),
     });
   } catch (error) {
     logger.error('[RunLaunch] Error:', 'API', error);

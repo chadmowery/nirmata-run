@@ -3,6 +3,7 @@ import { GameState } from '../states/types';
 import { EventOriginContext } from '@engine/utils/event-context';
 import { PlayerProfile, VaultItem } from '@/shared/profile';
 import { RunMode } from '@/shared/run-mode';
+import { FullSyncPayload } from '@shared/types';
 import { ShellTemplate } from '@/game/shells/shared';
 import { RunInventory } from '@shared/components/run-inventory';
 import { EquipmentSlots } from '@shared/components/equipment-slots';
@@ -192,7 +193,13 @@ export interface UIState {
   bootSequenceActive: boolean;
   hasOverflow: boolean;
   overflowCount: number;
-  launchConfig: { mode: RunMode; seed: string; sessionId: string; shellId?: string } | null;
+  launchConfig: {
+    mode: RunMode;
+    seed: string;
+    sessionId: string;
+    shellId?: string;
+    initialState?: FullSyncPayload;
+  } | null;
 
   // New gameplay feedback fields
   abilities: AbilityData[];
@@ -281,7 +288,7 @@ export interface UIState {
   setRitualActive: (active: boolean) => void;
   setBootSequenceActive: (active: boolean) => void;
   setLaunchConfig: (
-    config: { mode: RunMode; seed: string; sessionId: string; shellId?: string } | null,
+    config: { mode: RunMode; seed: string; sessionId: string; shellId?: string; initialState?: FullSyncPayload } | null,
   ) => void;
   updateProfileOptimistic: (updater: (profile: PlayerProfile) => PlayerProfile) => void;
   resetHubState: () => void;
@@ -555,8 +562,8 @@ export const gameStore = createStore<UIState>((set, get) => ({
   setPlayerProfile: (profile) =>
     set({
       playerProfile: profile,
-      hasOverflow: profile.overflow.length > 0,
-      overflowCount: profile.overflow.length,
+      hasOverflow: (profile.overflow?.length ?? 0) > 0,
+      overflowCount: profile.overflow?.length ?? 0,
     }),
   setShellTemplates: (templates) => {
     let targetIndex = get().selectedShellIndex;

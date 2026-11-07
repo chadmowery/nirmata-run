@@ -57,8 +57,9 @@ export const RitualOverlay: React.FC = () => {
           setLaunchConfig({
             mode: data.config.mode,
             seed: data.config.seed,
-            sessionId: playerProfile.sessionId,
+            sessionId: data.sessionId || playerProfile.sessionId,
             shellId: data.config.shellId || currentShell.id,
+            initialState: data.initialState,
           });
           setRitualActive(false);
           setBootSequenceActive(true);

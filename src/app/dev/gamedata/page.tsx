@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { notFound } from 'next/navigation';
-import { GamedataTool } from './GamedataTool';
+import { GamedataTool } from '@dev-tool/studio/GamedataTool';
 
 const ENTITY_DIR = path.join(process.cwd(), 'src/game/entities/templates');
 const MIXIN_DIR = path.join(process.cwd(), 'src/game/entities/templates/mixins');

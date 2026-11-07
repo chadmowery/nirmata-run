@@ -41,6 +41,6 @@ logs/
 .claude
 
 # Debug and Scratch
-debug/
-scratch/
-tmp/
+/debug/
+/scratch/
+/tmp/

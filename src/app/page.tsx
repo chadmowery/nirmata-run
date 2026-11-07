@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { createGame, destroyGame } from '@/game/setup';
 import { loadAssets } from '@/rendering/assets';
 import { initRenderer, destroyRenderer, getApp } from '@/rendering/renderer';
@@ -8,7 +9,6 @@ import { createRenderSystem } from '@/rendering/render-system';
 import { createWorldContainer } from '@/rendering/layers';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
-import { useDebugStore } from '@/game/debug/debug-store';
 import { GameState } from '@/game/states/types';
 import { RunMode } from '@/shared/run-mode';
 import { logger } from '@engine/utils/logger';
@@ -20,9 +20,13 @@ import { BSODScreen } from '@/components/ui/BSODScreen';
 import { RunResultsScreen } from '@/components/ui/RunResultsScreen';
 import { AbortMissionDialog } from '@/components/ui/AbortMissionDialog';
 import { HubLayout } from '@/components/ui/hub/HubLayout';
-import { DevTerminal } from '@/components/ui/DevTerminal';
 import { GameContext } from '@/game/types';
 import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT, DEFAULT_SHELL_ID } from '@/shared/constants';
+
+const DevTerminal = dynamic(
+  () => import('@dev-tool/terminal/DevTerminal').then((m) => m.DevTerminal),
+  { ssr: false },
+);
 
 export default function GamePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -58,6 +62,7 @@ export default function GamePage() {
       let sessionId: string | undefined;
       let runMode: RunMode | undefined;
       let shellId: string | undefined;
+      let initialState = launchConfig?.initialState;
 
       const fallbackShellId = store.shellTemplates[store.selectedShellIndex]?.id || DEFAULT_SHELL_ID;
 
@@ -86,6 +91,7 @@ export default function GamePage() {
         if (sessionResponse.ok) {
           const sessionData = await sessionResponse.json();
           sessionId = sessionData.sessionId;
+          initialState = sessionData.initialState;
           if (typeof window !== 'undefined' && sessionId) {
             window.localStorage?.setItem('nimrata_sessionId', sessionId);
           }
@@ -107,6 +113,7 @@ export default function GamePage() {
         runMode,
         shellId,
         profile: store.playerProfile || undefined,
+        initialState,
       });
       contextRef.current = context;
 
@@ -181,7 +188,11 @@ export default function GamePage() {
 
       // Reset run-specific stats but keep walletScrap
       gameStore.getState().resetRunStats();
-      useDebugStore.getState().clearTimeline();
+      if (process.env.NODE_ENV === 'development') {
+        import('@dev-tool/debug/debug-store').then(({ useDebugStore }) => {
+          useDebugStore.getState().clearTimeline();
+        });
+      }
     }
   }, [status]);
 

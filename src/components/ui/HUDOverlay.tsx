@@ -159,7 +159,7 @@ export const HUDOverlay: React.FC = () => {
         <div className={styles.hudColRight}>
           <NearbyEntities />
           <MessageLog />
-          <EventTimelinePanel />
+          {process.env.NODE_ENV === 'development' && <EventTimelinePanel />}
         </div>
       </div>
 

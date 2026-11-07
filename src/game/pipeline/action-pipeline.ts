@@ -40,7 +40,7 @@ import {
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { DIRECTIONS, GameAction } from '../input/actions';
 import { handleInventorySwap } from '../intent/inventory-intent';
-import { handleServerDebugCommand } from '../debug/server-debug-handler';
+import { handleServerDebugCommand } from '@server/debug/server-debug-handler';
 import { checkAutoLoader } from '../systems/software-effects';
 import { isItemLike } from '../systems/item-pickup';
 import { addHealIntent } from '../systems/combat';
@@ -737,7 +737,7 @@ export function processAction(
       });
       return 'ABORT_RUN';
     case 'DEBUG_COMMAND':
-      if (options?.sessionId) {
+      if (process.env.NODE_ENV !== 'production' && options?.sessionId) {
         handleServerDebugCommand(
           world,
           eventBus,

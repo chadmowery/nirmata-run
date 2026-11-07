@@ -58,9 +58,15 @@ export const DEFAULT_BINDINGS: Record<string, GameAction> = {
   Digit2: GameAction.USE_FIRMWARE_1,
   Digit3: GameAction.USE_FIRMWARE_2,
   KeyV: GameAction.VENT,
-  KeyP: GameAction.DEBUG_PATHFIND_ANCHOR,
-  'Shift+Backquote': GameAction.DEBUG_TOGGLE_TIMELINE,
   KeyC: GameAction.RECENTER_CAMERA,
+
+  // Development debug shortcuts
+  ...(process.env.NODE_ENV === 'development'
+    ? {
+        KeyP: GameAction.DEBUG_PATHFIND_ANCHOR,
+        'Shift+Backquote': GameAction.DEBUG_TOGGLE_TIMELINE,
+      }
+    : {}),
 
   // Interaction
   'Shift+Period': GameAction.INTERACT_STAIRCASE,

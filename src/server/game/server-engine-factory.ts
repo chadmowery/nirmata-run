@@ -1,0 +1,466 @@
+import { World } from '@engine/ecs/world';
+import { Grid } from '@engine/grid/grid';
+import { EventBus } from '@engine/events/event-bus';
+import { TurnManager } from '@engine/turn/turn-manager';
+import { GameTurnAdapter } from '@game/turn/game-turn-adapter';
+import { EntityRegistry } from '@engine/entity/registry';
+import { EntityFactory } from '@engine/entity/factory';
+import { COMPONENTS_REGISTRY } from '@shared/components';
+import { ComponentRegistry } from '@engine/entity/types';
+import { ComponentDef } from '@engine/ecs/types';
+import { registerGameTemplates } from '@game/entities';
+import { createMovementSystem } from '@game/systems/movement';
+import {
+  MoveIntent,
+  VentIntent,
+  FirmwareIntent,
+  AbilityDef,
+  AugmentData,
+  Children,
+  SoftwareDef,
+  RarityTier,
+} from '@shared/components';
+import { createCombatSystem } from '@game/systems/combat';
+import { createAISystem } from '@game/systems/ai';
+import { registerCoreSystems } from '@game/systems/registration';
+import { DeadZoneSystem } from '@game/systems/dead-zone';
+import { ItemPickupSystem } from '@game/systems/item-pickup';
+import { createHeatSystem, HeatSystem } from '@game/systems/heat';
+import { StatusEffectSystem } from '@game/systems/status-effects';
+import { FirmwareSystem } from '@game/systems/firmware';
+import { createKernelPanicSystem, KernelPanicSystem } from '@game/systems/kernel-panic';
+import { AugmentSystem } from '@game/systems/augment';
+import { PackCoordinatorSystem } from '@game/systems/pack-coordinator';
+import { createTileCorruptionSystem } from '@game/systems/tile-corruption';
+import { createRunEnderSystem } from '@game/systems/run-ender';
+import { StabilitySystem } from '@game/systems/stability';
+import { FloorManagerSystem } from '@game/systems/floor-manager';
+import { AnchorInteractionSystem } from '@game/systems/anchor-interaction';
+import { RewardDropSystem } from '@game/systems/reward-drop';
+import { createTagCleanupSystem } from '@game/systems/tag-cleanup';
+import { createGravediggerSystem } from '@game/systems/gravedigger';
+import { EquipmentSystem } from '@game/systems/equipment';
+import { ShellStatsSystem } from '@game/systems/shell-stats';
+import { TeleportSystem } from '@game/systems/teleport';
+import { SoftwareSystem } from '@game/systems/software';
+import { generateDungeon } from '@game/generation/dungeon-generator';
+import { placeEntities } from '@game/generation/entity-placement';
+import RNG from 'rot-js/lib/rng';
+import { GameAction, DIRECTIONS, isFirmwareAction, getFirmwareSlotIndex } from '@game/input/actions';
+import { GameplayEvents } from '@shared/events/types';
+import { GameEvents } from '@game/events/types';
+
+import { ShellRecord } from '@game/shells/shared';
+import { applyShellUpgradesToRecord } from '@game/shells/server/shell-registry';
+import { PlayerProfile } from '@shared/profile';
+import { RunMode } from '@shared/run-mode';
+
+export interface ServerEngineInitConfig {
+  width: number;
+  height: number;
+  seed: string;
+  shellRecord?: ShellRecord;
+  sessionId?: string;
+  profile?: PlayerProfile;
+  runMode?: RunMode;
+}
+
+export interface ServerEngineInstance<T extends GameplayEvents = GameEvents> {
+  world: World<T>;
+  grid: Grid;
+  eventBus: EventBus<T>;
+  turnManager: TurnManager<T>;
+  entityFactory: EntityFactory;
+  playerId: number;
+  sessionId?: string;
+  systems: {
+    movement: ReturnType<typeof createMovementSystem<T>>;
+    combat: ReturnType<typeof createCombatSystem<T>>;
+    ai: ReturnType<typeof createAISystem<T>>;
+    deadZone: DeadZoneSystem<T>;
+    itemPickup: ItemPickupSystem<T>;
+    heat: HeatSystem<T>;
+    statusEffect: StatusEffectSystem<T>;
+    firmware: FirmwareSystem<T>;
+    kernelPanic: KernelPanicSystem<T>;
+    augment: AugmentSystem<T>;
+    packCoordinator: PackCoordinatorSystem<T>;
+    tileCorruption: ReturnType<typeof createTileCorruptionSystem<T>>;
+    runEnder: ReturnType<typeof createRunEnderSystem<T>>;
+    stability: StabilitySystem<T>;
+    floorManager: FloorManagerSystem<T>;
+    anchorInteraction: AnchorInteractionSystem<T>;
+    rewardDrop: RewardDropSystem<T>;
+    tagCleanup: ReturnType<typeof createTagCleanupSystem<T>>;
+    gravedigger: ReturnType<typeof createGravediggerSystem<T>>;
+    equipment: EquipmentSystem<T>;
+    shellStats: ShellStatsSystem<T>;
+    teleport: TeleportSystem<T>;
+    software: SoftwareSystem<T>;
+  };
+}
+
+/**
+ * Creates and initializes an authoritative game server engine instance.
+ * Executes procedural generation, entity placement, and registers all 23 gameplay systems.
+ */
+export function createServerEngine(config: ServerEngineInitConfig): ServerEngineInstance<GameEvents> {
+  const eventBus = new EventBus<GameEvents>();
+  const world = new World<GameEvents>(eventBus, { childComponentKey: 'children' });
+
+  // Entity pipeline
+  const entityRegistry = new EntityRegistry();
+  registerGameTemplates(entityRegistry);
+  const entityFactory = new EntityFactory(entityRegistry);
+
+  const componentsMap: Record<string, ComponentDef<unknown>> = Object.fromEntries(
+    COMPONENTS_REGISTRY.map((component) => [component.key, component]),
+  );
+  const componentRegistry: ComponentRegistry = {
+    get: (key: string) => componentsMap[key],
+    has: (key: string) => !!componentsMap[key],
+  };
+
+  // Dungeon Generation
+  const dungeonResult = generateDungeon({
+    width: config.width,
+    height: config.height,
+    seed: config.seed,
+    depth: 1,
+  });
+
+  const grid = dungeonResult.grid;
+
+  // Core Systems
+  const coreSystems = registerCoreSystems(world, grid, eventBus, entityFactory, componentRegistry, {
+    runMode: config.runMode,
+    isClient: false,
+  });
+
+  const heatSystem = createHeatSystem(world, eventBus);
+  const kernelPanicSystem = createKernelPanicSystem(world, eventBus);
+
+  heatSystem.init();
+  kernelPanicSystem.init();
+
+  const turnAdapter = new GameTurnAdapter(world, {
+    defaultActionCost: 1000,
+    waitActionCost: 500,
+  });
+
+  const turnManager = new TurnManager<GameEvents>(
+    world,
+    eventBus,
+    {
+      energyThreshold: 1000,
+      defaultActionCost: 1000,
+      waitActionCost: 500,
+      isClient: false,
+    },
+    turnAdapter,
+  );
+
+  // Entity Placement
+  RNG.setSeed(hashSeedForPlacement(config.seed));
+  const rng = { random: () => RNG.getUniform() };
+
+  // Prepare shell overrides
+  const playerOverrides: Record<string, Record<string, unknown>> = {
+    augmentSlots: { equipped: [] },
+    augmentState: { activationsThisTurn: {}, cooldownsRemaining: {} },
+    heat: { current: 0, maxSafe: 100, baseDissipation: 5, ventPercentage: 0.5, isVenting: false },
+    stability: { current: 100, max: 100 },
+    floorState: {
+      currentFloor: 1,
+      maxFloor: 15,
+      runSeed: config.seed,
+      sectorCondition: dungeonResult.sectorCondition,
+      accessKeysHeld: 0,
+      vaultsBreached: 0,
+      trapsDisarmed: 0,
+    },
+  };
+
+  // If a profile is provided, populate slots from installed items
+  if (config.profile) {
+    const targetShellId = config.shellRecord?.archetypeId || config.shellRecord?.id || null;
+
+    const items = config.profile.installedItems.filter(
+      (item) =>
+        !targetShellId ||
+        item.shellId === targetShellId ||
+        item.shellId === config.shellRecord?.id ||
+        item.shellId === config.shellRecord?.archetypeId,
+    );
+
+    const firmwareIds: number[] = [];
+    const softwareIds: number[] = [];
+    const augmentIds: number[] = [];
+    let weaponId: number | null = null;
+    let armorId: number | null = null;
+    const backpackSoftware: Array<{
+      entityId: number;
+      templateId: string;
+      rarityTier: string;
+      pickedUpAtFloor: number;
+      pickedUpAtTimestamp: number;
+      gridIndex?: number;
+      quantity?: number;
+      isConsumable?: boolean;
+    }> = [];
+    const backpackEquipment: Array<{
+      entityId: number;
+      templateId: string;
+      rarityTier: string;
+      pickedUpAtFloor: number;
+      pickedUpAtTimestamp: number;
+      gridIndex?: number;
+      quantity?: number;
+      isConsumable?: boolean;
+    }> = [];
+
+    for (const item of items) {
+      const itemId = entityFactory.create(world, item.blueprintId, componentRegistry);
+
+      if (item.isLegacy) {
+        if (world.hasComponent(itemId, AbilityDef)) {
+          world.patchComponent(itemId, AbilityDef, { isLegacy: true });
+        }
+        if (world.hasComponent(itemId, AugmentData)) {
+          world.patchComponent(itemId, AugmentData, { isLegacy: true });
+        }
+      }
+
+      if (item.socketedSoftware && item.socketedSoftware.length > 0) {
+        const swEntityIds: number[] = [];
+        for (const swBlueprint of item.socketedSoftware) {
+          const swEntityId = entityFactory.create(world, swBlueprint, componentRegistry);
+          swEntityIds.push(swEntityId);
+        }
+        world.addComponent(itemId, Children, { entityIds: swEntityIds });
+      }
+
+      const hasAugment = world.hasComponent(itemId, AugmentData);
+      const hasSoftware = world.hasComponent(itemId, SoftwareDef);
+      const hasAbility = world.hasComponent(itemId, AbilityDef);
+
+      if (item.type === 'backpack') {
+        const isSw = world.hasComponent(itemId, SoftwareDef);
+        const rarity = world.getComponent(itemId, RarityTier)?.tier || 'common';
+        const isConsumable =
+          item.blueprintId.includes('health') ||
+          item.blueprintId.includes('potion') ||
+          item.blueprintId.includes('injector') ||
+          item.blueprintId.includes('canister');
+        const itemObj = {
+          entityId: itemId,
+          templateId: item.blueprintId,
+          rarityTier: rarity,
+          pickedUpAtFloor: 1,
+          pickedUpAtTimestamp: Date.now(),
+          gridIndex: isSw ? backpackSoftware.length : backpackEquipment.length,
+          quantity: 1,
+          isConsumable: isConsumable || undefined,
+        };
+        if (isConsumable) {
+          const existing = backpackEquipment.find(
+            (e) => e.templateId === item.blueprintId && e.isConsumable && (e.quantity ?? 1) < 10,
+          );
+          if (existing) {
+            existing.quantity = Math.min(10, (existing.quantity ?? 1) + 1);
+          } else {
+            backpackEquipment.push(itemObj);
+          }
+        } else if (isSw) {
+          backpackSoftware.push(itemObj);
+        } else {
+          backpackEquipment.push(itemObj);
+        }
+      } else if (item.type === 'augment' || hasAugment) {
+        augmentIds.push(itemId);
+      } else if (item.type === 'software' || hasSoftware) {
+        softwareIds.push(itemId);
+      } else if (item.type === 'firmware' || hasAbility) {
+        firmwareIds.push(itemId);
+      } else if (item.type === 'weapon') {
+        weaponId = itemId;
+      } else if (item.type === 'armor') {
+        armorId = itemId;
+      }
+    }
+
+    playerOverrides['firmwareSlots'] = { equipped: firmwareIds };
+    playerOverrides['softwareSlots'] = { equipped: softwareIds };
+    playerOverrides['augmentSlots'] = { equipped: augmentIds };
+    playerOverrides['equipmentSlots'] = {
+      weapon: weaponId,
+      armor: armorId,
+    };
+
+    if (backpackSoftware.length > 0 || backpackEquipment.length > 0) {
+      playerOverrides['run_inventory'] = {
+        maxSlots: 30,
+        software: backpackSoftware,
+        equipment: backpackEquipment,
+      };
+    }
+  }
+
+  // Starter Loadout fallback
+  type EquippedSlotsOverride = { equipped?: number[] };
+  const currentEquippedFirmware =
+    (playerOverrides['firmwareSlots'] as EquippedSlotsOverride | undefined)?.equipped || [];
+
+  if (currentEquippedFirmware.length === 0 && config.shellRecord?.starterLoadout) {
+    const firmwareIds: number[] = [];
+    const augmentIds: number[] = [
+      ...(((playerOverrides['augmentSlots'] as EquippedSlotsOverride | undefined)?.equipped as number[]) || []),
+    ];
+
+    for (const itemBlueprintId of config.shellRecord.starterLoadout) {
+      const itemId = entityFactory.create(world, itemBlueprintId, componentRegistry);
+
+      if (world.hasComponent(itemId, AugmentData)) {
+        augmentIds.push(itemId);
+      } else {
+        firmwareIds.push(itemId);
+      }
+    }
+
+    playerOverrides['firmwareSlots'] = { equipped: firmwareIds };
+    playerOverrides['augmentSlots'] = { equipped: augmentIds };
+  } else if (!playerOverrides['firmwareSlots']) {
+    playerOverrides['firmwareSlots'] = { equipped: [] };
+  }
+
+  if (config.shellRecord) {
+    let shellRecord = config.shellRecord;
+    const upgradeData =
+      config.profile?.shellUpgrades?.[shellRecord.id] ||
+      config.profile?.shellUpgrades?.[shellRecord.archetypeId];
+    if (upgradeData) {
+      shellRecord = applyShellUpgradesToRecord(shellRecord, upgradeData);
+    }
+    const { currentStats, portConfig } = shellRecord;
+    playerOverrides['health'] = {
+      max: currentStats.maxHealth,
+      current: currentStats.maxHealth,
+      isAlive: true,
+    } as unknown as Record<string, unknown>;
+    playerOverrides['defense'] = { armor: currentStats.armor } as unknown as Record<
+      string,
+      unknown
+    >;
+    playerOverrides['energy'] = { speed: currentStats.speed } as unknown as Record<string, unknown>;
+
+    playerOverrides['shell'] = {
+      archetypeId: config.shellRecord.archetypeId,
+      ...currentStats,
+    } as unknown as Record<string, unknown>;
+    playerOverrides['portConfig'] = portConfig as unknown as Record<string, unknown>;
+
+    playerOverrides['heat'] = {
+      ...playerOverrides['heat'],
+      baseDissipation: 5 + currentStats.stability * 0.1,
+    };
+
+    const shellKey = (
+      shellRecord.sprite ||
+      shellRecord.archetypeId ||
+      shellRecord.id ||
+      ''
+    ).toLowerCase();
+    let spriteKey = 'player_vanguard';
+    if (shellKey.includes('bastion')) {
+      spriteKey = 'player_bastion';
+    } else if (shellKey.includes('ghost')) {
+      spriteKey = 'player_ghost';
+    } else if (shellKey.includes('vanguard')) {
+      spriteKey = 'player_vanguard';
+    } else if (shellRecord.sprite) {
+      spriteKey = shellRecord.sprite;
+    }
+    playerOverrides['sprite'] = { key: spriteKey };
+  }
+
+  const placement = placeEntities(
+    world,
+    grid,
+    entityFactory,
+    componentRegistry,
+    dungeonResult.rooms,
+    dungeonResult.playerSpawnRoom,
+    rng,
+    {
+      playerOverrides,
+      depth: 1,
+      propAnchors: dungeonResult.propAnchors,
+      bespokeRooms: dungeonResult.bespokeRooms,
+      vaultFaradayBounds: dungeonResult.vaultFaradayBounds,
+      sectorCondition: dungeonResult.sectorCondition,
+      factionTheme: dungeonResult.factionTheme,
+    },
+  );
+
+  // Turn Manager Handlers
+  turnManager.setPlayerActionHandler((action: string, entityId: number) => {
+    if (DIRECTIONS[action]) {
+      const { dx, dy } = DIRECTIONS[action];
+      if (dx !== 0 || dy !== 0) {
+        world.addComponent(entityId, MoveIntent, { dx, dy });
+      }
+    } else if (action === GameAction.WAIT) {
+      // Wait
+    } else if (isFirmwareAction(action)) {
+      const slotIndex = getFirmwareSlotIndex(action);
+      if (slotIndex !== null) {
+        const parts = action.split(':');
+        world.addComponent(entityId, FirmwareIntent, {
+          actorId: entityId,
+          slotIndex,
+          targetX: parts[1] !== undefined ? parseInt(parts[1]) : undefined,
+          targetY: parts[2] !== undefined ? parseInt(parts[2]) : undefined,
+        });
+      }
+    } else if (action === GameAction.VENT) {
+      world.addComponent(entityId, VentIntent, {});
+    } else if (
+      action === GameAction.ANCHOR_DESCEND ||
+      action === GameAction.STAIRCASE_DESCEND ||
+      action === GameAction.ANCHOR_EXTRACT ||
+      action === 'INTERACT_PROP' ||
+      action === 'DEAD_DROP_ITEM' ||
+      action === 'ABORT_RUN'
+    ) {
+      // Intent already added by API
+    }
+
+    eventBus.emit('PLAYER_ACTION', { action, entityId });
+  });
+
+  return {
+    world,
+    grid,
+    eventBus,
+    turnManager,
+    entityFactory,
+    playerId: placement.playerId,
+    sessionId: config.sessionId,
+    systems: {
+      ...coreSystems,
+      heat: heatSystem,
+      kernelPanic: kernelPanicSystem,
+    } as ServerEngineInstance<GameEvents>['systems'],
+  };
+}
+
+/**
+ * Hashes a seed string into a numeric seed for placement RNG.
+ */
+export function hashSeedForPlacement(seed: string): number {
+  let hash = 5381;
+  for (let i = 0; i < seed.length; i++) {
+    hash = ((hash << 5) + hash + seed.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}

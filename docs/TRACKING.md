@@ -6,6 +6,7 @@
 ---
 
 ## Completed Foundation Summary
+- [x] **Client, Server & Dev Tool Application Decoupling**: Complete architectural separation of `@client` (9 prediction systems, 0 procgen, 0 templates, dynamic dev tools), `@server` (23-phase loop, authoritative procgen, session locks, client state redaction), and `@dev-tool` (Gamedata Studio, AST editors, DevTerminal, Next.js 16 route proxy 404 in production). Enforced by `eslint-plugin-import-x` boundary zones and documented via progressive disclosure `AGENTS.md` hierarchy. See [`APPLICATION_SEPARATION_SPEC.md`](./architecture/APPLICATION_SEPARATION_SPEC.md).
 - [x] **Core ECS & Turn Engine (`@engine`)**: Zero-dependency ECS `World`, spatial `Grid`, queued `EventBus`, `StateMachine`, BSP/FloodFill generation, and adapter-driven `TurnManager` (`GameTurnAdapter`).
 - [x] **Phase-Driven Intent & Death Protocols**: Systems communicate via Intent/Tag components across 6 deterministic phases (`PRE_TURN`, `GATHER_INTENT`, `ACTION`, `REACTION`, `CLEANUP`, `POST_TURN`); `GravediggerSystem` exclusively handles `world.destroyEntity()`.
 - [x] **Client Prediction & Delta Replication**: Client runs prediction-only systems (`isClient: true`) with a 2-slot FIFO input buffer; server executes full turn cycles and returns component-level deltas (`createECSWorldDelta`) with `EventOriginContext` deduplication and `EntitySpriteMap` reconciliation.

@@ -17,7 +17,7 @@ import {
   Prop,
 } from '@shared/components';
 import { GameTurnAdapter } from '../../src/game/turn/game-turn-adapter';
-import { AutoPathfinder } from '../../src/game/debug/auto-pathfind';
+import { AutoPathfinder } from '@dev-tool/debug/auto-pathfind';
 import { DEFAULT_SHELL_ID } from '@shared/constants';
 import { globalShellRegistry } from '../../src/game/shells/client';
 import { createGame } from '../../src/game/setup';
