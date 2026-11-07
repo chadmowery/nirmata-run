@@ -40,6 +40,36 @@ export function ComponentFieldGroup({
       <div className={styles.fieldGroupHeader}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span className={styles.fieldGroupTitle}>{componentKey}</span>
+          {componentKey === 'audioProfile' && (
+            <span
+              style={{
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono, monospace)',
+                color: 'var(--c-accent, #d8ff00)',
+                background: 'rgba(216, 255, 0, 0.08)',
+                padding: '1px 6px',
+                borderRadius: '2px',
+                border: '1px solid rgba(216, 255, 0, 0.25)',
+              }}
+            >
+              AUDIO TELEMETRY // SFX BUS
+            </span>
+          )}
+          {componentKey === 'ambientEmitter' && (
+            <span
+              style={{
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono, monospace)',
+                color: 'var(--c-accent-secondary, #00f0ff)',
+                background: 'rgba(0, 240, 255, 0.08)',
+                padding: '1px 6px',
+                borderRadius: '2px',
+                border: '1px solid rgba(0, 240, 255, 0.25)',
+              }}
+            >
+              SPATIAL AMBIANCE EMITTER
+            </span>
+          )}
           {isInherited && (
             <span
               style={{
@@ -108,6 +138,7 @@ export function ComponentFieldGroup({
             componentKey={componentKey}
             meta={field}
             value={values[field.key]}
+            allValues={values}
             onChange={(key, val) => onChange(componentKey, key, val)}
           />
         ))}

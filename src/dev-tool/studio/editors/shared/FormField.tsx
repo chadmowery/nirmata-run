@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import type { FieldMeta } from '@/app/api/dev/gamedata/schema-introspect';
 import { SpritePicker } from '../../shared/SpritePicker';
+import { AudioCuePicker } from '../../shared/AudioCuePicker';
 import styles from '../editors.module.css';
 
 interface FormFieldProps {
@@ -10,9 +11,17 @@ interface FormFieldProps {
   onChange: (key: string, value: unknown) => void;
   disabled?: boolean;
   componentKey?: string;
+  allValues?: Record<string, unknown>;
 }
 
-export function FormField({ meta, value, onChange, disabled, componentKey }: FormFieldProps) {
+export function FormField({
+  meta,
+  value,
+  onChange,
+  disabled,
+  componentKey,
+  allValues,
+}: FormFieldProps) {
   const { key, type, enumValues, optional } = meta;
 
   // Local draft state for array / object JSON editing
@@ -97,26 +106,59 @@ export function FormField({ meta, value, onChange, disabled, componentKey }: For
   }
 
   if (type === 'number') {
+    const hasMinMax = meta.constraints?.min !== undefined && meta.constraints?.max !== undefined;
+    const currentNum =
+      value !== undefined && value !== null
+        ? Number(value)
+        : meta.defaultVal !== undefined
+          ? Number(meta.defaultVal)
+          : (meta.constraints?.min ?? 0);
+    const step = meta.constraints?.isInt ? 1 : 0.05;
+
     return (
       <div className={styles.fieldRow}>
         <label className={styles.fieldLabel} htmlFor={`field-${key}`}>
-          {key}
+          {key}{' '}
+          {hasMinMax && (
+            <span style={{ opacity: 0.6, fontSize: '10px' }}>
+              ({meta.constraints?.min}..{meta.constraints?.max})
+            </span>
+          )}
         </label>
-        <input
-          id={`field-${key}`}
-          type="number"
-          className={styles.fieldInput}
-          value={value !== undefined && value !== null ? Number(value) : ''}
-          onChange={(e) => {
-            const raw = e.target.value;
-            if (raw === '') {
-              handleChange(optional ? undefined : 0);
-            } else {
-              handleChange(Number(raw));
-            }
-          }}
-          disabled={disabled}
-        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+          <input
+            id={`field-${key}`}
+            type="number"
+            className={styles.fieldInput}
+            value={value !== undefined && value !== null ? Number(value) : ''}
+            min={meta.constraints?.min}
+            max={meta.constraints?.max}
+            step={step}
+            onChange={(e) => {
+              const raw = e.target.value;
+              if (raw === '') {
+                handleChange(optional ? undefined : 0);
+              } else {
+                handleChange(Number(raw));
+              }
+            }}
+            disabled={disabled}
+            style={{ width: hasMinMax ? '80px' : '100%', flex: hasMinMax ? 'none' : 1 }}
+          />
+          {hasMinMax && (
+            <input
+              type="range"
+              min={meta.constraints?.min}
+              max={meta.constraints?.max}
+              step={step}
+              value={currentNum}
+              onChange={(e) => handleChange(Number(e.target.value))}
+              disabled={disabled}
+              className={styles.slider}
+              style={{ flex: 1 }}
+            />
+          )}
+        </div>
       </div>
     );
   }
@@ -153,6 +195,43 @@ export function FormField({ meta, value, onChange, disabled, componentKey }: For
           }}
           disabled={disabled}
         />
+      </div>
+    );
+  }
+
+  // Audio Profile & Ambient Emitter Cue dropdown selector
+  const isAudioCueField =
+    (componentKey === 'audioProfile' &&
+      (key === 'stepCue' ||
+        key === 'attackCue' ||
+        key === 'hitCue' ||
+        key === 'deathCue' ||
+        key === 'interactCue')) ||
+    (componentKey === 'ambientEmitter' && key === 'cueId') ||
+    key.endsWith('Cue');
+
+  if (isAudioCueField) {
+    const pitchMultiplier =
+      typeof allValues?.pitchMultiplier === 'number' ? allValues.pitchMultiplier : 1.0;
+    const volumeMultiplier =
+      typeof allValues?.volumeMultiplier === 'number' ? allValues.volumeMultiplier : 1.0;
+
+    return (
+      <div className={styles.fieldRow}>
+        <label className={styles.fieldLabel} htmlFor={`field-${key}`}>
+          {key}
+        </label>
+        <div style={{ flex: 1 }}>
+          <AudioCuePicker
+            value={typeof value === 'string' ? value : undefined}
+            onChange={(val) => handleChange(val)}
+            fieldKey={key}
+            componentKey={componentKey}
+            pitchMultiplier={pitchMultiplier}
+            volumeMultiplier={volumeMultiplier}
+            disabled={disabled}
+          />
+        </div>
       </div>
     );
   }
