@@ -17,7 +17,7 @@ import {
   PredictionDeduplicator,
   SpatialCoords,
 } from '@engine/audio';
-import { Position, Shell, AudioProfile, Heat } from '@shared/components';
+import { Position, Shell, AudioProfile, Heat, AmbientEmitter, Prop } from '@shared/components';
 import { getSoundCue } from './cue-registry';
 
 export interface GameAudioSystemOptions {
@@ -43,6 +43,7 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
 
   const dedup = new PredictionDeduplicator(2000);
   let currentFovSet = new Set<string>();
+  const activeEmitters = new Map<EntityId, string>();
 
   const getPlayerPosition = (): { x: number; y: number } | null => {
     const pId = getPlayerEntity();
@@ -90,6 +91,58 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
     audioEngine.playCue(cue, { volumeMultiplier, pitchMultiplier });
   };
 
+  const updateAmbientEmitters = (): void => {
+    const playerPos = getPlayerPosition();
+    if (!playerPos) return;
+
+    const inRangeEntities = new Set<EntityId>();
+
+    for (const entityId of world.query(AmbientEmitter, Position)) {
+      const emitter = world.getComponent(entityId, AmbientEmitter);
+      const pos = world.getComponent(entityId, Position);
+      if (!emitter || !pos) continue;
+
+      // If prop is searched, mute emitter if activeOnlyWhenUnsearched is true
+      const prop = world.getComponent(entityId, Prop);
+      if (emitter.activeOnlyWhenUnsearched && prop?.isSearched) {
+        continue;
+      }
+
+      // If requiresFov is true, ensure tile is in active visible set
+      const tileKey = `${pos.x},${pos.y}`;
+      if (emitter.requiresFov && !currentFovSet.has(tileKey)) {
+        continue;
+      }
+
+      const dx = pos.x - playerPos.x;
+      const dy = pos.y - playerPos.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist <= emitter.radius) {
+        inRangeEntities.add(entityId);
+        if (!activeEmitters.has(entityId)) {
+          const cue = getSoundCue(emitter.cueId);
+          if (cue) {
+            const spatial = getSpatialCoords(pos.x, pos.y);
+            audioEngine.playCue(cue, {
+              spatial,
+              volumeMultiplier: emitter.baseVolume,
+            });
+            activeEmitters.set(entityId, emitter.cueId);
+          }
+        }
+      }
+    }
+
+    // Stop emitters that moved out of range or were searched/despawned
+    for (const [entityId, cueId] of activeEmitters.entries()) {
+      if (!inRangeEntities.has(entityId)) {
+        audioEngine.stopCue(cueId);
+        activeEmitters.delete(entityId);
+      }
+    }
+  };
+
   // --- Subscriptions ---
 
   const unsubs: Array<() => void> = [];
@@ -129,16 +182,19 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
           // Play immediately for 0ms player feedback
           playGlobalCue(stepCueId, profile?.volumeMultiplier, profile?.pitchMultiplier);
           dedup.recordPredicted('ENTITY_MOVED', token);
+          updateAmbientEmitters();
           return;
         }
 
         if (origin === 'server') {
           // Deduplicate if matching prediction exists
           if (dedup.consumeIfPredicted('ENTITY_MOVED', token)) {
+            updateAmbientEmitters();
             return;
           }
           // Misprediction or server-forced move
           playGlobalCue(stepCueId, profile?.volumeMultiplier, profile?.pitchMultiplier);
+          updateAmbientEmitters();
         }
       } else {
         // Enemy footstep / movement
@@ -163,7 +219,12 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
   subscribe('DAMAGE_DEALT', (payload) => {
     const isPlayerDefender = payload.defenderId === getPlayerEntity();
     if (isPlayerDefender) {
-      playGlobalCue('sfx_player_damaged');
+      const defProfile = world.getComponent(payload.defenderId, AudioProfile);
+      playGlobalCue(
+        defProfile?.hitCue ?? 'sfx_player_damaged',
+        defProfile?.volumeMultiplier,
+        defProfile?.pitchMultiplier,
+      );
       return;
     }
 
@@ -180,19 +241,30 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
         profile?.pitchMultiplier,
       );
     } else {
-      playGlobalCue(hitCueId);
+      playGlobalCue(
+        hitCueId,
+        profile?.volumeMultiplier,
+        profile?.pitchMultiplier,
+      );
     }
   });
 
   // 4. Entity Death
   subscribe('ENTITY_DIED', (payload) => {
-    if (payload.isPlayer) {
-      playGlobalCue('sfx_bsod_fatal');
+    const isPlayer = payload.isPlayer || payload.entityId === getPlayerEntity();
+    const profile = world.getComponent(payload.entityId, AudioProfile);
+
+    if (isPlayer) {
+      const deathCueId = profile?.deathCue ?? 'sfx_bsod_fatal';
+      playGlobalCue(
+        deathCueId,
+        profile?.volumeMultiplier,
+        profile?.pitchMultiplier,
+      );
       return;
     }
 
     const pos = world.getComponent(payload.entityId, Position);
-    const profile = world.getComponent(payload.entityId, AudioProfile);
     const deathCueId = profile?.deathCue ?? 'sfx_enemy_death';
 
     if (pos) {
@@ -204,7 +276,17 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
         profile?.pitchMultiplier,
       );
     } else {
-      playGlobalCue(deathCueId);
+      playGlobalCue(
+        deathCueId,
+        profile?.volumeMultiplier,
+        profile?.pitchMultiplier,
+      );
+    }
+
+    if (activeEmitters.has(payload.entityId)) {
+      const cueId = activeEmitters.get(payload.entityId);
+      if (cueId) audioEngine.stopCue(cueId);
+      activeEmitters.delete(payload.entityId);
     }
   });
 
@@ -284,6 +366,7 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
     } else {
       playGlobalCue(interactCueId);
     }
+    updateAmbientEmitters();
   });
 
   subscribe('LOCK_UNLOCKED', (payload) => {
@@ -329,6 +412,7 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
       (audioEngine as AudioEngine).playAmbianceCue(cue);
     }
     audioEngine.setAmbianceState({ depthBand });
+    updateAmbientEmitters();
   };
 
   subscribe('FLOOR_TRANSITION', (payload) => {
@@ -347,6 +431,7 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
   // 13. FOV Tracking for Spatial Occlusion
   subscribe('FOV_UPDATED', (payload) => {
     currentFovSet = payload.visibleSet;
+    updateAmbientEmitters();
   });
 
   return {
@@ -355,6 +440,10 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
         unsub();
       }
       unsubs.length = 0;
+      for (const cueId of activeEmitters.values()) {
+        audioEngine.stopCue(cueId);
+      }
+      activeEmitters.clear();
       dedup.clear();
     },
     updateAmbianceForFloor,

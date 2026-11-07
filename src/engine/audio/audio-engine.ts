@@ -425,15 +425,32 @@ export class AudioEngine implements IAudioEngine {
   ): Promise<void> {
     if (!this.ctx || !cue.samplePath) return;
 
-    let buffer = this.sampleBufferCache.get(cue.samplePath);
+    let cleanPath = cue.samplePath.trim();
+    if (cleanPath.startsWith('public/')) {
+      cleanPath = cleanPath.slice('public'.length);
+    }
+    if (!cleanPath.startsWith('/') && !cleanPath.startsWith('http')) {
+      cleanPath = '/' + cleanPath;
+    }
+
+    let buffer = this.sampleBufferCache.get(cleanPath);
     if (!buffer) {
       try {
-        const response = await fetch(cue.samplePath);
+        const response = await fetch(cleanPath);
+        if (!response.ok) return;
         const arrayBuffer = await response.arrayBuffer();
         buffer = await this.ctx.decodeAudioData(arrayBuffer);
-        this.sampleBufferCache.set(cue.samplePath, buffer);
+        this.sampleBufferCache.set(cleanPath, buffer);
       } catch {
         return;
+      }
+    }
+
+    if (this.ctx.state === 'suspended') {
+      try {
+        await this.ctx.resume();
+      } catch {
+        // Safe to ignore
       }
     }
 

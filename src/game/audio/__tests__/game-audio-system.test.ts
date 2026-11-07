@@ -4,7 +4,7 @@ import { EventBus } from '@engine/events/event-bus';
 import { GameEvents } from '@game/events/types';
 import { Grid } from '@engine/grid/grid';
 import { EventOriginContext } from '@engine/utils/event-context';
-import { Position, Shell, AudioProfile } from '@shared/components';
+import { Position, Shell, AudioProfile, AmbientEmitter, Prop } from '@shared/components';
 import { createGameAudioSystem } from '../game-audio-system';
 import { IAudioEngine } from '@engine/audio';
 
@@ -254,6 +254,104 @@ describe('GameAudioSystem Bridge', () => {
       expect.objectContaining({ id: 'sfx_kernel_panic_alarm' }),
       expect.anything(),
     );
+
+    audioSystem.destroy();
+  });
+
+  it('plays custom deathCue and hitCue configured in player AudioProfile', () => {
+    world.addComponent(playerId, AudioProfile, {
+      hitCue: 'sfx_cover_mitigated',
+      deathCue: 'sfx_bsod_glitch',
+      pitchMultiplier: 1.0,
+      volumeMultiplier: 1.0,
+    });
+
+    const audioSystem = createGameAudioSystem({
+      world,
+      eventBus,
+      getPlayerEntity: () => playerId,
+      getGrid: () => grid,
+      audioEngine: mockAudioEngine,
+    });
+
+    // Player takes damage with custom hitCue
+    eventBus.emit('DAMAGE_DEALT', {
+      attackerId: enemyId,
+      defenderId: playerId,
+      amount: 10,
+    });
+    eventBus.flush();
+    expect(mockAudioEngine.playCue).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: 'sfx_cover_mitigated' }),
+      expect.anything(),
+    );
+
+    // Player dies with custom deathCue (e.g. sfx_bsod_glitch sample)
+    eventBus.emit('ENTITY_DIED', {
+      entityId: playerId,
+      killerId: enemyId,
+      isPlayer: true,
+    });
+    eventBus.flush();
+    expect(mockAudioEngine.playCue).toHaveBeenLastCalledWith(
+      expect.objectContaining({ id: 'sfx_bsod_glitch' }),
+      expect.anything(),
+    );
+
+    audioSystem.destroy();
+  });
+
+  it('triggers spatial loop for nearby AmbientEmitter entities and stops when out of range', () => {
+    const ventId = world.createEntity();
+    world.addComponent(ventId, Position, { x: 7, y: 5 });
+    world.addComponent(ventId, AmbientEmitter, {
+      cueId: 'amb_emitter_vent',
+      radius: 5,
+      baseVolume: 0.4,
+      falloff: 'linear',
+      requiresFov: false,
+      activeOnlyWhenUnsearched: true,
+    });
+
+    const audioSystem = createGameAudioSystem({
+      world,
+      eventBus,
+      getPlayerEntity: () => playerId,
+      getGrid: () => grid,
+      audioEngine: mockAudioEngine,
+    });
+
+    // Player at (5, 5), vent at (7, 5) -> distance = 2 <= 5
+    EventOriginContext.current = 'client';
+    eventBus.emit('ENTITY_MOVED', {
+      entityId: playerId,
+      fromX: 5,
+      fromY: 5,
+      toX: 5,
+      toY: 5,
+    });
+    eventBus.flush();
+
+    expect(mockAudioEngine.playCue).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'amb_emitter_vent' }),
+      expect.objectContaining({
+        spatial: expect.objectContaining({ sourceX: 7, sourceY: 5 }),
+        volumeMultiplier: 0.4,
+      }),
+    );
+
+    // Player moves far away to (15, 15) -> distance = ~14 > 5
+    world.patchComponent(playerId, Position, { x: 15, y: 15 });
+    eventBus.emit('ENTITY_MOVED', {
+      entityId: playerId,
+      fromX: 5,
+      fromY: 5,
+      toX: 15,
+      toY: 15,
+    });
+    eventBus.flush();
+
+    expect(mockAudioEngine.stopCue).toHaveBeenCalledWith('amb_emitter_vent');
 
     audioSystem.destroy();
   });

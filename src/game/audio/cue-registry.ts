@@ -17,6 +17,10 @@ export function getSoundCue(cueId: string): SoundCueDef | undefined {
   return cuesMap.get(cueId);
 }
 
+export function registerSoundCue(cue: SoundCueDef): void {
+  cuesMap.set(cue.id, cue);
+}
+
 export function getAllSoundCues(): SoundCueDef[] {
   return Array.from(cuesMap.values());
 }
