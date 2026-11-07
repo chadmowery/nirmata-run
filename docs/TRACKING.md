@@ -325,6 +325,47 @@
   - **Themed Tileset Dictionary Inspector (`ComponentSchemaViewer.tsx`)**: Added theme switcher (`default`, `traxus`, `cyberacme`, `sekiguchi`, `nucaloric`), manifest validation status, required directional frame counts, and a 32×32 live sprite sheet preview grid.
   - **Verification Sweep**: Verified full test suite passes (186/186 files, 1149/1149 tests), 0 type errors (`tsc --noEmit`), 0 lint warnings (`eslint src/`), and clean Next.js production build (`next build`).
 
+---
+
+## Workstream 6: Audio Subsystem Implementation & Procedural Synthesis Engine
+
+> **Specification**: [`docs/design/AUDIO-SYSTEM.md`](./design/AUDIO-SYSTEM.md)  
+> **Status**: Completed (Branch: `main`)
+
+- [x] **[AUD-01] Milestone 1: Zero-Dependency `@engine/audio` Core Architecture**
+  - Built pure TypeScript audio core (`src/engine/audio/`): `types.ts`, `spatial-mixer.ts`, `prediction-dedup.ts`, `synth-voice.ts`, `audio-engine.ts`, `index.ts`.
+  - Implemented master anti-clipping limiter (`DynamicsCompressorNode`) and 4 channel buses (`master`, `ambiance` with `BiquadFilterNode`, `sfx`, `ui`).
+  - Implemented procedural oscilloscope synth voice engine: sine, square, sawtooth, triangle, white/pink/brown noise generator, frequency pitch sweeps, sub/detune oscillator, FM modulation, resonant biquad filtering, waveshaper distortion, and ADSR envelopes.
+  - Implemented 2D grid spatial stereo panning (`StereoPannerNode`) and distance attenuation (`GainNode`) with wall occlusion lowpass filtering.
+  - Implemented client prediction deduplicator (`PredictionDeduplicator`) ignoring duplicate server events.
+  - Implemented headless `NoopAudioEngine` ensuring clean SSR and server execution.
+  - Verified with 17 unit tests in `src/engine/audio/__tests__/`.
+- [x] **[AUD-02] Milestone 2: Audio ECS Components & Procedural Sound Cue Registry**
+  - Created [`src/shared/components/audio.ts`](../src/shared/components/audio.ts) defining `AudioProfile` and `AmbientEmitter` Zod components; registered in `COMPONENTS_REGISTRY`.
+  - Authored [`src/game/audio/sound-cues.json`](../src/game/audio/sound-cues.json) with 35+ procedural synth patches across locomotion, combat, firmware, heat, kernel panic, props, anchors, UI levers, and multi-layer ambiance with zero external asset dependencies.
+  - Attached audio profiles and ambient emitters to entity templates: `player.json`, `null-pointer.json`, `system-admin.json`, `seed-eater.json`, `prop-cooling-vent.json`, `prop-stabilizer.json`, `prop-safe-locked.json`.
+  - Verified with 3 unit tests in `src/shared/components/__tests__/audio.test.ts`.
+- [x] **[AUD-03] Milestone 3: `@game/audio` EventBus Bridge, UI Levers & Reactive Ambiance**
+  - Created [`cue-registry.ts`](../src/game/audio/cue-registry.ts) and [`ui-audio.ts`](../src/game/audio/ui-audio.ts).
+  - Built [`game-audio-system.ts`](../src/game/audio/game-audio-system.ts) subscribing to `EventBus<GameEvents>`, resolving spatial SFX, client-prediction deduplication, and continuous ambiance modulation (DepthBand, SectorCondition, HeatTier, Stability Anchor grayscale ducking).
+  - Wired `uiAudio` into [`BtnLever.tsx`](../src/components/ui/atomic/BtnLever.tsx) (tactile clicks and 2-second hold-to-confirm pitch ramp), [`TabBar.tsx`](../src/components/ui/hub/TabBar.tsx), and [`BootSequence.tsx`](../src/components/ui/hub/BootSequence.tsx).
+  - Mounted `GameAudioSystem` and continuous background ambiance in [`src/app/page.tsx`](../src/app/page.tsx).
+  - Verified with 10 unit tests in `src/game/audio/__tests__/`.
+- [x] **[AUD-04] Milestone 4: ESC Settings Dialog, Audio Mixer Panel & Persistence**
+  - Extended [`gameStore`](../src/game/ui/store.ts) with `audioSettings` state and actions synced to `localStorage` under `'nirmata_audio_settings'`.
+  - Built [`AudioSettingsPanel.tsx`](../src/components/ui/AudioSettingsPanel.tsx) with Master, Ambiance, SFX, and UI bus volume sliders plus Mute toggle.
+  - Built [`SystemSettingsModal.tsx`](../src/components/ui/SystemSettingsModal.tsx) opened via ESC key in `MainMenu.tsx` & `HubLayout.tsx` or `[04] AUDIO & SETTINGS` lever.
+  - Embedded `AudioSettingsPanel` inside in-run pause dialog [`AbortMissionDialog.tsx`](../src/components/ui/AbortMissionDialog.tsx).
+  - Verified with 7 unit tests in `src/components/ui/__tests__/AudioSettingsPanel.test.tsx` and `SystemSettingsModal.test.tsx`.
+- [x] **[AUD-05] Milestone 5: Gamedata Studio Audio Cues & Synth Studio**
+  - Added routes [`/api/dev/gamedata/audio-cues`](../src/app/api/dev/gamedata/audio-cues/route.ts) and [`/api/dev/gamedata/audio-cues/[name]`](../src/app/api/dev/gamedata/audio-cues/[name]/route.ts) (gated by `checkNonProductionOnly()`).
+  - Added `SynthPatchConfigSchema`, `SoundCueDefSchema`, and `SoundCuesFileSchema` to [`schemas.ts`](../src/app/api/dev/gamedata/schemas.ts).
+  - Built [`AudioCueStudio.tsx`](../src/dev-tool/studio/editors/AudioCueStudio.tsx) in `/dev/gamedata` with real-time waveform, ADSR, filter, distortion controls, live `[ ▶ PLAY CUE ]` auditioning via `AudioEngine`, 2D Spatial Preview Pad, tactile hold-to-confirm ramp tester, and reactive ambiance simulator.
+  - Wired `audioCues` section into `GamedataTool.tsx`, `Sidebar.tsx`, and `store.ts`.
+  - Verified with 11 API unit tests in `src/app/api/dev/gamedata/__tests__/audio-cues.test.ts` and 6 editor unit tests in `src/dev-tool/studio/editors/__tests__/AudioCueStudio.test.tsx`.
+  - **Verification Sweep**: Verified full test suite passes (200/200 files, 1,220/1,220 tests), 0 type errors (`tsc --noEmit`), 0 lint warnings (`eslint src/`), and clean Next.js production build (`next build`).
+
+
 
 
 
