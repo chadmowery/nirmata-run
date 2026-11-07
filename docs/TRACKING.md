@@ -385,6 +385,12 @@
   - Sanitized sample cue saves in [`AudioCueStudio.tsx`](../src/dev-tool/studio/editors/AudioCueStudio.tsx) to require `samplePath` and cleanly omit irrelevant synth parameters when in `SAMPLE` mode.
   - Added noise options (`WHITE NOISE`, `PINK NOISE`, `BROWN NOISE`) to the Sub Oscillator Wave dropdown.
   - **Verification Sweep**: Verified full test suite passes (201/201 files, 1,238/1,238 tests), 0 type errors (`tsc --noEmit`), 0 lint warnings (`eslint src/`), and clean Next.js production build (`next build`).
+- [x] **[AUD-10] Dynamic In-Game AudioProfile Cues & AmbientEmitter World Loops**
+  - Fixed [`game-audio-system.ts`](../src/game/audio/game-audio-system.ts) to read the player entity's `AudioProfile` component (`deathCue`, `hitCue`) during `ENTITY_DIED` and `DAMAGE_DEALT` events instead of playing hardcoded fallback cue strings (`sfx_bsod_fatal`, `sfx_player_damaged`), allowing custom sample and synth cues assigned in templates to play in-game.
+  - Implemented real-time spatial loop tracking for [`AmbientEmitter`](../src/shared/components/audio.ts) entities (`updateAmbientEmitters`), updating distance attenuation and FOV occlusion across player movement, FOV updates, prop interactions, and floor transitions, with automatic cleanup on entity removal or system destruction.
+  - Normalized `samplePath` resolution in [`audio-engine.ts`](../src/engine/audio/audio-engine.ts) to strip redundant `public/` prefixes and ensure relative paths resolve cleanly, with automatic `await ctx.resume()` unlocking prior to audio decoding and buffer playback.
+  - Added dynamic cue registration (`registerSoundCue`) in [`cue-registry.ts`](../src/game/audio/cue-registry.ts).
+  - **Verification Sweep**: Verified full test suite passes (201/201 files, 1,240/1,240 tests), 0 type errors (`tsc --noEmit`), 0 lint warnings (`eslint src/`), and clean Next.js production build (`next build`).
 
 
 
