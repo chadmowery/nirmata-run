@@ -373,6 +373,11 @@
   - Updated [`AudioCueStudio.tsx`](../src/dev-tool/studio/editors/AudioCueStudio.tsx) with toggleable `[■ STOP CUE]` / `[▶ PLAY CUE]`, `[■ STOP ALL]`, 2D spatial `[■ STOP]`, and ambiance simulator `[■ STOP AMBIANCE DRONE]` buttons, with automatic audio termination on component unmount.
   - Updated [`AudioCuePicker.tsx`](../src/dev-tool/studio/shared/AudioCuePicker.tsx) with toggleable `[■]` / `[▶]` audition button and unmount audio cleanup.
   - Added global `[■ STOP AUDIO]` panic kill-switch to [`GamedataTool.tsx`](../src/dev-tool/studio/GamedataTool.tsx) header placard next to `CMD+S SAVE`.
+- [x] **[AUD-08] Reactive Ambiance Simulation Drone Playback & Real-Time DSP Telemetry**
+  - Fixed Ambiance Simulator button in [`AudioCueStudio.tsx`](../src/dev-tool/studio/editors/AudioCueStudio.tsx) to automatically resolve and play the appropriate continuous ambiance drone (`amb_band_1_corrupted`, `amb_band_2_static`, `amb_band_3_logic`, `amb_main_menu`, or the currently edited ambiance cue) via `engine.playAmbianceCue()`.
+  - Added `playAmbianceCue()` and `getAmbianceState()` directly to [`IAudioEngine`](../src/engine/audio/types.ts).
+  - Enhanced `AudioEngine.setAmbianceState()` to lazily initialize/resume the Web Audio context and compute dynamic biquad filter frequency and resonance Q based on sector conditions (`IONIC_STORM`, `DARK_SUBNET`, `THERMAL_FLARE`, `CORRUPTED`), heat tier escalation (`0–5`), and stability anchor ducking (`380 Hz`).
+  - Wired real-time slider callbacks so tweaking Depth Band, Sector Condition, Heat Tier, or Anchor Ducking immediately updates the live audio and DSP telemetry readout.
   - **Verification Sweep**: Verified full test suite passes (201/201 files, 1,236/1,236 tests), 0 type errors (`tsc --noEmit`), 0 lint warnings (`eslint src/`), and clean Next.js production build (`next build`).
 
 
