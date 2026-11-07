@@ -108,6 +108,8 @@ export interface IAudioEngine {
   startHoldRamp(cue: SoundCueDef): string;
   updateHoldRamp(voiceId: string, progress: number): void;
   stopHoldRamp(voiceId: string): void;
+  stopCue(cueId: string, fadeDurationSec?: number): void;
+  stopAllAudio(fadeDurationSec?: number): void;
   setAmbianceState(state: Partial<AmbianceState>): void;
   stopAmbiance(): void;
   updateSettings(settings: Partial<AudioSettings>): void;

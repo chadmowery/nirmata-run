@@ -50,6 +50,7 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
   const [cueData, setCueData] = useState<SoundCueDef | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [isPlayingCue, setIsPlayingCue] = useState<boolean>(false);
 
   // Spatial Preview State
   const [spatialX, setSpatialX] = useState<number>(3);
@@ -129,12 +130,41 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
     setDirty(true);
   };
 
+  // Unmount cleanup: stop any lingering audio auditions
+  useEffect(() => {
+    return () => {
+      getAudioEngine().stopAllAudio();
+    };
+  }, []);
+
   // Play auditioning
   const handlePlay = useCallback(() => {
     if (!cueData) return;
     const engine = getAudioEngine();
     engine.playCue(cueData);
+    setIsPlayingCue(true);
+    if (!cueData.loop) {
+      const dur = cueData.synth
+        ? (cueData.synth.attack + cueData.synth.decay + cueData.synth.hold + cueData.synth.release + 0.5) * 1000
+        : 800;
+      setTimeout(() => {
+        setIsPlayingCue(false);
+      }, dur);
+    }
   }, [cueData]);
+
+  const handleStopCue = useCallback(() => {
+    if (!cueData) return;
+    getAudioEngine().stopCue(cueData.id);
+    setIsPlayingCue(false);
+  }, [cueData]);
+
+  const handleStopAll = useCallback(() => {
+    getAudioEngine().stopAllAudio();
+    setIsPlayingCue(false);
+    setActiveVoiceId(null);
+    setHoldProgress(0);
+  }, []);
 
   const handlePlaySpatial = useCallback(() => {
     if (!cueData) return;
@@ -148,6 +178,15 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
         isOccluded,
       },
     });
+    setIsPlayingCue(true);
+    if (!cueData.loop) {
+      const dur = cueData.synth
+        ? (cueData.synth.attack + cueData.synth.decay + cueData.synth.hold + cueData.synth.release + 0.5) * 1000
+        : 800;
+      setTimeout(() => {
+        setIsPlayingCue(false);
+      }, dur);
+    }
   }, [cueData, spatialX, spatialY, isOccluded]);
 
   // Hold Ramp Auditioning
@@ -187,6 +226,11 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
       isPaused: false,
     });
   };
+
+  const handleStopAmbiance = useCallback(() => {
+    const engine = getAudioEngine();
+    engine.stopAmbiance();
+  }, []);
 
   // Save handler
   const handleSave = useCallback(async () => {
@@ -280,13 +324,26 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
           <button
             type="button"
             className={styles.saveButton}
-            onClick={handlePlay}
+            onClick={isPlayingCue ? handleStopCue : handlePlay}
             style={{
-              borderColor: 'var(--c-accent, #d8ff00)',
-              color: 'var(--c-accent, #d8ff00)',
+              borderColor: isPlayingCue ? 'var(--c-danger, #ff2a4b)' : 'var(--c-accent, #d8ff00)',
+              color: isPlayingCue ? 'var(--c-danger, #ff2a4b)' : 'var(--c-accent, #d8ff00)',
             }}
           >
-            ▶ PLAY CUE
+            {isPlayingCue ? '■ STOP CUE' : '▶ PLAY CUE'}
+          </button>
+
+          <button
+            type="button"
+            className={styles.cloneButton}
+            onClick={handleStopAll}
+            title="Stop all currently playing voices, loops, and ambiance"
+            style={{
+              borderColor: 'var(--c-danger, #ff2a4b)',
+              color: 'var(--c-danger, #ff2a4b)',
+            }}
+          >
+            ■ STOP ALL
           </button>
 
           <button
@@ -796,7 +853,7 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
               </label>
             </div>
 
-            <div style={{ marginTop: '12px' }}>
+            <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
               <button
                 type="button"
                 className={styles.saveButton}
@@ -808,6 +865,19 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
               >
                 ▶ PLAY SPATIAL SFX
               </button>
+              {isPlayingCue && (
+                <button
+                  type="button"
+                  className={styles.saveButton}
+                  onClick={handleStopCue}
+                  style={{
+                    borderColor: 'var(--c-danger, #ff2a4b)',
+                    color: 'var(--c-danger, #ff2a4b)',
+                  }}
+                >
+                  ■ STOP
+                </button>
+              )}
             </div>
           </div>
 
@@ -949,7 +1019,7 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
             </div>
           </div>
 
-          <div style={{ marginTop: '8px' }}>
+          <div style={{ marginTop: '8px', display: 'flex', gap: '8px' }}>
             <button
               type="button"
               className={styles.saveButton}
@@ -960,6 +1030,17 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
               }}
             >
               SIMULATE AMBIANCE BUS MODULATION
+            </button>
+            <button
+              type="button"
+              className={styles.saveButton}
+              onClick={handleStopAmbiance}
+              style={{
+                borderColor: 'var(--c-danger, #ff2a4b)',
+                color: 'var(--c-danger, #ff2a4b)',
+              }}
+            >
+              ■ STOP AMBIANCE DRONE
             </button>
           </div>
         </div>

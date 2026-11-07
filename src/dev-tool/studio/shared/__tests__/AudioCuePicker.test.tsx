@@ -8,15 +8,19 @@ import { setAudioEngine, IAudioEngine, SoundCueDef, PlayCueOptions } from '@engi
 describe('AudioCuePicker & AudioProfile Dropdown Support', () => {
   let mockEngine: IAudioEngine;
   let playCueMock: ReturnType<typeof vi.fn<(cue: SoundCueDef, options?: PlayCueOptions) => void>>;
+  let stopCueMock: ReturnType<typeof vi.fn<(cueId: string, fadeDurationSec?: number) => void>>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     playCueMock = vi.fn();
+    stopCueMock = vi.fn();
 
     mockEngine = {
       init: vi.fn(),
       destroy: vi.fn(),
       playCue: playCueMock,
+      stopCue: stopCueMock,
+      stopAllAudio: vi.fn(),
       startHoldRamp: vi.fn(),
       updateHoldRamp: vi.fn(),
       stopHoldRamp: vi.fn(),
@@ -241,5 +245,51 @@ describe('AudioCuePicker & AudioProfile Dropdown Support', () => {
     const [, options] = playCueMock.mock.calls[0];
     expect(options?.pitchMultiplier).toBe(1.2);
     expect(options?.volumeMultiplier).toBe(0.9);
+  });
+
+  it('toggles audition button between play and stop and invokes engine.stopCue', () => {
+    const onChangeMock = vi.fn();
+    render(
+      <AudioCuePicker
+        value="sfx_step_player"
+        onChange={onChangeMock}
+        fieldKey="stepCue"
+        componentKey="audioProfile"
+      />,
+    );
+
+    // Initial state: play button
+    const playBtn = screen.getByRole('button', { name: /Audition sfx_step_player/i });
+    expect(playBtn.textContent).toBe('▶');
+
+    // Click play
+    fireEvent.click(playBtn);
+    expect(playCueMock).toHaveBeenCalledTimes(1);
+
+    // Toggled to stop button
+    const stopBtn = screen.getByRole('button', { name: /Stop sfx_step_player/i });
+    expect(stopBtn.textContent).toBe('■');
+
+    // Click stop
+    fireEvent.click(stopBtn);
+    expect(stopCueMock).toHaveBeenCalledWith('sfx_step_player');
+
+    // Back to play button
+    expect(screen.getByRole('button', { name: /Audition sfx_step_player/i })).toBeDefined();
+  });
+
+  it('stops active cue audition on unmount', () => {
+    const onChangeMock = vi.fn();
+    const { unmount } = render(
+      <AudioCuePicker
+        value="sfx_step_player"
+        onChange={onChangeMock}
+        fieldKey="stepCue"
+        componentKey="audioProfile"
+      />,
+    );
+
+    unmount();
+    expect(stopCueMock).toHaveBeenCalledWith('sfx_step_player');
   });
 });

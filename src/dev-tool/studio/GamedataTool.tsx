@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useCallback } from 'react';
+import { getAudioEngine } from '@engine/audio';
 import { Sidebar } from './Sidebar';
 import { useGamedataStore } from './store';
 import { Section, SECTIONS } from './types';
@@ -214,6 +215,20 @@ export function GamedataTool({ initialData }: Props) {
           >
             ● {isDirty ? 'UNSAVED' : 'SAVED'}
           </span>
+          <button
+            type="button"
+            className={styles.addButton}
+            onClick={() => getAudioEngine().stopAllAudio()}
+            style={{
+              margin: 0,
+              padding: '2px 8px',
+              borderColor: 'var(--c-danger, #ff2a4b)',
+              color: 'var(--c-danger, #ff2a4b)',
+            }}
+            title="Panic audio stop: terminates all active synth voices, loops, and ambiance drones"
+          >
+            ■ STOP AUDIO
+          </button>
           <button
             type="button"
             className={styles.addButton}

@@ -49,6 +49,13 @@ export class NoopAudioEngine implements IAudioEngine {
   public stopHoldRamp(voiceId: string): void {
     void voiceId;
   }
+  public stopCue(cueId: string, fadeDurationSec?: number): void {
+    void cueId;
+    void fadeDurationSec;
+  }
+  public stopAllAudio(fadeDurationSec?: number): void {
+    void fadeDurationSec;
+  }
   public setAmbianceState(state: Partial<AmbianceState>): void {
     void state;
   }
@@ -84,6 +91,10 @@ export class AudioEngine implements IAudioEngine {
   private cueCooldowns = new Map<string, number>();
   private sampleBufferCache = new Map<string, AudioBuffer>();
   private activeHoldVoices = new Map<string, HoldRampVoice>();
+  private activeCueVoices = new Map<string, ActiveVoice[]>();
+  private allActiveVoices = new Set<ActiveVoice>();
+  private activeSampleSources = new Set<AudioBufferSourceNode>();
+  private activeCueSamples = new Map<string, AudioBufferSourceNode[]>();
   private nextVoiceId = 1;
 
   // Continuous Ambiance Management
@@ -282,15 +293,115 @@ export class AudioEngine implements IAudioEngine {
 
     // Play synthesis voice
     if (cue.mode === 'synth' && cue.synth) {
-      playSynthVoice(this.ctx, busNode, cue.synth, {
+      const voice = playSynthVoice(this.ctx, busNode, cue.synth, {
         volumeMultiplier,
         pitchMultiplier,
         spatial: spatialResult,
         loop: cue.loop ?? false,
       });
+
+      if (voice) {
+        if (!this.activeCueVoices.has(cue.id)) {
+          this.activeCueVoices.set(cue.id, []);
+        }
+        this.activeCueVoices.get(cue.id)!.push(voice);
+        this.allActiveVoices.add(voice);
+
+        // Auto-cleanup non-looping voices after release
+        if (!cue.loop) {
+          const durationSec =
+            cue.synth.attack + cue.synth.decay + cue.synth.hold + cue.synth.release + 0.5;
+          setTimeout(() => {
+            this.allActiveVoices.delete(voice);
+            const list = this.activeCueVoices.get(cue.id);
+            if (list) {
+              const idx = list.indexOf(voice);
+              if (idx !== -1) list.splice(idx, 1);
+              if (list.length === 0) this.activeCueVoices.delete(cue.id);
+            }
+          }, durationSec * 1000);
+        }
+      }
     } else if (cue.mode === 'sample' && cue.samplePath) {
       this.playSampleVoice(cue, busNode, volumeMultiplier, pitchMultiplier, spatialResult);
     }
+  }
+
+  /**
+   * Stops all active voices currently playing for a given sound cue ID.
+   */
+  public stopCue(cueId: string, fadeDurationSec = 0.05): void {
+    const voices = this.activeCueVoices.get(cueId);
+    if (voices && voices.length > 0) {
+      for (const v of voices) {
+        try {
+          v.stop(fadeDurationSec);
+        } catch {
+          // Safe to ignore
+        }
+        this.allActiveVoices.delete(v);
+      }
+      this.activeCueVoices.delete(cueId);
+    }
+
+    const samples = this.activeCueSamples.get(cueId);
+    if (samples && samples.length > 0) {
+      for (const s of samples) {
+        try {
+          s.stop();
+          s.disconnect();
+        } catch {
+          // Safe to ignore
+        }
+        this.activeSampleSources.delete(s);
+      }
+      this.activeCueSamples.delete(cueId);
+    }
+
+    if (this.currentAmbianceCueId === cueId) {
+      this.stopAmbiance();
+    }
+  }
+
+  /**
+   * Stops all active audio: synth voices, sample sources, hold ramps, and continuous ambiance.
+   */
+  public stopAllAudio(fadeDurationSec = 0.05): void {
+    // 1. Stop all active synth voices
+    for (const v of this.allActiveVoices) {
+      try {
+        v.stop(fadeDurationSec);
+      } catch {
+        // Safe to ignore
+      }
+    }
+    this.allActiveVoices.clear();
+    this.activeCueVoices.clear();
+
+    // 2. Stop all active sample sources
+    for (const src of this.activeSampleSources) {
+      try {
+        src.stop();
+        src.disconnect();
+      } catch {
+        // Safe to ignore
+      }
+    }
+    this.activeSampleSources.clear();
+    this.activeCueSamples.clear();
+
+    // 3. Stop continuous ambiance drone
+    this.stopAmbiance();
+
+    // 4. Stop all hold ramps
+    for (const ramp of this.activeHoldVoices.values()) {
+      try {
+        ramp.stop(fadeDurationSec);
+      } catch {
+        // Safe to ignore
+      }
+    }
+    this.activeHoldVoices.clear();
   }
 
   private async playSampleVoice(
@@ -334,6 +445,21 @@ export class AudioEngine implements IAudioEngine {
     tailNode.connect(busNode);
     source.connect(gain);
     source.start(this.ctx.currentTime);
+    this.activeSampleSources.add(source);
+    if (!this.activeCueSamples.has(cue.id)) {
+      this.activeCueSamples.set(cue.id, []);
+    }
+    this.activeCueSamples.get(cue.id)!.push(source);
+
+    source.onended = () => {
+      this.activeSampleSources.delete(source);
+      const list = this.activeCueSamples.get(cue.id);
+      if (list) {
+        const idx = list.indexOf(source);
+        if (idx !== -1) list.splice(idx, 1);
+        if (list.length === 0) this.activeCueSamples.delete(cue.id);
+      }
+    };
   }
 
   /**
@@ -433,11 +559,7 @@ export class AudioEngine implements IAudioEngine {
   }
 
   public destroy(): void {
-    this.stopAmbiance();
-    for (const voice of this.activeHoldVoices.values()) {
-      voice.stop(0.01);
-    }
-    this.activeHoldVoices.clear();
+    this.stopAllAudio(0.01);
     this.cueCooldowns.clear();
     this.sampleBufferCache.clear();
 

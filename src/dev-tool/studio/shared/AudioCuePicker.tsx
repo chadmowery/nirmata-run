@@ -139,9 +139,25 @@ export function AudioCuePicker({
   // Check if current value is custom (not in catalog)
   const isCustomValue = Boolean(value && !cuesMap.has(value));
 
-  const handlePlay = useCallback(() => {
+  // Unmount cleanup: stop any playing audition
+  useEffect(() => {
+    return () => {
+      if (value) {
+        getAudioEngine().stopCue(value);
+      }
+    };
+  }, [value]);
+
+  const handleTogglePlay = useCallback(() => {
     if (!value) return;
     const engine = getAudioEngine();
+
+    if (isPlaying) {
+      engine.stopCue(value);
+      setIsPlaying(false);
+      return;
+    }
+
     const existing = cuesMap.get(value);
     const cueToPlay: SoundCueDef = existing || {
       id: value,
@@ -167,12 +183,22 @@ export function AudioCuePicker({
       pitchMultiplier: Number(pitchMultiplier) || 1.0,
     });
 
-    const resetTimer = setTimeout(() => {
-      setIsPlaying(false);
-    }, 400);
+    if (!cueToPlay.loop) {
+      const dur = cueToPlay.synth
+        ? (cueToPlay.synth.attack +
+            cueToPlay.synth.decay +
+            cueToPlay.synth.hold +
+            cueToPlay.synth.release +
+            0.5) *
+          1000
+        : 800;
+      const resetTimer = setTimeout(() => {
+        setIsPlaying(false);
+      }, Math.max(dur, 400));
 
-    return () => clearTimeout(resetTimer);
-  }, [value, cuesMap, volumeMultiplier, pitchMultiplier]);
+      return () => clearTimeout(resetTimer);
+    }
+  }, [value, isPlaying, cuesMap, volumeMultiplier, pitchMultiplier]);
 
   const selectId = `audio-cue-${componentKey}-${fieldKey}`;
 
@@ -252,27 +278,33 @@ export function AudioCuePicker({
       <button
         type="button"
         className={styles.toolButton}
-        onClick={handlePlay}
+        onClick={handleTogglePlay}
         disabled={!value || disabled}
-        title={value ? `Audition ${value} (Pitch: ${pitchMultiplier}x, Vol: ${volumeMultiplier}x)` : 'Select a cue to audition'}
+        title={
+          isPlaying
+            ? `Stop ${value}`
+            : value
+              ? `Audition ${value} (Pitch: ${pitchMultiplier}x, Vol: ${volumeMultiplier}x)`
+              : 'Select a cue to audition'
+        }
         style={{
           padding: '4px 8px',
           minWidth: '32px',
           color: isPlaying
-            ? 'var(--c-accent-secondary, #00f0ff)'
+            ? 'var(--c-danger, #ff2a4b)'
             : value
               ? 'var(--c-accent, #d8ff00)'
               : 'var(--c-text-dim, #79889e)',
           borderColor: isPlaying
-            ? 'var(--c-accent-secondary, #00f0ff)'
+            ? 'var(--c-danger, #ff2a4b)'
             : value
               ? 'var(--c-accent, #d8ff00)'
               : 'var(--c-border, #1c2638)',
           cursor: value && !disabled ? 'pointer' : 'not-allowed',
         }}
-        aria-label={value ? `Audition ${value}` : 'Audition cue'}
+        aria-label={isPlaying ? `Stop ${value}` : value ? `Audition ${value}` : 'Audition cue'}
       >
-        ▶
+        {isPlaying ? '■' : '▶'}
       </button>
 
       {/* Manual / Dropdown Mode Toggle */}

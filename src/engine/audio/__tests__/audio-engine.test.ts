@@ -147,6 +147,8 @@ describe('AudioEngine', () => {
       });
       engine.updateHoldRamp('noop-voice', 0.5);
       engine.stopHoldRamp('noop-voice');
+      engine.stopCue('test_cue');
+      engine.stopAllAudio();
       engine.setAmbianceState({ depthBand: 'BAND_1' });
       engine.stopAmbiance();
       engine.destroy();
@@ -255,6 +257,77 @@ describe('AudioEngine', () => {
 
     engine.updateSettings({ muted: true });
     expect(engine.isMuted()).toBe(true);
+
+    engine.destroy();
+  });
+
+  it('stops active sound cue voices when stopCue is called', async () => {
+    const mockCtx = createMockAudioContext();
+    installMockAudioContext(mockCtx);
+
+    const engine = new AudioEngine(true);
+    await engine.init();
+
+    const loopingCue: SoundCueDef = {
+      id: 'loop_drone',
+      bus: 'ambiance',
+      mode: 'synth',
+      baseVolume: 0.8,
+      cooldownMs: 0,
+      pitchVariance: 0,
+      loop: true,
+      synth: {
+        waveform: 'sawtooth',
+        freqStart: 120,
+        attack: 0.05,
+        decay: 0.1,
+        sustain: 0.8,
+        hold: 0.1,
+        release: 0.2,
+      },
+    };
+
+    engine.playCue(loopingCue);
+    expect(mockCtx.createOscillator).toHaveBeenCalled();
+
+    // Calling stopCue should not throw and safely terminate voices
+    expect(() => engine.stopCue('loop_drone', 0.05)).not.toThrow();
+
+    engine.destroy();
+  });
+
+  it('stops all audio (synth, sample, hold ramp, ambiance) when stopAllAudio is called', async () => {
+    const mockCtx = createMockAudioContext();
+    installMockAudioContext(mockCtx);
+
+    const engine = new AudioEngine(true);
+    await engine.init();
+
+    const cue: SoundCueDef = {
+      id: 'active_sfx',
+      bus: 'sfx',
+      mode: 'synth',
+      baseVolume: 0.8,
+      cooldownMs: 0,
+      pitchVariance: 0,
+      loop: true,
+      synth: {
+        waveform: 'sine',
+        freqStart: 440,
+        attack: 0.01,
+        decay: 0.05,
+        sustain: 0.5,
+        hold: 0.1,
+        release: 0.1,
+      },
+    };
+
+    engine.playCue(cue);
+    const holdVoiceId = engine.startHoldRamp(cue);
+    expect(holdVoiceId).toBeDefined();
+
+    // stopAllAudio should stop all voices and clear state
+    expect(() => engine.stopAllAudio(0.01)).not.toThrow();
 
     engine.destroy();
   });

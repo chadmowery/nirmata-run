@@ -27,27 +27,35 @@ const mockCue: SoundCueDef = {
 describe('AudioCueStudio Component', () => {
   let mockEngine: IAudioEngine;
   let playCueMock: ReturnType<typeof vi.fn<(cue: SoundCueDef, options?: PlayCueOptions) => void>>;
+  let stopCueMock: ReturnType<typeof vi.fn<(cueId: string, fadeDurationSec?: number) => void>>;
+  let stopAllAudioMock: ReturnType<typeof vi.fn<(fadeDurationSec?: number) => void>>;
   let startHoldMock: ReturnType<typeof vi.fn<(cue: SoundCueDef) => string>>;
   let stopHoldMock: ReturnType<typeof vi.fn<(vid: string) => void>>;
   let setAmbianceMock: ReturnType<typeof vi.fn>;
+  let stopAmbianceMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
 
     playCueMock = vi.fn();
+    stopCueMock = vi.fn();
+    stopAllAudioMock = vi.fn();
     startHoldMock = vi.fn(() => 'voice-123');
     stopHoldMock = vi.fn();
     setAmbianceMock = vi.fn();
+    stopAmbianceMock = vi.fn();
 
     mockEngine = {
       init: vi.fn(),
       destroy: vi.fn(),
       playCue: playCueMock,
+      stopCue: stopCueMock,
+      stopAllAudio: stopAllAudioMock,
       startHoldRamp: startHoldMock,
       updateHoldRamp: vi.fn(),
       stopHoldRamp: stopHoldMock,
       setAmbianceState: setAmbianceMock,
-      stopAmbiance: vi.fn(),
+      stopAmbiance: stopAmbianceMock,
       updateSettings: vi.fn(),
       getSettings: vi.fn(() => ({
         muted: false,
@@ -186,5 +194,57 @@ describe('AudioCueStudio Component', () => {
       expect(useGamedataStore.getState().isDirty).toBe(false);
     });
     expect(onRefreshMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops cue audition when toggled to STOP CUE', async () => {
+    render(<AudioCueStudio name="sfx_test_cue" />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/AUDIO CUE \/\/ sfx_test_cue/i)).toBeDefined();
+    });
+
+    const playBtn = screen.getByRole('button', { name: /▶ PLAY CUE/i });
+    fireEvent.click(playBtn);
+    expect(playCueMock).toHaveBeenCalledTimes(1);
+
+    // After clicking play, button toggles to ■ STOP CUE
+    const stopBtn = screen.getByRole('button', { name: /■ STOP CUE/i });
+    fireEvent.click(stopBtn);
+    expect(stopCueMock).toHaveBeenCalledWith('sfx_test_cue');
+  });
+
+  it('stops all audio when STOP ALL button is clicked', async () => {
+    render(<AudioCueStudio name="sfx_test_cue" />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/AUDIO CUE \/\/ sfx_test_cue/i)).toBeDefined();
+    });
+
+    const stopAllBtn = screen.getByRole('button', { name: /■ STOP ALL/i });
+    fireEvent.click(stopAllBtn);
+    expect(stopAllAudioMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops ambiance drone when STOP AMBIANCE DRONE is clicked', async () => {
+    render(<AudioCueStudio name="sfx_test_cue" />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/AUDIO CUE \/\/ sfx_test_cue/i)).toBeDefined();
+    });
+
+    const stopDroneBtn = screen.getByRole('button', { name: /■ STOP AMBIANCE DRONE/i });
+    fireEvent.click(stopDroneBtn);
+    expect(stopAmbianceMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('terminates all playing audio on unmount', async () => {
+    const { unmount } = render(<AudioCueStudio name="sfx_test_cue" />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/AUDIO CUE \/\/ sfx_test_cue/i)).toBeDefined();
+    });
+
+    unmount();
+    expect(stopAllAudioMock).toHaveBeenCalled();
   });
 });

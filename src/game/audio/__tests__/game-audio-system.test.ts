@@ -25,6 +25,8 @@ describe('GameAudioSystem Bridge', () => {
       init: vi.fn(),
       destroy: vi.fn(),
       playCue: vi.fn(),
+      stopCue: vi.fn(),
+      stopAllAudio: vi.fn(),
       startHoldRamp: vi.fn(() => 'voice-1'),
       updateHoldRamp: vi.fn(),
       stopHoldRamp: vi.fn(),
