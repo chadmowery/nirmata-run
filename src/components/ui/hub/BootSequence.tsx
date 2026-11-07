@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import { BtnLever } from '../atomic';
+import { uiAudio } from '@/game/audio/ui-audio';
 import styles from './BootSequence.module.css';
 
 interface BootSequenceProps {
@@ -43,7 +44,10 @@ export const BootSequence: React.FC<BootSequenceProps> = ({ onComplete }) => {
 
     const timer = setInterval(() => {
       setVisibleLines((prev) => {
-        if (prev < lines.length) return prev + 1;
+        if (prev < lines.length) {
+          uiAudio.playTypewriter();
+          return prev + 1;
+        }
         clearInterval(timer);
         return prev;
       });

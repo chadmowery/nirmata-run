@@ -7,6 +7,9 @@ import { loadAssets } from '@/rendering/assets';
 import { initRenderer, destroyRenderer, getApp } from '@/rendering/renderer';
 import { createRenderSystem } from '@/rendering/render-system';
 import { createWorldContainer } from '@/rendering/layers';
+import { createGameAudioSystem, GameAudioSystem } from '@/game/audio/game-audio-system';
+import { getAudioEngine, AudioEngine } from '@engine/audio';
+import { getSoundCue } from '@/game/audio/cue-registry';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import { GameState } from '@/game/states/types';
@@ -39,6 +42,7 @@ export default function GamePage() {
   const abortDialogVisible = useStore(gameStore, (s) => s.abortDialogVisible);
   const isInitializing = useRef(false);
   const renderSystemRef = useRef<ReturnType<typeof createRenderSystem> | null>(null);
+  const gameAudioSystemRef = useRef<GameAudioSystem | null>(null);
   const tickerCallbackRef = useRef<(() => void) | null>(null);
 
   const showCanvas =
@@ -141,7 +145,17 @@ export default function GamePage() {
       app.ticker.add(tickerCallback);
       tickerCallbackRef.current = tickerCallback;
 
-      // 4. Start Game
+      // 4. Init Audio System
+      const gameAudioSystem = createGameAudioSystem({
+        world: context.world,
+        eventBus: context.eventBus,
+        getPlayerEntity: () => contextRef.current?.playerId || 0,
+        getGrid: () => context.grid,
+      });
+      gameAudioSystemRef.current = gameAudioSystem;
+      gameAudioSystem.updateAmbianceForFloor(1);
+
+      // 5. Start Game
       context.fsm.transition(GameState.Playing);
 
       // Focus management: ensure window is focused for input
@@ -172,7 +186,13 @@ export default function GamePage() {
         renderSystemRef.current = null;
       }
 
-      // 2. Cleanup Ticker
+      // 2. Cleanup Audio System
+      if (gameAudioSystemRef.current) {
+        gameAudioSystemRef.current.destroy();
+        gameAudioSystemRef.current = null;
+      }
+
+      // 3. Cleanup Ticker
       const app = getApp();
       if (app && tickerCallbackRef.current) {
         app.ticker.remove(tickerCallbackRef.current);
@@ -204,13 +224,33 @@ export default function GamePage() {
         renderSystemRef.current.destroy();
         renderSystemRef.current = null;
       }
+      if (gameAudioSystemRef.current) {
+        gameAudioSystemRef.current.destroy();
+        gameAudioSystemRef.current = null;
+      }
       if (contextRef.current) {
         destroyGame(contextRef.current);
         contextRef.current = null;
       }
       destroyRenderer();
+      getAudioEngine().destroy();
     };
   }, []);
+
+  // Effect 4: Background ambiance for MainMenu and Hub
+  useEffect(() => {
+    const engine = getAudioEngine();
+    if (!('playAmbianceCue' in engine)) return;
+    const clientEngine = engine as AudioEngine;
+
+    if (status === GameState.MainMenu) {
+      const cue = getSoundCue('amb_main_menu');
+      if (cue) clientEngine.playAmbianceCue(cue);
+    } else if (status === GameState.Hub) {
+      const cue = getSoundCue('amb_hub_deck');
+      if (cue) clientEngine.playAmbianceCue(cue);
+    }
+  }, [status]);
 
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-black font-mono">

@@ -4,6 +4,7 @@ import React from 'react';
 import { useStore } from 'zustand';
 import { gameStore, HubTab } from '@/game/ui/store';
 import { Lock } from 'lucide-react';
+import { uiAudio } from '@/game/audio/ui-audio';
 import styles from './TabBar.module.css';
 
 export const TabBar: React.FC = () => {
@@ -24,6 +25,9 @@ export const TabBar: React.FC = () => {
 
   const handleTabClick = (id: HubTab) => {
     if (id === 'initialize' && hasOverflow) return;
+    if (id !== activeTab) {
+      uiAudio.playTabSwitch();
+    }
     setActiveTab(id);
   };
 
