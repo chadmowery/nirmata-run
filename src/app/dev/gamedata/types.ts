@@ -5,7 +5,8 @@ export type Section =
   | 'componentSchemas'
   | 'shells'
   | 'prefabs'
-  | 'configs';
+  | 'configs'
+  | 'audioCues';
 
 export interface SelectedItem {
   section: Section;
@@ -26,4 +27,5 @@ export const SECTIONS: SectionConfig[] = [
   { id: 'shells', label: 'Shells', apiPath: '/api/dev/gamedata/shells' },
   { id: 'prefabs', label: 'Room Prefabs', apiPath: '/api/dev/gamedata/prefabs' },
   { id: 'configs', label: 'System Configs', apiPath: '/api/dev/gamedata/configs' },
+  { id: 'audioCues', label: 'Audio Cues', apiPath: '/api/dev/gamedata/audio-cues' },
 ];

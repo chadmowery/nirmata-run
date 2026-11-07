@@ -157,3 +157,53 @@ export const LootDistributionSchema = z
       .min(1),
   })
   .passthrough();
+
+export const SynthPatchConfigSchema = z.object({
+  waveform: z.enum([
+    'sine',
+    'square',
+    'sawtooth',
+    'triangle',
+    'noise_white',
+    'noise_pink',
+    'noise_brown',
+  ]),
+  freqStart: z.number().positive(),
+  freqEnd: z.number().positive().optional(),
+  freqRampType: z.enum(['linear', 'exponential']).optional(),
+  subWaveform: z.enum(['sine', 'square', 'sawtooth', 'triangle']).optional(),
+  subDetuneCents: z.number().optional(),
+  subMix: z.number().min(0).max(1).optional(),
+  fmFreq: z.number().optional(),
+  fmDepth: z.number().optional(),
+  filterType: z.enum(['lowpass', 'highpass', 'bandpass', 'notch']).optional(),
+  filterCutoffStart: z.number().positive().optional(),
+  filterCutoffEnd: z.number().positive().optional(),
+  filterQ: z.number().min(0).optional(),
+  distortion: z.number().min(0).max(1).optional(),
+  attack: z.number().min(0),
+  decay: z.number().min(0),
+  sustain: z.number().min(0).max(1),
+  hold: z.number().min(0),
+  release: z.number().min(0),
+  lfoFreq: z.number().min(0).optional(),
+  lfoFilterDepth: z.number().min(0).optional(),
+});
+
+export const SoundCueDefSchema = z.object({
+  id: z.string().regex(/^[a-z0-9_-]+$/),
+  bus: z.enum(['ambiance', 'sfx', 'ui']),
+  mode: z.enum(['synth', 'sample']),
+  baseVolume: z.number().min(0).max(1),
+  cooldownMs: z.number().min(0),
+  pitchVariance: z.number().min(0).max(1),
+  loop: z.boolean().optional(),
+  synth: SynthPatchConfigSchema.optional(),
+  samplePath: z.string().optional(),
+});
+
+export const SoundCuesFileSchema = z.object({
+  $schema: z.string().optional(),
+  version: z.string().optional(),
+  cues: z.array(SoundCueDefSchema),
+});

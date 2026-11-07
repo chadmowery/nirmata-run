@@ -5,3 +5,4 @@ export { ShellEditor } from './ShellEditor';
 export { ComponentSchemaViewer } from './ComponentSchemaViewer';
 export { PrefabEditor } from './PrefabEditor';
 export { ConfigEditor } from './ConfigEditor';
+export { AudioCueStudio } from './AudioCueStudio';

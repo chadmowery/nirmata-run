@@ -8,6 +8,7 @@ const MIXIN_DIR = path.join(process.cwd(), 'src/game/entities/templates/mixins')
 const SPAWN_DIR = path.join(process.cwd(), 'src/game/entities/templates/spawn-tables');
 const SHELL_DIR = path.join(process.cwd(), 'src/game/shells/shared/templates');
 const PREFAB_DIR = path.join(process.cwd(), 'src/game/generation/prefabs');
+const SOUND_CUES_FILE = path.join(process.cwd(), 'src/game/audio/sound-cues.json');
 
 async function listJson(dir: string): Promise<string[]> {
   try {
@@ -23,16 +24,24 @@ export default async function GamedataPage() {
     notFound();
   }
 
-  const [rawEntities, mixins, spawnTables, shells, prefabs] = await Promise.all([
+  const [rawEntities, mixins, spawnTables, shells, prefabs, rawAudioCues] = await Promise.all([
     listJson(ENTITY_DIR),
     listJson(MIXIN_DIR),
     listJson(SPAWN_DIR),
     listJson(SHELL_DIR),
     listJson(PREFAB_DIR),
+    fs
+      .readFile(SOUND_CUES_FILE, 'utf-8')
+      .then((content) => {
+        const data = JSON.parse(content);
+        return Array.isArray(data.cues) ? data.cues.map((c: { id: string }) => c.id) : [];
+      })
+      .catch(() => []),
   ]);
 
   const entities = rawEntities.filter((name) => name !== 'economy');
   const configs = ['economy', 'depth-config', 'loot-distribution'];
+  const audioCues = rawAudioCues;
 
   return (
     <GamedataTool
@@ -43,6 +52,7 @@ export default async function GamedataPage() {
         shells,
         prefabs,
         configs,
+        audioCues,
       }}
     />
   );
