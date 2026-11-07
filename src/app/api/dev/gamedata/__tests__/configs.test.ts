@@ -15,7 +15,7 @@ describe('Configs API Routes', () => {
     const res = await getConfigs();
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.items).toEqual(['economy', 'depth-config', 'loot-distribution']);
+    expect(data.items).toEqual(['economy', 'depth-config', 'loot-distribution', 'ambiance']);
   });
 
   it('reads economy config', async () => {
@@ -26,6 +26,16 @@ describe('Configs API Routes', () => {
     expect(data.version).toBeDefined();
     expect(data.currencyDrops).toBeDefined();
     expect(data.costs).toBeDefined();
+  });
+
+  it('reads ambiance config', async () => {
+    const req = new Request('http://localhost/api/dev/gamedata/configs/ambiance');
+    const res = await getConfig(req, { params: Promise.resolve({ name: 'ambiance' }) });
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.scenes).toBeDefined();
+    expect(data.depthBands).toBeDefined();
+    expect(data.sectorConditions).toBeDefined();
   });
 
   it('reads depth-config', async () => {

@@ -19,6 +19,7 @@ import {
 } from '@engine/audio';
 import { Position, Shell, AudioProfile, Heat, AmbientEmitter, Prop, FloorState } from '@shared/components';
 import { getSoundCue } from './cue-registry';
+import { resolveAmbianceForFloor } from '@game/config/ambiance';
 
 export interface GameAudioSystemOptions {
   world: World<GameEvents>;
@@ -396,17 +397,6 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
 
   // 11. Floor Transition & Ambiance
   const updateAmbianceForFloor = (floorNumber: number): void => {
-    let cueId = 'amb_band_1_corrupted';
-    let depthBand = 'CORRUPTED_DATA';
-
-    if (floorNumber >= 11) {
-      cueId = 'amb_band_3_logic';
-      depthBand = 'LOGIC_BREAKERS';
-    } else if (floorNumber >= 6) {
-      cueId = 'amb_band_2_static';
-      depthBand = 'STATIC_HORRORS';
-    }
-
     // Query FloorState from world for active sector condition
     const floorEntity = world.query(FloorState)[0];
     const floorState = floorEntity ? world.getComponent(floorEntity, FloorState) : null;
@@ -415,19 +405,16 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
         ? floorState.sectorCondition
         : null;
 
-    // Check if there is an optional specialized track override for this sector condition (e.g. amb_condition_thermal_surge)
-    if (condition) {
-      const conditionCueId = `amb_condition_${condition.toLowerCase()}`;
-      if (getSoundCue(conditionCueId)) {
-        cueId = conditionCueId;
-      }
-    }
+    const resolved = resolveAmbianceForFloor(floorNumber, condition);
 
-    const cue = getSoundCue(cueId);
+    const cue = getSoundCue(resolved.cueId);
     if (cue && 'playAmbianceCue' in audioEngine) {
       (audioEngine as AudioEngine).playAmbianceCue(cue);
     }
-    audioEngine.setAmbianceState({ depthBand, sectorCondition: condition });
+    audioEngine.setAmbianceState({
+      depthBand: resolved.depthBand,
+      sectorCondition: condition,
+    });
     updateAmbientEmitters();
   };
 

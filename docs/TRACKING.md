@@ -391,6 +391,14 @@
   - Normalized `samplePath` resolution in [`audio-engine.ts`](../src/engine/audio/audio-engine.ts) to strip redundant `public/` prefixes and ensure relative paths resolve cleanly, with automatic `await ctx.resume()` unlocking prior to audio decoding and buffer playback.
   - Added dynamic cue registration (`registerSoundCue`) in [`cue-registry.ts`](../src/game/audio/cue-registry.ts).
   - **Verification Sweep**: Verified full test suite passes (201/201 files, 1,240/1,240 tests), 0 type errors (`tsc --noEmit`), 0 lint warnings (`eslint src/`), and clean Next.js production build (`next build`).
+- [x] **[AUD-11] Ambiance System Configuration & DevTool Visual Ambiance Studio**
+  - Eliminated magic hardcoded ambiance IDs across the entire project (`amb_main_menu`, `amb_hub_deck`, `amb_band_1_corrupted`, `amb_band_2_static`, `amb_band_3_logic`).
+  - Created declarative system config schema in [`schemas.ts`](../src/app/api/dev/gamedata/schemas.ts) (`AmbianceConfigSchema`, `AmbianceDepthBandSchema`, `AmbianceSectorConditionSchema`, `AmbianceSceneTrackSchema`, `AmbianceDuckingConfigSchema`) and authored [`src/game/config/ambiance.json`](../src/game/config/ambiance.json).
+  - Built typed config loader and runtime floor resolver in [`src/game/config/ambiance.ts`](../src/game/config/ambiance.ts) (`getAmbianceConfig`, `setAmbianceConfig`, `resolveAmbianceForFloor`) providing procedural depth band matching, sector condition DSP filter multipliers (`cutoffMultiplier`, `resonanceQ`), and condition track overrides.
+  - Exposed `/api/dev/gamedata/configs/ambiance` with automatic `sound-cues.json` synchronization: whenever a user assigns or edits `samplePath` or `cueId`, the server automatically provisions/updates the sound cue registry and keeps runtime audio in sync.
+  - Built a dedicated visual editor for `name === 'ambiance'` inside [`ConfigEditor.tsx`](../src/dev-tool/studio/editors/ConfigEditor.tsx) with Scene Ambiance Tracks, Progression Depth Bands with `AudioCuePicker` + `samplePath` + volume sliders, dynamic Sector Conditions with frequency cutoff and resonance Q sliders, and Ducking parameters.
+  - Refactored [`game-audio-system.ts`](../src/game/audio/game-audio-system.ts), [`src/app/page.tsx`](../src/app/page.tsx), and [`AudioCueStudio.tsx`](../src/dev-tool/studio/editors/AudioCueStudio.tsx) to consume `getAmbianceConfig()` and `resolveAmbianceForFloor()`.
+  - **Verification Sweep**: Verified full test suite passes (203/203 files, 1,254/1,254 tests), 0 type errors (`tsc --noEmit`), 0 lint warnings (`eslint src/`), and clean Next.js production build (`next build`).
 
 
 

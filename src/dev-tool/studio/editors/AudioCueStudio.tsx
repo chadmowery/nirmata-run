@@ -10,6 +10,7 @@ import {
 } from '@engine/audio';
 import { useGamedataStore } from '../store';
 import soundCuesRaw from '@/game/audio/sound-cues.json';
+import { getAmbianceConfig } from '@/game/config/ambiance';
 import styles from './editors.module.css';
 
 interface Props {
@@ -19,12 +20,18 @@ interface Props {
   onRefresh?: () => void;
 }
 
-const DEPTH_BAND_CUES: Record<string, string> = {
-  'MAIN_MENU': 'amb_main_menu',
-  'FLOORS 1–5 (SUBNET)': 'amb_band_1_corrupted',
-  'FLOORS 6–10 (FOUNDRY)': 'amb_band_2_static',
-  'FLOORS 11–15 (CORE)': 'amb_band_3_logic',
-};
+function getDepthBandCueMap(): Record<string, string> {
+  const config = getAmbianceConfig();
+  const map: Record<string, string> = {
+    'MAIN_MENU': config.scenes.mainMenu?.cueId || 'amb_main_menu',
+  };
+  for (const b of config.depthBands) {
+    map[`FLOORS ${b.floorRange.min}–${b.floorRange.max} (${b.label})`] = b.cueId;
+    map[b.label] = b.cueId;
+    map[b.id] = b.cueId;
+  }
+  return map;
+}
 
 const DEFAULT_SYNTH_PATCH: SynthPatchConfig = {
   waveform: 'triangle',
@@ -249,7 +256,9 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
       if (cueData && cueData.bus === 'ambiance') {
         cueToPlay = cueData;
       } else {
-        const targetId = DEPTH_BAND_CUES[depthBand] || 'amb_band_1_corrupted';
+        const depthCueMap = getDepthBandCueMap();
+        const fallbackCueId = getAmbianceConfig().depthBands[0]?.cueId || 'amb_band_1_corrupted';
+        const targetId = depthCueMap[depthBand] || fallbackCueId;
         cueToPlay = (soundCuesRaw.cues as SoundCueDef[]).find((c) => c.id === targetId);
         if (!cueToPlay) {
           try {
@@ -1224,7 +1233,7 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
                 {activeAmbianceCueId ||
                   (cueData?.bus === 'ambiance'
                     ? cueData.id
-                    : DEPTH_BAND_CUES[simDepthBand] || 'amb_band_1_corrupted')}
+                    : getDepthBandCueMap()[simDepthBand] || getAmbianceConfig().depthBands[0]?.cueId || 'amb_band_1_corrupted')}
               </span>
             </div>
             <div>

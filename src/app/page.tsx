@@ -10,6 +10,7 @@ import { createWorldContainer } from '@/rendering/layers';
 import { createGameAudioSystem, GameAudioSystem } from '@/game/audio/game-audio-system';
 import { getAudioEngine, AudioEngine } from '@engine/audio';
 import { getSoundCue } from '@/game/audio/cue-registry';
+import { getAmbianceConfig } from '@/game/config/ambiance';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import { GameState } from '@/game/states/types';
@@ -244,11 +245,15 @@ export default function GamePage() {
     if (!('playAmbianceCue' in engine)) return;
     const clientEngine = engine as AudioEngine;
 
+    const ambianceConfig = getAmbianceConfig();
+
     if (status === GameState.MainMenu) {
-      const cue = getSoundCue('amb_main_menu');
+      const cueId = ambianceConfig.scenes.mainMenu?.cueId || 'amb_main_menu';
+      const cue = getSoundCue(cueId);
       if (cue) clientEngine.playAmbianceCue(cue);
     } else if (status === GameState.Hub) {
-      const cue = getSoundCue('amb_hub_deck');
+      const cueId = ambianceConfig.scenes.hub?.cueId || 'amb_hub_deck';
+      const cue = getSoundCue(cueId);
       if (cue) clientEngine.playAmbianceCue(cue);
     }
   }, [status]);
