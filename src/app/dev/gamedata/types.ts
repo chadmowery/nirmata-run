@@ -1,4 +1,11 @@
-export type Section = 'entities' | 'mixins' | 'spawnTables' | 'componentSchemas' | 'shells' | 'prefabs';
+export type Section =
+  | 'entities'
+  | 'mixins'
+  | 'spawnTables'
+  | 'componentSchemas'
+  | 'shells'
+  | 'prefabs'
+  | 'configs';
 
 export interface SelectedItem {
   section: Section;
@@ -18,4 +25,5 @@ export const SECTIONS: SectionConfig[] = [
   { id: 'componentSchemas', label: 'Component Schemas', apiPath: '/api/dev/gamedata/components' },
   { id: 'shells', label: 'Shells', apiPath: '/api/dev/gamedata/shells' },
   { id: 'prefabs', label: 'Room Prefabs', apiPath: '/api/dev/gamedata/prefabs' },
+  { id: 'configs', label: 'System Configs', apiPath: '/api/dev/gamedata/configs' },
 ];

@@ -4,3 +4,4 @@ export { SpawnTableEditor } from './SpawnTableEditor';
 export { ShellEditor } from './ShellEditor';
 export { ComponentSchemaViewer } from './ComponentSchemaViewer';
 export { PrefabEditor } from './PrefabEditor';
+export { ConfigEditor } from './ConfigEditor';

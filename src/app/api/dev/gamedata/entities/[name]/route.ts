@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
-import { resolveFilePath, atomicWrite, errorResponse } from '../../utils';
+import { checkNonProductionOnly } from '@/server/security/env-gate';
+import { resolveFilePath, atomicWrite, errorResponse, regenerateTemplateIndex } from '../../utils';
+import { RawTemplateSchema } from '../../schemas';
+import { validateEcsRules } from '../../ecs-rules';
+import { COMPONENTS_REGISTRY } from '@shared/components';
 
 const DIR = path.join(process.cwd(), 'src/game/entities/templates');
 
 export async function GET(_req: Request, { params }: { params: Promise<{ name: string }> }) {
+  const gate = checkNonProductionOnly();
+  if (gate) return gate;
+
   const { name } = await params;
   const filePath = resolveFilePath(DIR, name);
   if (!filePath) return errorResponse('Invalid name', 400);
@@ -19,12 +26,45 @@ export async function GET(_req: Request, { params }: { params: Promise<{ name: s
 }
 
 export async function PUT(req: Request, { params }: { params: Promise<{ name: string }> }) {
+  const gate = checkNonProductionOnly();
+  if (gate) return gate;
+
   const { name } = await params;
   const filePath = resolveFilePath(DIR, name);
   if (!filePath) return errorResponse('Invalid name', 400);
 
   try {
     const body = await req.json();
+
+    if (body.name && body.name !== name) {
+      return errorResponse(`Template name in body ('${body.name}') does not match route param ('${name}')`, 400);
+    }
+
+    const parseResult = RawTemplateSchema.safeParse(body);
+    if (!parseResult.success) {
+      return errorResponse(`Invalid entity template schema: ${parseResult.error.message}`, 400);
+    }
+
+    // Component schemas validation
+    if (body.components && typeof body.components === 'object') {
+      const compMap = new Map(COMPONENTS_REGISTRY.map((c) => [c.key, c.schema]));
+      for (const [compKey, compVal] of Object.entries(body.components)) {
+        const schema = compMap.get(compKey);
+        if (schema) {
+          const compParsed = schema.safeParse(compVal);
+          if (!compParsed.success) {
+            return errorResponse(`Invalid component '${compKey}': ${compParsed.error.message}`, 400);
+          }
+        }
+      }
+
+      // ECS rules validation
+      const ecsCheck = validateEcsRules(body.components as Record<string, unknown>);
+      if (!ecsCheck.valid) {
+        return errorResponse(`ECS Validation Failed: ${ecsCheck.errors.map((e) => e.message).join('; ')}`, 422);
+      }
+    }
+
     await atomicWrite(filePath, body);
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -33,12 +73,16 @@ export async function PUT(req: Request, { params }: { params: Promise<{ name: st
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ name: string }> }) {
+  const gate = checkNonProductionOnly();
+  if (gate) return gate;
+
   const { name } = await params;
   const filePath = resolveFilePath(DIR, name);
   if (!filePath) return errorResponse('Invalid name', 400);
 
   try {
     await fs.unlink(filePath);
+    await regenerateTemplateIndex();
     return NextResponse.json({ success: true });
   } catch {
     return errorResponse('Not found', 404);

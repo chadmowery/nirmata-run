@@ -11,8 +11,51 @@ describe('ECS consistency rules', () => {
   });
 
   it('should validate complete enemy', () => {
-    const components = { hostile: {}, aiState: {} };
+    const components = { hostile: {}, aiState: {}, health: {}, attack: {}, energy: {} };
     const result = validateEcsRules(components);
     expect(result.valid).toBe(true);
+    expect(result.errors.length).toBe(0);
+  });
+
+  it('should emit warning for hostile enemy missing combat stats', () => {
+    const components = { hostile: {}, aiState: {} };
+    const result = validateEcsRules(components);
+    expect(result.valid).toBe(true); // Warning does not block validity
+    expect(result.warnings.some((w) => w.id === 'enemy-requires-combat-stats')).toBe(true);
+  });
+
+  it('should validate items with various handler components', () => {
+    expect(validateEcsRules({ item: {}, pickupEffect: {} }).valid).toBe(true);
+    expect(validateEcsRules({ item: {}, equipmentDef: {} }).valid).toBe(true);
+    expect(validateEcsRules({ item: {}, softwareDef: {} }).valid).toBe(true);
+    expect(validateEcsRules({ item: {}, currencyItem: {} }).valid).toBe(true);
+    expect(validateEcsRules({ item: {}, abilityDef: {} }).valid).toBe(true);
+    expect(validateEcsRules({ item: {}, augmentData: {} }).valid).toBe(true);
+    expect(validateEcsRules({ item: { type: 'key' } }).valid).toBe(true);
+  });
+
+  it('should invalidate item without any handler component', () => {
+    const result = validateEcsRules({ item: {} });
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.id === 'item-requires-handler-component')).toBe(true);
+  });
+
+  it('should require prop component when securityLock or directionalProp is present', () => {
+    const invalidLock = validateEcsRules({ securityLock: {} });
+    expect(invalidLock.valid).toBe(false);
+    expect(invalidLock.errors.some((e) => e.id === 'prop-lock-requires-prop')).toBe(true);
+
+    const validLock = validateEcsRules({ prop: {}, securityLock: {} });
+    expect(validLock.valid).toBe(true);
+  });
+
+  it('should reject runtime intents and tags in static templates', () => {
+    const withMoveIntent = validateEcsRules({ moveIntent: {} });
+    expect(withMoveIntent.valid).toBe(false);
+    expect(withMoveIntent.errors.some((e) => e.id === 'no-runtime-intents-in-templates')).toBe(true);
+
+    const withDying = validateEcsRules({ dying: {} });
+    expect(withDying.valid).toBe(false);
+    expect(withDying.errors.some((e) => e.id === 'no-runtime-intents-in-templates')).toBe(true);
   });
 });

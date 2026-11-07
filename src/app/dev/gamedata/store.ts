@@ -24,6 +24,24 @@ interface GamedataStore {
   cloneSource: string | null;
   setCloneSource: (name: string) => void;
   clearCloneSource: () => void;
+
+  // Active telemetry and validation state for the inspector column
+  activeEffectiveData: unknown;
+  setActiveEffectiveData: (data: unknown) => void;
+  activeValidationStatus: {
+    zodValid: boolean;
+    ecsResult?: {
+      valid: boolean;
+      errors: { id: string; message: string }[];
+      warnings: { id: string; message: string }[];
+    };
+    prefabResult?: {
+      valid: boolean;
+      errors: { id: string; message: string }[];
+      warnings: { id: string; message: string }[];
+    };
+  } | null;
+  setActiveValidationStatus: (status: GamedataStore['activeValidationStatus']) => void;
 }
 
 export const useGamedataStore = create<GamedataStore>((set) => ({
@@ -37,8 +55,20 @@ export const useGamedataStore = create<GamedataStore>((set) => ({
     }),
 
   selectedItem: null,
-  selectItem: (section, name) => set({ selectedItem: { section, name }, isDirty: false }),
-  clearSelection: () => set({ selectedItem: null, isDirty: false }),
+  selectItem: (section, name) =>
+    set({
+      selectedItem: { section, name },
+      isDirty: false,
+      activeEffectiveData: null,
+      activeValidationStatus: null,
+    }),
+  clearSelection: () =>
+    set({
+      selectedItem: null,
+      isDirty: false,
+      activeEffectiveData: null,
+      activeValidationStatus: null,
+    }),
 
   sectionItems: {
     entities: [],
@@ -47,6 +77,7 @@ export const useGamedataStore = create<GamedataStore>((set) => ({
     componentSchemas: [],
     shells: [],
     prefabs: [],
+    configs: [],
   },
   setSectionItems: (section, items) =>
     set((state) => ({
@@ -60,4 +91,9 @@ export const useGamedataStore = create<GamedataStore>((set) => ({
   cloneSource: null,
   setCloneSource: (name) => set({ cloneSource: name }),
   clearCloneSource: () => set({ cloneSource: null }),
+
+  activeEffectiveData: null,
+  setActiveEffectiveData: (data) => set({ activeEffectiveData: data }),
+  activeValidationStatus: null,
+  setActiveValidationStatus: (status) => set({ activeValidationStatus: status }),
 }));

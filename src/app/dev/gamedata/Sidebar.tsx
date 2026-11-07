@@ -5,15 +5,41 @@ import { SECTIONS } from './types';
 import styles from './gamedata.module.css';
 
 export function Sidebar() {
-  const { expandedSections, toggleSection, selectedItem, selectItem, sectionItems } =
-    useGamedataStore();
+  const {
+    expandedSections,
+    toggleSection,
+    selectedItem,
+    selectItem,
+    sectionItems,
+    clearCloneSource,
+    isDirty,
+  } = useGamedataStore();
+
+  const handleSelectItem = (sectionId: typeof SECTIONS[number]['id'], name: string) => {
+    if (selectedItem?.section === sectionId && selectedItem?.name === name) return;
+    if (isDirty) {
+      const confirmDiscard = window.confirm('You have unsaved changes. Discard and switch items?');
+      if (!confirmDiscard) return;
+    }
+    clearCloneSource();
+    selectItem(sectionId, name);
+  };
+
+  const handleAddNew = (sectionId: typeof SECTIONS[number]['id']) => {
+    if (isDirty) {
+      const confirmDiscard = window.confirm('You have unsaved changes. Discard and create new?');
+      if (!confirmDiscard) return;
+    }
+    clearCloneSource();
+    selectItem(sectionId, '__new__');
+  };
 
   return (
     <aside className={styles.sidebar}>
       <h1 className={styles.sidebarTitle}>Gamedata</h1>
       {SECTIONS.map((section) => {
         const isExpanded = expandedSections.has(section.id);
-        const items = sectionItems[section.id];
+        const items = sectionItems[section.id] || [];
         const isReadOnly = section.id === 'componentSchemas';
 
         return (
@@ -32,7 +58,7 @@ export function Sidebar() {
                     className={styles.addButton}
                     onClick={(e) => {
                       e.stopPropagation();
-                      selectItem(section.id, '__new__');
+                      handleAddNew(section.id);
                     }}
                   >
                     <Plus size={12} /> New
@@ -45,7 +71,7 @@ export function Sidebar() {
                     <div
                       key={name}
                       className={`${styles.sectionItem} ${isActive ? styles.sectionItemActive : ''}`}
-                      onClick={() => selectItem(section.id, name)}
+                      onClick={() => handleSelectItem(section.id, name)}
                     >
                       <File size={12} />
                       <span>{name}</span>

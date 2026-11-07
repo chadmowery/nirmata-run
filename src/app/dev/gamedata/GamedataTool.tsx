@@ -1,8 +1,9 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { Sidebar } from './Sidebar';
 import { useGamedataStore } from './store';
-import { Section } from './types';
+import { Section, SECTIONS } from './types';
+import { ResolvedPreviewPanel } from './shared/ResolvedPreviewPanel';
 import {
   EntityTemplateEditor,
   MixinEditor,
@@ -10,6 +11,7 @@ import {
   ShellEditor,
   ComponentSchemaViewer,
   PrefabEditor,
+  ConfigEditor,
 } from './editors';
 import styles from './gamedata.module.css';
 
@@ -20,11 +22,33 @@ interface Props {
     spawnTables: string[];
     shells: string[];
     prefabs?: string[];
+    configs?: string[];
   };
 }
 
 export function GamedataTool({ initialData }: Props) {
-  const { setSectionItems, selectedItem, cloneSource } = useGamedataStore();
+  const {
+    setSectionItems,
+    selectedItem,
+    cloneSource,
+    isDirty,
+    activeEffectiveData,
+    activeValidationStatus,
+  } = useGamedataStore();
+
+  const refreshSection = async (section: Section) => {
+    const secConfig = SECTIONS.find((s) => s.id === section);
+    if (!secConfig) return;
+    try {
+      const res = await fetch(secConfig.apiPath);
+      const data = await res.json();
+      if (data.items) {
+        setSectionItems(section, data.items);
+      }
+    } catch {
+      // ignore network errors
+    }
+  };
 
   // Hydrate store with server-loaded data on mount
   useEffect(() => {
@@ -34,6 +58,9 @@ export function GamedataTool({ initialData }: Props) {
     setSectionItems('shells', initialData.shells);
     if (initialData.prefabs) {
       setSectionItems('prefabs', initialData.prefabs);
+    }
+    if (initialData.configs) {
+      setSectionItems('configs', initialData.configs);
     }
   }, [initialData, setSectionItems]);
 
@@ -52,58 +79,92 @@ export function GamedataTool({ initialData }: Props) {
       .catch(() => {});
   }, [setSectionItems]);
 
+  // Global Cmd+S / Ctrl+S key listener
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      window.dispatchEvent(new CustomEvent('gamedata-save'));
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
+
+  // Unsaved changes warning
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
+
   function renderEditor(item: { section: Section; name: string }) {
     const isNew = item.name === '__new__';
     const cloneFrom = isNew ? cloneSource : undefined;
+    const editorKey = `${item.section}-${item.name}-${cloneFrom ?? 'fresh'}`;
+    const onRefresh = () => refreshSection(item.section);
 
     switch (item.section) {
       case 'entities':
         return (
           <EntityTemplateEditor
-            key={item.name}
+            key={editorKey}
             name={item.name}
             isNew={isNew}
             cloneFrom={cloneFrom ?? undefined}
+            onRefresh={onRefresh}
           />
         );
       case 'mixins':
         return (
           <MixinEditor
-            key={item.name}
+            key={editorKey}
             name={item.name}
             isNew={isNew}
             cloneFrom={cloneFrom ?? undefined}
+            onRefresh={onRefresh}
           />
         );
       case 'spawnTables':
         return (
           <SpawnTableEditor
-            key={item.name}
+            key={editorKey}
             name={item.name}
             isNew={isNew}
             cloneFrom={cloneFrom ?? undefined}
+            onRefresh={onRefresh}
           />
         );
       case 'shells':
         return (
           <ShellEditor
-            key={item.name}
+            key={editorKey}
             id={item.name}
             isNew={isNew}
             cloneFrom={cloneFrom ?? undefined}
+            onRefresh={onRefresh}
           />
         );
       case 'prefabs':
         return (
           <PrefabEditor
-            key={item.name}
+            key={editorKey}
             name={item.name}
             isNew={isNew}
             cloneFrom={cloneFrom ?? undefined}
+            onRefresh={onRefresh}
           />
         );
       case 'componentSchemas':
-        return <ComponentSchemaViewer key={item.name} name={item.name} />;
+        return <ComponentSchemaViewer key={editorKey} name={item.name} />;
+      case 'configs':
+        return <ConfigEditor key={editorKey} name={item.name} onRefresh={onRefresh} />;
       default:
         return (
           <div className={styles.emptyState}>
@@ -113,18 +174,59 @@ export function GamedataTool({ initialData }: Props) {
     }
   }
 
+  const activeName = selectedItem ? `${selectedItem.section} // ${selectedItem.name}` : 'NONE';
+
   return (
     <div className={styles.container}>
-      <Sidebar />
-      <main className={styles.mainPanel}>
-        {selectedItem ? (
-          renderEditor(selectedItem)
-        ) : (
-          <div className={styles.emptyState}>
-            <span>SELECT_ITEM</span>
-          </div>
-        )}
-      </main>
+      <header className={styles.headerPlacard}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <span style={{ color: 'var(--c-accent-secondary, #00f0ff)' }}>
+            [ 開発環境 // GAMEDATA STUDIO ]
+          </span>
+          <span style={{ color: 'var(--c-text-dim, #79889e)' }}>
+            ACTIVE: <span style={{ color: 'var(--c-text-ivory, #f4f4f0)' }}>{activeName}</span>
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <span
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: isDirty ? 'var(--c-warning, #ff6600)' : 'var(--c-accent-secondary, #00f0ff)',
+            }}
+          >
+            ● {isDirty ? 'UNSAVED' : 'SAVED'}
+          </span>
+          <button
+            type="button"
+            className={styles.addButton}
+            onClick={() => window.dispatchEvent(new CustomEvent('gamedata-save'))}
+            style={{ margin: 0, padding: '2px 8px' }}
+          >
+            CMD+S SAVE
+          </button>
+        </div>
+      </header>
+
+      <div className={styles.workspaceRow}>
+        <Sidebar />
+        <main className={styles.mainPanel}>
+          {selectedItem ? (
+            renderEditor(selectedItem)
+          ) : (
+            <div className={styles.emptyState}>
+              <span>SELECT_ITEM</span>
+            </div>
+          )}
+        </main>
+        <ResolvedPreviewPanel
+          selectedItem={selectedItem}
+          effectiveData={activeEffectiveData}
+          validationStatus={activeValidationStatus ?? undefined}
+        />
+      </div>
     </div>
   );
 }

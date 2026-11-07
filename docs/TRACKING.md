@@ -290,6 +290,41 @@
   - Updated `package.json` `"build:tiles"` script and adjusted atlas dimension assertions in `shell-tileset.test.ts`, `environment-tileset.test.ts`, and `themed-tilesets.test.ts`.
   - Verified full test suite passes (182/182 files, 1115/1115 tests), 0 type errors (`tsc --noEmit`), 0 lint warnings (`eslint src/`), and clean Next.js build (`next build`).
 
+---
+
+## Workstream 5: Gamedata Authoring Studio Overhaul & Deterministic Prefab Generation
+
+> **Specification**: [`docs/design/GAMEDATA-DESIGN-TOOL.md`](./design/GAMEDATA-DESIGN-TOOL.md)  
+> **Status**: Completed (Branch: `gamedata-studio-overhaul`)
+
+- [x] **[GD-01] Phase 1: P0 Bug Fixes & Data Integrity**
+  - **`BUG-GD-01`**: Filtered `economy.json` out of `ENTITY_DIR` in `page.tsx` and `entities/route.ts`; guarded `Object.entries(templateData.components ?? {})` across editors.
+  - **`BUG-GD-02`**: Upgraded `item-requires-pickup-effect` in `ecs-rules.ts` to `item-requires-handler-component`, supporting `pickupEffect`, `currencyItem`, `equipmentDef`, `softwareDef`, `abilityDef`, `augmentData`, and `item.type === 'key'`. Added `prop-lock-requires-prop`, `no-runtime-intents-in-templates`, and `valid-sprite-key`.
+  - **`BUG-GD-03` & `BUG-GD-04`**: Refactored `FormField.tsx` with draft string state for JSON textareas; added empty option handling on enums; implemented `buildDefaultComponentData` in `default-values.ts` for pre-seeded defaults on `+ Add Component`.
+  - **`BUG-GD-05`, `BUG-GD-06`, `BUG-GD-07`**: Wired `CLONE`, `DELETE` (with confirmation modal), and `onRefresh` post-mutation transitions across `EntityTemplateEditor`, `MixinEditor`, `SpawnTableEditor`, `ShellEditor`, `PrefabEditor`, `Sidebar.tsx`, and `GamedataTool.tsx`.
+- [x] **[GD-02] Phase 2: Schema Introspection, Server Validation & Security Hardening**
+  - **`RISK-GD-01` & `RISK-GD-02`**: Upgraded `schema-introspect.ts` with recursive unwrapping of Zod 4 types (`z.nativeEnum`, `z.nullable`, `z.record`, `z.union`, `z.lazy`, and numeric constraints `minValue`/`maxValue`/`isInt`); filtered 27 runtime Intent/Tag components out of authorable component dropdown.
+  - **`RISK-GD-03`, `RISK-GD-04`, `RISK-GD-07`**: Enforced Zod schemas (`RawTemplateSchema`, `ShellTemplateSchema`, `SpawnTableSchema`, `RoomPrefabTemplateSchema`) and ECS rules on `POST`/`PUT` routes; added `body.name === params.name` / `body.id === params.name` validation.
+  - **`RISK-GD-05`**: Added `checkNonProductionOnly()` across all `/api/dev/gamedata/**/route.ts` handlers and `notFound()` in production on `src/app/dev/gamedata/page.tsx`.
+  - **`RISK-GD-06`**: Implemented `regenerateTemplateIndex()` syncing `src/game/entities/index.ts`, `src/game/shells/client/index.ts`, and `src/game/generation/prefabs/index.ts` automatically on template `POST`/`DELETE`.
+  - **`VAL-PRF-01`–`VAL-PRF-06`**: Created `prefab-validator.ts` enforcing grid uniformity, perimeter portal alignment, 100% flood-fill reachability, prop anchor front-access grounding, vault door invariants, and ergonomics.
+- [x] **[GD-03] Phase 3: Taikoku Vector Layout & Mixin Overrides Engine**
+  - **`DRIFT-GD-01` & `DRIFT-GD-02`**: Migrated `gamedata.module.css` and `editors.module.css` to canonical Taikoku Vector `--c-*` and `--font-*` tokens; added `.headerPlacard` with active item and dirty status; added `Cmd+S` global listener and unsaved changes warning.
+  - **3-Column Workstation Layout**: Mounted `Sidebar` (280px), active editor in `mainPanel` (flex 1), and collapsible 340px right column `ResolvedPreviewPanel.tsx` showing real-time validation pass/fail badges and effective merged JSON.
+  - **Mixin Selector & Overrides Diffing**: Upgraded `EntityTemplateEditor.tsx` with mixin multi-select bar, inherited component viewer (`FROM: <mixin>`), field override editing writing to `templateData.overrides[compKey][fieldKey]`, `[OVERRIDDEN]` amber badges, and `[RESET OVERRIDE]` actions.
+  - **Top-Level Metadata & SpritePicker**: Added inputs for `displayName`, `tier`, `software` (CSV); built `SpritePicker.tsx` with canvas preview and frame selection; updated `ShellEditor.tsx` and `ComponentFieldGroup.tsx` to use `SpritePicker`.
+- [x] **[GD-04] Phase 4: Deterministic Room Generator & Multi-Layer Prefab Canvas**
+  - **Deterministic Procedural Room Synthesis (`room-generator.ts`)**: Built 6-stage deterministic `mulberry32` procedural room generator across all 6 archetypes (`SERVER_CORE`, `FREIGHT_BAY`, `DECON_AIRLOCK`, `ZERO_DAY_VAULT`, `SUBNET_HUB`, `CORRUPTED_SECTOR`) with symmetry, complexity, prop density, hazard density, flood-fill connectivity repair, perimeter portal synthesis, and automatic wall-normal prop orientation inference. Verified with 100% pass rate over 60 random seeds.
+  - **API Route `POST /api/dev/gamedata/prefabs/generate`**: Added validated generation endpoint returning synthesized prefabs with live structural audits.
+  - **Multi-Layer HTML5 Prefab Canvas (`PrefabEditor.tsx`)**: Upgraded `PrefabEditor` with 3 synchronized view modes (`SPRITE VIEW` 32×32 pixel-art, `AUTOTILE GLYPHS`, `RAW ASCII`), rendering autotiled walls (`AutotileSolver.resolveWallTile`), directional doors (`resolveDoorTile`), directional prop sprites (`prop_workstation_n..w`, `prop_locker_n..w`, `prop_biocabinet_n..w`, `prop_crate_cover_h/v`), perimeter portal arrows, and Faraday scanlines.
+  - **Interactive Editing & Mutation Levers**: Built direct canvas brushes (Pencil, Box, Flood, Portal) with 50-step Undo/Redo (`Cmd+Z` / `Cmd+Shift+Z`), one-click mutation operators (`[🎲 REROLL SEED]`, `[🔄 MUTATE INTERIOR]`, `[↔ APPLY SYMMETRY]`), and live `VAL-PRF-01`–`VAL-PRF-06` audit badges.
+- [x] **[GD-05] Phase 5: System Configs, Augment AST Builder & Themed Tileset Inspector**
+  - **System Configuration Editors (`configs`)**: Added `/api/dev/gamedata/configs` and `/api/dev/gamedata/configs/[name]` routes (gated by `checkNonProductionOnly`), `ConfigEditor.tsx` with structured and raw JSON modes for **Economy (`economy.json`)**, **Depth Config (`depth-config.json`)**, and **Loot Distribution (`loot-distribution.json`)**.
+  - **Augment Condition Tree Builder (`AugmentASTBuilder.tsx`)**: Built structured recursive tree editor for `augmentData.trigger` (`AND`, `OR`, `NOT` branches with leaf triggers `ON_ACTIVATION`, `ON_TARGET_HIT`, `ON_OVERCLOCK`, `ON_KILL`, `HEAT_ABOVE`, `HP_BELOW_PERCENT`, etc.) and action payloads (`HEAL`, `SHIELD`, `APPLY_STATUS`, `VENT_HEAT`, `DAMAGE_BONUS`).
+  - **Themed Tileset Dictionary Inspector (`ComponentSchemaViewer.tsx`)**: Added theme switcher (`default`, `traxus`, `cyberacme`, `sekiguchi`, `nucaloric`), manifest validation status, required directional frame counts, and a 32×32 live sprite sheet preview grid.
+  - **Verification Sweep**: Verified full test suite passes (186/186 files, 1149/1149 tests), 0 type errors (`tsc --noEmit`), 0 lint warnings (`eslint src/`), and clean Next.js production build (`next build`).
+
+
 
 
 
