@@ -118,6 +118,9 @@ export class AudioEngine implements IAudioEngine {
     isPaused: false,
   };
   private activeAmbianceVoice: ActiveVoice | null = null;
+  private activeAmbianceSampleSource: AudioBufferSourceNode | null = null;
+  private activeAmbianceSampleGain: GainNode | null = null;
+  private lastRequestedAmbianceCue: SoundCueDef | null = null;
   private currentAmbianceCueId: string | null = null;
 
   // Autoplay Unlock
@@ -198,7 +201,20 @@ export class AudioEngine implements IAudioEngine {
     if (this.ctx.state === 'suspended') {
       const unlock = () => {
         if (this.ctx && this.ctx.state === 'suspended') {
-          this.ctx.resume().catch(() => {});
+          this.ctx
+            .resume()
+            .then(() => {
+              if (
+                this.lastRequestedAmbianceCue &&
+                !this.activeAmbianceVoice &&
+                !this.activeAmbianceSampleSource
+              ) {
+                const cue = this.lastRequestedAmbianceCue;
+                this.currentAmbianceCueId = null;
+                this.playAmbianceCue(cue);
+              }
+            })
+            .catch(() => {});
         }
         if (this.unlockHandler) {
           window.removeEventListener('pointerdown', this.unlockHandler);
@@ -604,7 +620,12 @@ export class AudioEngine implements IAudioEngine {
    * Starts or updates continuous ambiance drone with a given sound cue.
    */
   public playAmbianceCue(cue: SoundCueDef): void {
-    if (this.currentAmbianceCueId === cue.id && this.activeAmbianceVoice) {
+    this.lastRequestedAmbianceCue = cue;
+
+    if (
+      this.currentAmbianceCueId === cue.id &&
+      (this.activeAmbianceVoice || this.activeAmbianceSampleSource)
+    ) {
       return; // Already playing this cue
     }
 
@@ -620,10 +641,33 @@ export class AudioEngine implements IAudioEngine {
     const busNode = this.ambianceFilter;
     if (!busNode) return;
 
-    // Crossfade: stop existing voice over 800ms
+    // Crossfade: stop existing synth voice over 800ms
     if (this.activeAmbianceVoice) {
       this.activeAmbianceVoice.stop(0.8);
       this.activeAmbianceVoice = null;
+    }
+
+    // Crossfade: stop existing sample source over 800ms
+    if (this.activeAmbianceSampleSource && this.activeAmbianceSampleGain) {
+      try {
+        const prevGain = this.activeAmbianceSampleGain;
+        const prevSrc = this.activeAmbianceSampleSource;
+        const now = this.ctx.currentTime;
+        prevGain.gain.setValueAtTime(prevGain.gain.value, now);
+        prevGain.gain.linearRampToValueAtTime(0.0001, now + 0.8);
+        setTimeout(() => {
+          try {
+            prevSrc.stop();
+            prevSrc.disconnect();
+          } catch {
+            // Safe to ignore
+          }
+        }, 850);
+      } catch {
+        // Safe to ignore
+      }
+      this.activeAmbianceSampleSource = null;
+      this.activeAmbianceSampleGain = null;
     }
 
     this.currentAmbianceCueId = cue.id;
@@ -633,18 +677,102 @@ export class AudioEngine implements IAudioEngine {
         volumeMultiplier: cue.baseVolume ?? 0.6,
         loop: true,
       });
+    } else if (cue.mode === 'sample' && cue.samplePath) {
+      this.playAmbianceSample(cue, busNode, cue.baseVolume ?? 0.6);
     }
 
-    // Immediately apply existing filter cutoff and Q to the newly started voice
+    // Immediately apply existing filter cutoff and Q to the newly started voice/sample
     this.setAmbianceState({});
   }
 
-  public stopAmbiance(): void {
+  private async playAmbianceSample(
+    cue: SoundCueDef,
+    busNode: AudioNode,
+    baseVolume: number,
+  ): Promise<void> {
+    if (!this.ctx || !cue.samplePath) return;
+
+    let cleanPath = cue.samplePath.trim();
+    if (cleanPath.startsWith('public/')) {
+      cleanPath = cleanPath.slice('public'.length);
+    }
+    if (!cleanPath.startsWith('/') && !cleanPath.startsWith('http')) {
+      cleanPath = '/' + cleanPath;
+    }
+
+    let buffer = this.sampleBufferCache.get(cleanPath);
+    if (!buffer) {
+      try {
+        const response = await fetch(cleanPath);
+        if (!response.ok) {
+          return;
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        buffer = await this.ctx.decodeAudioData(arrayBuffer);
+        this.sampleBufferCache.set(cleanPath, buffer);
+      } catch {
+        return;
+      }
+    }
+
+    // If another ambiance cue was requested while fetching/decoding, abort
+    if (this.currentAmbianceCueId !== cue.id) {
+      return;
+    }
+
+    if (this.ctx.state === 'suspended') {
+      try {
+        await this.ctx.resume();
+      } catch {
+        // Safe to ignore
+      }
+    }
+
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+
+    const gain = this.ctx.createGain();
+    const t = this.ctx.currentTime;
+    gain.gain.setValueAtTime(0.0001, t);
+    gain.gain.linearRampToValueAtTime(baseVolume, t + 0.5);
+
+    source.connect(gain);
+    gain.connect(busNode);
+    source.start(t);
+
+    this.activeAmbianceSampleSource = source;
+    this.activeAmbianceSampleGain = gain;
+  }
+
+  public stopAmbiance(fadeDurationSec = 0.5): void {
     if (this.activeAmbianceVoice) {
-      this.activeAmbianceVoice.stop(0.5);
+      this.activeAmbianceVoice.stop(fadeDurationSec);
       this.activeAmbianceVoice = null;
     }
+    if (this.activeAmbianceSampleSource && this.activeAmbianceSampleGain && this.ctx) {
+      try {
+        const src = this.activeAmbianceSampleSource;
+        const gain = this.activeAmbianceSampleGain;
+        const now = this.ctx.currentTime;
+        gain.gain.setValueAtTime(gain.gain.value, now);
+        gain.gain.linearRampToValueAtTime(0.0001, now + fadeDurationSec);
+        setTimeout(() => {
+          try {
+            src.stop();
+            src.disconnect();
+          } catch {
+            // Safe to ignore
+          }
+        }, (fadeDurationSec + 0.05) * 1000);
+      } catch {
+        // Safe to ignore
+      }
+      this.activeAmbianceSampleSource = null;
+      this.activeAmbianceSampleGain = null;
+    }
     this.currentAmbianceCueId = null;
+    this.lastRequestedAmbianceCue = null;
   }
 
   public destroy(): void {

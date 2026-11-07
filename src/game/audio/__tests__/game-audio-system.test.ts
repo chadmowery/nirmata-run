@@ -286,7 +286,8 @@ describe('GameAudioSystem Bridge', () => {
       expect.anything(),
     );
 
-    // Player dies with custom deathCue (e.g. sfx_bsod_glitch sample)
+    // Player dies with custom deathCue even after entity is destroyed by GravediggerSystem
+    world.destroyEntity(playerId);
     eventBus.emit('ENTITY_DIED', {
       entityId: playerId,
       killerId: enemyId,

@@ -9,8 +9,8 @@ import { createRenderSystem } from '@/rendering/render-system';
 import { createWorldContainer } from '@/rendering/layers';
 import { createGameAudioSystem, GameAudioSystem } from '@/game/audio/game-audio-system';
 import { getAudioEngine, AudioEngine } from '@engine/audio';
-import { getSoundCue } from '@/game/audio/cue-registry';
-import { getAmbianceConfig } from '@/game/config/ambiance';
+import { getSoundCue, registerSoundCue } from '@/game/audio/cue-registry';
+import { getAmbianceConfig, setAmbianceConfig } from '@/game/config/ambiance';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import { GameState } from '@/game/states/types';
@@ -245,18 +245,59 @@ export default function GamePage() {
     if (!('playAmbianceCue' in engine)) return;
     const clientEngine = engine as AudioEngine;
 
-    const ambianceConfig = getAmbianceConfig();
+    const syncAndPlay = async () => {
+      try {
+        const [configRes, cuesRes] = await Promise.all([
+          fetch('/api/dev/gamedata/configs/ambiance').catch(() => null),
+          fetch('/api/dev/gamedata/audio-cues').catch(() => null),
+        ]);
+        if (configRes && configRes.ok) {
+          const config = await configRes.json();
+          setAmbianceConfig(config);
+        }
+        if (cuesRes && cuesRes.ok) {
+          const cuesData = await cuesRes.json();
+          if (Array.isArray(cuesData.cues)) {
+            for (const c of cuesData.cues) {
+              registerSoundCue(c);
+            }
+          }
+        }
+      } catch {
+        // Safe fallback to bundled config
+      }
 
-    if (status === GameState.MainMenu) {
-      const cueId = ambianceConfig.scenes.mainMenu?.cueId || 'amb_main_menu';
-      const cue = getSoundCue(cueId);
-      if (cue) clientEngine.playAmbianceCue(cue);
-    } else if (status === GameState.Hub) {
-      const cueId = ambianceConfig.scenes.hub?.cueId || 'amb_hub_deck';
-      const cue = getSoundCue(cueId);
-      if (cue) clientEngine.playAmbianceCue(cue);
-    }
+      const ambianceConfig = getAmbianceConfig();
+
+      if (status === GameState.MainMenu) {
+        const cueId = ambianceConfig.scenes.mainMenu?.cueId || 'amb_main_menu';
+        const cue = getSoundCue(cueId);
+        if (cue) clientEngine.playAmbianceCue(cue);
+      } else if (status === GameState.Hub) {
+        const cueId = ambianceConfig.scenes.hub?.cueId || 'amb_hub_deck';
+        const cue = getSoundCue(cueId);
+        if (cue) clientEngine.playAmbianceCue(cue);
+      }
+    };
+
+    syncAndPlay();
   }, [status]);
+
+  // Effect 5: Autoplay unlock on first user gesture
+  useEffect(() => {
+    const unlock = () => {
+      const engine = getAudioEngine();
+      if ('init' in engine) {
+        (engine as AudioEngine).init();
+      }
+    };
+    window.addEventListener('pointerdown', unlock, { once: true, passive: true });
+    window.addEventListener('keydown', unlock, { once: true, passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, []);
 
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-black font-mono">

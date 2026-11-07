@@ -92,6 +92,40 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
     audioEngine.playCue(cue, { volumeMultiplier, pitchMultiplier });
   };
 
+  // Entity Audio Profile & Position Caches for Death & Cleanup SFX
+  // Required because the server's GravediggerSystem destroys entities before or during the turn
+  // in which ENTITY_DIED events are dispatched to the client audio system.
+  const audioProfileCache = new Map<
+    EntityId,
+    {
+      stepCue?: string;
+      attackCue?: string;
+      hitCue?: string;
+      deathCue?: string;
+      pitchMultiplier?: number;
+      volumeMultiplier?: number;
+    }
+  >();
+
+  const positionCache = new Map<EntityId, { x: number; y: number }>();
+
+  const syncEntityCaches = (): void => {
+    const profileEntities = world.query(AudioProfile);
+    for (const id of profileEntities) {
+      const p = world.getComponent(id, AudioProfile);
+      if (p) audioProfileCache.set(id, { ...p });
+    }
+
+    const posEntities = world.query(Position);
+    for (const id of posEntities) {
+      const pos = world.getComponent(id, Position);
+      if (pos) positionCache.set(id, { x: pos.x, y: pos.y });
+    }
+  };
+
+  // Initial cache synchronization
+  syncEntityCaches();
+
   const updateAmbientEmitters = (): void => {
     const playerPos = getPlayerPosition();
     if (!playerPos) return;
@@ -218,6 +252,7 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
 
   // 3. Combat & Damage
   subscribe('DAMAGE_DEALT', (payload) => {
+    syncEntityCaches();
     const isPlayerDefender = payload.defenderId === getPlayerEntity();
     if (isPlayerDefender) {
       const defProfile = world.getComponent(payload.defenderId, AudioProfile);
@@ -253,7 +288,9 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
   // 4. Entity Death
   subscribe('ENTITY_DIED', (payload) => {
     const isPlayer = payload.isPlayer || payload.entityId === getPlayerEntity();
-    const profile = world.getComponent(payload.entityId, AudioProfile);
+    const profile =
+      world.getComponent(payload.entityId, AudioProfile) ||
+      audioProfileCache.get(payload.entityId);
 
     if (isPlayer) {
       const deathCueId = profile?.deathCue ?? 'sfx_bsod_fatal';
@@ -262,10 +299,14 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
         profile?.volumeMultiplier,
         profile?.pitchMultiplier,
       );
+      audioProfileCache.delete(payload.entityId);
+      positionCache.delete(payload.entityId);
       return;
     }
 
-    const pos = world.getComponent(payload.entityId, Position);
+    const pos =
+      world.getComponent(payload.entityId, Position) ||
+      positionCache.get(payload.entityId);
     const deathCueId = profile?.deathCue ?? 'sfx_enemy_death';
 
     if (pos) {
@@ -283,6 +324,9 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
         profile?.pitchMultiplier,
       );
     }
+
+    audioProfileCache.delete(payload.entityId);
+    positionCache.delete(payload.entityId);
 
     if (activeEmitters.has(payload.entityId)) {
       const cueId = activeEmitters.get(payload.entityId);
@@ -419,6 +463,7 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
   };
 
   subscribe('FLOOR_TRANSITION', (payload) => {
+    syncEntityCaches();
     updateAmbianceForFloor(payload.floorNumber);
   });
 
@@ -434,6 +479,7 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
   // 13. FOV Tracking for Spatial Occlusion
   subscribe('FOV_UPDATED', (payload) => {
     currentFovSet = payload.visibleSet;
+    syncEntityCaches();
     updateAmbientEmitters();
   });
 
