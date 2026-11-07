@@ -364,13 +364,26 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
       return;
     }
 
+    if (cueData.mode === 'sample' && !cueData.samplePath?.trim()) {
+      setErrors(['Sample URL path is required when synthesis mode is SAMPLE']);
+      setSaveStatus('error');
+      return;
+    }
+
+    const payload: SoundCueDef = {
+      ...cueData,
+      id: cueData.id.trim(),
+      samplePath: cueData.mode === 'sample' ? cueData.samplePath?.trim() : undefined,
+      synth: cueData.mode === 'synth' ? cueData.synth || { ...DEFAULT_SYNTH_PATCH } : undefined,
+    };
+
     try {
       const method = isNew ? 'POST' : 'PUT';
       const url = isNew ? '/api/dev/gamedata/audio-cues' : `/api/dev/gamedata/audio-cues/${name}`;
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(cueData),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -719,6 +732,9 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
                 <option value="sine">SINE</option>
                 <option value="square">SQUARE</option>
                 <option value="sawtooth">SAWTOOTH</option>
+                <option value="noise_white">WHITE NOISE</option>
+                <option value="noise_pink">PINK NOISE</option>
+                <option value="noise_brown">BROWN NOISE</option>
               </select>
             </div>
 

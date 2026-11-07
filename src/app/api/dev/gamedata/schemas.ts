@@ -171,7 +171,17 @@ export const SynthPatchConfigSchema = z.object({
   freqStart: z.number().positive(),
   freqEnd: z.number().positive().optional(),
   freqRampType: z.enum(['linear', 'exponential']).optional(),
-  subWaveform: z.enum(['sine', 'square', 'sawtooth', 'triangle']).optional(),
+  subWaveform: z
+    .enum([
+      'sine',
+      'square',
+      'sawtooth',
+      'triangle',
+      'noise_white',
+      'noise_pink',
+      'noise_brown',
+    ])
+    .optional(),
   subDetuneCents: z.number().optional(),
   subMix: z.number().min(0).max(1).optional(),
   fmFreq: z.number().optional(),

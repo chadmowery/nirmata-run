@@ -121,6 +121,68 @@ describe('Audio Cues Dev API Routes', () => {
       expect(currentCuesState.cues.some((c: { id: string }) => c.id === 'sfx_test_laser')).toBe(true);
     });
 
+    it('successfully creates a new sample-based sound cue without synth config', async () => {
+      const sampleCue = {
+        id: 'amb_custom_track',
+        bus: 'ambiance',
+        mode: 'sample',
+        baseVolume: 0.85,
+        cooldownMs: 0,
+        pitchVariance: 0,
+        loop: true,
+        samplePath: '/assets/audio/ambiance/custom-track.ogg',
+      };
+
+      const req = new Request('http://localhost/api/dev/gamedata/audio-cues', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sampleCue),
+      });
+
+      const res = await postAudioCue(req);
+      expect(res.status).toBe(201);
+      const resJson = await res.json();
+      expect(resJson.success).toBe(true);
+      expect(resJson.id).toBe('amb_custom_track');
+      expect(
+        currentCuesState.cues.some((c: { id: string }) => c.id === 'amb_custom_track'),
+      ).toBe(true);
+    });
+
+    it('supports noise waveforms (noise_white) in subWaveform without validation errors', async () => {
+      const noiseSubCue = {
+        id: 'sfx_impact_crunch',
+        bus: 'sfx',
+        mode: 'synth',
+        baseVolume: 0.75,
+        cooldownMs: 40,
+        pitchVariance: 0.05,
+        synth: {
+          waveform: 'triangle',
+          freqStart: 300,
+          subWaveform: 'noise_white',
+          subMix: 0.4,
+          attack: 0.01,
+          decay: 0.1,
+          sustain: 0,
+          hold: 0,
+          release: 0.05,
+        },
+      };
+
+      const req = new Request('http://localhost/api/dev/gamedata/audio-cues', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(noiseSubCue),
+      });
+
+      const res = await postAudioCue(req);
+      expect(res.status).toBe(201);
+      expect(
+        currentCuesState.cues.some((c: { id: string }) => c.id === 'sfx_impact_crunch'),
+      ).toBe(true);
+    });
+
     it('rejects cue creation if ID already exists (409 Conflict)', async () => {
       const dupCue = {
         id: 'sfx_test_click',

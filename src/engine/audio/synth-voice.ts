@@ -242,21 +242,37 @@ export function playSynthVoice(
       nodesToClean.push(fmOsc, fmGain);
     }
 
-    // Optional Sub-Oscillator
+    // Optional Sub-Oscillator / Sub-Noise
     if (patch.subWaveform && patch.subMix && patch.subMix > 0) {
-      const subOsc = ctx.createOscillator();
+      const isSubNoise = patch.subWaveform.startsWith('noise_');
       const subGain = ctx.createGain();
-      subOsc.type = patch.subWaveform as OscillatorType;
-      const subFreq = (baseFreq / 2); // Sub-octave
-      subOsc.frequency.setValueAtTime(Math.max(10, subFreq), now);
-      if (patch.subDetuneCents) {
-        subOsc.detune.setValueAtTime(patch.subDetuneCents, now);
-      }
       subGain.gain.setValueAtTime(patch.subMix, now);
-      subOsc.connect(subGain);
       subGain.connect(preFilterTail);
-      subOsc.start(now);
-      nodesToClean.push(subOsc, subGain);
+
+      if (isSubNoise) {
+        const noiseType = (patch.subWaveform.split('_')[1] || 'white') as
+          | 'white'
+          | 'pink'
+          | 'brown';
+        const noiseBuffer = getOrCreateNoiseBuffer(ctx, noiseType, 2.0);
+        const subBufferSource = ctx.createBufferSource();
+        subBufferSource.buffer = noiseBuffer;
+        subBufferSource.loop = loop || patch.hold > 2.0;
+        subBufferSource.connect(subGain);
+        subBufferSource.start(now);
+        nodesToClean.push(subBufferSource, subGain);
+      } else {
+        const subOsc = ctx.createOscillator();
+        subOsc.type = patch.subWaveform as OscillatorType;
+        const subFreq = baseFreq / 2; // Sub-octave
+        subOsc.frequency.setValueAtTime(Math.max(10, subFreq), now);
+        if (patch.subDetuneCents) {
+          subOsc.detune.setValueAtTime(patch.subDetuneCents, now);
+        }
+        subOsc.connect(subGain);
+        subOsc.start(now);
+        nodesToClean.push(subOsc, subGain);
+      }
     }
 
     osc.connect(preFilterTail);

@@ -22,8 +22,8 @@ export interface SynthPatchConfig {
   /** End frequency in Hz for pitch sweeps/chirps */
   freqEnd?: number;
   freqRampType?: 'linear' | 'exponential';
-  /** Optional secondary sub/detune oscillator */
-  subWaveform?: 'sine' | 'square' | 'sawtooth' | 'triangle';
+  /** Optional secondary sub/detune oscillator or sub noise */
+  subWaveform?: SynthWaveform;
   subDetuneCents?: number;
   subMix?: number; // 0.0 - 1.0
   /** Optional FM modulation */
