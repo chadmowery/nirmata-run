@@ -363,7 +363,17 @@
   - Built [`AudioCueStudio.tsx`](../src/dev-tool/studio/editors/AudioCueStudio.tsx) in `/dev/gamedata` with real-time waveform, ADSR, filter, distortion controls, live `[ ▶ PLAY CUE ]` auditioning via `AudioEngine`, 2D Spatial Preview Pad, tactile hold-to-confirm ramp tester, and reactive ambiance simulator.
   - Wired `audioCues` section into `GamedataTool.tsx`, `Sidebar.tsx`, and `store.ts`.
   - Verified with 11 API unit tests in `src/app/api/dev/gamedata/__tests__/audio-cues.test.ts` and 6 editor unit tests in `src/dev-tool/studio/editors/__tests__/AudioCueStudio.test.tsx`.
-  - **Verification Sweep**: Verified full test suite passes (200/200 files, 1,220/1,220 tests), 0 type errors (`tsc --noEmit`), 0 lint warnings (`eslint src/`), and clean Next.js production build (`next build`).
+- [x] **[AUD-06] AudioProfile Dropdown Selection & In-Studio Auditioning**
+  - Built [`AudioCuePicker.tsx`](../src/dev-tool/studio/shared/AudioCuePicker.tsx) supporting categorized `<optgroup>` selection (Recommended for field, SFX, UI, Ambiance, Custom), inline text fallback mode (`LIST` / `MANUAL`), quick clear, and immediate auditioning.
+  - Integrated `AudioCuePicker` into [`FormField.tsx`](../src/dev-tool/studio/editors/shared/FormField.tsx) and [`ComponentFieldGroup.tsx`](../src/dev-tool/studio/editors/shared/ComponentFieldGroup.tsx), automatically routing all `audioProfile` and `ambientEmitter` cue string fields to the dedicated picker with parent `pitchMultiplier` and `volumeMultiplier` passthrough.
+  - Added live slider constraints for volume (0–100%) and pitch (0.2×–2.5×) with contextual reset buttons.
+  - Verified with 8 unit tests in `src/dev-tool/studio/shared/__tests__/AudioCuePicker.test.tsx`.
+- [x] **[AUD-07] Audio Stop Controls & Dev Tool Audio Kill-Switch**
+  - Added `stopCue(cueId, fadeDurationSec)` and `stopAllAudio(fadeDurationSec)` to `IAudioEngine`, `AudioEngine`, and `NoopAudioEngine`, tracking active synthesis voices and sample source nodes for both non-looping and continuous looping sounds.
+  - Updated [`AudioCueStudio.tsx`](../src/dev-tool/studio/editors/AudioCueStudio.tsx) with toggleable `[■ STOP CUE]` / `[▶ PLAY CUE]`, `[■ STOP ALL]`, 2D spatial `[■ STOP]`, and ambiance simulator `[■ STOP AMBIANCE DRONE]` buttons, with automatic audio termination on component unmount.
+  - Updated [`AudioCuePicker.tsx`](../src/dev-tool/studio/shared/AudioCuePicker.tsx) with toggleable `[■]` / `[▶]` audition button and unmount audio cleanup.
+  - Added global `[■ STOP AUDIO]` panic kill-switch to [`GamedataTool.tsx`](../src/dev-tool/studio/GamedataTool.tsx) header placard next to `CMD+S SAVE`.
+  - **Verification Sweep**: Verified full test suite passes (201/201 files, 1,236/1,236 tests), 0 type errors (`tsc --noEmit`), 0 lint warnings (`eslint src/`), and clean Next.js production build (`next build`).
 
 
 
