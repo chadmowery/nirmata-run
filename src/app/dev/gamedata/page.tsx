@@ -2,6 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { notFound } from 'next/navigation';
 import { GamedataTool } from '@dev-tool/studio/GamedataTool';
+import { CONFIG_NAMES } from '@/app/api/dev/gamedata/configs/route';
 
 const ENTITY_DIR = path.join(process.cwd(), 'src/game/entities/templates');
 const MIXIN_DIR = path.join(process.cwd(), 'src/game/entities/templates/mixins');
@@ -40,7 +41,7 @@ export default async function GamedataPage() {
   ]);
 
   const entities = rawEntities.filter((name) => name !== 'economy');
-  const configs = ['economy', 'depth-config', 'loot-distribution'];
+  const configs = [...CONFIG_NAMES];
   const audioCues = rawAudioCues;
 
   return (
