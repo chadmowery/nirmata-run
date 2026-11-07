@@ -105,12 +105,14 @@ export interface IAudioEngine {
   init(): Promise<void> | void;
   destroy(): void;
   playCue(cue: SoundCueDef, options?: PlayCueOptions): void;
+  playAmbianceCue(cue: SoundCueDef): void;
   startHoldRamp(cue: SoundCueDef): string;
   updateHoldRamp(voiceId: string, progress: number): void;
   stopHoldRamp(voiceId: string): void;
   stopCue(cueId: string, fadeDurationSec?: number): void;
   stopAllAudio(fadeDurationSec?: number): void;
   setAmbianceState(state: Partial<AmbianceState>): void;
+  getAmbianceState(): AmbianceState;
   stopAmbiance(): void;
   updateSettings(settings: Partial<AudioSettings>): void;
   getSettings(): AudioSettings;

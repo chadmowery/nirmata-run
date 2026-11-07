@@ -241,6 +241,18 @@ describe('AudioEngine', () => {
       expect.any(Number),
     );
 
+    // Sector condition modulation (e.g. IONIC_STORM -> -40% cutoff drop & Q boost)
+    engine.setAmbianceState({ sectorCondition: 'IONIC_STORM' });
+    expect(filter.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(
+      DEFAULT_AMBIANCE_CUTOFF_NORMAL * 0.6,
+      expect.any(Number),
+    );
+    expect(filter.Q.linearRampToValueAtTime).toHaveBeenCalledWith(2.5, expect.any(Number));
+
+    // Heat tier escalation (e.g. Heat Tier 3 -> Q boost)
+    engine.setAmbianceState({ heatTier: 3 });
+    expect(filter.Q.linearRampToValueAtTime).toHaveBeenCalledWith(2.5 + 3 * 0.5, expect.any(Number));
+
     engine.destroy();
   });
 

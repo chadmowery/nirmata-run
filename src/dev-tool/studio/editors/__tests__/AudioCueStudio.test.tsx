@@ -31,6 +31,7 @@ describe('AudioCueStudio Component', () => {
   let stopAllAudioMock: ReturnType<typeof vi.fn<(fadeDurationSec?: number) => void>>;
   let startHoldMock: ReturnType<typeof vi.fn<(cue: SoundCueDef) => string>>;
   let stopHoldMock: ReturnType<typeof vi.fn<(vid: string) => void>>;
+  let playAmbianceMock: ReturnType<typeof vi.fn<(cue: SoundCueDef) => void>>;
   let setAmbianceMock: ReturnType<typeof vi.fn>;
   let stopAmbianceMock: ReturnType<typeof vi.fn>;
 
@@ -38,6 +39,7 @@ describe('AudioCueStudio Component', () => {
     vi.clearAllMocks();
 
     playCueMock = vi.fn();
+    playAmbianceMock = vi.fn();
     stopCueMock = vi.fn();
     stopAllAudioMock = vi.fn();
     startHoldMock = vi.fn(() => 'voice-123');
@@ -49,12 +51,20 @@ describe('AudioCueStudio Component', () => {
       init: vi.fn(),
       destroy: vi.fn(),
       playCue: playCueMock,
+      playAmbianceCue: playAmbianceMock,
       stopCue: stopCueMock,
       stopAllAudio: stopAllAudioMock,
       startHoldRamp: startHoldMock,
       updateHoldRamp: vi.fn(),
       stopHoldRamp: stopHoldMock,
       setAmbianceState: setAmbianceMock,
+      getAmbianceState: vi.fn(() => ({
+        depthBand: 'MAIN_MENU',
+        sectorCondition: null,
+        heatTier: 0,
+        isAnchorDucked: false,
+        isPaused: false,
+      })),
       stopAmbiance: stopAmbianceMock,
       updateSettings: vi.fn(),
       getSettings: vi.fn(() => ({
@@ -157,7 +167,7 @@ describe('AudioCueStudio Component', () => {
     expect(stopHoldMock).toHaveBeenCalledTimes(1);
   });
 
-  it('triggers ambiance simulation when SIMULATE AMBIANCE button is clicked', async () => {
+  it('triggers ambiance simulation and real-time DSP modulation when SIMULATE AMBIANCE button is clicked', async () => {
     render(<AudioCueStudio name="sfx_test_cue" />);
 
     await waitFor(() => {
@@ -167,7 +177,16 @@ describe('AudioCueStudio Component', () => {
     const simBtn = screen.getByRole('button', { name: /SIMULATE AMBIANCE BUS MODULATION/i });
     fireEvent.click(simBtn);
 
-    expect(setAmbianceMock).toHaveBeenCalledTimes(1);
+    expect(playAmbianceMock).toHaveBeenCalledTimes(1);
+    expect(setAmbianceMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        depthBand: 'FLOORS 1–5 (SUBNET)',
+        heatTier: 0,
+        isAnchorDucked: false,
+      }),
+    );
+    expect(screen.getByText(/AMBIANCE BUS DSP TELEMETRY/i)).toBeDefined();
+    expect(screen.getByText(/● SIMULATING \(ACTIVE\)/i)).toBeDefined();
   });
 
   it('marks store as dirty when slider changes and successfully saves', async () => {

@@ -9,6 +9,7 @@ import {
   calculateSpatialAudio,
 } from '@engine/audio';
 import { useGamedataStore } from '../store';
+import soundCuesRaw from '@/game/audio/sound-cues.json';
 import styles from './editors.module.css';
 
 interface Props {
@@ -17,6 +18,13 @@ interface Props {
   cloneFrom?: string;
   onRefresh?: () => void;
 }
+
+const DEPTH_BAND_CUES: Record<string, string> = {
+  'MAIN_MENU': 'amb_main_menu',
+  'FLOORS 1–5 (SUBNET)': 'amb_band_1_corrupted',
+  'FLOORS 6–10 (FOUNDRY)': 'amb_band_2_static',
+  'FLOORS 11–15 (CORE)': 'amb_band_3_logic',
+};
 
 const DEFAULT_SYNTH_PATCH: SynthPatchConfig = {
   waveform: 'triangle',
@@ -66,6 +74,8 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
   const [simCondition, setSimCondition] = useState<string>('NORMAL');
   const [simHeatTier, setSimHeatTier] = useState<number>(0);
   const [simAnchorDucked, setSimAnchorDucked] = useState<boolean>(false);
+  const [isAmbiancePlaying, setIsAmbiancePlaying] = useState<boolean>(false);
+  const [activeAmbianceCueId, setActiveAmbianceCueId] = useState<string>('');
 
   // Load cue data
   useEffect(() => {
@@ -162,6 +172,8 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
   const handleStopAll = useCallback(() => {
     getAudioEngine().stopAllAudio();
     setIsPlayingCue(false);
+    setIsAmbiancePlaying(false);
+    setActiveAmbianceCueId('');
     setActiveVoiceId(null);
     setHoldProgress(0);
   }, []);
@@ -215,22 +227,130 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
     }
   };
 
-  // Ambiance Simulation
-  const handleApplyAmbianceSimulation = () => {
-    const engine = getAudioEngine();
-    engine.setAmbianceState({
-      depthBand: simDepthBand,
-      sectorCondition: simCondition === 'NORMAL' ? null : simCondition,
-      heatTier: simHeatTier,
-      isAnchorDucked: simAnchorDucked,
-      isPaused: false,
-    });
-  };
+  // Ambiance Simulation & Real-time DSP Modulation
+  const handleApplyAmbianceSimulation = useCallback(
+    async (overrideState?: {
+      depthBand?: string;
+      condition?: string;
+      heatTier?: number;
+      anchorDucked?: boolean;
+    }) => {
+      const depthBand = overrideState?.depthBand ?? simDepthBand;
+      const condition = overrideState?.condition ?? simCondition;
+      const heatTier = overrideState?.heatTier ?? simHeatTier;
+      const anchorDucked = overrideState?.anchorDucked ?? simAnchorDucked;
+
+      const engine = getAudioEngine();
+
+      // Determine cue to play:
+      // If currently editing an ambiance bus cue, audition that cue!
+      // Otherwise, pick the catalog cue corresponding to the selected depth band.
+      let cueToPlay: SoundCueDef | undefined;
+      if (cueData && cueData.bus === 'ambiance') {
+        cueToPlay = cueData;
+      } else {
+        const targetId = DEPTH_BAND_CUES[depthBand] || 'amb_band_1_corrupted';
+        cueToPlay = (soundCuesRaw.cues as SoundCueDef[]).find((c) => c.id === targetId);
+        if (!cueToPlay) {
+          try {
+            const res = await fetch(`/api/dev/gamedata/audio-cues/${targetId}`);
+            if (res.ok) {
+              cueToPlay = await res.json();
+            }
+          } catch {
+            // Safe fallback
+          }
+        }
+      }
+
+      if (cueToPlay) {
+        engine.playAmbianceCue(cueToPlay);
+        setActiveAmbianceCueId(cueToPlay.id);
+        setIsAmbiancePlaying(true);
+      }
+
+      engine.setAmbianceState({
+        depthBand,
+        sectorCondition: condition === 'NORMAL' ? null : condition,
+        heatTier,
+        isAnchorDucked: anchorDucked,
+        isPaused: false,
+      });
+    },
+    [cueData, simDepthBand, simCondition, simHeatTier, simAnchorDucked],
+  );
 
   const handleStopAmbiance = useCallback(() => {
     const engine = getAudioEngine();
     engine.stopAmbiance();
+    setIsAmbiancePlaying(false);
+    setActiveAmbianceCueId('');
   }, []);
+
+  const handleDepthBandChange = (newBand: string) => {
+    setSimDepthBand(newBand);
+    if (isAmbiancePlaying) {
+      handleApplyAmbianceSimulation({ depthBand: newBand });
+    }
+  };
+
+  const handleConditionChange = (newCond: string) => {
+    setSimCondition(newCond);
+    if (isAmbiancePlaying) {
+      const engine = getAudioEngine();
+      engine.setAmbianceState({
+        sectorCondition: newCond === 'NORMAL' ? null : newCond,
+      });
+    }
+  };
+
+  const handleHeatTierChange = (newHeat: number) => {
+    setSimHeatTier(newHeat);
+    if (isAmbiancePlaying) {
+      const engine = getAudioEngine();
+      engine.setAmbianceState({
+        heatTier: newHeat,
+      });
+    }
+  };
+
+  const handleAnchorDuckedChange = (newDucked: boolean) => {
+    setSimAnchorDucked(newDucked);
+    if (isAmbiancePlaying) {
+      const engine = getAudioEngine();
+      engine.setAmbianceState({
+        isAnchorDucked: newDucked,
+      });
+    }
+  };
+
+  const ambianceTelemetry = useMemo(() => {
+    const shouldDuck = simAnchorDucked;
+    let cutoff = shouldDuck ? 380 : 18000;
+    let q = 1.0;
+
+    if (!shouldDuck && simCondition !== 'NORMAL') {
+      if (simCondition === 'IONIC_STORM' || simCondition === 'DARK_SUBNET') {
+        cutoff = Math.round(cutoff * 0.6);
+        q = 2.5;
+      } else if (simCondition === 'THERMAL_FLARE' || simCondition === 'THERMAL_SURGE') {
+        cutoff = Math.round(cutoff * 0.85);
+        q = 3.2;
+      } else if (simCondition === 'CORRUPTED') {
+        cutoff = Math.round(cutoff * 0.7);
+        q = 2.0;
+      }
+    }
+
+    if (simHeatTier > 0) {
+      q += simHeatTier * 0.5;
+      if (!shouldDuck) {
+        cutoff = Math.round(cutoff * (1 - simHeatTier * 0.05));
+      }
+    }
+
+    return { cutoff, q };
+  }, [simAnchorDucked, simCondition, simHeatTier]);
 
   // Save handler
   const handleSave = useCallback(async () => {
@@ -953,9 +1073,17 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
             border: '1px solid var(--c-border, #1c2638)',
           }}
         >
-          <div style={{ fontWeight: 700, fontSize: '11px', color: 'var(--c-text-dim)' }}>
-            REACTIVE AMBIANCE ENVIRONMENT SIMULATOR
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontWeight: 700, fontSize: '11px', color: 'var(--c-text-dim)' }}>
+              REACTIVE AMBIANCE ENVIRONMENT SIMULATOR
+            </div>
+            {isAmbiancePlaying && (
+              <span style={{ fontSize: '10px', color: 'var(--c-accent, #d8ff00)', fontWeight: 700 }}>
+                ● DRONE ACTIVE: {activeAmbianceCueId}
+              </span>
+            )}
           </div>
+
           <div
             style={{
               display: 'grid',
@@ -969,7 +1097,7 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
               <select
                 className={styles.select}
                 value={simDepthBand}
-                onChange={(e) => setSimDepthBand(e.target.value)}
+                onChange={(e) => handleDepthBandChange(e.target.value)}
               >
                 <option value="MAIN_MENU">MAIN_MENU</option>
                 <option value="FLOORS 1–5 (SUBNET)">FLOORS 1–5 (SUBNET)</option>
@@ -983,7 +1111,7 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
               <select
                 className={styles.select}
                 value={simCondition}
-                onChange={(e) => setSimCondition(e.target.value)}
+                onChange={(e) => handleConditionChange(e.target.value)}
               >
                 <option value="NORMAL">NORMAL (None)</option>
                 <option value="IONIC_STORM">IONIC_STORM</option>
@@ -1001,7 +1129,7 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
                 step="1"
                 className={styles.slider}
                 value={simHeatTier}
-                onChange={(e) => setSimHeatTier(parseInt(e.target.value, 10))}
+                onChange={(e) => handleHeatTierChange(parseInt(e.target.value, 10))}
               />
             </div>
 
@@ -1010,7 +1138,7 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
                 <input
                   type="checkbox"
                   checked={simAnchorDucked}
-                  onChange={(e) => setSimAnchorDucked(e.target.checked)}
+                  onChange={(e) => handleAnchorDuckedChange(e.target.checked)}
                 />
                 <span className={styles.label} style={{ margin: 0 }}>
                   ANCHOR GRAYSCALE DUCKING (380Hz)
@@ -1023,25 +1151,94 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
             <button
               type="button"
               className={styles.saveButton}
-              onClick={handleApplyAmbianceSimulation}
+              onClick={() => handleApplyAmbianceSimulation()}
               style={{
-                borderColor: '#ffffff',
-                color: '#ffffff',
+                borderColor: isAmbiancePlaying ? 'var(--c-accent, #d8ff00)' : '#ffffff',
+                color: isAmbiancePlaying ? 'var(--c-accent, #d8ff00)' : '#ffffff',
               }}
             >
-              SIMULATE AMBIANCE BUS MODULATION
+              {isAmbiancePlaying
+                ? '▶ UPDATE AMBIANCE BUS MODULATION'
+                : '▶ SIMULATE AMBIANCE BUS MODULATION'}
             </button>
             <button
               type="button"
               className={styles.saveButton}
               onClick={handleStopAmbiance}
               style={{
-                borderColor: 'var(--c-danger, #ff2a4b)',
-                color: 'var(--c-danger, #ff2a4b)',
+                borderColor: isAmbiancePlaying ? 'var(--c-danger, #ff2a4b)' : 'var(--c-border, #1c2638)',
+                color: isAmbiancePlaying ? 'var(--c-danger, #ff2a4b)' : 'var(--c-text-dim, #79889e)',
               }}
             >
               ■ STOP AMBIANCE DRONE
             </button>
+          </div>
+
+          {/* Ambiance Telemetry Readout */}
+          <div
+            style={{
+              marginTop: '12px',
+              padding: '8px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '11px',
+              lineHeight: '1.6',
+              background: '#04070c',
+              border: '1px solid #141e2e',
+            }}
+          >
+            <div style={{ color: 'var(--c-text-dim)', marginBottom: '4px' }}>
+              AMBIANCE BUS DSP TELEMETRY:
+            </div>
+            <div>
+              STATUS:{' '}
+              <span
+                style={{
+                  color: isAmbiancePlaying
+                    ? 'var(--c-accent, #d8ff00)'
+                    : 'var(--c-text-dim, #79889e)',
+                  fontWeight: 700,
+                }}
+              >
+                {isAmbiancePlaying ? '● SIMULATING (ACTIVE)' : '○ STOPPED'}
+              </span>
+            </div>
+            <div>
+              SOURCE CUE:{' '}
+              <span style={{ color: '#fff' }}>
+                {activeAmbianceCueId ||
+                  (cueData?.bus === 'ambiance'
+                    ? cueData.id
+                    : DEPTH_BAND_CUES[simDepthBand] || 'amb_band_1_corrupted')}
+              </span>
+            </div>
+            <div>
+              FILTER CUTOFF:{' '}
+              <span
+                style={{
+                  color: simAnchorDucked
+                    ? 'var(--c-danger, #ff2a4b)'
+                    : simCondition !== 'NORMAL'
+                      ? 'var(--c-warning, #ff6600)'
+                      : 'var(--c-accent-secondary, #00f0ff)',
+                }}
+              >
+                {ambianceTelemetry.cutoff} Hz {simAnchorDucked ? '(STABILITY ANCHOR DUCKED)' : ''}
+              </span>
+            </div>
+            <div>
+              FILTER RESONANCE (Q):{' '}
+              <span style={{ color: 'var(--c-accent, #d8ff00)' }}>
+                {ambianceTelemetry.q.toFixed(1)} Q
+              </span>
+            </div>
+            {simHeatTier > 0 && (
+              <div>
+                HEAT MODULATION:{' '}
+                <span style={{ color: 'var(--c-warning, #ff6600)' }}>
+                  TIER {simHeatTier} (+{(simHeatTier * 0.5).toFixed(1)} Q RESONANCE PEAK)
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

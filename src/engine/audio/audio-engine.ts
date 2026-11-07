@@ -56,8 +56,20 @@ export class NoopAudioEngine implements IAudioEngine {
   public stopAllAudio(fadeDurationSec?: number): void {
     void fadeDurationSec;
   }
+  public playAmbianceCue(cue: SoundCueDef): void {
+    void cue;
+  }
   public setAmbianceState(state: Partial<AmbianceState>): void {
     void state;
+  }
+  public getAmbianceState(): AmbianceState {
+    return {
+      depthBand: 'MAIN_MENU',
+      sectorCondition: null,
+      heatTier: 0,
+      isAnchorDucked: false,
+      isPaused: false,
+    };
   }
   public stopAmbiance(): void {}
   public updateSettings(settings: Partial<AudioSettings>): void {
@@ -504,18 +516,71 @@ export class AudioEngine implements IAudioEngine {
    */
   public setAmbianceState(state: Partial<AmbianceState>): void {
     this.ambianceState = { ...this.ambianceState, ...state };
-    if (!this.ctx || !this.ambianceFilter) return;
+    if (!this.ctx) {
+      this.init();
+      if (!this.ctx) return;
+    }
+
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
+    }
+
+    if (!this.ambianceFilter) return;
 
     const now = this.ctx.currentTime;
     const shouldDuck = this.ambianceState.isAnchorDucked || this.ambianceState.isPaused;
-    const targetCutoff = shouldDuck
+
+    // Base cutoff frequency
+    let targetCutoff = shouldDuck
       ? DEFAULT_AMBIANCE_CUTOFF_DUCKED
       : DEFAULT_AMBIANCE_CUTOFF_NORMAL;
 
-    // Smooth 250ms exponential ramp for anchor / pause ducking
+    // Sector condition filter & resonance modulation
+    let targetQ = 1.0;
+    if (!shouldDuck && this.ambianceState.sectorCondition) {
+      switch (this.ambianceState.sectorCondition) {
+        case 'IONIC_STORM':
+        case 'DARK_SUBNET':
+          targetCutoff = Math.max(300, targetCutoff * 0.6); // -40% lowpass reduction
+          targetQ = 2.5;
+          break;
+        case 'THERMAL_FLARE':
+        case 'THERMAL_SURGE':
+          targetCutoff = Math.max(300, targetCutoff * 0.85);
+          targetQ = 3.2; // Resonant warmth peak
+          break;
+        case 'CORRUPTED':
+          targetCutoff = Math.max(300, targetCutoff * 0.7);
+          targetQ = 2.0;
+          break;
+        default:
+          break;
+      }
+    }
+
+    // Heat tier escalation (Tiers 0–5): increase resonance Q and tighten filter edge
+    if (this.ambianceState.heatTier > 0) {
+      targetQ += this.ambianceState.heatTier * 0.5;
+      if (!shouldDuck) {
+        targetCutoff = Math.max(300, targetCutoff * (1 - this.ambianceState.heatTier * 0.05));
+      }
+    }
+
+    // Smooth exponential ramp for cutoff and linear ramp for resonance Q
     this.ambianceFilter.frequency.cancelScheduledValues(now);
     this.ambianceFilter.frequency.setValueAtTime(this.ambianceFilter.frequency.value, now);
-    this.ambianceFilter.frequency.exponentialRampToValueAtTime(targetCutoff, now + 0.25);
+    this.ambianceFilter.frequency.exponentialRampToValueAtTime(
+      Math.max(20, targetCutoff),
+      now + 0.25,
+    );
+
+    this.ambianceFilter.Q.cancelScheduledValues(now);
+    this.ambianceFilter.Q.setValueAtTime(this.ambianceFilter.Q.value, now);
+    this.ambianceFilter.Q.linearRampToValueAtTime(targetQ, now + 0.25);
+  }
+
+  public getAmbianceState(): AmbianceState {
+    return { ...this.ambianceState };
   }
 
   /**
@@ -529,6 +594,10 @@ export class AudioEngine implements IAudioEngine {
     if (!this.ctx) {
       this.init();
       if (!this.ctx) return;
+    }
+
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
     }
 
     const busNode = this.ambianceFilter;
@@ -548,6 +617,9 @@ export class AudioEngine implements IAudioEngine {
         loop: true,
       });
     }
+
+    // Immediately apply existing filter cutoff and Q to the newly started voice
+    this.setAmbianceState({});
   }
 
   public stopAmbiance(): void {
