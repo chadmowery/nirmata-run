@@ -9,6 +9,16 @@
       "propClass": "cooling_vent",
       "ventAmount": 40
     },
+    "ambientEmitter": {
+      "cueId": "amb_emitter_vent",
+      "radius": 6,
+      "baseVolume": 0.35,
+      "falloff": "linear",
+      "activeOnlyWhenUnsearched": true
+    },
+    "audioProfile": {
+      "interactCue": "sfx_vent_purge"
+    },
     "blocksMovement": {}
   },
   "overrides": {

@@ -9,6 +9,13 @@
     "aiState": { "behavior": "idle", "sightRadius": 20, "behaviorType": "system_admin" },
     "fovAwareness": { "canSeePlayer": false },
     "blocksMovement": {},
+    "audioProfile": {
+      "stepCue": "sfx_step_bastion",
+      "attackCue": "sfx_ranged_hit",
+      "hitCue": "sfx_player_damaged",
+      "deathCue": "sfx_bsod_fatal",
+      "pitchMultiplier": 0.85
+    },
     "statusEffects": { "effects": [] },
     "lootTable": {
       "tier": 3,

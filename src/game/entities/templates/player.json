@@ -6,6 +6,12 @@
     "blocksMovement": {},
     "energy": { "current": 1000, "speed": 100, "threshold": 1000 },
     "sprite": { "key": "player" },
+    "audioProfile": {
+      "stepCue": "sfx_step_player",
+      "attackCue": "sfx_melee_hit",
+      "hitCue": "sfx_player_damaged",
+      "deathCue": "sfx_bsod_fatal"
+    },
     "run_inventory": { "maxSlots": 30, "software": [] },
     "run_currency": { "stacks": [] }
   },

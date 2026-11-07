@@ -9,6 +9,13 @@
     "aiState": { "behavior": "idle", "sightRadius": 8, "behaviorType": "null_pointer" },
     "fovAwareness": { "canSeePlayer": false },
     "blocksMovement": {},
+    "audioProfile": {
+      "stepCue": "sfx_teleport_shift",
+      "attackCue": "sfx_melee_hit",
+      "hitCue": "sfx_melee_hit",
+      "deathCue": "sfx_enemy_death",
+      "pitchMultiplier": 1.2
+    },
     "statusEffects": { "effects": [] },
     "lootTable": {
       "tier": 1,

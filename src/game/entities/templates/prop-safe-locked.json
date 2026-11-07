@@ -18,6 +18,9 @@
       "containerId": "encrypted_safe",
       "capacity": 4
     },
+    "audioProfile": {
+      "interactCue": "sfx_lock_keycard"
+    },
     "blocksMovement": {}
   },
   "overrides": {
