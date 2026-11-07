@@ -28,7 +28,9 @@
 
 .modalContent {
   width: 100%;
-  max-width: 580px;
+  max-width: 620px;
+  max-height: 90vh;
+  overflow-y: auto;
   background: #090e17;
   border: 1px solid var(--c-danger);
   box-shadow: 0 0 30px rgba(255, 42, 75, 0.35), inset 0 0 20px rgba(0, 0, 0, 0.8);

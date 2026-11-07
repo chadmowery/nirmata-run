@@ -8,6 +8,7 @@ import { GameAction } from '@/game/input/actions';
 import { getActiveGameContext } from '@/game/active-context';
 import { Dying } from '@shared/components';
 import { TaikokuPlacard, BtnLever } from './atomic';
+import { AudioSettingsPanel } from './AudioSettingsPanel';
 import styles from './AbortMissionDialog.module.css';
 
 interface AbortMissionDialogProps {
@@ -82,7 +83,7 @@ export const AbortMissionDialog: React.FC<AbortMissionDialogProps> = ({
         <TaikokuPlacard
           kanji="緊急切断"
           title="EMERGENCY ABORT PROTOCOL // OPERATOR DESYNC"
-          stampText="ABORT // CATASTROPHIC"
+          stampText="PAUSED // CALIBRATION"
           stampVariant="danger"
           onClose={handleClose}
           closeLabel="✕ RESUME [ESC]"
@@ -90,6 +91,8 @@ export const AbortMissionDialog: React.FC<AbortMissionDialogProps> = ({
         />
 
         <div className={styles.body}>
+          <AudioSettingsPanel showCardWrapper={false} />
+
           <div className={styles.warningBox}>
             <div className={styles.warningTitle}>
               <span>[!] CAUTION: MANUAL TERMINATION OF ACTIVE DEPLOYMENT</span>

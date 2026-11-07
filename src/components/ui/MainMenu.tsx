@@ -17,8 +17,23 @@ export const MainMenu: React.FC = () => {
   const setActiveTab = useStore(gameStore, (s) => s.setActiveTab);
   const walletScrap = useStore(gameStore, (s) => s.walletScrap);
   const playerProfile = useStore(gameStore, (s) => s.playerProfile);
+  const setSystemSettingsModalVisible = useStore(
+    gameStore,
+    (s) => s.setSystemSettingsModalVisible,
+  );
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // ESC key to toggle settings modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSystemSettingsModalVisible(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [setSystemSettingsModalVisible]);
 
   // Rotating Vector Wireframe Animation (Counter-rotating diamond + hexagon)
   useEffect(() => {
@@ -201,6 +216,10 @@ export const MainMenu: React.FC = () => {
 
               <BtnLever onClick={handleLeaderboards} rightSlot="TOP-50">
                 [03] RECON LEADERBOARDS [戦績順位]
+              </BtnLever>
+
+              <BtnLever onClick={() => setSystemSettingsModalVisible(true)} rightSlot="ESC">
+                [04] AUDIO & SETTINGS [音響設定]
               </BtnLever>
             </div>
           </div>

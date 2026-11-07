@@ -22,6 +22,7 @@ import { StaircaseOverlay } from '@/components/ui/StaircaseOverlay';
 import { BSODScreen } from '@/components/ui/BSODScreen';
 import { RunResultsScreen } from '@/components/ui/RunResultsScreen';
 import { AbortMissionDialog } from '@/components/ui/AbortMissionDialog';
+import { SystemSettingsModal } from '@/components/ui/SystemSettingsModal';
 import { HubLayout } from '@/components/ui/hub/HubLayout';
 import { GameContext } from '@/game/types';
 import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT, DEFAULT_SHELL_ID } from '@/shared/constants';
@@ -278,6 +279,8 @@ export default function GamePage() {
             {runResultsVisible && <RunResultsScreen />}
           </>
         )}
+
+        <SystemSettingsModal />
 
         {process.env.NODE_ENV === 'development' && <DevTerminal />}
       </div>
