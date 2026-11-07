@@ -379,6 +379,12 @@
   - Enhanced `AudioEngine.setAmbianceState()` to lazily initialize/resume the Web Audio context and compute dynamic biquad filter frequency and resonance Q based on sector conditions (`IONIC_STORM`, `DARK_SUBNET`, `THERMAL_FLARE`, `CORRUPTED`), heat tier escalation (`0–5`), and stability anchor ducking (`380 Hz`).
   - Wired real-time slider callbacks so tweaking Depth Band, Sector Condition, Heat Tier, or Anchor Ducking immediately updates the live audio and DSP telemetry readout.
   - **Verification Sweep**: Verified full test suite passes (201/201 files, 1,236/1,236 tests), 0 type errors (`tsc --noEmit`), 0 lint warnings (`eslint src/`), and clean Next.js production build (`next build`).
+- [x] **[AUD-09] Fix Sound-Cues File Schema for Noise Sub-Waveforms & Sample Cue Payloads**
+  - Expanded `SynthPatchConfigSchema.subWaveform` in [`schemas.ts`](../src/app/api/dev/gamedata/schemas.ts) and [`types.ts`](../src/engine/audio/types.ts) to accept all `SynthWaveform` types including noise (`noise_white`, `noise_pink`, `noise_brown`), resolving the whole-file validation failure on cues 24 (`sfx_melee_hit`), 26 (`sfx_player_damaged`), and 44 (`sfx_prop_search`).
+  - Added Web Audio noise buffer source synthesis for sub-oscillators in [`synth-voice.ts`](../src/engine/audio/synth-voice.ts) so procedural noise sub-layers play without `OscillatorType` errors.
+  - Sanitized sample cue saves in [`AudioCueStudio.tsx`](../src/dev-tool/studio/editors/AudioCueStudio.tsx) to require `samplePath` and cleanly omit irrelevant synth parameters when in `SAMPLE` mode.
+  - Added noise options (`WHITE NOISE`, `PINK NOISE`, `BROWN NOISE`) to the Sub Oscillator Wave dropdown.
+  - **Verification Sweep**: Verified full test suite passes (201/201 files, 1,238/1,238 tests), 0 type errors (`tsc --noEmit`), 0 lint warnings (`eslint src/`), and clean Next.js production build (`next build`).
 
 
 
