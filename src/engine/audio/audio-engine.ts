@@ -1,0 +1,479 @@
+/**
+ * Nirmata Runner — Web Audio Engine Singleton & Mixer
+ * Manages the Web Audio API graph, channel buses, master anti-clipping limiter,
+ * procedural cue triggers, hold ramps, and server/SSR no-op isolation.
+ */
+
+import {
+  IAudioEngine,
+  AudioSettings,
+  SoundCueDef,
+  PlayCueOptions,
+  AmbianceState,
+  AudioBusName,
+} from './types';
+import { calculateSpatialAudio } from './spatial-mixer';
+import { playSynthVoice, createHoldRampVoice, HoldRampVoice, ActiveVoice } from './synth-voice';
+
+export const DEFAULT_AUDIO_SETTINGS: AudioSettings = {
+  muted: false,
+  masterVolume: 0.8,
+  ambianceVolume: 0.6,
+  sfxVolume: 0.85,
+  uiVolume: 0.75,
+};
+
+export const DEFAULT_AMBIANCE_CUTOFF_NORMAL = 18000;
+export const DEFAULT_AMBIANCE_CUTOFF_DUCKED = 380;
+
+/**
+ * Headless/Server No-Op Audio Engine for SSR, server API routes, and headless testing.
+ */
+export class NoopAudioEngine implements IAudioEngine {
+  private settings: AudioSettings = { ...DEFAULT_AUDIO_SETTINGS };
+
+  public init(): void {}
+  public destroy(): void {}
+  public playCue(cue: SoundCueDef, options?: PlayCueOptions): void {
+    void cue;
+    void options;
+  }
+  public startHoldRamp(cue: SoundCueDef): string {
+    void cue;
+    return 'noop-voice';
+  }
+  public updateHoldRamp(voiceId: string, progress: number): void {
+    void voiceId;
+    void progress;
+  }
+  public stopHoldRamp(voiceId: string): void {
+    void voiceId;
+  }
+  public setAmbianceState(state: Partial<AmbianceState>): void {
+    void state;
+  }
+  public stopAmbiance(): void {}
+  public updateSettings(settings: Partial<AudioSettings>): void {
+    this.settings = { ...this.settings, ...settings };
+  }
+  public getSettings(): AudioSettings {
+    return { ...this.settings };
+  }
+  public isMuted(): boolean {
+    return this.settings.muted;
+  }
+}
+
+/**
+ * Client-Side Authoritative Audio Engine using Web Audio API.
+ */
+export class AudioEngine implements IAudioEngine {
+  private ctx: AudioContext | null = null;
+  private isClient: boolean;
+
+  // Master Limiter & Channel Buses
+  private masterGain: GainNode | null = null;
+  private masterCompressor: DynamicsCompressorNode | null = null;
+  private sfxGain: GainNode | null = null;
+  private uiGain: GainNode | null = null;
+  private ambianceGain: GainNode | null = null;
+  private ambianceFilter: BiquadFilterNode | null = null;
+
+  // State & Caches
+  private settings: AudioSettings = { ...DEFAULT_AUDIO_SETTINGS };
+  private cueCooldowns = new Map<string, number>();
+  private sampleBufferCache = new Map<string, AudioBuffer>();
+  private activeHoldVoices = new Map<string, HoldRampVoice>();
+  private nextVoiceId = 1;
+
+  // Continuous Ambiance Management
+  private ambianceState: AmbianceState = {
+    depthBand: 'MAIN_MENU',
+    sectorCondition: null,
+    heatTier: 0,
+    isAnchorDucked: false,
+    isPaused: false,
+  };
+  private activeAmbianceVoice: ActiveVoice | null = null;
+  private currentAmbianceCueId: string | null = null;
+
+  // Autoplay Unlock
+  private unlockHandler: (() => void) | null = null;
+
+  constructor(isClient = typeof window !== 'undefined') {
+    this.isClient = isClient;
+  }
+
+  /**
+   * Lazily initializes the Web Audio context and mixing graph.
+   */
+  public async init(): Promise<void> {
+    if (!this.isClient || typeof window === 'undefined') return;
+    if (this.ctx) return;
+
+    const AudioContextClass =
+      window.AudioContext ||
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).webkitAudioContext;
+
+    if (!AudioContextClass) {
+      return;
+    }
+
+    try {
+      this.ctx = new AudioContextClass();
+    } catch {
+      return;
+    }
+
+    this.setupAudioGraph();
+    this.setupAutoplayUnlock();
+    this.applySettings();
+  }
+
+  private setupAudioGraph(): void {
+    if (!this.ctx) return;
+
+    // 1. Master Output Gain -> Destination
+    this.masterGain = this.ctx.createGain();
+    this.masterGain.connect(this.ctx.destination);
+
+    // 2. DynamicsCompressorNode (Master Anti-Clipping Limiter)
+    this.masterCompressor = this.ctx.createDynamicsCompressor();
+    this.masterCompressor.threshold.setValueAtTime(-6, this.ctx.currentTime);
+    this.masterCompressor.knee.setValueAtTime(12, this.ctx.currentTime);
+    this.masterCompressor.ratio.setValueAtTime(12, this.ctx.currentTime);
+    this.masterCompressor.attack.setValueAtTime(0.003, this.ctx.currentTime);
+    this.masterCompressor.release.setValueAtTime(0.25, this.ctx.currentTime);
+    this.masterCompressor.connect(this.masterGain);
+
+    // 3. SFX Bus -> Limiter
+    this.sfxGain = this.ctx.createGain();
+    this.sfxGain.connect(this.masterCompressor);
+
+    // 4. UI Bus -> Limiter
+    this.uiGain = this.ctx.createGain();
+    this.uiGain.connect(this.masterCompressor);
+
+    // 5. Ambiance Filter -> Ambiance Bus -> Limiter
+    this.ambianceGain = this.ctx.createGain();
+    this.ambianceFilter = this.ctx.createBiquadFilter();
+    this.ambianceFilter.type = 'lowpass';
+    this.ambianceFilter.frequency.setValueAtTime(
+      DEFAULT_AMBIANCE_CUTOFF_NORMAL,
+      this.ctx.currentTime,
+    );
+    this.ambianceFilter.Q.setValueAtTime(1.0, this.ctx.currentTime);
+
+    this.ambianceFilter.connect(this.ambianceGain);
+    this.ambianceGain.connect(this.masterCompressor);
+  }
+
+  private setupAutoplayUnlock(): void {
+    if (!this.ctx || typeof window === 'undefined') return;
+
+    if (this.ctx.state === 'suspended') {
+      const unlock = () => {
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+        if (this.unlockHandler) {
+          window.removeEventListener('pointerdown', this.unlockHandler);
+          window.removeEventListener('keydown', this.unlockHandler);
+          this.unlockHandler = null;
+        }
+      };
+
+      this.unlockHandler = unlock;
+      window.addEventListener('pointerdown', unlock, { once: true, passive: true });
+      window.addEventListener('keydown', unlock, { once: true, passive: true });
+    }
+  }
+
+  /**
+   * Returns destination node for a specified bus.
+   */
+  public getBusNode(bus: Exclude<AudioBusName, 'master'>): AudioNode | null {
+    if (!this.ctx) return null;
+    switch (bus) {
+      case 'ambiance':
+        return this.ambianceFilter;
+      case 'ui':
+        return this.uiGain;
+      case 'sfx':
+      default:
+        return this.sfxGain;
+    }
+  }
+
+  /**
+   * Applies current AudioSettings to gain nodes.
+   */
+  private applySettings(): void {
+    if (!this.ctx || !this.masterGain || !this.ambianceGain || !this.sfxGain || !this.uiGain) {
+      return;
+    }
+
+    const t = this.ctx.currentTime;
+    const isMuted = this.settings.muted;
+
+    this.masterGain.gain.setValueAtTime(isMuted ? 0 : this.settings.masterVolume, t);
+    this.ambianceGain.gain.setValueAtTime(isMuted ? 0 : this.settings.ambianceVolume, t);
+    this.sfxGain.gain.setValueAtTime(isMuted ? 0 : this.settings.sfxVolume, t);
+    this.uiGain.gain.setValueAtTime(isMuted ? 0 : this.settings.uiVolume, t);
+  }
+
+  /**
+   * Updates audio settings and persists them to node gains.
+   */
+  public updateSettings(settings: Partial<AudioSettings>): void {
+    this.settings = { ...this.settings, ...settings };
+    this.applySettings();
+  }
+
+  public getSettings(): AudioSettings {
+    return { ...this.settings };
+  }
+
+  public isMuted(): boolean {
+    return this.settings.muted;
+  }
+
+  /**
+   * Triggers a sound cue with optional spatial positioning and pitch variance.
+   */
+  public playCue(cue: SoundCueDef, options: PlayCueOptions = {}): void {
+    if (this.settings.muted) return;
+    if (!this.ctx) {
+      this.init();
+      if (!this.ctx) return;
+    }
+
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
+    }
+
+    const now = Date.now();
+    const lastTrigger = this.cueCooldowns.get(cue.id) || 0;
+    const cooldown = cue.cooldownMs ?? 30;
+
+    if (now - lastTrigger < cooldown) {
+      return; // Suppress duplicate within cooldown window
+    }
+    this.cueCooldowns.set(cue.id, now);
+
+    const busNode = this.getBusNode(cue.bus);
+    if (!busNode) return;
+
+    // Pitch variance calculation (random +/- variance)
+    let pitchMultiplier = options.pitchMultiplier ?? 1.0;
+    if (cue.pitchVariance && cue.pitchVariance > 0) {
+      const delta = (Math.random() * 2 - 1) * cue.pitchVariance;
+      pitchMultiplier *= 1.0 + delta;
+    }
+
+    // Spatial calculations
+    const spatialResult = options.spatial ? calculateSpatialAudio(options.spatial) : undefined;
+    if (spatialResult && spatialResult.gain <= 0) {
+      return; // Inaudible or out of hearing range
+    }
+
+    const volumeMultiplier = (options.volumeMultiplier ?? 1.0) * (cue.baseVolume ?? 1.0);
+
+    // Play synthesis voice
+    if (cue.mode === 'synth' && cue.synth) {
+      playSynthVoice(this.ctx, busNode, cue.synth, {
+        volumeMultiplier,
+        pitchMultiplier,
+        spatial: spatialResult,
+        loop: cue.loop ?? false,
+      });
+    } else if (cue.mode === 'sample' && cue.samplePath) {
+      this.playSampleVoice(cue, busNode, volumeMultiplier, pitchMultiplier, spatialResult);
+    }
+  }
+
+  private async playSampleVoice(
+    cue: SoundCueDef,
+    busNode: AudioNode,
+    volumeMultiplier: number,
+    pitchMultiplier: number,
+    spatial?: ReturnType<typeof calculateSpatialAudio>,
+  ): Promise<void> {
+    if (!this.ctx || !cue.samplePath) return;
+
+    let buffer = this.sampleBufferCache.get(cue.samplePath);
+    if (!buffer) {
+      try {
+        const response = await fetch(cue.samplePath);
+        const arrayBuffer = await response.arrayBuffer();
+        buffer = await this.ctx.decodeAudioData(arrayBuffer);
+        this.sampleBufferCache.set(cue.samplePath, buffer);
+      } catch {
+        return;
+      }
+    }
+
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    source.playbackRate.setValueAtTime(pitchMultiplier, this.ctx.currentTime);
+    source.loop = cue.loop ?? false;
+
+    const gain = this.ctx.createGain();
+    const finalVolume = volumeMultiplier * (spatial ? spatial.gain : 1.0);
+    gain.gain.setValueAtTime(finalVolume, this.ctx.currentTime);
+
+    let tailNode: AudioNode = gain;
+    if (spatial && typeof this.ctx.createStereoPanner === 'function') {
+      const panner = this.ctx.createStereoPanner();
+      panner.pan.setValueAtTime(spatial.pan, this.ctx.currentTime);
+      tailNode.connect(panner);
+      tailNode = panner;
+    }
+
+    tailNode.connect(busNode);
+    source.connect(gain);
+    source.start(this.ctx.currentTime);
+  }
+
+  /**
+   * Starts a continuous pitch/filter ramp for 2-second hold-to-confirm levers.
+   */
+  public startHoldRamp(cue: SoundCueDef): string {
+    if (this.settings.muted) return 'muted-voice';
+    if (!this.ctx) {
+      this.init();
+      if (!this.ctx) return 'noop-voice';
+    }
+
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
+    }
+
+    const volume = cue.baseVolume ?? 0.35;
+    const destination = this.uiGain || this.masterGain || this.ctx.destination;
+    const voice = createHoldRampVoice(this.ctx, destination, volume);
+    const id = `hold-voice-${this.nextVoiceId++}`;
+    this.activeHoldVoices.set(id, voice);
+    return id;
+  }
+
+  public updateHoldRamp(voiceId: string, progress: number): void {
+    const voice = this.activeHoldVoices.get(voiceId);
+    if (voice) {
+      voice.updateProgress(progress);
+    }
+  }
+
+  public stopHoldRamp(voiceId: string): void {
+    const voice = this.activeHoldVoices.get(voiceId);
+    if (voice) {
+      voice.stop(0.04);
+      this.activeHoldVoices.delete(voiceId);
+    }
+  }
+
+  /**
+   * Reactive Ambiance modulation (Depth Band, Heat Tier, Stability Anchor & Pause Ducking).
+   */
+  public setAmbianceState(state: Partial<AmbianceState>): void {
+    this.ambianceState = { ...this.ambianceState, ...state };
+    if (!this.ctx || !this.ambianceFilter) return;
+
+    const now = this.ctx.currentTime;
+    const shouldDuck = this.ambianceState.isAnchorDucked || this.ambianceState.isPaused;
+    const targetCutoff = shouldDuck
+      ? DEFAULT_AMBIANCE_CUTOFF_DUCKED
+      : DEFAULT_AMBIANCE_CUTOFF_NORMAL;
+
+    // Smooth 250ms exponential ramp for anchor / pause ducking
+    this.ambianceFilter.frequency.cancelScheduledValues(now);
+    this.ambianceFilter.frequency.setValueAtTime(this.ambianceFilter.frequency.value, now);
+    this.ambianceFilter.frequency.exponentialRampToValueAtTime(targetCutoff, now + 0.25);
+  }
+
+  /**
+   * Starts or updates continuous ambiance drone with a given sound cue.
+   */
+  public playAmbianceCue(cue: SoundCueDef): void {
+    if (this.currentAmbianceCueId === cue.id && this.activeAmbianceVoice) {
+      return; // Already playing this cue
+    }
+
+    if (!this.ctx) {
+      this.init();
+      if (!this.ctx) return;
+    }
+
+    const busNode = this.ambianceFilter;
+    if (!busNode) return;
+
+    // Crossfade: stop existing voice over 800ms
+    if (this.activeAmbianceVoice) {
+      this.activeAmbianceVoice.stop(0.8);
+      this.activeAmbianceVoice = null;
+    }
+
+    this.currentAmbianceCueId = cue.id;
+
+    if (cue.mode === 'synth' && cue.synth) {
+      this.activeAmbianceVoice = playSynthVoice(this.ctx, busNode, cue.synth, {
+        volumeMultiplier: cue.baseVolume ?? 0.6,
+        loop: true,
+      });
+    }
+  }
+
+  public stopAmbiance(): void {
+    if (this.activeAmbianceVoice) {
+      this.activeAmbianceVoice.stop(0.5);
+      this.activeAmbianceVoice = null;
+    }
+    this.currentAmbianceCueId = null;
+  }
+
+  public destroy(): void {
+    this.stopAmbiance();
+    for (const voice of this.activeHoldVoices.values()) {
+      voice.stop(0.01);
+    }
+    this.activeHoldVoices.clear();
+    this.cueCooldowns.clear();
+    this.sampleBufferCache.clear();
+
+    if (this.unlockHandler && typeof window !== 'undefined') {
+      window.removeEventListener('pointerdown', this.unlockHandler);
+      window.removeEventListener('keydown', this.unlockHandler);
+      this.unlockHandler = null;
+    }
+
+    if (this.ctx) {
+      this.ctx.close().catch(() => {});
+      this.ctx = null;
+    }
+  }
+}
+
+let activeAudioEngine: IAudioEngine | null = null;
+
+/**
+ * Accessor for the active AudioEngine singleton.
+ * Returns NoopAudioEngine when running on server, SSR, or without AudioContext.
+ */
+export function getAudioEngine(isClient = typeof window !== 'undefined'): IAudioEngine {
+  if (!isClient || typeof window === 'undefined') {
+    return new NoopAudioEngine();
+  }
+
+  if (!activeAudioEngine) {
+    activeAudioEngine = new AudioEngine(true);
+  }
+  return activeAudioEngine;
+}
+
+export function setAudioEngine(engine: IAudioEngine | null): void {
+  if (activeAudioEngine && activeAudioEngine !== engine) {
+    activeAudioEngine.destroy();
+  }
+  activeAudioEngine = engine;
+}

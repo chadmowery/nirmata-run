@@ -17,3 +17,6 @@ export * from './entity/types';
 // Turn System
 export { TurnManager } from './turn/turn-manager';
 export * from './turn/types';
+
+// Audio Subsystem
+export * from './audio';
