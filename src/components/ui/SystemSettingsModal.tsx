@@ -5,6 +5,7 @@ import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import { getAudioEngine } from '@engine/audio';
 import { GameState } from '@/game/states/types';
+import { uiAudio } from '@/game/audio/ui-audio';
 import { TaikokuPlacard, BtnLever } from './atomic';
 import { AudioSettingsPanel } from './AudioSettingsPanel';
 import styles from './SystemSettingsModal.module.css';
@@ -17,11 +18,13 @@ export const SystemSettingsModal: React.FC = () => {
     setVisible(false);
   }, [setVisible]);
 
-  // Pause ducking for ambiance while settings modal is open
+  // Pause ducking and SFX while settings modal is open
   useEffect(() => {
     if (!visible) return;
+    uiAudio.playModalOpen();
     getAudioEngine().setAmbianceState({ isPaused: true });
     return () => {
+      uiAudio.playModalClose();
       const state = gameStore.getState();
       const stillPaused = state.gameStatus === GameState.Paused || state.abortDialogVisible;
       if (!stillPaused) {

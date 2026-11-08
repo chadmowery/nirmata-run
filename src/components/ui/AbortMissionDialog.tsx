@@ -9,6 +9,7 @@ import { getActiveGameContext } from '@/game/active-context';
 import { Dying } from '@shared/components';
 import { getAudioEngine } from '@engine/audio';
 import { GameState } from '@/game/states/types';
+import { uiAudio } from '@/game/audio/ui-audio';
 import { TaikokuPlacard, BtnLever } from './atomic';
 import { AudioSettingsPanel } from './AudioSettingsPanel';
 import styles from './AbortMissionDialog.module.css';
@@ -60,10 +61,12 @@ export const AbortMissionDialog: React.FC<AbortMissionDialogProps> = ({
     }
   }, [onConfirmAbort, setAbortDialogVisible]);
 
-  // Pause ducking for ambiance while abort/pause dialog is open
+  // Pause ducking and SFX while abort/pause dialog is open
   useEffect(() => {
+    uiAudio.playModalOpen();
     getAudioEngine().setAmbianceState({ isPaused: true });
     return () => {
+      uiAudio.playModalClose();
       const state = gameStore.getState();
       const stillPaused = state.gameStatus === GameState.Paused || state.systemSettingsModalVisible;
       if (!stillPaused) {

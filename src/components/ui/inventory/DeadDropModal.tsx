@@ -5,6 +5,7 @@ import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
 import type { GameContext } from '@/game/types';
 import { TaikokuPlacard, ItemIcon, BtnLever } from '../atomic';
+import { uiAudio } from '@/game/audio/ui-audio';
 import styles from './ContainerOverlay.module.css';
 import {
   RunInventory,
@@ -41,6 +42,13 @@ export const DeadDropModal: React.FC<DeadDropModalProps> = ({ onClose }) => {
   const getContext = (): GameContext | undefined => {
     return getActiveGameContext() ?? undefined;
   };
+
+  useEffect(() => {
+    uiAudio.playModalOpen();
+    return () => {
+      uiAudio.playModalClose();
+    };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

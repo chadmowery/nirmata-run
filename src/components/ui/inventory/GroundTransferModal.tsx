@@ -5,6 +5,7 @@ import { useStore } from 'zustand';
 import { gameStore, GroundItemInfo } from '@/game/ui/store';
 import { getActiveGameContext } from '@/game/active-context';
 import { TaikokuPlacard, ItemIcon, BtnLever } from '../atomic';
+import { uiAudio } from '@/game/audio/ui-audio';
 import styles from './GroundTransferModal.module.css';
 import { resolveItemMetadata } from '../hub/item-metadata';
 import {
@@ -31,6 +32,13 @@ export const GroundTransferModal: React.FC<GroundTransferModalProps> = ({ onClos
   void inventoryRevision;
 
   const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    uiAudio.playModalOpen();
+    return () => {
+      uiAudio.playModalClose();
+    };
+  }, []);
 
   // Focus trap and keyboard handling
   useEffect(() => {

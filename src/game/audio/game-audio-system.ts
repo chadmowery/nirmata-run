@@ -18,7 +18,7 @@ import {
   PredictionDeduplicator,
   SpatialCoords,
 } from '@engine/audio';
-import { Position, Shell, AudioProfile, Heat, AmbientEmitter, Prop, FloorState, CorruptedNode } from '@shared/components';
+import { Position, Shell, AudioProfile, Heat, AmbientEmitter, Prop, FloorState, CorruptedNode, InteractiveSurface } from '@shared/components';
 import { getSoundCue } from './cue-registry';
 import { resolveAmbianceForFloor, getAmbianceConfig } from '@game/config/ambiance';
 
@@ -116,6 +116,13 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
   >();
 
   const positionCache = new Map<EntityId, { x: number; y: number }>();
+  const surfaceCache = new Map<
+    EntityId,
+    {
+      providesCover?: boolean;
+      hazardOnDestroy?: string;
+    }
+  >();
 
   const syncEntityCaches = (): void => {
     const profileEntities = world.query(AudioProfile);
@@ -128,6 +135,17 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
     for (const id of posEntities) {
       const pos = world.getComponent(id, Position);
       if (pos) positionCache.set(id, { x: pos.x, y: pos.y });
+    }
+
+    const surfaceEntities = world.query(InteractiveSurface);
+    for (const id of surfaceEntities) {
+      const s = world.getComponent(id, InteractiveSurface);
+      if (s) {
+        surfaceCache.set(id, {
+          providesCover: s.providesCover,
+          hazardOnDestroy: s.hazardOnDestroy,
+        });
+      }
     }
   };
 
@@ -315,13 +333,28 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
       }
     }
 
+    // Directional cover mitigation SFX
+    if (payload.mitigatedByCover) {
+      const defPos =
+        world.getComponent(payload.defenderId, Position) ||
+        positionCache.get(payload.defenderId);
+      if (payload.defenderId === getPlayerEntity() || !defPos) {
+        playGlobalCue('sfx_cover_mitigated');
+      } else {
+        playSpatialCue('sfx_cover_mitigated', defPos.x, defPos.y);
+      }
+    }
+
+    const defaultPlayerHitCue = payload.isRanged ? 'sfx_ranged_hit' : 'sfx_player_damaged';
+    const defaultEnemyHitCue = payload.isRanged ? 'sfx_ranged_hit' : 'sfx_melee_hit';
+
     const isPlayerDefender = payload.defenderId === getPlayerEntity();
     if (isPlayerDefender) {
       const defProfile =
         world.getComponent(payload.defenderId, AudioProfile) ||
         audioProfileCache.get(payload.defenderId);
       playGlobalCue(
-        defProfile?.hitCue ?? 'sfx_player_damaged',
+        defProfile?.hitCue ?? defaultPlayerHitCue,
         defProfile?.volumeMultiplier,
         defProfile?.pitchMultiplier,
       );
@@ -334,7 +367,7 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
     const profile =
       world.getComponent(payload.defenderId, AudioProfile) ||
       audioProfileCache.get(payload.defenderId);
-    const hitCueId = profile?.hitCue ?? 'sfx_melee_hit';
+    const hitCueId = profile?.hitCue ?? defaultEnemyHitCue;
 
     if (defPos) {
       playSpatialCue(
@@ -369,6 +402,7 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
       );
       audioProfileCache.delete(payload.entityId);
       positionCache.delete(payload.entityId);
+      surfaceCache.delete(payload.entityId);
       return;
     }
 
@@ -393,8 +427,36 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
       );
     }
 
+    // Check if destroyed entity is a cover prop or volatile hazard prop
+    const surface =
+      world.getComponent(payload.entityId, InteractiveSurface) ||
+      surfaceCache.get(payload.entityId);
+
+    if (surface?.providesCover) {
+      if (pos) {
+        playSpatialCue('sfx_cover_broken', pos.x, pos.y);
+      } else {
+        playGlobalCue('sfx_cover_broken');
+      }
+    }
+
+    if (surface?.hazardOnDestroy === 'cryo_spill') {
+      if (pos) {
+        playSpatialCue('sfx_volatile_cryo', pos.x, pos.y);
+      } else {
+        playGlobalCue('sfx_volatile_cryo');
+      }
+    } else if (surface?.hazardOnDestroy === 'emp_arc') {
+      if (pos) {
+        playSpatialCue('sfx_volatile_emp', pos.x, pos.y);
+      } else {
+        playGlobalCue('sfx_volatile_emp');
+      }
+    }
+
     audioProfileCache.delete(payload.entityId);
     positionCache.delete(payload.entityId);
+    surfaceCache.delete(payload.entityId);
 
     if (activeEmitters.has(payload.entityId)) {
       const active = activeEmitters.get(payload.entityId);
@@ -550,6 +612,7 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
   subscribe('FLOOR_TRANSITION', (payload) => {
     positionCache.clear();
     audioProfileCache.clear();
+    surfaceCache.clear();
     syncEntityCaches();
     updateAmbianceForFloor(payload.floorNumber);
   });
@@ -579,6 +642,11 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
     }
   });
 
+  // 15. Bump Safeguard Warning
+  subscribe('INPUT_BUFFER_CLEARED', () => {
+    playGlobalCue('sfx_bump_warning');
+  });
+
   return {
     destroy: () => {
       for (const unsub of unsubs) {
@@ -594,6 +662,7 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
       }
       audioProfileCache.clear();
       positionCache.clear();
+      surfaceCache.clear();
       activeEmitters.clear();
       dedup.clear();
       audioEngine.setAmbianceState({

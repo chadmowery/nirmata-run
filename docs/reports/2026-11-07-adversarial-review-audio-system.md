@@ -308,6 +308,17 @@ Cross-referencing all cue IDs in `sound-cues.json` and [`docs/design/AUDIO-SYSTE
 7. `sfx_volatile_emp` (`HAZARD_TRIGGERED` hardcodes `sfx_volatile_detonate`)
 8. `sfx_bump_warning` (never triggered when movement safeguard or front-facing prop access blocks a bump)
 
+#### Resolution
+- Wired `ui_modal_open` and `ui_modal_close` through `uiAudio.playModalOpen()` and `uiAudio.playModalClose()` into the modal lifecycles of `SystemSettingsModal`, `AbortMissionDialog`, `DeadDropModal`, `HotkeysModal`, and `GroundTransferModal`.
+- Enhanced `DAMAGE_DEALT` event in `src/shared/events/types.ts` and `src/game/systems/combat.ts` with `mitigatedByCover: boolean` and `isRanged: boolean`.
+- In `src/game/audio/game-audio-system.ts`:
+  - Wired `sfx_cover_mitigated` on `DAMAGE_DEALT` whenever `payload.mitigatedByCover` is true (global for player, spatial for enemies).
+  - Wired `sfx_ranged_hit` on `DAMAGE_DEALT` whenever `payload.isRanged` is true (and wired `system-admin.json` `attackCue: "sfx_ranged_hit"` via `AUD-REV-01`).
+  - Added caching for `InteractiveSurface` components (`providesCover` and `hazardOnDestroy`).
+  - On `ENTITY_DIED`: triggered `sfx_cover_broken` when an entity with `providesCover` is destroyed, and differentiated volatile explosion SFX playing `sfx_volatile_cryo` for `hazardOnDestroy === 'cryo_spill'` and `sfx_volatile_emp` for `hazardOnDestroy === 'emp_arc'`.
+  - Subscribed to `INPUT_BUFFER_CLEARED` to play `sfx_bump_warning` whenever movement safeguard halts a bump (trap safeguard, locked door overclock warning, or directional front-facing access block).
+- Added comprehensive unit tests in `src/game/audio/__tests__/game-audio-system.test.ts` covering cover mitigation, ranged hits, cover prop breakage, volatile cryo/emp destruction, and bump safeguard warnings.
+
 ---
 
 ### 2.9 `AUD-REV-09`: Web Audio Node Lifecycle Leaks & Missing Sample Occlusion Filter (P1)

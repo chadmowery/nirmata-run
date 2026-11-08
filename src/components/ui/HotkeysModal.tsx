@@ -2,6 +2,7 @@
 
 import React, { useEffect, useCallback } from 'react';
 import { TaikokuPlacard } from './atomic';
+import { uiAudio } from '@/game/audio/ui-audio';
 import styles from './HotkeysModal.module.css';
 
 interface HotkeysModalProps {
@@ -93,6 +94,13 @@ export const HotkeysModal: React.FC<HotkeysModalProps> = ({ onClose }) => {
     },
     [onClose],
   );
+
+  useEffect(() => {
+    uiAudio.playModalOpen();
+    return () => {
+      uiAudio.playModalClose();
+    };
+  }, []);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown, true);

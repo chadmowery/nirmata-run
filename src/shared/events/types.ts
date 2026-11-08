@@ -9,7 +9,13 @@ import { RunMode } from '../run-mode';
  */
 export interface GameplayEvents extends EngineEvents {
   /** Queued when an entity deals damage to another. */
-  DAMAGE_DEALT: { attackerId: EntityId; defenderId: EntityId; amount: number };
+  DAMAGE_DEALT: {
+    attackerId: EntityId;
+    defenderId: EntityId;
+    amount: number;
+    mitigatedByCover?: boolean;
+    isRanged?: boolean;
+  };
 
   /** Queued when an entity's health reaches zero. */
   ENTITY_DIED: { entityId: EntityId; killerId: EntityId; isPlayer: boolean };

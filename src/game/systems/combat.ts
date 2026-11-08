@@ -625,10 +625,18 @@ export function createCombatSystem<T extends GameplayEvents>(
       // Authoritative update
       w.patchComponent(defenderId, Health, { current: newHealth });
 
+      const attPos = w.getComponent(attackerId, Position);
+      const defPos = w.getComponent(defenderId, Position);
+      const isRanged = Boolean(
+        attPos && defPos && Math.abs(attPos.x - defPos.x) + Math.abs(attPos.y - defPos.y) > 1,
+      );
+
       eventBus.emit('DAMAGE_DEALT', {
         attackerId,
         defenderId,
         amount: damage,
+        mitigatedByCover: cover.hasCover,
+        isRanged,
       });
 
       // Track damage dealt this turn for augment/software triggers
@@ -704,10 +712,12 @@ export function createCombatSystem<T extends GameplayEvents>(
         // Abilities and environmental use raw amount minus armor
         let finalDamage = Math.max(1, intent.amount - effectiveArmor);
 
+        let hasCover = false;
         // Check Directional Cover (only if not environmental)
         if (intent.damageType !== 'environmental') {
           const cover = checkDirectionalCover(w, attackerId, targetId, grid);
           if (cover.hasCover) {
+            hasCover = true;
             finalDamage = Math.max(1, Math.floor(finalDamage * (1 - cover.reduction)));
             const pct = Math.round(cover.reduction * 100);
             const defActor = w.getComponent(targetId, Actor);
@@ -729,10 +739,18 @@ export function createCombatSystem<T extends GameplayEvents>(
 
         w.patchComponent(targetId, Health, { current: newHealth });
 
+        const attPos = w.getComponent(attackerId, Position);
+        const tgtPos = w.getComponent(targetId, Position);
+        const isRanged = Boolean(
+          attPos && tgtPos && Math.abs(attPos.x - tgtPos.x) + Math.abs(attPos.y - tgtPos.y) > 1,
+        );
+
         eventBus.emit('DAMAGE_DEALT', {
           attackerId,
           defenderId: targetId,
           amount: finalDamage,
+          mitigatedByCover: hasCover,
+          isRanged,
         });
 
         if (newHealth <= 0) {

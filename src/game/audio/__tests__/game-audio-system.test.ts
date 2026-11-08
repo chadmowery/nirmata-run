@@ -5,7 +5,7 @@ import { GameEvents } from '@game/events/types';
 import { GameState } from '@game/states/types';
 import { Grid } from '@engine/grid/grid';
 import { EventOriginContext } from '@engine/utils/event-context';
-import { Position, Shell, AudioProfile, AmbientEmitter, Prop, FloorState, CorruptedNode } from '@shared/components';
+import { Position, Shell, AudioProfile, AmbientEmitter, Prop, FloorState, CorruptedNode, InteractiveSurface } from '@shared/components';
 import { createGameAudioSystem } from '../game-audio-system';
 import { IAudioEngine } from '@engine/audio';
 
@@ -795,6 +795,132 @@ describe('GameAudioSystem Bridge', () => {
       expect.objectContaining({
         spatial: expect.objectContaining({ sourceX: 6, sourceY: 7 }),
       }),
+    );
+
+    audioSystem.destroy();
+  });
+
+  it('triggers sfx_cover_mitigated and sfx_ranged_hit during combat when applicable', () => {
+    world.addComponent(playerId, Position, { x: 5, y: 5 });
+    world.addComponent(enemyId, Position, { x: 8, y: 5 });
+
+    const audioSystem = createGameAudioSystem({
+      world,
+      eventBus,
+      getPlayerEntity: () => playerId,
+      getGrid: () => grid,
+      audioEngine: mockAudioEngine,
+    });
+
+    // Ranged attack against player that is mitigated by directional cover
+    eventBus.emit('DAMAGE_DEALT', {
+      attackerId: enemyId,
+      defenderId: playerId,
+      amount: 5,
+      mitigatedByCover: true,
+      isRanged: true,
+    });
+    eventBus.flush();
+
+    expect(mockAudioEngine.playCue).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'sfx_cover_mitigated' }),
+      expect.anything(),
+    );
+    expect(mockAudioEngine.playCue).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'sfx_ranged_hit' }),
+      expect.anything(),
+    );
+
+    audioSystem.destroy();
+  });
+
+  it('triggers sfx_cover_broken, sfx_volatile_cryo, and sfx_volatile_emp on prop destruction', () => {
+    const cryoPropId = world.createEntity();
+    world.addComponent(cryoPropId, Position, { x: 4, y: 4 });
+    world.addComponent(cryoPropId, InteractiveSurface, {
+      surfaceId: 'cryo_vat',
+      providesCover: true,
+      hazardOnDestroy: 'cryo_spill',
+    });
+
+    const empPropId = world.createEntity();
+    world.addComponent(empPropId, Position, { x: 9, y: 9 });
+    world.addComponent(empPropId, InteractiveSurface, {
+      surfaceId: 'capacitor_bank',
+      providesCover: true,
+      hazardOnDestroy: 'emp_arc',
+    });
+
+    const audioSystem = createGameAudioSystem({
+      world,
+      eventBus,
+      getPlayerEntity: () => playerId,
+      getGrid: () => grid,
+      audioEngine: mockAudioEngine,
+    });
+
+    // Destroy Cryo Vat
+    world.destroyEntity(cryoPropId);
+    eventBus.emit('ENTITY_DIED', {
+      entityId: cryoPropId,
+      killerId: playerId,
+      isPlayer: false,
+    });
+    eventBus.flush();
+
+    expect(mockAudioEngine.playCue).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'sfx_cover_broken' }),
+      expect.objectContaining({
+        spatial: expect.objectContaining({ sourceX: 4, sourceY: 4 }),
+      }),
+    );
+    expect(mockAudioEngine.playCue).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'sfx_volatile_cryo' }),
+      expect.objectContaining({
+        spatial: expect.objectContaining({ sourceX: 4, sourceY: 4 }),
+      }),
+    );
+
+    // Destroy EMP Capacitor
+    world.destroyEntity(empPropId);
+    eventBus.emit('ENTITY_DIED', {
+      entityId: empPropId,
+      killerId: playerId,
+      isPlayer: false,
+    });
+    eventBus.flush();
+
+    expect(mockAudioEngine.playCue).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'sfx_cover_broken' }),
+      expect.objectContaining({
+        spatial: expect.objectContaining({ sourceX: 9, sourceY: 9 }),
+      }),
+    );
+    expect(mockAudioEngine.playCue).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'sfx_volatile_emp' }),
+      expect.objectContaining({
+        spatial: expect.objectContaining({ sourceX: 9, sourceY: 9 }),
+      }),
+    );
+
+    audioSystem.destroy();
+  });
+
+  it('triggers sfx_bump_warning when INPUT_BUFFER_CLEARED is emitted by safeguard halt', () => {
+    const audioSystem = createGameAudioSystem({
+      world,
+      eventBus,
+      getPlayerEntity: () => playerId,
+      getGrid: () => grid,
+      audioEngine: mockAudioEngine,
+    });
+
+    eventBus.emit('INPUT_BUFFER_CLEARED', {});
+    eventBus.flush();
+
+    expect(mockAudioEngine.playCue).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'sfx_bump_warning' }),
+      expect.anything(),
     );
 
     audioSystem.destroy();
