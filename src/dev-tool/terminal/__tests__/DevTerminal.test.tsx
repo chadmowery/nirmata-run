@@ -119,4 +119,28 @@ describe('DevTerminal Component', () => {
 
     delete (window as any).__DEBUG__;
   });
+
+  it('executes /debug-ai command and invokes window.__DEBUG__.debugAI', async () => {
+    const debugAIMock = vi.fn();
+    (window as any).__DEBUG__ = {
+      debugAI: debugAIMock,
+    };
+
+    render(<DevTerminal />);
+
+    fireEvent.keyDown(window, { key: '`' });
+
+    const input = screen.getByPlaceholderText(/ENTER COMMAND/i);
+    fireEvent.change(input, { target: { value: '/debug-ai flee_from_target' } });
+    fireEvent.submit(input.closest('form')!);
+
+    await waitFor(() => {
+      expect(debugAIMock).toHaveBeenCalledWith('flee_from_target');
+      expect(
+        screen.getByText(/AI Debug telemetry toggled \(flee_from_target\)/i),
+      ).toBeInTheDocument();
+    });
+
+    delete (window as any).__DEBUG__;
+  });
 });

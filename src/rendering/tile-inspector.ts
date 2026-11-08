@@ -394,7 +394,11 @@ export function resolveTileInspection(
       hp: health?.current,
       maxHp: health?.max,
       threatLevel: 'ACTIVE THREAT',
-      behavior: aiState?.behaviorType ? `ARCHETYPE: ${aiState.behaviorType.toUpperCase()}` : undefined,
+      behavior: aiState?.lastEvaluatedPath
+        ? `BT: ${aiState.lastEvaluatedPath}`
+        : aiState?.behaviorType
+          ? `ARCHETYPE: ${aiState.behaviorType.toUpperCase()}`
+          : undefined,
       statusEffects: effectsList.length > 0 ? effectsList : undefined,
       interactionHint: '[BUMP] to execute melee attack',
       screenX,

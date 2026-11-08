@@ -283,6 +283,24 @@ export function DevTerminal() {
             { text: '[OK] Floor map fully exposed and fog of war cleared.', type: 'output' },
           ]);
           break;
+        case '/debug-ai':
+        case '/debugai':
+          if (!window.__DEBUG__) {
+            setHistory((prev) => [
+              ...prev,
+              { text: '[WARN] /debug-ai requires an active run session.', type: 'error' },
+            ]);
+            break;
+          }
+          window.__DEBUG__.debugAI(args[1]);
+          setHistory((prev) => [
+            ...prev,
+            {
+              text: `[OK] AI Debug telemetry toggled (${args[1] || 'approach_target'}). Use /debug-ai [approach_target|flee_from_target|kite_to_cover|pack_surround_cardinal]`,
+              type: 'output',
+            },
+          ]);
+          break;
         case '/close':
           setIsVisible(false);
           break;
@@ -312,6 +330,7 @@ export function DevTerminal() {
             },
             { text: '  /deadzone - Spawn deadzone at player position', type: 'output' },
             { text: '  /show-map - Reveal the entire floor map and clear fog of war', type: 'output' },
+            { text: '  /debug-ai [mapType] - Toggle AI Dijkstra heatmap and telemetry overlay', type: 'output' },
             { text: '  /clearsessions - Clear all server sessions', type: 'output' },
             { text: '  /close - Close this terminal', type: 'output' },
             { text: '  /list - Show this list', type: 'output' },

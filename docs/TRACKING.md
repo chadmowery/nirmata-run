@@ -414,6 +414,53 @@
   - **`AUD-REV-12`**: Decoupled browser DOM listeners and injected sample loader in `AudioEngine`; added `SampleLoader` and `AudioEngineOptions` interfaces; decoupled `window.addEventListener` autoplay unlock listeners by default; exposed `resume()` on `IAudioEngine` and managed user gesture unlock in `page.tsx`.
   - **Verification Sweep**: Verified full test suite passes (203/203 files, 1,271/1,271 tests), 0 type errors (`tsc --noEmit`), 0 lint warnings (`eslint src/`), and clean Next.js production build (`next build`).
 
+---
+
+## Workstream 3: AI Architecture Specification — Stateless Behavior Trees & Shared Dijkstra Maps (v3.0 Upgrade)
+
+> **Specification**: [`docs/design/AI-BEHAVIOR-TREES-DIJKSTRA.md`](./design/AI-BEHAVIOR-TREES-DIJKSTRA.md)  
+> **Status**: Complete & Verified (M1–M4)
+
+- [x] **[BT-M1] Engine Primitives (`@engine/ai`)**
+  - **Stateless Tree Evaluation (`evaluateBehaviorTree`)**: Pure, tick-to-intent recursive evaluation of `SELECTOR`, `SEQUENCE`, `UTILITY_SELECTOR`, `DECORATOR_COOLDOWN`, `DECORATOR_INVERT`, `DECORATOR_CHANCE`, `SUBTREE`, `CONDITION`, and `ACTION` nodes without mutable state or internal blackboard clocks.
+  - **Shared Dijkstra Maps (`DijkstraMap`)**: Optimized 80x45 Float32Array distance grids using a binary min-heap relaxation queue ($O(V \log V)$ for arbitrary positive step costs).
+  - **Flee Map Generation (`createFleeMap`)**: Goal-inverted Dijkstra map with $v \times -1.2$ attraction sinks and impassable threat tiles, ensuring enemies run away into corridors and out of corners rather than stalling against walls.
+  - **Linear Combination Algebra (`DijkstraMap.combine`)**: Multi-layer weighted map blending with unreachable tile propagation.
+  - **Utility AI Response Curves (`evaluateCurve`, `evaluateUtilityBranchScore`)**: Response curve mathematics (`linear`, `quadratic`, `logistic`, `step`) with slope, inversion, and normalized clamping domain for utility motivation scoring.
+  - **Verification**: Verified with 9 unit tests in `src/engine/ai/__tests__/dijkstra-map.test.ts` and 11 unit tests in `src/engine/ai/__tests__/behavior-tree.test.ts`.
+
+- [x] **[BT-M2] Shared Schemas, Intents & Serialization Redaction (`@shared`)**
+  - **Recursive Behavior Tree Schemas (`src/shared/components/ai-tree.ts`)**: Zod schemas for 12 conditions (`AIConditionSchema`), 6 atomic actions (`AIActionSchema`), utility considerations (`UtilityConsiderationSchema`), and recursive `BehaviorTreeNodeSchema` via `z.lazy`.
+  - **Upgraded AIState Component (`src/shared/components/ai-state.ts`)**: Added `treeId`, `inlineTree`, `sightRadius`, `memoryTurns`, `cooldowns`, `remainingMemoryTurns`, and `lastEvaluatedPath`, while maintaining backward-compatible `behavior` and `behaviorType` fields.
+  - **Decoupled Spawn Intent (`src/shared/components/intents.ts`)**: Added `SpawnEntityIntent` enabling systems (`Fragmenter`, `TileCorruptionSystem`) to request entity spawns across phases without direct factory RPCs.
+  - **Anti-Cheat Client Delta Redaction (`src/shared/serialization.ts`)**: Automatic redaction of internal server-only `cooldowns`, `remainingMemoryTurns`, and `inlineTree` on `aiState` during wire compression in `redactWorldForClient` and `redactDeltaForClient`.
+  - **Verification**: Verified with 6 unit tests in `src/shared/components/__tests__/ai-tree.test.ts` and 6 serialization tests in `src/shared/__tests__/serialization.test.ts`.
+
+- [x] **[BT-M3] Spatial Subsystem & Enemy Bestiary Migration (`@game`)**
+  - **Authoritative AISpatialSystem (`src/game/ai/spatial-maps.ts`)**: Precomputes and caches shared 80x45 Float32Array maps per turn: `approach_target` (avoiding or ignoring hazards), `flee_from_target` (corner escape), `kite_to_cover` (seeking directional cover relative to player vector), and `pack_surround_cardinal` (cardinal reservation system).
+  - **AIBehaviorRegistry (`src/game/ai/tree-registry.ts`)**: Central registry for registered Behavior Tree ASTs and reusable subtrees (`skip-if-disrupted`, `investigate-last-known-pos`).
+  - **Decoupled SpawnEntitySystem (`src/game/systems/spawn-entity.ts`)**: Phase.ACTION and Phase.POST_TURN system that resolves `SpawnEntityIntent` components and registers spawned entities onto the spatial `Grid`.
+  - **Deterministic Tile Corruption (`src/game/systems/tile-corruption.ts`)**: Replaced non-deterministic `Math.random` with a seeded mulberry32/splitmix PRNG seeded from `FloorState.runSeed + turnNumber + entityId`, emitting `SpawnEntityIntent` for sub-processes.
+  - **Bestiary Migration**: Authored bespoke JSON behavior trees in `src/game/entities/templates/ai/`:
+    - `null-pointer`: Faraday-safe teleport directional ambush behind player vector.
+    - `buffer-overflow`: Pack swarmer coordinating via shared pack alerts and reserving cardinal tiles.
+    - `fragmenter`: Heavy area-denier emitting `SpawnEntityIntent` for cardinal Dead Zones dealing 2 tick damage.
+    - `logic-leaker`: Ranged kiter using `flee_from_target` when player closes to $\le 2$ tiles and `kite_to_cover` at range 3..5.
+    - `system-admin`: Disruption check and dynamic prop crushing (`canCrushProps: true`).
+    - `seed-eater`: Deterministic sub-process spawner and melee corruption.
+    - `basic`: Fallback approach-and-bump tree.
+  - **Verification**: Verified with 8 comprehensive integration tests in `src/game/systems/__tests__/ai-upgraded-behaviors.test.ts` and 9 unit tests in `src/game/systems/ai.test.ts`.
+
+- [x] **[BT-M4] Gamedata Studio AST Builder & Dev Terminal Telemetry (`@dev-tool`, `@rendering`)**
+  - **BehaviorTreeEditor AST Builder (`src/dev-tool/studio/editors/subeditors/BehaviorTreeEditor.tsx`)**: Visual recursive AST builder supporting all composite nodes, decorators, subtrees, conditions, actions, and utility considerations with raw JSON view toggle.
+  - **EntityTemplateEditor Integration (`src/dev-tool/studio/editors/shared/ComponentFieldGroup.tsx`)**: The `aiState` component card displays a `treeId` dropdown populated from `/api/dev/gamedata/ai-trees` and an `[EDIT INLINE TREE]` toggle.
+  - **AI Tree API Endpoints (`src/app/api/dev/gamedata/ai-trees/route.ts`, `[treeId]/route.ts`)**: Development-only REST endpoints listing available behavior tree templates and subtrees.
+  - **DevTerminal Telemetry (`src/dev-tool/terminal/DevTerminal.tsx`, `debug-api.ts`)**: Added `/debug-ai [mapType]` command to the backtick terminal and updated `/list`.
+  - **Dijkstra Heatmap Overlay (`src/rendering/render-system.ts`)**: Rendered interactive Dijkstra distance heatmap overlay directly onto the PixiJS viewport on `DEBUG_TOGGLE_AI` signal.
+  - **Tactical Hover Tooltip BT Path (`src/rendering/tile-inspector.ts`)**: Inspects and displays the enemy's last evaluated Behavior Tree execution path (`BT: root > ... [SUCCESS]`).
+  - **Verification**: Verified with unit tests in `src/dev-tool/studio/editors/subeditors/__tests__/BehaviorTreeEditor.test.tsx` (5 tests), `src/dev-tool/terminal/__tests__/DevTerminal.test.tsx` (5 tests), and `src/rendering/__tests__/tile-inspector.test.ts` (16 tests). Full project test suite passes (208/208 test files, 1,319/1,319 tests), 0 type errors, 0 lint warnings, and clean Next.js production build (`next build`).
+
+
 
 
 

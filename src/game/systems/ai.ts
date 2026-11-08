@@ -278,7 +278,7 @@ export function createAISystem<T extends GameplayEvents>(
       world.patchComponent(entityId, AIState, { cooldowns });
 
       // 1. Update FOV awareness
-      const visibleTiles = computeEnemyFov(pos.x, pos.y, ai.sightRadius);
+      const visibleTiles = computeEnemyFov(pos.x, pos.y, ai.sightRadius ?? 6);
       const playerKey = `${player.x},${player.y}`;
       const isVisibleInFov = visibleTiles.has(playerKey);
       const canSeePlayer = isVisibleInFov || alertedThisTurn.has(entityId) || packAlerted.has(entityId);
@@ -730,13 +730,23 @@ export function createAISystem<T extends GameplayEvents>(
         },
 
         random: rng,
+        recordTrace: (step: string) => {
+          executionTrace.push(step);
+        },
       };
+
+      const executionTrace: string[] = [];
 
       // 5. Evaluate tree
       evaluateBehaviorTree(
         tree as unknown as BTNode<AICondition, AIAction, UtilityConsideration['metric']>,
         ctx,
       );
+
+      if (executionTrace.length > 0) {
+        const lastEvaluatedPath = ['root', ...executionTrace].join(' > ');
+        world.patchComponent(entityId, AIState, { lastEvaluatedPath });
+      }
 
       // 6. Posture update for HUD tooltips and inspector
       const finalAwareness = world.getComponent(entityId, FovAwareness) ?? awareness;

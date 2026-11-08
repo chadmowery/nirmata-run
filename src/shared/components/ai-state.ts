@@ -33,13 +33,15 @@ export const AIState = defineComponent(
     /** Optional inline Behavior Tree override for bespoke one-off entities in /dev/gamedata. */
     inlineTree: BehaviorTreeNodeSchema.optional(),
     /** Visual FOV detection radius. */
-    sightRadius: z.number().int().positive().default(6),
+    sightRadius: z.number().int().positive().default(6).optional(),
     /** How many turns the entity continues investigating lastKnownPlayerX/Y after losing LOS. */
     memoryTurns: z.number().int().min(0).default(5).optional(),
     /** Server-only cooldown counters (redacted from client deltas). */
     cooldowns: z.record(z.string(), z.number().int().min(0)).default({}).optional(),
     /** Server-only remaining memory turns before reverting from CHASING to IDLE. */
     remainingMemoryTurns: z.number().int().min(0).default(0).optional(),
+    /** Last evaluated Behavior Tree path for debug telemetry (e.g. root > visible-engagement > blink-behind-player [SUCCESS]). */
+    lastEvaluatedPath: z.string().optional(),
   }),
 );
 

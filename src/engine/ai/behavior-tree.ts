@@ -108,6 +108,7 @@ export function evaluateBehaviorTree<TCondition, TAction, TConsideration>(
 
   switch (node.type) {
     case 'SELECTOR': {
+      if (node.name) ctx.recordTrace?.(node.name);
       for (const child of node.children) {
         const status = evaluateBehaviorTree(child, ctx, depth + 1);
         if (status === BTStatus.SUCCESS) {
@@ -118,6 +119,7 @@ export function evaluateBehaviorTree<TCondition, TAction, TConsideration>(
     }
 
     case 'SEQUENCE': {
+      if (node.name) ctx.recordTrace?.(node.name);
       for (const child of node.children) {
         const status = evaluateBehaviorTree(child, ctx, depth + 1);
         if (status === BTStatus.FAILURE) {
@@ -187,7 +189,12 @@ export function evaluateBehaviorTree<TCondition, TAction, TConsideration>(
     }
 
     case 'ACTION': {
-      return ctx.executeAction(node.task);
+      const status = ctx.executeAction(node.task);
+      if (status === BTStatus.SUCCESS) {
+        const actionName = (node.task as { action?: string })?.action || 'ACTION';
+        ctx.recordTrace?.(`${actionName} [SUCCESS]`);
+      }
+      return status;
     }
 
     default:

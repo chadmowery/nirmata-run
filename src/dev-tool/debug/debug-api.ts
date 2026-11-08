@@ -213,4 +213,12 @@ export class DebugAPI {
   showMap(): void {
     this.exposeMap();
   }
+
+  /**
+   * Toggles AI Dijkstra map visualization and telemetry.
+   */
+  debugAI(mapType?: string): void {
+    this.context.eventBus.emit('DEBUG_TOGGLE_AI', { mapType });
+    logger.info(`DEBUG: AI Debug overlay toggled (${mapType || 'approach_target'})`, 'DEBUG');
+  }
 }

@@ -36,6 +36,8 @@ export interface BTEvaluationContext<TNode, TCondition, TAction, TConsideration>
   startCooldown(cooldownId: string, turns: number): void;
   /** Deterministic PRNG in [0, 1) for random selectors/decorators. */
   random(): number;
+  /** Optional telemetry trace recorder for dev inspection and debugging. */
+  recordTrace?: (step: string) => void;
 }
 
 export type BTNode<TCondition = unknown, TAction = unknown, TConsideration = unknown> =

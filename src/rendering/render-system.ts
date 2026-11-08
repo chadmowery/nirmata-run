@@ -151,6 +151,11 @@ export function createRenderSystem(config: RenderSystemConfig) {
   const targetingCursor = new Graphics();
   layers.effectsLayer.addChild(targetingCursor);
 
+  const aiDebugGraphics = new Graphics();
+  layers.effectsLayer.addChild(aiDebugGraphics);
+  let aiDebugOverlayEnabled = false;
+  let aiDebugMapType = 'approach_target';
+
   let lastPointerEvent: { clientX: number; clientY: number } | null = null;
   let lastHoverCheckState: {
     clientX: number;
@@ -367,6 +372,20 @@ export function createRenderSystem(config: RenderSystemConfig) {
       for (let x = 0; x < grid.width; x++) {
         exploredSet.add(`${x},${y}`);
       }
+    }
+  };
+
+  const handleDebugToggleAI = (payload: { mapType?: string; enabled?: boolean }) => {
+    if (payload.enabled !== undefined) {
+      aiDebugOverlayEnabled = payload.enabled;
+    } else {
+      aiDebugOverlayEnabled = !aiDebugOverlayEnabled;
+    }
+    if (payload.mapType) {
+      aiDebugMapType = payload.mapType;
+    }
+    if (!aiDebugOverlayEnabled) {
+      aiDebugGraphics.clear();
     }
   };
 
@@ -614,6 +633,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.on('PROP_INTERACTED', handlePropUpdated);
       eventBus.on('LOCK_UNLOCKED', handlePropUpdated);
       eventBus.on('DEBUG_REVEAL_MAP', handleDebugRevealMap);
+      eventBus.on('DEBUG_TOGGLE_AI', handleDebugToggleAI);
       eventBus.on('RECENTER_CAMERA', handleRecenterCamera);
       eventBus.on('DUNGEON_GENERATED', () => this.onDungeonGenerated());
       eventBus.on('STATE_RECONCILED', () => this.reconcileSprites());
@@ -862,6 +882,22 @@ export function createRenderSystem(config: RenderSystemConfig) {
           updateHoverInspection(lastPointerEvent);
         }
       }
+
+      if (aiDebugOverlayEnabled) {
+        aiDebugGraphics.clear();
+        const grid = getGrid();
+        for (let y = 0; y < grid.height; y++) {
+          for (let x = 0; x < grid.width; x++) {
+            if (!grid.isWalkable(x, y)) continue;
+            const dist = Math.abs(x - playerPos.x) + Math.abs(y - playerPos.y);
+            if (dist > 16) continue;
+            const alpha = Math.max(0.06, 0.35 - (dist / 16) * 0.3);
+            const color = aiDebugMapType === 'flee_from_target' ? 0xff2a4b : 0x00f0ff;
+            aiDebugGraphics.rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            aiDebugGraphics.fill({ color, alpha });
+          }
+        }
+      }
     },
 
     onDungeonGenerated() {
@@ -919,6 +955,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.off('PROP_INTERACTED', handlePropUpdated);
       eventBus.off('LOCK_UNLOCKED', handlePropUpdated);
       eventBus.off('DEBUG_REVEAL_MAP', handleDebugRevealMap);
+      eventBus.off('DEBUG_TOGGLE_AI', handleDebugToggleAI);
       eventBus.off('RECENTER_CAMERA', handleRecenterCamera);
 
       const canvas = app.canvas;
