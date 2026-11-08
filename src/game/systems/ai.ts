@@ -1,4 +1,8 @@
-import AStar from 'rot-js/lib/path/astar';
+/**
+ * AI System (v3.0 Upgrade)
+ * Evaluates Stateless Behavior Trees and Shared Dijkstra Maps for enemy actors.
+ */
+
 import PreciseShadowcasting from 'rot-js/lib/fov/precise-shadowcasting';
 import { World } from '@engine/ecs/world';
 import { Grid } from '@engine/grid/grid';
@@ -6,10 +10,15 @@ import { EventBus } from '@engine/events/event-bus';
 import { EntityId, Phase } from '@engine/ecs/types';
 import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
-import { AIState, AIBehavior, AIBehaviorType } from '@shared/components/ai-state';
+import { AIState, AIBehavior } from '@shared/components/ai-state';
 import { FovAwareness } from '@shared/components/fov-awareness';
 import { PackMember } from '@shared/components/pack-member';
 import { StatusEffects } from '@shared/components/status-effects';
+import { Health } from '@shared/components/health';
+import { BlocksMovement } from '@shared/components/blocks-movement';
+import { MovedThisTurn } from '@shared/components/moved-this-turn';
+import { FloorState } from '@shared/components/floor-state';
+import { SecurityLock, InteractiveSurface } from '@shared/components/environment';
 import {
   MoveIntent,
   AttackIntent,
@@ -17,23 +26,63 @@ import {
   Acting,
   ApplyStatusEffectIntent,
   AlertIntent,
+  SpawnEntityIntent,
 } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
 import { logger } from '@engine/utils/logger';
-
 import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
 
-/**
- * AI System handles enemy decision making and behavior state transitions.
- */
+import {
+  BTStatus,
+  BTEvaluationContext,
+  BTNode,
+} from '@engine/ai/types';
+import { evaluateBehaviorTree } from '@engine/ai/behavior-tree';
+import {
+  AICondition,
+  AIAction,
+  UtilityConsideration,
+  BehaviorTreeNode,
+} from '@shared/components/ai-tree';
+import { AIBehaviorRegistry } from '../ai/tree-registry';
+import { AISpatialSystem } from '../ai/spatial-maps';
+
+function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash;
+}
+
+function createDeterministicRng(seed: number | string): () => number {
+  let s = typeof seed === 'number' ? seed : hashString(seed);
+  return () => {
+    s |= 0;
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 export function createAISystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
   eventBus: EventBus<T>,
-  entityFactory: EntityFactory,
-  componentRegistry: ComponentRegistry,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _entityFactory: EntityFactory,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _componentRegistry: ComponentRegistry,
 ) {
+  const spatialSystem = new AISpatialSystem(world, grid);
+  const alertedThisTurn = new Set<EntityId>();
+  const packAlerted = new Set<EntityId>();
+
+  let updateHandler: ((w: World<T>) => void) | null = null;
+
   /**
    * Finds the player entity in the world.
    */
@@ -50,7 +99,7 @@ export function createAISystem<T extends GameplayEvents>(
   }
 
   /**
-   * Computes FOV for an entity.
+   * Computes FOV for an entity using PreciseShadowcasting.
    */
   function computeEnemyFov(x: number, y: number, radius: number): Set<string> {
     const fov = new PreciseShadowcasting((tx, ty) => grid.isTransparent(tx, ty));
@@ -73,132 +122,82 @@ export function createAISystem<T extends GameplayEvents>(
   }
 
   /**
-   * Pathfinds from one position to another using A*.
-   * Returns the first step (dx, dy) on the path.
+   * Finds a valid, Faraday-shield-safe ambush tile behind the player.
    */
-  function pathfindToward(
-    fromX: number,
-    fromY: number,
-    toX: number,
-    toY: number,
-  ): { dx: number; dy: number } | null {
-    const astar = new AStar(
-      toX,
-      toY,
-      (x, y) => {
-        // Allow the start and end positions, otherwise check walkability
-        if (x === fromX && y === fromY) return true;
-        if (x === toX && y === toY) return true;
-        return grid.isWalkable(x, y);
-      },
-      { topology: 4 },
-    );
+  function findValidAmbushTile(
+    pos: { x: number; y: number },
+    player: { id: EntityId; x: number; y: number },
+    minRange: number,
+    maxRange: number,
+    searchRadius: number = 3,
+  ): { x: number; y: number } | null {
+    // 1. Calculate facing / behind vector
+    const playerMoved = world.getComponent(player.id, MovedThisTurn);
+    let behindDx = 0;
+    let behindDy = 0;
 
-    const path: [number, number][] = [];
-    astar.compute(fromX, fromY, (x, y) => {
-      path.push([x, y]);
-    });
+    if (playerMoved && (playerMoved.toX !== playerMoved.fromX || playerMoved.toY !== playerMoved.fromY)) {
+      const mdx = Math.sign(playerMoved.toX - playerMoved.fromX);
+      const mdy = Math.sign(playerMoved.toY - playerMoved.fromY);
+      behindDx = -mdx;
+      behindDy = -mdy;
+    } else {
+      behindDx = Math.sign(player.x - pos.x);
+      behindDy = Math.sign(player.y - pos.y);
+    }
 
-    // path[0] is fromX, fromY. path[1] is the next step.
-    if (path.length > 1) {
-      const nextStep = path[1];
-      return {
-        dx: nextStep[0] - fromX,
-        dy: nextStep[1] - fromY,
-      };
+    const targetX = player.x + behindDx;
+    const targetY = player.y + behindDy;
+
+    // 2. Query active Faraday shield bounds protecting Zero-Day Vaults
+    const faradayShields: Array<{ x: number; y: number; width: number; height: number }> = [];
+    const locks = world.query(SecurityLock);
+    for (const lockId of locks) {
+      const lock = world.getComponent(lockId, SecurityLock);
+      if (lock && lock.isLocked && lock.faradayBounds) {
+        faradayShields.push(lock.faradayBounds);
+      }
+    }
+
+    // 3. Search candidate tiles in concentric rings
+    for (let r = 0; r <= searchRadius; r++) {
+      for (let tx = -r; tx <= r; tx++) {
+        for (let ty = -r; ty <= r; ty++) {
+          if (Math.abs(tx) + Math.abs(ty) !== r) continue;
+
+          const cx = targetX + tx;
+          const cy = targetY + ty;
+
+          if (!grid.inBounds(cx, cy)) continue;
+          if (!grid.isWalkable(cx, cy)) continue;
+          if (grid.getEntitiesAt(cx, cy).size > 0) continue;
+
+          // Range check from self to candidate tile
+          const distToCandidate = Math.abs(cx - pos.x) + Math.abs(cy - pos.y);
+          if (distToCandidate < minRange || distToCandidate > maxRange) continue;
+
+          // Faraday shield bounds check
+          const insideFaraday = faradayShields.some(
+            (b) => cx >= b.x && cx < b.x + b.width && cy >= b.y && cy < b.y + b.height,
+          );
+          if (insideFaraday) continue;
+
+          return { x: cx, y: cy };
+        }
+      }
     }
 
     return null;
   }
 
-  let updateHandler: ((w: World<T>) => void) | null = null;
-  const alertedThisTurn = new Set<EntityId>();
-
   return {
-    /**
-     * Processes a single enemy's turn using basic behavior.
-     */
-    processBasicTurn(entityId: EntityId): void {
-      const pos = world.getComponent(entityId, Position);
-      const ai = world.getComponent(entityId, AIState);
-      const awareness = world.getComponent(entityId, FovAwareness);
-
-      if (!pos || !ai || !awareness) return;
-
-      const player = findPlayerEntity();
-      if (!player) return;
-
-      // 1. Update FOV awareness
-      const visibleTiles = computeEnemyFov(pos.x, pos.y, ai.sightRadius);
-      const playerKey = `${player.x},${player.y}`;
-      const canSeePlayer = visibleTiles.has(playerKey) || alertedThisTurn.has(entityId);
-
-      world.patchComponent(entityId, FovAwareness, {
-        canSeePlayer,
-        ...(visibleTiles.has(playerKey) ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
-      });
-
-      // 2. State transitions
-      const adjacent = isAdjacent(pos.x, pos.y, player.x, player.y);
-      let nextBehavior = ai.behavior;
-
-      if (nextBehavior === AIBehavior.IDLE) {
-        if (canSeePlayer) {
-          nextBehavior = AIBehavior.CHASING;
-        }
-      }
-
-      if (nextBehavior === AIBehavior.CHASING) {
-        if (adjacent) {
-          nextBehavior = AIBehavior.ATTACKING;
-        } else if (!canSeePlayer && awareness.lastKnownPlayerX === undefined) {
-          nextBehavior = AIBehavior.IDLE;
-        }
-      }
-
-      if (nextBehavior === AIBehavior.ATTACKING) {
-        if (!adjacent) {
-          if (canSeePlayer) {
-            nextBehavior = AIBehavior.CHASING;
-          } else {
-            nextBehavior = AIBehavior.IDLE;
-          }
-        }
-      }
-
-      if (nextBehavior !== ai.behavior) {
-        logger.info(
-          `Entity ${entityId} behavior transition: ${ai.behavior} -> ${nextBehavior}`,
-          'AI',
-        );
-        world.patchComponent(entityId, AIState, { behavior: nextBehavior });
-      }
-
-      // 3. Execute behavior
-      if (nextBehavior === AIBehavior.CHASING) {
-        const updatedAwareness = world.getComponent(entityId, FovAwareness) ?? awareness;
-        const targetX = updatedAwareness.lastKnownPlayerX ?? player.x;
-        const targetY = updatedAwareness.lastKnownPlayerY ?? player.y;
-
-        const step = pathfindToward(pos.x, pos.y, targetX, targetY);
-        if (step) {
-          logger.debug(`Entity ${entityId} chasing player toward (${targetX}, ${targetY})`, 'AI');
-          world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
-        }
-      } else if (nextBehavior === AIBehavior.ATTACKING) {
-        // Move toward player to trigger bump attack
-        logger.debug(`Entity ${entityId} attacking player`, 'AI');
-        const dx = player.x - pos.x;
-        const dy = player.y - pos.y;
-        world.addComponent(entityId, MoveIntent, { dx, dy });
-      }
+    getSpatialSystem(): AISpatialSystem<T> {
+      return spatialSystem;
     },
 
-    /**
-     * Internal update loop that processes all entities marked as 'Acting'.
-     */
     update(w: World<T>): void {
       alertedThisTurn.clear();
+      packAlerted.clear();
 
       // 1. Process pending AlertIntents
       const alertedEntities = w.query(AlertIntent);
@@ -213,12 +212,43 @@ export function createAISystem<T extends GameplayEvents>(
           });
         }
         if (w.hasComponent(entityId, AIState)) {
-          w.patchComponent(entityId, AIState, { behavior: AIBehavior.CHASING });
+          w.patchComponent(entityId, AIState, {
+            behavior: AIBehavior.CHASING,
+            remainingMemoryTurns: 5,
+          });
         }
         w.removeComponent(entityId, AlertIntent);
       }
 
-      // 2. Process all entities marked as 'Acting'
+      // 2. Update Pack-Wide Tactical Awareness
+      const packMembers = w.query(PackMember, FovAwareness);
+      const alertedPacks = new Set<string>();
+
+      for (const id of packMembers) {
+        const pack = w.getComponent(id, PackMember)!;
+        const awareness = w.getComponent(id, FovAwareness)!;
+        if (awareness.canSeePlayer || alertedThisTurn.has(id)) {
+          alertedPacks.add(pack.packId);
+        }
+      }
+
+      for (const id of packMembers) {
+        const pack = w.getComponent(id, PackMember)!;
+        if (alertedPacks.has(pack.packId)) {
+          packAlerted.add(id);
+        }
+      }
+
+      // 3. Reset turn-based Dijkstra spatial cache
+      const player = findPlayerEntity();
+      if (player) {
+        const floorStates = w.query(FloorState);
+        const floor = floorStates.length > 0 ? w.getComponent(floorStates[0], FloorState) : null;
+        const turnNumber = floor?.turnNumber ?? 0;
+        spatialSystem.resetTurnCache(turnNumber, player.x, player.y);
+      }
+
+      // 4. Process all entities marked as 'Acting'
       const actingEntities = w.query(Acting, AIState);
       for (const entityId of actingEntities) {
         this.processEnemyTurn(entityId);
@@ -226,383 +256,525 @@ export function createAISystem<T extends GameplayEvents>(
     },
 
     /**
-     * Processes a single enemy's turn.
+     * Stateless Behavior Tree evaluation for a single enemy turn.
      */
     processEnemyTurn(entityId: EntityId): void {
+      const pos = world.getComponent(entityId, Position);
       const ai = world.getComponent(entityId, AIState);
-      if (!ai) return;
+      const awareness = world.getComponent(entityId, FovAwareness);
 
-      const statusEffects = world.getComponent(entityId, StatusEffects);
-      if (statusEffects?.effects.some((e) => e.name === 'DISRUPT' || e.name === 'STUN')) {
-        logger.debug(`Entity ${entityId} is disrupted/stunned and skips turn`, 'AI');
+      if (!pos || !ai || !awareness) return;
+
+      const player = findPlayerEntity();
+      if (!player) return;
+
+      // Decrement server cooldown timers at start of turn
+      const cooldowns = { ...(ai.cooldowns ?? {}) };
+      for (const [key, val] of Object.entries(cooldowns)) {
+        if (val > 0) {
+          cooldowns[key] = val - 1;
+        }
+      }
+      world.patchComponent(entityId, AIState, { cooldowns });
+
+      // 1. Update FOV awareness
+      const visibleTiles = computeEnemyFov(pos.x, pos.y, ai.sightRadius);
+      const playerKey = `${player.x},${player.y}`;
+      const isVisibleInFov = visibleTiles.has(playerKey);
+      const canSeePlayer = isVisibleInFov || alertedThisTurn.has(entityId) || packAlerted.has(entityId);
+
+      let remainingMemory = ai.remainingMemoryTurns ?? 0;
+      if (isVisibleInFov) {
+        remainingMemory = ai.memoryTurns ?? 5;
+        world.patchComponent(entityId, FovAwareness, {
+          canSeePlayer: true,
+          lastKnownPlayerX: player.x,
+          lastKnownPlayerY: player.y,
+        });
+      } else {
+        if (remainingMemory > 0) {
+          remainingMemory--;
+        }
+        world.patchComponent(entityId, FovAwareness, {
+          canSeePlayer,
+        });
+      }
+      world.patchComponent(entityId, AIState, { remainingMemoryTurns: remainingMemory });
+
+      // 2. Resolve Behavior Tree AST
+      let tree: BehaviorTreeNode | undefined = ai.inlineTree;
+      if (!tree && ai.treeId) {
+        tree = AIBehaviorRegistry.getTree(ai.treeId);
+      }
+      if (!tree && ai.behaviorType) {
+        tree = AIBehaviorRegistry.getTree(ai.behaviorType);
+      }
+      if (!tree) {
+        tree = AIBehaviorRegistry.getTree('basic');
+      }
+      if (!tree) {
+        logger.error(`No behavior tree found for entity ${entityId}`, 'AI');
         return;
       }
 
-      logger.debug(`Turn processing started for entity ${entityId} (${ai.behaviorType})`, 'AI');
-      switch (ai.behaviorType) {
-        case AIBehaviorType.NULL_POINTER:
-          this.processNullPointerTurn(entityId);
-          break;
-        case AIBehaviorType.BUFFER_OVERFLOW:
-          this.processBufferOverflowTurn(entityId);
-          break;
-        case AIBehaviorType.FRAGMENTER:
-          this.processFragmenterTurn(entityId);
-          break;
-        case AIBehaviorType.LOGIC_LEAKER:
-          this.processLogicLeakerTurn(entityId);
-          break;
-        case AIBehaviorType.SYSTEM_ADMIN:
-          this.processSystemAdminTurn(entityId);
-          break;
-        case AIBehaviorType.SEED_EATER:
-          this.processSeedEaterTurn(entityId);
-          break;
-        case AIBehaviorType.BASIC:
-        default:
-          this.processBasicTurn(entityId);
-          break;
-      }
-    },
+      // 3. Construct deterministic PRNG
+      const floorStates = world.query(FloorState);
+      const floor = floorStates.length > 0 ? world.getComponent(floorStates[0], FloorState) : null;
+      const seedStr = `${floor?.runSeed ?? 'ai_seed'}_${floor?.turnNumber ?? 0}_${entityId}`;
+      const rng = createDeterministicRng(seedStr);
 
-    processSystemAdminTurn(entityId: EntityId): void {
-      const pos = world.getComponent(entityId, Position);
-      const ai = world.getComponent(entityId, AIState);
-      const statusEffects = world.getComponent(entityId, StatusEffects);
+      // 4. Construct BTEvaluationContext
+      const ctx: BTEvaluationContext<
+        BTNode<AICondition, AIAction, UtilityConsideration['metric']>,
+        AICondition,
+        AIAction,
+        UtilityConsideration['metric']
+      > = {
+        evaluateCondition: (cond: AICondition): boolean => {
+          const updatedAwareness = world.getComponent(entityId, FovAwareness) ?? awareness;
+          const updatedAi = world.getComponent(entityId, AIState) ?? ai;
 
-      if (!pos || !ai) return;
+          switch (cond.check) {
+            case 'CAN_SEE_TARGET':
+              return updatedAwareness.canSeePlayer;
 
-      // 1. Check for DISRUPT status effect (stun)
-      if (statusEffects) {
-        const isDisrupted = statusEffects.effects.some((e) => e.name === 'DISRUPT' || e.name === 'STUN');
-        if (isDisrupted) {
-          eventBus.emit('MESSAGE_EMITTED', {
-            text: 'System_Admin is disrupted and cannot move!',
-            type: 'info',
-          });
-          return;
-        }
-      }
+            case 'HAS_LAST_KNOWN_TARGET_POS':
+              return (
+                updatedAwareness.lastKnownPlayerX !== undefined &&
+                updatedAwareness.lastKnownPlayerY !== undefined &&
+                (updatedAi.remainingMemoryTurns ?? 0) > 0
+              );
 
-      const player = findPlayerEntity();
-      if (!player) return;
+            case 'IS_ALERTED':
+              return (
+                alertedThisTurn.has(entityId) ||
+                packAlerted.has(entityId) ||
+                updatedAwareness.canSeePlayer
+              );
 
-      // 3. Always pathfind toward player
-      const step = pathfindToward(pos.x, pos.y, player.x, player.y);
-      if (step) {
-        world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
-      }
-    },
-
-    processSeedEaterTurn(entityId: EntityId): void {
-      const pos = world.getComponent(entityId, Position);
-      const ai = world.getComponent(entityId, AIState);
-      const awareness = world.getComponent(entityId, FovAwareness);
-
-      if (!pos || !ai || !awareness) return;
-
-      const player = findPlayerEntity();
-      if (!player) return;
-
-      // 1. Update FOV awareness
-      const visibleTiles = computeEnemyFov(pos.x, pos.y, ai.sightRadius);
-      const playerKey = `${player.x},${player.y}`;
-      const canSeePlayer = visibleTiles.has(playerKey) || alertedThisTurn.has(entityId);
-
-      world.patchComponent(entityId, FovAwareness, {
-        canSeePlayer,
-        ...(visibleTiles.has(playerKey) ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
-      });
-
-      // 2. Movement/Attack logic
-      if (canSeePlayer) {
-        if (isAdjacent(pos.x, pos.y, player.x, player.y)) {
-          // Bump attack
-          const dx = player.x - pos.x;
-          const dy = player.y - pos.y;
-          world.addComponent(entityId, MoveIntent, { dx, dy });
-        } else {
-          // Pathfind toward player
-          const step = pathfindToward(pos.x, pos.y, player.x, player.y);
-          if (step) {
-            world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
-          }
-        }
-      } else if (ai.behavior === AIBehavior.CHASING && awareness.lastKnownPlayerX !== undefined && awareness.lastKnownPlayerY !== undefined) {
-        const step = pathfindToward(pos.x, pos.y, awareness.lastKnownPlayerX, awareness.lastKnownPlayerY);
-        if (step) {
-          world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
-        }
-      }
-    },
-
-    processFragmenterTurn(entityId: EntityId): void {
-      const pos = world.getComponent(entityId, Position);
-      const ai = world.getComponent(entityId, AIState);
-      const awareness = world.getComponent(entityId, FovAwareness);
-
-      if (!pos || !ai || !awareness) return;
-
-      const player = findPlayerEntity();
-      if (!player) return;
-
-      // 1. Update FOV awareness
-      const visibleTiles = computeEnemyFov(pos.x, pos.y, ai.sightRadius);
-      const playerKey = `${player.x},${player.y}`;
-      const canSeePlayer = visibleTiles.has(playerKey) || alertedThisTurn.has(entityId);
-
-      world.patchComponent(entityId, FovAwareness, {
-        canSeePlayer,
-        ...(visibleTiles.has(playerKey) ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
-      });
-
-      // 2. Fragmenter logic
-      if (canSeePlayer) {
-        if (isAdjacent(pos.x, pos.y, player.x, player.y)) {
-          // Ground slam!
-          const dx = player.x - pos.x;
-          const dy = player.y - pos.y;
-          world.addComponent(entityId, MoveIntent, { dx, dy });
-
-          // Create Dead Zones on 4 cardinal adjacent tiles
-          const directions = [
-            [0, 1],
-            [0, -1],
-            [1, 0],
-            [-1, 0],
-          ];
-          for (const [ddx, ddy] of directions) {
-            const tx = pos.x + ddx;
-            const ty = pos.y + ddy;
-            if (grid.inBounds(tx, ty) && grid.isWalkable(tx, ty)) {
-              entityFactory.create(world, 'dead-zone', componentRegistry, {
-                position: { x: tx, y: ty },
-                deadZone: {
-                  remainingTurns: 6,
-                  damagePerTick: 2,
-                  creatorId: entityId,
-                },
-              });
+            case 'TARGET_DISTANCE_LTE': {
+              const dist =
+                cond.metric === 'chebyshev'
+                  ? Math.max(Math.abs(pos.x - player.x), Math.abs(pos.y - player.y))
+                  : Math.abs(pos.x - player.x) + Math.abs(pos.y - player.y);
+              return dist <= cond.distance;
             }
-          }
-          eventBus.emit('MESSAGE_EMITTED', {
-            text: 'Fragmenter slams the ground! Dead Zones appear!',
-            type: 'combat',
-          });
-        } else {
-          // Chase player
-          const step = pathfindToward(pos.x, pos.y, player.x, player.y);
-          if (step) {
-            world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
-          }
-        }
-      } else if (ai.behavior === AIBehavior.CHASING && awareness.lastKnownPlayerX !== undefined && awareness.lastKnownPlayerY !== undefined) {
-        const step = pathfindToward(pos.x, pos.y, awareness.lastKnownPlayerX, awareness.lastKnownPlayerY);
-        if (step) {
-          world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
-        }
-      }
-    },
 
-    processLogicLeakerTurn(entityId: EntityId): void {
-      const pos = world.getComponent(entityId, Position);
-      const ai = world.getComponent(entityId, AIState);
-      const awareness = world.getComponent(entityId, FovAwareness);
+            case 'TARGET_DISTANCE_GTE': {
+              const dist =
+                cond.metric === 'chebyshev'
+                  ? Math.max(Math.abs(pos.x - player.x), Math.abs(pos.y - player.y))
+                  : Math.abs(pos.x - player.x) + Math.abs(pos.y - player.y);
+              return dist >= cond.distance;
+            }
 
-      if (!pos || !ai || !awareness) return;
+            case 'TARGET_DISTANCE_BETWEEN': {
+              const dist =
+                cond.metric === 'chebyshev'
+                  ? Math.max(Math.abs(pos.x - player.x), Math.abs(pos.y - player.y))
+                  : Math.abs(pos.x - player.x) + Math.abs(pos.y - player.y);
+              return dist >= cond.min && dist <= cond.max;
+            }
 
-      const player = findPlayerEntity();
-      if (!player) return;
+            case 'SELF_HP_BELOW_PERCENT': {
+              const health = world.getComponent(entityId, Health);
+              if (!health || health.max <= 0) return false;
+              return (health.current / health.max) * 100 <= cond.percent;
+            }
 
-      const KITE_RANGE = 2;
-      const ATTACK_RANGE = 5;
+            case 'HAS_STATUS_EFFECT': {
+              const targetId = cond.target === 'target' ? player.id : entityId;
+              const status = world.getComponent(targetId, StatusEffects);
+              return status ? status.effects.some((e) => e.name === cond.statusName) : false;
+            }
 
-      // 1. Update FOV awareness
-      const visibleTiles = computeEnemyFov(pos.x, pos.y, ai.sightRadius);
-      const playerKey = `${player.x},${player.y}`;
-      const canSeePlayer = visibleTiles.has(playerKey) || alertedThisTurn.has(entityId);
+            case 'IS_PACK_LEADER': {
+              const pack = world.getComponent(entityId, PackMember);
+              return pack ? pack.isLeader === true : false;
+            }
 
-      world.patchComponent(entityId, FovAwareness, {
-        canSeePlayer,
-        ...(visibleTiles.has(playerKey) ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
-      });
-
-      if (canSeePlayer) {
-        const dist = Math.abs(pos.x - player.x) + Math.abs(pos.y - player.y);
-
-        if (dist <= KITE_RANGE) {
-          // Kite: move AWAY from player
-          const vdx = pos.x - player.x;
-          const vdy = pos.y - player.y;
-
-          const targetX = pos.x + Math.sign(vdx) * 2;
-          const targetY = pos.y + Math.sign(vdy) * 2;
-
-          const step = pathfindToward(pos.x, pos.y, targetX, targetY);
-          if (step) {
-            world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
-            eventBus.emit('MESSAGE_EMITTED', { text: 'Logic-Leaker retreats!', type: 'combat' });
-          } else {
-            this.processBasicTurn(entityId);
-          }
-        } else if (dist <= ATTACK_RANGE) {
-          // Ranged attack - delegated to CombatSystem via AttackIntent
-          world.addComponent(entityId, AttackIntent, { targetId: player.id });
-
-          // Intent-based status effect application
-          world.addComponent(entityId, ApplyStatusEffectIntent, {
-            targetId: player.id,
-            effect: {
-              name: 'FIRMWARE_LOCK',
-              duration: 3,
-              magnitude: 1,
-              source: 'logic_leaker',
-            },
-          });
-
-          eventBus.emit('MESSAGE_EMITTED', {
-            text: 'Logic-Leaker fires a Corrupted Packet! Firmware locked!',
-            type: 'combat',
-          });
-        } else {
-          // Chase player
-          const step = pathfindToward(pos.x, pos.y, player.x, player.y);
-          if (step) {
-            world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
-          }
-        }
-      } else if (ai.behavior === AIBehavior.CHASING && awareness.lastKnownPlayerX !== undefined && awareness.lastKnownPlayerY !== undefined) {
-        const step = pathfindToward(pos.x, pos.y, awareness.lastKnownPlayerX, awareness.lastKnownPlayerY);
-        if (step) {
-          world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
-        }
-      }
-    },
-
-    processNullPointerTurn(entityId: EntityId): void {
-      const pos = world.getComponent(entityId, Position);
-      const ai = world.getComponent(entityId, AIState);
-      const awareness = world.getComponent(entityId, FovAwareness);
-
-      if (!pos || !ai || !awareness) return;
-
-      const player = findPlayerEntity();
-      if (!player) return;
-
-      // 1. Update FOV awareness
-      const visibleTiles = computeEnemyFov(pos.x, pos.y, ai.sightRadius);
-      const playerKey = `${player.x},${player.y}`;
-      const canSeePlayer = visibleTiles.has(playerKey) || alertedThisTurn.has(entityId);
-
-      world.patchComponent(entityId, FovAwareness, {
-        canSeePlayer,
-        ...(visibleTiles.has(playerKey) ? { lastKnownPlayerX: player.x, lastKnownPlayerY: player.y } : {}),
-      });
-
-      const dist = Math.abs(pos.x - player.x) + Math.abs(pos.y - player.y);
-
-      // 2. Teleport logic
-      if (canSeePlayer && dist > 1 && dist <= 8) {
-        const dx = Math.sign(player.x - pos.x);
-        const dy = Math.sign(player.y - pos.y);
-
-        const targetX = player.x + dx;
-        const targetY = player.y + dy;
-
-        let finalX = -1;
-        let finalY = -1;
-
-        outer: for (let r = 0; r <= 3; r++) {
-          for (let tx = -r; tx <= r; tx++) {
-            for (let ty = -r; ty <= r; ty++) {
-              if (Math.abs(tx) + Math.abs(ty) !== r) continue;
-              const x = targetX + tx;
-              const y = targetY + ty;
-              if (
-                grid.inBounds(x, y) &&
-                grid.isWalkable(x, y) &&
-                grid.getEntitiesAt(x, y).size === 0
-              ) {
-                finalX = x;
-                finalY = y;
-                break outer;
+            case 'PACK_MEMBERS_ADJACENT_GTE': {
+              const pack = world.getComponent(entityId, PackMember);
+              if (!pack) return false;
+              let adjacentCount = 0;
+              const dirs = [
+                [1, 0],
+                [-1, 0],
+                [0, 1],
+                [0, -1],
+              ];
+              for (const [dx, dy] of dirs) {
+                const nx = pos.x + dx;
+                const ny = pos.y + dy;
+                const eids = grid.getEntitiesAt(nx, ny);
+                for (const eid of eids) {
+                  const m = world.getComponent(eid, PackMember);
+                  if (m && m.packId === pack.packId) {
+                    adjacentCount++;
+                  }
+                }
               }
+              return adjacentCount >= cond.count;
             }
+
+            case 'IN_DIRECTIONAL_COVER_FROM_TARGET': {
+              // Checks if cover prop exists between self and player
+              const dist = Math.abs(pos.x - player.x) + Math.abs(pos.y - player.y);
+              const dirs = [
+                [1, 0],
+                [-1, 0],
+                [0, 1],
+                [0, -1],
+              ];
+              for (const [dx, dy] of dirs) {
+                const nx = pos.x + dx;
+                const ny = pos.y + dy;
+                const nDist = Math.abs(nx - player.x) + Math.abs(ny - player.y);
+                if (nDist < dist) {
+                  const eids = grid.getEntitiesAt(nx, ny);
+                  for (const eid of eids) {
+                    const surface = world.getComponent(eid, InteractiveSurface);
+                    if (surface && surface.providesCover !== false) {
+                      return true;
+                    }
+                  }
+                }
+              }
+              return false;
+            }
+
+            case 'HAS_VALID_TELEPORT_AMBUSH_TILE': {
+              const tile = findValidAmbushTile(pos, player, cond.minRange, cond.maxRange, 3);
+              return tile !== null;
+            }
+
+            default:
+              return false;
           }
-        }
+        },
 
-        if (finalX !== -1) {
-          world.addComponent(entityId, TeleportIntent, { x: finalX, y: finalY });
-          eventBus.emit('MESSAGE_EMITTED', {
-            text: 'A Null-Pointer teleports behind you!',
-            type: 'combat',
-          });
-          return;
-        }
-      }
+        executeAction: (action: AIAction): BTStatus => {
+          switch (action.action) {
+            case 'WAIT': {
+              if (action.message) {
+                eventBus.emit('MESSAGE_EMITTED', { text: action.message, type: 'combat' });
+              }
+              return BTStatus.SUCCESS;
+            }
 
-      // 3. Attack if adjacent
-      if (isAdjacent(pos.x, pos.y, player.x, player.y)) {
-        const adx = player.x - pos.x;
-        const ady = player.y - pos.y;
-        world.addComponent(entityId, MoveIntent, { dx: adx, dy: ady });
-        return;
-      }
+            case 'MELEE_BUMP_TARGET': {
+              const dx = player.x - pos.x;
+              const dy = player.y - pos.y;
+              world.addComponent(entityId, MoveIntent, { dx, dy });
+              world.patchComponent(entityId, AIState, { behavior: AIBehavior.ATTACKING });
+              return BTStatus.SUCCESS;
+            }
 
-      // 4. Fallback to basic chasing
-      this.processBasicTurn(entityId);
-    },
+            case 'RANGED_ATTACK_TARGET': {
+              world.addComponent(entityId, AttackIntent, { targetId: player.id });
+              if (action.statusEffect) {
+                world.addComponent(entityId, ApplyStatusEffectIntent, {
+                  targetId: player.id,
+                  effect: action.statusEffect,
+                });
+              }
+              if (action.combatMessage) {
+                eventBus.emit('MESSAGE_EMITTED', { text: action.combatMessage, type: 'combat' });
+              }
+              world.patchComponent(entityId, AIState, { behavior: AIBehavior.ATTACKING });
+              return BTStatus.SUCCESS;
+            }
 
-    processBufferOverflowTurn(entityId: EntityId): void {
-      const pos = world.getComponent(entityId, Position);
-      const pack = world.getComponent(entityId, PackMember);
-      const ai = world.getComponent(entityId, AIState);
+            case 'MOVE_DIJKSTRA': {
+              let map;
+              const avoidHazards = action.avoidHazards !== false;
 
-      if (!pos || !pack || !ai) {
-        return this.processBasicTurn(entityId);
-      }
+              switch (action.mapType) {
+                case 'approach_target':
+                  map = spatialSystem.getApproachTargetMap(player.x, player.y, avoidHazards);
+                  break;
+                case 'flee_from_target':
+                  map = spatialSystem.getFleeFromTargetMap(player.x, player.y, avoidHazards);
+                  break;
+                case 'kite_to_cover':
+                  map = spatialSystem.getKiteToCoverMap(player.x, player.y, avoidHazards);
+                  break;
+                case 'pack_surround_cardinal':
+                  map = spatialSystem.getPackSurroundCardinalMap(player.x, player.y, avoidHazards);
+                  break;
+                case 'investigate_last_known': {
+                  const updatedAwareness = world.getComponent(entityId, FovAwareness) ?? awareness;
+                  if (
+                    updatedAwareness.lastKnownPlayerX === undefined ||
+                    updatedAwareness.lastKnownPlayerY === undefined
+                  ) {
+                    return BTStatus.FAILURE;
+                  }
+                  map = spatialSystem.getInvestigateLastKnownMap(
+                    updatedAwareness.lastKnownPlayerX,
+                    updatedAwareness.lastKnownPlayerY,
+                    avoidHazards,
+                  );
+                  break;
+                }
+                default:
+                  map = spatialSystem.getApproachTargetMap(player.x, player.y, avoidHazards);
+                  break;
+              }
 
-      const player = findPlayerEntity();
-      if (!player) return;
+              // Dynamic penalty for neighbor allies and props
+              const dynamicPenaltyFn = (nx: number, ny: number): number => {
+                const occupants = grid.getEntitiesAt(nx, ny);
+                for (const eid of occupants) {
+                  if (eid === player.id || eid === entityId) continue;
 
-      // Leader uses basic chasing behavior
-      if (pack.isLeader) {
-        return this.processBasicTurn(entityId);
-      }
+                  if (action.canCrushProps) {
+                    const surface = world.getComponent(eid, InteractiveSurface);
+                    const health = world.getComponent(eid, Health);
+                    if (surface && surface.destructible !== false && health && health.isAlive !== false) {
+                      return 0.1; // Crushable obstacle: small penalty so open tile is preferred if tied, but rolls downhill
+                    }
+                  }
 
-      // Follower tries to surround player
-      const targets = [
-        { x: player.x + 1, y: player.y },
-        { x: player.x - 1, y: player.y },
-        { x: player.x, y: player.y + 1 },
-        { x: player.x, y: player.y - 1 },
-      ].filter(
-        (t) =>
-          grid.inBounds(t.x, t.y) &&
-          grid.isWalkable(t.x, t.y) &&
-          (grid.getEntitiesAt(t.x, t.y).size === 0 || (t.x === pos.x && t.y === pos.y)),
+                  if (world.hasComponent(eid, BlocksMovement)) {
+                    return 0.5; // Soft penalty to fan out around allies
+                  }
+                }
+                return 0.0;
+              };
+
+              const step = map.getBestStep(pos.x, pos.y, dynamicPenaltyFn, rng);
+              if (!step) {
+                return BTStatus.FAILURE;
+              }
+
+              if (step.dx === 0 && step.dy === 0) {
+                return BTStatus.SUCCESS;
+              }
+
+              const nextX = pos.x + step.dx;
+              const nextY = pos.y + step.dy;
+
+              // Prop crushing: if target tile has destructible cover, emit AttackIntent on prop
+              if (action.canCrushProps) {
+                const occupants = grid.getEntitiesAt(nextX, nextY);
+                for (const eid of occupants) {
+                  const surface = world.getComponent(eid, InteractiveSurface);
+                  const health = world.getComponent(eid, Health);
+                  if (surface && surface.destructible !== false && health && health.isAlive !== false) {
+                    world.addComponent(entityId, AttackIntent, { targetId: eid });
+                    if (action.combatMessage) {
+                      eventBus.emit('MESSAGE_EMITTED', { text: action.combatMessage, type: 'combat' });
+                    }
+                    return BTStatus.SUCCESS;
+                  }
+                }
+              }
+
+              if (action.mapType === 'pack_surround_cardinal') {
+                spatialSystem.reservePackTile(nextX, nextY);
+              }
+
+              world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
+              world.patchComponent(entityId, AIState, { behavior: AIBehavior.CHASING });
+              if (action.combatMessage) {
+                eventBus.emit('MESSAGE_EMITTED', { text: action.combatMessage, type: 'combat' });
+              }
+              return BTStatus.SUCCESS;
+            }
+
+            case 'TELEPORT_AMBUSH_BEHIND_TARGET': {
+              const ambushTile = findValidAmbushTile(
+                pos,
+                player,
+                action.minRange,
+                action.maxRange,
+                action.searchRadius,
+              );
+
+              if (ambushTile) {
+                world.addComponent(entityId, TeleportIntent, { x: ambushTile.x, y: ambushTile.y });
+                if (action.combatMessage) {
+                  eventBus.emit('MESSAGE_EMITTED', { text: action.combatMessage, type: 'combat' });
+                }
+                world.patchComponent(entityId, AIState, { behavior: AIBehavior.CHASING });
+                return BTStatus.SUCCESS;
+              }
+              return BTStatus.FAILURE;
+            }
+
+            case 'SPAWN_ENTITIES_AROUND_SELF': {
+              const patternOffsets =
+                action.pattern === 'cardinal_4'
+                  ? [
+                      [1, 0],
+                      [-1, 0],
+                      [0, 1],
+                      [0, -1],
+                    ]
+                  : [
+                      [0, 3],
+                      [0, -3],
+                      [3, 0],
+                      [-3, 0],
+                    ];
+
+              const spawns: Array<{
+                templateName: string;
+                x: number;
+                y: number;
+                overrides?: Record<string, Record<string, unknown>>;
+              }> = [];
+
+              for (const [dx, dy] of patternOffsets) {
+                const tx = pos.x + dx;
+                const ty = pos.y + dy;
+                if (grid.inBounds(tx, ty) && grid.isWalkable(tx, ty)) {
+                  spawns.push({
+                    templateName: action.templateName,
+                    x: tx,
+                    y: ty,
+                    overrides: action.deadZoneConfig
+                      ? { deadZone: { ...action.deadZoneConfig, creatorId: entityId } }
+                      : undefined,
+                  });
+                }
+              }
+
+              if (spawns.length > 0) {
+                world.addComponent(entityId, SpawnEntityIntent, {
+                  spawnerId: entityId,
+                  spawns,
+                });
+              }
+
+              // Bump player if adjacent
+              if (isAdjacent(pos.x, pos.y, player.x, player.y)) {
+                world.addComponent(entityId, MoveIntent, {
+                  dx: player.x - pos.x,
+                  dy: player.y - pos.y,
+                });
+              }
+
+              if (action.combatMessage) {
+                eventBus.emit('MESSAGE_EMITTED', { text: action.combatMessage, type: 'combat' });
+              }
+              return BTStatus.SUCCESS;
+            }
+
+            default:
+              return BTStatus.FAILURE;
+          }
+        },
+
+        resolveSubtree: (ref: string) => {
+          return AIBehaviorRegistry.getSubtree(ref) as
+            | BTNode<AICondition, AIAction, UtilityConsideration['metric']>
+            | undefined;
+        },
+
+        getConsiderationInput: (metric: UtilityConsideration['metric']): number => {
+          switch (metric) {
+            case 'self_hp_ratio': {
+              const health = world.getComponent(entityId, Health);
+              return health && health.max > 0 ? health.current / health.max : 1.0;
+            }
+            case 'target_distance': {
+              const dist = Math.abs(pos.x - player.x) + Math.abs(pos.y - player.y);
+              return Math.min(1.0, dist / 10);
+            }
+            case 'target_visible': {
+              const updatedAwareness = world.getComponent(entityId, FovAwareness) ?? awareness;
+              return updatedAwareness.canSeePlayer ? 1.0 : 0.0;
+            }
+            case 'pack_adjacent_count': {
+              const pack = world.getComponent(entityId, PackMember);
+              if (!pack) return 0.0;
+              let count = 0;
+              const dirs = [
+                [1, 0],
+                [-1, 0],
+                [0, 1],
+                [0, -1],
+              ];
+              for (const [dx, dy] of dirs) {
+                const nx = pos.x + dx;
+                const ny = pos.y + dy;
+                const eids = grid.getEntitiesAt(nx, ny);
+                for (const eid of eids) {
+                  const m = world.getComponent(eid, PackMember);
+                  if (m && m.packId === pack.packId) count++;
+                }
+              }
+              return Math.min(1.0, count / 4);
+            }
+            case 'nearby_loot_value':
+              return 0.0;
+            case 'in_cover': {
+              return ctx.evaluateCondition({ check: 'IN_DIRECTIONAL_COVER_FROM_TARGET' }) ? 1.0 : 0.0;
+            }
+            default:
+              return 0.5;
+          }
+        },
+
+        isCooldownReady: (cooldownId: string): boolean => {
+          const updatedAi = world.getComponent(entityId, AIState) ?? ai;
+          return (updatedAi.cooldowns?.[cooldownId] ?? 0) <= 0;
+        },
+
+        startCooldown: (cooldownId: string, turns: number): void => {
+          const updatedAi = world.getComponent(entityId, AIState) ?? ai;
+          const updatedCooldowns = { ...(updatedAi.cooldowns ?? {}), [cooldownId]: turns };
+          world.patchComponent(entityId, AIState, { cooldowns: updatedCooldowns });
+        },
+
+        random: rng,
+      };
+
+      // 5. Evaluate tree
+      evaluateBehaviorTree(
+        tree as unknown as BTNode<AICondition, AIAction, UtilityConsideration['metric']>,
+        ctx,
       );
 
-      if (targets.length === 0) {
-        return this.processBasicTurn(entityId);
+      // 6. Posture update for HUD tooltips and inspector
+      const finalAwareness = world.getComponent(entityId, FovAwareness) ?? awareness;
+      const finalAi = world.getComponent(entityId, AIState) ?? ai;
+      const adjacent = isAdjacent(pos.x, pos.y, player.x, player.y);
+
+      if (finalAwareness.canSeePlayer) {
+        if (adjacent) {
+          world.patchComponent(entityId, AIState, { behavior: AIBehavior.ATTACKING });
+        } else if (finalAi.behavior !== AIBehavior.ATTACKING) {
+          world.patchComponent(entityId, AIState, { behavior: AIBehavior.CHASING });
+        }
+      } else if ((finalAi.remainingMemoryTurns ?? 0) === 0) {
+        world.patchComponent(entityId, AIState, { behavior: AIBehavior.IDLE });
       }
+    },
 
-      targets.sort((a, b) => {
-        const distA = Math.abs(a.x - pos.x) + Math.abs(a.y - pos.y);
-        const distB = Math.abs(b.x - pos.x) + Math.abs(b.y - pos.y);
-        return distA - distB;
-      });
-
-      const bestTarget = targets[0];
-
-      if (bestTarget.x === pos.x && bestTarget.y === pos.y) {
-        return;
-      }
-
-      const step = pathfindToward(pos.x, pos.y, bestTarget.x, bestTarget.y);
-      if (step) {
-        world.addComponent(entityId, MoveIntent, { dx: step.dx, dy: step.dy });
-      }
+    // Backward-compatibility delegators for unit tests
+    processBasicTurn(entityId: EntityId): void {
+      this.processEnemyTurn(entityId);
+    },
+    processNullPointerTurn(entityId: EntityId): void {
+      this.processEnemyTurn(entityId);
+    },
+    processBufferOverflowTurn(entityId: EntityId): void {
+      this.processEnemyTurn(entityId);
+    },
+    processFragmenterTurn(entityId: EntityId): void {
+      this.processEnemyTurn(entityId);
+    },
+    processLogicLeakerTurn(entityId: EntityId): void {
+      this.processEnemyTurn(entityId);
+    },
+    processSystemAdminTurn(entityId: EntityId): void {
+      this.processEnemyTurn(entityId);
+    },
+    processSeedEaterTurn(entityId: EntityId): void {
+      this.processEnemyTurn(entityId);
     },
 
     init() {

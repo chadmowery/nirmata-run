@@ -6,7 +6,7 @@
     "energy": { "current": 0, "speed": 70, "threshold": 1000 },
     "sprite": { "key": "enemy_seed_eater" },
     "hostile": {},
-    "aiState": { "behavior": "idle", "sightRadius": 6, "behaviorType": "seed_eater" },
+    "aiState": { "behavior": "idle", "sightRadius": 6, "behaviorType": "seed_eater", "treeId": "seed_eater" },
     "fovAwareness": { "canSeePlayer": false },
     "blocksMovement": {},
     "audioProfile": {

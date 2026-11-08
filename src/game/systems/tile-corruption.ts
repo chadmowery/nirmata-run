@@ -5,11 +5,33 @@ import { EntityId, Phase } from '@engine/ecs/types';
 import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
 import { CorruptionState } from '@shared/components/corruption-state';
+import { FloorState } from '@shared/components/floor-state';
+import { SpawnEntityIntent } from '@shared/components/intents';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
 import { logger } from '@engine/utils/logger';
+
+function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash;
+}
+
+function createDeterministicRng(seed: number | string): () => number {
+  let s = typeof seed === 'number' ? seed : hashString(seed);
+  return () => {
+    s |= 0;
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
 
 /**
  * System that handles tile corruption spread and subprocess spawning for Seed_Eater.
@@ -18,9 +40,19 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
   world: World<T>,
   grid: Grid,
   eventBus: EventBus<T>,
-  entityFactory: EntityFactory,
-  componentRegistry: ComponentRegistry,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _entityFactory: EntityFactory,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _componentRegistry: ComponentRegistry,
 ) {
+  function getDeterministicRng(seedEaterId: EntityId): () => number {
+    const floorStates = world.query(FloorState);
+    const floor = floorStates.length > 0 ? world.getComponent(floorStates[0], FloorState) : null;
+    const runSeed = floor?.runSeed ?? 'seed_eater_seed';
+    const turnNumber = floor?.turnNumber ?? 0;
+    return createDeterministicRng(`${runSeed}_${turnNumber}_${seedEaterId}`);
+  }
+
   function getPlayerEntity(): { id: EntityId; x: number; y: number } | null {
     const actors = world.query(Actor, Position);
     for (const id of actors) {
@@ -102,8 +134,6 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
     const player = getPlayerEntity();
     if (!player) return false;
 
-    // If corruption is not on player's tile or adjacent, player probably not trapped immediately
-    // but better check if player still has at least one walkable neighbor
     const neighbors = [
       { x: player.x + 1, y: player.y },
       { x: player.x - 1, y: player.y },
@@ -127,7 +157,7 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
     return walkableCount === 0;
   }
 
-  function spreadCorruption(seedEaterId: EntityId) {
+  function spreadCorruption(seedEaterId: EntityId, rng: () => number) {
     const state = world.getComponent(seedEaterId, CorruptionState);
     const pos = world.getComponent(seedEaterId, Position);
     if (!state || !pos) return;
@@ -145,9 +175,9 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
 
     if (ring.length === 0) return;
 
-    // Shuffle ring to pick random tiles
+    // Deterministically shuffle ring using seeded PRNG
     for (let i = ring.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = Math.floor(rng() * (i + 1));
       [ring[i], ring[j]] = [ring[j], ring[i]];
     }
 
@@ -203,11 +233,11 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
     }
   }
 
-  function spawnSubProcess(seedEaterId: EntityId) {
+  function spawnSubProcess(seedEaterId: EntityId, rng: () => number) {
     const pos = world.getComponent(seedEaterId, Position);
     if (!pos) return;
 
-    const templateName = Math.random() < 0.5 ? 'null-pointer' : 'buffer-overflow';
+    const templateName = rng() < 0.5 ? 'null-pointer' : 'buffer-overflow';
 
     // Find walkable tile within 3 tiles
     const candidates: Array<{ x: number; y: number }> = [];
@@ -222,23 +252,26 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
     }
 
     if (candidates.length > 0) {
-      const spawnPos = candidates[Math.floor(Math.random() * candidates.length)];
-      try {
-        const childId = entityFactory.create(world, templateName, componentRegistry, {
-          position: { x: spawnPos.x, y: spawnPos.y },
-        });
-        grid.addEntity(childId, spawnPos.x, spawnPos.y);
-        eventBus.emit('MESSAGE_EMITTED', {
-          text: `Seed_Eater spawned a ${templateName}!`,
-          type: 'combat',
-        });
-        logger.info(
-          `Seed Eater ${seedEaterId} spawned ${templateName} at (${spawnPos.x}, ${spawnPos.y})`,
-          'SYSTEM',
-        );
-      } catch (e) {
-        logger.error(`Failed to spawn sub-process: ${templateName}`, 'SYSTEM', { error: e });
-      }
+      const spawnPos = candidates[Math.floor(rng() * candidates.length)];
+      world.addComponent(seedEaterId, SpawnEntityIntent, {
+        spawnerId: seedEaterId,
+        spawns: [
+          {
+            templateName,
+            x: spawnPos.x,
+            y: spawnPos.y,
+          },
+        ],
+      });
+
+      eventBus.emit('MESSAGE_EMITTED', {
+        text: `Seed_Eater spawned a ${templateName}!`,
+        type: 'combat',
+      });
+      logger.info(
+        `Seed Eater ${seedEaterId} queued spawn for ${templateName} at (${spawnPos.x}, ${spawnPos.y})`,
+        'SYSTEM',
+      );
     }
   }
 
@@ -259,12 +292,13 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
       const seedEaters = world.query(CorruptionState, Position);
       for (const id of seedEaters) {
         const state = world.getComponent(id, CorruptionState)!;
+        const rng = getDeterministicRng(id);
 
-        spreadCorruption(id);
+        spreadCorruption(id, rng);
 
         const nextSpawnTurns = state.turnsSinceLastSpawn + 1;
         if (nextSpawnTurns >= state.spawnFrequency) {
-          spawnSubProcess(id);
+          spawnSubProcess(id, rng);
           world.patchComponent(id, CorruptionState, { turnsSinceLastSpawn: 0 });
         } else {
           world.patchComponent(id, CorruptionState, { turnsSinceLastSpawn: nextSpawnTurns });

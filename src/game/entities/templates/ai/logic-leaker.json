@@ -1,0 +1,58 @@
+{
+  "id": "logic_leaker",
+  "root": {
+    "type": "SELECTOR",
+    "children": [
+      { "type": "SUBTREE", "ref": "skip-if-disrupted" },
+      {
+        "type": "SEQUENCE",
+        "name": "ranged-kiter-combat",
+        "children": [
+          { "type": "CONDITION", "condition": { "check": "CAN_SEE_TARGET" } },
+          {
+            "type": "SELECTOR",
+            "children": [
+              {
+                "type": "SEQUENCE",
+                "name": "retreat-at-close-range",
+                "children": [
+                  { "type": "CONDITION", "condition": { "check": "TARGET_DISTANCE_LTE", "distance": 2 } },
+                  {
+                    "type": "ACTION",
+                    "task": {
+                      "action": "MOVE_DIJKSTRA",
+                      "mapType": "flee_from_target",
+                      "avoidHazards": true,
+                      "combatMessage": "Logic-Leaker retreats!"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "SEQUENCE",
+                "name": "corrupted-packet-volley",
+                "children": [
+                  { "type": "CONDITION", "condition": { "check": "TARGET_DISTANCE_BETWEEN", "min": 3, "max": 5 } },
+                  {
+                    "type": "ACTION",
+                    "task": {
+                      "action": "RANGED_ATTACK_TARGET",
+                      "statusEffect": { "name": "FIRMWARE_LOCK", "duration": 3, "magnitude": 1 },
+                      "combatMessage": "Logic-Leaker fires a Corrupted Packet! Firmware locked!"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "ACTION",
+                "task": { "action": "MOVE_DIJKSTRA", "mapType": "kite_to_cover", "optimalRangeMin": 3, "optimalRangeMax": 5 }
+              }
+            ]
+          }
+        ]
+      },
+      { "type": "SUBTREE", "ref": "investigate-last-known-pos" },
+      { "type": "ACTION", "task": { "action": "WAIT" } }
+    ]
+  }
+}

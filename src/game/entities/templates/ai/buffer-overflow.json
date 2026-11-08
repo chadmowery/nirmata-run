@@ -1,0 +1,53 @@
+{
+  "id": "buffer_overflow",
+  "root": {
+    "type": "SELECTOR",
+    "children": [
+      { "type": "SUBTREE", "ref": "skip-if-disrupted" },
+      {
+        "type": "SEQUENCE",
+        "name": "pack-combat",
+        "children": [
+          {
+            "type": "SELECTOR",
+            "children": [
+              { "type": "CONDITION", "condition": { "check": "CAN_SEE_TARGET" } },
+              { "type": "CONDITION", "condition": { "check": "IS_ALERTED" } }
+            ]
+          },
+          {
+            "type": "SELECTOR",
+            "children": [
+              {
+                "type": "SEQUENCE",
+                "name": "leader-direct-assault",
+                "children": [
+                  { "type": "CONDITION", "condition": { "check": "IS_PACK_LEADER" } },
+                  {
+                    "type": "SELECTOR",
+                    "children": [
+                      {
+                        "type": "SEQUENCE",
+                        "children": [
+                          { "type": "CONDITION", "condition": { "check": "TARGET_DISTANCE_LTE", "distance": 1 } },
+                          { "type": "ACTION", "task": { "action": "MELEE_BUMP_TARGET" } }
+                        ]
+                      },
+                      { "type": "ACTION", "task": { "action": "MOVE_DIJKSTRA", "mapType": "approach_target" } }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "ACTION",
+                "task": { "action": "MOVE_DIJKSTRA", "mapType": "pack_surround_cardinal", "avoidHazards": false }
+              }
+            ]
+          }
+        ]
+      },
+      { "type": "SUBTREE", "ref": "investigate-last-known-pos" },
+      { "type": "ACTION", "task": { "action": "WAIT" } }
+    ]
+  }
+}

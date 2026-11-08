@@ -199,7 +199,7 @@ export class DijkstraMap {
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
         const v = this.get(x, y);
-        if (v < DIJKSTRA_UNSET && Number.isFinite(v)) {
+        if (v > 0 && v < DIJKSTRA_UNSET && Number.isFinite(v)) {
           seeds.push({ x, y, value: v * fleeCoefficient });
         }
       }
