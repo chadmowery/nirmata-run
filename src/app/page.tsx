@@ -247,30 +247,36 @@ export default function GamePage() {
 
   // Effect 4: Background ambiance for MainMenu and Hub
   useEffect(() => {
+    if (status !== GameState.MainMenu && status !== GameState.Hub) {
+      return;
+    }
+
     const engine = getAudioEngine();
     if (!('playAmbianceCue' in engine)) return;
     const clientEngine = engine as AudioEngine;
 
     const syncAndPlay = async () => {
-      try {
-        const [configRes, cuesRes] = await Promise.all([
-          fetch('/api/dev/gamedata/configs/ambiance').catch(() => null),
-          fetch('/api/dev/gamedata/audio-cues').catch(() => null),
-        ]);
-        if (configRes && configRes.ok) {
-          const config = await configRes.json();
-          setAmbianceConfig(config);
-        }
-        if (cuesRes && cuesRes.ok) {
-          const cuesData = await cuesRes.json();
-          if (Array.isArray(cuesData.cues)) {
-            for (const c of cuesData.cues) {
-              registerSoundCue(c);
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          const [configRes, cuesRes] = await Promise.all([
+            fetch('/api/dev/gamedata/configs/ambiance').catch(() => null),
+            fetch('/api/dev/gamedata/audio-cues').catch(() => null),
+          ]);
+          if (configRes && configRes.ok) {
+            const config = await configRes.json();
+            setAmbianceConfig(config);
+          }
+          if (cuesRes && cuesRes.ok) {
+            const cuesData = await cuesRes.json();
+            if (Array.isArray(cuesData.cues)) {
+              for (const c of cuesData.cues) {
+                registerSoundCue(c);
+              }
             }
           }
+        } catch {
+          // Safe fallback to bundled config
         }
-      } catch {
-        // Safe fallback to bundled config
       }
 
       const ambianceConfig = getAmbianceConfig();
