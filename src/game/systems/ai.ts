@@ -37,6 +37,8 @@ import { logger } from '@engine/utils/logger';
 import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
 
+import { FirmwareSlots } from '@shared/components/firmware-slots';
+import { AbilityDef } from '@shared/components/ability-def';
 import {
   BTStatus,
   BTEvaluationContext,
@@ -50,7 +52,9 @@ import {
   BehaviorTreeNode,
 } from '@shared/components/ai-tree';
 import { AIBehaviorRegistry } from '../ai/tree-registry';
-import { AISpatialSystem } from '../ai/spatial-maps';
+import { AISpatialSystem, hasLineOfSight } from '../ai/spatial-maps';
+
+export const DEFAULT_PLAYER_VISION_RADIUS = 8;
 
 function hashString(str: string): number {
   let hash = 0;
@@ -120,17 +124,55 @@ export function createAISystem<T extends GameplayEvents>(
     return null;
   }
 
-  /**
-   * Computes FOV for an entity using PreciseShadowcasting.
-   */
-  function computeEnemyFov(x: number, y: number, radius: number): Set<string> {
+  let cachedTurnNumber = -1;
+  let cachedPlayerPos = { x: -1, y: -1 };
+  let cachedPlayerVisionRadius = -1;
+  let cachedPlayerFov = new Set<string>();
+
+  function getPlayerVisionRadius(playerId: EntityId, sectorCondition?: string): number {
+    let radius = DEFAULT_PLAYER_VISION_RADIUS;
+    if (sectorCondition === 'DARK_SUBNET') {
+      radius = Math.max(2, radius - 2);
+    }
+    const fSlots = world.getComponent(playerId, FirmwareSlots);
+    if (fSlots) {
+      for (const firmwareId of fSlots.equipped) {
+        const abilityDef = world.getComponent(firmwareId, AbilityDef);
+        if (abilityDef && abilityDef.effectType === 'toggle_vision' && abilityDef.isActive) {
+          radius = Math.max(radius, abilityDef.visionRadius);
+        }
+      }
+    }
+    return radius;
+  }
+
+  function getPlayerFov(
+    player: { id: EntityId; x: number; y: number },
+    turnNumber: number,
+    sectorCondition?: string,
+  ): Set<string> {
+    const visionRadius = getPlayerVisionRadius(player.id, sectorCondition);
+    if (
+      turnNumber === cachedTurnNumber &&
+      player.x === cachedPlayerPos.x &&
+      player.y === cachedPlayerPos.y &&
+      visionRadius === cachedPlayerVisionRadius
+    ) {
+      return cachedPlayerFov;
+    }
+
     const fov = new PreciseShadowcasting((tx, ty) => grid.isTransparent(tx, ty));
     const visible = new Set<string>();
-    fov.compute(x, y, radius, (tx, ty, _r, visibility) => {
+    fov.compute(player.x, player.y, visionRadius, (tx, ty, _r, visibility) => {
       if (visibility > 0) {
         visible.add(`${tx},${ty}`);
       }
     });
+
+    cachedTurnNumber = turnNumber;
+    cachedPlayerPos = { x: player.x, y: player.y };
+    cachedPlayerVisionRadius = visionRadius;
+    cachedPlayerFov = visible;
     return visible;
   }
 
@@ -226,6 +268,7 @@ export function createAISystem<T extends GameplayEvents>(
         lastProcessedTurn = turnNumber;
         alertedThisTurn.clear();
         packAlerted.clear();
+        cachedTurnNumber = -1;
       }
 
       // 1. Process pending AlertIntents
@@ -296,24 +339,65 @@ export function createAISystem<T extends GameplayEvents>(
         packAlerted.add(entityId);
       }
 
-      // Decrement server cooldown timers at start of turn
-      const cooldowns = { ...(ai.cooldowns ?? {}) };
-      for (const [key, val] of Object.entries(cooldowns)) {
-        if (val > 0) {
-          cooldowns[key] = val - 1;
+      // Check player FOV and enemy visibility to player
+      const playerFov = getPlayerFov(player, turnNumber, floor?.sectorCondition);
+      const isVisibleToPlayer = playerFov.has(`${pos.x},${pos.y}`);
+
+      const chebyshevDist = Math.max(Math.abs(pos.x - player.x), Math.abs(pos.y - player.y));
+      const sightRadius = ai.sightRadius ?? 6;
+
+      let canEnemySeePlayer = false;
+      if (chebyshevDist <= sightRadius) {
+        if (isVisibleToPlayer) {
+          canEnemySeePlayer = true;
+        } else {
+          canEnemySeePlayer = hasLineOfSight(pos.x, pos.y, player.x, player.y, grid);
         }
       }
-      world.patchComponent(entityId, AIState, { cooldowns });
+
+      const currentAi = world.getComponent(entityId, AIState) ?? ai;
+      const currentAwareness = world.getComponent(entityId, FovAwareness) ?? awareness;
+
+      const isAlerted = alertedThisTurn.has(entityId) || packAlerted.has(entityId);
+      const hasActiveMemory =
+        (currentAi.remainingMemoryTurns ?? 0) > 0 &&
+        currentAwareness.lastKnownPlayerX !== undefined &&
+        currentAwareness.lastKnownPlayerY !== undefined;
+      const isInCombat =
+        currentAi.behavior === AIBehavior.CHASING ||
+        currentAi.behavior === AIBehavior.ATTACKING;
+
+      const isAware =
+        currentAwareness.canSeePlayer ||
+        canEnemySeePlayer ||
+        isAlerted ||
+        hasActiveMemory ||
+        isInCombat;
+
+      // Simulation Gating: entities that are not aware of the player and not visible are not simulated
+      if (!isAware && !isVisibleToPlayer) {
+        return;
+      }
+
+      // Decrement server cooldown timers at start of turn
+      const currentCooldowns = { ...(currentAi.cooldowns ?? {}) };
+      let cooldownsChanged = false;
+      for (const [key, val] of Object.entries(currentCooldowns)) {
+        if (val > 0) {
+          currentCooldowns[key] = val - 1;
+          cooldownsChanged = true;
+        }
+      }
+      if (cooldownsChanged) {
+        world.patchComponent(entityId, AIState, { cooldowns: currentCooldowns });
+      }
 
       // 1. Update FOV awareness
-      const visibleTiles = computeEnemyFov(pos.x, pos.y, ai.sightRadius ?? 6);
-      const playerKey = `${player.x},${player.y}`;
-      const isVisibleInFov = visibleTiles.has(playerKey);
-      const canSeePlayer = isVisibleInFov || alertedThisTurn.has(entityId) || packIsAlerted;
+      const canSeePlayer = canEnemySeePlayer || isAlerted;
 
-      let remainingMemory = ai.remainingMemoryTurns ?? 0;
-      if (isVisibleInFov) {
-        remainingMemory = ai.memoryTurns ?? 5;
+      let remainingMemory = currentAi.remainingMemoryTurns ?? 0;
+      if (canEnemySeePlayer) {
+        remainingMemory = currentAi.memoryTurns ?? 5;
         world.patchComponent(entityId, FovAwareness, {
           canSeePlayer: true,
           lastKnownPlayerX: player.x,
@@ -880,6 +964,21 @@ export function createAISystem<T extends GameplayEvents>(
     },
     processSeedEaterTurn(entityId: EntityId): void {
       this.processEnemyTurn(entityId);
+    },
+
+    clearPlayerFovCache(): void {
+      cachedTurnNumber = -1;
+      cachedPlayerPos = { x: -1, y: -1 };
+      cachedPlayerVisionRadius = -1;
+      cachedPlayerFov.clear();
+    },
+
+    getPlayerFov(playerEntity?: { id: EntityId; x: number; y: number }): Set<string> {
+      const p = playerEntity ?? findPlayerEntity();
+      if (!p) return new Set();
+      const floorStates = world.query(FloorState);
+      const floor = floorStates.length > 0 ? world.getComponent(floorStates[0], FloorState) : null;
+      return getPlayerFov(p, floor?.turnNumber ?? 0, floor?.sectorCondition);
     },
 
     init() {
