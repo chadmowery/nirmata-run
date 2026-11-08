@@ -289,12 +289,12 @@ An adversarial audit was conducted across the 9 commits on `feature/sprite-anima
    - Add `if (len === 0) return;` guard at the start of `DijkstraMap.computeFromGoals()` and `DijkstraMap.computeFleeMap()`.
 
 ### Phase 5: Comprehensive Regression & Verification Suite
-1. **[ ] Add/Update Automated Unit & Integration Tests**:
+1. **[x] Add/Update Automated Unit & Integration Tests**:
    - `loadThemedAssets()` unloading previous theme bundle when switching between themed sectors ([`tests/rendering/animation-tileset.test.ts`](../../tests/rendering/animation-tileset.test.ts)).
    - Fog-of-War anti-cheat state isolation (`!inFov` props using `rememberedProps` state, out-of-FOV `triggerState` rejection, empty `fovSet` handling, `desyncPhase: false`, and `paused: true` locking to Frame 0 in [`tests/rendering/sprite-animator.test.ts`](../../tests/rendering/sprite-animator.test.ts) and [`tests/rendering/ingame-animation-loop.test.ts`](../../tests/rendering/ingame-animation-loop.test.ts)).
    - Directional prop unlock/search preserving `_n/_e/_s/_w` orientation and playing `'interact'` clip ([`src/game/systems/__tests__/prop-interaction.test.ts`](../../src/game/systems/__tests__/prop-interaction.test.ts)).
    - Unaware off-screen cooldown recovery and `patrol_anchors` / `scavenge_nearest_loot` execution ([`src/game/systems/__tests__/ai-simulation-gating.test.ts`](../../src/game/systems/__tests__/ai-simulation-gating.test.ts)).
    - `SpritePicker` live filmstrip `#i ●` indicator progression and pause rAF termination ([`src/dev-tool/studio/__tests__/sprite-picker-anim.test.tsx`](../../src/dev-tool/studio/__tests__/sprite-picker-anim.test.tsx)).
    - Theme validation across all theme IDs (`default`, `traxus_foundry`, `sekiguchi_biolabs`, `dark_subnet`, and aliases).
-2. **[ ] Full Project Verification**:
+2. **[x] Full Project Verification**:
    - Run `npm test`, `npm run typecheck`, `npm run lint`, and `npm run build` to verify zero regressions.
