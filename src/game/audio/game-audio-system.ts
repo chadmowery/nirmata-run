@@ -202,7 +202,7 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
         const shell = world.getComponent(payload.entityId, Shell);
 
         let stepCueId = profile?.stepCue;
-        if (!stepCueId) {
+        if (!stepCueId || stepCueId === 'sfx_step_player') {
           if (shell?.archetypeId === 'bastion-v1') {
             stepCueId = 'sfx_step_bastion';
           } else if (shell?.archetypeId === 'ghost-v1') {

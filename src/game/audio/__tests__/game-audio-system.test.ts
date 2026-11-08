@@ -108,7 +108,13 @@ describe('GameAudioSystem Bridge', () => {
     audioSystem.destroy();
   });
 
-  it('plays custom shell step cue for Bastion chassis', () => {
+  it('plays custom shell step cue for Bastion chassis even when player AudioProfile defaults to sfx_step_player', () => {
+    // Attach AudioProfile with player.json default 'sfx_step_player'
+    world.addComponent(playerId, AudioProfile, {
+      stepCue: 'sfx_step_player',
+      pitchMultiplier: 1.0,
+      volumeMultiplier: 1.0,
+    });
     world.patchComponent(playerId, Shell, { archetypeId: 'bastion-v1' });
 
     const audioSystem = createGameAudioSystem({
@@ -132,6 +138,54 @@ describe('GameAudioSystem Bridge', () => {
     expect(mockAudioEngine.playCue).toHaveBeenCalledTimes(1);
     const args = (mockAudioEngine.playCue as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(args[0].id).toBe('sfx_step_bastion');
+
+    audioSystem.destroy();
+  });
+
+  it('plays custom shell step cue for Ghost chassis and preserves custom non-default stepCue overrides', () => {
+    world.addComponent(playerId, AudioProfile, {
+      stepCue: 'sfx_step_player',
+      pitchMultiplier: 1.0,
+      volumeMultiplier: 1.0,
+    });
+    world.patchComponent(playerId, Shell, { archetypeId: 'ghost-v1' });
+
+    const audioSystem = createGameAudioSystem({
+      world,
+      eventBus,
+      getPlayerEntity: () => playerId,
+      getGrid: () => grid,
+      audioEngine: mockAudioEngine,
+    });
+
+    EventOriginContext.current = 'client';
+    eventBus.emit('ENTITY_MOVED', {
+      entityId: playerId,
+      fromX: 5,
+      fromY: 5,
+      toX: 5,
+      toY: 4,
+    });
+    eventBus.flush();
+
+    expect(mockAudioEngine.playCue).toHaveBeenCalledTimes(1);
+    expect((mockAudioEngine.playCue as ReturnType<typeof vi.fn>).mock.calls[0][0].id).toBe('sfx_step_ghost');
+
+    // Now test custom override
+    world.patchComponent(playerId, AudioProfile, {
+      stepCue: 'sfx_step_enemy',
+    });
+    eventBus.emit('ENTITY_MOVED', {
+      entityId: playerId,
+      fromX: 5,
+      fromY: 4,
+      toX: 5,
+      toY: 3,
+    });
+    eventBus.flush();
+
+    expect(mockAudioEngine.playCue).toHaveBeenCalledTimes(2);
+    expect((mockAudioEngine.playCue as ReturnType<typeof vi.fn>).mock.calls[1][0].id).toBe('sfx_step_enemy');
 
     audioSystem.destroy();
   });
