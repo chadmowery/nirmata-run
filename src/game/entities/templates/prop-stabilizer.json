@@ -9,6 +9,16 @@
       "propClass": "reality_stabilizer",
       "stabilityRestoreAmount": 10
     },
+    "ambientEmitter": {
+      "cueId": "amb_emitter_anchor",
+      "radius": 7,
+      "baseVolume": 0.4,
+      "falloff": "linear",
+      "activeOnlyWhenUnsearched": true
+    },
+    "audioProfile": {
+      "interactCue": "sfx_anchor_handshake"
+    },
     "blocksMovement": {}
   },
   "overrides": {

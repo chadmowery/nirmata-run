@@ -76,6 +76,21 @@ export const HubLayout: React.FC<HubLayoutProps> = ({ onLaunchComplete }) => {
   const runResults = useStore(gameStore, (s) => s.runResults);
   const ritualActive = useStore(gameStore, (s) => s.ritualActive);
   const bootSequenceActive = useStore(gameStore, (s) => s.bootSequenceActive);
+  const setSystemSettingsModalVisible = useStore(
+    gameStore,
+    (s) => s.setSystemSettingsModalVisible,
+  );
+
+  // ESC key to toggle settings modal when not in critical overlays
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !ritualActive && !bootSequenceActive) {
+        setSystemSettingsModalVisible(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [ritualActive, bootSequenceActive, setSystemSettingsModalVisible]);
 
   useEffect(() => {
     const fetchProfile = async () => {

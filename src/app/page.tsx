@@ -7,8 +7,12 @@ import { loadAssets } from '@/rendering/assets';
 import { initRenderer, destroyRenderer, getApp } from '@/rendering/renderer';
 import { createRenderSystem } from '@/rendering/render-system';
 import { createWorldContainer } from '@/rendering/layers';
+import { createGameAudioSystem, GameAudioSystem } from '@/game/audio/game-audio-system';
+import { getAudioEngine } from '@engine/audio';
+import { getSoundCue, registerSoundCue } from '@/game/audio/cue-registry';
+import { getAmbianceConfig, setAmbianceConfig } from '@/game/config/ambiance';
 import { useStore } from 'zustand';
-import { gameStore } from '@/game/ui/store';
+import { gameStore, getSavedAudioSettings } from '@/game/ui/store';
 import { GameState } from '@/game/states/types';
 import { RunMode } from '@/shared/run-mode';
 import { logger } from '@engine/utils/logger';
@@ -19,6 +23,7 @@ import { StaircaseOverlay } from '@/components/ui/StaircaseOverlay';
 import { BSODScreen } from '@/components/ui/BSODScreen';
 import { RunResultsScreen } from '@/components/ui/RunResultsScreen';
 import { AbortMissionDialog } from '@/components/ui/AbortMissionDialog';
+import { SystemSettingsModal } from '@/components/ui/SystemSettingsModal';
 import { HubLayout } from '@/components/ui/hub/HubLayout';
 import { GameContext } from '@/game/types';
 import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT, DEFAULT_SHELL_ID } from '@/shared/constants';
@@ -39,6 +44,7 @@ export default function GamePage() {
   const abortDialogVisible = useStore(gameStore, (s) => s.abortDialogVisible);
   const isInitializing = useRef(false);
   const renderSystemRef = useRef<ReturnType<typeof createRenderSystem> | null>(null);
+  const gameAudioSystemRef = useRef<GameAudioSystem | null>(null);
   const tickerCallbackRef = useRef<(() => void) | null>(null);
 
   const showCanvas =
@@ -141,7 +147,17 @@ export default function GamePage() {
       app.ticker.add(tickerCallback);
       tickerCallbackRef.current = tickerCallback;
 
-      // 4. Start Game
+      // 4. Init Audio System
+      const gameAudioSystem = createGameAudioSystem({
+        world: context.world,
+        eventBus: context.eventBus,
+        getPlayerEntity: () => contextRef.current?.playerId || 0,
+        getGrid: () => context.grid,
+      });
+      gameAudioSystemRef.current = gameAudioSystem;
+      gameAudioSystem.updateAmbianceForFloor(1);
+
+      // 5. Start Game
       context.fsm.transition(GameState.Playing);
 
       // Focus management: ensure window is focused for input
@@ -172,7 +188,13 @@ export default function GamePage() {
         renderSystemRef.current = null;
       }
 
-      // 2. Cleanup Ticker
+      // 2. Cleanup Audio System
+      if (gameAudioSystemRef.current) {
+        gameAudioSystemRef.current.destroy();
+        gameAudioSystemRef.current = null;
+      }
+
+      // 3. Cleanup Ticker
       const app = getApp();
       if (app && tickerCallbackRef.current) {
         app.ticker.remove(tickerCallbackRef.current);
@@ -196,6 +218,12 @@ export default function GamePage() {
     }
   }, [status]);
 
+  // Effect 0: Synchronize persisted audio settings into AudioEngine on mount
+  useEffect(() => {
+    const saved = getSavedAudioSettings();
+    getAudioEngine().updateSettings(saved);
+  }, []);
+
   // Effect 3: Full cleanup on component unmount
   useEffect(() => {
     return () => {
@@ -204,11 +232,99 @@ export default function GamePage() {
         renderSystemRef.current.destroy();
         renderSystemRef.current = null;
       }
+      if (gameAudioSystemRef.current) {
+        gameAudioSystemRef.current.destroy();
+        gameAudioSystemRef.current = null;
+      }
       if (contextRef.current) {
         destroyGame(contextRef.current);
         contextRef.current = null;
       }
       destroyRenderer();
+      getAudioEngine().destroy();
+    };
+  }, []);
+
+  // Effect 4: Background ambiance for MainMenu and Hub
+  useEffect(() => {
+    if (status !== GameState.MainMenu && status !== GameState.Hub) {
+      return;
+    }
+
+    const engine = getAudioEngine();
+    // Reset ambiance DSP state when entering MainMenu or Hub to avoid stuck low-pass or distortion
+    engine.setAmbianceState({
+      heatTier: 0,
+      sectorCondition: null,
+      isAnchorDucked: false,
+      isPaused: false,
+      cutoffMultiplier: 1.0,
+      resonanceQ: 1.0,
+    });
+
+    const clientEngine = engine;
+
+    const syncAndPlay = async () => {
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          const [configRes, cuesRes] = await Promise.all([
+            fetch('/api/dev/gamedata/configs/ambiance').catch(() => null),
+            fetch('/api/dev/gamedata/audio-cues').catch(() => null),
+          ]);
+          if (configRes && configRes.ok) {
+            const config = await configRes.json();
+            setAmbianceConfig(config);
+          }
+          if (cuesRes && cuesRes.ok) {
+            const cuesData = await cuesRes.json();
+            if (Array.isArray(cuesData.cues)) {
+              for (const c of cuesData.cues) {
+                registerSoundCue(c);
+              }
+            }
+          }
+        } catch {
+          // Safe fallback to bundled config
+        }
+      }
+
+      const ambianceConfig = getAmbianceConfig();
+
+      if (status === GameState.MainMenu) {
+        const cueId = ambianceConfig.scenes.mainMenu?.cueId || 'amb_main_menu';
+        const cue = getSoundCue(cueId);
+        if (cue) clientEngine.playAmbianceCue(cue);
+      } else if (status === GameState.Hub) {
+        const cueId = ambianceConfig.scenes.hub?.cueId || 'amb_hub_deck';
+        const cue = getSoundCue(cueId);
+        if (cue) clientEngine.playAmbianceCue(cue);
+      }
+    };
+
+    syncAndPlay();
+  }, [status]);
+
+  // Effect 4b: Ambiance ducking when gameStatus enters or leaves Paused state
+  useEffect(() => {
+    if (status === GameState.Paused) {
+      getAudioEngine().setAmbianceState({ isPaused: true });
+    } else if (status === GameState.Playing) {
+      getAudioEngine().setAmbianceState({ isPaused: false });
+    }
+  }, [status]);
+
+  // Effect 5: Autoplay unlock on first user gesture
+  useEffect(() => {
+    const unlock = () => {
+      const engine = getAudioEngine();
+      engine.init();
+      engine.resume?.();
+    };
+    window.addEventListener('pointerdown', unlock, { once: true, passive: true });
+    window.addEventListener('keydown', unlock, { once: true, passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
     };
   }, []);
 
@@ -238,6 +354,8 @@ export default function GamePage() {
             {runResultsVisible && <RunResultsScreen />}
           </>
         )}
+
+        <SystemSettingsModal />
 
         {process.env.NODE_ENV === 'development' && <DevTerminal />}
       </div>

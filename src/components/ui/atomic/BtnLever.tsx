@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { uiAudio } from '@/game/audio/ui-audio';
 
 export interface BtnLeverProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'cyan' | 'danger';
@@ -76,6 +77,7 @@ export const BtnLever: React.FC<BtnLeverProps> = ({
   holdDurationMs = 2000,
   onHoldComplete,
   onClick,
+  onPointerEnter,
   onPointerDown,
   onPointerUp,
   onPointerLeave,
@@ -93,11 +95,17 @@ export const BtnLever: React.FC<BtnLeverProps> = ({
   const rafRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const completedRef = useRef(false);
+  const voiceIdRef = useRef<string | null>(null);
 
   const cancelHold = useCallback(() => {
     if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
+    }
+    if (voiceIdRef.current) {
+      uiAudio.stopHoldRamp(voiceIdRef.current);
+      voiceIdRef.current = null;
+      uiAudio.playHoldCancel();
     }
     startTimeRef.current = null;
     setIsHolding(false);
@@ -109,6 +117,11 @@ export const BtnLever: React.FC<BtnLeverProps> = ({
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
+    if (voiceIdRef.current) {
+      uiAudio.stopHoldRamp(voiceIdRef.current);
+      voiceIdRef.current = null;
+    }
+    uiAudio.playHoldConfirm();
     startTimeRef.current = null;
     completedRef.current = true;
     setHoldProgress(100);
@@ -134,6 +147,7 @@ export const BtnLever: React.FC<BtnLeverProps> = ({
     completedRef.current = false;
     setIsHolding(true);
     setHoldProgress(0);
+    voiceIdRef.current = uiAudio.startHoldRamp();
 
     const start =
       typeof performance !== 'undefined' && performance.now
@@ -150,6 +164,9 @@ export const BtnLever: React.FC<BtnLeverProps> = ({
       const elapsed = Math.max(0, current - startTimeRef.current);
       const pct = Math.min(100, (elapsed / holdDurationMs) * 100);
       setHoldProgress(pct);
+      if (voiceIdRef.current) {
+        uiAudio.updateHoldRamp(voiceIdRef.current, pct / 100);
+      }
 
       if (elapsed >= holdDurationMs) {
         triggerComplete();
@@ -166,8 +183,19 @@ export const BtnLever: React.FC<BtnLeverProps> = ({
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
       }
+      if (voiceIdRef.current) {
+        uiAudio.stopHoldRamp(voiceIdRef.current);
+        voiceIdRef.current = null;
+      }
     };
   }, []);
+
+  const handlePointerEnter = (e: React.PointerEvent<HTMLButtonElement>) => {
+    onPointerEnter?.(e);
+    if (!disabled) {
+      uiAudio.playHover();
+    }
+  };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     onPointerDown?.(e);
@@ -298,6 +326,9 @@ export const BtnLever: React.FC<BtnLeverProps> = ({
       }
     }
 
+    if (!holdToConfirm) {
+      uiAudio.playClick(variant);
+    }
     onClick?.(e);
   };
 
@@ -336,6 +367,7 @@ export const BtnLever: React.FC<BtnLeverProps> = ({
         ...rest.style,
         ...dynamicBackgroundStyle,
       }}
+      onPointerEnter={handlePointerEnter}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerMove={handlePointerMove}

@@ -9,11 +9,60 @@ import { RunInventory } from '@shared/components/run-inventory';
 import { EquipmentSlots } from '@shared/components/equipment-slots';
 import type { GameContext } from '../types';
 import { getActiveGameContext } from '../active-context';
+import { getAudioEngine } from '@engine/audio';
 
 declare global {
   interface Window {
     gameContext?: GameContext;
   }
+}
+
+export interface AudioSettingsState {
+  muted: boolean;
+  masterVolume: number; // 0.0 - 1.0 (default 0.8)
+  ambianceVolume: number; // 0.0 - 1.0 (default 0.6)
+  sfxVolume: number; // 0.0 - 1.0 (default 0.85)
+  uiVolume: number; // 0.0 - 1.0 (default 0.75)
+}
+
+export const DEFAULT_AUDIO_STORE_SETTINGS: AudioSettingsState = {
+  muted: false,
+  masterVolume: 0.8,
+  ambianceVolume: 0.6,
+  sfxVolume: 0.85,
+  uiVolume: 0.75,
+};
+
+export function getSavedAudioSettings(): AudioSettingsState {
+  if (typeof window === 'undefined') return { ...DEFAULT_AUDIO_STORE_SETTINGS };
+  try {
+    const raw = localStorage.getItem('nirmata_audio_settings');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        muted: typeof parsed.muted === 'boolean' ? parsed.muted : DEFAULT_AUDIO_STORE_SETTINGS.muted,
+        masterVolume:
+          typeof parsed.masterVolume === 'number'
+            ? parsed.masterVolume
+            : DEFAULT_AUDIO_STORE_SETTINGS.masterVolume,
+        ambianceVolume:
+          typeof parsed.ambianceVolume === 'number'
+            ? parsed.ambianceVolume
+            : DEFAULT_AUDIO_STORE_SETTINGS.ambianceVolume,
+        sfxVolume:
+          typeof parsed.sfxVolume === 'number'
+            ? parsed.sfxVolume
+            : DEFAULT_AUDIO_STORE_SETTINGS.sfxVolume,
+        uiVolume:
+          typeof parsed.uiVolume === 'number'
+            ? parsed.uiVolume
+            : DEFAULT_AUDIO_STORE_SETTINGS.uiVolume,
+      };
+    }
+  } catch {
+    // Ignore storage errors in private browsing/SSR
+  }
+  return { ...DEFAULT_AUDIO_STORE_SETTINGS };
 }
 
 export type GameStatus = GameState;
@@ -212,6 +261,8 @@ export interface UIState {
   inventoryRevision: number;
   abortDialogVisible: boolean;
   hotkeysModalVisible: boolean;
+  systemSettingsModalVisible: boolean;
+  audioSettings: AudioSettingsState;
   groundTransferVisible: boolean;
   nearbyGroundItems: GroundItemInfo[];
   deadDropModalVisible: boolean;
@@ -236,6 +287,9 @@ export interface UIState {
   incrementInventoryRevision: () => void;
   toggleHotkeysModal: () => void;
   setHotkeysModalVisible: (visible: boolean) => void;
+  setSystemSettingsModalVisible: (visible: boolean) => void;
+  setAudioSettings: (settings: Partial<AudioSettingsState>) => void;
+  toggleMute: () => void;
   openGroundTransfer: (items: GroundItemInfo[]) => void;
   closeGroundTransfer: () => void;
   updateNearbyGroundItems: (items: GroundItemInfo[]) => void;
@@ -389,6 +443,8 @@ export const gameStore = createStore<UIState>((set, get) => ({
   inventoryRevision: 0,
   abortDialogVisible: false,
   hotkeysModalVisible: false,
+  systemSettingsModalVisible: false,
+  audioSettings: getSavedAudioSettings(),
   groundTransferVisible: false,
   nearbyGroundItems: [],
   deadDropModalVisible: false,
@@ -656,6 +712,23 @@ export const gameStore = createStore<UIState>((set, get) => ({
   toggleHotkeysModal: () =>
     set((state) => ({ hotkeysModalVisible: !state.hotkeysModalVisible })),
   setHotkeysModalVisible: (visible) => set({ hotkeysModalVisible: visible }),
+  setSystemSettingsModalVisible: (visible) => set({ systemSettingsModalVisible: visible }),
+  setAudioSettings: (newSettings) => {
+    const updated = { ...get().audioSettings, ...newSettings };
+    set({ audioSettings: updated });
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('nirmata_audio_settings', JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+    }
+    getAudioEngine().updateSettings(updated);
+  },
+  toggleMute: () => {
+    const isMuted = !get().audioSettings.muted;
+    get().setAudioSettings({ muted: isMuted });
+  },
   openGroundTransfer: (items) => set({ groundTransferVisible: true, nearbyGroundItems: items }),
   closeGroundTransfer: () => set({ groundTransferVisible: false }),
   updateNearbyGroundItems: (items) => set({ nearbyGroundItems: items }),
@@ -762,3 +835,12 @@ export const gameStore = createStore<UIState>((set, get) => ({
       optimisticInventoryEquipmentIds: null,
     }),
 }));
+
+// Apply saved audio preferences to AudioEngine immediately on client initialization
+if (typeof window !== 'undefined') {
+  try {
+    getAudioEngine().updateSettings(getSavedAudioSettings());
+  } catch {
+    // ignore
+  }
+}

@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { BtnLever } from '../BtnLever';
+import { uiAudio } from '@/game/audio/ui-audio';
 
 describe('BtnLever Atomic Component', () => {
   beforeEach(() => {
@@ -257,5 +258,23 @@ describe('BtnLever Atomic Component', () => {
       vi.advanceTimersByTime(200);
     });
     expect(btn.getAttribute('data-holding')).toBe('false');
+  });
+
+  it('stops hold ramp if unmounted while being held', () => {
+    const stopSpy = vi.spyOn(uiAudio, 'stopHoldRamp');
+    const { unmount } = render(
+      <BtnLever variant="cyan" holdToConfirm={true} holdDurationMs={2000}>
+        UNMOUNT TEST
+      </BtnLever>,
+    );
+
+    const btn = screen.getByRole('button', { name: /UNMOUNT TEST/i });
+    act(() => {
+      fireEvent.pointerDown(btn, { button: 0 });
+    });
+    expect(btn.getAttribute('data-holding')).toBe('true');
+
+    unmount();
+    expect(stopSpy).toHaveBeenCalled();
   });
 });

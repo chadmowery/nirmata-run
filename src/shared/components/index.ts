@@ -79,6 +79,7 @@ import {
   AutotileState,
   DirectionalProp,
 } from './environment';
+import { AudioProfile, AmbientEmitter } from './audio';
 
 export * from './position';
 export * from './health';
@@ -129,6 +130,7 @@ export * from './parent';
 export * from './children';
 export * from './equipment-def';
 export * from './environment';
+export * from './audio';
 
 export const COMPONENTS_REGISTRY = [
   Position,
@@ -209,4 +211,6 @@ export const COMPONENTS_REGISTRY = [
   TileOrientation,
   AutotileState,
   DirectionalProp,
+  AudioProfile,
+  AmbientEmitter,
 ] as const;

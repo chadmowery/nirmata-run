@@ -1,0 +1,133 @@
+.panel {
+  background: rgba(11, 16, 26, 0.95);
+  border: 1px solid var(--c-border, #1a2333);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 10px;
+}
+
+.titleArea {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.title {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--c-text-primary, #ffffff);
+  text-transform: uppercase;
+}
+
+.subTitle {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 10px;
+  color: var(--c-text-dim, #738096);
+  letter-spacing: 0.04em;
+}
+
+.slidersList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sliderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+}
+
+.labelArea {
+  display: flex;
+  flex-direction: column;
+  width: 170px;
+  flex-shrink: 0;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--c-text-primary, #ffffff);
+  letter-spacing: 0.04em;
+}
+
+.kanji {
+  font-size: 9px;
+  color: var(--c-text-dim, #738096);
+}
+
+.sliderContainer {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: #141c2b;
+  border: 1px solid var(--c-border, #243045);
+  border-radius: 0;
+  outline: none;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: var(--c-accent, #d8ff00);
+  border: 1px solid #000000;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  background: #ffffff;
+}
+
+.slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: var(--c-accent, #d8ff00);
+  border: 1px solid #000000;
+  cursor: pointer;
+  border-radius: 0;
+}
+
+.slider:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.percentage {
+  width: 44px;
+  text-align: right;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--c-accent, #d8ff00);
+}
+
+.percentage.muted {
+  color: var(--c-text-dim, #738096);
+}

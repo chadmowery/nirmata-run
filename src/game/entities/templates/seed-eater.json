@@ -9,6 +9,20 @@
     "aiState": { "behavior": "idle", "sightRadius": 6, "behaviorType": "seed_eater" },
     "fovAwareness": { "canSeePlayer": false },
     "blocksMovement": {},
+    "audioProfile": {
+      "stepCue": "sfx_step_enemy",
+      "attackCue": "sfx_melee_hit",
+      "hitCue": "sfx_cover_broken",
+      "deathCue": "sfx_enemy_death",
+      "pitchMultiplier": 0.75
+    },
+    "ambientEmitter": {
+      "cueId": "amb_emitter_corrupted",
+      "radius": 8,
+      "baseVolume": 0.45,
+      "falloff": "linear",
+      "requiresFov": true
+    },
     "corruptionState": {
       "corruptionWave": 1,
       "corruptedTileKeys": [],

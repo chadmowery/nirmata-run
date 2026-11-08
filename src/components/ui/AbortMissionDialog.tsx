@@ -7,7 +7,11 @@ import { dispatchUIAction } from '@/game/input/input-bridge';
 import { GameAction } from '@/game/input/actions';
 import { getActiveGameContext } from '@/game/active-context';
 import { Dying } from '@shared/components';
+import { getAudioEngine } from '@engine/audio';
+import { GameState } from '@/game/states/types';
+import { uiAudio } from '@/game/audio/ui-audio';
 import { TaikokuPlacard, BtnLever } from './atomic';
+import { AudioSettingsPanel } from './AudioSettingsPanel';
 import styles from './AbortMissionDialog.module.css';
 
 interface AbortMissionDialogProps {
@@ -57,6 +61,20 @@ export const AbortMissionDialog: React.FC<AbortMissionDialogProps> = ({
     }
   }, [onConfirmAbort, setAbortDialogVisible]);
 
+  // Pause ducking and SFX while abort/pause dialog is open
+  useEffect(() => {
+    uiAudio.playModalOpen();
+    getAudioEngine().setAmbianceState({ isPaused: true });
+    return () => {
+      uiAudio.playModalClose();
+      const state = gameStore.getState();
+      const stillPaused = state.gameStatus === GameState.Paused || state.systemSettingsModalVisible;
+      if (!stillPaused) {
+        getAudioEngine().setAmbianceState({ isPaused: false });
+      }
+    };
+  }, []);
+
   // Handle ESC key to dismiss abort dialog and resume game
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -82,7 +100,7 @@ export const AbortMissionDialog: React.FC<AbortMissionDialogProps> = ({
         <TaikokuPlacard
           kanji="緊急切断"
           title="EMERGENCY ABORT PROTOCOL // OPERATOR DESYNC"
-          stampText="ABORT // CATASTROPHIC"
+          stampText="PAUSED // CALIBRATION"
           stampVariant="danger"
           onClose={handleClose}
           closeLabel="✕ RESUME [ESC]"
@@ -90,6 +108,8 @@ export const AbortMissionDialog: React.FC<AbortMissionDialogProps> = ({
         />
 
         <div className={styles.body}>
+          <AudioSettingsPanel showCardWrapper={false} />
+
           <div className={styles.warningBox}>
             <div className={styles.warningTitle}>
               <span>[!] CAUTION: MANUAL TERMINATION OF ACTIVE DEPLOYMENT</span>

@@ -1,0 +1,91 @@
+{
+  "scenes": {
+    "mainMenu": {
+      "cueId": "amb_main_menu",
+      "description": "Main Menu vector scanline oscilloscope drone"
+    },
+    "hub": {
+      "cueId": "amb_hub_deck",
+      "description": "Safe zone hub air circulation & server data-pulse"
+    }
+  },
+  "depthBands": [
+    {
+      "id": "band_1_corrupted",
+      "label": "CORRUPTED_DATA",
+      "floorRange": {
+        "min": 1,
+        "max": 5
+      },
+      "cueId": "amb_band_1_corrupted",
+      "baseVolume": 0.6,
+      "description": "Floors 1–5 (Subnet): Deep industrial sub-bass data packet drone"
+    },
+    {
+      "id": "band_2_static",
+      "label": "STATIC_HORRORS",
+      "floorRange": {
+        "min": 6,
+        "max": 10
+      },
+      "cueId": "amb_band_2_static",
+      "baseVolume": 0.65,
+      "description": "Floors 6–10 (Foundry): Detuned dual-sawtooth beating interference"
+    },
+    {
+      "id": "band_3_logic",
+      "label": "LOGIC_BREAKERS",
+      "floorRange": {
+        "min": 11,
+        "max": 15
+      },
+      "cueId": "amb_band_3_logic",
+      "baseVolume": 0.7,
+      "description": "Floors 11–15 (Core): Aggressive FM metallic sub-harmonic rumble"
+    }
+  ],
+  "sectorConditions": [
+    {
+      "condition": "NOMINAL",
+      "cutoffMultiplier": 1,
+      "resonanceQ": 1,
+      "description": "Clean baseline frequency spectrum (18,000 Hz wide open)"
+    },
+    {
+      "condition": "DARK_SUBNET",
+      "cutoffMultiplier": 0.6,
+      "resonanceQ": 2.5,
+      "description": "Muffled dark atmospheric tension (-40% lowpass filter)"
+    },
+    {
+      "condition": "THERMAL_SURGE",
+      "cutoffMultiplier": 0.85,
+      "resonanceQ": 3.2,
+      "description": "Resonant mid warmth & capacitor hum"
+    },
+    {
+      "condition": "OVERCLOCKED_GRID",
+      "cutoffMultiplier": 1,
+      "resonanceQ": 1.8,
+      "description": "Tightened resonance edge and accelerated modulation"
+    },
+    {
+      "condition": "CORRUPTED",
+      "cutoffMultiplier": 0.7,
+      "resonanceQ": 2,
+      "description": "Dampened lowpass resonance (-30% cutoff)"
+    },
+    {
+      "condition": "IONIC_STORM",
+      "cutoffMultiplier": 0.6,
+      "resonanceQ": 2.5,
+      "description": "Muffled static ion turbulence"
+    }
+  ],
+  "ducking": {
+    "stabilityAnchorCutoffHz": 380,
+    "pauseMenuCutoffHz": 380,
+    "duckingRampDurationSec": 0.25,
+    "crossfadeDurationSec": 0.8
+  }
+}

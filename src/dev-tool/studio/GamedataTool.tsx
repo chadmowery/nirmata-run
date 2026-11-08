@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useCallback } from 'react';
+import { getAudioEngine } from '@engine/audio';
 import { Sidebar } from './Sidebar';
 import { useGamedataStore } from './store';
 import { Section, SECTIONS } from './types';
@@ -12,6 +13,7 @@ import {
   ComponentSchemaViewer,
   PrefabEditor,
   ConfigEditor,
+  AudioCueStudio,
 } from './editors';
 import styles from './gamedata.module.css';
 
@@ -23,6 +25,7 @@ interface Props {
     shells: string[];
     prefabs?: string[];
     configs?: string[];
+    audioCues?: string[];
   };
 }
 
@@ -61,6 +64,9 @@ export function GamedataTool({ initialData }: Props) {
     }
     if (initialData.configs) {
       setSectionItems('configs', initialData.configs);
+    }
+    if (initialData.audioCues) {
+      setSectionItems('audioCues', initialData.audioCues);
     }
   }, [initialData, setSectionItems]);
 
@@ -165,6 +171,16 @@ export function GamedataTool({ initialData }: Props) {
         return <ComponentSchemaViewer key={editorKey} name={item.name} />;
       case 'configs':
         return <ConfigEditor key={editorKey} name={item.name} onRefresh={onRefresh} />;
+      case 'audioCues':
+        return (
+          <AudioCueStudio
+            key={editorKey}
+            name={item.name}
+            isNew={isNew}
+            cloneFrom={cloneFrom ?? undefined}
+            onRefresh={onRefresh}
+          />
+        );
       default:
         return (
           <div className={styles.emptyState}>
@@ -199,6 +215,20 @@ export function GamedataTool({ initialData }: Props) {
           >
             ● {isDirty ? 'UNSAVED' : 'SAVED'}
           </span>
+          <button
+            type="button"
+            className={styles.addButton}
+            onClick={() => getAudioEngine().stopAllAudio()}
+            style={{
+              margin: 0,
+              padding: '2px 8px',
+              borderColor: 'var(--c-danger, #ff2a4b)',
+              color: 'var(--c-danger, #ff2a4b)',
+            }}
+            title="Panic audio stop: terminates all active synth voices, loops, and ambiance drones"
+          >
+            ■ STOP AUDIO
+          </button>
           <button
             type="button"
             className={styles.addButton}

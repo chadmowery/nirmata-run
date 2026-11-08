@@ -78,6 +78,7 @@ export const useGamedataStore = create<GamedataStore>((set) => ({
     shells: [],
     prefabs: [],
     configs: [],
+    audioCues: [],
   },
   setSectionItems: (section, items) =>
     set((state) => ({

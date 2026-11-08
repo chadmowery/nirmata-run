@@ -1,17 +1,46 @@
 {
   "name": "player",
-  "mixins": ["physical", "combatant"],
+  "mixins": [
+    "physical",
+    "combatant"
+  ],
   "components": {
-    "actor": { "isPlayer": true },
+    "actor": {
+      "isPlayer": true
+    },
     "blocksMovement": {},
-    "energy": { "current": 1000, "speed": 100, "threshold": 1000 },
-    "sprite": { "key": "player" },
-    "run_inventory": { "maxSlots": 30, "software": [] },
-    "run_currency": { "stacks": [] }
+    "energy": {
+      "current": 1000,
+      "speed": 100,
+      "threshold": 1000
+    },
+    "sprite": {
+      "key": "player"
+    },
+    "audioProfile": {
+      "stepCue": "sfx_step_player",
+      "attackCue": "sfx_melee_hit",
+      "hitCue": "sfx_player_damaged",
+      "deathCue": "sfx_bsod_glitch"
+    },
+    "run_inventory": {
+      "maxSlots": 30,
+      "software": []
+    },
+    "run_currency": {
+      "stacks": []
+    }
   },
   "overrides": {
-    "health": { "current": 180, "max": 180 },
-    "attack": { "power": 50 },
-    "defense": { "armor": 2 }
+    "health": {
+      "current": 180,
+      "max": 180
+    },
+    "attack": {
+      "power": 50
+    },
+    "defense": {
+      "armor": 2
+    }
   }
 }

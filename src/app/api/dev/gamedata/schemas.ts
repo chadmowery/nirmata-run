@@ -157,3 +157,116 @@ export const LootDistributionSchema = z
       .min(1),
   })
   .passthrough();
+
+export const SynthPatchConfigSchema = z.object({
+  waveform: z.enum([
+    'sine',
+    'square',
+    'sawtooth',
+    'triangle',
+    'noise_white',
+    'noise_pink',
+    'noise_brown',
+  ]),
+  freqStart: z.number().positive(),
+  freqEnd: z.number().positive().optional(),
+  freqRampType: z.enum(['linear', 'exponential']).optional(),
+  subWaveform: z
+    .enum([
+      'sine',
+      'square',
+      'sawtooth',
+      'triangle',
+      'noise_white',
+      'noise_pink',
+      'noise_brown',
+    ])
+    .optional(),
+  subDetuneCents: z.number().optional(),
+  subMix: z.number().min(0).max(1).optional(),
+  fmFreq: z.number().optional(),
+  fmDepth: z.number().optional(),
+  filterType: z.enum(['lowpass', 'highpass', 'bandpass', 'notch']).optional(),
+  filterCutoffStart: z.number().positive().optional(),
+  filterCutoffEnd: z.number().positive().optional(),
+  filterQ: z.number().min(0).optional(),
+  distortion: z.number().min(0).max(1).optional(),
+  attack: z.number().min(0),
+  decay: z.number().min(0),
+  sustain: z.number().min(0).max(1),
+  hold: z.number().min(0),
+  release: z.number().min(0),
+  lfoFreq: z.number().min(0).optional(),
+  lfoFilterDepth: z.number().min(0).optional(),
+});
+
+export const SoundCueDefSchema = z.object({
+  id: z.string().regex(/^[a-z0-9_-]+$/),
+  bus: z.enum(['ambiance', 'sfx', 'ui']),
+  mode: z.enum(['synth', 'sample']),
+  baseVolume: z.number().min(0).max(1),
+  cooldownMs: z.number().min(0),
+  pitchVariance: z.number().min(0).max(1),
+  loop: z.boolean().optional(),
+  synth: SynthPatchConfigSchema.optional(),
+  samplePath: z.string().optional(),
+});
+
+export const SoundCuesFileSchema = z.object({
+  $schema: z.string().optional(),
+  version: z.string().optional(),
+  cues: z.array(SoundCueDefSchema),
+});
+
+export const AmbianceSceneTrackSchema = z.object({
+  cueId: z.string().min(1),
+  samplePath: z.string().optional(),
+  description: z.string().optional(),
+});
+
+export const AmbianceDepthBandSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  floorRange: z.object({
+    min: z.number().int().min(1),
+    max: z.number().int().min(1),
+  }),
+  cueId: z.string().min(1),
+  samplePath: z.string().optional(),
+  baseVolume: z.number().min(0).max(1).default(0.6),
+  description: z.string().optional(),
+});
+
+export const AmbianceSectorConditionSchema = z.object({
+  condition: z.string().min(1),
+  cueId: z.string().optional(),
+  samplePath: z.string().optional(),
+  cutoffMultiplier: z.number().min(0.01).max(2.0).default(1.0),
+  resonanceQ: z.number().min(0.1).max(20.0).default(1.0),
+  description: z.string().optional(),
+});
+
+export const AmbianceDuckingConfigSchema = z.object({
+  stabilityAnchorCutoffHz: z.number().min(20).max(20000).default(380),
+  pauseMenuCutoffHz: z.number().min(20).max(20000).default(380),
+  duckingRampDurationSec: z.number().min(0.01).max(5.0).default(0.25),
+  crossfadeDurationSec: z.number().min(0.01).max(10.0).default(0.8),
+});
+
+export const AmbianceConfigSchema = z.object({
+  scenes: z.record(z.string(), AmbianceSceneTrackSchema),
+  depthBands: z.array(AmbianceDepthBandSchema).min(1),
+  sectorConditions: z.array(AmbianceSectorConditionSchema).default([]),
+  ducking: AmbianceDuckingConfigSchema.default({
+    stabilityAnchorCutoffHz: 380,
+    pauseMenuCutoffHz: 380,
+    duckingRampDurationSec: 0.25,
+    crossfadeDurationSec: 0.8,
+  }),
+});
+
+export type AmbianceConfig = z.infer<typeof AmbianceConfigSchema>;
+export type AmbianceDepthBand = z.infer<typeof AmbianceDepthBandSchema>;
+export type AmbianceSectorCondition = z.infer<typeof AmbianceSectorConditionSchema>;
+export type AmbianceSceneTrack = z.infer<typeof AmbianceSceneTrackSchema>;
+export type AmbianceDuckingConfig = z.infer<typeof AmbianceDuckingConfigSchema>;

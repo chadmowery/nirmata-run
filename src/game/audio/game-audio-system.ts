@@ -1,0 +1,678 @@
+/**
+ * Nirmata Runner — Game Audio System Bridge
+ * Connects the authoritative ECS World & EventBus to the client AudioEngine.
+ * Implements client prediction deduplication, 2D grid spatial audio, and reactive ambiance.
+ */
+
+import { World } from '@engine/ecs/world';
+import { EntityId } from '@engine/ecs/types';
+import { EventBus } from '@engine/events/event-bus';
+import { GameEvents } from '@game/events/types';
+import { GameState } from '@game/states/types';
+import { Grid } from '@engine/grid/grid';
+import { EventOriginContext } from '@engine/utils/event-context';
+import {
+  IAudioEngine,
+  getAudioEngine,
+  PredictionDeduplicator,
+  SpatialCoords,
+} from '@engine/audio';
+import { Position, Shell, AudioProfile, Heat, AmbientEmitter, Prop, FloorState, CorruptedNode, InteractiveSurface } from '@shared/components';
+import { getSoundCue } from './cue-registry';
+import { resolveAmbianceForFloor, getAmbianceConfig } from '@game/config/ambiance';
+
+export interface GameAudioSystemOptions {
+  world: World<GameEvents>;
+  eventBus: EventBus<GameEvents>;
+  getPlayerEntity: () => EntityId;
+  getGrid: () => Grid;
+  audioEngine?: IAudioEngine;
+}
+
+export interface GameAudioSystem {
+  destroy(): void;
+  updateAmbianceForFloor(floorNumber: number): void;
+}
+
+export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudioSystem {
+  const {
+    world,
+    eventBus,
+    getPlayerEntity,
+    audioEngine = getAudioEngine(),
+  } = options;
+
+  const dedup = new PredictionDeduplicator(2000);
+  let currentFovSet = new Set<string>();
+  const activeEmitters = new Map<EntityId, { cueId: string; voiceId?: number }>();
+
+  const getPlayerPosition = (): { x: number; y: number } | null => {
+    const pId = getPlayerEntity();
+    if (!pId) return null;
+    const pos = world.getComponent(pId, Position);
+    return pos ? { x: pos.x, y: pos.y } : null;
+  };
+
+  const getSpatialCoords = (
+    sourceX: number,
+    sourceY: number,
+    maxRadius?: number,
+    falloff?: 'linear' | 'inverse',
+  ): SpatialCoords | undefined => {
+    const playerPos = getPlayerPosition();
+    if (!playerPos) return undefined;
+
+    const tileKey = `${sourceX},${sourceY}`;
+    const isOccluded = currentFovSet.size > 0 && !currentFovSet.has(tileKey);
+
+    return {
+      listenerX: playerPos.x,
+      listenerY: playerPos.y,
+      sourceX,
+      sourceY,
+      maxRadius,
+      falloff,
+      isOccluded,
+    };
+  };
+
+  const playSpatialCue = (
+    cueId: string,
+    sourceX: number,
+    sourceY: number,
+    volumeMultiplier = 1.0,
+    pitchMultiplier = 1.0,
+  ): void => {
+    const cue = getSoundCue(cueId);
+    if (!cue) return;
+    const spatial = getSpatialCoords(sourceX, sourceY);
+    audioEngine.playCue(cue, { spatial, volumeMultiplier, pitchMultiplier });
+  };
+
+  const playGlobalCue = (
+    cueId: string,
+    volumeMultiplier = 1.0,
+    pitchMultiplier = 1.0,
+  ): void => {
+    const cue = getSoundCue(cueId);
+    if (!cue) return;
+    audioEngine.playCue(cue, { volumeMultiplier, pitchMultiplier });
+  };
+
+  // Entity Audio Profile & Position Caches for Death & Cleanup SFX
+  // Required because the server's GravediggerSystem destroys entities before or during the turn
+  // in which ENTITY_DIED events are dispatched to the client audio system.
+  const audioProfileCache = new Map<
+    EntityId,
+    {
+      stepCue?: string;
+      attackCue?: string;
+      hitCue?: string;
+      deathCue?: string;
+      pitchMultiplier?: number;
+      volumeMultiplier?: number;
+    }
+  >();
+
+  const positionCache = new Map<EntityId, { x: number; y: number }>();
+  const surfaceCache = new Map<
+    EntityId,
+    {
+      providesCover?: boolean;
+      hazardOnDestroy?: string;
+    }
+  >();
+
+  const syncEntityCaches = (): void => {
+    const profileEntities = world.query(AudioProfile);
+    for (const id of profileEntities) {
+      const p = world.getComponent(id, AudioProfile);
+      if (p) audioProfileCache.set(id, { ...p });
+    }
+
+    const posEntities = world.query(Position);
+    for (const id of posEntities) {
+      const pos = world.getComponent(id, Position);
+      if (pos) positionCache.set(id, { x: pos.x, y: pos.y });
+    }
+
+    const surfaceEntities = world.query(InteractiveSurface);
+    for (const id of surfaceEntities) {
+      const s = world.getComponent(id, InteractiveSurface);
+      if (s) {
+        surfaceCache.set(id, {
+          providesCover: s.providesCover,
+          hazardOnDestroy: s.hazardOnDestroy,
+        });
+      }
+    }
+  };
+
+  // Initial cache synchronization
+  syncEntityCaches();
+
+  const updateAmbientEmitters = (): void => {
+    const playerPos = getPlayerPosition();
+    if (!playerPos) return;
+
+    const inRangeEntities = new Set<EntityId>();
+
+    for (const entityId of world.query(AmbientEmitter, Position)) {
+      const emitter = world.getComponent(entityId, AmbientEmitter);
+      const pos = world.getComponent(entityId, Position);
+      if (!emitter || !pos) continue;
+
+      // If prop is searched or corrupted node is disarmed/triggered, mute emitter if activeOnlyWhenUnsearched is true
+      if (emitter.activeOnlyWhenUnsearched) {
+        const prop = world.getComponent(entityId, Prop);
+        if (prop?.isSearched) {
+          continue;
+        }
+        const corrupted = world.getComponent(entityId, CorruptedNode);
+        if (corrupted?.isDisarmed || corrupted?.triggered) {
+          continue;
+        }
+      }
+
+      // If requiresFov is true, ensure tile is in active visible set
+      const tileKey = `${pos.x},${pos.y}`;
+      if (emitter.requiresFov && !currentFovSet.has(tileKey)) {
+        continue;
+      }
+
+      const dx = pos.x - playerPos.x;
+      const dy = pos.y - playerPos.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist <= emitter.radius) {
+        inRangeEntities.add(entityId);
+        const spatial = getSpatialCoords(pos.x, pos.y, emitter.radius, emitter.falloff);
+
+        if (!activeEmitters.has(entityId)) {
+          const cue = getSoundCue(emitter.cueId);
+          if (cue) {
+            const voiceId = audioEngine.playCue(cue, {
+              spatial,
+              volumeMultiplier: emitter.baseVolume,
+            });
+            activeEmitters.set(entityId, { cueId: emitter.cueId, voiceId });
+          }
+        } else {
+          // Dynamically update stereo panning, distance attenuation, and occlusion while inside radius
+          const active = activeEmitters.get(entityId)!;
+          if (active.voiceId !== undefined && spatial) {
+            audioEngine.updateVoiceSpatial(active.voiceId, spatial, emitter.baseVolume);
+          }
+        }
+      }
+    }
+
+    // Stop emitters that moved out of range or were searched/despawned
+    for (const [entityId, active] of activeEmitters.entries()) {
+      if (!inRangeEntities.has(entityId)) {
+        if (active.voiceId !== undefined) {
+          audioEngine.stopVoice(active.voiceId, 0.25);
+        } else {
+          audioEngine.stopCue(active.cueId, 0.25);
+        }
+        activeEmitters.delete(entityId);
+      }
+    }
+  };
+
+  // --- Subscriptions ---
+
+  const unsubs: Array<() => void> = [];
+
+  const subscribe = <K extends keyof GameEvents>(
+    type: K,
+    handler: (payload: GameEvents[K]) => void,
+  ) => {
+    eventBus.on(type, handler);
+    unsubs.push(() => eventBus.off(type, handler));
+  };
+
+  // 1. Movement & Footsteps
+  subscribe('ENTITY_MOVED', (payload) => {
+    positionCache.set(payload.entityId, { x: payload.toX, y: payload.toY });
+    const isPlayer = payload.entityId === getPlayerEntity();
+      const origin = EventOriginContext.current;
+
+      if (isPlayer) {
+        // Resolve shell-specific footstep cue
+        const profile = world.getComponent(payload.entityId, AudioProfile);
+        const shell = world.getComponent(payload.entityId, Shell);
+
+        let stepCueId = profile?.stepCue;
+        if (!stepCueId || stepCueId === 'sfx_step_player') {
+          if (shell?.archetypeId === 'bastion-v1') {
+            stepCueId = 'sfx_step_bastion';
+          } else if (shell?.archetypeId === 'ghost-v1') {
+            stepCueId = 'sfx_step_ghost';
+          } else {
+            stepCueId = 'sfx_step_player';
+          }
+        }
+
+        const token = `${payload.entityId}:${payload.fromX},${payload.fromY}->${payload.toX},${payload.toY}`;
+
+        if (origin === 'client') {
+          // Play immediately for 0ms player feedback
+          playGlobalCue(stepCueId, profile?.volumeMultiplier, profile?.pitchMultiplier);
+          dedup.recordPredicted('ENTITY_MOVED', token);
+          updateAmbientEmitters();
+          return;
+        }
+
+        if (origin === 'server') {
+          // Deduplicate if matching prediction exists
+          if (dedup.consumeIfPredicted('ENTITY_MOVED', token)) {
+            updateAmbientEmitters();
+            return;
+          }
+          // Misprediction or server-forced move
+          playGlobalCue(stepCueId, profile?.volumeMultiplier, profile?.pitchMultiplier);
+          updateAmbientEmitters();
+        }
+      } else {
+        // Enemy footstep / movement
+        const profile = world.getComponent(payload.entityId, AudioProfile);
+        const stepCueId = profile?.stepCue ?? 'sfx_step_enemy';
+        playSpatialCue(
+          stepCueId,
+          payload.toX,
+          payload.toY,
+          profile?.volumeMultiplier,
+          profile?.pitchMultiplier,
+        );
+      }
+    });
+
+  // 2. Enemy Teleport
+  subscribe('ENEMY_TELEPORTED', (payload) => {
+    positionCache.set(payload.entityId, { x: payload.toX, y: payload.toY });
+    playSpatialCue('sfx_teleport_shift', payload.toX, payload.toY);
+  });
+
+  // 3. Combat & Damage
+  subscribe('DAMAGE_DEALT', (payload) => {
+    syncEntityCaches();
+
+    // Attacker attackCue playback
+    const attackerProfile =
+      world.getComponent(payload.attackerId, AudioProfile) ||
+      audioProfileCache.get(payload.attackerId);
+    if (attackerProfile?.attackCue) {
+      const isPlayerAttacker = payload.attackerId === getPlayerEntity();
+      if (isPlayerAttacker) {
+        playGlobalCue(
+          attackerProfile.attackCue,
+          attackerProfile.volumeMultiplier,
+          attackerProfile.pitchMultiplier,
+        );
+      } else {
+        const attackerPos =
+          world.getComponent(payload.attackerId, Position) ||
+          positionCache.get(payload.attackerId);
+        if (attackerPos) {
+          playSpatialCue(
+            attackerProfile.attackCue,
+            attackerPos.x,
+            attackerPos.y,
+            attackerProfile.volumeMultiplier,
+            attackerProfile.pitchMultiplier,
+          );
+        } else {
+          playGlobalCue(
+            attackerProfile.attackCue,
+            attackerProfile.volumeMultiplier,
+            attackerProfile.pitchMultiplier,
+          );
+        }
+      }
+    }
+
+    // Directional cover mitigation SFX
+    if (payload.mitigatedByCover) {
+      const defPos =
+        world.getComponent(payload.defenderId, Position) ||
+        positionCache.get(payload.defenderId);
+      if (payload.defenderId === getPlayerEntity() || !defPos) {
+        playGlobalCue('sfx_cover_mitigated');
+      } else {
+        playSpatialCue('sfx_cover_mitigated', defPos.x, defPos.y);
+      }
+    }
+
+    const defaultPlayerHitCue = payload.isRanged ? 'sfx_ranged_hit' : 'sfx_player_damaged';
+    const defaultEnemyHitCue = payload.isRanged ? 'sfx_ranged_hit' : 'sfx_melee_hit';
+
+    const isPlayerDefender = payload.defenderId === getPlayerEntity();
+    if (isPlayerDefender) {
+      const defProfile =
+        world.getComponent(payload.defenderId, AudioProfile) ||
+        audioProfileCache.get(payload.defenderId);
+      playGlobalCue(
+        defProfile?.hitCue ?? defaultPlayerHitCue,
+        defProfile?.volumeMultiplier,
+        defProfile?.pitchMultiplier,
+      );
+      return;
+    }
+
+    const defPos =
+      world.getComponent(payload.defenderId, Position) ||
+      positionCache.get(payload.defenderId);
+    const profile =
+      world.getComponent(payload.defenderId, AudioProfile) ||
+      audioProfileCache.get(payload.defenderId);
+    const hitCueId = profile?.hitCue ?? defaultEnemyHitCue;
+
+    if (defPos) {
+      playSpatialCue(
+        hitCueId,
+        defPos.x,
+        defPos.y,
+        profile?.volumeMultiplier,
+        profile?.pitchMultiplier,
+      );
+    } else {
+      playGlobalCue(
+        hitCueId,
+        profile?.volumeMultiplier,
+        profile?.pitchMultiplier,
+      );
+    }
+  });
+
+  // 4. Entity Death
+  subscribe('ENTITY_DIED', (payload) => {
+    const isPlayer = payload.isPlayer || payload.entityId === getPlayerEntity();
+    const profile =
+      world.getComponent(payload.entityId, AudioProfile) ||
+      audioProfileCache.get(payload.entityId);
+
+    if (isPlayer) {
+      const deathCueId = profile?.deathCue ?? 'sfx_bsod_fatal';
+      playGlobalCue(
+        deathCueId,
+        profile?.volumeMultiplier,
+        profile?.pitchMultiplier,
+      );
+      audioProfileCache.delete(payload.entityId);
+      positionCache.delete(payload.entityId);
+      surfaceCache.delete(payload.entityId);
+      return;
+    }
+
+    const pos =
+      world.getComponent(payload.entityId, Position) ||
+      positionCache.get(payload.entityId);
+    const deathCueId = profile?.deathCue ?? 'sfx_enemy_death';
+
+    if (pos) {
+      playSpatialCue(
+        deathCueId,
+        pos.x,
+        pos.y,
+        profile?.volumeMultiplier,
+        profile?.pitchMultiplier,
+      );
+    } else {
+      playGlobalCue(
+        deathCueId,
+        profile?.volumeMultiplier,
+        profile?.pitchMultiplier,
+      );
+    }
+
+    // Check if destroyed entity is a cover prop or volatile hazard prop
+    const surface =
+      world.getComponent(payload.entityId, InteractiveSurface) ||
+      surfaceCache.get(payload.entityId);
+
+    if (surface?.providesCover) {
+      if (pos) {
+        playSpatialCue('sfx_cover_broken', pos.x, pos.y);
+      } else {
+        playGlobalCue('sfx_cover_broken');
+      }
+    }
+
+    if (surface?.hazardOnDestroy === 'cryo_spill') {
+      if (pos) {
+        playSpatialCue('sfx_volatile_cryo', pos.x, pos.y);
+      } else {
+        playGlobalCue('sfx_volatile_cryo');
+      }
+    } else if (surface?.hazardOnDestroy === 'emp_arc') {
+      if (pos) {
+        playSpatialCue('sfx_volatile_emp', pos.x, pos.y);
+      } else {
+        playGlobalCue('sfx_volatile_emp');
+      }
+    }
+
+    audioProfileCache.delete(payload.entityId);
+    positionCache.delete(payload.entityId);
+    surfaceCache.delete(payload.entityId);
+
+    if (activeEmitters.has(payload.entityId)) {
+      const active = activeEmitters.get(payload.entityId);
+      if (active) {
+        if (active.voiceId !== undefined) {
+          audioEngine.stopVoice(active.voiceId, 0.25);
+        } else {
+          audioEngine.stopCue(active.cueId, 0.25);
+        }
+      }
+      activeEmitters.delete(payload.entityId);
+    }
+  });
+
+  // 5. Healing & Augments
+  subscribe('HEALED', () => {
+    playGlobalCue('sfx_heal_nanite');
+  });
+
+  subscribe('AUGMENT_FLASH', () => {
+    playGlobalCue('sfx_augment_proc');
+  });
+
+  // 6. Targeting System
+  subscribe('TARGETING_STARTED', () => {
+    playGlobalCue('sfx_targeting_start');
+  });
+
+  subscribe('TARGETING_CURSOR_MOVED', () => {
+    playGlobalCue('sfx_targeting_cursor');
+  });
+
+  subscribe('TARGETING_CONFIRMED', () => {
+    playGlobalCue('sfx_targeting_confirm');
+  });
+
+  subscribe('TARGETING_CANCELLED', () => {
+    playGlobalCue('sfx_targeting_cancel');
+  });
+
+  // 7. Firmware & Heat
+  subscribe('FIRMWARE_ACTIVATED', () => {
+    playGlobalCue('sfx_firmware_cast');
+  });
+
+  subscribe('HEAT_CHANGED', (payload) => {
+    const isPlayer = payload.entityId === getPlayerEntity();
+    if (!isPlayer) return;
+
+    const playerHeat = world.getComponent(payload.entityId, Heat);
+    const maxSafe = playerHeat?.maxSafe ?? payload.maxSafe ?? 100;
+    const heatVal = payload.newHeat;
+
+    const currentTier = Math.min(5, Math.floor((heatVal / maxSafe) * 5));
+    const oldTier = Math.min(5, Math.floor((payload.oldHeat / maxSafe) * 5));
+
+    if (heatVal >= maxSafe) {
+      playGlobalCue('sfx_kernel_panic_alarm');
+    } else if (currentTier > oldTier && currentTier >= 2) {
+      playGlobalCue('sfx_heat_tier_up');
+    }
+
+    audioEngine.setAmbianceState({ heatTier: currentTier });
+  });
+
+  subscribe('VENT_COMPLETED', () => {
+    playGlobalCue('sfx_vent_purge');
+    audioEngine.setAmbianceState({ heatTier: 0 });
+  });
+
+  // 8. Loot & Pickups
+  subscribe('ITEM_PICKED_UP', () => {
+    playGlobalCue('sfx_item_pickup');
+  });
+
+  subscribe('CURRENCY_PICKED_UP', () => {
+    playGlobalCue('sfx_currency_pickup');
+  });
+
+  // 9. Prop Interactions & Locks
+  subscribe('PROP_INTERACTED', (payload) => {
+    const propPos = world.getComponent(payload.propId, Position);
+    const profile = world.getComponent(payload.propId, AudioProfile);
+    const interactCueId = profile?.interactCue ?? 'sfx_prop_search';
+
+    if (propPos) {
+      playSpatialCue(interactCueId, propPos.x, propPos.y);
+    } else {
+      playGlobalCue(interactCueId);
+    }
+    updateAmbientEmitters();
+  });
+
+  subscribe('LOCK_UNLOCKED', (payload) => {
+    if (payload.method === 'key') {
+      playGlobalCue('sfx_lock_keycard');
+    } else {
+      playGlobalCue('sfx_lock_overclock');
+    }
+  });
+
+  subscribe('DEAD_DROP_TRANSMITTED', () => {
+    playGlobalCue('sfx_dead_drop_uplink');
+  });
+
+  // 10. Anchor Interactions
+  subscribe('ANCHOR_INTERACTION', () => {
+    playGlobalCue('sfx_anchor_handshake');
+  });
+
+  subscribe('ANCHOR_DESCEND', () => {
+    playGlobalCue('sfx_anchor_descend');
+  });
+
+  subscribe('ANCHOR_EXTRACT', () => {
+    playGlobalCue('sfx_extract_success');
+  });
+
+  // 11. Floor Transition & Ambiance
+  const updateAmbianceForFloor = (floorNumber: number): void => {
+    // Query FloorState from world for active sector condition
+    const floorEntity = world.query(FloorState)[0];
+    const floorState = floorEntity ? world.getComponent(floorEntity, FloorState) : null;
+    const condition =
+      floorState?.sectorCondition && floorState.sectorCondition !== 'NOMINAL'
+        ? floorState.sectorCondition
+        : null;
+
+    const duckingConfig = getAmbianceConfig().ducking;
+    const resolved = resolveAmbianceForFloor(floorNumber, condition);
+
+    const cue = getSoundCue(resolved.cueId);
+    if (cue) {
+      audioEngine.playAmbianceCue(cue, {
+        volumeMultiplier: resolved.baseVolume,
+        crossfadeDurationSec: duckingConfig?.crossfadeDurationSec,
+      });
+    }
+    audioEngine.setAmbianceState({
+      depthBand: resolved.depthBand,
+      sectorCondition: condition,
+      cutoffMultiplier: resolved.cutoffMultiplier,
+      resonanceQ: resolved.resonanceQ,
+      baseVolume: resolved.baseVolume,
+      stabilityAnchorCutoffHz: duckingConfig?.stabilityAnchorCutoffHz,
+      pauseMenuCutoffHz: duckingConfig?.pauseMenuCutoffHz,
+      duckingRampDurationSec: duckingConfig?.duckingRampDurationSec,
+      crossfadeDurationSec: duckingConfig?.crossfadeDurationSec,
+    });
+    updateAmbientEmitters();
+  };
+
+  subscribe('FLOOR_TRANSITION', (payload) => {
+    positionCache.clear();
+    audioProfileCache.clear();
+    surfaceCache.clear();
+    syncEntityCaches();
+    updateAmbianceForFloor(payload.floorNumber);
+  });
+
+  // 12. World Filter Ducking (Stability Anchor grayscale desaturation)
+  subscribe('APPLY_WORLD_FILTER', () => {
+    audioEngine.setAmbianceState({ isAnchorDucked: true });
+  });
+
+  subscribe('REMOVE_WORLD_FILTER', () => {
+    audioEngine.setAmbianceState({ isAnchorDucked: false });
+  });
+
+  // 13. FOV Tracking for Spatial Occlusion
+  subscribe('FOV_UPDATED', (payload) => {
+    currentFovSet = payload.visibleSet;
+    syncEntityCaches();
+    updateAmbientEmitters();
+  });
+
+  // 14. Pause & Game State Ambiance Ducking
+  subscribe('STATE_TRANSITION', (payload) => {
+    if (payload.newState === GameState.Paused) {
+      audioEngine.setAmbianceState({ isPaused: true });
+    } else if (payload.newState === GameState.Playing) {
+      audioEngine.setAmbianceState({ isPaused: false });
+    }
+  });
+
+  // 15. Bump Safeguard Warning
+  subscribe('INPUT_BUFFER_CLEARED', () => {
+    playGlobalCue('sfx_bump_warning');
+  });
+
+  return {
+    destroy: () => {
+      for (const unsub of unsubs) {
+        unsub();
+      }
+      unsubs.length = 0;
+      for (const active of activeEmitters.values()) {
+        if (active.voiceId !== undefined) {
+          audioEngine.stopVoice(active.voiceId);
+        } else {
+          audioEngine.stopCue(active.cueId);
+        }
+      }
+      audioProfileCache.clear();
+      positionCache.clear();
+      surfaceCache.clear();
+      activeEmitters.clear();
+      dedup.clear();
+      audioEngine.setAmbianceState({
+        heatTier: 0,
+        sectorCondition: null,
+        isAnchorDucked: false,
+        isPaused: false,
+        cutoffMultiplier: 1.0,
+        resonanceQ: 1.0,
+      });
+    },
+    updateAmbianceForFloor,
+  };
+}
