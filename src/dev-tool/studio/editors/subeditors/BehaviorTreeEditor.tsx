@@ -182,18 +182,39 @@ function BTNodeView({
   const handleTypeChange = (newType: BehaviorTreeNode['type']) => {
     switch (newType) {
       case 'SELECTOR':
-      case 'SEQUENCE':
+      case 'SEQUENCE': {
+        const existingChildren = isComposite ? (node as { children: BehaviorTreeNode[] }).children : [];
         onChange({
           type: newType,
           name: (node as { name?: string }).name || undefined,
-          children: isComposite ? (node as { children: BehaviorTreeNode[] }).children : [],
+          children:
+            existingChildren && existingChildren.length > 0
+              ? existingChildren
+              : [{ type: 'ACTION', task: { action: 'WAIT' } }],
         });
         break;
+      }
       case 'UTILITY_SELECTOR':
         onChange({
           type: 'UTILITY_SELECTOR',
           name: (node as { name?: string }).name || undefined,
-          branches: [],
+          branches: [
+            {
+              name: 'default-branch',
+              weight: 1,
+              considerations: [
+                {
+                  metric: 'target_distance',
+                  curve: 'linear',
+                  slope: 1,
+                  invert: false,
+                  minInput: 0,
+                  maxInput: 10,
+                },
+              ],
+              child: { type: 'ACTION', task: { action: 'WAIT' } },
+            },
+          ],
         });
         break;
       case 'DECORATOR_COOLDOWN':
@@ -313,12 +334,16 @@ function BTNodeView({
                 nextChildren[idx] = updatedChild;
                 onChange({ ...node, children: nextChildren } as BehaviorTreeNode);
               }}
-              onRemove={() => {
-                const nextChildren = (node as { children: BehaviorTreeNode[] }).children.filter(
-                  (_, i) => i !== idx,
-                );
-                onChange({ ...node, children: nextChildren } as BehaviorTreeNode);
-              }}
+              onRemove={
+                (node as { children: BehaviorTreeNode[] }).children.length > 1
+                  ? () => {
+                      const nextChildren = (node as { children: BehaviorTreeNode[] }).children.filter(
+                        (_, i) => i !== idx,
+                      );
+                      onChange({ ...node, children: nextChildren } as BehaviorTreeNode);
+                    }
+                  : undefined
+              }
               disabled={disabled}
               availableSubtrees={availableSubtrees}
             />
@@ -493,18 +518,20 @@ function BTNodeView({
                   }}
                   disabled={disabled}
                 />
-                <button
-                  type="button"
-                  className={styles.toolButton}
-                  onClick={() => {
-                    const nextBranches = node.branches.filter((_, i) => i !== idx);
-                    onChange({ ...node, branches: nextBranches });
-                  }}
-                  disabled={disabled}
-                  style={{ color: 'var(--c-danger, #ff2a4b)', padding: '1px 6px', fontSize: '11px' }}
-                >
-                  ×
-                </button>
+                {node.branches.length > 1 && (
+                  <button
+                    type="button"
+                    className={styles.toolButton}
+                    onClick={() => {
+                      const nextBranches = node.branches.filter((_, i) => i !== idx);
+                      onChange({ ...node, branches: nextBranches });
+                    }}
+                    disabled={disabled}
+                    style={{ color: 'var(--c-danger, #ff2a4b)', padding: '1px 6px', fontSize: '11px' }}
+                  >
+                    ×
+                  </button>
+                )}
               </div>
 
               {/* Considerations */}
@@ -515,7 +542,7 @@ function BTNodeView({
                 {b.considerations.map((c, cIdx) => (
                   <div
                     key={cIdx}
-                    style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px' }}
+                    style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '4px', flexWrap: 'wrap' }}
                   >
                     <select
                       className={styles.fieldSelect}
@@ -563,6 +590,54 @@ function BTNodeView({
                       ))}
                     </select>
 
+                    <span style={{ fontSize: '10px', color: 'var(--c-text-dim, #79889e)' }}>Slope:</span>
+                    <input
+                      type="number"
+                      className={styles.fieldInput}
+                      style={{ width: '45px', fontSize: '11px' }}
+                      step={0.1}
+                      value={c.slope ?? 1}
+                      onChange={(e) => {
+                        const nextCons = [...b.considerations];
+                        nextCons[cIdx] = { ...c, slope: Number(e.target.value) };
+                        const nextBranches = [...node.branches];
+                        nextBranches[idx] = { ...b, considerations: nextCons };
+                        onChange({ ...node, branches: nextBranches });
+                      }}
+                      disabled={disabled}
+                    />
+
+                    <span style={{ fontSize: '10px', color: 'var(--c-text-dim, #79889e)' }}>In:</span>
+                    <input
+                      type="number"
+                      className={styles.fieldInput}
+                      style={{ width: '40px', fontSize: '11px' }}
+                      value={c.minInput ?? 0}
+                      onChange={(e) => {
+                        const nextCons = [...b.considerations];
+                        nextCons[cIdx] = { ...c, minInput: Number(e.target.value) };
+                        const nextBranches = [...node.branches];
+                        nextBranches[idx] = { ...b, considerations: nextCons };
+                        onChange({ ...node, branches: nextBranches });
+                      }}
+                      disabled={disabled}
+                    />
+                    <span style={{ fontSize: '10px' }}>..</span>
+                    <input
+                      type="number"
+                      className={styles.fieldInput}
+                      style={{ width: '40px', fontSize: '11px' }}
+                      value={c.maxInput ?? 1}
+                      onChange={(e) => {
+                        const nextCons = [...b.considerations];
+                        nextCons[cIdx] = { ...c, maxInput: Number(e.target.value) };
+                        const nextBranches = [...node.branches];
+                        nextBranches[idx] = { ...b, considerations: nextCons };
+                        onChange({ ...node, branches: nextBranches });
+                      }}
+                      disabled={disabled}
+                    />
+
                     <label style={{ fontSize: '10px', display: 'flex', alignItems: 'center', gap: '3px' }}>
                       <input
                         type="checkbox"
@@ -579,20 +654,22 @@ function BTNodeView({
                       Inv
                     </label>
 
-                    <button
-                      type="button"
-                      className={styles.toolButton}
-                      onClick={() => {
-                        const nextCons = b.considerations.filter((_, i) => i !== cIdx);
-                        const nextBranches = [...node.branches];
-                        nextBranches[idx] = { ...b, considerations: nextCons };
-                        onChange({ ...node, branches: nextBranches });
-                      }}
-                      disabled={disabled}
-                      style={{ color: 'var(--c-danger, #ff2a4b)', padding: '1px 4px', fontSize: '10px' }}
-                    >
-                      ×
-                    </button>
+                    {b.considerations.length > 1 && (
+                      <button
+                        type="button"
+                        className={styles.toolButton}
+                        onClick={() => {
+                          const nextCons = b.considerations.filter((_, i) => i !== cIdx);
+                          const nextBranches = [...node.branches];
+                          nextBranches[idx] = { ...b, considerations: nextCons };
+                          onChange({ ...node, branches: nextBranches });
+                        }}
+                        disabled={disabled}
+                        style={{ color: 'var(--c-danger, #ff2a4b)', padding: '1px 4px', fontSize: '10px' }}
+                      >
+                        ×
+                      </button>
+                    )}
                   </div>
                 ))}
 
@@ -645,7 +722,16 @@ function BTNodeView({
                 {
                   name: `branch_${node.branches.length + 1}`,
                   weight: 1,
-                  considerations: [],
+                  considerations: [
+                    {
+                      metric: 'target_distance' as const,
+                      curve: 'linear' as const,
+                      slope: 1,
+                      invert: false,
+                      minInput: 0,
+                      maxInput: 10,
+                    },
+                  ],
                   child: { type: 'ACTION' as const, task: { action: 'WAIT' as const } },
                 },
               ];
@@ -726,6 +812,16 @@ function ConditionNodeFields({
             onChange={(e) => onChange({ ...condition, distance: Number(e.target.value) })}
             disabled={disabled}
           />
+          <select
+            className={styles.fieldSelect}
+            value={condition.metric ?? 'manhattan'}
+            onChange={(e) => onChange({ ...condition, metric: e.target.value as 'manhattan' | 'chebyshev' })}
+            disabled={disabled}
+            style={{ width: 'auto', fontSize: '11px' }}
+          >
+            <option value="manhattan">manhattan</option>
+            <option value="chebyshev">chebyshev</option>
+          </select>
         </div>
       )}
 
@@ -749,6 +845,16 @@ function ConditionNodeFields({
             onChange={(e) => onChange({ ...condition, max: Number(e.target.value) })}
             disabled={disabled}
           />
+          <select
+            className={styles.fieldSelect}
+            value={condition.metric ?? 'manhattan'}
+            onChange={(e) => onChange({ ...condition, metric: e.target.value as 'manhattan' | 'chebyshev' })}
+            disabled={disabled}
+            style={{ width: 'auto', fontSize: '11px' }}
+          >
+            <option value="manhattan">manhattan</option>
+            <option value="chebyshev">chebyshev</option>
+          </select>
         </div>
       )}
 
@@ -770,6 +876,16 @@ function ConditionNodeFields({
 
       {condition.check === 'HAS_STATUS_EFFECT' && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <select
+            className={styles.fieldSelect}
+            value={condition.target ?? 'self'}
+            onChange={(e) => onChange({ ...condition, target: e.target.value as 'self' | 'target' })}
+            disabled={disabled}
+            style={{ width: 'auto', fontSize: '11px' }}
+          >
+            <option value="self">self</option>
+            <option value="target">target</option>
+          </select>
           <span style={{ fontSize: '11px', color: 'var(--c-text-dim, #79889e)' }}>Status:</span>
           <input
             type="text"
@@ -833,21 +949,48 @@ function ActionNodeFields({
   disabled?: boolean;
 }) {
   const handleActionChange = (newAction: AIAction['action']) => {
+    const existingMsg =
+      'combatMessage' in task
+        ? task.combatMessage
+        : task.action === 'WAIT'
+          ? task.message
+          : undefined;
+
     switch (newAction) {
       case 'MOVE_DIJKSTRA':
-        onChange({ action: 'MOVE_DIJKSTRA', mapType: 'approach_target', avoidHazards: true, canCrushProps: false });
+        onChange({
+          action: 'MOVE_DIJKSTRA',
+          mapType: 'approach_target',
+          avoidHazards: true,
+          canCrushProps: false,
+          combatMessage: existingMsg,
+        });
         break;
       case 'RANGED_ATTACK_TARGET':
-        onChange({ action: 'RANGED_ATTACK_TARGET' });
+        onChange({ action: 'RANGED_ATTACK_TARGET', combatMessage: existingMsg });
         break;
       case 'TELEPORT_AMBUSH_BEHIND_TARGET':
-        onChange({ action: 'TELEPORT_AMBUSH_BEHIND_TARGET', minRange: 2, maxRange: 8, searchRadius: 3 });
+        onChange({
+          action: 'TELEPORT_AMBUSH_BEHIND_TARGET',
+          minRange: 2,
+          maxRange: 8,
+          searchRadius: 3,
+          combatMessage: existingMsg,
+        });
         break;
       case 'SPAWN_ENTITIES_AROUND_SELF':
-        onChange({ action: 'SPAWN_ENTITIES_AROUND_SELF', templateName: 'dead-zone', pattern: 'cardinal_4', count: 4 });
+        onChange({
+          action: 'SPAWN_ENTITIES_AROUND_SELF',
+          templateName: 'dead-zone',
+          pattern: 'cardinal_4',
+          count: 4,
+          combatMessage: existingMsg,
+        });
+        break;
+      case 'WAIT':
+        onChange({ action: 'WAIT', message: existingMsg });
         break;
       case 'MELEE_BUMP_TARGET':
-      case 'WAIT':
       default:
         onChange({ action: newAction });
         break;
@@ -891,6 +1034,37 @@ function ActionNodeFields({
             ))}
           </select>
 
+          <span style={{ fontSize: '11px', color: 'var(--c-text-dim, #79889e)' }}>OptRange:</span>
+          <input
+            type="number"
+            className={styles.fieldInput}
+            style={{ width: '45px', fontSize: '11px' }}
+            placeholder="min"
+            value={task.optimalRangeMin ?? ''}
+            onChange={(e) =>
+              onChange({
+                ...task,
+                optimalRangeMin: e.target.value !== '' ? Number(e.target.value) : undefined,
+              })
+            }
+            disabled={disabled}
+          />
+          <span style={{ fontSize: '11px' }}>..</span>
+          <input
+            type="number"
+            className={styles.fieldInput}
+            style={{ width: '45px', fontSize: '11px' }}
+            placeholder="max"
+            value={task.optimalRangeMax ?? ''}
+            onChange={(e) =>
+              onChange({
+                ...task,
+                optimalRangeMax: e.target.value !== '' ? Number(e.target.value) : undefined,
+              })
+            }
+            disabled={disabled}
+          />
+
           <label style={{ fontSize: '10px', display: 'flex', alignItems: 'center', gap: '3px' }}>
             <input
               type="checkbox"
@@ -913,8 +1087,91 @@ function ActionNodeFields({
         </>
       )}
 
+      {task.action === 'RANGED_ATTACK_TARGET' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '11px', color: 'var(--c-text-dim, #79889e)' }}>Status:</span>
+          <input
+            type="text"
+            className={styles.fieldInput}
+            style={{ width: '85px', fontSize: '11px' }}
+            placeholder="Status (opt)"
+            value={task.statusEffect?.name ?? ''}
+            onChange={(e) => {
+              const name = e.target.value;
+              if (!name) {
+                onChange({ ...task, statusEffect: undefined });
+              } else {
+                onChange({
+                  ...task,
+                  statusEffect: {
+                    name,
+                    duration: task.statusEffect?.duration ?? 3,
+                    magnitude: task.statusEffect?.magnitude ?? 1,
+                  },
+                });
+              }
+            }}
+            disabled={disabled}
+          />
+          {task.statusEffect && (
+            <>
+              <span style={{ fontSize: '10px', color: 'var(--c-text-dim, #79889e)' }}>Dur:</span>
+              <input
+                type="number"
+                className={styles.fieldInput}
+                style={{ width: '45px', fontSize: '11px' }}
+                min={1}
+                value={task.statusEffect.duration}
+                onChange={(e) =>
+                  onChange({
+                    ...task,
+                    statusEffect: {
+                      ...task.statusEffect!,
+                      duration: Number(e.target.value) || 1,
+                    },
+                  })
+                }
+                disabled={disabled}
+              />
+            </>
+          )}
+        </div>
+      )}
+
+      {task.action === 'TELEPORT_AMBUSH_BEHIND_TARGET' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '11px', color: 'var(--c-text-dim, #79889e)' }}>Range:</span>
+          <input
+            type="number"
+            className={styles.fieldInput}
+            style={{ width: '45px', fontSize: '11px' }}
+            value={task.minRange ?? 2}
+            onChange={(e) => onChange({ ...task, minRange: Number(e.target.value) })}
+            disabled={disabled}
+          />
+          <span style={{ fontSize: '11px' }}>..</span>
+          <input
+            type="number"
+            className={styles.fieldInput}
+            style={{ width: '45px', fontSize: '11px' }}
+            value={task.maxRange ?? 8}
+            onChange={(e) => onChange({ ...task, maxRange: Number(e.target.value) })}
+            disabled={disabled}
+          />
+          <span style={{ fontSize: '10px', color: 'var(--c-text-dim, #79889e)' }}>SearchRad:</span>
+          <input
+            type="number"
+            className={styles.fieldInput}
+            style={{ width: '45px', fontSize: '11px' }}
+            value={task.searchRadius ?? 3}
+            onChange={(e) => onChange({ ...task, searchRadius: Number(e.target.value) })}
+            disabled={disabled}
+          />
+        </div>
+      )}
+
       {task.action === 'SPAWN_ENTITIES_AROUND_SELF' && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '11px', color: 'var(--c-text-dim, #79889e)' }}>Template:</span>
           <input
             type="text"
@@ -934,17 +1191,79 @@ function ActionNodeFields({
             <option value="cardinal_4">cardinal_4</option>
             <option value="ring_radius_3">ring_radius_3</option>
           </select>
+          <span style={{ fontSize: '11px', color: 'var(--c-text-dim, #79889e)' }}>Count:</span>
+          <input
+            type="number"
+            className={styles.fieldInput}
+            style={{ width: '45px', fontSize: '11px' }}
+            min={1}
+            value={task.count ?? 4}
+            onChange={(e) => onChange({ ...task, count: Number(e.target.value) || 1 })}
+            disabled={disabled}
+          />
+          {task.templateName === 'dead-zone' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '10px', color: 'var(--c-text-dim, #79889e)' }}>DZ Turns:</span>
+              <input
+                type="number"
+                className={styles.fieldInput}
+                style={{ width: '45px', fontSize: '11px' }}
+                min={1}
+                value={task.deadZoneConfig?.remainingTurns ?? 6}
+                onChange={(e) =>
+                  onChange({
+                    ...task,
+                    deadZoneConfig: {
+                      remainingTurns: Number(e.target.value) || 1,
+                      damagePerTick: task.deadZoneConfig?.damagePerTick ?? 2,
+                    },
+                  })
+                }
+                disabled={disabled}
+              />
+              <span style={{ fontSize: '10px', color: 'var(--c-text-dim, #79889e)' }}>Dmg:</span>
+              <input
+                type="number"
+                className={styles.fieldInput}
+                style={{ width: '45px', fontSize: '11px' }}
+                min={1}
+                value={task.deadZoneConfig?.damagePerTick ?? 2}
+                onChange={(e) =>
+                  onChange({
+                    ...task,
+                    deadZoneConfig: {
+                      remainingTurns: task.deadZoneConfig?.remainingTurns ?? 6,
+                      damagePerTick: Number(e.target.value) || 1,
+                    },
+                  })
+                }
+                disabled={disabled}
+              />
+            </div>
+          )}
         </div>
       )}
 
-      {'combatMessage' in task && (
+      {task.action === 'WAIT' && (
+        <input
+          type="text"
+          className={styles.fieldInput}
+          style={{ width: '160px', fontSize: '11px' }}
+          placeholder="Wait / skip message (opt)"
+          value={task.message ?? ''}
+          onChange={(e) => onChange({ ...task, message: e.target.value || undefined })}
+          disabled={disabled}
+        />
+      )}
+
+      {task.action !== 'WAIT' && task.action !== 'MELEE_BUMP_TARGET' && (
         <input
           type="text"
           className={styles.fieldInput}
           style={{ width: '160px', fontSize: '11px' }}
           placeholder="Combat log message (opt)"
-          value={task.combatMessage ?? ''}
-          onChange={(e) => onChange({ ...task, combatMessage: e.target.value || undefined })}
+          value={(task as { combatMessage?: string }).combatMessage ?? ''}
+          onChange={(e) => onChange({ ...task, combatMessage: e.target.value || undefined } as AIAction)}
           disabled={disabled}
         />
       )}

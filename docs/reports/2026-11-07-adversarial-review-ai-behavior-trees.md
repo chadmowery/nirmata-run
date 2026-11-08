@@ -29,7 +29,7 @@ An adversarial audit was conducted across the 7 commits on `feature/ai-behavior-
 | **`BT-REV-05`** | **P1 (Medium)** | `@rendering` | **`/debug-ai` PixiJS Overlay Renders Fake Hardcoded Manhattan Distance Instead of `DijkstraMap` Values**: `RenderSystem` (`render-system.ts:886-900`) ignores `DijkstraMap` and `aiDebugMapType`, computing raw `\|dx\| + \|dy\|` through walls. | **RESOLVED** |
 | **`BT-REV-06`** | **P1 (Medium)** | `@engine` / `@shared` | **BT Telemetry Trace (`lastEvaluatedPath`) Records Failed Branches & Leaks Unredacted Through Fog of War**: `SELECTOR`/`SEQUENCE` push trace entries before child evaluation and never roll back failed branches; `UTILITY_SELECTOR` omits the winning branch name; `lastEvaluatedPath` is not stripped in `redactWorldForClient`/`redactDeltaForClient`. | **RESOLVED** |
 | **`BT-REV-07`** | **P1 (Medium)** | `@game` | **`TileCorruptionSystem` & `SPAWN_ENTITIES_AROUND_SELF` State/Grid Bugs**: `spreadCorruption` overwrites the 1st corrupted tile key with the 2nd on every turn due to a stale `state` reference in a loop, displaces entities without checking occupant collision or emitting `ENTITY_MOVED`, and `SPAWN_ENTITIES_AROUND_SELF` stacks duplicate `DeadZone` entities on the same tile. | **RESOLVED** |
-| **`BT-REV-08`** | **P2 (Low/Med)** | `@dev-tool` | **Gamedata Studio `BehaviorTreeEditor` Emits Schema-Invalid ASTs & Omits Schema Fields**: Switching node types or adding utility branches creates empty `children: []` / `branches: []` / `considerations: []` arrays that fail Zod `.min(1)` validation; action switching drops `combatMessage`; several condition/action/curve parameters lack UI inputs; `ecs-rules.ts` is missing new runtime intents. |
+| **`BT-REV-08`** | **P2 (Low/Med)** | `@dev-tool` | **Gamedata Studio `BehaviorTreeEditor` Emits Schema-Invalid ASTs & Omits Schema Fields**: Switching node types or adding utility branches creates empty `children: []` / `branches: []` / `considerations: []` arrays that fail Zod `.min(1)` validation; action switching drops `combatMessage`; several condition/action/curve parameters lack UI inputs; `ecs-rules.ts` is missing new runtime intents. | **RESOLVED** |
 
 ---
 
@@ -232,6 +232,18 @@ An adversarial audit was conducted across the 7 commits on `feature/ai-behavior-
      Clicking `[EDIT INLINE TREE]` ([`ComponentFieldGroup.tsx:205`](../../src/dev-tool/studio/editors/shared/ComponentFieldGroup.tsx#L205)) overwrites the enemy's behavior with a generic 1-node `WAIT` stub instead of cloning the currently selected `treeId` template from `/api/dev/gamedata/ai-trees/[treeId]`.
   5. **`ecs-rules.ts` Outdated Runtime Intents & Admin Rule**:
      [`src/app/api/dev/gamedata/ecs-rules.ts:8-36`](../../src/app/api/dev/gamedata/ecs-rules.ts#L8-L36) is missing `'spawnEntityIntent'` and `'alertIntent'` in `RUNTIME_INTENT_OR_TAG_KEYS`, and `enemy-requires-hostile-and-aistate` (line 46) falsely flags `system-admin.json` (`aiState` + `invulnerable`, no `hostile`) as an error.
+- **Resolution**:
+  - In [`src/dev-tool/studio/editors/subeditors/BehaviorTreeEditor.tsx`](../../src/dev-tool/studio/editors/subeditors/BehaviorTreeEditor.tsx):
+    - Populated non-empty default sub-items when switching node types (`children` for `SELECTOR`/`SEQUENCE`, `branches` and `considerations` for `UTILITY_SELECTOR`, and `considerations` for `+ Add Utility Branch`) so the generated AST satisfies Zod `.min(1)` requirements immediately.
+    - Guarded removal buttons on composite children, utility branches, and utility considerations to prevent deleting the last remaining item.
+    - Preserved existing `combatMessage` / `WAIT.message` text when switching between action types in `handleActionChange`.
+    - Added UI controls for `UtilityConsideration` (`slope`, `minInput`, `maxInput`), `AICondition` (`metric` for distance checks, `target` for `HAS_STATUS_EFFECT`), and `AIAction` (`WAIT.message`, `optimalRangeMin`/`optimalRangeMax`, `RANGED_ATTACK_TARGET.statusEffect`, `SPAWN_ENTITIES_AROUND_SELF.count` & `deadZoneConfig`, and `TELEPORT_AMBUSH_BEHIND_TARGET` ranges).
+  - In [`src/dev-tool/studio/editors/shared/ComponentFieldGroup.tsx`](../../src/dev-tool/studio/editors/shared/ComponentFieldGroup.tsx):
+    - Updated `[EDIT INLINE TREE]` handler to fetch `/api/dev/gamedata/ai-trees/${targetTreeId}` to clone and fork the active archetype tree template into the entity rather than overwriting with a generic 1-node stub.
+  - In [`src/app/api/dev/gamedata/ecs-rules.ts`](../../src/app/api/dev/gamedata/ecs-rules.ts):
+    - Added `'spawnEntityIntent'`, `'alertIntent'`, `'dropItemIntent'`, and `'actionAbortedTag'` to `RUNTIME_INTENT_OR_TAG_KEYS`.
+    - Exempted entities with `'invulnerable'` component (`system-admin`) from the `enemy-requires-hostile-and-aistate` rule.
+  - Verified with unit tests in `src/dev-tool/studio/editors/subeditors/__tests__/BehaviorTreeEditor.test.tsx` and `src/app/api/dev/gamedata/__tests__/ecs-rules.test.ts`.
 
 ---
 
@@ -282,13 +294,13 @@ An adversarial audit was conducted across the 7 commits on `feature/ai-behavior-
      - Render both the true Dijkstra score gradient and optional numeric cost labels / downhill flow indicators.
 
 ### Phase 4: P2 Gamedata Studio `BehaviorTreeEditor` Schema Compliance & Verification Suite (`BT-REV-08`)
-1. **Fix `BehaviorTreeEditor.tsx` & `ComponentFieldGroup.tsx` (`BT-REV-08`)**:
+1. **[x] Fix `BehaviorTreeEditor.tsx` & `ComponentFieldGroup.tsx` (`BT-REV-08`)**:
    - Seed non-empty default child/branch/consideration items when switching node types to `SELECTOR`, `SEQUENCE`, `UTILITY_SELECTOR`, or adding a utility branch so the AST is always Zod-valid.
    - Always render the optional `combatMessage` input on `ACTION` nodes regardless of whether `'combatMessage' in task` is currently set.
    - Add UI controls for `UtilityConsideration` (`slope`, `minInput`, `maxInput`), `AICondition` (`metric`, `target`), and `AIAction` (`WAIT.message`, `MOVE_DIJKSTRA.optimalRangeMin`/`optimalRangeMax`, `RANGED_ATTACK_TARGET.statusEffect`, `SPAWN_ENTITIES_AROUND_SELF.count`, `TELEPORT_AMBUSH_BEHIND_TARGET` range fields).
    - In [`ComponentFieldGroup.tsx`](../../src/dev-tool/studio/editors/shared/ComponentFieldGroup.tsx), seed `[EDIT INLINE TREE]` by fetching the active `treeId` JSON template when available.
    - Update [`src/app/api/dev/gamedata/ecs-rules.ts`](../../src/app/api/dev/gamedata/ecs-rules.ts) to include `'spawnEntityIntent'` and `'alertIntent'` in `RUNTIME_INTENT_OR_TAG_KEYS` and exempt `invulnerable` entities (`system-admin`) from `enemy-requires-hostile-and-aistate`.
-2. **Regression & Integration Tests**:
+2. **[x] Regression & Integration Tests**:
    - Add end-to-end tests in [`src/game/systems/__tests__/ai-upgraded-behaviors.test.ts`](../../src/game/systems/__tests__/ai-upgraded-behaviors.test.ts) covering:
      - `System_Admin` crushing a crate through `AISystem` -> `CombatSystem` -> `GravediggerSystem` and advancing on the next turn.
      - `System_Admin` terminating the run when starting its turn already adjacent to the player.

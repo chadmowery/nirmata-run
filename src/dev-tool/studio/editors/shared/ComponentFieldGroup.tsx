@@ -199,10 +199,24 @@ export function ComponentFieldGroup({
             <button
               type="button"
               className={styles.toolButton}
-              onClick={() => {
+              onClick={async () => {
                 const next = !editingInlineTree;
                 setEditingInlineTree(next);
                 if (next && !values.inlineTree) {
+                  const targetTreeId = String(values.treeId ?? values.behaviorType ?? 'basic');
+                  try {
+                    const res = await fetch(`/api/dev/gamedata/ai-trees/${targetTreeId}`);
+                    if (res.ok) {
+                      const data = await res.json();
+                      const rootNode = data.root ?? data.rootNode;
+                      if (rootNode) {
+                        onChange(componentKey, 'inlineTree', JSON.parse(JSON.stringify(rootNode)));
+                        return;
+                      }
+                    }
+                  } catch {
+                    // Fall back to default tree
+                  }
                   onChange(componentKey, 'inlineTree', {
                     type: 'SELECTOR',
                     children: [
