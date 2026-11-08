@@ -99,6 +99,12 @@ function createMockAudioContext() {
     createBuffer: vi.fn((_channels: number, length: number) => ({
       getChannelData: vi.fn(() => new Float32Array(length)),
     })),
+    decodeAudioData: vi.fn(async (_buffer: ArrayBuffer) => ({
+      duration: 1.5,
+      length: 66150,
+      numberOfChannels: 2,
+      sampleRate: 44100,
+    })),
     resume: vi.fn(async () => {}),
     close: vi.fn(async () => {}),
   };
@@ -457,5 +463,203 @@ describe('AudioEngine', () => {
     }
 
     engine.destroy();
+  });
+
+  describe('AUD-REV-12: Engine Decoupling, Injectable Loaders & Autoplay Unlock', () => {
+    it('loads samples via custom injectable sampleLoader without calling global fetch', async () => {
+      const mockCtx = createMockAudioContext();
+      installMockAudioContext(mockCtx);
+
+      const mockLoader = vi.fn(async (path: string) => {
+        expect(path).toBe('/audio/sfx/test-shot.ogg');
+        return new ArrayBuffer(1024);
+      });
+
+      const engine = new AudioEngine({
+        isClient: true,
+        sampleLoader: mockLoader,
+      });
+      await engine.init();
+
+      const sampleCue: SoundCueDef = {
+        id: 'sfx_test_sample',
+        bus: 'sfx',
+        mode: 'sample',
+        baseVolume: 0.9,
+        cooldownMs: 0,
+        pitchVariance: 0,
+        samplePath: '/audio/sfx/test-shot.ogg',
+      };
+
+      engine.playCue(sampleCue);
+
+      // Allow microtask queue to process async sampleLoader and decodeAudioData
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(mockLoader).toHaveBeenCalledTimes(1);
+      expect(mockCtx.decodeAudioData).toHaveBeenCalledTimes(1);
+      expect(mockCtx.createBufferSource).toHaveBeenCalledTimes(1);
+
+      // Test setSampleLoader update
+      const secondLoader = vi.fn(async () => new ArrayBuffer(512));
+      engine.setSampleLoader(secondLoader);
+
+      const sampleCue2: SoundCueDef = {
+        id: 'sfx_test_sample_2',
+        bus: 'sfx',
+        mode: 'sample',
+        baseVolume: 0.9,
+        cooldownMs: 0,
+        pitchVariance: 0,
+        samplePath: '/audio/sfx/second-shot.ogg',
+      };
+
+      engine.playCue(sampleCue2);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(secondLoader).toHaveBeenCalledTimes(1);
+
+      engine.destroy();
+    });
+
+    it('decouples DOM unlock listeners by default and attaches only when enableAutoplayUnlock is true', async () => {
+      const mockCtx = createMockAudioContext();
+      mockCtx.state = 'suspended';
+      installMockAudioContext(mockCtx);
+
+      const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
+      const removeEventListenerSpy = vi.spyOn(window, 'removeEventListener');
+
+      // 1. By default, AudioEngine does NOT attach DOM listeners to window
+      const engineDefault = new AudioEngine(true);
+      await engineDefault.init();
+
+      expect(addEventListenerSpy).not.toHaveBeenCalledWith(
+        'pointerdown',
+        expect.any(Function),
+        expect.anything(),
+      );
+      expect(addEventListenerSpy).not.toHaveBeenCalledWith(
+        'keydown',
+        expect.any(Function),
+        expect.anything(),
+      );
+
+      engineDefault.destroy();
+
+      // 2. When enableAutoplayUnlock: true is explicitly requested, it binds to window
+      addEventListenerSpy.mockClear();
+      const engineWithUnlock = new AudioEngine({
+        isClient: true,
+        enableAutoplayUnlock: true,
+      });
+      await engineWithUnlock.init();
+
+      expect(addEventListenerSpy).toHaveBeenCalledWith(
+        'pointerdown',
+        expect.any(Function),
+        { once: true, passive: true },
+      );
+      expect(addEventListenerSpy).toHaveBeenCalledWith(
+        'keydown',
+        expect.any(Function),
+        { once: true, passive: true },
+      );
+
+      engineWithUnlock.destroy();
+
+      expect(removeEventListenerSpy).toHaveBeenCalledWith(
+        'pointerdown',
+        expect.any(Function),
+      );
+      expect(removeEventListenerSpy).toHaveBeenCalledWith(
+        'keydown',
+        expect.any(Function),
+      );
+
+      addEventListenerSpy.mockRestore();
+      removeEventListenerSpy.mockRestore();
+    });
+
+    it('resumes suspended context on engine.resume()', async () => {
+      const mockCtx = createMockAudioContext();
+      mockCtx.state = 'suspended';
+      installMockAudioContext(mockCtx);
+
+      const engine = new AudioEngine(true);
+      await engine.init();
+
+      expect(mockCtx.resume).not.toHaveBeenCalled();
+
+      await engine.resume();
+      expect(mockCtx.resume).toHaveBeenCalledTimes(1);
+
+      engine.destroy();
+    });
+
+    it('replays pending ambiance cue when resume() is called after deferred initialization', async () => {
+      const mockCtx = createMockAudioContext();
+      mockCtx.state = 'suspended';
+
+      // Temporarily remove global AudioContext so early playAmbianceCue caches cue without playing
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const originalAudioContext = (window as any).AudioContext;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (window as any).AudioContext;
+
+      const engine = new AudioEngine(true);
+
+      const ambianceCue: SoundCueDef = {
+        id: 'amb_pending_test',
+        bus: 'ambiance',
+        mode: 'synth',
+        baseVolume: 0.5,
+        cooldownMs: 0,
+        pitchVariance: 0,
+        synth: {
+          waveform: 'sine',
+          freqStart: 120,
+          attack: 0.1,
+          decay: 0.1,
+          sustain: 1.0,
+          hold: 0.1,
+          release: 0.1,
+        },
+      };
+
+      engine.playAmbianceCue(ambianceCue);
+
+      // Now restore AudioContext and initialize engine
+      installMockAudioContext(mockCtx);
+      await engine.init();
+
+      expect(mockCtx.createOscillator).not.toHaveBeenCalled();
+
+      // Calling resume() replays the pending ambiance cue
+      await engine.resume();
+      expect(mockCtx.createOscillator).toHaveBeenCalled();
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).AudioContext = originalAudioContext;
+      engine.destroy();
+    });
+
+    it('supports direct AudioContext injection via AudioEngineOptions', async () => {
+      const customCtx = createMockAudioContext();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const engine = new AudioEngine({
+        isClient: true,
+        audioContext: customCtx as unknown as AudioContext,
+      });
+
+      await engine.init();
+
+      // Master limiter, buses, etc. should have been created on customCtx
+      expect(customCtx.createGain).toHaveBeenCalled();
+      expect(customCtx.createDynamicsCompressor).toHaveBeenCalled();
+
+      engine.destroy();
+      expect(customCtx.close).toHaveBeenCalled();
+    });
   });
 });

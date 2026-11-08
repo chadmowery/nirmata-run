@@ -8,7 +8,7 @@ import { initRenderer, destroyRenderer, getApp } from '@/rendering/renderer';
 import { createRenderSystem } from '@/rendering/render-system';
 import { createWorldContainer } from '@/rendering/layers';
 import { createGameAudioSystem, GameAudioSystem } from '@/game/audio/game-audio-system';
-import { getAudioEngine, AudioEngine } from '@engine/audio';
+import { getAudioEngine } from '@engine/audio';
 import { getSoundCue, registerSoundCue } from '@/game/audio/cue-registry';
 import { getAmbianceConfig, setAmbianceConfig } from '@/game/config/ambiance';
 import { useStore } from 'zustand';
@@ -262,8 +262,7 @@ export default function GamePage() {
       resonanceQ: 1.0,
     });
 
-    if (!('playAmbianceCue' in engine)) return;
-    const clientEngine = engine as AudioEngine;
+    const clientEngine = engine;
 
     const syncAndPlay = async () => {
       if (process.env.NODE_ENV === 'development') {
@@ -318,9 +317,8 @@ export default function GamePage() {
   useEffect(() => {
     const unlock = () => {
       const engine = getAudioEngine();
-      if ('init' in engine) {
-        (engine as AudioEngine).init();
-      }
+      engine.init();
+      engine.resume?.();
     };
     window.addEventListener('pointerdown', unlock, { once: true, passive: true });
     window.addEventListener('keydown', unlock, { once: true, passive: true });

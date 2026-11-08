@@ -12,6 +12,8 @@ import {
   AmbianceState,
   AudioBusName,
   SpatialCoords,
+  SampleLoader,
+  AudioEngineOptions,
 } from './types';
 import { calculateSpatialAudio } from './spatial-mixer';
 import { playSynthVoice, createHoldRampVoice, HoldRampVoice, ActiveVoice } from './synth-voice';
@@ -34,7 +36,11 @@ export class NoopAudioEngine implements IAudioEngine {
   private settings: AudioSettings = { ...DEFAULT_AUDIO_SETTINGS };
 
   public init(): void {}
+  public resume(): void {}
   public destroy(): void {}
+  public setSampleLoader?(_loader: SampleLoader): void {}
+  public registerUnlockListeners?(): void {}
+  public unregisterUnlockListeners?(): void {}
   public playCue(cue: SoundCueDef, options?: PlayCueOptions): number | undefined {
     void cue;
     void options;
@@ -143,41 +149,145 @@ export class AudioEngine implements IAudioEngine {
   private lastRequestedAmbianceCue: SoundCueDef | null = null;
   private currentAmbianceCueId: string | null = null;
 
+  // Sample Loading
+  private sampleLoader: SampleLoader = async (path: string): Promise<ArrayBuffer> => {
+    if (typeof fetch === 'undefined') {
+      throw new Error(`fetch is not defined; provide a custom sampleLoader to AudioEngine`);
+    }
+    const response = await fetch(path);
+    if (!response.ok) {
+      throw new Error(`Failed to load audio sample from ${path}: HTTP ${response.status}`);
+    }
+    return response.arrayBuffer();
+  };
+
   // Autoplay Unlock
+  private enableAutoplayUnlock = false;
   private unlockHandler: (() => void) | null = null;
 
-  constructor(isClient = typeof window !== 'undefined', initialSettings?: Partial<AudioSettings>) {
-    this.isClient = isClient;
-    if (initialSettings) {
-      this.settings = { ...this.settings, ...initialSettings };
+  constructor(
+    isClientOrOptions: boolean | AudioEngineOptions = typeof window !== 'undefined',
+    initialSettings?: Partial<AudioSettings>,
+  ) {
+    if (typeof isClientOrOptions === 'boolean') {
+      this.isClient = isClientOrOptions;
+      if (initialSettings) {
+        this.settings = { ...this.settings, ...initialSettings };
+      }
+    } else if (isClientOrOptions && typeof isClientOrOptions === 'object') {
+      this.isClient = isClientOrOptions.isClient ?? (typeof window !== 'undefined');
+      if (isClientOrOptions.initialSettings) {
+        this.settings = { ...this.settings, ...isClientOrOptions.initialSettings };
+      }
+      if (isClientOrOptions.sampleLoader) {
+        this.sampleLoader = isClientOrOptions.sampleLoader;
+      }
+      if (isClientOrOptions.audioContext) {
+        this.ctx = isClientOrOptions.audioContext;
+      }
+      if (isClientOrOptions.enableAutoplayUnlock !== undefined) {
+        this.enableAutoplayUnlock = isClientOrOptions.enableAutoplayUnlock;
+      }
+    } else {
+      this.isClient = typeof window !== 'undefined';
     }
+  }
+
+  /**
+   * Configures an external sample loader function for fetching ArrayBuffers.
+   */
+  public setSampleLoader(loader: SampleLoader): void {
+    this.sampleLoader = loader;
   }
 
   /**
    * Lazily initializes the Web Audio context and mixing graph.
    */
   public async init(): Promise<void> {
-    if (!this.isClient || typeof window === 'undefined') return;
-    if (this.ctx) return;
-
-    const AudioContextClass =
-      window.AudioContext ||
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).webkitAudioContext;
-
-    if (!AudioContextClass) {
+    if (!this.isClient) return;
+    if (this.masterGain) {
+      if (this.ctx && this.ctx.state === 'suspended') {
+        await this.resume();
+      }
       return;
     }
 
-    try {
-      this.ctx = new AudioContextClass();
-    } catch {
-      return;
+    if (!this.ctx) {
+      const AudioContextClass =
+        typeof globalThis !== 'undefined'
+          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (globalThis as any).AudioContext || (globalThis as any).webkitAudioContext
+          : undefined;
+
+      if (!AudioContextClass) {
+        return;
+      }
+
+      try {
+        this.ctx = new AudioContextClass();
+      } catch {
+        return;
+      }
     }
 
     this.setupAudioGraph();
-    this.setupAutoplayUnlock();
+    if (this.enableAutoplayUnlock && typeof window !== 'undefined') {
+      this.registerUnlockListeners();
+    }
     this.applySettings();
+  }
+
+  /**
+   * Resumes the AudioContext if suspended (e.g. after a user interaction gesture)
+   * and replays any pending ambiance cue that was blocked by autoplay restrictions.
+   */
+  public async resume(): Promise<void> {
+    if (!this.ctx) return;
+    if (this.ctx.state === 'suspended') {
+      try {
+        await this.ctx.resume();
+        if (
+          this.lastRequestedAmbianceCue &&
+          !this.activeAmbianceVoice &&
+          !this.activeAmbianceSampleSource
+        ) {
+          const cue = this.lastRequestedAmbianceCue;
+          this.currentAmbianceCueId = null;
+          this.playAmbianceCue(cue);
+        }
+      } catch {
+        // Safe to ignore
+      }
+    }
+  }
+
+  /**
+   * Registers DOM event listeners on `window` to unlock a suspended AudioContext
+   * upon the first user interaction.
+   * Note: UI layers should prefer calling `engine.resume()` directly on user gestures.
+   */
+  public registerUnlockListeners(): void {
+    if (!this.ctx || typeof window === 'undefined') return;
+    if (this.unlockHandler) return;
+
+    if (this.ctx.state === 'suspended') {
+      const unlock = () => {
+        this.resume();
+        this.unregisterUnlockListeners();
+      };
+
+      this.unlockHandler = unlock;
+      window.addEventListener('pointerdown', unlock, { once: true, passive: true });
+      window.addEventListener('keydown', unlock, { once: true, passive: true });
+    }
+  }
+
+  public unregisterUnlockListeners(): void {
+    if (this.unlockHandler && typeof window !== 'undefined') {
+      window.removeEventListener('pointerdown', this.unlockHandler);
+      window.removeEventListener('keydown', this.unlockHandler);
+      this.unlockHandler = null;
+    }
   }
 
   private setupAudioGraph(): void {
@@ -219,40 +329,6 @@ export class AudioEngine implements IAudioEngine {
 
     // Synchronize initial settings to all newly created bus gain nodes
     this.applySettings();
-  }
-
-  private setupAutoplayUnlock(): void {
-    if (!this.ctx || typeof window === 'undefined') return;
-
-    if (this.ctx.state === 'suspended') {
-      const unlock = () => {
-        if (this.ctx && this.ctx.state === 'suspended') {
-          this.ctx
-            .resume()
-            .then(() => {
-              if (
-                this.lastRequestedAmbianceCue &&
-                !this.activeAmbianceVoice &&
-                !this.activeAmbianceSampleSource
-              ) {
-                const cue = this.lastRequestedAmbianceCue;
-                this.currentAmbianceCueId = null;
-                this.playAmbianceCue(cue);
-              }
-            })
-            .catch(() => {});
-        }
-        if (this.unlockHandler) {
-          window.removeEventListener('pointerdown', this.unlockHandler);
-          window.removeEventListener('keydown', this.unlockHandler);
-          this.unlockHandler = null;
-        }
-      };
-
-      this.unlockHandler = unlock;
-      window.addEventListener('pointerdown', unlock, { once: true, passive: true });
-      window.addEventListener('keydown', unlock, { once: true, passive: true });
-    }
   }
 
   /**
@@ -516,9 +592,7 @@ export class AudioEngine implements IAudioEngine {
     let buffer = this.sampleBufferCache.get(cleanPath);
     if (!buffer) {
       try {
-        const response = await fetch(cleanPath);
-        if (!response.ok) return;
-        const arrayBuffer = await response.arrayBuffer();
+        const arrayBuffer = await this.sampleLoader(cleanPath);
         buffer = await this.ctx.decodeAudioData(arrayBuffer);
         this.sampleBufferCache.set(cleanPath, buffer);
       } catch {
@@ -806,11 +880,7 @@ export class AudioEngine implements IAudioEngine {
     let buffer = this.sampleBufferCache.get(cleanPath);
     if (!buffer) {
       try {
-        const response = await fetch(cleanPath);
-        if (!response.ok) {
-          return;
-        }
-        const arrayBuffer = await response.arrayBuffer();
+        const arrayBuffer = await this.sampleLoader(cleanPath);
         buffer = await this.ctx.decodeAudioData(arrayBuffer);
         this.sampleBufferCache.set(cleanPath, buffer);
       } catch {
@@ -882,12 +952,7 @@ export class AudioEngine implements IAudioEngine {
     this.stopAllAudio(0.01);
     this.cueCooldowns.clear();
     this.sampleBufferCache.clear();
-
-    if (this.unlockHandler && typeof window !== 'undefined') {
-      window.removeEventListener('pointerdown', this.unlockHandler);
-      window.removeEventListener('keydown', this.unlockHandler);
-      this.unlockHandler = null;
-    }
+    this.unregisterUnlockListeners();
 
     if (this.ctx) {
       this.ctx.close().catch(() => {});

@@ -23,13 +23,13 @@ While the zero-dependency procedural synthesizer (`synth-voice.ts`), master comp
 | **`AUD-REV-03`** | Audio Settings Persistence (`AUD-04`) | Saved `localStorage` volume/mute preferences (`nirmata_audio_settings`) persist across browser reloads. | **BROKEN ON STARTUP** — `gameStore` loads `getSavedAudioSettings()` into React state on boot, but never calls `getAudioEngine().updateSettings(...)`. A muted user reloads into an unmuted `AudioEngine` at 80% volume while the UI says "UNMUTE AUDIO". | **P0 High** | **RESOLVED** |
 | **`AUD-REV-04`** | Production / Dev-Tool Quarantine (`AUD-11`) | `/api/dev/gamedata/*` routes are strictly quarantined from production (`src/dev-tool/AGENTS.md`). | **VIOLATED** — `GamePage` (`src/app/page.tsx`) fetches `/api/dev/gamedata/configs/ambiance` and `/api/dev/gamedata/audio-cues` on **every `GameState` change** (including in-run Pause/Unpause), generating 404 network errors in production. | **P0 High** | **RESOLVED** |
 | **`AUD-REV-05`** | `AmbientEmitter` World Loops & FoW Redaction (`AUD-10`) | Real-time spatial loop tracking updates pan, distance attenuation, and FOV occlusion as player moves; stops when disarmed/searched. | **PARTIALLY BROKEN & LEAKS FOW** — Loops start once on entering `emitter.radius` and **never update pan/gain/occlusion** while inside radius; leaving one emitter calls `stopCue(cueId)` and silences **all** emitters sharing that cue; `emitter.falloff` and `CorruptedNode.isDisarmed` are ignored; unseen entity `Position`/`AmbientEmitter` are unredacted. | **P0 Critical** | **RESOLVED** |
-| **`AUD-REV-06`** | Declarative Ambiance DSP Config (`AUD-08`, `AUD-11`) | `ambiance.json` controls floor `baseVolume`, `cutoffMultiplier`, `resonanceQ`, and `ducking` (`stabilityAnchorCutoffHz`, `pauseMenuCutoffHz`, ramps). | **DISCONNECTED** — `GameAudioSystem.syncAmbianceForCurrentFloor()` discards `resolved.baseVolume`, `cutoffMultiplier`, and `resonanceQ`. `AudioEngine.setAmbianceState()` uses hardcoded constants (`18000`, `380`, `0.25`, `0.8`) and omits `OVERCLOCKED_GRID`. | **P1 Medium** | Open |
-| **`AUD-REV-07`** | Scene Ambiance Reset & Pause Ducking (`AUD-03`, `AUD-04`) | Returning to Hub/Menu restores clean ambiance; opening ESC Pause/Settings ducks ambiance to `380 Hz`. | **BROKEN** — `playAmbianceCue()` never resets `heatTier`, `sectorCondition`, or `isAnchorDucked` when leaving a run (leaving Hub/Menu music muffled at `380 Hz` or high Q). `isPaused` is never set anywhere in the codebase. | **P1 Medium** | Open |
-| **`AUD-REV-08`** | Canonical Sound Cue Coverage (`AUD-02`, `AUD-03`) | All 35+ cues in `sound-cues.json` and `AUDIO-SYSTEM.md` §6.1 trigger on their gameplay/UI events. | **8 CUES UNWIRED** — `ui_modal_open`, `ui_modal_close`, `sfx_ranged_hit`, `sfx_cover_mitigated`, `sfx_cover_broken`, `sfx_volatile_cryo`, `sfx_volatile_emp`, and `sfx_bump_warning` have zero callers. | **P1 Medium** | Open |
-| **`AUD-REV-09`** | Web Audio Node Lifecycle & Occlusion (`AUD-01`, `AUD-09`) | Sample and synth voices apply spatial occlusion and clean up all oscillator/gain/panner nodes on end/unmount. | **LEAKS & MISSING FILTER** — `playSampleVoice()` omits the `900 Hz` FOV/wall occlusion filter and never disconnects nodes in `onended`; `synth-voice.ts` never calls `.stop()` on `fmOsc`/`subOsc`/`subBufferSource`/`lfo`; `BtnLever` unmount during hold leaves the ramp oscillator playing forever. | **P1 Medium** | Open |
-| **`AUD-REV-10`** | Gamedata `AudioCueStudio` (`AUD-05`, `AUD-08`) | `[ CLONE ]` duplicates the active cue; Ambiance Simulator previews Depth Bands 1–3 and Sector Conditions. | **BROKEN IN STUDIO** — `handleClone` opens a blank template instead of cloning; Simulator dropdown keys (`SUBNET`, `FOUNDRY`, `CORE`) mismatch `getDepthBandCueMap()` (`CORRUPTED_DATA`, `STATIC_HORRORS`, `LOGIC_BREAKERS`), always falling back to Band 1. | **P2 Low** | Open |
-| **`AUD-REV-11`** | Audio Config & Registry Hygiene (`AUD-10`, `AUD-11`) | `ambiance.json` and `sound-cues.json` contain clean, valid production cues. | **POLLUTED WITH SCRATCH DATA** — `ambiance.json` points both `mainMenu` and `hub` to `"amb_menu_2"`; `sound-cues.json` has `"amb_main_menu_2"` pointing to non-existent `"/audio/music/cyber-punkbeat.mp3"`. | **P2 Low** | Open |
-| **`AUD-REV-12`** | `@engine` Layer Purity (`AUD-01`) | `src/engine/` has zero browser DOM or `fetch` dependencies (`src/engine/AGENTS.md`). | **MINOR BOUNDARY DRIFT** — `AudioEngine` directly attaches `window.addEventListener` unlock listeners and calls browser `fetch()` inside `src/engine/audio/audio-engine.ts`. | **P2 Low** | Open |
+| **`AUD-REV-06`** | Declarative Ambiance DSP Config (`AUD-08`, `AUD-11`) | `ambiance.json` controls floor `baseVolume`, `cutoffMultiplier`, `resonanceQ`, and `ducking` (`stabilityAnchorCutoffHz`, `pauseMenuCutoffHz`, ramps). | **DISCONNECTED** — `GameAudioSystem.syncAmbianceForCurrentFloor()` discards `resolved.baseVolume`, `cutoffMultiplier`, and `resonanceQ`. `AudioEngine.setAmbianceState()` uses hardcoded constants (`18000`, `380`, `0.25`, `0.8`) and omits `OVERCLOCKED_GRID`. | **P1 Medium** | **RESOLVED** |
+| **`AUD-REV-07`** | Scene Ambiance Reset & Pause Ducking (`AUD-03`, `AUD-04`) | Returning to Hub/Menu restores clean ambiance; opening ESC Pause/Settings ducks ambiance to `380 Hz`. | **BROKEN** — `playAmbianceCue()` never resets `heatTier`, `sectorCondition`, or `isAnchorDucked` when leaving a run (leaving Hub/Menu music muffled at `380 Hz` or high Q). `isPaused` is never set anywhere in the codebase. | **P1 Medium** | **RESOLVED** |
+| **`AUD-REV-08`** | Canonical Sound Cue Coverage (`AUD-02`, `AUD-03`) | All 35+ cues in `sound-cues.json` and `AUDIO-SYSTEM.md` §6.1 trigger on their gameplay/UI events. | **8 CUES UNWIRED** — `ui_modal_open`, `ui_modal_close`, `sfx_ranged_hit`, `sfx_cover_mitigated`, `sfx_cover_broken`, `sfx_volatile_cryo`, `sfx_volatile_emp`, and `sfx_bump_warning` have zero callers. | **P1 Medium** | **RESOLVED** |
+| **`AUD-REV-09`** | Web Audio Node Lifecycle & Occlusion (`AUD-01`, `AUD-09`) | Sample and synth voices apply spatial occlusion and clean up all oscillator/gain/panner nodes on end/unmount. | **LEAKS & MISSING FILTER** — `playSampleVoice()` omits the `900 Hz` FOV/wall occlusion filter and never disconnects nodes in `onended`; `synth-voice.ts` never calls `.stop()` on `fmOsc`/`subOsc`/`subBufferSource`/`lfo`; `BtnLever` unmount during hold leaves the ramp oscillator playing forever. | **P1 Medium** | **RESOLVED** |
+| **`AUD-REV-10`** | Gamedata `AudioCueStudio` (`AUD-05`, `AUD-08`) | `[ CLONE ]` duplicates the active cue; Ambiance Simulator previews Depth Bands 1–3 and Sector Conditions. | **BROKEN IN STUDIO** — `handleClone` opens a blank template instead of cloning; Simulator dropdown keys (`SUBNET`, `FOUNDRY`, `CORE`) mismatch `getDepthBandCueMap()` (`CORRUPTED_DATA`, `STATIC_HORRORS`, `LOGIC_BREAKERS`), always falling back to Band 1. | **P2 Low** | **RESOLVED** |
+| **`AUD-REV-11`** | Audio Config & Registry Hygiene (`AUD-10`, `AUD-11`) | `ambiance.json` and `sound-cues.json` contain clean, valid production cues. | **POLLUTED WITH SCRATCH DATA** — `ambiance.json` points both `mainMenu` and `hub` to `"amb_menu_2"`; `sound-cues.json` has `"amb_main_menu_2"` pointing to non-existent `"/audio/music/cyber-punkbeat.mp3"`. | **P2 Low** | **RESOLVED** |
+| **`AUD-REV-12`** | `@engine` Layer Purity (`AUD-01`) | `src/engine/` has zero browser DOM or `fetch` dependencies (`src/engine/AGENTS.md`). | **MINOR BOUNDARY DRIFT** — `AudioEngine` directly attaches `window.addEventListener` unlock listeners and calls browser `fetch()` inside `src/engine/audio/audio-engine.ts`. | **P2 Low** | **RESOLVED** |
 
 ---
 
@@ -419,6 +419,24 @@ Cross-referencing all cue IDs in `sound-cues.json` and [`docs/design/AUDIO-SYSTE
 #### Root Cause Analysis
 `src/engine/AGENTS.md` states: *"Zero External Runtime Dependencies: Do not import React, PixiJS, Next.js, Zustand, Node fs, or browser DOM APIs here."* While `AudioEngine` safely degrades to `NoopAudioEngine` when `typeof window === 'undefined'`, `audio-engine.ts` binds `window.addEventListener('pointerdown' | 'keydown', ...)` and calls `fetch()` directly.
 
+#### Resolution
+- In `src/engine/audio/types.ts`:
+  - Defined `SampleLoader` (`(path: string) => Promise<ArrayBuffer>`) and `AudioEngineOptions` (`isClient?: boolean`, `initialSettings?: Partial<AudioSettings>`, `sampleLoader?: SampleLoader`, `audioContext?: AudioContext`, `enableAutoplayUnlock?: boolean`).
+  - Added optional `resume?(): Promise<void> | void`, `setSampleLoader?(loader: SampleLoader): void`, `registerUnlockListeners?(): void`, and `unregisterUnlockListeners?(): void` to `IAudioEngine`.
+- In `src/engine/audio/audio-engine.ts`:
+  - Updated `AudioEngine` constructor to accept either `isClient: boolean` or `options: AudioEngineOptions`.
+  - Replaced hardcoded `fetch()` calls in `playSampleVoice()` and `playAmbianceSample()` with injectable `this.sampleLoader(cleanPath)` (falling back to runtime `fetch` when present, without coupling `@engine` to DOM environment details).
+  - Decoupled `window.addEventListener` autoplay unlock listeners: `enableAutoplayUnlock` is now disabled by default, keeping `AudioEngine.init()` free of DOM side-effects during headless/testing execution.
+  - Implemented explicit `resume()`, `registerUnlockListeners()`, and `unregisterUnlockListeners()` methods on `AudioEngine` and `NoopAudioEngine`.
+  - Used `globalThis` for Web Audio constructor discovery (`globalThis.AudioContext || (globalThis as any).webkitAudioContext`) and supported direct `audioContext` injection via `options.audioContext`.
+- In `src/app/page.tsx`:
+  - Updated Effect 5 user gesture listener to invoke `engine.init()` and `engine.resume?.()`, cleanly managing browser DOM interactions within the client app layer.
+- Added comprehensive unit tests in `src/engine/audio/__tests__/audio-engine.test.ts` covering:
+  - Custom injectable `sampleLoader` execution and cache storage without global `fetch`.
+  - Decoupled DOM unlock listeners by default and explicit opt-in via `enableAutoplayUnlock: true`.
+  - Direct `AudioContext` injection via `AudioEngineOptions`.
+  - Context resumption and deferred pending ambiance replay on `engine.resume()`.
+
 ---
 
 ## 3. Phased Remediation Plan
@@ -517,11 +535,19 @@ flowchart TD
      - Point `scenes.mainMenu.cueId` to `"amb_main_menu"` and `scenes.hub.cueId` to `"amb_hub_deck"` in `ambiance.json`.
      - Remove broken `"amb_main_menu_2"` (`/audio/music/cyber-punkbeat.mp3`) and clean up `"amb_menu_2"` in `sound-cues.json`.
 
-3. **Verification & Regression Testing**:
+3. **Decouple Browser DOM Listeners & Inject Sample Loader (`AUD-REV-12`)**:
+   - **Files**: [`src/engine/audio/types.ts`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/engine/audio/types.ts), [`src/engine/audio/audio-engine.ts`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/engine/audio/audio-engine.ts), [`src/app/page.tsx`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/app/page.tsx)
+   - **Action**:
+     - Provide `SampleLoader` and `AudioEngineOptions` for injecting audio context and sample loading logic without coupling `@engine` to global `fetch`.
+     - Decouple `window.addEventListener` autoplay unlock listeners by default; expose `resume()` and manage user gesture unlock directly in the client application layer.
+
+4. **Verification & Regression Testing**:
    - Add targeted unit tests in `src/engine/audio/__tests__/audio-engine.test.ts` and `src/game/audio/__tests__/game-audio-system.test.ts` covering:
      - Post-mortem `DAMAGE_DEALT` spatial lookup after entity removal from `world`.
      - Attacker `attackCue` playback (`sfx_ranged_hit`).
      - Shell footstep resolution (`bastion-v1`, `ghost-v1`, `vanguard-v1`) with full `player.json` `AudioProfile` attached.
      - `AmbientEmitter` real-time spatial updates (`updateVoiceSpatial`), per-voice stop isolation when two emitters share a `cueId`, and `CorruptedNode.isDisarmed` deactivation.
      - `ambiance.json` DSP multiplier forwarding and scene transition filter reset.
+     - Custom injectable `sampleLoader` execution and cache storage without global `fetch`.
+     - Autoplay unlock decoupling and suspended context resumption via `engine.resume()`.
    - Run `npm test`, `npm run typecheck`, `npm run lint`, and `npm run build`.

@@ -108,8 +108,19 @@ export interface PlayCueOptions {
   spatial?: SpatialCoords;
 }
 
+export type SampleLoader = (path: string) => Promise<ArrayBuffer>;
+
+export interface AudioEngineOptions {
+  isClient?: boolean;
+  initialSettings?: Partial<AudioSettings>;
+  sampleLoader?: SampleLoader;
+  audioContext?: AudioContext;
+  enableAutoplayUnlock?: boolean;
+}
+
 export interface IAudioEngine {
   init(): Promise<void> | void;
+  resume?(): Promise<void> | void;
   destroy(): void;
   playCue(cue: SoundCueDef, options?: PlayCueOptions): number | undefined;
   stopVoice(voiceId: number, fadeDurationSec?: number): void;
@@ -129,4 +140,7 @@ export interface IAudioEngine {
   updateSettings(settings: Partial<AudioSettings>): void;
   getSettings(): AudioSettings;
   isMuted(): boolean;
+  setSampleLoader?(loader: SampleLoader): void;
+  registerUnlockListeners?(): void;
+  unregisterUnlockListeners?(): void;
 }
