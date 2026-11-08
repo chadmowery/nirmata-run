@@ -182,6 +182,13 @@ export function createRenderSystem(config: RenderSystemConfig) {
   } | null = null;
   let currentFovSet: Set<string> = new Set();
 
+  const isEntityInFov = (entityId: EntityId): boolean => {
+    if (entityId === getPlayerEntity()) return true;
+    const pos = world.getComponent(entityId, Position);
+    if (!pos) return false;
+    return isMapRevealed || currentFovSet.has(`${pos.x},${pos.y}`);
+  };
+
   const syncPropOutline = (entityId: EntityId, targetSprite?: Sprite) => {
     const outlineState = resolvePropOutlineState(world, entityId);
     if (!outlineState) return;
@@ -436,10 +443,12 @@ export function createRenderSystem(config: RenderSystemConfig) {
         createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
         spriteAnimator.registerEntity(entityId, spriteComp);
       }
-      spriteAnimator.triggerState(entityId, 'interact');
+      if (isEntityInFov(entityId)) {
+        spriteAnimator.triggerState(entityId, 'interact');
+      }
       syncPropOutline(entityId);
       const pos = world.getComponent(entityId, Position);
-      if (pos && currentFovSet.has(`${pos.x},${pos.y}`)) {
+      if (pos && (isMapRevealed || currentFovSet.has(`${pos.x},${pos.y}`))) {
         recordPropMemory(entityId);
       }
     }
@@ -494,10 +503,12 @@ export function createRenderSystem(config: RenderSystemConfig) {
     }
     lastDamageProcessed = { defenderId: payload.defenderId, timestamp: now };
 
-    if (payload.attackerId) {
+    if (payload.attackerId && isEntityInFov(payload.attackerId)) {
       spriteAnimator.triggerState(payload.attackerId, 'attack');
     }
-    spriteAnimator.triggerState(payload.defenderId, 'hit');
+    if (isEntityInFov(payload.defenderId)) {
+      spriteAnimator.triggerState(payload.defenderId, 'hit');
+    }
 
     const sprite = getEntitySprite(payload.defenderId);
     if (sprite) {
@@ -591,16 +602,22 @@ export function createRenderSystem(config: RenderSystemConfig) {
       }
     }
 
-    // For all other entities (enemies, NPCs), always trigger move animation and queue tween
-    spriteAnimator.triggerState(payload.entityId, 'move');
-    queueMoveTween(
-      payload.entityId,
-      payload.fromX,
-      payload.fromY,
-      payload.toX,
-      payload.toY,
-      getEntitySprite,
-    );
+    // For all other entities (enemies, NPCs), check if moving entity is within FOV
+    const inFov =
+      isMapRevealed ||
+      currentFovSet.has(`${payload.toX},${payload.toY}`) ||
+      currentFovSet.has(`${payload.fromX},${payload.fromY}`);
+    if (inFov) {
+      spriteAnimator.triggerState(payload.entityId, 'move');
+      queueMoveTween(
+        payload.entityId,
+        payload.fromX,
+        payload.fromY,
+        payload.toX,
+        payload.toY,
+        getEntitySprite,
+      );
+    }
   };
 
   const handleApplyWorldFilter = (payload: { filterType: string }) => {
@@ -632,13 +649,13 @@ export function createRenderSystem(config: RenderSystemConfig) {
   };
 
   const handleFirmwareActivated = (payload: { entityId?: EntityId }) => {
-    if (payload.entityId) {
+    if (payload.entityId && isEntityInFov(payload.entityId)) {
       spriteAnimator.triggerState(payload.entityId, 'attack');
     }
   };
 
   const handleEnemyTeleported = (payload: { entityId?: EntityId }) => {
-    if (payload.entityId) {
+    if (payload.entityId && isEntityInFov(payload.entityId)) {
       spriteAnimator.triggerState(payload.entityId, 'move');
     }
   };
@@ -882,35 +899,59 @@ export function createRenderSystem(config: RenderSystemConfig) {
         sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
         spriteAnimator.registerEntity(entityId, spriteComp);
 
-        // Resolve component-derived ambient state
-        let ambientState: AnimationStateKey = 'idle';
-        const propComp = world.getComponent(entityId, Prop);
-        const secLock = world.getComponent(entityId, SecurityLock);
-        const corrupted = world.getComponent(entityId, CorruptedNode);
-
-        if (propComp?.isSearched) {
-          ambientState = 'searched';
-        } else if (secLock?.isLocked) {
-          ambientState = 'locked';
-        } else if (corrupted?.revealed && !corrupted?.isDisarmed) {
-          ambientState = 'corrupted';
-        } else if (spriteComp.initialState) {
-          ambientState = spriteComp.initialState;
-        }
-        spriteAnimator.setAmbientState(entityId, ambientState);
-
         const pos = world.getComponent(entityId, Position)!;
         const actor = world.getComponent(entityId, Actor);
         const orientation = world.getComponent(entityId, TileOrientation);
+
+        // Visibility gating
+        const entityType = getEntityVisibilityType(actor?.isPlayer, !!actor);
+        let { visible, alpha } = isEntityVisible(pos, entityType, fovSet, exploredSet);
+
+        // Resolve component-derived ambient state
+        let ambientState: AnimationStateKey = 'idle';
+        const propComp = world.getComponent(entityId, Prop);
+        const inFov = entityType === 'player' || isMapRevealed || fovSet.has(`${pos.x},${pos.y}`);
+
+        if (propComp) {
+          if (inFov) {
+            const secLock = world.getComponent(entityId, SecurityLock);
+            const corrupted = world.getComponent(entityId, CorruptedNode);
+            if (propComp.isSearched) {
+              ambientState = 'searched';
+            } else if (secLock?.isLocked) {
+              ambientState = 'locked';
+            } else if (corrupted?.revealed && !corrupted?.isDisarmed) {
+              ambientState = 'corrupted';
+            } else if (spriteComp.initialState) {
+              ambientState = spriteComp.initialState;
+            }
+          } else {
+            // Out of FOV (fog of war): strictly use remembered client memory
+            const mem = rememberedProps.get(entityId);
+            if (mem) {
+              if (mem.isSearched) {
+                ambientState = 'searched';
+              } else if (mem.isLocked) {
+                ambientState = 'locked';
+              } else if (mem.corruptedRevealed && !mem.corruptedDisarmed) {
+                ambientState = 'corrupted';
+              } else if (spriteComp.initialState) {
+                ambientState = spriteComp.initialState;
+              }
+            } else if (spriteComp.initialState) {
+              ambientState = spriteComp.initialState;
+            }
+          }
+        } else if (spriteComp.initialState) {
+          ambientState = spriteComp.initialState;
+        }
+
+        spriteAnimator.setAmbientState(entityId, ambientState);
 
         // Update position if not animating
         if (!hasActiveAnimation(entityId)) {
           applySpriteTransform(sprite, pos.x, pos.y, orientation?.angleDegrees ?? 0);
         }
-
-        // Visibility gating
-        const entityType = getEntityVisibilityType(actor?.isPlayer, !!actor);
-        let { visible, alpha } = isEntityVisible(pos, entityType, fovSet, exploredSet);
 
         // FORCE PLAYER VISIBLE FOR DEBUGGING
         if (entityType === 'player') {
@@ -919,7 +960,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
           playerSprite = sprite;
         }
 
-        if (propComp?.isSearched) {
+        const isSearched = inFov ? Boolean(propComp?.isSearched) : Boolean(rememberedProps.get(entityId)?.isSearched);
+        if (isSearched) {
           alpha = alpha * 0.6;
         }
 

@@ -281,4 +281,39 @@ describe('In-Game Animation Loop & Event Trigger Integration', () => {
 
     expect(spriteAnimator.getEntityState(propId)?.transientState).toBe('interact');
   });
+
+  it('Anti-Cheat FOW: out-of-FOV prop does not trigger transient animations and isolates unseen server mutations (CRIT-02)', () => {
+    // Prop placed far away outside player FOV (player is at 5,5 with radius 6)
+    const farPropId = world.createEntity();
+    world.addComponent(farPropId, Position, { x: 18, y: 18 });
+    world.addComponent(farPropId, SpriteComponent, { key: 'prop_chest' });
+    world.addComponent(farPropId, Prop, {
+      propId: 'chest_far',
+      faction: 'traxus',
+      propClass: 'locker',
+      isSearched: false,
+    });
+
+    renderSystem.reconcileSprites();
+    simulateGameTick(16);
+
+    // Initial ambient state is idle
+    expect(spriteAnimator.getEntityState(farPropId)?.ambientState).toBe('idle');
+
+    // Emitting PROP_INTERACTED on out-of-FOV prop should NOT trigger interact animation
+    eventBus.emit('PROP_INTERACTED', {
+      entityId: farPropId,
+      propId: farPropId,
+      propClass: 'locker',
+    });
+    eventBus.flush();
+    expect(spriteAnimator.getEntityState(farPropId)?.transientState).toBeNull();
+
+    // Live server component state changes to searched while still out of FOV
+    world.patchComponent(farPropId, Prop, { isSearched: true });
+    simulateGameTick(16);
+
+    // Ambient state must remain 'idle' (not leaking 'searched' in Fog-of-War)
+    expect(spriteAnimator.getEntityState(farPropId)?.ambientState).toBe('idle');
+  });
 });

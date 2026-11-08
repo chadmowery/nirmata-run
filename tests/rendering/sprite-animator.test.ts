@@ -273,6 +273,48 @@ describe('SpriteAnimator & Runtime Engine ([ANIM-03])', () => {
       expect(animator.getEntityState(3)?.lastRenderedFrameKey).toBe('player_idle_1');
     });
 
+    it('U1 Invariant: freezes entities when fovSet is empty (CRIT-02)', () => {
+      animator.registerEntity(4, { baseSpriteKey: 'player', desyncPhase: false });
+      const emptyFov = new Set<string>();
+      const getPos = () => ({ x: 2, y: 2 });
+
+      animator.tick(500, emptyFov, getPos);
+      expect(animator.getEntityState(4)?.lastRenderedFrameKey).toBe('player');
+      expect(animator.getEntityState(4)?.elapsedMs).toBe(0);
+    });
+
+    it('clears transientState when entity is outside FOV or invisible to prevent stale replay (CRIT-02)', () => {
+      animator.registerEntity(5, { baseSpriteKey: 'player', desyncPhase: false });
+      const fovSet = new Set(['5,5']);
+      const getPos = () => ({ x: 10, y: 10 }); // outside FOV
+
+      // Trigger transient state while outside FOV
+      animator.triggerState(5, 'attack');
+      expect(animator.getEntityState(5)?.transientState).toBe('attack');
+
+      // Ticking outside FOV clears transient state immediately
+      animator.tick(100, fovSet, getPos);
+      expect(animator.getEntityState(5)?.transientState).toBeNull();
+      expect(animator.getEntityState(5)?.lastRenderedFrameKey).toBe('player');
+
+      // Now moving into FOV should play idle, NOT stale attack
+      const getInsidePos = () => ({ x: 5, y: 5 });
+      animator.tick(100, fovSet, getInsidePos);
+      expect(animator.getEntityState(5)?.transientState).toBeNull();
+    });
+
+    it('skips animation and clears transientState when sprite is invisible (CRIT-02)', () => {
+      animator.registerEntity(6, { baseSpriteKey: 'player', desyncPhase: false });
+      const mockInvisibleSprite: any = { visible: false };
+      const getSprite = () => mockInvisibleSprite;
+
+      animator.triggerState(6, 'hit');
+      expect(animator.getEntityState(6)?.transientState).toBe('hit');
+
+      animator.tick(100, undefined, undefined, getSprite);
+      expect(animator.getEntityState(6)?.transientState).toBeNull();
+    });
+
     it('sparse texture update only updates sprite.texture when frame key actually changes', () => {
       let textureUpdates = 0;
       let currentTexture: any = { label: 'initial' };

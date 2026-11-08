@@ -323,14 +323,23 @@ export class SpriteAnimator {
     for (const record of this.runtimeStates.values()) {
       if (record.paused) continue;
 
+      if (getSpriteFn) {
+        const sprite = getSpriteFn(record.entityId);
+        if (sprite && sprite.visible === false) {
+          record.transientState = null;
+          continue;
+        }
+      }
+
       // 1. Fog-of-War Freezing (U1 Invariant):
       // If entity is positioned on a tile outside active FOV, freeze on Frame 0 of ambient state.
-      if (fovSet && fovSet.size > 0 && getPositionFn) {
+      if (fovSet && getPositionFn) {
         const pos = getPositionFn(record.entityId);
         if (pos) {
           const tileKey = `${pos.x},${pos.y}`;
           if (!fovSet.has(tileKey)) {
-            // Outside player FOV -> lock to Frame 0 and skip elapsed clock
+            // Outside player FOV -> lock to Frame 0, clear transient state and skip elapsed clock
+            record.transientState = null;
             const ambientClip = this.getClip(record.animationSetKey, record.ambientState);
             const frozenFrame = ambientClip?.frames[0] ?? record.baseSpriteKey;
             this.applySparseTexture(record, frozenFrame, getSpriteFn);
