@@ -319,4 +319,46 @@ describe('World', () => {
       expect(targetWorld.getComponent(e2, Position)).toEqual({ x: 56, y: 78 });
     });
   });
+
+  describe('Diagnostics and System Timing Hook', () => {
+    it('provides accurate WorldDiagnostics summary', () => {
+      const e1 = world.createEntity();
+      const e2 = world.createEntity();
+      world.addComponent(e1, Position, { x: 10, y: 20 });
+      world.addComponent(e1, Health, { value: 100 });
+      world.addComponent(e2, Position, { x: 30, y: 40 });
+
+      world.registerSystem(Phase.ACTION, () => {}, 'TestSys');
+
+      const diag = world.getDiagnostics();
+      expect(diag.entityCount).toBe(2);
+      expect(diag.nextId).toBe(3);
+      expect(diag.storeCount).toBe(2);
+      expect(diag.totalComponentInstances).toBe(3);
+      expect(diag.storeSizes.Position).toBe(2);
+      expect(diag.storeSizes.Health).toBe(1);
+      expect(diag.systemCount).toBe(1);
+    });
+
+    it('invokes systemTimingHook when registered and detaches cleanly', () => {
+      const timings: Array<{ phase: Phase; name: string; duration: number }> = [];
+      world.setSystemTimingHook((phase, name, duration) => {
+        timings.push({ phase, name, duration });
+      });
+
+      world.registerSystem(Phase.ACTION, () => {}, 'ActionSys');
+      world.registerSystem(Phase.CLEANUP, () => {}, 'CleanupSys');
+
+      world.executeSystems(Phase.ACTION);
+      expect(timings).toHaveLength(1);
+      expect(timings[0].phase).toBe(Phase.ACTION);
+      expect(timings[0].name).toBe('ActionSys');
+      expect(timings[0].duration).toBeGreaterThanOrEqual(0);
+
+      // Detach hook
+      world.setSystemTimingHook(null);
+      world.executeSystems(Phase.CLEANUP);
+      expect(timings).toHaveLength(1); // No new timing entries recorded
+    });
+  });
 });

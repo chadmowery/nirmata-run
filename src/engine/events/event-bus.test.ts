@@ -101,4 +101,21 @@ describe('EventBus', () => {
     bus.flush();
     expect(handler).not.toHaveBeenCalled();
   });
+
+  it('should track emission counts and reset diagnostics', () => {
+    bus.emit('TEST_EVENT', { data: 'a' });
+    bus.emit('TEST_EVENT', { data: 'b' });
+    bus.emit('OTHER_EVENT', { value: 1 });
+
+    const diag = bus.getDiagnostics();
+    expect(diag.totalEmissions).toBe(3);
+    expect(diag.emissionsByType.TEST_EVENT).toBe(2);
+    expect(diag.emissionsByType.OTHER_EVENT).toBe(1);
+    expect(diag.queueLength).toBe(3);
+
+    bus.resetCounters();
+    const resetDiag = bus.getDiagnostics();
+    expect(resetDiag.totalEmissions).toBe(0);
+    expect(resetDiag.emissionsByType).toEqual({});
+  });
 });

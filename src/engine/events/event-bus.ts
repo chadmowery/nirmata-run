@@ -1,6 +1,16 @@
 import { logger } from '../utils/logger';
 
 /**
+ * Diagnostics summary for the EventBus.
+ */
+export interface EventBusDiagnostics {
+  totalEmissions: number;
+  emissionsByType: Record<string, number>;
+  queueLength: number;
+  handlerCount: number;
+}
+
+/**
  * Signature for an event handler function.
  */
 type EventHandler<T = unknown> = (event: T) => void;
@@ -16,6 +26,8 @@ export class EventBus<TEventMap extends Record<string, any>> {
   private queue: Array<{ type: keyof TEventMap; event: unknown }> = [];
   private isFlushing = false;
   private readonly MAX_FLUSH_DEPTH = 10;
+  private totalEmissions = 0;
+  private emissionsByType: Map<string, number> = new Map();
 
   /**
    * Subscribe a handler to an event type.
@@ -56,6 +68,10 @@ export class EventBus<TEventMap extends Record<string, any>> {
    */
   emit<K extends keyof TEventMap>(type: K, event: TEventMap[K]): void {
     // 1. Audit emission
+    this.totalEmissions++;
+    const typeStr = String(type);
+    this.emissionsByType.set(typeStr, (this.emissionsByType.get(typeStr) ?? 0) + 1);
+
     const isServer = typeof window === 'undefined';
     const isDebugEnabled = isServer
       ? process.env.DEBUG_EVENTS === 'true'
@@ -124,5 +140,35 @@ export class EventBus<TEventMap extends Record<string, any>> {
     this.handlers.clear();
     this.queue = [];
     this.isFlushing = false;
+  }
+
+  /**
+   * Retrieves lightweight diagnostics about EventBus emissions and handlers.
+   */
+  getDiagnostics(): EventBusDiagnostics {
+    let handlerCount = this.anyHandlers.size;
+    for (const handlers of this.handlers.values()) {
+      handlerCount += handlers.size;
+    }
+
+    const emissionsByType: Record<string, number> = {};
+    for (const [key, val] of this.emissionsByType.entries()) {
+      emissionsByType[key] = val;
+    }
+
+    return {
+      totalEmissions: this.totalEmissions,
+      emissionsByType,
+      queueLength: this.queue.length,
+      handlerCount,
+    };
+  }
+
+  /**
+   * Resets emission audit counters.
+   */
+  resetCounters(): void {
+    this.totalEmissions = 0;
+    this.emissionsByType.clear();
   }
 }

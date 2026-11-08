@@ -4,6 +4,27 @@ import { EngineEvents } from '../events/types';
 import { logger } from '../utils/logger';
 
 /**
+ * Diagnostics summary for the ECS World.
+ */
+export interface WorldDiagnostics {
+  entityCount: number;
+  nextId: number;
+  storeCount: number;
+  totalComponentInstances: number;
+  storeSizes: Record<string, number>;
+  systemCount: number;
+}
+
+/**
+ * Callback hook for recording ECS system execution duration per phase.
+ */
+export type SystemTimingHook = (
+  phase: Phase,
+  systemName: string,
+  durationMs: number,
+) => void;
+
+/**
  * Configuration options for the ECS World.
  */
 export interface WorldConfig {
@@ -25,6 +46,7 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
   private systems: Map<Phase, SystemFn[]> = new Map();
   private systemNames: Map<SystemFn, string> = new Map();
   private systemCriticality: Map<SystemFn, boolean> = new Map();
+  private systemTimingHook: SystemTimingHook | null = null;
   private eventBus: EventBus<TEvents>;
   private config: WorldConfig;
 
@@ -237,6 +259,40 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
   }
 
   /**
+   * Sets or clears an optional hook called after each system executes,
+   * providing the phase, system name, and duration in milliseconds.
+   */
+  setSystemTimingHook(hook: SystemTimingHook | null): void {
+    this.systemTimingHook = hook;
+  }
+
+  /**
+   * Retrieves lightweight diagnostics about the current World state.
+   */
+  getDiagnostics(): WorldDiagnostics {
+    const storeSizes: Record<string, number> = {};
+    let totalComponentInstances = 0;
+    for (const [key, store] of this.stores.entries()) {
+      storeSizes[key] = store.size;
+      totalComponentInstances += store.size;
+    }
+
+    let systemCount = 0;
+    for (const systems of this.systems.values()) {
+      systemCount += systems.length;
+    }
+
+    return {
+      entityCount: this.entities.size,
+      nextId: this.nextId,
+      storeCount: this.stores.size,
+      totalComponentInstances,
+      storeSizes,
+      systemCount,
+    };
+  }
+
+  /**
    * Execute all systems registered for a phase.
    * Non-critical systems are isolated within a fault boundary so an unhandled error
    * does not crash the entire turn, but emits a SYSTEM_FAULT event.
@@ -249,6 +305,9 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
         const systemName = this.systemNames.get(system) || system.name || 'anonymous';
         logger.debug(`Executing System: ${systemName}`, 'ECS');
         const isCritical = this.systemCriticality.get(system) ?? false;
+        const timingHook = this.systemTimingHook;
+        const t0 = timingHook ? performance.now() : 0;
+
         if (isCritical) {
           system(this);
         } else {
@@ -267,6 +326,10 @@ export class World<TEvents extends EngineEvents = EngineEvents> {
               error: errorMessage,
             } as unknown as TEvents['SYSTEM_FAULT']);
           }
+        }
+
+        if (timingHook) {
+          timingHook(phase, systemName, performance.now() - t0);
         }
       }
     }

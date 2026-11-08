@@ -118,6 +118,16 @@ export interface AudioEngineOptions {
   enableAutoplayUnlock?: boolean;
 }
 
+export interface AudioDiagnostics {
+  contextState: string;
+  sampleRate: number;
+  outputLatencyMs: number;
+  activeVoiceCount: number;
+  ambientLoopCount: number;
+  ambianceCutoffHz: number;
+  ambianceResonanceQ: number;
+}
+
 export interface IAudioEngine {
   init(): Promise<void> | void;
   resume?(): Promise<void> | void;
@@ -140,6 +150,7 @@ export interface IAudioEngine {
   updateSettings(settings: Partial<AudioSettings>): void;
   getSettings(): AudioSettings;
   isMuted(): boolean;
+  getDiagnostics(): AudioDiagnostics;
   setSampleLoader?(loader: SampleLoader): void;
   registerUnlockListeners?(): void;
   unregisterUnlockListeners?(): void;

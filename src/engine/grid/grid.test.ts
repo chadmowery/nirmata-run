@@ -146,5 +146,20 @@ describe('Grid', () => {
       expect(grid.getItemsAt(2, 2).has(10)).toBe(true);
       expect(grid.getItemsAt(2, 2).has(1)).toBe(false);
     });
+
+    it('should provide accurate GridDiagnostics', () => {
+      grid.addEntity(1, 2, 2);
+      grid.addEntity(2, 2, 2);
+      grid.addItem(10, 4, 4);
+
+      const diag = grid.getDiagnostics();
+      expect(diag.width).toBe(WIDTH);
+      expect(diag.height).toBe(HEIGHT);
+      expect(diag.totalTiles).toBe(WIDTH * HEIGHT);
+      expect(diag.occupiedEntityCells).toBe(1);
+      expect(diag.totalEntitiesOnGrid).toBe(2);
+      expect(diag.groundItemCells).toBe(1);
+      expect(diag.totalItemsOnGrid).toBe(1);
+    });
   });
 });

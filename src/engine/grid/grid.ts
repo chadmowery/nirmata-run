@@ -2,6 +2,19 @@ import { EntityId } from '../ecs/types';
 import { Tile, SerializedTile, createDefaultTile } from './types';
 
 /**
+ * Diagnostics summary for the spatial Grid.
+ */
+export interface GridDiagnostics {
+  width: number;
+  height: number;
+  totalTiles: number;
+  occupiedEntityCells: number;
+  groundItemCells: number;
+  totalEntitiesOnGrid: number;
+  totalItemsOnGrid: number;
+}
+
+/**
  * A 2D grid for managing spatial data, including terrain, entities, and items.
  * Uses a flat array for efficient storage and access.
  */
@@ -134,6 +147,40 @@ export class Grid {
     if (tile) {
       tile.items.delete(itemId);
     }
+  }
+
+  /**
+   * Retrieves lightweight spatial diagnostics about the grid state.
+   */
+  public getDiagnostics(): GridDiagnostics {
+    let occupiedEntityCells = 0;
+    let groundItemCells = 0;
+    let totalEntitiesOnGrid = 0;
+    let totalItemsOnGrid = 0;
+
+    for (let i = 0; i < this.tiles.length; i++) {
+      const tile = this.tiles[i];
+      const eSize = tile.entities.size;
+      const iSize = tile.items.size;
+      if (eSize > 0) {
+        occupiedEntityCells++;
+        totalEntitiesOnGrid += eSize;
+      }
+      if (iSize > 0) {
+        groundItemCells++;
+        totalItemsOnGrid += iSize;
+      }
+    }
+
+    return {
+      width: this.width,
+      height: this.height,
+      totalTiles: this.tiles.length,
+      occupiedEntityCells,
+      groundItemCells,
+      totalEntitiesOnGrid,
+      totalItemsOnGrid,
+    };
   }
 
   /**

@@ -14,6 +14,7 @@ import {
   SpatialCoords,
   SampleLoader,
   AudioEngineOptions,
+  AudioDiagnostics,
 } from './types';
 import { calculateSpatialAudio } from './spatial-mixer';
 import { playSynthVoice, createHoldRampVoice, HoldRampVoice, ActiveVoice } from './synth-voice';
@@ -107,6 +108,17 @@ export class NoopAudioEngine implements IAudioEngine {
   }
   public isMuted(): boolean {
     return this.settings.muted;
+  }
+  public getDiagnostics(): AudioDiagnostics {
+    return {
+      contextState: 'uninitialized',
+      sampleRate: 0,
+      outputLatencyMs: 0,
+      activeVoiceCount: 0,
+      ambientLoopCount: 0,
+      ambianceCutoffHz: 0,
+      ambianceResonanceQ: 0,
+    };
   }
 }
 
@@ -948,6 +960,28 @@ export class AudioEngine implements IAudioEngine {
     }
     this.currentAmbianceCueId = null;
     this.lastRequestedAmbianceCue = null;
+  }
+
+  public getDiagnostics(): AudioDiagnostics {
+    const activeVoices =
+      this.allActiveVoices.size + this.activeSampleSources.size + this.activeHoldVoices.size;
+    const ambientLoops =
+      (this.activeAmbianceVoice ? 1 : 0) + (this.activeAmbianceSampleSource ? 1 : 0);
+    const latencySec = this.ctx
+      ? ((this.ctx as unknown as { outputLatency?: number }).outputLatency ??
+          (this.ctx as unknown as { baseLatency?: number }).baseLatency ??
+          0)
+      : 0;
+
+    return {
+      contextState: this.ctx?.state ?? 'uninitialized',
+      sampleRate: this.ctx?.sampleRate ?? 0,
+      outputLatencyMs: latencySec * 1000,
+      activeVoiceCount: activeVoices + ambientLoops,
+      ambientLoopCount: ambientLoops,
+      ambianceCutoffHz: this.ambianceFilter?.frequency?.value ?? 0,
+      ambianceResonanceQ: this.ambianceFilter?.Q?.value ?? 0,
+    };
   }
 
   public destroy(): void {

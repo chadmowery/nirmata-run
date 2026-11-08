@@ -661,5 +661,34 @@ describe('AudioEngine', () => {
       engine.destroy();
       expect(customCtx.close).toHaveBeenCalled();
     });
+
+    it('returns accurate diagnostics for NoopAudioEngine and AudioEngine', async () => {
+      const noop = new NoopAudioEngine();
+      expect(noop.getDiagnostics()).toEqual({
+        contextState: 'uninitialized',
+        sampleRate: 0,
+        outputLatencyMs: 0,
+        activeVoiceCount: 0,
+        ambientLoopCount: 0,
+        ambianceCutoffHz: 0,
+        ambianceResonanceQ: 0,
+      });
+
+      const customCtx = createMockAudioContext();
+      const engine = new AudioEngine({
+        isClient: true,
+        audioContext: customCtx as unknown as AudioContext,
+      });
+      await engine.init();
+
+      const diag = engine.getDiagnostics();
+      expect(diag.contextState).toBe('running');
+      expect(diag.sampleRate).toBe(44100);
+      expect(diag.activeVoiceCount).toBe(0);
+      expect(diag.ambientLoopCount).toBe(0);
+      expect(diag.ambianceCutoffHz).toBe(18000);
+
+      engine.destroy();
+    });
   });
 });
