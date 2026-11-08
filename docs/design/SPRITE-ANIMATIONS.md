@@ -1,6 +1,6 @@
 # Technical Specification: Sprite Animation System & DevTool Preview Architecture
 
-> **Status:** Target Architecture Specification & Implementation Plan (`v2.8` Visual Presentation & Authoring Upgrade)  
+> **Status:** Complete & Verified (`v2.8` Visual Presentation & Authoring Upgrade)  
 > **Baseline Audited:** Nirmata Runner v2.7 (Post-Interactive Environments, Directional Tilemaps & AI Behavior Trees v3.0)  
 > **Scope:** Shared Manifest & Component Schemas (`@shared`), PixiJS 8 WebGL Animation Runtime (`@rendering`), Single-Atlas Build Pipeline (`scripts/`, `public/assets/`), and Gamedata Authoring Studio (`@dev-tool` / `/dev/gamedata`)  
 > **Companion Specifications:** [`TILEMAP_GUIDE.md`](../TILEMAP_GUIDE.md), [`DIRECTIONAL-TILEMAPS.md`](./DIRECTIONAL-TILEMAPS.md), [`INTERACTIVE-ENVIRONMENTS.md`](./INTERACTIVE-ENVIRONMENTS.md), [`GAMEDATA-DESIGN-TOOL.md`](./GAMEDATA-DESIGN-TOOL.md), [`UI-DESIGN-SYSTEM.md`](./UI-DESIGN-SYSTEM.md)

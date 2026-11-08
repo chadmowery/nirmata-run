@@ -475,20 +475,20 @@
 ## Workstream 6: Sprite Animation System & DevTool Preview Architecture (v2.8)
 
 > **Specification**: [`docs/design/SPRITE-ANIMATIONS.md`](./design/SPRITE-ANIMATIONS.md)  
-> **Status**: Specified & Planned (Ready for Implementation)
+> **Status**: Complete & Verified (v2.8)
 
-- [ ] **[ANIM-01] Shared Manifest & Component Schemas + Tileset Validator (`@shared`, `@dev-tool`)**
+- [x] **[ANIM-01] Shared Manifest & Component Schemas + Tileset Validator (`@shared`, `@dev-tool`)**
   - Extend [`src/shared/tileset-types.ts`](../src/shared/tileset-types.ts) with `AnimationLoopModeSchema` (`'loop' | 'pingpong' | 'once'`), `AnimationStateKeySchema`, `AnimationClipDefSchema`, `EntityAnimationSetSchema`, and `animations` on `ThemedTilesetManifestSchema`.
   - Extend [`src/shared/components/sprite.ts`](../src/shared/components/sprite.ts) (`SpriteComponent`) with backward-compatible optional `animationSet`, `initialState`, `speedMultiplier`, `paused`, and `desyncPhase` fields.
   - Extend [`src/app/api/dev/gamedata/tileset-validator.ts`](../src/app/api/dev/gamedata/tileset-validator.ts) with `VAL-ANIM-01`–`VAL-ANIM-03` frame reference, atlas bounds, and duration array validation.
-- [ ] **[ANIM-02] Single-Atlas Animation Frame Generation & Themed Packing (`scripts/`, `public/assets/`)**
+- [x] **[ANIM-02] Single-Atlas Animation Frame Generation & Themed Packing (`scripts/`, `public/assets/`)**
   - Author `scripts/build-animation-frames.cjs` and `scripts/add-animation-frames.cjs` to pack 44 animation delta cells into Rows 12–14 (`y = 384..480`) of the existing `512 × 512` `public/assets/tileset.png` using Frame-0 Base Reuse and Ping-Pong compression (zero extra GPU VRAM).
   - Update [`scripts/generate-themed-tilesets.cjs`](../scripts/generate-themed-tilesets.cjs) and `npm run build:tiles` so all corporate faction themes (`traxus_foundry`, `sekiguchi_biolabs`, `dark_subnet`) automatically palette-remap animation frames and inherit the `"animations"` manifest dictionary.
-- [ ] **[ANIM-03] Client `SpriteAnimator` Runtime & `RenderSystem` Integration (`@rendering`)**
+- [x] **[ANIM-03] Client `SpriteAnimator` Runtime & `RenderSystem` Integration (`@rendering`)**
   - Implement `src/rendering/sprite-animator.ts` managing per-entity ambient states (`idle`, `locked`, `searched`, `corrupted`) and event-driven one-shot clips (`move`, `attack`, `hit`, `interact`, `death`) on existing `PIXI.Sprite` instances in [`src/rendering/sprite-map.ts`](../src/rendering/sprite-map.ts).
   - Wire [`src/rendering/render-system.ts`](../src/rendering/render-system.ts) events (`ENTITY_MOVED` with `EventOriginContext` deduplication, `DAMAGE_DEALT`, `FIRMWARE_ACTIVATED`, `PROP_INTERACTED`, `LOCK_UNLOCKED`), active FOV culling (`currentFovSet`), fog-of-war freeze (`U1`), `prefers-reduced-motion` (`U11`), and deterministic `EntityId` phase desynchronization.
   - Update [`src/rendering/assets.ts`](../src/rendering/assets.ts) (`loadThemedAssets`) to unload previous non-default theme atlases on floor theme transitions.
-- [ ] **[ANIM-04] Gamedata Studio (`/dev/gamedata`) Live Preview, Filmstrip Scrubber & Prefab Toggle (`@dev-tool`)**
+- [x] **[ANIM-04] Gamedata Studio (`/dev/gamedata`) Live Preview, Filmstrip Scrubber & Prefab Toggle (`@dev-tool`)**
   - Extend [`src/dev-tool/studio/shared/tileset-atlas-cache.ts`](../src/dev-tool/studio/shared/tileset-atlas-cache.ts) with `getAnimationStates`, `getAnimationClip`, and `resolveAnimatedFrameAtTime`.
   - Upgrade [`src/dev-tool/studio/shared/SpritePicker.tsx`](../src/dev-tool/studio/shared/SpritePicker.tsx) with a live 64×64 animated canvas preview, `[▶/⏸]` transport controls, state selector pills, speed toggles, interactive frame filmstrip scrubber, and `[ALL | ANIMATED | STATIC]` dropdown filtering.
   - Add `[▶ ANIMATE PREVIEW]` toggle to [`src/dev-tool/studio/editors/PrefabEditor.tsx`](../src/dev-tool/studio/editors/PrefabEditor.tsx) and the **Animated Sprites & State Matrix** panel to [`src/dev-tool/studio/editors/ComponentSchemaViewer.tsx`](../src/dev-tool/studio/editors/ComponentSchemaViewer.tsx).
