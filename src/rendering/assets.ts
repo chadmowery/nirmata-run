@@ -13,6 +13,7 @@ export const THEME_MANIFEST_MAP: Record<string, string> = {
   cyberacme: 'assets/tileset.json',
   nucaloric: 'assets/tileset.json',
   system: 'assets/tileset.json',
+  research_lab: 'assets/tileset_research_lab.json',
 };
 
 /**
@@ -20,6 +21,14 @@ export const THEME_MANIFEST_MAP: Record<string, string> = {
  */
 export function getActiveThemeId(): string {
   return activeThemeId;
+}
+
+/**
+ * Resets asset tracking state (for testing).
+ */
+export function _resetAssetsForTesting(): void {
+  assetsRegistered = false;
+  activeThemeId = 'default';
 }
 
 /**
@@ -43,41 +52,44 @@ export async function loadAssets(): Promise<void> {
 /**
  * Loads a themed faction tileset manifest (DIRECTIONAL-TILEMAPS.md §8 Milestone 4).
  * Falls back to base tileset if the theme manifest fails or is not found.
+ * Unloads previous dedicated non-default theme atlas to bound GPU VRAM (SPRITE-ANIMATIONS.md §3.4.2).
  */
 export async function loadThemedAssets(themeId: string = 'default'): Promise<void> {
+  const previousThemeId = activeThemeId;
   await loadAssets();
 
-  if (!themeId || themeId === 'default') {
-    if (activeThemeId !== 'default') {
-      try {
-        await Assets.unload(`tileset_${activeThemeId}`);
-      } catch {
-        // Ignore unload errors
-      }
-    }
-    activeThemeId = 'default';
-    return;
-  }
+  const targetThemeId = themeId || 'default';
+  const manifestSrc = THEME_MANIFEST_MAP[targetThemeId];
+  const isDedicatedTheme = Boolean(manifestSrc && manifestSrc !== 'assets/tileset.json');
 
-  // Unload previous non-default theme atlas if transitioning between sectors
-  if (activeThemeId !== 'default' && activeThemeId !== themeId) {
+  const previousManifestSrc = THEME_MANIFEST_MAP[previousThemeId];
+  const previousWasDedicated = Boolean(previousManifestSrc && previousManifestSrc !== 'assets/tileset.json');
+
+  // Unload previous dedicated non-default theme atlas if transitioning between sectors
+  if (previousWasDedicated && previousThemeId !== targetThemeId && previousManifestSrc !== manifestSrc) {
     try {
-      await Assets.unload(`tileset_${activeThemeId}`);
+      if (typeof Assets.unload === 'function') {
+        await Assets.unload(`tileset_${previousThemeId}`);
+      }
     } catch {
       // Ignore unload errors
     }
   }
 
-  const manifestSrc = THEME_MANIFEST_MAP[themeId] ?? 'assets/tileset.json';
-  const alias = `tileset_${themeId}`;
+  if (!isDedicatedTheme) {
+    activeThemeId = targetThemeId;
+    return;
+  }
+
+  const alias = `tileset_${targetThemeId}`;
 
   try {
     Assets.add({
       alias,
-      src: manifestSrc,
+      src: manifestSrc!,
     });
     await Assets.load(alias);
-    activeThemeId = themeId;
+    activeThemeId = targetThemeId;
   } catch {
     activeThemeId = 'default';
   }

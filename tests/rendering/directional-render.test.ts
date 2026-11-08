@@ -37,6 +37,7 @@ vi.mock('pixi.js', () => {
   const Assets = {
     add: vi.fn(),
     load: vi.fn(async (path: string) => ({ path })),
+    unload: vi.fn(async () => {}),
     get: vi.fn((key: string) => {
       if (key === 'tileset_research_lab') {
         return {
