@@ -20,3 +20,6 @@ export * from './turn/types';
 
 // Audio Subsystem
 export * from './audio';
+
+// AI Subsystem
+export * from './ai';
