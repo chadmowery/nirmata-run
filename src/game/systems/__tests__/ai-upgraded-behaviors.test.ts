@@ -27,6 +27,9 @@ import { BlocksMovement } from '@shared/components/blocks-movement';
 import { Attack } from '@shared/components/attack';
 import { StatusEffects } from '@shared/components/status-effects';
 import { Dying } from '@shared/components/dying';
+import { Item } from '@shared/components/item';
+import { CurrencyItem } from '@shared/components/currency-item';
+import { AnchorMarker } from '@shared/components/anchor-marker';
 import { createCombatSystem } from '../combat';
 import { createGravediggerSystem } from '../gravedigger';
 import { createRunEnderSystem } from '../run-ender';
@@ -656,8 +659,11 @@ describe('AI Behavior Trees & Dijkstra Maps Specification Verification', () => {
       expect(world.hasComponent(enemy1, AlertIntent)).toBe(false);
       expect(world.hasComponent(enemy1, MoveIntent)).toBe(true);
 
-      // Enemy 2 MUST still retain its AlertIntent before its pass!
-      expect(world.hasComponent(enemy2, AlertIntent)).toBe(true);
+      // Enemy 2 retains its alerted state before its pass
+      const enemy2Fov = world.getComponent(enemy2, FovAwareness)!;
+      expect(enemy2Fov.canSeePlayer).toBe(true);
+      expect(enemy2Fov.lastKnownPlayerX).toBe(5);
+      expect(enemy2Fov.lastKnownPlayerY).toBe(5);
 
       // Pass 2: Enemy 2 is Acting
       world.addComponent(enemy2, Acting, {});
@@ -714,6 +720,194 @@ describe('AI Behavior Trees & Dijkstra Maps Specification Verification', () => {
       expect(world.hasComponent(enemy2, MoveIntent)).toBe(true);
       const enemy2AI = world.getComponent(enemy2, AIState);
       expect(enemy2AI?.behavior).toBe(AIBehavior.CHASING);
+    });
+  });
+
+  describe('(11) Logic-Leaker Cover Kiting, Schema Actions & Considerations (BT-REV-04)', () => {
+    it('Logic-Leaker fires ranged attack without moving when already behind cover at range 3..5', () => {
+      setupPlayer(10, 10);
+
+      // Place a cover crate at (10, 8)
+      const crate = world.createEntity();
+      world.addComponent(crate, Position, { x: 10, y: 8 });
+      world.addComponent(crate, InteractiveSurface, {
+        surfaceId: 'cover_crate_1',
+        providesCover: true,
+        destructible: true,
+      });
+      world.addComponent(crate, BlocksMovement, {});
+      grid.addEntity(crate, 10, 8);
+
+      // Place Logic-Leaker at (10, 7) (dist = 3, behind cover at 10, 8)
+      const leaker = world.createEntity();
+      world.addComponent(leaker, Position, { x: 10, y: 7 });
+      world.addComponent(leaker, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.LOGIC_LEAKER,
+        treeId: 'logic-leaker',
+        sightRadius: 10,
+      });
+      world.addComponent(leaker, FovAwareness, { canSeePlayer: true });
+      world.addComponent(leaker, Acting, {});
+      grid.addEntity(leaker, 10, 7);
+
+      aiSystem.update(world);
+
+      // Should fire corrupted packet, NOT emit MoveIntent
+      expect(world.hasComponent(leaker, MoveIntent)).toBe(false);
+      expect(world.hasComponent(leaker, ApplyStatusEffectIntent)).toBe(true);
+      const effectIntent = world.getComponent(leaker, ApplyStatusEffectIntent);
+      expect(effectIntent?.effect.name).toBe('FIRMWARE_LOCK');
+    });
+
+    it('Logic-Leaker repositions towards cover when exposed at range 3..5', () => {
+      setupPlayer(10, 10);
+
+      // Place a cover crate at (10, 8)
+      const crate = world.createEntity();
+      world.addComponent(crate, Position, { x: 10, y: 8 });
+      world.addComponent(crate, InteractiveSurface, {
+        surfaceId: 'cover_crate_2',
+        providesCover: true,
+        destructible: true,
+      });
+      world.addComponent(crate, BlocksMovement, {});
+      grid.addEntity(crate, 10, 8);
+
+      // Place Logic-Leaker at (12, 8) (dist = 4, cover at 10, 8)
+      const leaker = world.createEntity();
+      world.addComponent(leaker, Position, { x: 12, y: 8 });
+      world.addComponent(leaker, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.LOGIC_LEAKER,
+        treeId: 'logic-leaker',
+        sightRadius: 10,
+      });
+      world.addComponent(leaker, FovAwareness, { canSeePlayer: true });
+      world.addComponent(leaker, Acting, {});
+      grid.addEntity(leaker, 12, 8);
+
+      aiSystem.update(world);
+
+      // Since leaker is exposed and tile with cover exists at distance 3..5, leaker should move towards cover
+      expect(world.hasComponent(leaker, MoveIntent)).toBe(true);
+      const move = world.getComponent(leaker, MoveIntent);
+      expect(move?.dx).toBeLessThan(0);
+    });
+
+    it('SPAWN_ENTITIES_AROUND_SELF clamps to action.count when specified', () => {
+      setupPlayer(0, 0);
+      const spawner = world.createEntity();
+      world.addComponent(spawner, Position, { x: 5, y: 5 });
+      world.addComponent(spawner, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.FRAGMENTER,
+        inlineTree: {
+          type: 'ACTION',
+          task: {
+            action: 'SPAWN_ENTITIES_AROUND_SELF',
+            templateName: 'dead-zone',
+            pattern: 'cardinal_4',
+            count: 2,
+          },
+        },
+      });
+      world.addComponent(spawner, FovAwareness, { canSeePlayer: false });
+      world.addComponent(spawner, Acting, {});
+      grid.addEntity(spawner, 5, 5);
+
+      aiSystem.update(world);
+
+      const spawnIntent = world.getComponent(spawner, SpawnEntityIntent);
+      expect(spawnIntent).toBeDefined();
+      expect(spawnIntent?.spawns.length).toBe(2);
+    });
+
+    it('evaluates nearby_loot_value consideration metric based on items and currency', () => {
+      setupPlayer(0, 0);
+      const enemy = world.createEntity();
+      world.addComponent(enemy, Position, { x: 5, y: 5 });
+      world.addComponent(enemy, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.BASIC,
+        sightRadius: 6,
+        inlineTree: {
+          type: 'UTILITY_SELECTOR',
+          branches: [
+            {
+              name: 'loot-branch',
+              considerations: [
+                {
+                  metric: 'nearby_loot_value',
+                  curve: 'linear',
+                  slope: 1,
+                  invert: false,
+                  minInput: 0,
+                  maxInput: 1,
+                },
+              ],
+              child: {
+                type: 'ACTION',
+                task: {
+                  action: 'WAIT',
+                  message: 'Eyeing loot!',
+                },
+              },
+            },
+          ],
+        },
+      });
+      world.addComponent(enemy, FovAwareness, { canSeePlayer: false });
+      world.addComponent(enemy, Acting, {});
+      grid.addEntity(enemy, 5, 5);
+
+      // Add 2 items and 1 currency nearby
+      const item1 = world.createEntity();
+      world.addComponent(item1, Position, { x: 6, y: 5 });
+      world.addComponent(item1, Item, { name: 'Health Pack' });
+
+      const currency1 = world.createEntity();
+      world.addComponent(currency1, Position, { x: 5, y: 6 });
+      world.addComponent(currency1, CurrencyItem, { currencyType: 'scrap', amount: 20 });
+
+      aiSystem.update(world);
+
+      const enemyAI = world.getComponent(enemy, AIState);
+      expect(enemyAI?.lastEvaluatedPath).toContain('WAIT [SUCCESS]');
+    });
+
+    it('supports scavenge_nearest_loot and patrol_anchors mapType in MOVE_DIJKSTRA', () => {
+      setupPlayer(0, 0);
+      const enemy = world.createEntity();
+      world.addComponent(enemy, Position, { x: 2, y: 2 });
+      world.addComponent(enemy, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.BASIC,
+        inlineTree: {
+          type: 'ACTION',
+          task: {
+            action: 'MOVE_DIJKSTRA',
+            mapType: 'scavenge_nearest_loot',
+            avoidHazards: true,
+            canCrushProps: false,
+          },
+        },
+      });
+      world.addComponent(enemy, FovAwareness, { canSeePlayer: false });
+      world.addComponent(enemy, Acting, {});
+      grid.addEntity(enemy, 2, 2);
+
+      // Place an item at (5, 2)
+      const item = world.createEntity();
+      world.addComponent(item, Position, { x: 5, y: 2 });
+      world.addComponent(item, Item, { name: 'Processor Chip' });
+
+      aiSystem.update(world);
+
+      expect(world.hasComponent(enemy, MoveIntent)).toBe(true);
+      const move = world.getComponent(enemy, MoveIntent);
+      expect(move?.dx).toBe(1); // Steps towards (5, 2)
+      expect(move?.dy).toBe(0);
     });
   });
 });

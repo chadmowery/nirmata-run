@@ -12,6 +12,9 @@ import { DeadZone } from '@shared/components/dead-zone';
 import { CorruptedNode, InteractiveSurface, Prop, SecurityLock } from '@shared/components/environment';
 import { BlocksMovement } from '@shared/components/blocks-movement';
 import { Health } from '@shared/components/health';
+import { Item } from '@shared/components/item';
+import { CurrencyItem } from '@shared/components/currency-item';
+import { AnchorMarker } from '@shared/components/anchor-marker';
 
 export interface SpatialMapOptions {
   avoidHazards?: boolean;
@@ -58,6 +61,8 @@ export class AISpatialSystem<T extends EngineEvents = EngineEvents> {
   private fleeMapIgnoreHazards: DijkstraMap | null = null;
   private kiteCoverMap: DijkstraMap | null = null;
   private packSurroundMap: DijkstraMap | null = null;
+  private scavengeLootMapAvoidHazards: DijkstraMap | null = null;
+  private patrolAnchorsMapAvoidHazards: DijkstraMap | null = null;
 
   // Cache invalidation state
   private lastTurnNumber = -1;
@@ -93,6 +98,8 @@ export class AISpatialSystem<T extends EngineEvents = EngineEvents> {
     this.fleeMapIgnoreHazards = null;
     this.kiteCoverMap = null;
     this.packSurroundMap = null;
+    this.scavengeLootMapAvoidHazards = null;
+    this.patrolAnchorsMapAvoidHazards = null;
     this.reservedPackTiles.clear();
   }
 
@@ -243,13 +250,15 @@ export class AISpatialSystem<T extends EngineEvents = EngineEvents> {
   }
 
   /**
-   * 3. Kite To Cover Map: walkable tiles at range 3..5 with LOS to player.
+   * 3. Kite To Cover Map: walkable tiles at range minRange..maxRange with LOS to player.
    * Tiles with adjacent InteractiveSurface between tile and player get -3.0 value.
    */
   public getKiteToCoverMap(
     playerX: number,
     playerY: number,
     avoidHazards: boolean = true,
+    minRange: number = 3,
+    maxRange: number = 5,
   ): DijkstraMap {
     if (this.kiteCoverMap) {
       return this.kiteCoverMap;
@@ -270,11 +279,11 @@ export class AISpatialSystem<T extends EngineEvents = EngineEvents> {
       }
     }
 
-    // Inspect bounding box around player range 3..5
-    for (let dx = -5; dx <= 5; dx++) {
-      for (let dy = -5; dy <= 5; dy++) {
+    // Inspect bounding box around player range minRange..maxRange
+    for (let dx = -maxRange; dx <= maxRange; dx++) {
+      for (let dy = -maxRange; dy <= maxRange; dy++) {
         const dist = Math.abs(dx) + Math.abs(dy);
-        if (dist < 3 || dist > 5) continue;
+        if (dist < minRange || dist > maxRange) continue;
 
         const tx = playerX + dx;
         const ty = playerY + dy;
@@ -378,6 +387,73 @@ export class AISpatialSystem<T extends EngineEvents = EngineEvents> {
     const map = new DijkstraMap(this.grid.width, this.grid.height);
     const stepCost = this.getStepCostFn(avoidHazards, lastX, lastY);
     map.compute([{ x: lastX, y: lastY, value: 0 }], stepCost);
+    return map;
+  }
+
+  /**
+   * 6. Scavenge Nearest Loot Map: goals placed on floor item positions.
+   */
+  public getScavengeLootMap(avoidHazards: boolean = true): DijkstraMap {
+    if (avoidHazards && this.scavengeLootMapAvoidHazards) {
+      return this.scavengeLootMapAvoidHazards;
+    }
+    const map = new DijkstraMap(this.grid.width, this.grid.height);
+    const stepCost = this.getStepCostFn(avoidHazards);
+    const seeds: DijkstraSeed[] = [];
+
+    const items = this.world.query(Position, Item);
+    for (const id of items) {
+      const pos = this.world.getComponent(id, Position);
+      if (pos && this.grid.inBounds(pos.x, pos.y) && this.grid.isWalkable(pos.x, pos.y)) {
+        seeds.push({ x: pos.x, y: pos.y, value: 0 });
+      }
+    }
+    const currencies = this.world.query(Position, CurrencyItem);
+    for (const id of currencies) {
+      const pos = this.world.getComponent(id, Position);
+      if (pos && this.grid.inBounds(pos.x, pos.y) && this.grid.isWalkable(pos.x, pos.y)) {
+        seeds.push({ x: pos.x, y: pos.y, value: 0 });
+      }
+    }
+
+    if (seeds.length === 0) {
+      seeds.push({ x: Math.floor(this.grid.width / 2), y: Math.floor(this.grid.height / 2), value: 0 });
+    }
+
+    map.compute(seeds, stepCost);
+    if (avoidHazards) {
+      this.scavengeLootMapAvoidHazards = map;
+    }
+    return map;
+  }
+
+  /**
+   * 7. Patrol Anchors Map: goals placed on Stability Anchor positions.
+   */
+  public getPatrolAnchorsMap(avoidHazards: boolean = true): DijkstraMap {
+    if (avoidHazards && this.patrolAnchorsMapAvoidHazards) {
+      return this.patrolAnchorsMapAvoidHazards;
+    }
+    const map = new DijkstraMap(this.grid.width, this.grid.height);
+    const stepCost = this.getStepCostFn(avoidHazards);
+    const seeds: DijkstraSeed[] = [];
+
+    const anchors = this.world.query(Position, AnchorMarker);
+    for (const id of anchors) {
+      const pos = this.world.getComponent(id, Position);
+      if (pos && this.grid.inBounds(pos.x, pos.y) && this.grid.isWalkable(pos.x, pos.y)) {
+        seeds.push({ x: pos.x, y: pos.y, value: 0 });
+      }
+    }
+
+    if (seeds.length === 0) {
+      seeds.push({ x: Math.floor(this.grid.width / 2), y: Math.floor(this.grid.height / 2), value: 0 });
+    }
+
+    map.compute(seeds, stepCost);
+    if (avoidHazards) {
+      this.patrolAnchorsMapAvoidHazards = map;
+    }
     return map;
   }
 }

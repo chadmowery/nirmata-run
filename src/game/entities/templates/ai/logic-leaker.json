@@ -30,6 +30,31 @@
               },
               {
                 "type": "SEQUENCE",
+                "name": "reposition-to-cover-if-exposed",
+                "children": [
+                  { "type": "CONDITION", "condition": { "check": "TARGET_DISTANCE_BETWEEN", "min": 3, "max": 5 } },
+                  {
+                    "type": "DECORATOR_INVERT",
+                    "child": {
+                      "type": "CONDITION",
+                      "condition": { "check": "IN_DIRECTIONAL_COVER_FROM_TARGET" }
+                    }
+                  },
+                  {
+                    "type": "ACTION",
+                    "task": {
+                      "action": "MOVE_DIJKSTRA",
+                      "mapType": "kite_to_cover",
+                      "optimalRangeMin": 3,
+                      "optimalRangeMax": 5,
+                      "avoidHazards": true,
+                      "combatMessage": "Logic-Leaker maneuvers into cover!"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "SEQUENCE",
                 "name": "corrupted-packet-volley",
                 "children": [
                   { "type": "CONDITION", "condition": { "check": "TARGET_DISTANCE_BETWEEN", "min": 3, "max": 5 } },

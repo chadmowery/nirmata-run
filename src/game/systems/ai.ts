@@ -19,6 +19,8 @@ import { BlocksMovement } from '@shared/components/blocks-movement';
 import { MovedThisTurn } from '@shared/components/moved-this-turn';
 import { FloorState } from '@shared/components/floor-state';
 import { SecurityLock, InteractiveSurface } from '@shared/components/environment';
+import { Item } from '@shared/components/item';
+import { CurrencyItem } from '@shared/components/currency-item';
 import {
   MoveIntent,
   AttackIntent,
@@ -214,12 +216,38 @@ export function createAISystem<T extends GameplayEvents>(
     },
 
     update(w: World<T>): void {
-      const actingEntities = w.query(Acting, AIState);
-      if (actingEntities.length === 0) {
-        return;
+      const floorStates = w.query(FloorState);
+      const floor = floorStates.length > 0 ? w.getComponent(floorStates[0], FloorState) : null;
+      const turnNumber = floor?.turnNumber ?? 0;
+
+      if (turnNumber !== lastProcessedTurn) {
+        lastProcessedTurn = turnNumber;
+        alertedThisTurn.clear();
+        packAlerted.clear();
       }
 
-      // Process all entities marked as 'Acting'
+      // 1. Process pending AlertIntents
+      const alertedEntities = w.query(AlertIntent);
+      for (const id of alertedEntities) {
+        const alert = w.getComponent(id, AlertIntent)!;
+        alertedThisTurn.add(id);
+        if (w.hasComponent(id, FovAwareness)) {
+          w.patchComponent(id, FovAwareness, {
+            canSeePlayer: true,
+            lastKnownPlayerX: alert.sourceX,
+            lastKnownPlayerY: alert.sourceY,
+          });
+        }
+        if (w.hasComponent(id, AIState)) {
+          w.patchComponent(id, AIState, {
+            behavior: AIBehavior.CHASING,
+            remainingMemoryTurns: 5,
+          });
+        }
+        w.removeComponent(id, AlertIntent);
+      }
+
+      const actingEntities = w.query(Acting, AIState);
       for (const entityId of actingEntities) {
         this.processEnemyTurn(entityId);
       }
@@ -242,15 +270,9 @@ export function createAISystem<T extends GameplayEvents>(
       const floor = floorStates.length > 0 ? world.getComponent(floorStates[0], FloorState) : null;
       const turnNumber = floor?.turnNumber ?? 0;
 
-      if (turnNumber !== lastProcessedTurn) {
-        lastProcessedTurn = turnNumber;
-        alertedThisTurn.clear();
-        packAlerted.clear();
-      }
-
       spatialSystem.resetTurnCache(turnNumber, player.x, player.y);
 
-      // Consume AlertIntent if attached to this specific enemy
+      // Consume AlertIntent if attached directly to this entity
       if (world.hasComponent(entityId, AlertIntent)) {
         const alert = world.getComponent(entityId, AlertIntent)!;
         alertedThisTurn.add(entityId);
@@ -504,10 +526,22 @@ export function createAISystem<T extends GameplayEvents>(
                   map = spatialSystem.getFleeFromTargetMap(player.x, player.y, avoidHazards);
                   break;
                 case 'kite_to_cover':
-                  map = spatialSystem.getKiteToCoverMap(player.x, player.y, avoidHazards);
+                  map = spatialSystem.getKiteToCoverMap(
+                    player.x,
+                    player.y,
+                    avoidHazards,
+                    action.optimalRangeMin ?? 3,
+                    action.optimalRangeMax ?? 5,
+                  );
                   break;
                 case 'pack_surround_cardinal':
                   map = spatialSystem.getPackSurroundCardinalMap(player.x, player.y, avoidHazards);
+                  break;
+                case 'scavenge_nearest_loot':
+                  map = spatialSystem.getScavengeLootMap(avoidHazards);
+                  break;
+                case 'patrol_anchors':
+                  map = spatialSystem.getPatrolAnchorsMap(avoidHazards);
                   break;
                 case 'investigate_last_known': {
                   const updatedAwareness = world.getComponent(entityId, FovAwareness) ?? awareness;
@@ -561,7 +595,7 @@ export function createAISystem<T extends GameplayEvents>(
               }
 
               if (step.dx === 0 && step.dy === 0) {
-                return BTStatus.SUCCESS;
+                return BTStatus.FAILURE;
               }
 
               const nextX = pos.x + step.dx;
@@ -638,7 +672,10 @@ export function createAISystem<T extends GameplayEvents>(
                 overrides?: Record<string, Record<string, unknown>>;
               }> = [];
 
+              const maxCount = action.count ?? patternOffsets.length;
+
               for (const [dx, dy] of patternOffsets) {
+                if (spawns.length >= maxCount) break;
                 const tx = pos.x + dx;
                 const ty = pos.y + dy;
                 if (grid.inBounds(tx, ty) && grid.isWalkable(tx, ty)) {
@@ -720,8 +757,24 @@ export function createAISystem<T extends GameplayEvents>(
               }
               return Math.min(1.0, count / 4);
             }
-            case 'nearby_loot_value':
-              return 0.0;
+            case 'nearby_loot_value': {
+              const sightRadius = ai.sightRadius ?? 10;
+              let totalValue = 0;
+              for (const itemId of world.query(Position, Item)) {
+                const ip = world.getComponent(itemId, Position);
+                if (ip && Math.abs(ip.x - pos.x) + Math.abs(ip.y - pos.y) <= sightRadius) {
+                  totalValue += 10;
+                }
+              }
+              for (const currId of world.query(Position, CurrencyItem)) {
+                const cp = world.getComponent(currId, Position);
+                if (cp && Math.abs(cp.x - pos.x) + Math.abs(cp.y - pos.y) <= sightRadius) {
+                  const c = world.getComponent(currId, CurrencyItem);
+                  totalValue += c?.amount ?? 5;
+                }
+              }
+              return Math.min(1.0, totalValue / 50);
+            }
             case 'in_cover': {
               return ctx.evaluateCondition({ check: 'IN_DIRECTIONAL_COVER_FROM_TARGET' }) ? 1.0 : 0.0;
             }
