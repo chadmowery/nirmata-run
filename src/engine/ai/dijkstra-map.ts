@@ -21,83 +21,6 @@ export interface DijkstraPassabilityFn {
   (x: number, y: number): number;
 }
 
-/**
- * Lightweight binary min-heap for Dijkstra relaxation.
- */
-class MinHeap {
-  private indices: number[] = [];
-  private priorities: number[] = [];
-
-  public get size(): number {
-    return this.indices.length;
-  }
-
-  public push(index: number, priority: number): void {
-    this.indices.push(index);
-    this.priorities.push(priority);
-    this.bubbleUp(this.indices.length - 1);
-  }
-
-  public pop(): { index: number; priority: number } | undefined {
-    if (this.indices.length === 0) return undefined;
-    const topIdx = this.indices[0];
-    const topPrio = this.priorities[0];
-    const lastIdx = this.indices.pop()!;
-    const lastPrio = this.priorities.pop()!;
-    if (this.indices.length > 0) {
-      this.indices[0] = lastIdx;
-      this.priorities[0] = lastPrio;
-      this.sinkDown(0);
-    }
-    return { index: topIdx, priority: topPrio };
-  }
-
-  private bubbleUp(pos: number): void {
-    while (pos > 0) {
-      const parent = (pos - 1) >> 1;
-      if (this.priorities[pos] < this.priorities[parent]) {
-        this.swap(pos, parent);
-        pos = parent;
-      } else {
-        break;
-      }
-    }
-  }
-
-  private sinkDown(pos: number): void {
-    const len = this.indices.length;
-    while (true) {
-      const left = (pos << 1) + 1;
-      const right = left + 1;
-      let smallest = pos;
-
-      if (left < len && this.priorities[left] < this.priorities[smallest]) {
-        smallest = left;
-      }
-      if (right < len && this.priorities[right] < this.priorities[smallest]) {
-        smallest = right;
-      }
-
-      if (smallest !== pos) {
-        this.swap(pos, smallest);
-        pos = smallest;
-      } else {
-        break;
-      }
-    }
-  }
-
-  private swap(a: number, b: number): void {
-    const tempIdx = this.indices[a];
-    this.indices[a] = this.indices[b];
-    this.indices[b] = tempIdx;
-
-    const tempPrio = this.priorities[a];
-    this.priorities[a] = this.priorities[b];
-    this.priorities[b] = tempPrio;
-  }
-}
-
 export class DijkstraMap {
   public readonly width: number;
   public readonly height: number;
@@ -129,12 +52,17 @@ export class DijkstraMap {
   }
 
   /**
-   * Computes the Dijkstra map from a set of seed coordinates using a fast
-   * min-heap priority queue (O(V log V) for arbitrary positive step costs).
+   * Computes the Dijkstra map from a set of seed coordinates using a fast,
+   * bounded-memory Shortest Path Faster Algorithm (SPFA) with Small Label to First (SLF) optimization.
    */
   public compute(seeds: DijkstraSeed[], getStepCost: DijkstraPassabilityFn): this {
     this.data.fill(DIJKSTRA_UNSET);
-    const heap = new MinHeap();
+    const len = this.width * this.height;
+    const queueCapacity = len * 2;
+    const queue = new Int32Array(queueCapacity);
+    const inQueue = new Uint8Array(len);
+    let head = 0;
+    let tail = 0;
 
     for (const seed of seeds) {
       if (!this.inBounds(seed.x, seed.y)) continue;
@@ -142,7 +70,11 @@ export class DijkstraMap {
       const val = seed.value ?? 0;
       if (val < this.data[idx]) {
         this.data[idx] = val;
-        heap.push(idx, val);
+        if (!inQueue[idx]) {
+          queue[tail] = idx;
+          tail = (tail + 1) % queueCapacity;
+          inQueue[idx] = 1;
+        }
       }
     }
 
@@ -153,14 +85,12 @@ export class DijkstraMap {
       [0, -1],
     ] as const;
 
-    while (heap.size > 0) {
-      const entry = heap.pop()!;
-      const currIdx = entry.index;
-      const currVal = entry.priority;
+    while (head !== tail) {
+      const currIdx = queue[head];
+      head = (head + 1) % queueCapacity;
+      inQueue[currIdx] = 0;
 
-      // Skip stale heap entries
-      if (currVal > this.data[currIdx]) continue;
-
+      const currVal = this.data[currIdx];
       const cx = currIdx % this.width;
       const cy = (currIdx - cx) / this.width;
 
@@ -176,7 +106,17 @@ export class DijkstraMap {
         const candidate = currVal + stepCost;
         if (candidate < this.data[nIdx]) {
           this.data[nIdx] = candidate;
-          heap.push(nIdx, candidate);
+          if (!inQueue[nIdx]) {
+            if (head !== tail && candidate < this.data[queue[head]]) {
+              // Small Label to First (SLF) optimization: push lower values to front
+              head = (head - 1 + queueCapacity) % queueCapacity;
+              queue[head] = nIdx;
+            } else {
+              queue[tail] = nIdx;
+              tail = (tail + 1) % queueCapacity;
+            }
+            inQueue[nIdx] = 1;
+          }
         }
       }
     }

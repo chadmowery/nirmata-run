@@ -176,4 +176,21 @@ describe('DijkstraMap', () => {
     expect(pickFirst!.targetScore).toBe(2);
     expect(pickLast!.targetScore).toBe(2);
   });
+
+  it('computes createFleeMap on cyclic multi-path grid without infinite relaxation or queue explosion', () => {
+    // 10x10 open grid with many cycles
+    const map = new DijkstraMap(10, 10);
+    map.compute([{ x: 5, y: 5, value: 0 }], () => 1.0);
+
+    const fleeMap = map.createFleeMap(() => 1.0, -1.2);
+    expect(fleeMap).toBeDefined();
+
+    // Player tile was at 5,5 (score 0), so flee map tile at (5,5) has 0 * -1.2 = 0
+    // A tile far away like (0,0) had score 10 in map -> -12 in flee seed
+    // Downhill rolling from (5,5) should move towards outer edges
+    const step = fleeMap.getBestStep(5, 5);
+    expect(step).not.toBeNull();
+    expect(Math.abs(step!.dx) + Math.abs(step!.dy)).toBe(1);
+    expect(step!.targetScore).toBeLessThan(fleeMap.get(5, 5));
+  });
 });
