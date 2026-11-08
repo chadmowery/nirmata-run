@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { ThemedTilesetManifestSchema } from '@shared/tileset-types';
+import { ThemedTilesetManifestSchema, AnimationClipDef } from '@shared/tileset-types';
 import { resolveFallbackSpriteKey } from '@rendering/sprite-map';
 
 export const REQUIRED_WALL_AUTOTILE_FRAMES = [
@@ -64,6 +64,8 @@ export interface TilesetValidationResult {
   totalFrames: number;
   missingDirectionalFrames: string[];
   presentDirectionalFrames: string[];
+  totalAnimations: number;
+  animatedKeys: string[];
 }
 
 /**
@@ -84,6 +86,8 @@ export function validateTilesetManifest(manifest: unknown): TilesetValidationRes
       totalFrames: 0,
       missingDirectionalFrames: [...ALL_DIRECTIONAL_FRAMES],
       presentDirectionalFrames: [],
+      totalAnimations: 0,
+      animatedKeys: [],
     };
   }
 
@@ -119,6 +123,60 @@ export function validateTilesetManifest(manifest: unknown): TilesetValidationRes
     }
   }
 
+  // 3. Validate animation definitions if present
+  const animations = data.animations ?? {};
+  const animatedKeys = Object.keys(animations);
+  const totalAnimations = animatedKeys.length;
+
+  for (const [animKey, entry] of Object.entries(animations)) {
+    const clips: Array<{ state: string; clip: AnimationClipDef }> = [];
+    if ('frames' in entry && Array.isArray((entry as AnimationClipDef).frames)) {
+      clips.push({ state: 'idle', clip: entry as AnimationClipDef });
+    } else {
+      for (const [state, clip] of Object.entries(entry)) {
+        if (clip && typeof clip === 'object' && 'frames' in clip) {
+          clips.push({ state, clip: clip as AnimationClipDef });
+        }
+      }
+    }
+
+    for (const { state, clip } of clips) {
+      // VAL-ANIM-03 (Duration Array Alignment)
+      if (clip.frameDurationsMs !== undefined) {
+        if (clip.frameDurationsMs.length !== clip.frames.length) {
+          errors.push(
+            `Animation '${animKey}' clip '${state}' has frameDurationsMs length ${clip.frameDurationsMs.length} which does not match frames length ${clip.frames.length}`,
+          );
+        }
+      }
+
+      for (const frameKey of clip.frames) {
+        // VAL-ANIM-01 (Frame Reference Integrity)
+        if (!frameKeys.has(frameKey)) {
+          errors.push(
+            `Animation '${animKey}' clip '${state}' references missing frame '${frameKey}'`,
+          );
+        } else {
+          // VAL-ANIM-02 (Atlas Bounds Check)
+          const frameDef = data.frames[frameKey];
+          if (frameDef) {
+            const { x, y, w, h } = frameDef.frame;
+            if (
+              x < 0 ||
+              y < 0 ||
+              x + w > data.meta.size.w ||
+              y + h > data.meta.size.h
+            ) {
+              errors.push(
+                `Animation '${animKey}' clip '${state}' frame '${frameKey}' bounds (${x},${y},${w},${h}) exceed atlas dimensions (${data.meta.size.w}x${data.meta.size.h})`,
+              );
+            }
+          }
+        }
+      }
+    }
+  }
+
   return {
     valid: errors.length === 0,
     themeId,
@@ -127,6 +185,8 @@ export function validateTilesetManifest(manifest: unknown): TilesetValidationRes
     totalFrames: frameKeys.size,
     missingDirectionalFrames,
     presentDirectionalFrames,
+    totalAnimations,
+    animatedKeys,
   };
 }
 
@@ -152,6 +212,8 @@ export async function validateThemeFile(themeId: string): Promise<TilesetValidat
       totalFrames: 0,
       missingDirectionalFrames: [...ALL_DIRECTIONAL_FRAMES],
       presentDirectionalFrames: [],
+      totalAnimations: 0,
+      animatedKeys: [],
     };
   }
 }
