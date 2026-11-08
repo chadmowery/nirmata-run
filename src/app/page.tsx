@@ -33,6 +33,11 @@ const DevTerminal = dynamic(
   { ssr: false },
 );
 
+const PerfMonitorWidget = dynamic(
+  () => import('@dev-tool/perf/PerfMonitorWidget').then((m) => m.PerfMonitorWidget),
+  { ssr: false },
+);
+
 export default function GamePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contextRef = useRef<GameContext | null>(null);
@@ -46,6 +51,8 @@ export default function GamePage() {
   const renderSystemRef = useRef<ReturnType<typeof createRenderSystem> | null>(null);
   const gameAudioSystemRef = useRef<GameAudioSystem | null>(null);
   const tickerCallbackRef = useRef<(() => void) | null>(null);
+  const webglProbeRef = useRef<import('@dev-tool/perf/webgl-probe').WebGLProbe | null>(null);
+  const perfCollectorRef = useRef<import('@dev-tool/perf/perf-collector').PerfCollector | null>(null);
 
   const showCanvas =
     status === GameState.Playing || status === GameState.Paused || status === GameState.GameOver;
@@ -143,9 +150,52 @@ export default function GamePage() {
       // Start rendering loop sync
       const tickerCallback = () => {
         renderSystem.renderSystem();
+        if (perfCollectorRef.current) {
+          const telemetry = renderSystem.getRenderTelemetry();
+          const stats = webglProbeRef.current?.getFrameStats() ?? {
+            drawCalls: 0,
+            triangles: 0,
+            programSwitches: 0,
+            textureBinds: 0,
+          };
+          perfCollectorRef.current.recordFrame(app.ticker.deltaMS, telemetry.stageTimings, stats);
+          webglProbeRef.current?.resetFrame();
+        }
       };
       app.ticker.add(tickerCallback);
       tickerCallbackRef.current = tickerCallback;
+
+      // Attach Development Performance Instrumentation
+      if (process.env.NODE_ENV === 'development') {
+        import('@dev-tool/perf/webgl-probe').then(({ WebGLProbe }) => {
+          const probe = new WebGLProbe(app);
+          probe.attach();
+          webglProbeRef.current = probe;
+          import('@dev-tool/perf/perf-collector').then(({ perfCollector }) => {
+            perfCollector.setProbe(probe);
+            perfCollectorRef.current = perfCollector;
+          });
+        });
+
+        import('@/game/setup').then(({ setTurnTelemetryHook }) => {
+          import('@dev-tool/perf/perf-collector').then(({ perfCollector }) => {
+            setTurnTelemetryHook((telemetry) => perfCollector.recordTurnTelemetry(telemetry));
+          });
+        });
+
+        context.eventBus.on('ENTITY_CREATED', () =>
+          perfCollectorRef.current?.recordEventEmission('ENTITY_CREATED'),
+        );
+        context.eventBus.on('DAMAGE_DEALT', () =>
+          perfCollectorRef.current?.recordEventEmission('DAMAGE_DEALT'),
+        );
+        context.eventBus.on('FLOOR_TRANSITION', () =>
+          perfCollectorRef.current?.recordEventEmission('FLOOR_TRANSITION'),
+        );
+        context.eventBus.on('STATE_RECONCILED', () =>
+          perfCollectorRef.current?.recordEventEmission('STATE_RECONCILED'),
+        );
+      }
 
       // 4. Init Audio System
       const gameAudioSystem = createGameAudioSystem({
@@ -205,6 +255,11 @@ export default function GamePage() {
       }
 
       // 4. Cleanup Game Engine
+      if (webglProbeRef.current) {
+        webglProbeRef.current.detach();
+        webglProbeRef.current = null;
+      }
+      perfCollectorRef.current = null;
       destroyGame(contextRef.current);
       contextRef.current = null;
 
@@ -240,6 +295,11 @@ export default function GamePage() {
         destroyGame(contextRef.current);
         contextRef.current = null;
       }
+      if (webglProbeRef.current) {
+        webglProbeRef.current.detach();
+        webglProbeRef.current = null;
+      }
+      perfCollectorRef.current = null;
       destroyRenderer();
       getAudioEngine().destroy();
     };
@@ -328,6 +388,29 @@ export default function GamePage() {
     };
   }, []);
 
+  // Effect 6: Development Hotkeys for TK-PERF-900 (F3, Shift+F3, Alt+F3)
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+
+    const handleHotkeys = (e: KeyboardEvent) => {
+      if (e.key === 'F3') {
+        e.preventDefault();
+        import('@dev-tool/perf/perf-store').then(({ usePerfStore }) => {
+          if (e.shiftKey) {
+            usePerfStore.getState().cycleMode();
+          } else if (e.altKey) {
+            usePerfStore.getState().toggleGhost();
+          } else {
+            usePerfStore.getState().toggleMode();
+          }
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleHotkeys);
+    return () => window.removeEventListener('keydown', handleHotkeys);
+  }, []);
+
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-black font-mono">
       <div id="canvas-container">
@@ -358,6 +441,13 @@ export default function GamePage() {
         <SystemSettingsModal />
 
         {process.env.NODE_ENV === 'development' && <DevTerminal />}
+        {process.env.NODE_ENV === 'development' && (
+          <PerfMonitorWidget
+            context={contextRef.current}
+            renderSystem={renderSystemRef.current}
+            probe={webglProbeRef.current}
+          />
+        )}
       </div>
     </main>
   );

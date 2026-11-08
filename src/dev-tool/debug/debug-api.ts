@@ -1,6 +1,8 @@
 import { GameContext } from '@/game/types';
 import { ActionIntent } from '@shared/types';
 import { logger } from '@engine/utils/logger';
+import { usePerfStore, PerfDisplayMode } from '../perf/perf-store';
+import { perfCollector } from '../perf/perf-collector';
 
 export type SendActionFn = (intent: ActionIntent) => Promise<void>;
 
@@ -221,4 +223,34 @@ export class DebugAPI {
     this.context.eventBus.emit('DEBUG_TOGGLE_AI', { mapType });
     logger.info(`DEBUG: AI Debug overlay toggled (${mapType || 'approach_target'})`, 'DEBUG');
   }
+
+  /**
+   * TK-PERF-900 Telemetry Monitor Controls
+   */
+  readonly perf = {
+    toggle: () => {
+      usePerfStore.getState().toggleMode();
+    },
+    setMode: (mode: PerfDisplayMode) => {
+      usePerfStore.getState().setMode(mode);
+    },
+    snapshot: () => {
+      const ecs = this.context.world?.getDiagnostics ? this.context.world.getDiagnostics() : null;
+      return perfCollector.takeBaselineSnapshot({
+        floor: 1,
+        entityCount: ecs?.entityCount ?? 0,
+        componentCount: ecs?.totalComponentInstances ?? 0,
+        entitySpriteCount: 0,
+        tilemapPoolSize: 0,
+        activeFilterCount: 0,
+        managedTextureCount: 0,
+        vramBytes: 0,
+        activeAudioVoiceCount: 0,
+        jsHeapBytes: 0,
+      });
+    },
+    getReport: () => {
+      return perfCollector.generateReportJson();
+    },
+  };
 }

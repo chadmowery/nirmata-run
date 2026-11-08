@@ -3,6 +3,8 @@ import { logger } from '@engine/utils/logger';
 import { VAULT_MAX_SLOTS } from '@shared/vault';
 import { gameStore } from '@/game/ui/store';
 import type { DebugAPI } from '../debug/debug-api';
+import { usePerfStore } from '../perf/perf-store';
+import { perfCollector } from '../perf/perf-collector';
 
 declare global {
   interface Window {
@@ -301,6 +303,69 @@ export function DevTerminal() {
             },
           ]);
           break;
+        case '/perf': {
+          const sub = args[1]?.toLowerCase();
+          const store = usePerfStore.getState();
+          if (!sub || sub === 'toggle') {
+            store.toggleMode();
+            setHistory((prev) => [
+              ...prev,
+              { text: `[OK] Performance monitor mode: ${usePerfStore.getState().mode}`, type: 'output' },
+            ]);
+          } else if (sub === 'mini') {
+            store.setMode('MINI');
+            setHistory((prev) => [...prev, { text: '[OK] Performance monitor set to MINI mode', type: 'output' }]);
+          } else if (sub === 'standard') {
+            store.setMode('STANDARD');
+            setHistory((prev) => [...prev, { text: '[OK] Performance monitor set to STANDARD mode', type: 'output' }]);
+          } else if (sub === 'full' || sub === 'expanded') {
+            store.setMode('EXPANDED');
+            setHistory((prev) => [...prev, { text: '[OK] Performance monitor set to EXPANDED mode', type: 'output' }]);
+          } else if (sub === 'off') {
+            store.setMode('OFF');
+            setHistory((prev) => [...prev, { text: '[OK] Performance monitor disabled (OFF)', type: 'output' }]);
+          } else if (sub === 'ghost') {
+            store.toggleGhost();
+            setHistory((prev) => [
+              ...prev,
+              { text: `[OK] Performance monitor Ghost mode: ${usePerfStore.getState().ghostMode ? 'ON' : 'OFF'}`, type: 'output' },
+            ]);
+          } else if (sub === 'snap' || sub === 'snapshot') {
+            perfCollector.takeBaselineSnapshot({
+              floor: 1,
+              entityCount: 0,
+              componentCount: 0,
+              entitySpriteCount: 0,
+              tilemapPoolSize: 0,
+              activeFilterCount: 0,
+              managedTextureCount: 0,
+              vramBytes: 0,
+              activeAudioVoiceCount: 0,
+              jsHeapBytes: 0,
+            });
+            setHistory((prev) => [...prev, { text: '[OK] Baseline snapshot captured for floor-transition auditing', type: 'output' }]);
+          } else if (sub === 'export') {
+            const jsonStr = perfCollector.generateReportJson();
+            if (typeof window !== 'undefined') {
+              const blob = new Blob([jsonStr], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = `nirmata-perf-telemetry-${Date.now()}.json`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(url);
+            }
+            setHistory((prev) => [...prev, { text: '[OK] Performance telemetry JSON report downloaded', type: 'output' }]);
+          } else {
+            setHistory((prev) => [
+              ...prev,
+              { text: '[ERROR] Unknown /perf subcommand. Use: /perf [toggle|mini|standard|full|off|ghost|snap|export]', type: 'error' },
+            ]);
+          }
+          break;
+        }
         case '/close':
           setIsVisible(false);
           break;
@@ -331,6 +396,7 @@ export function DevTerminal() {
             { text: '  /deadzone - Spawn deadzone at player position', type: 'output' },
             { text: '  /show-map - Reveal the entire floor map and clear fog of war', type: 'output' },
             { text: '  /debug-ai [mapType] - Toggle AI Dijkstra heatmap and telemetry overlay', type: 'output' },
+            { text: '  /perf [toggle|mini|standard|full|off|ghost|snap|export] - Telemetry oscilloscope controls', type: 'output' },
             { text: '  /clearsessions - Clear all server sessions', type: 'output' },
             { text: '  /close - Close this terminal', type: 'output' },
             { text: '  /list - Show this list', type: 'output' },

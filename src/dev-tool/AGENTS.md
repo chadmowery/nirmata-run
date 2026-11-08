@@ -23,8 +23,16 @@ The Dev Tool layer houses the developer-facing content authoring environment (Ga
    - File read/write operations must sanitize names with `sanitizeName()` to prevent path traversal outside designated template directories.
    - Templates are validated against canonical Zod schemas before being saved to disk.
 4. **Diagnostic Terminal (`src/dev-tool/terminal/`)**:
-   - `DevTerminal` provides in-game commands (`/grant-all`, `/heat`, `/panic`, `/hp`, `/stability`, `/descend`, `/show-map`).
+   - `DevTerminal` provides in-game commands (`/grant-all`, `/heat`, `/panic`, `/hp`, `/stability`, `/descend`, `/show-map`, `/debug-ai`, `/perf`).
    - Toggled via the backtick (`` ` ``) key without interfering with gameplay keymaps.
+5. **In-Game Performance & Telemetry Monitor (`src/dev-tool/perf/` / `TK-PERF-900`)**:
+   - High-frequency vector oscilloscope (`<canvas>`) backed by pre-allocated `Float32Array` ring buffers (zero per-frame heap allocations).
+   - 4Hz throttled React state synchronization via `usePerfStore` across 5 telemetry domains (`GPU`, `ECS`, `TURN`, `MEM`, `AUDIT`).
+   - WebGL2 spy (`WebGLProbe`) instrumenting draw calls, program switches, and texture binds; PixiJS 8 `managedTextures` VRAM calculator.
+   - Floor-Transition Baseline Snapshot & Leak Diff Auditor and Spike Trap auto-freeze detector.
+   - Hotkeys: `F3` (toggle ON/OFF), `Shift+F3` (cycle MINI / STANDARD / EXPANDED), `Alt+F3` (toggle Ghost click-through mode).
+   - Commands: `/perf [toggle|mini|standard|full|off|ghost|snap|export]`.
 
 ## 3. Related Documentation
 - [`GAMEDATA-DESIGN-TOOL.md`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/docs/design/GAMEDATA-DESIGN-TOOL.md) — Comprehensive functional and technical specification for Gamedata Studio.
+- [`PERFORMANCE-MONITOR-SPEC.md`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/docs/design/PERFORMANCE-MONITOR-SPEC.md) — Technical and visual specification for TK-PERF-900 Telemetry Monitor.

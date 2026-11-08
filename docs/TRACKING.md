@@ -493,6 +493,52 @@
   - Upgrade [`src/dev-tool/studio/shared/SpritePicker.tsx`](../src/dev-tool/studio/shared/SpritePicker.tsx) with a live 64×64 animated canvas preview, `[▶/⏸]` transport controls, state selector pills, speed toggles, interactive frame filmstrip scrubber, and `[ALL | ANIMATED | STATIC]` dropdown filtering.
   - Add `[▶ ANIMATE PREVIEW]` toggle to [`src/dev-tool/studio/editors/PrefabEditor.tsx`](../src/dev-tool/studio/editors/PrefabEditor.tsx) and the **Animated Sprites & State Matrix** panel to [`src/dev-tool/studio/editors/ComponentSchemaViewer.tsx`](../src/dev-tool/studio/editors/ComponentSchemaViewer.tsx).
 
+---
+
+## Workstream 7: In-Game Performance & Telemetry Monitor (`TK-PERF-900` / v2.9)
+
+> **Specification**: [`docs/design/PERFORMANCE-MONITOR-SPEC.md`](./design/PERFORMANCE-MONITOR-SPEC.md)  
+> **Status**: Complete & Verified (v2.9)
+
+- [x] **[PERF-01] Foundation Layer Zero-Overhead Introspection Hooks (`@engine`)**
+  - Added `WorldDiagnostics` interface and optional `SystemTimingHook` to `World` in [`src/engine/ecs/world.ts`](../src/engine/ecs/world.ts) (`executeSystems` timing wrapper active only when hook attached).
+  - Added `GridDiagnostics` interface and `getDiagnostics()` to `Grid` in [`src/engine/grid/grid.ts`](../src/engine/grid/grid.ts) (cell counts, entities, items).
+  - Added `EventBusDiagnostics` interface, lightweight emission tracking, and `getDiagnostics()` to `EventBus` in [`src/engine/events/event-bus.ts`](../src/engine/events/event-bus.ts).
+  - Added `AudioDiagnostics` interface and `getDiagnostics()` to `AudioEngine` in [`src/engine/audio/audio-engine.ts`](../src/engine/audio/audio-engine.ts) and optional declaration in [`src/engine/audio/types.ts`](../src/engine/audio/types.ts).
+  - Verified with 14 unit test files (166 tests) in `src/engine/`.
+
+- [x] **[PERF-02] Rendering Sub-Stage Telemetry & Authoritative Server Turn Profiling (`@rendering`, `@server`, `@game/setup`)**
+  - Implemented telemetry counters across rendering submodules: `getTilemapTelemetry()` in `tilemap.ts`, `getParticleTelemetry()` in `particle-emitters.ts`, `getFilterTelemetry()` in `glitch-effects.ts`, `getActiveAnimationCount()` in `animations.ts`, and `getActiveDamageTextCount()` in `damage-text.ts`.
+  - Added sub-stage timing measurements (`fovMs`, `tilemapMs`, `spriteSyncMs`, `vfxMs`, `hoverMs`, `totalCpuMs`) and dev bisection flags (`disableSpriteFilters`, `disableWorldFilters`, `disableParticles`, `cacheStaticTilemap`, `cacheStaticFov`) to `RenderSystem` in [`src/rendering/render-system.ts`](../src/rendering/render-system.ts).
+  - Added `[data-perf-monitor="true"]` hover inspector suppression to prevent tooltip flashing when interacting with monitor controls.
+  - Attached dev-only `systemTimingHook` in [`src/app/api/action/route.ts`](../src/app/api/action/route.ts) returning `_devPerf` strictly when `process.env.NODE_ENV === 'development'`.
+  - Added client prediction duration, network RTT, and reconciliation duration instrumentation via `setTurnTelemetryHook` in [`src/game/setup.ts`](../src/game/setup.ts).
+  - Verified with unit tests in `tests/rendering/render-telemetry.test.ts` and `src/app/api/action/__tests__/action.test.ts`.
+
+- [x] **[PERF-03] High-Frequency Collector, WebGL2 Probe & Leak Auditor (`@dev-tool/perf`)**
+  - Implemented `WebGLProbe` in `src/dev-tool/perf/webgl-probe.ts` wrapping WebGL2 draw elements/arrays, program switches, and texture binds with non-destructive `attach()` / `detach()` and PixiJS 8 `managedTextures` VRAM calculator.
+  - Implemented `PerfCollector` in `src/dev-tool/perf/perf-collector.ts` using pre-allocated `Float32Array` circular ring buffers (240 frames = 4.0s) for zero heap allocation on the 60Hz frame tick.
+  - Implemented rolling window metrics (FPS current, avg, 1% low, jitter $\sigma$), 30-turn waterfall history buffer, floor-transition baseline snapshot & leak diff calculation, spike trap auto-freeze detector, and JSON telemetry report export.
+  - Implemented `usePerfStore` Zustand store in `src/dev-tool/perf/perf-store.ts` managing display modes (`OFF`, `MINI`, `STANDARD`, `EXPANDED`), active tab, Ghost mode, dock position, bisection flags, and 4Hz throttled snapshot state with `localStorage` persistence under `'nirmata_dev_perf_settings'`.
+  - Verified with unit tests in `src/dev-tool/perf/__tests__/webgl-probe.test.ts` (3 tests) and `src/dev-tool/perf/__tests__/perf-collector.test.ts` (5 tests).
+
+- [x] **[PERF-04] Taikoku Telemetry Oscilloscope UI Widget (`PerfMonitorWidget.tsx`, `PerfMonitorWidget.module.css`)**
+  - Implemented `PerfMonitorWidget.tsx` and `PerfMonitorWidget.module.css` styled with canonical Taikoku Vector tokens, dual-color 6px corner brackets, inverted ivory placard header, and 4 operational modes:
+    - `MINI`: 390px compact pill with live 48×14px sparkline canvas, color-coded FPS, DC, ENT, RTT, VRAM.
+    - `STANDARD`: 380px panel with dual-trace 1px vector oscilloscope (120 frames, 2.0s), stacked frame budget breakdown bar (`FOV`, `TILE`, `SPR`, `VFX`, `GL`), and 5 domain tabs (`GPU`, `ECS`, `TURN`, `MEM`, `AUDIT`).
+    - `EXPANDED`: 720px 2-column workstation with interactive 240-frame scrub inspector, server top systems table, and live render bisection checkboxes.
+    - `GHOST`: Click-through mode with `pointer-events: none` and 0.60 alpha with restore toggle button.
+  - 60Hz direct `<canvas>` rendering loop via `requestAnimationFrame` reading from collector typed arrays without React re-renders.
+  - Verified with 7 component tests in `src/dev-tool/perf/__tests__/PerfMonitorWidget.test.tsx`.
+
+- [x] **[PERF-05] Dynamic Dev Mounting, Hotkeys, `DevTerminal` Commands & Quality Gate Verification**
+  - Dynamically mounted `<PerfMonitorWidget />` in [`src/app/page.tsx`](../src/app/page.tsx) behind `process.env.NODE_ENV === 'development'` with `{ ssr: false }`.
+  - Attached development hotkeys: `F3` (toggle ON/OFF), `Shift + F3` (cycle MINI / STANDARD / EXPANDED), and `Alt + F3` (toggle Ghost mode).
+  - Added `/perf [toggle|mini|standard|full|off|ghost|snap|export]` commands to `DevTerminal` in [`src/dev-tool/terminal/DevTerminal.tsx`](../src/dev-tool/terminal/DevTerminal.tsx).
+  - Added `window.__DEBUG__.perf` API (`toggle()`, `setMode()`, `snapshot()`, `getReport()`) to [`src/dev-tool/debug/debug-api.ts`](../src/dev-tool/debug/debug-api.ts).
+  - Updated documentation in [`src/dev-tool/AGENTS.md`](../src/dev-tool/AGENTS.md) and [`docs/TRACKING.md`](./TRACKING.md).
+
+
 
 
 

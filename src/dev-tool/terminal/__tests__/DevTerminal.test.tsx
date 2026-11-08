@@ -143,4 +143,20 @@ describe('DevTerminal Component', () => {
 
     delete (window as any).__DEBUG__;
   });
+
+  it('executes /perf command and controls perf store mode', async () => {
+    render(<DevTerminal />);
+
+    fireEvent.keyDown(window, { key: '`' });
+
+    const input = screen.getByPlaceholderText(/ENTER COMMAND/i);
+    fireEvent.change(input, { target: { value: '/perf mini' } });
+    fireEvent.submit(input.closest('form')!);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Performance monitor set to MINI mode/i),
+      ).toBeInTheDocument();
+    });
+  });
 });

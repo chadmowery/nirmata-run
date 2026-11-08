@@ -77,4 +77,15 @@ describe('DebugAPI grantAll & seedVault', () => {
       args: { sessionId: 'test-session-debug-api' },
     });
   });
+
+  it('exposes perf controller API methods on debugApi.perf', () => {
+    debugApi.perf.setMode('EXPANDED');
+    const report = debugApi.perf.getReport();
+    expect(typeof report).toBe('string');
+
+    debugApi.perf.toggle();
+    const snap = debugApi.perf.snapshot();
+    expect(snap).toBeDefined();
+    expect(snap.floor).toBe(1);
+  });
 });
