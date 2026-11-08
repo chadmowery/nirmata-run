@@ -48,8 +48,24 @@ export async function loadThemedAssets(themeId: string = 'default'): Promise<voi
   await loadAssets();
 
   if (!themeId || themeId === 'default') {
+    if (activeThemeId !== 'default') {
+      try {
+        await Assets.unload(`tileset_${activeThemeId}`);
+      } catch {
+        // Ignore unload errors
+      }
+    }
     activeThemeId = 'default';
     return;
+  }
+
+  // Unload previous non-default theme atlas if transitioning between sectors
+  if (activeThemeId !== 'default' && activeThemeId !== themeId) {
+    try {
+      await Assets.unload(`tileset_${activeThemeId}`);
+    } catch {
+      // Ignore unload errors
+    }
   }
 
   const manifestSrc = THEME_MANIFEST_MAP[themeId] ?? 'assets/tileset.json';

@@ -6,6 +6,7 @@ import { Grid } from '../engine/grid/grid';
 import { EntityId } from '../engine/ecs/types';
 import { Position } from '@shared/components/position';
 import { SpriteComponent } from '@shared/components/sprite';
+import { AnimationStateKey } from '@shared/tileset-types';
 import { Actor } from '@shared/components/actor';
 import { FloorState } from '@shared/components/floor-state';
 import { AbilityDef } from '@shared/components/ability-def';
@@ -45,6 +46,7 @@ import {
   clearAnimations,
   hasActiveAnimation,
 } from './animations';
+import { spriteAnimator } from './sprite-animator';
 import {
   applyPersistentGlitch,
   applyDamageDistortion,
@@ -412,6 +414,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
     const spriteComp = world.getComponent(payload.entityId, SpriteComponent);
     if (spriteComp) {
       const sprite = createEntitySprite(payload.entityId, spriteComp.key, layers.entityLayer);
+      spriteAnimator.registerEntity(payload.entityId, spriteComp);
 
       // Apply persistent glitch for enemies
       const aiState = world.getComponent(payload.entityId, AIState);
@@ -431,7 +434,9 @@ export function createRenderSystem(config: RenderSystemConfig) {
       const spriteComp = world.getComponent(entityId, SpriteComponent);
       if (spriteComp) {
         createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
+        spriteAnimator.registerEntity(entityId, spriteComp);
       }
+      spriteAnimator.triggerState(entityId, 'interact');
       syncPropOutline(entityId);
       const pos = world.getComponent(entityId, Position);
       if (pos && currentFovSet.has(`${pos.x},${pos.y}`)) {
@@ -443,22 +448,28 @@ export function createRenderSystem(config: RenderSystemConfig) {
   const handleEntityDestroyed = (payload: { entityId: EntityId }) => {
     const sprite = getEntitySprite(payload.entityId);
     if (sprite) {
+      spriteAnimator.triggerState(payload.entityId, 'death');
       const aiState = world.getComponent(payload.entityId, AIState);
       if (aiState) {
         cleanupEmitter(sprite);
         queueTypedDeathAnimation(payload.entityId, aiState.behaviorType, sprite, () => {
           destroyEntitySprite(payload.entityId);
+          spriteAnimator.unregisterEntity(payload.entityId);
         });
       } else {
         queueDeathAnimation(payload.entityId, () => {
           destroyEntitySprite(payload.entityId);
+          spriteAnimator.unregisterEntity(payload.entityId);
         });
       }
+    } else {
+      spriteAnimator.unregisterEntity(payload.entityId);
     }
   };
 
   const handleItemPickedUp = (payload: { entityId?: EntityId; itemId: EntityId }) => {
     destroyEntitySprite(payload.itemId);
+    spriteAnimator.unregisterEntity(payload.itemId);
   };
 
   // Track last predicted player move to avoid duplicate tweens when server reconciles
@@ -482,6 +493,11 @@ export function createRenderSystem(config: RenderSystemConfig) {
       return;
     }
     lastDamageProcessed = { defenderId: payload.defenderId, timestamp: now };
+
+    if (payload.attackerId) {
+      spriteAnimator.triggerState(payload.attackerId, 'attack');
+    }
+    spriteAnimator.triggerState(payload.defenderId, 'hit');
 
     const sprite = getEntitySprite(payload.defenderId);
     if (sprite) {
@@ -528,7 +544,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
     if (isPlayer) {
       cameraPanOffset = { x: 0, y: 0 };
       if (origin === 'client') {
-        // Record predicted player movement and queue visual tween
+        // Record predicted player movement and queue visual tween + step animation
+        spriteAnimator.triggerState(payload.entityId, 'move');
         lastPredictedPlayerMove = {
           fromX: payload.fromX,
           fromY: payload.fromY,
@@ -547,7 +564,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       }
 
       if (origin === 'server') {
-        // If this server event confirms our predicted move, skip duplicate tween
+        // If this server event confirms our predicted move, skip duplicate tween and duplicate anim
         if (
           lastPredictedPlayerMove &&
           lastPredictedPlayerMove.fromX === payload.fromX &&
@@ -561,6 +578,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
         // Misprediction correction or forced move from server
         lastPredictedPlayerMove = null;
+        spriteAnimator.triggerState(payload.entityId, 'move');
         queueMoveTween(
           payload.entityId,
           payload.fromX,
@@ -573,7 +591,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
       }
     }
 
-    // For all other entities (enemies, NPCs), always queue visual move tween
+    // For all other entities (enemies, NPCs), always trigger move animation and queue tween
+    spriteAnimator.triggerState(payload.entityId, 'move');
     queueMoveTween(
       payload.entityId,
       payload.fromX,
@@ -612,6 +631,18 @@ export function createRenderSystem(config: RenderSystemConfig) {
     }
   };
 
+  const handleFirmwareActivated = (payload: { entityId?: EntityId }) => {
+    if (payload.entityId) {
+      spriteAnimator.triggerState(payload.entityId, 'attack');
+    }
+  };
+
+  const handleEnemyTeleported = (payload: { entityId?: EntityId }) => {
+    if (payload.entityId) {
+      spriteAnimator.triggerState(payload.entityId, 'move');
+    }
+  };
+
   const updateCameraFrame = (ticker: Ticker) => {
     const deltaMs = ticker.deltaMS;
     const newPos = lerpCamera(
@@ -626,6 +657,14 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
     // Smooth animation tick
     tickAnimations(deltaMs, getEntitySprite);
+
+    // Sprite Animator tick for real-time ambient and one-shot sprite frames
+    spriteAnimator.tick(
+      deltaMs,
+      currentFovSet,
+      (id) => world.getComponent(id, Position),
+      getEntitySprite,
+    );
 
     // Update visual systems
     updateAllEmitters(deltaMs);
@@ -645,6 +684,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.on('HEAT_CHANGED', handleHeatChanged);
       eventBus.on('PROP_INTERACTED', handlePropUpdated);
       eventBus.on('LOCK_UNLOCKED', handlePropUpdated);
+      eventBus.on('FIRMWARE_ACTIVATED', handleFirmwareActivated);
+      eventBus.on('ENEMY_TELEPORTED', handleEnemyTeleported);
       eventBus.on('DEBUG_REVEAL_MAP', handleDebugRevealMap);
       eventBus.on('DEBUG_TOGGLE_AI', handleDebugToggleAI);
       eventBus.on('RECENTER_CAMERA', handleRecenterCamera);
@@ -678,12 +719,18 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
     reconcileSprites() {
       const activeEntities = new Set(world.query(SpriteComponent, Position));
-      purgeOrphanedSprites(activeEntities);
+      const purged = purgeOrphanedSprites(activeEntities);
+      for (const id of purged) {
+        spriteAnimator.unregisterEntity(id);
+      }
 
       // Instantiate sprites for any active entity missing its sprite and refresh prop outlines
       for (const entityId of activeEntities) {
         let sprite = getEntitySprite(entityId);
         const spriteComp = world.getComponent(entityId, SpriteComponent);
+        if (spriteComp) {
+          spriteAnimator.registerEntity(entityId, spriteComp);
+        }
         if (!sprite) {
           const pos = world.getComponent(entityId, Position);
           if (spriteComp) {
@@ -829,6 +876,24 @@ export function createRenderSystem(config: RenderSystemConfig) {
         // Lazy sprite creation or texture sync
         const spriteComp = world.getComponent(entityId, SpriteComponent)!;
         sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
+        spriteAnimator.registerEntity(entityId, spriteComp);
+
+        // Resolve component-derived ambient state
+        let ambientState: AnimationStateKey = 'idle';
+        const propComp = world.getComponent(entityId, Prop);
+        const secLock = world.getComponent(entityId, SecurityLock);
+        const corrupted = world.getComponent(entityId, CorruptedNode);
+
+        if (propComp?.isSearched) {
+          ambientState = 'searched';
+        } else if (secLock?.isLocked) {
+          ambientState = 'locked';
+        } else if (corrupted?.revealed && !corrupted?.isDisarmed) {
+          ambientState = 'corrupted';
+        } else if (spriteComp.initialState) {
+          ambientState = spriteComp.initialState;
+        }
+        spriteAnimator.setAmbientState(entityId, ambientState);
 
         const pos = world.getComponent(entityId, Position)!;
         const actor = world.getComponent(entityId, Actor);
@@ -850,7 +915,6 @@ export function createRenderSystem(config: RenderSystemConfig) {
           playerSprite = sprite;
         }
 
-        const propComp = world.getComponent(entityId, Prop);
         if (propComp?.isSearched) {
           alpha = alpha * 0.6;
         }
@@ -1058,6 +1122,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       rememberedTileItems.clear();
       clearTilemap(layers.terrainLayer);
       clearAnimations();
+      spriteAnimator.clear();
       clearAllSprites();
 
       // Snap camera to player on new dungeon
@@ -1100,6 +1165,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.off('HEAT_CHANGED', handleHeatChanged);
       eventBus.off('PROP_INTERACTED', handlePropUpdated);
       eventBus.off('LOCK_UNLOCKED', handlePropUpdated);
+      eventBus.off('FIRMWARE_ACTIVATED', handleFirmwareActivated);
+      eventBus.off('ENEMY_TELEPORTED', handleEnemyTeleported);
       eventBus.off('DEBUG_REVEAL_MAP', handleDebugRevealMap);
       eventBus.off('DEBUG_TOGGLE_AI', handleDebugToggleAI);
       eventBus.off('RECENTER_CAMERA', handleRecenterCamera);
@@ -1124,6 +1191,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       lastHoverCheckState = null;
       clearAllSprites();
       clearAnimations();
+      spriteAnimator.clear();
       disposeScreenEffects();
       disposeHeatEffects();
       disposeAllEmitters();
