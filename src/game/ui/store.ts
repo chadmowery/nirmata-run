@@ -835,3 +835,12 @@ export const gameStore = createStore<UIState>((set, get) => ({
       optimisticInventoryEquipmentIds: null,
     }),
 }));
+
+// Apply saved audio preferences to AudioEngine immediately on client initialization
+if (typeof window !== 'undefined') {
+  try {
+    getAudioEngine().updateSettings(getSavedAudioSettings());
+  } catch {
+    // ignore
+  }
+}

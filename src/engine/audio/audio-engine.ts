@@ -126,8 +126,11 @@ export class AudioEngine implements IAudioEngine {
   // Autoplay Unlock
   private unlockHandler: (() => void) | null = null;
 
-  constructor(isClient = typeof window !== 'undefined') {
+  constructor(isClient = typeof window !== 'undefined', initialSettings?: Partial<AudioSettings>) {
     this.isClient = isClient;
+    if (initialSettings) {
+      this.settings = { ...this.settings, ...initialSettings };
+    }
   }
 
   /**
@@ -193,6 +196,9 @@ export class AudioEngine implements IAudioEngine {
 
     this.ambianceFilter.connect(this.ambianceGain);
     this.ambianceGain.connect(this.masterCompressor);
+
+    // Synchronize initial settings to all newly created bus gain nodes
+    this.applySettings();
   }
 
   private setupAutoplayUnlock(): void {

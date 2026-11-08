@@ -343,4 +343,21 @@ describe('AudioEngine', () => {
 
     engine.destroy();
   });
+
+  it('applies pre-configured settings to gain nodes immediately on init()', async () => {
+    const mockCtx = createMockAudioContext();
+    installMockAudioContext(mockCtx);
+
+    const engine = new AudioEngine(true, { muted: true, masterVolume: 0.5 });
+    expect(engine.isMuted()).toBe(true);
+    expect(engine.getSettings().masterVolume).toBe(0.5);
+
+    await engine.init();
+
+    // Verify gain node setValueAtTime was called with 0 for muted master
+    const masterGainNode = mockCtx.createGain.mock.results[0].value;
+    expect(masterGainNode.gain.setValueAtTime).toHaveBeenCalledWith(0, mockCtx.currentTime);
+
+    engine.destroy();
+  });
 });

@@ -12,7 +12,7 @@ import { getAudioEngine, AudioEngine } from '@engine/audio';
 import { getSoundCue, registerSoundCue } from '@/game/audio/cue-registry';
 import { getAmbianceConfig, setAmbianceConfig } from '@/game/config/ambiance';
 import { useStore } from 'zustand';
-import { gameStore } from '@/game/ui/store';
+import { gameStore, getSavedAudioSettings } from '@/game/ui/store';
 import { GameState } from '@/game/states/types';
 import { RunMode } from '@/shared/run-mode';
 import { logger } from '@engine/utils/logger';
@@ -217,6 +217,12 @@ export default function GamePage() {
       }
     }
   }, [status]);
+
+  // Effect 0: Synchronize persisted audio settings into AudioEngine on mount
+  useEffect(() => {
+    const saved = getSavedAudioSettings();
+    getAudioEngine().updateSettings(saved);
+  }, []);
 
   // Effect 3: Full cleanup on component unmount
   useEffect(() => {
