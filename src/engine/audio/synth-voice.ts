@@ -101,6 +101,9 @@ export interface SynthVoiceOptions {
 export interface ActiveVoice {
   stop(fadeDurationSec?: number): void;
   gainNode: GainNode;
+  pannerNode?: StereoPannerNode;
+  occlusionFilter?: BiquadFilterNode;
+  updateSpatial?(spatial: SpatialAudioResult, volumeMultiplier?: number): void;
 }
 
 /**
@@ -129,22 +132,27 @@ export function playSynthVoice(
   let currentTail: AudioNode = voiceGain;
 
   // Spatial Panning
+  let pannerNode: StereoPannerNode | undefined;
   if (spatial && typeof ctx.createStereoPanner === 'function') {
     const panner = ctx.createStereoPanner();
     panner.pan.setValueAtTime(spatial.pan, now);
     currentTail.connect(panner);
     currentTail = panner;
     nodesToClean.push(panner);
+    pannerNode = panner;
   }
 
   // Spatial Occlusion Filter (Muffled 900Hz lowpass when tile is unrevealed/behind wall)
-  if (spatial && spatial.lowPassCutoff) {
+  let occlusionFilterNode: BiquadFilterNode | undefined;
+  if (spatial) {
     const occlusionFilter = ctx.createBiquadFilter();
     occlusionFilter.type = 'lowpass';
-    occlusionFilter.frequency.setValueAtTime(spatial.lowPassCutoff, now);
+    const cutoff = spatial.lowPassCutoff ?? 20000;
+    occlusionFilter.frequency.setValueAtTime(cutoff, now);
     currentTail.connect(occlusionFilter);
     currentTail = occlusionFilter;
     nodesToClean.push(occlusionFilter);
+    occlusionFilterNode = occlusionFilter;
   }
 
   currentTail.connect(destinationNode);
@@ -335,9 +343,27 @@ export function playSynthVoice(
     }
   };
 
+  const updateSpatial = (newSpatial: SpatialAudioResult, newVolumeMultiplier = 1.0) => {
+    if (isStopped) return;
+    const updateTime = ctx.currentTime;
+    if (pannerNode) {
+      pannerNode.pan.setValueAtTime(newSpatial.pan, updateTime);
+    }
+    if (occlusionFilterNode) {
+      const cutoff = newSpatial.lowPassCutoff ?? 20000;
+      occlusionFilterNode.frequency.setValueAtTime(cutoff, updateTime);
+    }
+    const currentPeak = Math.max(0, Math.min(1.0, newSpatial.gain * newVolumeMultiplier));
+    const currentSustain = currentPeak * Math.max(0, Math.min(1.0, patch.sustain));
+    voiceGain.gain.setValueAtTime(loop ? currentSustain : currentPeak, updateTime);
+  };
+
   return {
     stop: stopVoice,
     gainNode: voiceGain,
+    pannerNode,
+    occlusionFilter: occlusionFilterNode,
+    updateSpatial,
   };
 }
 

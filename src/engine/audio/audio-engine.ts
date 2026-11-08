@@ -11,6 +11,7 @@ import {
   PlayCueOptions,
   AmbianceState,
   AudioBusName,
+  SpatialCoords,
 } from './types';
 import { calculateSpatialAudio } from './spatial-mixer';
 import { playSynthVoice, createHoldRampVoice, HoldRampVoice, ActiveVoice } from './synth-voice';
@@ -34,9 +35,23 @@ export class NoopAudioEngine implements IAudioEngine {
 
   public init(): void {}
   public destroy(): void {}
-  public playCue(cue: SoundCueDef, options?: PlayCueOptions): void {
+  public playCue(cue: SoundCueDef, options?: PlayCueOptions): number | undefined {
     void cue;
     void options;
+    return undefined;
+  }
+  public stopVoice(voiceId: number, fadeDurationSec?: number): void {
+    void voiceId;
+    void fadeDurationSec;
+  }
+  public updateVoiceSpatial(
+    voiceId: number,
+    spatial: SpatialCoords,
+    volumeMultiplier?: number,
+  ): void {
+    void voiceId;
+    void spatial;
+    void volumeMultiplier;
   }
   public startHoldRamp(cue: SoundCueDef): string {
     void cue;
@@ -107,6 +122,7 @@ export class AudioEngine implements IAudioEngine {
   private allActiveVoices = new Set<ActiveVoice>();
   private activeSampleSources = new Set<AudioBufferSourceNode>();
   private activeCueSamples = new Map<string, AudioBufferSourceNode[]>();
+  private activeVoiceMap = new Map<number, ActiveVoice>();
   private nextVoiceId = 1;
 
   // Continuous Ambiance Management
@@ -287,11 +303,11 @@ export class AudioEngine implements IAudioEngine {
   /**
    * Triggers a sound cue with optional spatial positioning and pitch variance.
    */
-  public playCue(cue: SoundCueDef, options: PlayCueOptions = {}): void {
-    if (this.settings.muted) return;
+  public playCue(cue: SoundCueDef, options: PlayCueOptions = {}): number | undefined {
+    if (this.settings.muted) return undefined;
     if (!this.ctx) {
       this.init();
-      if (!this.ctx) return;
+      if (!this.ctx) return undefined;
     }
 
     if (this.ctx.state === 'suspended') {
@@ -303,12 +319,12 @@ export class AudioEngine implements IAudioEngine {
     const cooldown = cue.cooldownMs ?? 30;
 
     if (now - lastTrigger < cooldown) {
-      return; // Suppress duplicate within cooldown window
+      return undefined; // Suppress duplicate within cooldown window
     }
     this.cueCooldowns.set(cue.id, now);
 
     const busNode = this.getBusNode(cue.bus);
-    if (!busNode) return;
+    if (!busNode) return undefined;
 
     // Pitch variance calculation (random +/- variance)
     let pitchMultiplier = options.pitchMultiplier ?? 1.0;
@@ -320,7 +336,7 @@ export class AudioEngine implements IAudioEngine {
     // Spatial calculations
     const spatialResult = options.spatial ? calculateSpatialAudio(options.spatial) : undefined;
     if (spatialResult && spatialResult.gain <= 0) {
-      return; // Inaudible or out of hearing range
+      return undefined; // Inaudible or out of hearing range
     }
 
     const volumeMultiplier = (options.volumeMultiplier ?? 1.0) * (cue.baseVolume ?? 1.0);
@@ -335,6 +351,9 @@ export class AudioEngine implements IAudioEngine {
       });
 
       if (voice) {
+        const voiceId = this.nextVoiceId++;
+        this.activeVoiceMap.set(voiceId, voice);
+
         if (!this.activeCueVoices.has(cue.id)) {
           this.activeCueVoices.set(cue.id, []);
         }
@@ -346,6 +365,7 @@ export class AudioEngine implements IAudioEngine {
           const durationSec =
             cue.synth.attack + cue.synth.decay + cue.synth.hold + cue.synth.release + 0.5;
           setTimeout(() => {
+            this.activeVoiceMap.delete(voiceId);
             this.allActiveVoices.delete(voice);
             const list = this.activeCueVoices.get(cue.id);
             if (list) {
@@ -355,10 +375,13 @@ export class AudioEngine implements IAudioEngine {
             }
           }, durationSec * 1000);
         }
+
+        return voiceId;
       }
     } else if (cue.mode === 'sample' && cue.samplePath) {
       this.playSampleVoice(cue, busNode, volumeMultiplier, pitchMultiplier, spatialResult);
     }
+    return undefined;
   }
 
   /**
@@ -398,6 +421,36 @@ export class AudioEngine implements IAudioEngine {
   }
 
   /**
+   * Stops an individual active voice by its voice ID.
+   */
+  public stopVoice(voiceId: number, fadeDurationSec = 0.05): void {
+    const voice = this.activeVoiceMap.get(voiceId);
+    if (voice) {
+      try {
+        voice.stop(fadeDurationSec);
+      } catch {
+        // Safe to ignore
+      }
+      this.activeVoiceMap.delete(voiceId);
+      this.allActiveVoices.delete(voice);
+    }
+  }
+
+  /**
+   * Dynamically updates the stereo panning, distance attenuation, and occlusion filter of an active voice.
+   */
+  public updateVoiceSpatial(
+    voiceId: number,
+    spatial: SpatialCoords,
+    volumeMultiplier = 1.0,
+  ): void {
+    const voice = this.activeVoiceMap.get(voiceId);
+    if (!voice || !voice.updateSpatial) return;
+    const result = calculateSpatialAudio(spatial);
+    voice.updateSpatial(result, volumeMultiplier);
+  }
+
+  /**
    * Stops all active audio: synth voices, sample sources, hold ramps, and continuous ambiance.
    */
   public stopAllAudio(fadeDurationSec = 0.05): void {
@@ -411,6 +464,7 @@ export class AudioEngine implements IAudioEngine {
     }
     this.allActiveVoices.clear();
     this.activeCueVoices.clear();
+    this.activeVoiceMap.clear();
 
     // 2. Stop all active sample sources
     for (const src of this.activeSampleSources) {

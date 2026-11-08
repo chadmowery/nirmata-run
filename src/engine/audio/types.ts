@@ -104,7 +104,9 @@ export interface PlayCueOptions {
 export interface IAudioEngine {
   init(): Promise<void> | void;
   destroy(): void;
-  playCue(cue: SoundCueDef, options?: PlayCueOptions): void;
+  playCue(cue: SoundCueDef, options?: PlayCueOptions): number | undefined;
+  stopVoice(voiceId: number, fadeDurationSec?: number): void;
+  updateVoiceSpatial(voiceId: number, spatial: SpatialCoords, volumeMultiplier?: number): void;
   playAmbianceCue(cue: SoundCueDef): void;
   startHoldRamp(cue: SoundCueDef): string;
   updateHoldRamp(voiceId: string, progress: number): void;

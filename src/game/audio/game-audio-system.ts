@@ -17,7 +17,7 @@ import {
   PredictionDeduplicator,
   SpatialCoords,
 } from '@engine/audio';
-import { Position, Shell, AudioProfile, Heat, AmbientEmitter, Prop, FloorState } from '@shared/components';
+import { Position, Shell, AudioProfile, Heat, AmbientEmitter, Prop, FloorState, CorruptedNode } from '@shared/components';
 import { getSoundCue } from './cue-registry';
 import { resolveAmbianceForFloor } from '@game/config/ambiance';
 
@@ -44,7 +44,7 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
 
   const dedup = new PredictionDeduplicator(2000);
   let currentFovSet = new Set<string>();
-  const activeEmitters = new Map<EntityId, string>();
+  const activeEmitters = new Map<EntityId, { cueId: string; voiceId?: number }>();
 
   const getPlayerPosition = (): { x: number; y: number } | null => {
     const pId = getPlayerEntity();
@@ -53,7 +53,12 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
     return pos ? { x: pos.x, y: pos.y } : null;
   };
 
-  const getSpatialCoords = (sourceX: number, sourceY: number): SpatialCoords | undefined => {
+  const getSpatialCoords = (
+    sourceX: number,
+    sourceY: number,
+    maxRadius?: number,
+    falloff?: 'linear' | 'inverse',
+  ): SpatialCoords | undefined => {
     const playerPos = getPlayerPosition();
     if (!playerPos) return undefined;
 
@@ -65,6 +70,8 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
       listenerY: playerPos.y,
       sourceX,
       sourceY,
+      maxRadius,
+      falloff,
       isOccluded,
     };
   };
@@ -137,10 +144,16 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
       const pos = world.getComponent(entityId, Position);
       if (!emitter || !pos) continue;
 
-      // If prop is searched, mute emitter if activeOnlyWhenUnsearched is true
-      const prop = world.getComponent(entityId, Prop);
-      if (emitter.activeOnlyWhenUnsearched && prop?.isSearched) {
-        continue;
+      // If prop is searched or corrupted node is disarmed/triggered, mute emitter if activeOnlyWhenUnsearched is true
+      if (emitter.activeOnlyWhenUnsearched) {
+        const prop = world.getComponent(entityId, Prop);
+        if (prop?.isSearched) {
+          continue;
+        }
+        const corrupted = world.getComponent(entityId, CorruptedNode);
+        if (corrupted?.isDisarmed || corrupted?.triggered) {
+          continue;
+        }
       }
 
       // If requiresFov is true, ensure tile is in active visible set
@@ -155,24 +168,35 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
 
       if (dist <= emitter.radius) {
         inRangeEntities.add(entityId);
+        const spatial = getSpatialCoords(pos.x, pos.y, emitter.radius, emitter.falloff);
+
         if (!activeEmitters.has(entityId)) {
           const cue = getSoundCue(emitter.cueId);
           if (cue) {
-            const spatial = getSpatialCoords(pos.x, pos.y);
-            audioEngine.playCue(cue, {
+            const voiceId = audioEngine.playCue(cue, {
               spatial,
               volumeMultiplier: emitter.baseVolume,
             });
-            activeEmitters.set(entityId, emitter.cueId);
+            activeEmitters.set(entityId, { cueId: emitter.cueId, voiceId });
+          }
+        } else {
+          // Dynamically update stereo panning, distance attenuation, and occlusion while inside radius
+          const active = activeEmitters.get(entityId)!;
+          if (active.voiceId !== undefined && spatial) {
+            audioEngine.updateVoiceSpatial(active.voiceId, spatial, emitter.baseVolume);
           }
         }
       }
     }
 
     // Stop emitters that moved out of range or were searched/despawned
-    for (const [entityId, cueId] of activeEmitters.entries()) {
+    for (const [entityId, active] of activeEmitters.entries()) {
       if (!inRangeEntities.has(entityId)) {
-        audioEngine.stopCue(cueId);
+        if (active.voiceId !== undefined) {
+          audioEngine.stopVoice(active.voiceId, 0.25);
+        } else {
+          audioEngine.stopCue(active.cueId, 0.25);
+        }
         activeEmitters.delete(entityId);
       }
     }
@@ -372,8 +396,14 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
     positionCache.delete(payload.entityId);
 
     if (activeEmitters.has(payload.entityId)) {
-      const cueId = activeEmitters.get(payload.entityId);
-      if (cueId) audioEngine.stopCue(cueId);
+      const active = activeEmitters.get(payload.entityId);
+      if (active) {
+        if (active.voiceId !== undefined) {
+          audioEngine.stopVoice(active.voiceId, 0.25);
+        } else {
+          audioEngine.stopCue(active.cueId, 0.25);
+        }
+      }
       activeEmitters.delete(payload.entityId);
     }
   });
@@ -534,8 +564,12 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
         unsub();
       }
       unsubs.length = 0;
-      for (const cueId of activeEmitters.values()) {
-        audioEngine.stopCue(cueId);
+      for (const active of activeEmitters.values()) {
+        if (active.voiceId !== undefined) {
+          audioEngine.stopVoice(active.voiceId);
+        } else {
+          audioEngine.stopCue(active.cueId);
+        }
       }
       audioProfileCache.clear();
       positionCache.clear();

@@ -12,6 +12,8 @@ describe('UIAudioController', () => {
       playCue: vi.fn(),
       playAmbianceCue: vi.fn(),
       stopCue: vi.fn(),
+      stopVoice: vi.fn(),
+      updateVoiceSpatial: vi.fn(),
       stopAllAudio: vi.fn(),
       startHoldRamp: vi.fn(() => 'ramp-voice-42'),
       updateHoldRamp: vi.fn(),

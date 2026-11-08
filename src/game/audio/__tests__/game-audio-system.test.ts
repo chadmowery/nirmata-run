@@ -4,7 +4,7 @@ import { EventBus } from '@engine/events/event-bus';
 import { GameEvents } from '@game/events/types';
 import { Grid } from '@engine/grid/grid';
 import { EventOriginContext } from '@engine/utils/event-context';
-import { Position, Shell, AudioProfile, AmbientEmitter, Prop, FloorState } from '@shared/components';
+import { Position, Shell, AudioProfile, AmbientEmitter, Prop, FloorState, CorruptedNode } from '@shared/components';
 import { createGameAudioSystem } from '../game-audio-system';
 import { IAudioEngine } from '@engine/audio';
 
@@ -21,12 +21,15 @@ describe('GameAudioSystem Bridge', () => {
     world = new World<GameEvents>(eventBus);
     grid = new Grid(20, 20);
 
+    let voiceSeq = 100;
     mockAudioEngine = {
       init: vi.fn(),
       destroy: vi.fn(),
-      playCue: vi.fn(),
+      playCue: vi.fn(() => ++voiceSeq),
       playAmbianceCue: vi.fn(),
       stopCue: vi.fn(),
+      stopVoice: vi.fn(),
+      updateVoiceSpatial: vi.fn(),
       stopAllAudio: vi.fn(),
       startHoldRamp: vi.fn(() => 'voice-1'),
       updateHoldRamp: vi.fn(),
@@ -406,7 +409,219 @@ describe('GameAudioSystem Bridge', () => {
     });
     eventBus.flush();
 
-    expect(mockAudioEngine.stopCue).toHaveBeenCalledWith('amb_emitter_vent');
+    expect(mockAudioEngine.stopVoice).toHaveBeenCalledWith(expect.any(Number), 0.25);
+
+    audioSystem.destroy();
+  });
+
+  it('updates spatial parameters dynamically while moving inside AmbientEmitter radius', () => {
+    const ventId = world.createEntity();
+    world.addComponent(ventId, Position, { x: 7, y: 5 });
+    world.addComponent(ventId, AmbientEmitter, {
+      cueId: 'amb_emitter_vent',
+      radius: 8,
+      baseVolume: 0.5,
+      falloff: 'linear',
+      requiresFov: false,
+      activeOnlyWhenUnsearched: false,
+    });
+
+    const audioSystem = createGameAudioSystem({
+      world,
+      eventBus,
+      getPlayerEntity: () => playerId,
+      getGrid: () => grid,
+      audioEngine: mockAudioEngine,
+    });
+
+    // Step 1: Player moves to (5, 5) -> emitter starts
+    EventOriginContext.current = 'client';
+    eventBus.emit('ENTITY_MOVED', {
+      entityId: playerId,
+      fromX: 5,
+      fromY: 5,
+      toX: 5,
+      toY: 5,
+    });
+    eventBus.flush();
+
+    expect(mockAudioEngine.playCue).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'amb_emitter_vent' }),
+      expect.anything(),
+    );
+    const ventCallIndex = (mockAudioEngine.playCue as ReturnType<typeof vi.fn>).mock.calls.findIndex(
+      (c) => c[0].id === 'amb_emitter_vent',
+    );
+    const startVoiceId = (mockAudioEngine.playCue as ReturnType<typeof vi.fn>).mock.results[ventCallIndex].value;
+
+    // Step 2: Player moves closer to (6, 5) -> spatial should update in real-time
+    world.patchComponent(playerId, Position, { x: 6, y: 5 });
+    eventBus.emit('ENTITY_MOVED', {
+      entityId: playerId,
+      fromX: 5,
+      fromY: 5,
+      toX: 6,
+      toY: 5,
+    });
+    eventBus.flush();
+
+    // Should NOT start another vent cue (only footstep for player move)
+    const ventCallsAfter = (mockAudioEngine.playCue as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (c) => c[0].id === 'amb_emitter_vent',
+    );
+    expect(ventCallsAfter.length).toBe(1);
+
+    // Should call updateVoiceSpatial with updated coordinates
+    expect(mockAudioEngine.updateVoiceSpatial).toHaveBeenCalledWith(
+      startVoiceId,
+      expect.objectContaining({ listenerX: 6, listenerY: 5, sourceX: 7, sourceY: 5, maxRadius: 8, falloff: 'linear' }),
+      0.5,
+    );
+
+    audioSystem.destroy();
+  });
+
+  it('isolates stopVoice when two emitters share the same cueId so remaining emitter continues', () => {
+    const vent1 = world.createEntity();
+    world.addComponent(vent1, Position, { x: 5, y: 6 });
+    world.addComponent(vent1, AmbientEmitter, {
+      cueId: 'amb_emitter_vent',
+      radius: 4,
+      baseVolume: 0.4,
+      falloff: 'linear',
+      requiresFov: false,
+      activeOnlyWhenUnsearched: false,
+    });
+
+    const vent2 = world.createEntity();
+    world.addComponent(vent2, Position, { x: 5, y: 12 });
+    world.addComponent(vent2, AmbientEmitter, {
+      cueId: 'amb_emitter_vent',
+      radius: 4,
+      baseVolume: 0.4,
+      falloff: 'linear',
+      requiresFov: false,
+      activeOnlyWhenUnsearched: false,
+    });
+
+    const audioSystem = createGameAudioSystem({
+      world,
+      eventBus,
+      getPlayerEntity: () => playerId,
+      getGrid: () => grid,
+      audioEngine: mockAudioEngine,
+    });
+
+    // Player at (5, 5): within vent1 (dist 1 <= 4), out of vent2 (dist 7 > 4)
+    EventOriginContext.current = 'client';
+    eventBus.emit('ENTITY_MOVED', {
+      entityId: playerId,
+      fromX: 5,
+      fromY: 5,
+      toX: 5,
+      toY: 5,
+    });
+    eventBus.flush();
+
+    const vent1Index = (mockAudioEngine.playCue as ReturnType<typeof vi.fn>).mock.calls.findIndex(
+      (c) => c[0].id === 'amb_emitter_vent',
+    );
+    expect(vent1Index).toBeGreaterThanOrEqual(0);
+    const vent1Voice = (mockAudioEngine.playCue as ReturnType<typeof vi.fn>).mock.results[vent1Index].value;
+
+    // Player moves to (5, 10): now within vent2 (dist 2 <= 4) and within vent1 (dist 4 <= 4)
+    world.patchComponent(playerId, Position, { x: 5, y: 10 });
+    eventBus.emit('ENTITY_MOVED', {
+      entityId: playerId,
+      fromX: 5,
+      fromY: 5,
+      toX: 5,
+      toY: 10,
+    });
+    eventBus.flush();
+
+    const ventCallsStep2 = (mockAudioEngine.playCue as ReturnType<typeof vi.fn>).mock.calls
+      .map((c, i) => ({ cue: c[0], index: i }))
+      .filter((item) => item.cue.id === 'amb_emitter_vent');
+    expect(ventCallsStep2.length).toBe(2);
+    const vent2Voice = (mockAudioEngine.playCue as ReturnType<typeof vi.fn>).mock.results[ventCallsStep2[1].index].value;
+
+    // Player moves to (5, 13): out of vent1 (dist 7 > 4), still within vent2 (dist 1 <= 4)
+    world.patchComponent(playerId, Position, { x: 5, y: 13 });
+    eventBus.emit('ENTITY_MOVED', {
+      entityId: playerId,
+      fromX: 5,
+      fromY: 10,
+      toX: 5,
+      toY: 13,
+    });
+    eventBus.flush();
+
+    // vent1 should be stopped by its voice ID, NOT via stopCue('amb_emitter_vent')
+    expect(mockAudioEngine.stopVoice).toHaveBeenCalledWith(vent1Voice, 0.25);
+    expect(mockAudioEngine.stopVoice).not.toHaveBeenCalledWith(vent2Voice, expect.anything());
+
+    audioSystem.destroy();
+  });
+
+  it('stops ambient emitter when CorruptedNode is disarmed or prop is searched', () => {
+    const nodeEntity = world.createEntity();
+    world.addComponent(nodeEntity, Position, { x: 6, y: 5 });
+    world.addComponent(nodeEntity, AmbientEmitter, {
+      cueId: 'amb_emitter_corrupted',
+      radius: 6,
+      baseVolume: 0.5,
+      falloff: 'linear',
+      requiresFov: false,
+      activeOnlyWhenUnsearched: true,
+    });
+    world.addComponent(nodeEntity, CorruptedNode, {
+      trapType: 'acoustic_alert',
+      corruptionLevel: 1,
+      isDisarmed: false,
+      triggered: false,
+      revealed: true,
+    });
+
+    const audioSystem = createGameAudioSystem({
+      world,
+      eventBus,
+      getPlayerEntity: () => playerId,
+      getGrid: () => grid,
+      audioEngine: mockAudioEngine,
+    });
+
+    // Player at (5, 5) -> node in range (dist 1 <= 6)
+    EventOriginContext.current = 'client';
+    eventBus.emit('ENTITY_MOVED', {
+      entityId: playerId,
+      fromX: 5,
+      fromY: 5,
+      toX: 5,
+      toY: 5,
+    });
+    eventBus.flush();
+
+    const nodeIndex = (mockAudioEngine.playCue as ReturnType<typeof vi.fn>).mock.calls.findIndex(
+      (c) => c[0].id === 'amb_emitter_corrupted',
+    );
+    expect(nodeIndex).toBeGreaterThanOrEqual(0);
+    const nodeVoice = (mockAudioEngine.playCue as ReturnType<typeof vi.fn>).mock.results[nodeIndex].value;
+
+    // Disarm the CorruptedNode
+    world.patchComponent(nodeEntity, CorruptedNode, { isDisarmed: true });
+
+    // Player moves slightly -> updateAmbientEmitters runs and stops disarmed node
+    eventBus.emit('ENTITY_MOVED', {
+      entityId: playerId,
+      fromX: 5,
+      fromY: 5,
+      toX: 5,
+      toY: 5,
+    });
+    eventBus.flush();
+
+    expect(mockAudioEngine.stopVoice).toHaveBeenCalledWith(nodeVoice, 0.25);
 
     audioSystem.destroy();
   });
