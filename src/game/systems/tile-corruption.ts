@@ -7,6 +7,7 @@ import { Actor } from '@shared/components/actor';
 import { CorruptionState } from '@shared/components/corruption-state';
 import { FloorState } from '@shared/components/floor-state';
 import { SpawnEntityIntent } from '@shared/components/intents';
+import { BlocksMovement } from '@shared/components/blocks-movement';
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 import { EntityFactory } from '@engine/entity/factory';
@@ -109,7 +110,18 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
     while (queue.length > 0) {
       const { x, y } = queue.shift()!;
       if (grid.isWalkable(x, y)) {
-        return { x, y };
+        // Check if tile has any entity with BlocksMovement
+        const occupants = grid.getEntitiesAt(x, y);
+        let blocked = false;
+        for (const occId of occupants) {
+          if (world.hasComponent(occId, BlocksMovement)) {
+            blocked = true;
+            break;
+          }
+        }
+        if (!blocked) {
+          return { x, y };
+        }
       }
 
       const neighbors = [
@@ -188,6 +200,8 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
       'SYSTEM',
     );
 
+    const newlyCorrupted: string[] = [...state.corruptedTileKeys];
+
     for (const tile of toCorrupt) {
       // Safety check: don't trap player
       if (grid.isWalkable(tile.x, tile.y) && isPlayerTrappedAfterCorruption(tile.x, tile.y)) {
@@ -207,9 +221,7 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
       });
 
       const key = `${tile.x},${tile.y}`;
-      world.patchComponent(seedEaterId, CorruptionState, {
-        corruptedTileKeys: [...state.corruptedTileKeys, key],
-      });
+      newlyCorrupted.push(key);
 
       // Displace entities if it became a wall
       if (!newWalkable) {
@@ -226,11 +238,22 @@ export function createTileCorruptionSystem<T extends GameplayEvents>(
               world.patchComponent(eid, Position, { x: target.x, y: target.y });
               grid.removeEntity(eid, fromX, fromY);
               grid.addEntity(eid, target.x, target.y);
+              eventBus.emit('ENTITY_MOVED', {
+                entityId: eid,
+                fromX,
+                toX: target.x,
+                fromY,
+                toY: target.y,
+              });
             }
           }
         }
       }
     }
+
+    world.patchComponent(seedEaterId, CorruptionState, {
+      corruptedTileKeys: newlyCorrupted,
+    });
   }
 
   function spawnSubProcess(seedEaterId: EntityId, rng: () => number) {

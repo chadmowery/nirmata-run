@@ -21,6 +21,8 @@ import { FloorState } from '@shared/components/floor-state';
 import { SecurityLock, InteractiveSurface } from '@shared/components/environment';
 import { Item } from '@shared/components/item';
 import { CurrencyItem } from '@shared/components/currency-item';
+import { DeadZone } from '@shared/components/dead-zone';
+import { Dying } from '@shared/components/dying';
 import {
   MoveIntent,
   AttackIntent,
@@ -679,6 +681,28 @@ export function createAISystem<T extends GameplayEvents>(
                 const tx = pos.x + dx;
                 const ty = pos.y + dy;
                 if (grid.inBounds(tx, ty) && grid.isWalkable(tx, ty)) {
+                  // If spawning dead-zone hazard, check if an active DeadZone already exists at (tx, ty)
+                  if (action.templateName === 'dead-zone') {
+                    let existingDz: EntityId | undefined;
+                    const atTile = grid.getEntitiesAt(tx, ty);
+                    for (const eid of atTile) {
+                      if (world.hasComponent(eid, DeadZone) && !world.hasComponent(eid, Dying)) {
+                        existingDz = eid;
+                        break;
+                      }
+                    }
+                    if (existingDz) {
+                      const currentDz = world.getComponent(existingDz, DeadZone)!;
+                      const newTurns = action.deadZoneConfig?.remainingTurns ?? 6;
+                      const newDmg = action.deadZoneConfig?.damagePerTick ?? 2;
+                      world.patchComponent(existingDz, DeadZone, {
+                        remainingTurns: Math.max(currentDz.remainingTurns, newTurns),
+                        damagePerTick: Math.max(currentDz.damagePerTick, newDmg),
+                      });
+                      continue;
+                    }
+                  }
+
                   spawns.push({
                     templateName: action.templateName,
                     x: tx,

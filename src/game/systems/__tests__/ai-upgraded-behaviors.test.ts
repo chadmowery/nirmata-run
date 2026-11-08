@@ -28,6 +28,7 @@ import { Attack } from '@shared/components/attack';
 import { StatusEffects } from '@shared/components/status-effects';
 import { Dying } from '@shared/components/dying';
 import { Item } from '@shared/components/item';
+import { DeadZone } from '@shared/components/dead-zone';
 import { CurrencyItem } from '@shared/components/currency-item';
 import { AnchorMarker } from '@shared/components/anchor-marker';
 import { createCombatSystem } from '../combat';
@@ -821,6 +822,57 @@ describe('AI Behavior Trees & Dijkstra Maps Specification Verification', () => {
       const spawnIntent = world.getComponent(spawner, SpawnEntityIntent);
       expect(spawnIntent).toBeDefined();
       expect(spawnIntent?.spawns.length).toBe(2);
+    });
+
+    it('refreshes existing dead-zone hazards when spawning instead of creating duplicate entities', () => {
+      setupPlayer(0, 0);
+      const spawner = world.createEntity();
+      world.addComponent(spawner, Position, { x: 5, y: 5 });
+      world.addComponent(spawner, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.FRAGMENTER,
+        inlineTree: {
+          type: 'ACTION',
+          task: {
+            action: 'SPAWN_ENTITIES_AROUND_SELF',
+            templateName: 'dead-zone',
+            pattern: 'cardinal_4',
+            count: 1,
+            deadZoneConfig: {
+              remainingTurns: 8,
+              damagePerTick: 4,
+            },
+          },
+        },
+      });
+      world.addComponent(spawner, FovAwareness, { canSeePlayer: false });
+      world.addComponent(spawner, Acting, {});
+      grid.addEntity(spawner, 5, 5);
+
+      // Place an existing DeadZone at cardinal neighbor (5, 4)
+      const existingHazard = world.createEntity();
+      world.addComponent(existingHazard, Position, { x: 5, y: 4 });
+      world.addComponent(existingHazard, DeadZone, {
+        remainingTurns: 2,
+        damagePerTick: 1,
+      });
+      grid.addEntity(existingHazard, 5, 4);
+
+      // Block other 3 cardinal directions so (5, 4) is the only candidate
+      grid.setTile(5, 6, { terrain: 'wall', walkable: false, transparent: false });
+      grid.setTile(4, 5, { terrain: 'wall', walkable: false, transparent: false });
+      grid.setTile(6, 5, { terrain: 'wall', walkable: false, transparent: false });
+
+      aiSystem.update(world);
+
+      // Verify the existing hazard was refreshed
+      const hazard = world.getComponent(existingHazard, DeadZone);
+      expect(hazard?.remainingTurns).toBe(8);
+      expect(hazard?.damagePerTick).toBe(4);
+
+      // Verify no new spawn intent was queued for the already-covered tile
+      const spawnIntent = world.getComponent(spawner, SpawnEntityIntent);
+      expect(spawnIntent?.spawns.length ?? 0).toBe(0);
     });
 
     it('evaluates nearby_loot_value consideration metric based on items and currency', () => {
