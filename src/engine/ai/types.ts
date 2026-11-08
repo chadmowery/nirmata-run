@@ -38,6 +38,8 @@ export interface BTEvaluationContext<TNode, TCondition, TAction, TConsideration>
   random(): number;
   /** Optional telemetry trace recorder for dev inspection and debugging. */
   recordTrace?: (step: string) => void;
+  getTraceLength?: () => number;
+  truncateTrace?: (length: number) => void;
 }
 
 export type BTNode<TCondition = unknown, TAction = unknown, TConsideration = unknown> =

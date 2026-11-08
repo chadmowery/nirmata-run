@@ -798,6 +798,10 @@ export function createAISystem<T extends GameplayEvents>(
         recordTrace: (step: string) => {
           executionTrace.push(step);
         },
+        getTraceLength: () => executionTrace.length,
+        truncateTrace: (len: number) => {
+          executionTrace.length = len;
+        },
       };
 
       const executionTrace: string[] = [];
@@ -810,7 +814,9 @@ export function createAISystem<T extends GameplayEvents>(
 
       if (executionTrace.length > 0) {
         const lastEvaluatedPath = ['root', ...executionTrace].join(' > ');
-        world.patchComponent(entityId, AIState, { lastEvaluatedPath });
+        if (ai.lastEvaluatedPath !== lastEvaluatedPath) {
+          world.patchComponent(entityId, AIState, { lastEvaluatedPath });
+        }
       }
 
       // 6. Posture update for HUD tooltips and inspector

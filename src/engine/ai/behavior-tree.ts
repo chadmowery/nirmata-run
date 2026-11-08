@@ -108,21 +108,34 @@ export function evaluateBehaviorTree<TCondition, TAction, TConsideration>(
 
   switch (node.type) {
     case 'SELECTOR': {
+      const initialTraceLength = ctx.getTraceLength?.();
       if (node.name) ctx.recordTrace?.(node.name);
       for (const child of node.children) {
+        const childTraceLength = ctx.getTraceLength?.();
         const status = evaluateBehaviorTree(child, ctx, depth + 1);
         if (status === BTStatus.SUCCESS) {
           return BTStatus.SUCCESS;
+        } else {
+          if (childTraceLength !== undefined) {
+            ctx.truncateTrace?.(childTraceLength);
+          }
         }
+      }
+      if (initialTraceLength !== undefined) {
+        ctx.truncateTrace?.(initialTraceLength);
       }
       return BTStatus.FAILURE;
     }
 
     case 'SEQUENCE': {
+      const initialTraceLength = ctx.getTraceLength?.();
       if (node.name) ctx.recordTrace?.(node.name);
       for (const child of node.children) {
         const status = evaluateBehaviorTree(child, ctx, depth + 1);
         if (status === BTStatus.FAILURE) {
+          if (initialTraceLength !== undefined) {
+            ctx.truncateTrace?.(initialTraceLength);
+          }
           return BTStatus.FAILURE;
         }
       }
@@ -130,6 +143,9 @@ export function evaluateBehaviorTree<TCondition, TAction, TConsideration>(
     }
 
     case 'UTILITY_SELECTOR': {
+      const initialTraceLength = ctx.getTraceLength?.();
+      if (node.name) ctx.recordTrace?.(node.name);
+
       const scoredBranches = node.branches.map((branch) => ({
         branch,
         score: evaluateUtilityBranchScore(branch, ctx),
@@ -142,10 +158,20 @@ export function evaluateBehaviorTree<TCondition, TAction, TConsideration>(
         // If utility score is zero, skip unviable branches
         if (score <= 0) continue;
 
+        const branchSnapshot = ctx.getTraceLength?.();
+        if (branch.name) ctx.recordTrace?.(branch.name);
         const status = evaluateBehaviorTree(branch.child, ctx, depth + 1);
         if (status === BTStatus.SUCCESS) {
           return BTStatus.SUCCESS;
+        } else {
+          if (branchSnapshot !== undefined) {
+            ctx.truncateTrace?.(branchSnapshot);
+          }
         }
+      }
+
+      if (initialTraceLength !== undefined) {
+        ctx.truncateTrace?.(initialTraceLength);
       }
       return BTStatus.FAILURE;
     }

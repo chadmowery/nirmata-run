@@ -5,6 +5,15 @@ import { EngineEvents } from '../engine/events/types';
 import { GameplayEvents } from './events/types';
 import { SerializedWorld, SerializedGrid, ECSWorldDelta } from './types';
 
+export interface RedactWorldOptions {
+  /**
+   * Optional set of visible entity IDs (e.g. entities inside player FOV).
+   * When provided, entities outside this set will have AIState.lastEvaluatedPath stripped
+   * to protect server AI telemetry from leaking through fog of war.
+   */
+  visibleEntityIds?: Set<number> | number[];
+}
+
 /**
  * Redacts secret/server-authoritative component fields from a serialized world state
  * before transmitting to untrusted network clients.
@@ -12,8 +21,12 @@ import { SerializedWorld, SerializedGrid, ECSWorldDelta } from './types';
  * Anti-cheat protections:
  * - container: deletes storedLoot, scrapYield, fluxYield, grantsAccessKey, blueprintId, blueprintType
  * - corruptedNode: deletes trapType when revealed is false
+ * - aiState: deletes server cooldowns, remaining memory, inline trees, and fog-of-war lastEvaluatedPath
  */
-export function redactWorldForClient(worldData: SerializedWorld): SerializedWorld {
+export function redactWorldForClient(
+  worldData: SerializedWorld,
+  options?: RedactWorldOptions,
+): SerializedWorld {
   if (!worldData || !worldData.stores) {
     return worldData;
   }
@@ -65,12 +78,22 @@ export function redactWorldForClient(worldData: SerializedWorld): SerializedWorl
   // 4. Redact AIState server-authoritative cooldowns, remaining memory, and inline trees
   const aiStateStore = cloned.stores['aiState'];
   if (aiStateStore) {
-    for (const compData of Object.values(aiStateStore)) {
+    const visibleSet = options?.visibleEntityIds
+      ? new Set(options.visibleEntityIds)
+      : null;
+
+    for (const [entityIdStr, compData] of Object.entries(aiStateStore)) {
       if (compData && typeof compData === 'object') {
         const ai = compData as Record<string, unknown>;
         delete ai.cooldowns;
         delete ai.remainingMemoryTurns;
         delete ai.inlineTree;
+
+        // If visibleEntityIds is provided, redact lastEvaluatedPath for entities outside player FOV
+        const eid = Number(entityIdStr);
+        if (visibleSet && !visibleSet.has(eid)) {
+          delete ai.lastEvaluatedPath;
+        }
       }
     }
   }
@@ -82,7 +105,10 @@ export function redactWorldForClient(worldData: SerializedWorld): SerializedWorl
  * Redacts secret/server-authoritative component fields from an ECSWorldDelta
  * before transmitting to untrusted network clients.
  */
-export function redactDeltaForClient(delta: ECSWorldDelta): ECSWorldDelta {
+export function redactDeltaForClient(
+  delta: ECSWorldDelta,
+  options?: RedactWorldOptions,
+): ECSWorldDelta {
   if (!delta || !delta.componentsSet) {
     return delta;
   }
@@ -90,6 +116,10 @@ export function redactDeltaForClient(delta: ECSWorldDelta): ECSWorldDelta {
   if (!cloned.componentsSet) {
     return cloned;
   }
+
+  const visibleSet = options?.visibleEntityIds
+    ? new Set(options.visibleEntityIds)
+    : null;
 
   for (const item of cloned.componentsSet) {
     if (item.component === 'container' && item.data && typeof item.data === 'object') {
@@ -110,6 +140,10 @@ export function redactDeltaForClient(delta: ECSWorldDelta): ECSWorldDelta {
       delete ai.cooldowns;
       delete ai.remainingMemoryTurns;
       delete ai.inlineTree;
+
+      if (visibleSet && !visibleSet.has(item.entityId)) {
+        delete ai.lastEvaluatedPath;
+      }
     }
   }
 
@@ -122,13 +156,13 @@ export function redactDeltaForClient(delta: ECSWorldDelta): ECSWorldDelta {
  */
 export function serializeWorld<T extends EngineEvents>(
   world: World<T>,
-  options?: { redactForClient?: boolean },
+  options?: { redactForClient?: boolean; visibleEntityIds?: Set<number> | number[] },
 ): SerializedWorld {
   const state = world.getSerializableState();
   // We MUST deep clone to ensure this snapshot is independent
   const serialized = JSON.parse(JSON.stringify(state)) as SerializedWorld;
   if (options?.redactForClient) {
-    return redactWorldForClient(serialized);
+    return redactWorldForClient(serialized, { visibleEntityIds: options.visibleEntityIds });
   }
   return serialized;
 }

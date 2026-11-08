@@ -41,7 +41,10 @@ describe('Behavior Tree & Utility AI Engine Primitives', () => {
       const cooldowns = new Map<string, number>();
       return {
         evaluateCondition: vi.fn((cond: string) => cond === 'pass'),
-        executeAction: vi.fn((act: string) => (act === 'fail_act' ? BTStatus.FAILURE : BTStatus.SUCCESS)),
+        executeAction: vi.fn((act: any) => {
+          const name = typeof act === 'string' ? act : act?.action;
+          return name === 'fail_act' ? BTStatus.FAILURE : BTStatus.SUCCESS;
+        }),
         resolveSubtree: vi.fn(),
         getConsiderationInput: vi.fn(() => 0.5),
         isCooldownReady: vi.fn((id: string) => (cooldowns.get(id) ?? 0) <= 0),
@@ -207,6 +210,102 @@ describe('Behavior Tree & Utility AI Engine Primitives', () => {
       // high_priority should be executed first because hp (0.9) > dist (0.2)
       expect(branchActionA).toHaveBeenCalled();
       expect(branchActionB).not.toHaveBeenCalled();
+    });
+
+    it('rolls back failed branches in trace so lastEvaluatedPath reflects only winning execution path', () => {
+      const trace: string[] = [];
+      const ctx: BTEvaluationContext<BTNode<string, string, string>, string, string, string> = {
+        evaluateCondition: vi.fn((cond: string) => cond === 'pass'),
+        executeAction: vi.fn((act: any) => {
+          const name = typeof act === 'string' ? act : act?.action;
+          return name === 'fail_act' ? BTStatus.FAILURE : BTStatus.SUCCESS;
+        }),
+        resolveSubtree: vi.fn(),
+        getConsiderationInput: vi.fn(() => 0.5),
+        isCooldownReady: vi.fn(() => true),
+        startCooldown: vi.fn(),
+        random: vi.fn(() => 0.5),
+        recordTrace: (step: string) => trace.push(step),
+        getTraceLength: () => trace.length,
+        truncateTrace: (len: number) => {
+          trace.length = len;
+        },
+      };
+
+      // SELECTOR with child 1 (failed sequence) and child 2 (successful sequence)
+      const root: BTNode<string, any, string> = {
+        type: 'SELECTOR',
+        name: 'root-selector',
+        children: [
+          {
+            type: 'SEQUENCE',
+            name: 'failed-branch',
+            children: [
+              { type: 'CONDITION', condition: 'pass' },
+              { type: 'ACTION', task: { action: 'fail_act' } },
+            ],
+          },
+          {
+            type: 'SEQUENCE',
+            name: 'winning-branch',
+            children: [
+              { type: 'CONDITION', condition: 'pass' },
+              { type: 'ACTION', task: { action: 'win_act' } },
+            ],
+          },
+        ],
+      };
+
+      const status = evaluateBehaviorTree(root, ctx);
+      expect(status).toBe(BTStatus.SUCCESS);
+
+      // Failed branch must NOT appear in trace!
+      expect(trace).not.toContain('failed-branch');
+      expect(trace).toContain('root-selector');
+      expect(trace).toContain('winning-branch');
+      expect(trace).toContain('win_act [SUCCESS]');
+    });
+
+    it('records winning branch name in UTILITY_SELECTOR trace', () => {
+      const trace: string[] = [];
+      const ctx: BTEvaluationContext<BTNode<string, string, string>, string, string, string> = {
+        evaluateCondition: vi.fn(() => true),
+        executeAction: vi.fn(() => BTStatus.SUCCESS),
+        resolveSubtree: vi.fn(),
+        getConsiderationInput: vi.fn((m: string) => (m === 'high' ? 0.9 : 0.1)),
+        isCooldownReady: vi.fn(() => true),
+        startCooldown: vi.fn(),
+        random: vi.fn(() => 0.5),
+        recordTrace: (step: string) => trace.push(step),
+        getTraceLength: () => trace.length,
+        truncateTrace: (len: number) => {
+          trace.length = len;
+        },
+      };
+
+      const node: BTNode<string, string, string> = {
+        type: 'UTILITY_SELECTOR',
+        name: 'utility-root',
+        branches: [
+          {
+            name: 'fallback-utility',
+            considerations: [{ metric: 'low', curve: 'linear' }],
+            child: { type: 'ACTION', task: 'fallback_action' },
+          },
+          {
+            name: 'best-utility',
+            considerations: [{ metric: 'high', curve: 'linear' }],
+            child: { type: 'ACTION', task: 'best_action' },
+          },
+        ],
+      };
+
+      const status = evaluateBehaviorTree(node, ctx);
+      expect(status).toBe(BTStatus.SUCCESS);
+
+      expect(trace).toContain('utility-root');
+      expect(trace).toContain('best-utility');
+      expect(trace).not.toContain('fallback-utility');
     });
   });
 });

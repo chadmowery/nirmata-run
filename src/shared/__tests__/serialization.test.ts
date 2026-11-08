@@ -157,6 +157,33 @@ describe('Serialization', () => {
       expect(redactedAi.remainingMemoryTurns).toBeUndefined();
       expect(redactedAi.inlineTree).toBeUndefined();
     });
+
+    it('redactWorldForClient strips lastEvaluatedPath on non-visible entities when visibleEntityIds is supplied', () => {
+      const visibleEnemy = world.createEntity();
+      world.addComponent(visibleEnemy, AIState, {
+        behavior: AIBehavior.ATTACKING,
+        behaviorType: AIBehaviorType.BASIC,
+        lastEvaluatedPath: 'root > attack [SUCCESS]',
+      });
+
+      const hiddenEnemy = world.createEntity();
+      world.addComponent(hiddenEnemy, AIState, {
+        behavior: AIBehavior.CHASING,
+        behaviorType: AIBehaviorType.BASIC,
+        lastEvaluatedPath: 'root > sneaky-flank [SUCCESS]',
+      });
+
+      const raw = serializeWorld(world);
+      const redacted = redactWorldForClient(raw, {
+        visibleEntityIds: new Set([visibleEnemy]),
+      });
+
+      const visibleAi = redacted.stores['aiState']?.[String(visibleEnemy)] as Record<string, unknown>;
+      expect(visibleAi.lastEvaluatedPath).toBe('root > attack [SUCCESS]');
+
+      const hiddenAi = redacted.stores['aiState']?.[String(hiddenEnemy)] as Record<string, unknown>;
+      expect(hiddenAi.lastEvaluatedPath).toBeUndefined();
+    });
   });
 
   describe('Delta Redaction', () => {
@@ -206,6 +233,40 @@ describe('Serialization', () => {
       expect(aiData.cooldowns).toBeUndefined();
       expect(aiData.remainingMemoryTurns).toBeUndefined();
       expect(aiData.inlineTree).toBeUndefined();
+    });
+
+    it('redactDeltaForClient strips lastEvaluatedPath for non-visible entities', () => {
+      const delta = {
+        componentsSet: [
+          {
+            component: 'aiState',
+            entityId: 10,
+            data: {
+              behavior: AIBehavior.CHASING,
+              lastEvaluatedPath: 'root > visible-action',
+            },
+          },
+          {
+            component: 'aiState',
+            entityId: 20,
+            data: {
+              behavior: AIBehavior.IDLE,
+              lastEvaluatedPath: 'root > hidden-action',
+            },
+          },
+        ],
+        componentsRemoved: [],
+        entitiesAdded: [],
+        entitiesRemoved: [],
+      };
+
+      const redacted = redactDeltaForClient(delta as any, { visibleEntityIds: [10] });
+
+      const e10 = redacted.componentsSet.find((c) => c.entityId === 10);
+      expect((e10?.data as any).lastEvaluatedPath).toBe('root > visible-action');
+
+      const e20 = redacted.componentsSet.find((c) => c.entityId === 20);
+      expect((e20?.data as any).lastEvaluatedPath).toBeUndefined();
     });
   });
 
