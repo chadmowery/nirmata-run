@@ -318,4 +318,67 @@ describe('AI Simulation Gating & Lag Prevention', () => {
     // 50 unaware enemies should evaluate in well under 5ms
     expect(duration).toBeLessThan(10);
   });
+
+  describe('Unaware Off-Screen Cooldowns & Ambient Behaviors (MED-04)', () => {
+    it('decrements cooldown timers on off-screen unaware enemies every turn', () => {
+      setupPlayer(5, 5);
+
+      // Enemy at (40, 40) is off-screen, unaware, with active cooldown
+      const enemy = createEnemy(40, 40, {
+        behavior: AIBehavior.IDLE,
+        canSeePlayer: false,
+        remainingMemoryTurns: 0,
+      });
+      world.patchComponent(enemy, AIState, {
+        cooldowns: { laser_sweep: 3, teleport_recharge: 1 },
+      });
+      world.addComponent(enemy, Acting, {});
+
+      // Turn 1
+      aiSystem.update(world);
+
+      let ai = world.getComponent(enemy, AIState)!;
+      expect(ai.cooldowns?.laser_sweep).toBe(2);
+      expect(ai.cooldowns?.teleport_recharge).toBe(0);
+
+      // Turn 2
+      aiSystem.update(world);
+
+      ai = world.getComponent(enemy, AIState)!;
+      expect(ai.cooldowns?.laser_sweep).toBe(1);
+      expect(ai.cooldowns?.teleport_recharge).toBe(0);
+    });
+
+    it('permits off-screen evaluation for unaware entities with ambient behaviors (system_admin, seed_eater)', () => {
+      setupPlayer(5, 5);
+
+      // System-Admin off-screen at (35, 35) with treeId 'system_admin'
+      const admin = createEnemy(35, 35, {
+        behavior: AIBehavior.IDLE,
+        treeId: 'system_admin',
+        canSeePlayer: false,
+        remainingMemoryTurns: 0,
+      });
+      world.addComponent(admin, Acting, {});
+
+      // Should evaluate without being early-gated
+      aiSystem.update(world);
+
+      // Entity evaluated its behavior tree
+      expect(world.hasComponent(admin, AIState)).toBe(true);
+    });
+
+    it('DijkstraMap compute and createFleeMap guard against 0x0 grids without division by zero', async () => {
+      const { DijkstraMap } = await import('@engine/ai/dijkstra-map');
+      const emptyMap = new DijkstraMap(0, 0);
+
+      expect(() => {
+        emptyMap.compute([{ x: 0, y: 0, value: 0 }], () => 1);
+      }).not.toThrow();
+
+      expect(() => {
+        emptyMap.createFleeMap(() => 1);
+      }).not.toThrow();
+    });
+  });
 });

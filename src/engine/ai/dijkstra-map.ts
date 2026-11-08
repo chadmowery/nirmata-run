@@ -56,8 +56,9 @@ export class DijkstraMap {
    * bounded-memory Shortest Path Faster Algorithm (SPFA) with Small Label to First (SLF) optimization.
    */
   public compute(seeds: DijkstraSeed[], getStepCost: DijkstraPassabilityFn): this {
-    this.data.fill(DIJKSTRA_UNSET);
     const len = this.width * this.height;
+    if (len === 0) return this;
+    this.data.fill(DIJKSTRA_UNSET);
     const queueCapacity = len * 2;
     const queue = new Int32Array(queueCapacity);
     const inQueue = new Uint8Array(len);
@@ -133,6 +134,8 @@ export class DijkstraMap {
     getStepCost: DijkstraPassabilityFn,
     fleeCoefficient: number = -1.2,
   ): DijkstraMap {
+    const len = this.width * this.height;
+    if (len === 0) return new DijkstraMap(0, 0);
     const inverted = new DijkstraMap(this.width, this.height);
     const seeds: DijkstraSeed[] = [];
 

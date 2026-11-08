@@ -10,7 +10,7 @@ import { EventBus } from '@engine/events/event-bus';
 import { EntityId, Phase } from '@engine/ecs/types';
 import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
-import { AIState, AIBehavior } from '@shared/components/ai-state';
+import { AIState, AIBehavior, AIBehaviorType, type AIStateData } from '@shared/components/ai-state';
 import { FovAwareness } from '@shared/components/fov-awareness';
 import { PackMember } from '@shared/components/pack-member';
 import { StatusEffects } from '@shared/components/status-effects';
@@ -55,6 +55,45 @@ import { AIBehaviorRegistry } from '../ai/tree-registry';
 import { AISpatialSystem, hasLineOfSight } from '../ai/spatial-maps';
 
 export const DEFAULT_PLAYER_VISION_RADIUS = 8;
+
+function treeHasAmbientAction(node?: BehaviorTreeNode): boolean {
+  if (!node) return false;
+  if (node.type === 'ACTION') {
+    if (
+      node.task.action === 'MOVE_DIJKSTRA' &&
+      (node.task.mapType === 'patrol_anchors' || node.task.mapType === 'scavenge_nearest_loot')
+    ) {
+      return true;
+    }
+    return false;
+  }
+  if (node.type === 'SELECTOR' || node.type === 'SEQUENCE') {
+    for (const child of node.children) {
+      if (treeHasAmbientAction(child)) return true;
+    }
+  } else if (node.type === 'UTILITY_SELECTOR') {
+    for (const branch of node.branches) {
+      if (treeHasAmbientAction(branch.child)) return true;
+    }
+  } else if (
+    node.type === 'DECORATOR_COOLDOWN' ||
+    node.type === 'DECORATOR_INVERT' ||
+    node.type === 'DECORATOR_CHANCE'
+  ) {
+    if (treeHasAmbientAction(node.child)) return true;
+  }
+  return false;
+}
+
+export function hasAmbientOffscreenBehavior(ai: AIStateData): boolean {
+  if (ai.treeId === 'system_admin' || ai.treeId === 'seed_eater') return true;
+  if (ai.behaviorType === AIBehaviorType.SYSTEM_ADMIN || ai.behaviorType === AIBehaviorType.SEED_EATER) return true;
+  let tree: BehaviorTreeNode | undefined = ai.inlineTree;
+  if (!tree && ai.treeId) tree = AIBehaviorRegistry.getTree(ai.treeId);
+  if (!tree && ai.behaviorType) tree = AIBehaviorRegistry.getTree(ai.behaviorType);
+  if (!tree) return false;
+  return treeHasAmbientAction(tree);
+}
 
 function hashString(str: string): number {
   let hash = 0;
@@ -374,12 +413,7 @@ export function createAISystem<T extends GameplayEvents>(
         hasActiveMemory ||
         isInCombat;
 
-      // Simulation Gating: entities that are not aware of the player and not visible are not simulated
-      if (!isAware && !isVisibleToPlayer) {
-        return;
-      }
-
-      // Decrement server cooldown timers at start of turn
+      // Decrement server cooldown timers at start of turn (before simulation gating)
       const currentCooldowns = { ...(currentAi.cooldowns ?? {}) };
       let cooldownsChanged = false;
       for (const [key, val] of Object.entries(currentCooldowns)) {
@@ -390,6 +424,12 @@ export function createAISystem<T extends GameplayEvents>(
       }
       if (cooldownsChanged) {
         world.patchComponent(entityId, AIState, { cooldowns: currentCooldowns });
+      }
+
+      // Simulation Gating: entities that are not aware of the player, not visible, and have no ambient off-screen behavior are not simulated
+      const hasAmbient = hasAmbientOffscreenBehavior(currentAi);
+      if (!isAware && !isVisibleToPlayer && !hasAmbient) {
+        return;
       }
 
       // 1. Update FOV awareness
