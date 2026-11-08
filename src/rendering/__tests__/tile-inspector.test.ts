@@ -6,7 +6,7 @@ import { resolveTileInspection } from '../tile-inspector';
 import { resolvePropOutlineState } from '../render-system';
 import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
-import { AIState } from '@shared/components/ai-state';
+import { AIState, AIBehavior, AIBehaviorType } from '@shared/components/ai-state';
 import { Health } from '@shared/components/health';
 import { Prop, SecurityLock, Container, CorruptedNode } from '@shared/components/environment';
 import { StaircaseMarker } from '@shared/components/staircase-marker';
@@ -142,9 +142,9 @@ describe('resolveTileInspection', () => {
     world.addComponent(enemy, Position, { x: 4, y: 4 });
     world.addComponent(enemy, Actor, { isPlayer: false });
     world.addComponent(enemy, AIState, {
-      behavior: 'chase',
+      behavior: AIBehavior.CHASING,
       sightRadius: 8,
-      behaviorType: 'null_pointer',
+      behaviorType: AIBehaviorType.NULL_POINTER,
     });
     world.addComponent(enemy, Health, { current: 5, max: 10, isAlive: true });
 

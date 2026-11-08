@@ -62,6 +62,19 @@ export function redactWorldForClient(worldData: SerializedWorld): SerializedWorl
     }
   }
 
+  // 4. Redact AIState server-authoritative cooldowns, remaining memory, and inline trees
+  const aiStateStore = cloned.stores['aiState'];
+  if (aiStateStore) {
+    for (const compData of Object.values(aiStateStore)) {
+      if (compData && typeof compData === 'object') {
+        const ai = compData as Record<string, unknown>;
+        delete ai.cooldowns;
+        delete ai.remainingMemoryTurns;
+        delete ai.inlineTree;
+      }
+    }
+  }
+
   return cloned;
 }
 
@@ -92,6 +105,11 @@ export function redactDeltaForClient(delta: ECSWorldDelta): ECSWorldDelta {
       if (!node.revealed) {
         delete node.trapType;
       }
+    } else if (item.component === 'aiState' && item.data && typeof item.data === 'object') {
+      const ai = item.data as Record<string, unknown>;
+      delete ai.cooldowns;
+      delete ai.remainingMemoryTurns;
+      delete ai.inlineTree;
     }
   }
 

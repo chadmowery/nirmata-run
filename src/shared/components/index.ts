@@ -58,6 +58,7 @@ import {
   ActionAbortedTag,
   PickupIntent,
   DropItemIntent,
+  SpawnEntityIntent,
 } from './intents';
 import { MovedThisTurn } from './moved-this-turn';
 import { Dying } from './dying';
@@ -131,6 +132,7 @@ export * from './children';
 export * from './equipment-def';
 export * from './environment';
 export * from './audio';
+export * from './ai-tree';
 
 export const COMPONENTS_REGISTRY = [
   Position,
@@ -198,6 +200,7 @@ export const COMPONENTS_REGISTRY = [
   ActionAbortedTag,
   PickupIntent,
   DropItemIntent,
+  SpawnEntityIntent,
   Parent,
   Children,
   EquipmentDef,

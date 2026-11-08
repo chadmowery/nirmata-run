@@ -213,3 +213,22 @@ export const DropItemIntent = defineComponent(
     targetY: z.number().int(),
   }),
 );
+
+/**
+ * Intent to spawn one or more entities onto the world and spatial grid in Phase.ACTION.
+ */
+export const SpawnEntityIntent = defineComponent(
+  'spawnEntityIntent',
+  z.object({
+    spawnerId: z.number().int(),
+    spawns: z.array(
+      z.object({
+        templateName: z.string(),
+        x: z.number().int(),
+        y: z.number().int(),
+        overrides: z.record(z.string(), z.record(z.string(), z.unknown())).optional(),
+      }),
+    ),
+  }),
+);
+

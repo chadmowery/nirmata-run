@@ -57,7 +57,7 @@ describe('AISystem', () => {
     world.addComponent(enemyId, AIState, {
       behavior: AIBehavior.IDLE,
       sightRadius: 6,
-      behaviorType: 'vanguard',
+      behaviorType: AIBehaviorType.BASIC,
     });
     world.addComponent(enemyId, FovAwareness, { canSeePlayer: false });
     grid.addEntity(enemyId, enemyPos.x, enemyPos.y);
