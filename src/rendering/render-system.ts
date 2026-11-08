@@ -10,7 +10,14 @@ import { Actor } from '@shared/components/actor';
 import { FloorState } from '@shared/components/floor-state';
 import { AbilityDef } from '@shared/components/ability-def';
 import { FirmwareSlots } from '@shared/components/firmware-slots';
-import { Prop, SecurityLock, CorruptedNode, TileOrientation } from '@shared/components/environment';
+import { Prop, SecurityLock, CorruptedNode, TileOrientation, InteractiveSurface } from '@shared/components/environment';
+import {
+  DijkstraMap,
+  DIJKSTRA_IMPASSABLE,
+  DIJKSTRA_UNSET,
+  DijkstraSeed,
+  DijkstraPassabilityFn,
+} from '../engine/ai/dijkstra-map';
 import { gameStore } from '../game/ui/store';
 import { WorldLayers } from './layers';
 import { TILE_SIZE, FOV_RADIUS } from './constants';
@@ -155,6 +162,10 @@ export function createRenderSystem(config: RenderSystemConfig) {
   layers.effectsLayer.addChild(aiDebugGraphics);
   let aiDebugOverlayEnabled = false;
   let aiDebugMapType = 'approach_target';
+  let cachedDijkstraMap: DijkstraMap | null = null;
+  let lastDijkstraPlayerPos: { x: number; y: number } | null = null;
+  let lastDijkstraMapType: string | null = null;
+  let lastDijkstraTurnNumber: number = -1;
 
   let lastPointerEvent: { clientX: number; clientY: number } | null = null;
   let lastHoverCheckState: {
@@ -381,10 +392,12 @@ export function createRenderSystem(config: RenderSystemConfig) {
     } else {
       aiDebugOverlayEnabled = !aiDebugOverlayEnabled;
     }
-    if (payload.mapType) {
+    if (payload.mapType && payload.mapType !== aiDebugMapType) {
       aiDebugMapType = payload.mapType;
+      cachedDijkstraMap = null;
     }
     if (!aiDebugOverlayEnabled) {
+      cachedDijkstraMap = null;
       aiDebugGraphics.clear();
     }
   };
@@ -884,17 +897,148 @@ export function createRenderSystem(config: RenderSystemConfig) {
       }
 
       if (aiDebugOverlayEnabled) {
-        aiDebugGraphics.clear();
         const grid = getGrid();
-        for (let y = 0; y < grid.height; y++) {
-          for (let x = 0; x < grid.width; x++) {
-            if (!grid.isWalkable(x, y)) continue;
-            const dist = Math.abs(x - playerPos.x) + Math.abs(y - playerPos.y);
-            if (dist > 16) continue;
-            const alpha = Math.max(0.06, 0.35 - (dist / 16) * 0.3);
-            const color = aiDebugMapType === 'flee_from_target' ? 0xff2a4b : 0x00f0ff;
-            aiDebugGraphics.rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-            aiDebugGraphics.fill({ color, alpha });
+        const floorStates = world.query(FloorState);
+        const floor = floorStates.length > 0 ? world.getComponent(floorStates[0], FloorState) : null;
+        const turnNumber = floor?.turnNumber ?? 0;
+
+        const needsRecompute =
+          !cachedDijkstraMap ||
+          !lastDijkstraPlayerPos ||
+          lastDijkstraPlayerPos.x !== playerPos.x ||
+          lastDijkstraPlayerPos.y !== playerPos.y ||
+          lastDijkstraMapType !== aiDebugMapType ||
+          lastDijkstraTurnNumber !== turnNumber;
+
+        if (needsRecompute) {
+          lastDijkstraPlayerPos = { x: playerPos.x, y: playerPos.y };
+          lastDijkstraMapType = aiDebugMapType;
+          lastDijkstraTurnNumber = turnNumber;
+
+          const stepCostFn: DijkstraPassabilityFn = (x, y) => {
+            if (!grid.inBounds(x, y) || !grid.isWalkable(x, y)) {
+              return DIJKSTRA_IMPASSABLE;
+            }
+            return 1.0;
+          };
+
+          const map = new DijkstraMap(grid.width, grid.height);
+
+          switch (aiDebugMapType) {
+            case 'flee_from_target': {
+              const approach = new DijkstraMap(grid.width, grid.height);
+              approach.compute([{ x: playerPos.x, y: playerPos.y, value: 0 }], stepCostFn);
+              cachedDijkstraMap = approach.createFleeMap(stepCostFn, -1.2);
+              break;
+            }
+
+            case 'pack_surround_cardinal': {
+              const cardinalDirs = [
+                [1, 0],
+                [-1, 0],
+                [0, 1],
+                [0, -1],
+              ];
+              const seeds: DijkstraSeed[] = [];
+              for (const [dx, dy] of cardinalDirs) {
+                const nx = playerPos.x + dx;
+                const ny = playerPos.y + dy;
+                if (grid.inBounds(nx, ny) && grid.isWalkable(nx, ny)) {
+                  seeds.push({ x: nx, y: ny, value: 0 });
+                }
+              }
+              if (seeds.length === 0) {
+                seeds.push({ x: playerPos.x, y: playerPos.y, value: 0 });
+              }
+              map.compute(seeds, stepCostFn);
+              cachedDijkstraMap = map;
+              break;
+            }
+
+            case 'kite_to_cover': {
+              const coverTiles = new Set<string>();
+              const surfaces = world.query(InteractiveSurface, Position);
+              for (const id of surfaces) {
+                const surface = world.getComponent(id, InteractiveSurface);
+                const pos = world.getComponent(id, Position);
+                if (surface && pos && surface.providesCover !== false) {
+                  coverTiles.add(`${pos.x},${pos.y}`);
+                }
+              }
+
+              const seeds: DijkstraSeed[] = [];
+              for (let dx = -5; dx <= 5; dx++) {
+                for (let dy = -5; dy <= 5; dy++) {
+                  const dist = Math.abs(dx) + Math.abs(dy);
+                  if (dist < 3 || dist > 5) continue;
+
+                  const tx = playerPos.x + dx;
+                  const ty = playerPos.y + dy;
+                  if (!grid.inBounds(tx, ty) || !grid.isWalkable(tx, ty)) continue;
+
+                  let hasCover = false;
+                  for (const [cdx, cdy] of [
+                    [1, 0],
+                    [-1, 0],
+                    [0, 1],
+                    [0, -1],
+                  ]) {
+                    const nx = tx + cdx;
+                    const ny = ty + cdy;
+                    const nDist = Math.abs(nx - playerPos.x) + Math.abs(ny - playerPos.y);
+                    if (nDist < dist && coverTiles.has(`${nx},${ny}`)) {
+                      hasCover = true;
+                      break;
+                    }
+                  }
+
+                  seeds.push({ x: tx, y: ty, value: hasCover ? 0 : 3.0 });
+                }
+              }
+
+              if (seeds.length === 0) {
+                seeds.push({ x: playerPos.x, y: playerPos.y, value: 0 });
+              }
+              map.compute(seeds, stepCostFn);
+              cachedDijkstraMap = map;
+              break;
+            }
+
+            case 'approach_target':
+            default: {
+              map.compute([{ x: playerPos.x, y: playerPos.y, value: 0 }], stepCostFn);
+              cachedDijkstraMap = map;
+              break;
+            }
+          }
+        }
+
+        aiDebugGraphics.clear();
+        if (cachedDijkstraMap) {
+          const isFlee = aiDebugMapType === 'flee_from_target';
+          const isKite = aiDebugMapType === 'kite_to_cover';
+          const isPack = aiDebugMapType === 'pack_surround_cardinal';
+          const color = isFlee ? 0xff2a4b : isKite ? 0xa855f7 : isPack ? 0xeab308 : 0x00f0ff;
+
+          for (let y = 0; y < grid.height; y++) {
+            for (let x = 0; x < grid.width; x++) {
+              if (!grid.isWalkable(x, y)) continue;
+              const val = cachedDijkstraMap.get(x, y);
+              if (!Number.isFinite(val) || val >= DIJKSTRA_UNSET) continue;
+
+              let alpha: number;
+              if (isFlee) {
+                const norm = Math.min(1, Math.abs(val) / 20);
+                alpha = Math.max(0.06, 0.1 + norm * 0.3);
+              } else {
+                if (val > 16) continue;
+                const norm = Math.min(1, val / 16);
+                alpha = Math.max(0.06, 0.4 - norm * 0.32);
+              }
+
+              aiDebugGraphics.rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+              aiDebugGraphics.fill({ color, alpha });
+            }
           }
         }
       }
@@ -907,6 +1051,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
       lastPropOutlineState.clear();
       lastHoverCheckState = null;
       isMapRevealed = false;
+      cachedDijkstraMap = null;
+      lastDijkstraPlayerPos = null;
       clearExplored(exploredSet);
       rememberedProps.clear();
       rememberedTileItems.clear();
