@@ -590,6 +590,14 @@ export function createCombatSystem<T extends GameplayEvents>(
       const attackerAttack = w.getComponent(attackerId, Attack);
       const defenderHealth = w.getComponent(defenderId, Health);
 
+      const attackerAI = w.getComponent(attackerId, AIState);
+      const defenderActor = w.getComponent(defenderId, Actor);
+      if (attackerAI?.behaviorType === AIBehaviorType.SYSTEM_ADMIN && defenderActor?.isPlayer) {
+        w.addComponent(defenderId, Dying, { killerId: attackerId, reason: 'FATAL: ADMIN_CONTACT' });
+        w.removeComponent(attackerId, AttackIntent);
+        continue;
+      }
+
       if (!attackerAttack || !defenderHealth || w.hasComponent(defenderId, Dying)) {
         w.removeComponent(attackerId, AttackIntent);
         continue;
@@ -655,7 +663,6 @@ export function createCombatSystem<T extends GameplayEvents>(
 
       // Emit UI message
       const attackerActor = w.getComponent(attackerId, Actor);
-      const defenderActor = w.getComponent(defenderId, Actor);
       const attackerName = attackerActor?.isPlayer ? 'You' : 'The enemy';
       const defenderName = defenderActor?.isPlayer ? 'you' : (defenderActor ? 'the enemy' : 'the obstacle');
 
@@ -665,7 +672,6 @@ export function createCombatSystem<T extends GameplayEvents>(
       });
 
       // DESIGN-04: Null-Pointer attacks apply HUD_GLITCH (2 turns) on hit
-      const attackerAI = w.getComponent(attackerId, AIState);
       if (attackerAI?.behaviorType === AIBehaviorType.NULL_POINTER && defenderActor?.isPlayer) {
         w.addComponent(attackerId, ApplyStatusEffectIntent, {
           targetId: defenderId,

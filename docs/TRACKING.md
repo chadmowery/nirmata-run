@@ -460,6 +460,9 @@
   - **Tactical Hover Tooltip BT Path (`src/rendering/tile-inspector.ts`)**: Inspects and displays the enemy's last evaluated Behavior Tree execution path (`BT: root > ... [SUCCESS]`).
   - **Verification**: Verified with unit tests in `src/dev-tool/studio/editors/subeditors/__tests__/BehaviorTreeEditor.test.tsx` (5 tests), `src/dev-tool/terminal/__tests__/DevTerminal.test.tsx` (5 tests), and `src/rendering/__tests__/tile-inspector.test.ts` (16 tests). Full project test suite passes (208/208 test files, 1,319/1,319 tests), 0 type errors, 0 lint warnings, and clean Next.js production build (`next build`).
 
+- [ ] **[BT-M5] Adversarial Architecture & Implementation Remediation (`BT-REV-01` – `BT-REV-08`)**
+  - **`BT-REV-01`**: Fixed `System_Admin` prop crushing, adjacency termination, and disruption log. Added `Attack` component (`power: 999, range: 1, defense: 99`) to `system-admin.json` allowing `CombatSystem` to one-shot destructible props targeted via `canCrushProps: true`; wired `CombatSystem` and `RunEnderReactionSystem` to trigger `FATAL: ADMIN_CONTACT` when active `System_Admin` targets player with `AttackIntent` or is adjacent to player; restored `"System_Admin is disrupted and cannot move!"` combat message in `ai/system-admin.json`. Verified with integration tests in `ai-upgraded-behaviors.test.ts`.
+
 ---
 
 ## Workstream 6: Sprite Animation System & DevTool Preview Architecture (v2.8)

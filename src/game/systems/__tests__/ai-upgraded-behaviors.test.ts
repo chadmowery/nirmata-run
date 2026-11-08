@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createAISystem } from '../ai';
 import { createSpawnEntitySystem } from '../spawn-entity';
 import { createDeadZoneSystem } from '../dead-zone';
@@ -21,6 +21,13 @@ import {
   DamageIntent,
 } from '@shared/components/intents';
 import { SecurityLock, InteractiveSurface } from '@shared/components/environment';
+import { Attack } from '@shared/components/attack';
+import { StatusEffects } from '@shared/components/status-effects';
+import { Dying } from '@shared/components/dying';
+import { createCombatSystem } from '../combat';
+import { createGravediggerSystem } from '../gravedigger';
+import { createRunEnderSystem } from '../run-ender';
+import { createMovementSystem } from '../movement';
 import { GameplayEvents } from '@shared/events/types';
 import { EntityFactory } from '@engine/entity/factory';
 import { EntityRegistry } from '@engine/entity/registry';
@@ -344,6 +351,125 @@ describe('AI Behavior Trees & Dijkstra Maps Specification Verification', () => {
       const attack = world.getComponent(admin, AttackIntent);
       expect(attack).toBeDefined();
       expect(attack!.targetId).toBe(crate);
+    });
+
+    it('crushes destructible prop through CombatSystem and Gravedigger, then moves into cleared tile', () => {
+      setupPlayer(5, 5);
+
+      const combatSystem = createCombatSystem(world, grid, eventBus, entityFactory, componentRegistry);
+      const gravedigger = createGravediggerSystem(world, grid);
+      const movement = createMovementSystem(world, grid, eventBus, false);
+
+      const admin = world.createEntity();
+      world.addComponent(admin, Position, { x: 3, y: 5 });
+      world.addComponent(admin, Attack, { power: 999 });
+      world.addComponent(admin, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.SYSTEM_ADMIN,
+        treeId: 'system_admin',
+        sightRadius: 20,
+      });
+      world.addComponent(admin, FovAwareness, { canSeePlayer: true });
+      grid.addEntity(admin, 3, 5);
+
+      const crate = world.createEntity();
+      world.addComponent(crate, Position, { x: 4, y: 5 });
+      world.addComponent(crate, InteractiveSurface, { surfaceId: 'crate_01', providesCover: true, destructible: true });
+      world.addComponent(crate, Health, { current: 10, max: 10, isAlive: true });
+      grid.addEntity(crate, 4, 5);
+
+      // Turn 1: AI decides to crush the crate
+      aiSystem.processEnemyTurn(admin);
+      expect(world.hasComponent(admin, AttackIntent)).toBe(true);
+
+      // Combat resolves the attack and condemns the crate with Dying
+      combatSystem.update(world);
+      expect(world.hasComponent(admin, AttackIntent)).toBe(false);
+      expect(world.hasComponent(crate, Dying)).toBe(true);
+
+      // Gravedigger destroys the crate entity and cleans up grid
+      gravedigger.update(world);
+      expect(world.entityExists(crate)).toBe(false);
+      expect(grid.getEntitiesAt(4, 5)).not.toContain(crate);
+
+      // Turn 2: Path is clear, System_Admin moves into (4, 5)
+      aiSystem.processEnemyTurn(admin);
+      const moveIntent = world.getComponent(admin, MoveIntent);
+      expect(moveIntent).toBeDefined();
+      expect(moveIntent).toEqual({ dx: 1, dy: 0 });
+
+      movement.update(world);
+      const newPos = world.getComponent(admin, Position);
+      expect(newPos).toEqual({ x: 4, y: 5 });
+    });
+
+    it('terminates run with FATAL: ADMIN_CONTACT when starting turn adjacent to player', () => {
+      const player = setupPlayer(5, 5);
+
+      const runEnder = createRunEnderSystem(world, grid, eventBus);
+      runEnder.init();
+
+      const runEndedSpy = vi.fn();
+      eventBus.on('RUN_ENDED', runEndedSpy);
+
+      const admin = world.createEntity();
+      world.addComponent(admin, Position, { x: 4, y: 5 });
+      world.addComponent(admin, Attack, { power: 999 });
+      world.addComponent(admin, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.SYSTEM_ADMIN,
+        treeId: 'system_admin',
+        sightRadius: 20,
+      });
+      world.addComponent(admin, FovAwareness, { canSeePlayer: true });
+      grid.addEntity(admin, 4, 5);
+
+      // System_Admin takes turn while adjacent
+      aiSystem.processEnemyTurn(admin);
+
+      // RunEnderSystem update triggers ADMIN_CONTACT
+      runEnder.update(world);
+      eventBus.flush();
+
+      expect(runEndedSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reason: 'FATAL: ADMIN_CONTACT',
+          entityId: player,
+        }),
+      );
+    });
+
+    it('emits disruption message and skips turn when afflicted with DISRUPT', () => {
+      setupPlayer(5, 5);
+
+      const messageSpy = vi.fn();
+      eventBus.on('MESSAGE_EMITTED', messageSpy);
+
+      const admin = world.createEntity();
+      world.addComponent(admin, Position, { x: 3, y: 5 });
+      world.addComponent(admin, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.SYSTEM_ADMIN,
+        treeId: 'system_admin',
+        sightRadius: 20,
+      });
+      world.addComponent(admin, FovAwareness, { canSeePlayer: true });
+      world.addComponent(admin, StatusEffects, {
+        effects: [{ name: 'DISRUPT', duration: 2, magnitude: 1 }],
+      });
+      grid.addEntity(admin, 3, 5);
+
+      aiSystem.processEnemyTurn(admin);
+      eventBus.flush();
+
+      expect(world.hasComponent(admin, MoveIntent)).toBe(false);
+      expect(world.hasComponent(admin, AttackIntent)).toBe(false);
+      expect(messageSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          text: 'System_Admin is disrupted and cannot move!',
+          type: 'combat',
+        }),
+      );
     });
   });
 });

@@ -11,6 +11,7 @@ import {
   EquipmentSlots,
   MovedThisTurn,
   Dying,
+  StatusEffects,
   FirmwareSlots,
   SoftwareSlots,
   AugmentSlots,
@@ -262,10 +263,8 @@ export function createRunEnderSystem<T extends GameplayEvents>(
   }
 
   const update = (w: World<T>) => {
-    // Only check adjacency if something moved
+    // 1. Check adjacency for moved entities
     const movers = w.query(MovedThisTurn);
-    if (movers.length === 0) return;
-
     for (const entityId of movers) {
       const moved = w.getComponent(entityId, MovedThisTurn)!;
       const { toX, toY } = moved;
@@ -289,6 +288,29 @@ export function createRunEnderSystem<T extends GameplayEvents>(
               executeRunEnd(entityId, 'FATAL: ADMIN_CONTACT', false);
               break;
             }
+          }
+        }
+      }
+    }
+
+    // 2. Also check if an active (non-disrupted) System_Admin is adjacent to or on the same tile as player
+    const player = getPlayerEntity();
+    if (player) {
+      const admins = w.query(AIState, Position);
+      for (const adminId of admins) {
+        if (w.hasComponent(adminId, Dying)) continue;
+        const adminAI = w.getComponent(adminId, AIState);
+        if (adminAI?.behaviorType === AIBehaviorType.SYSTEM_ADMIN) {
+          const status = w.getComponent(adminId, StatusEffects);
+          const isDisrupted = status?.effects.some(
+            (e) => e.name === 'DISRUPT' || e.name === 'STUN',
+          );
+          if (isDisrupted) continue;
+
+          const adminPos = w.getComponent(adminId, Position)!;
+          if (isAdjacentOrSame(adminPos.x, adminPos.y, player.x, player.y)) {
+            executeRunEnd(player.id, 'FATAL: ADMIN_CONTACT', false);
+            break;
           }
         }
       }

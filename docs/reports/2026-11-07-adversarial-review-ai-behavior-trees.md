@@ -20,9 +20,9 @@ An adversarial audit was conducted across the 7 commits on `feature/ai-behavior-
 
 ### Adversarial Findings Scorecard
 
-| ID | Severity | Layer | Finding Summary |
-| :--- | :--- | :--- | :--- |
-| **`BT-REV-01`** | **P0 (Critical)** | `@game` | **`System_Admin` Prop Crushing (`canCrushProps`), Adjacency Termination, and Disruption Log Are Broken**: `system-admin.json` lacks an `Attack` component so `CombatSystem` silently drops its `AttackIntent` against crates (stalling it forever); `MELEE_BUMP_TARGET` when already adjacent converts `MoveIntent` to `AttackIntent` without `MovedThisTurn` so `RunEnderSystem` never triggers `ADMIN_CONTACT`; disruption combat log message was lost. |
+| ID | Severity | Layer | Finding Summary | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **`BT-REV-01`** | **P0 (Critical)** | `@game` | **`System_Admin` Prop Crushing (`canCrushProps`), Adjacency Termination, and Disruption Log Are Broken**: `system-admin.json` lacks an `Attack` component so `CombatSystem` silently drops its `AttackIntent` against crates (stalling it forever); `MELEE_BUMP_TARGET` when already adjacent converts `MoveIntent` to `AttackIntent` without `MovedThisTurn` so `RunEnderSystem` never triggers `ADMIN_CONTACT`; disruption combat log message was lost. | **RESOLVED** |
 | **`BT-REV-02`** | **P0 (Critical)** | `@game` | **Dijkstra Passability & Dynamic Entity Penalty (`+0.5`) Route Enemies Straight Into Impassable Props, Locked Vault Doors, and Allies**: `AISpatialSystem.getStepCostFn` ignores blocking entities (`BlocksMovement`, `Prop`, locked `SecurityLock` doors), and `AISystem`'s `+0.5` dynamic occupant penalty is smaller than the `-1.0` step-closer gain (`-1.0 + 0.5 = -0.5`), causing enemies with `canCrushProps: false` to repeatedly bump props/allies and waste turns. |
 | **`BT-REV-03`** | **P0 (High)** | `@game` / `@engine` | **Sequential Per-Enemy Turn Execution Wipes `AlertIntent` and `packAlerted` Across Enemies**: `TurnManager.processEnemyTurns` runs `AISystem.update` sequentially once per ready enemy. Enemy 1's pass deletes all `AlertIntent` components from the world and clears `alertedThisTurn`/`packAlerted` before Enemy 2's pass runs. |
 | **`BT-REV-04`** | **P1 (High)** | `@game` / `@shared` | **`Logic-Leaker` Never Uses `kite_to_cover` at Range 3–5 & Unwired Schema Parameters**: In `logic-leaker.json`, `RANGED_ATTACK_TARGET` at range `3..5` always succeeds before `kite-to-optimal-cover` can ever run. Furthermore, `optimalRangeMin`/`optimalRangeMax`, `scavenge_nearest_loot`, `patrol_anchors`, `SPAWN_ENTITIES_AROUND_SELF.count`, and `nearby_loot_value` are defined in `ai-tree.ts` but unwired in `ai.ts`. |
@@ -230,7 +230,7 @@ An adversarial audit was conducted across the 7 commits on `feature/ai-behavior-
 ## 3. Phased Remediation Plan
 
 ### Phase 1: P0 Core AI Turn Loop, Spatial Passability & `System_Admin` Fixes (`BT-REV-01`, `BT-REV-02`, `BT-REV-03`)
-1. **Fix `System_Admin` Prop Crushing, Adjacency Termination & Disruption Log (`BT-REV-01`)**:
+1. **[x] Fix `System_Admin` Prop Crushing, Adjacency Termination & Disruption Log (`BT-REV-01`)**:
    - Add an `attack` component (`{ power: 999, range: 1, defense: 99 }`) to [`src/game/entities/templates/system-admin.json`](../../src/game/entities/templates/system-admin.json) or allow `CombatSystem` / `RunEnderSystem` to handle `System_Admin` cleanly:
      - Adding `"attack": { "power": 999, "range": 1, "defense": 99 }` to `system-admin.json` ensures `CombatSystem` one-shots any destructible prop targeted by `canCrushProps: true`.
      - In [`RunEnderSystem.checkAdminCollision`](../../src/game/systems/run-ender.ts#L264-L281) (or [`CombatSystem`](../../src/game/systems/combat.ts)), also check if an entity with `AdminOverlayEffect` (not `Dying`) is adjacent (`manhattan <= 1`) and targeting the player via `AttackIntent` or occupying the player's tile, OR in [`AISystem.executeMeleeBumpTarget`](../../src/game/systems/ai.ts#L671-L679), allow `System_Admin` (`AdminOverlayEffect`) to step directly onto the player's tile (`MovedThisTurn`) or trigger `ADMIN_CONTACT` on melee bump.

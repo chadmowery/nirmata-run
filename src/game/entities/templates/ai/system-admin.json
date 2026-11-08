@@ -3,7 +3,26 @@
   "root": {
     "type": "SELECTOR",
     "children": [
-      { "type": "SUBTREE", "ref": "skip-if-disrupted" },
+      {
+        "type": "SEQUENCE",
+        "name": "skip-if-disrupted",
+        "children": [
+          {
+            "type": "SELECTOR",
+            "children": [
+              { "type": "CONDITION", "condition": { "check": "HAS_STATUS_EFFECT", "statusName": "DISRUPT" } },
+              { "type": "CONDITION", "condition": { "check": "HAS_STATUS_EFFECT", "statusName": "STUN" } }
+            ]
+          },
+          {
+            "type": "ACTION",
+            "task": {
+              "action": "WAIT",
+              "message": "System_Admin is disrupted and cannot move!"
+            }
+          }
+        ]
+      },
       {
         "type": "SEQUENCE",
         "name": "crusher-combat",
