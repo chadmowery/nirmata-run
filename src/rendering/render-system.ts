@@ -184,9 +184,10 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
   const isEntityInFov = (entityId: EntityId): boolean => {
     if (entityId === getPlayerEntity()) return true;
+    if (currentFovSet.size === 0 || isMapRevealed) return true;
     const pos = world.getComponent(entityId, Position);
     if (!pos) return false;
-    return isMapRevealed || currentFovSet.has(`${pos.x},${pos.y}`);
+    return currentFovSet.has(`${pos.x},${pos.y}`);
   };
 
   const syncPropOutline = (entityId: EntityId, targetSprite?: Sprite) => {
@@ -602,22 +603,23 @@ export function createRenderSystem(config: RenderSystemConfig) {
       }
     }
 
-    // For all other entities (enemies, NPCs), check if moving entity is within FOV
+    // For all other entities (enemies, NPCs): only trigger move animation clip if in FOV
     const inFov =
+      currentFovSet.size === 0 ||
       isMapRevealed ||
       currentFovSet.has(`${payload.toX},${payload.toY}`) ||
       currentFovSet.has(`${payload.fromX},${payload.fromY}`);
     if (inFov) {
       spriteAnimator.triggerState(payload.entityId, 'move');
-      queueMoveTween(
-        payload.entityId,
-        payload.fromX,
-        payload.fromY,
-        payload.toX,
-        payload.toY,
-        getEntitySprite,
-      );
     }
+    queueMoveTween(
+      payload.entityId,
+      payload.fromX,
+      payload.fromY,
+      payload.toX,
+      payload.toY,
+      getEntitySprite,
+    );
   };
 
   const handleApplyWorldFilter = (payload: { filterType: string }) => {
@@ -688,7 +690,15 @@ export function createRenderSystem(config: RenderSystemConfig) {
     updateDamageTexts(deltaMs);
   };
 
-  return {
+  const handleDungeonGenerated = () => {
+    system.onDungeonGenerated();
+  };
+
+  const handleStateReconciled = () => {
+    system.reconcileSprites();
+  };
+
+  const system = {
     init() {
       eventBus.on('ENTITY_CREATED', handleEntityCreated);
       eventBus.on('ENTITY_DESTROYED', handleEntityDestroyed);
@@ -706,8 +716,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.on('DEBUG_REVEAL_MAP', handleDebugRevealMap);
       eventBus.on('DEBUG_TOGGLE_AI', handleDebugToggleAI);
       eventBus.on('RECENTER_CAMERA', handleRecenterCamera);
-      eventBus.on('DUNGEON_GENERATED', () => this.onDungeonGenerated());
-      eventBus.on('STATE_RECONCILED', () => this.reconcileSprites());
+      eventBus.on('DUNGEON_GENERATED', handleDungeonGenerated);
+      eventBus.on('STATE_RECONCILED', handleStateReconciled);
 
       const canvas = app.canvas;
       if (canvas && typeof canvas.addEventListener === 'function') {
@@ -731,6 +741,13 @@ export function createRenderSystem(config: RenderSystemConfig) {
         const sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
         spriteAnimator.registerEntity(entityId, spriteComp);
         applySpriteTransform(sprite, pos.x, pos.y, orientation?.angleDegrees ?? 0);
+
+        const aiState = world.getComponent(entityId, AIState);
+        if (aiState) {
+          applyPersistentGlitch(sprite, aiState.behaviorType);
+          attachNeonEmitter(sprite, aiState.behaviorType, layers.effectsLayer);
+        }
+
         syncPropOutline(entityId, sprite);
       }
 
@@ -759,6 +776,11 @@ export function createRenderSystem(config: RenderSystemConfig) {
             if (pos) {
               const orientation = world.getComponent(entityId, TileOrientation);
               applySpriteTransform(sprite, pos.x, pos.y, orientation?.angleDegrees ?? 0);
+            }
+            const aiState = world.getComponent(entityId, AIState);
+            if (aiState) {
+              applyPersistentGlitch(sprite, aiState.behaviorType);
+              attachNeonEmitter(sprite, aiState.behaviorType, layers.effectsLayer);
             }
           }
         } else if (spriteComp) {
@@ -1190,9 +1212,10 @@ export function createRenderSystem(config: RenderSystemConfig) {
         spriteAnimator.registerEntity(entityId, spriteComp);
         applySpriteTransform(sprite, pos.x, pos.y, orientation?.angleDegrees ?? 0);
 
-        // Ensure emitters are attached to enemies on re-init
+        // Ensure emitters and glitch filters are attached to enemies on re-init
         const aiState = world.getComponent(entityId, AIState);
         if (aiState) {
+          applyPersistentGlitch(sprite, aiState.behaviorType);
           attachNeonEmitter(sprite, aiState.behaviorType, layers.effectsLayer);
         }
         syncPropOutline(entityId, sprite);
@@ -1204,6 +1227,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
     destroy() {
       eventBus.off('ENTITY_CREATED', handleEntityCreated);
       eventBus.off('ENTITY_DESTROYED', handleEntityDestroyed);
+      eventBus.off('ITEM_PICKED_UP', handleItemPickedUp);
       eventBus.off('ENTITY_MOVED', handleEntityMoved);
       eventBus.off('DAMAGE_DEALT', handleDamageDealt);
       eventBus.off('APPLY_WORLD_FILTER', handleApplyWorldFilter);
@@ -1217,6 +1241,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
       eventBus.off('DEBUG_REVEAL_MAP', handleDebugRevealMap);
       eventBus.off('DEBUG_TOGGLE_AI', handleDebugToggleAI);
       eventBus.off('RECENTER_CAMERA', handleRecenterCamera);
+      eventBus.off('DUNGEON_GENERATED', handleDungeonGenerated);
+      eventBus.off('STATE_RECONCILED', handleStateReconciled);
 
       const canvas = app.canvas;
       if (canvas && typeof canvas.removeEventListener === 'function') {
@@ -1267,4 +1293,6 @@ export function createRenderSystem(config: RenderSystemConfig) {
       return { ...cameraPanOffset };
     },
   };
+
+  return system;
 }
