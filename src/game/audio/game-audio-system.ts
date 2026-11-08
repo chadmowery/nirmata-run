@@ -192,7 +192,8 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
 
   // 1. Movement & Footsteps
   subscribe('ENTITY_MOVED', (payload) => {
-      const isPlayer = payload.entityId === getPlayerEntity();
+    positionCache.set(payload.entityId, { x: payload.toX, y: payload.toY });
+    const isPlayer = payload.entityId === getPlayerEntity();
       const origin = EventOriginContext.current;
 
       if (isPlayer) {
@@ -247,15 +248,53 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
 
   // 2. Enemy Teleport
   subscribe('ENEMY_TELEPORTED', (payload) => {
+    positionCache.set(payload.entityId, { x: payload.toX, y: payload.toY });
     playSpatialCue('sfx_teleport_shift', payload.toX, payload.toY);
   });
 
   // 3. Combat & Damage
   subscribe('DAMAGE_DEALT', (payload) => {
     syncEntityCaches();
+
+    // Attacker attackCue playback
+    const attackerProfile =
+      world.getComponent(payload.attackerId, AudioProfile) ||
+      audioProfileCache.get(payload.attackerId);
+    if (attackerProfile?.attackCue) {
+      const isPlayerAttacker = payload.attackerId === getPlayerEntity();
+      if (isPlayerAttacker) {
+        playGlobalCue(
+          attackerProfile.attackCue,
+          attackerProfile.volumeMultiplier,
+          attackerProfile.pitchMultiplier,
+        );
+      } else {
+        const attackerPos =
+          world.getComponent(payload.attackerId, Position) ||
+          positionCache.get(payload.attackerId);
+        if (attackerPos) {
+          playSpatialCue(
+            attackerProfile.attackCue,
+            attackerPos.x,
+            attackerPos.y,
+            attackerProfile.volumeMultiplier,
+            attackerProfile.pitchMultiplier,
+          );
+        } else {
+          playGlobalCue(
+            attackerProfile.attackCue,
+            attackerProfile.volumeMultiplier,
+            attackerProfile.pitchMultiplier,
+          );
+        }
+      }
+    }
+
     const isPlayerDefender = payload.defenderId === getPlayerEntity();
     if (isPlayerDefender) {
-      const defProfile = world.getComponent(payload.defenderId, AudioProfile);
+      const defProfile =
+        world.getComponent(payload.defenderId, AudioProfile) ||
+        audioProfileCache.get(payload.defenderId);
       playGlobalCue(
         defProfile?.hitCue ?? 'sfx_player_damaged',
         defProfile?.volumeMultiplier,
@@ -264,8 +303,12 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
       return;
     }
 
-    const defPos = world.getComponent(payload.defenderId, Position);
-    const profile = world.getComponent(payload.defenderId, AudioProfile);
+    const defPos =
+      world.getComponent(payload.defenderId, Position) ||
+      positionCache.get(payload.defenderId);
+    const profile =
+      world.getComponent(payload.defenderId, AudioProfile) ||
+      audioProfileCache.get(payload.defenderId);
     const hitCueId = profile?.hitCue ?? 'sfx_melee_hit';
 
     if (defPos) {
@@ -463,6 +506,8 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
   };
 
   subscribe('FLOOR_TRANSITION', (payload) => {
+    positionCache.clear();
+    audioProfileCache.clear();
     syncEntityCaches();
     updateAmbianceForFloor(payload.floorNumber);
   });
@@ -492,6 +537,8 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
       for (const cueId of activeEmitters.values()) {
         audioEngine.stopCue(cueId);
       }
+      audioProfileCache.clear();
+      positionCache.clear();
       activeEmitters.clear();
       dedup.clear();
     },

@@ -392,4 +392,107 @@ describe('GameAudioSystem Bridge', () => {
 
     audioSystem.destroy();
   });
+
+  it('resolves defender hitCue spatially and attacker attackCue even if defender was destroyed before DAMAGE_DEALT', () => {
+    // Enemy has custom hitCue and Position at (8, 8)
+    world.addComponent(enemyId, AudioProfile, {
+      hitCue: 'sfx_cover_broken',
+      deathCue: 'sfx_enemy_death',
+      volumeMultiplier: 0.9,
+      pitchMultiplier: 1.1,
+    });
+    world.addComponent(enemyId, Position, { x: 8, y: 8 });
+
+    // Attacker (player) has custom attackCue
+    world.addComponent(playerId, AudioProfile, {
+      attackCue: 'sfx_melee_hit',
+      hitCue: 'sfx_player_damaged',
+      deathCue: 'sfx_bsod_fatal',
+      pitchMultiplier: 1.0,
+      volumeMultiplier: 1.0,
+    });
+
+    const audioSystem = createGameAudioSystem({
+      world,
+      eventBus,
+      getPlayerEntity: () => playerId,
+      getGrid: () => grid,
+      audioEngine: mockAudioEngine,
+    });
+
+    // Simulate lethal hit: Gravedigger/applyDelta destroys the defender before DAMAGE_DEALT emits
+    world.destroyEntity(enemyId);
+
+    eventBus.emit('DAMAGE_DEALT', {
+      attackerId: playerId,
+      defenderId: enemyId,
+      amount: 50,
+    });
+    eventBus.flush();
+
+    // Attacker attackCue played globally for player
+    expect(mockAudioEngine.playCue).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'sfx_melee_hit' }),
+      expect.objectContaining({ volumeMultiplier: 1.0 }),
+    );
+
+    // Defender hitCue resolved from cache and played spatially at (8, 8)
+    expect(mockAudioEngine.playCue).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'sfx_cover_broken' }),
+      expect.objectContaining({
+        spatial: expect.objectContaining({ sourceX: 8, sourceY: 8 }),
+        volumeMultiplier: 0.9,
+        pitchMultiplier: 1.1,
+      }),
+    );
+
+    audioSystem.destroy();
+  });
+
+  it('updates positionCache on ENTITY_MOVED and ENEMY_TELEPORTED for subsequent post-mortem combat events', () => {
+    world.addComponent(enemyId, AudioProfile, {
+      hitCue: 'sfx_cover_broken',
+      pitchMultiplier: 1.0,
+      volumeMultiplier: 1.0,
+    });
+    world.addComponent(enemyId, Position, { x: 3, y: 3 });
+
+    const audioSystem = createGameAudioSystem({
+      world,
+      eventBus,
+      getPlayerEntity: () => playerId,
+      getGrid: () => grid,
+      audioEngine: mockAudioEngine,
+    });
+
+    // Enemy moves to (6, 7)
+    eventBus.emit('ENTITY_MOVED', {
+      entityId: enemyId,
+      fromX: 3,
+      fromY: 3,
+      toX: 6,
+      toY: 7,
+    });
+    eventBus.flush();
+
+    // Destroy enemy entity (killed)
+    world.destroyEntity(enemyId);
+
+    // Lethal DAMAGE_DEALT
+    eventBus.emit('DAMAGE_DEALT', {
+      attackerId: playerId,
+      defenderId: enemyId,
+      amount: 20,
+    });
+    eventBus.flush();
+
+    expect(mockAudioEngine.playCue).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'sfx_cover_broken' }),
+      expect.objectContaining({
+        spatial: expect.objectContaining({ sourceX: 6, sourceY: 7 }),
+      }),
+    );
+
+    audioSystem.destroy();
+  });
 });
