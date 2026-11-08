@@ -346,6 +346,17 @@ Cross-referencing all cue IDs in `sound-cues.json` and [`docs/design/AUDIO-SYSTE
    ```
    If a user holds a `holdToConfirm` button and the component unmounts before release (e.g., modal closes via ESC or state transition completes), `rafRef.current` is cancelled, **but `uiAudio.stopHoldRamp(voiceIdRef.current)` is never called**, leaving the looping sawtooth oscillator (`ui_hold_ramp`) playing indefinitely.
 
+#### Resolution
+- In `src/engine/audio/audio-engine.ts` (`playSampleVoice`):
+  - Inserted a `BiquadFilterNode` (`lowpass`) when `spatial?.lowPassCutoff !== undefined` to apply Fog of War / wall occlusion filtering to sample-based cues matching synth behavior.
+  - Added explicit `.disconnect()` calls on `source`, `gain`, `occlusionFilter`, and `panner` inside `source.onended` to prevent Web Audio graph memory leaks.
+- In `src/engine/audio/synth-voice.ts` (`playSynthVoice`):
+  - Tracked all instantiated source nodes (`primarySource`, `lfo`, `fmOsc`, `subOsc`, `subBufferSource`) in `sourcesToStop`.
+  - Scheduled `.stop(t4 + 0.05)` for non-looping playbacks and `.stop(stopTime + fadeDurationSec + 0.01)` in `stopVoice()` across all active sources.
+- In `src/components/ui/atomic/BtnLever.tsx`:
+  - Added cleanup logic to unmount effect to call `uiAudio.stopHoldRamp(voiceIdRef.current)` and clear `voiceIdRef.current = null` if the button is unmounted while being held.
+- Added unit tests in `src/engine/audio/__tests__/audio-engine.test.ts` and `src/components/ui/atomic/__tests__/BtnLever.test.tsx` verifying secondary oscillator termination and hold-ramp unmount cleanup.
+
 ---
 
 ### 2.10 `AUD-REV-10`: `AudioCueStudio` Broken `CLONE` Action & Mismatched Ambiance Simulator Keys (P2)

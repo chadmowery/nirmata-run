@@ -192,6 +192,7 @@ export function playSynthVoice(
   }
 
   // 4. LFO modulation for filter cutoff (e.g. ambient drones)
+  const sourcesToStop: AudioScheduledSourceNode[] = [];
   if (patch.lfoFreq && patch.lfoFilterDepth && filterNode) {
     const lfo = ctx.createOscillator();
     const lfoGain = ctx.createGain();
@@ -200,6 +201,7 @@ export function playSynthVoice(
     lfo.connect(lfoGain);
     lfoGain.connect(filterNode.frequency);
     lfo.start(now);
+    sourcesToStop.push(lfo);
     nodesToClean.push(lfo, lfoGain);
   }
 
@@ -247,6 +249,7 @@ export function playSynthVoice(
       fmOsc.connect(fmGain);
       fmGain.connect(osc.frequency);
       fmOsc.start(now);
+      sourcesToStop.push(fmOsc);
       nodesToClean.push(fmOsc, fmGain);
     }
 
@@ -268,6 +271,7 @@ export function playSynthVoice(
         subBufferSource.loop = loop || patch.hold > 2.0;
         subBufferSource.connect(subGain);
         subBufferSource.start(now);
+        sourcesToStop.push(subBufferSource);
         nodesToClean.push(subBufferSource, subGain);
       } else {
         const subOsc = ctx.createOscillator();
@@ -279,6 +283,7 @@ export function playSynthVoice(
         }
         subOsc.connect(subGain);
         subOsc.start(now);
+        sourcesToStop.push(subOsc);
         nodesToClean.push(subOsc, subGain);
       }
     }
@@ -286,6 +291,7 @@ export function playSynthVoice(
     osc.connect(preFilterTail);
     primarySource = osc;
   }
+  sourcesToStop.push(primarySource);
   nodesToClean.push(primarySource);
 
   // 6. ADSR Envelope
@@ -325,7 +331,13 @@ export function playSynthVoice(
   };
 
   if (!loop) {
-    primarySource.stop(t4 + 0.05);
+    for (const src of sourcesToStop) {
+      try {
+        src.stop(t4 + 0.05);
+      } catch {
+        // Safe to ignore if already stopped
+      }
+    }
     primarySource.onended = cleanup;
   }
 
@@ -336,7 +348,13 @@ export function playSynthVoice(
       voiceGain.gain.cancelScheduledValues(stopTime);
       voiceGain.gain.setValueAtTime(voiceGain.gain.value, stopTime);
       voiceGain.gain.linearRampToValueAtTime(0.0001, stopTime + fadeDurationSec);
-      primarySource.stop(stopTime + fadeDurationSec + 0.01);
+      for (const src of sourcesToStop) {
+        try {
+          src.stop(stopTime + fadeDurationSec + 0.01);
+        } catch {
+          // Safe to ignore if already stopped
+        }
+      }
       setTimeout(cleanup, (fadeDurationSec + 0.05) * 1000);
     } catch {
       cleanup();

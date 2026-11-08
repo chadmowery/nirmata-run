@@ -183,6 +183,10 @@ export const BtnLever: React.FC<BtnLeverProps> = ({
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
       }
+      if (voiceIdRef.current) {
+        uiAudio.stopHoldRamp(voiceIdRef.current);
+        voiceIdRef.current = null;
+      }
     };
   }, []);
 

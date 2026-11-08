@@ -544,8 +544,19 @@ export class AudioEngine implements IAudioEngine {
     gain.gain.setValueAtTime(finalVolume, this.ctx.currentTime);
 
     let tailNode: AudioNode = gain;
+
+    let occlusionFilter: BiquadFilterNode | null = null;
+    if (spatial?.lowPassCutoff !== undefined && typeof this.ctx.createBiquadFilter === 'function') {
+      occlusionFilter = this.ctx.createBiquadFilter();
+      occlusionFilter.type = 'lowpass';
+      occlusionFilter.frequency.setValueAtTime(spatial.lowPassCutoff, this.ctx.currentTime);
+      tailNode.connect(occlusionFilter);
+      tailNode = occlusionFilter;
+    }
+
+    let panner: StereoPannerNode | null = null;
     if (spatial && typeof this.ctx.createStereoPanner === 'function') {
-      const panner = this.ctx.createStereoPanner();
+      panner = this.ctx.createStereoPanner();
       panner.pan.setValueAtTime(spatial.pan, this.ctx.currentTime);
       tailNode.connect(panner);
       tailNode = panner;
@@ -567,6 +578,14 @@ export class AudioEngine implements IAudioEngine {
         const idx = list.indexOf(source);
         if (idx !== -1) list.splice(idx, 1);
         if (list.length === 0) this.activeCueSamples.delete(cue.id);
+      }
+      try {
+        source.disconnect();
+        gain.disconnect();
+        if (occlusionFilter) occlusionFilter.disconnect();
+        if (panner) panner.disconnect();
+      } catch {
+        // Safe to ignore if already disconnected
       }
     };
   }

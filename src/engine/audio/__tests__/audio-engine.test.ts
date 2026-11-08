@@ -408,4 +408,54 @@ describe('AudioEngine', () => {
 
     engine.destroy();
   });
+
+  it('schedules stop on all secondary synth sources (FM, sub, LFO) and cleans up on voice termination', async () => {
+    const mockCtx = createMockAudioContext();
+    installMockAudioContext(mockCtx);
+
+    const engine = new AudioEngine(true);
+    await engine.init();
+
+    const complexCue: SoundCueDef = {
+      id: 'complex_synth',
+      bus: 'sfx',
+      mode: 'synth',
+      baseVolume: 0.8,
+      cooldownMs: 0,
+      pitchVariance: 0,
+      synth: {
+        waveform: 'sawtooth',
+        freqStart: 440,
+        fmFreq: 110,
+        fmDepth: 50,
+        subWaveform: 'triangle',
+        subMix: 0.4,
+        filterType: 'lowpass',
+        lfoFreq: 5,
+        lfoFilterDepth: 200,
+        attack: 0.01,
+        decay: 0.05,
+        sustain: 0.5,
+        hold: 0.05,
+        release: 0.05,
+      },
+    };
+
+    const voiceId = engine.playCue(complexCue);
+    expect(voiceId).toBeDefined();
+
+    // At least 4 oscillators should be created: primary, fm, sub, and lfo
+    expect(mockCtx.createOscillator).toHaveBeenCalledTimes(4);
+
+    // Stop voice explicitly
+    engine.stopVoice(voiceId!, 0.02);
+
+    // Each oscillator's stop should have been invoked
+    const oscInstances = mockCtx.createOscillator.mock.results.map((r) => r.value);
+    for (const osc of oscInstances) {
+      expect(osc.stop).toHaveBeenCalled();
+    }
+
+    engine.destroy();
+  });
 });
