@@ -170,9 +170,15 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
             }
             w.patchComponent(targetId, SecurityLock, { isLocked: false });
 
+            const currentSprite = w.getComponent(targetId, SpriteComponent);
+            const currentKey = currentSprite?.key ?? '';
+            const dirMatch = currentKey.match(/_([nesw])$/);
+            const dir = dirMatch ? dirMatch[1] : null;
+
             if (propClass === 'vault_door') {
               if (w.hasComponent(targetId, SpriteComponent)) {
-                w.patchComponent(targetId, SpriteComponent, { key: 'prop_vault_door' });
+                const newKey = dir ? `prop_vault_door_${dir}` : 'prop_vault_door';
+                w.patchComponent(targetId, SpriteComponent, { key: newKey });
               }
               if (w.hasComponent(targetId, BlocksMovement)) {
                 w.removeComponent(targetId, BlocksMovement);
@@ -182,7 +188,7 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
                 w.patchComponent(targetId, SpriteComponent, { key: 'prop_safe' });
               }
             } else if (propClass === 'locker') {
-              if (w.hasComponent(targetId, SpriteComponent)) {
+              if (w.hasComponent(targetId, SpriteComponent) && !dir) {
                 w.patchComponent(targetId, SpriteComponent, { key: 'prop_locker' });
               }
             }
@@ -233,9 +239,15 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
             wasOverclockBypass = true;
             w.patchComponent(targetId, SecurityLock, { isLocked: false });
 
+            const currentSprite = w.getComponent(targetId, SpriteComponent);
+            const currentKey = currentSprite?.key ?? '';
+            const dirMatch = currentKey.match(/_([nesw])$/);
+            const dir = dirMatch ? dirMatch[1] : null;
+
             if (propClass === 'vault_door') {
               if (w.hasComponent(targetId, SpriteComponent)) {
-                w.patchComponent(targetId, SpriteComponent, { key: 'prop_vault_door' });
+                const newKey = dir ? `prop_vault_door_${dir}` : 'prop_vault_door';
+                w.patchComponent(targetId, SpriteComponent, { key: newKey });
               }
               if (w.hasComponent(targetId, BlocksMovement)) {
                 w.removeComponent(targetId, BlocksMovement);
@@ -245,7 +257,7 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
                 w.patchComponent(targetId, SpriteComponent, { key: 'prop_safe' });
               }
             } else if (propClass === 'locker') {
-              if (w.hasComponent(targetId, SpriteComponent)) {
+              if (w.hasComponent(targetId, SpriteComponent) && !dir) {
                 w.patchComponent(targetId, SpriteComponent, { key: 'prop_locker' });
               }
             }
@@ -770,14 +782,19 @@ export function createPropInteractionSystem<T extends GameplayEvents>(
 
         w.patchComponent(targetId, Prop, { isSearched: true });
         if (w.hasComponent(targetId, SpriteComponent)) {
-          if (propClass === 'locker') {
-            w.patchComponent(targetId, SpriteComponent, { key: 'prop_locker' });
-          } else if (propClass === 'cabinet') {
-            w.patchComponent(targetId, SpriteComponent, { key: 'prop_biocabinet' });
-          } else if (propClass === 'workstation') {
-            w.patchComponent(targetId, SpriteComponent, { key: 'prop_workstation' });
-          } else if (propClass === 'encrypted_safe') {
-            w.patchComponent(targetId, SpriteComponent, { key: 'prop_safe' });
+          const currentKey = w.getComponent(targetId, SpriteComponent)?.key ?? '';
+          const isDirectional = /_[nesw]$/.test(currentKey);
+
+          if (!isDirectional) {
+            if (propClass === 'locker') {
+              w.patchComponent(targetId, SpriteComponent, { key: 'prop_locker' });
+            } else if (propClass === 'cabinet') {
+              w.patchComponent(targetId, SpriteComponent, { key: 'prop_biocabinet' });
+            } else if (propClass === 'workstation') {
+              w.patchComponent(targetId, SpriteComponent, { key: 'prop_workstation' });
+            } else if (propClass === 'encrypted_safe') {
+              w.patchComponent(targetId, SpriteComponent, { key: 'prop_safe' });
+            }
           }
         }
         bus.emit('PROP_INTERACTED', {

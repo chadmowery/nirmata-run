@@ -3185,6 +3185,96 @@
         "w": 32,
         "h": 32
       }
+    },
+    "vault_door_locked_n": {
+      "frame": {
+        "x": 128,
+        "y": 352,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "vault_door_locked_e": {
+      "frame": {
+        "x": 160,
+        "y": 352,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "vault_door_locked_s": {
+      "frame": {
+        "x": 192,
+        "y": 352,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "vault_door_locked_w": {
+      "frame": {
+        "x": 224,
+        "y": 352,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "prop_stability_anchor": {
+      "frame": {
+        "x": 96,
+        "y": 64,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
     }
   },
   "meta": {
@@ -3194,7 +3284,9 @@
       "w": 512,
       "h": 512
     },
-    "scale": 1
+    "scale": 1,
+    "themeId": "traxus_foundry",
+    "themeName": "Traxus Heavy Foundry // Thermal Surge"
   },
   "animations": {
     "player_vanguard": {
@@ -3227,6 +3319,14 @@
           110,
           60
         ],
+        "loop": "once"
+      },
+      "interact": {
+        "frames": [
+          "player_vanguard",
+          "player_vanguard_idle_1"
+        ],
+        "fps": 8,
         "loop": "once"
       }
     },
@@ -3261,6 +3361,14 @@
           60
         ],
         "loop": "once"
+      },
+      "interact": {
+        "frames": [
+          "player_bastion",
+          "player_bastion_idle_1"
+        ],
+        "fps": 8,
+        "loop": "once"
       }
     },
     "player_ghost": {
@@ -3293,6 +3401,14 @@
           110,
           60
         ],
+        "loop": "once"
+      },
+      "interact": {
+        "frames": [
+          "player_ghost",
+          "player_ghost_idle_1"
+        ],
+        "fps": 8,
         "loop": "once"
       }
     },
@@ -3327,24 +3443,39 @@
           60
         ],
         "loop": "once"
+      },
+      "interact": {
+        "frames": [
+          "player",
+          "player_idle_1"
+        ],
+        "fps": 8,
+        "loop": "once"
       }
     },
     "enemy_null_pointer": {
       "idle": {
         "frames": [
           "enemy_null_pointer",
-          "enemy_null_pointer_idle_1",
-          "enemy_null_pointer_atk_1"
+          "enemy_null_pointer_idle_1"
         ],
-        "fps": 5,
+        "fps": 4,
         "loop": "pingpong"
+      },
+      "move": {
+        "frames": [
+          "enemy_null_pointer",
+          "enemy_null_pointer_idle_1"
+        ],
+        "fps": 8,
+        "loop": "once"
       },
       "attack": {
         "frames": [
-          "enemy_null_pointer",
-          "enemy_null_pointer_atk_1"
+          "enemy_null_pointer_atk_1",
+          "enemy_null_pointer"
         ],
-        "fps": 10,
+        "fps": 8,
         "loop": "once"
       },
       "hit": {
@@ -3352,7 +3483,7 @@
           "enemy_null_pointer",
           "enemy_null_pointer_atk_1"
         ],
-        "fps": 12,
+        "fps": 10,
         "loop": "once"
       }
     },
@@ -3360,18 +3491,25 @@
       "idle": {
         "frames": [
           "enemy_buffer_overflow",
-          "enemy_buffer_overflow_idle_1",
-          "enemy_buffer_overflow_atk_1"
+          "enemy_buffer_overflow_idle_1"
         ],
-        "fps": 5,
+        "fps": 4,
         "loop": "pingpong"
+      },
+      "move": {
+        "frames": [
+          "enemy_buffer_overflow",
+          "enemy_buffer_overflow_idle_1"
+        ],
+        "fps": 8,
+        "loop": "once"
       },
       "attack": {
         "frames": [
-          "enemy_buffer_overflow",
-          "enemy_buffer_overflow_atk_1"
+          "enemy_buffer_overflow_atk_1",
+          "enemy_buffer_overflow"
         ],
-        "fps": 10,
+        "fps": 8,
         "loop": "once"
       },
       "hit": {
@@ -3379,7 +3517,7 @@
           "enemy_buffer_overflow",
           "enemy_buffer_overflow_atk_1"
         ],
-        "fps": 12,
+        "fps": 10,
         "loop": "once"
       }
     },
@@ -3387,18 +3525,25 @@
       "idle": {
         "frames": [
           "enemy_fragmenter",
-          "enemy_fragmenter_idle_1",
-          "enemy_fragmenter_atk_1"
+          "enemy_fragmenter_idle_1"
         ],
-        "fps": 5,
+        "fps": 4,
         "loop": "pingpong"
+      },
+      "move": {
+        "frames": [
+          "enemy_fragmenter",
+          "enemy_fragmenter_idle_1"
+        ],
+        "fps": 8,
+        "loop": "once"
       },
       "attack": {
         "frames": [
-          "enemy_fragmenter",
-          "enemy_fragmenter_atk_1"
+          "enemy_fragmenter_atk_1",
+          "enemy_fragmenter"
         ],
-        "fps": 10,
+        "fps": 8,
         "loop": "once"
       },
       "hit": {
@@ -3406,7 +3551,7 @@
           "enemy_fragmenter",
           "enemy_fragmenter_atk_1"
         ],
-        "fps": 12,
+        "fps": 10,
         "loop": "once"
       }
     },
@@ -3414,18 +3559,25 @@
       "idle": {
         "frames": [
           "enemy_logic_leaker",
-          "enemy_logic_leaker_idle_1",
-          "enemy_logic_leaker_atk_1"
+          "enemy_logic_leaker_idle_1"
         ],
-        "fps": 5,
+        "fps": 4,
         "loop": "pingpong"
+      },
+      "move": {
+        "frames": [
+          "enemy_logic_leaker",
+          "enemy_logic_leaker_idle_1"
+        ],
+        "fps": 8,
+        "loop": "once"
       },
       "attack": {
         "frames": [
-          "enemy_logic_leaker",
-          "enemy_logic_leaker_atk_1"
+          "enemy_logic_leaker_atk_1",
+          "enemy_logic_leaker"
         ],
-        "fps": 10,
+        "fps": 8,
         "loop": "once"
       },
       "hit": {
@@ -3433,7 +3585,7 @@
           "enemy_logic_leaker",
           "enemy_logic_leaker_atk_1"
         ],
-        "fps": 12,
+        "fps": 10,
         "loop": "once"
       }
     },
@@ -3441,18 +3593,25 @@
       "idle": {
         "frames": [
           "enemy_seed_eater",
-          "enemy_seed_eater_idle_1",
-          "enemy_seed_eater_atk_1"
+          "enemy_seed_eater_idle_1"
         ],
-        "fps": 5,
+        "fps": 4,
         "loop": "pingpong"
+      },
+      "move": {
+        "frames": [
+          "enemy_seed_eater",
+          "enemy_seed_eater_idle_1"
+        ],
+        "fps": 8,
+        "loop": "once"
       },
       "attack": {
         "frames": [
-          "enemy_seed_eater",
-          "enemy_seed_eater_atk_1"
+          "enemy_seed_eater_atk_1",
+          "enemy_seed_eater"
         ],
-        "fps": 10,
+        "fps": 8,
         "loop": "once"
       },
       "hit": {
@@ -3460,7 +3619,7 @@
           "enemy_seed_eater",
           "enemy_seed_eater_atk_1"
         ],
-        "fps": 12,
+        "fps": 10,
         "loop": "once"
       }
     },
@@ -3468,18 +3627,25 @@
       "idle": {
         "frames": [
           "enemy_system_admin",
-          "enemy_system_admin_idle_1",
-          "enemy_system_admin_atk_1"
+          "enemy_system_admin_idle_1"
         ],
-        "fps": 5,
+        "fps": 4,
         "loop": "pingpong"
+      },
+      "move": {
+        "frames": [
+          "enemy_system_admin",
+          "enemy_system_admin_idle_1"
+        ],
+        "fps": 8,
+        "loop": "once"
       },
       "attack": {
         "frames": [
-          "enemy_system_admin",
-          "enemy_system_admin_atk_1"
+          "enemy_system_admin_atk_1",
+          "enemy_system_admin"
         ],
-        "fps": 10,
+        "fps": 8,
         "loop": "once"
       },
       "hit": {
@@ -3487,7 +3653,7 @@
           "enemy_system_admin",
           "enemy_system_admin_atk_1"
         ],
-        "fps": 12,
+        "fps": 10,
         "loop": "once"
       }
     },
@@ -3503,9 +3669,46 @@
         ],
         "loop": "loop"
       },
+      "interact": {
+        "frames": [
+          "prop_workstation_n_anim_1",
+          "prop_workstation"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
       "searched": {
         "frames": [
           "prop_workstation"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_workstation_active": {
+      "idle": {
+        "frames": [
+          "prop_workstation_active",
+          "prop_workstation_n_anim_1"
+        ],
+        "frameDurationsMs": [
+          400,
+          400
+        ],
+        "loop": "loop"
+      },
+      "interact": {
+        "frames": [
+          "prop_workstation_n_anim_1",
+          "prop_workstation_active"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
+      "searched": {
+        "frames": [
+          "prop_workstation_active"
         ],
         "loop": "once"
       }
@@ -3521,6 +3724,15 @@
           400
         ],
         "loop": "loop"
+      },
+      "interact": {
+        "frames": [
+          "prop_workstation_n_anim_1",
+          "prop_workstation_n"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
       },
       "searched": {
         "frames": [
@@ -3541,6 +3753,15 @@
         ],
         "loop": "loop"
       },
+      "interact": {
+        "frames": [
+          "prop_workstation_e_anim_1",
+          "prop_workstation_e"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
       "searched": {
         "frames": [
           "prop_workstation_e"
@@ -3559,6 +3780,15 @@
           400
         ],
         "loop": "loop"
+      },
+      "interact": {
+        "frames": [
+          "prop_workstation_s_anim_1",
+          "prop_workstation_s"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
       },
       "searched": {
         "frames": [
@@ -3579,6 +3809,15 @@
         ],
         "loop": "loop"
       },
+      "interact": {
+        "frames": [
+          "prop_workstation_w_anim_1",
+          "prop_workstation_w"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
       "searched": {
         "frames": [
           "prop_workstation_w"
@@ -3595,6 +3834,15 @@
         ],
         "fps": 8,
         "loop": "loop"
+      },
+      "interact": {
+        "frames": [
+          "prop_cooling_vent",
+          "prop_cooling_vent_spin_1"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
       },
       "searched": {
         "frames": [
@@ -3613,6 +3861,15 @@
         "fps": 8,
         "loop": "loop"
       },
+      "interact": {
+        "frames": [
+          "prop_cooling_vent_ready",
+          "prop_cooling_vent_spin_1"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
       "searched": {
         "frames": [
           "prop_cooling_vent_ready"
@@ -3629,6 +3886,14 @@
         ],
         "fps": 5,
         "loop": "pingpong"
+      },
+      "interact": {
+        "frames": [
+          "prop_stabilizer",
+          "prop_stabilizer_pulse_1"
+        ],
+        "fps": 8,
+        "loop": "once"
       },
       "searched": {
         "frames": [
@@ -3647,10 +3912,37 @@
         "fps": 5,
         "loop": "pingpong"
       },
+      "interact": {
+        "frames": [
+          "prop_stabilizer_active",
+          "prop_stabilizer_pulse_1"
+        ],
+        "fps": 8,
+        "loop": "once"
+      },
       "searched": {
         "frames": [
           "prop_stabilizer_active"
         ],
+        "loop": "once"
+      }
+    },
+    "prop_stability_anchor": {
+      "idle": {
+        "frames": [
+          "anchor",
+          "anchor_pulse_1",
+          "anchor_pulse_2"
+        ],
+        "fps": 4,
+        "loop": "pingpong"
+      },
+      "interact": {
+        "frames": [
+          "anchor",
+          "anchor_pulse_1"
+        ],
+        "fps": 8,
         "loop": "once"
       }
     },
@@ -3663,6 +3955,14 @@
         ],
         "fps": 5,
         "loop": "loop"
+      },
+      "interact": {
+        "frames": [
+          "prop_cryo_vat",
+          "prop_cryo_vat_anim_1"
+        ],
+        "fps": 8,
+        "loop": "once"
       }
     },
     "prop_capacitor_bank": {
@@ -3674,6 +3974,14 @@
         ],
         "fps": 6,
         "loop": "pingpong"
+      },
+      "interact": {
+        "frames": [
+          "prop_capacitor_bank",
+          "prop_capacitor_bank_anim_1"
+        ],
+        "fps": 8,
+        "loop": "once"
       }
     },
     "prop_dead_drop": {
@@ -3687,6 +3995,15 @@
           250
         ],
         "loop": "loop"
+      },
+      "interact": {
+        "frames": [
+          "prop_dead_drop",
+          "prop_dead_drop_anim_1"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
       },
       "searched": {
         "frames": [
@@ -3707,6 +4024,15 @@
         ],
         "loop": "loop"
       },
+      "interact": {
+        "frames": [
+          "prop_dead_drop_ready",
+          "prop_dead_drop_anim_1"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
       "searched": {
         "frames": [
           "prop_dead_drop_ready"
@@ -3726,9 +4052,41 @@
         ],
         "loop": "loop"
       },
+      "interact": {
+        "frames": [
+          "prop_subnet_console",
+          "prop_subnet_console_anim_1"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
       "searched": {
         "frames": [
           "prop_subnet_console"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_safe": {
+      "idle": {
+        "frames": [
+          "prop_safe"
+        ],
+        "loop": "once"
+      },
+      "interact": {
+        "frames": [
+          "prop_safe_locked",
+          "prop_safe"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
+      "searched": {
+        "frames": [
+          "prop_safe"
         ],
         "loop": "once"
       }
@@ -3756,14 +4114,97 @@
         ],
         "loop": "loop"
       },
+      "interact": {
+        "frames": [
+          "prop_safe_locked",
+          "prop_safe"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
       "searched": {
         "frames": [
-          "prop_safe_locked"
+          "prop_safe"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_locker": {
+      "locked": {
+        "frames": [
+          "prop_locker"
+        ],
+        "loop": "once"
+      },
+      "idle": {
+        "frames": [
+          "prop_locker",
+          "prop_locker_blink_1"
+        ],
+        "frameDurationsMs": [
+          700,
+          200
+        ],
+        "loop": "loop"
+      },
+      "interact": {
+        "frames": [
+          "prop_locker",
+          "prop_locker_blink_1"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
+      "searched": {
+        "frames": [
+          "prop_locker"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_locker_closed": {
+      "locked": {
+        "frames": [
+          "prop_locker_closed"
+        ],
+        "loop": "once"
+      },
+      "idle": {
+        "frames": [
+          "prop_locker_closed",
+          "prop_locker_blink_1"
+        ],
+        "frameDurationsMs": [
+          700,
+          200
+        ],
+        "loop": "loop"
+      },
+      "interact": {
+        "frames": [
+          "prop_locker_closed",
+          "prop_locker_blink_1"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
+      "searched": {
+        "frames": [
+          "prop_locker_closed"
         ],
         "loop": "once"
       }
     },
     "prop_locker_n": {
+      "locked": {
+        "frames": [
+          "prop_locker_n"
+        ],
+        "loop": "once"
+      },
       "idle": {
         "frames": [
           "prop_locker_n",
@@ -3775,6 +4216,15 @@
         ],
         "loop": "loop"
       },
+      "interact": {
+        "frames": [
+          "prop_locker_n",
+          "prop_locker_blink_1"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
       "searched": {
         "frames": [
           "prop_locker_n"
@@ -3783,6 +4233,12 @@
       }
     },
     "prop_locker_e": {
+      "locked": {
+        "frames": [
+          "prop_locker_e"
+        ],
+        "loop": "once"
+      },
       "idle": {
         "frames": [
           "prop_locker_e",
@@ -3794,6 +4250,15 @@
         ],
         "loop": "loop"
       },
+      "interact": {
+        "frames": [
+          "prop_locker_e",
+          "prop_locker_blink_1"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
       "searched": {
         "frames": [
           "prop_locker_e"
@@ -3802,6 +4267,12 @@
       }
     },
     "prop_locker_s": {
+      "locked": {
+        "frames": [
+          "prop_locker_s"
+        ],
+        "loop": "once"
+      },
       "idle": {
         "frames": [
           "prop_locker_s",
@@ -3813,6 +4284,15 @@
         ],
         "loop": "loop"
       },
+      "interact": {
+        "frames": [
+          "prop_locker_s",
+          "prop_locker_blink_1"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
       "searched": {
         "frames": [
           "prop_locker_s"
@@ -3821,6 +4301,12 @@
       }
     },
     "prop_locker_w": {
+      "locked": {
+        "frames": [
+          "prop_locker_w"
+        ],
+        "loop": "once"
+      },
       "idle": {
         "frames": [
           "prop_locker_w",
@@ -3832,6 +4318,15 @@
         ],
         "loop": "loop"
       },
+      "interact": {
+        "frames": [
+          "prop_locker_w",
+          "prop_locker_blink_1"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
       "searched": {
         "frames": [
           "prop_locker_w"
@@ -3839,7 +4334,81 @@
         "loop": "once"
       }
     },
+    "prop_biocabinet": {
+      "locked": {
+        "frames": [
+          "prop_biocabinet"
+        ],
+        "loop": "once"
+      },
+      "idle": {
+        "frames": [
+          "prop_biocabinet",
+          "prop_biocabinet_blink_1"
+        ],
+        "frameDurationsMs": [
+          700,
+          200
+        ],
+        "loop": "loop"
+      },
+      "interact": {
+        "frames": [
+          "prop_biocabinet",
+          "prop_biocabinet_blink_1"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
+      "searched": {
+        "frames": [
+          "prop_biocabinet"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_biocabinet_full": {
+      "locked": {
+        "frames": [
+          "prop_biocabinet_full"
+        ],
+        "loop": "once"
+      },
+      "idle": {
+        "frames": [
+          "prop_biocabinet_full",
+          "prop_biocabinet_blink_1"
+        ],
+        "frameDurationsMs": [
+          700,
+          200
+        ],
+        "loop": "loop"
+      },
+      "interact": {
+        "frames": [
+          "prop_biocabinet_full",
+          "prop_biocabinet_blink_1"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
+      "searched": {
+        "frames": [
+          "prop_biocabinet_full"
+        ],
+        "loop": "once"
+      }
+    },
     "prop_biocabinet_n": {
+      "locked": {
+        "frames": [
+          "prop_biocabinet_n"
+        ],
+        "loop": "once"
+      },
       "idle": {
         "frames": [
           "prop_biocabinet_n",
@@ -3851,6 +4420,15 @@
         ],
         "loop": "loop"
       },
+      "interact": {
+        "frames": [
+          "prop_biocabinet_n",
+          "prop_biocabinet_blink_1"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
       "searched": {
         "frames": [
           "prop_biocabinet_n"
@@ -3859,6 +4437,12 @@
       }
     },
     "prop_biocabinet_e": {
+      "locked": {
+        "frames": [
+          "prop_biocabinet_e"
+        ],
+        "loop": "once"
+      },
       "idle": {
         "frames": [
           "prop_biocabinet_e",
@@ -3870,6 +4454,15 @@
         ],
         "loop": "loop"
       },
+      "interact": {
+        "frames": [
+          "prop_biocabinet_e",
+          "prop_biocabinet_blink_1"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
       "searched": {
         "frames": [
           "prop_biocabinet_e"
@@ -3878,6 +4471,12 @@
       }
     },
     "prop_biocabinet_s": {
+      "locked": {
+        "frames": [
+          "prop_biocabinet_s"
+        ],
+        "loop": "once"
+      },
       "idle": {
         "frames": [
           "prop_biocabinet_s",
@@ -3889,6 +4488,15 @@
         ],
         "loop": "loop"
       },
+      "interact": {
+        "frames": [
+          "prop_biocabinet_s",
+          "prop_biocabinet_blink_1"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
       "searched": {
         "frames": [
           "prop_biocabinet_s"
@@ -3897,6 +4505,12 @@
       }
     },
     "prop_biocabinet_w": {
+      "locked": {
+        "frames": [
+          "prop_biocabinet_w"
+        ],
+        "loop": "once"
+      },
       "idle": {
         "frames": [
           "prop_biocabinet_w",
@@ -3908,9 +4522,424 @@
         ],
         "loop": "loop"
       },
+      "interact": {
+        "frames": [
+          "prop_biocabinet_w",
+          "prop_biocabinet_blink_1"
+        ],
+        "fps": 8,
+        "loop": "once",
+        "nextState": "searched"
+      },
       "searched": {
         "frames": [
           "prop_biocabinet_w"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_vault_door": {
+      "locked": {
+        "frames": [
+          "prop_vault_door"
+        ],
+        "loop": "once"
+      },
+      "idle": {
+        "frames": [
+          "prop_vault_door"
+        ],
+        "loop": "once"
+      },
+      "interact": {
+        "frames": [
+          "prop_vault_door",
+          "prop_vault_door"
+        ],
+        "fps": 6,
+        "loop": "once",
+        "nextState": "open"
+      },
+      "open": {
+        "frames": [
+          "prop_vault_door"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_vault_door_locked": {
+      "locked": {
+        "frames": [
+          "prop_vault_door_locked"
+        ],
+        "loop": "once"
+      },
+      "idle": {
+        "frames": [
+          "prop_vault_door_locked"
+        ],
+        "loop": "once"
+      },
+      "interact": {
+        "frames": [
+          "prop_vault_door_locked",
+          "prop_vault_door"
+        ],
+        "fps": 6,
+        "loop": "once",
+        "nextState": "open"
+      },
+      "open": {
+        "frames": [
+          "prop_vault_door"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_vault_door_n": {
+      "locked": {
+        "frames": [
+          "prop_vault_door_n"
+        ],
+        "loop": "once"
+      },
+      "idle": {
+        "frames": [
+          "prop_vault_door_n"
+        ],
+        "loop": "once"
+      },
+      "interact": {
+        "frames": [
+          "prop_vault_door_n",
+          "prop_vault_door"
+        ],
+        "fps": 6,
+        "loop": "once",
+        "nextState": "open"
+      },
+      "open": {
+        "frames": [
+          "prop_vault_door"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_vault_door_e": {
+      "locked": {
+        "frames": [
+          "prop_vault_door_e"
+        ],
+        "loop": "once"
+      },
+      "idle": {
+        "frames": [
+          "prop_vault_door_e"
+        ],
+        "loop": "once"
+      },
+      "interact": {
+        "frames": [
+          "prop_vault_door_e",
+          "prop_vault_door"
+        ],
+        "fps": 6,
+        "loop": "once",
+        "nextState": "open"
+      },
+      "open": {
+        "frames": [
+          "prop_vault_door"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_vault_door_s": {
+      "locked": {
+        "frames": [
+          "prop_vault_door_s"
+        ],
+        "loop": "once"
+      },
+      "idle": {
+        "frames": [
+          "prop_vault_door_s"
+        ],
+        "loop": "once"
+      },
+      "interact": {
+        "frames": [
+          "prop_vault_door_s",
+          "prop_vault_door"
+        ],
+        "fps": 6,
+        "loop": "once",
+        "nextState": "open"
+      },
+      "open": {
+        "frames": [
+          "prop_vault_door"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_vault_door_w": {
+      "locked": {
+        "frames": [
+          "prop_vault_door_w"
+        ],
+        "loop": "once"
+      },
+      "idle": {
+        "frames": [
+          "prop_vault_door_w"
+        ],
+        "loop": "once"
+      },
+      "interact": {
+        "frames": [
+          "prop_vault_door_w",
+          "prop_vault_door"
+        ],
+        "fps": 6,
+        "loop": "once",
+        "nextState": "open"
+      },
+      "open": {
+        "frames": [
+          "prop_vault_door"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_vault_door_locked_n": {
+      "locked": {
+        "frames": [
+          "prop_vault_door_locked_n"
+        ],
+        "loop": "once"
+      },
+      "idle": {
+        "frames": [
+          "prop_vault_door_locked_n"
+        ],
+        "loop": "once"
+      },
+      "interact": {
+        "frames": [
+          "prop_vault_door_locked_n",
+          "prop_vault_door"
+        ],
+        "fps": 6,
+        "loop": "once",
+        "nextState": "open"
+      },
+      "open": {
+        "frames": [
+          "prop_vault_door"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_vault_door_locked_e": {
+      "locked": {
+        "frames": [
+          "prop_vault_door_locked_e"
+        ],
+        "loop": "once"
+      },
+      "idle": {
+        "frames": [
+          "prop_vault_door_locked_e"
+        ],
+        "loop": "once"
+      },
+      "interact": {
+        "frames": [
+          "prop_vault_door_locked_e",
+          "prop_vault_door"
+        ],
+        "fps": 6,
+        "loop": "once",
+        "nextState": "open"
+      },
+      "open": {
+        "frames": [
+          "prop_vault_door"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_vault_door_locked_s": {
+      "locked": {
+        "frames": [
+          "prop_vault_door_locked_s"
+        ],
+        "loop": "once"
+      },
+      "idle": {
+        "frames": [
+          "prop_vault_door_locked_s"
+        ],
+        "loop": "once"
+      },
+      "interact": {
+        "frames": [
+          "prop_vault_door_locked_s",
+          "prop_vault_door"
+        ],
+        "fps": 6,
+        "loop": "once",
+        "nextState": "open"
+      },
+      "open": {
+        "frames": [
+          "prop_vault_door"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_vault_door_locked_w": {
+      "locked": {
+        "frames": [
+          "prop_vault_door_locked_w"
+        ],
+        "loop": "once"
+      },
+      "idle": {
+        "frames": [
+          "prop_vault_door_locked_w"
+        ],
+        "loop": "once"
+      },
+      "interact": {
+        "frames": [
+          "prop_vault_door_locked_w",
+          "prop_vault_door"
+        ],
+        "fps": 6,
+        "loop": "once",
+        "nextState": "open"
+      },
+      "open": {
+        "frames": [
+          "prop_vault_door"
+        ],
+        "loop": "once"
+      }
+    },
+    "vault_door_locked_n": {
+      "locked": {
+        "frames": [
+          "vault_door_locked_n"
+        ],
+        "loop": "once"
+      },
+      "idle": {
+        "frames": [
+          "vault_door_locked_n"
+        ],
+        "loop": "once"
+      },
+      "interact": {
+        "frames": [
+          "vault_door_locked_n",
+          "prop_vault_door"
+        ],
+        "fps": 6,
+        "loop": "once",
+        "nextState": "open"
+      },
+      "open": {
+        "frames": [
+          "prop_vault_door"
+        ],
+        "loop": "once"
+      }
+    },
+    "vault_door_locked_e": {
+      "locked": {
+        "frames": [
+          "vault_door_locked_e"
+        ],
+        "loop": "once"
+      },
+      "idle": {
+        "frames": [
+          "vault_door_locked_e"
+        ],
+        "loop": "once"
+      },
+      "interact": {
+        "frames": [
+          "vault_door_locked_e",
+          "prop_vault_door"
+        ],
+        "fps": 6,
+        "loop": "once",
+        "nextState": "open"
+      },
+      "open": {
+        "frames": [
+          "prop_vault_door"
+        ],
+        "loop": "once"
+      }
+    },
+    "vault_door_locked_s": {
+      "locked": {
+        "frames": [
+          "vault_door_locked_s"
+        ],
+        "loop": "once"
+      },
+      "idle": {
+        "frames": [
+          "vault_door_locked_s"
+        ],
+        "loop": "once"
+      },
+      "interact": {
+        "frames": [
+          "vault_door_locked_s",
+          "prop_vault_door"
+        ],
+        "fps": 6,
+        "loop": "once",
+        "nextState": "open"
+      },
+      "open": {
+        "frames": [
+          "prop_vault_door"
+        ],
+        "loop": "once"
+      }
+    },
+    "vault_door_locked_w": {
+      "locked": {
+        "frames": [
+          "vault_door_locked_w"
+        ],
+        "loop": "once"
+      },
+      "idle": {
+        "frames": [
+          "vault_door_locked_w"
+        ],
+        "loop": "once"
+      },
+      "interact": {
+        "frames": [
+          "vault_door_locked_w",
+          "prop_vault_door"
+        ],
+        "fps": 6,
+        "loop": "once",
+        "nextState": "open"
+      },
+      "open": {
+        "frames": [
+          "prop_vault_door"
         ],
         "loop": "once"
       }

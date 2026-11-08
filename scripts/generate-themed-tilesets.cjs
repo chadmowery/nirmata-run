@@ -865,6 +865,8 @@ async function main() {
     // 4. Save companion JSON manifest matching tileset.json
     const themedJson = JSON.parse(JSON.stringify(baseJson));
     themedJson.meta.image = theme.filename;
+    themedJson.meta.themeId = theme.id;
+    themedJson.meta.themeName = theme.title;
     const outJsonPath = path.join(rootDir, 'public/assets', theme.jsonFilename);
     fs.writeFileSync(outJsonPath, JSON.stringify(themedJson, null, 2) + '\n');
     console.log(`- Saved JSON manifest to ${outJsonPath}`);

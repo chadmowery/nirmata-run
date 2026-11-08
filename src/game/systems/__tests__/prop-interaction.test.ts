@@ -23,6 +23,7 @@ import {
   RunInventory,
   RunCurrency,
   ActionAbortedTag,
+  SpriteComponent,
 } from '@shared/components';
 import { logger } from '@engine/utils/logger';
 import { AIBehavior, AIBehaviorType } from '@shared/components/ai-state';
@@ -612,6 +613,89 @@ describe('PropInteractionSystem & Bump-to-Loot Safeguards', () => {
       expect(fov.lastKnownPlayerY).toBe(15);
       const ai = world.getComponent(enemyId, AIState)!;
       expect(ai.behavior).toBe(AIBehavior.CHASING);
+    });
+
+    it('preserves directional orientation on unlocking vault doors and searching directional containers (HIGH-03)', () => {
+      const propSystem = createPropInteractionSystem(world, grid, eventBus, entityFactory, componentRegistry);
+      propSystem.init();
+
+      // 1. Directional Vault Door unlock
+      const doorId = world.createEntity();
+      world.addComponent(doorId, Position, { x: 5, y: 6 });
+      world.addComponent(doorId, Prop, { propId: 'door1', faction: 'system', propClass: 'vault_door', isSearched: false });
+      world.addComponent(doorId, SecurityLock, { isLocked: true });
+      world.addComponent(doorId, BlocksMovement, {});
+      world.addComponent(doorId, SpriteComponent, { key: 'vault_door_locked_e' });
+      grid.addEntity(doorId, 5, 6);
+
+      // Player unlocks door with key
+      world.patchComponent(playerId, FloorState, { accessKeysHeld: 1 });
+      world.addComponent(playerId, InteractPropIntent, {
+        targetPropId: doorId,
+        forceOverride: false,
+      });
+
+      world.executeSystems(Phase.ACTION);
+      eventBus.flush();
+
+      // Door should be unlocked, blocksMovement removed, orientation preserved as prop_vault_door_e
+      expect(world.getComponent(doorId, SecurityLock)?.isLocked).toBe(false);
+      expect(world.hasComponent(doorId, BlocksMovement)).toBe(false);
+      expect(world.getComponent(doorId, SpriteComponent)?.key).toBe('prop_vault_door_e');
+
+      // 2. Directional Locker search
+      const lockerId = world.createEntity();
+      world.addComponent(lockerId, Position, { x: 6, y: 5 });
+      world.addComponent(lockerId, Prop, { propId: 'locker1', faction: 'system', propClass: 'locker', isSearched: false });
+      world.addComponent(lockerId, Container, {
+        containerId: 'c_locker',
+        scrapYield: 10,
+        fluxYield: 0,
+        grantsAccessKey: false,
+        storedLoot: [],
+        itemEntityIds: [],
+      });
+      world.addComponent(lockerId, SpriteComponent, { key: 'prop_locker_s' });
+      grid.addEntity(lockerId, 6, 5);
+
+      world.addComponent(playerId, InteractPropIntent, {
+        targetPropId: lockerId,
+        forceOverride: false,
+      });
+
+      world.executeSystems(Phase.ACTION);
+      eventBus.flush();
+
+      expect(world.getComponent(lockerId, Prop)?.isSearched).toBe(true);
+      // Directional key preserved!
+      expect(world.getComponent(lockerId, SpriteComponent)?.key).toBe('prop_locker_s');
+
+      // 3. Non-directional Locker search
+      const baseLockerId = world.createEntity();
+      world.addComponent(baseLockerId, Position, { x: 5, y: 4 });
+      world.addComponent(baseLockerId, Prop, { propId: 'locker2', faction: 'system', propClass: 'locker', isSearched: false });
+      world.addComponent(baseLockerId, Container, {
+        containerId: 'c_locker2',
+        scrapYield: 10,
+        fluxYield: 0,
+        grantsAccessKey: false,
+        storedLoot: [],
+        itemEntityIds: [],
+      });
+      world.addComponent(baseLockerId, SpriteComponent, { key: 'prop_locker_closed' });
+      grid.addEntity(baseLockerId, 5, 4);
+
+      world.addComponent(playerId, InteractPropIntent, {
+        targetPropId: baseLockerId,
+        forceOverride: false,
+      });
+
+      world.executeSystems(Phase.ACTION);
+      eventBus.flush();
+
+      expect(world.getComponent(baseLockerId, Prop)?.isSearched).toBe(true);
+      // Non-directional template key updated to prop_locker
+      expect(world.getComponent(baseLockerId, SpriteComponent)?.key).toBe('prop_locker');
     });
   });
 });

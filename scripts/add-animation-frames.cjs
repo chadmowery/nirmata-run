@@ -22,19 +22,19 @@ async function main() {
     { key: 'player_idle_1', aliases: ['player_idle'], file: 'player_idle_1.png', x: 192, y: 384 },
     { key: 'player_atk_1', aliases: ['player_attack_1'], file: 'player_atk_1.png', x: 224, y: 384 },
     { key: 'enemy_null_pointer_idle_1', aliases: [], file: 'enemy_null_pointer_idle_1.png', x: 256, y: 384 },
-    { key: 'enemy_null_pointer_atk_1', aliases: ['enemy_null_pointer_idle_2'], file: 'enemy_null_pointer_atk_1.png', x: 288, y: 384 },
+    { key: 'enemy_null_pointer_atk_1', aliases: [], file: 'enemy_null_pointer_atk_1.png', x: 288, y: 384 },
     { key: 'enemy_buffer_overflow_idle_1', aliases: [], file: 'enemy_buffer_overflow_idle_1.png', x: 320, y: 384 },
-    { key: 'enemy_buffer_overflow_atk_1', aliases: ['enemy_buffer_overflow_idle_2'], file: 'enemy_buffer_overflow_atk_1.png', x: 352, y: 384 },
+    { key: 'enemy_buffer_overflow_atk_1', aliases: [], file: 'enemy_buffer_overflow_atk_1.png', x: 352, y: 384 },
     { key: 'enemy_fragmenter_idle_1', aliases: [], file: 'enemy_fragmenter_idle_1.png', x: 384, y: 384 },
-    { key: 'enemy_fragmenter_atk_1', aliases: ['enemy_fragmenter_idle_2'], file: 'enemy_fragmenter_atk_1.png', x: 416, y: 384 },
+    { key: 'enemy_fragmenter_atk_1', aliases: [], file: 'enemy_fragmenter_atk_1.png', x: 416, y: 384 },
     { key: 'enemy_logic_leaker_idle_1', aliases: [], file: 'enemy_logic_leaker_idle_1.png', x: 448, y: 384 },
-    { key: 'enemy_logic_leaker_atk_1', aliases: ['enemy_logic_leaker_idle_2'], file: 'enemy_logic_leaker_atk_1.png', x: 480, y: 384 },
+    { key: 'enemy_logic_leaker_atk_1', aliases: [], file: 'enemy_logic_leaker_atk_1.png', x: 480, y: 384 },
 
     // --- ROW 13 (y = 416): T3 Enemies, Workstations, Vent, Stabilizer, Cryo & Capacitor ---
     { key: 'enemy_seed_eater_idle_1', aliases: [], file: 'enemy_seed_eater_idle_1.png', x: 0, y: 416 },
-    { key: 'enemy_seed_eater_atk_1', aliases: ['enemy_seed_eater_idle_2'], file: 'enemy_seed_eater_atk_1.png', x: 32, y: 416 },
+    { key: 'enemy_seed_eater_atk_1', aliases: [], file: 'enemy_seed_eater_atk_1.png', x: 32, y: 416 },
     { key: 'enemy_system_admin_idle_1', aliases: [], file: 'enemy_system_admin_idle_1.png', x: 64, y: 416 },
-    { key: 'enemy_system_admin_atk_1', aliases: ['enemy_system_admin_idle_2'], file: 'enemy_system_admin_atk_1.png', x: 96, y: 416 },
+    { key: 'enemy_system_admin_atk_1', aliases: [], file: 'enemy_system_admin_atk_1.png', x: 96, y: 416 },
     { key: 'prop_workstation_n_anim_1', aliases: ['prop_workstation_anim_1'], file: 'prop_workstation_n_anim_1.png', x: 128, y: 416 },
     { key: 'prop_workstation_e_anim_1', aliases: [], file: 'prop_workstation_e_anim_1.png', x: 160, y: 416 },
     { key: 'prop_workstation_s_anim_1', aliases: [], file: 'prop_workstation_s_anim_1.png', x: 192, y: 416 },
@@ -108,6 +108,138 @@ async function main() {
     }
   }
 
+  // Register template compatibility aliases for vault doors and anchors in frames
+  if (tilesetJson.frames['prop_vault_door_locked_n']) {
+    tilesetJson.frames['vault_door_locked_n'] = tilesetJson.frames['prop_vault_door_locked_n'];
+    tilesetJson.frames['vault_door_locked_e'] = tilesetJson.frames['prop_vault_door_locked_e'];
+    tilesetJson.frames['vault_door_locked_s'] = tilesetJson.frames['prop_vault_door_locked_s'];
+    tilesetJson.frames['vault_door_locked_w'] = tilesetJson.frames['prop_vault_door_locked_w'];
+  }
+  if (tilesetJson.frames['anchor']) {
+    tilesetJson.frames['prop_stability_anchor'] = tilesetJson.frames['anchor'];
+  }
+
+  // Helper to build workstation animation entry
+  function makeWorkstationAnim(baseKey, animKey) {
+    return {
+      idle: {
+        frames: [baseKey, animKey],
+        frameDurationsMs: [400, 400],
+        loop: 'loop',
+      },
+      interact: {
+        frames: [animKey, baseKey],
+        fps: 8,
+        loop: 'once',
+        nextState: 'searched',
+      },
+      searched: {
+        frames: [baseKey],
+        loop: 'once',
+      },
+    };
+  }
+
+  // Helper to build locker animation entry
+  function makeLockerAnim(baseKey) {
+    return {
+      locked: {
+        frames: [baseKey],
+        loop: 'once',
+      },
+      idle: {
+        frames: [baseKey, 'prop_locker_blink_1'],
+        frameDurationsMs: [700, 200],
+        loop: 'loop',
+      },
+      interact: {
+        frames: [baseKey, 'prop_locker_blink_1'],
+        fps: 8,
+        loop: 'once',
+        nextState: 'searched',
+      },
+      searched: {
+        frames: [baseKey],
+        loop: 'once',
+      },
+    };
+  }
+
+  // Helper to build biocabinet animation entry
+  function makeBiocabinetAnim(baseKey) {
+    return {
+      locked: {
+        frames: [baseKey],
+        loop: 'once',
+      },
+      idle: {
+        frames: [baseKey, 'prop_biocabinet_blink_1'],
+        frameDurationsMs: [700, 200],
+        loop: 'loop',
+      },
+      interact: {
+        frames: [baseKey, 'prop_biocabinet_blink_1'],
+        fps: 8,
+        loop: 'once',
+        nextState: 'searched',
+      },
+      searched: {
+        frames: [baseKey],
+        loop: 'once',
+      },
+    };
+  }
+
+  // Helper to build vault door animation entry
+  function makeVaultDoorAnim(baseKey) {
+    return {
+      locked: {
+        frames: [baseKey],
+        loop: 'once',
+      },
+      idle: {
+        frames: [baseKey],
+        loop: 'once',
+      },
+      interact: {
+        frames: [baseKey, 'prop_vault_door'],
+        fps: 6,
+        loop: 'once',
+        nextState: 'open',
+      },
+      open: {
+        frames: ['prop_vault_door'],
+        loop: 'once',
+      },
+    };
+  }
+
+  // Helper to build enemy animation entry
+  function makeEnemyAnim(enemyKey) {
+    return {
+      idle: {
+        frames: [enemyKey, `${enemyKey}_idle_1`],
+        fps: 4,
+        loop: 'pingpong',
+      },
+      move: {
+        frames: [enemyKey, `${enemyKey}_idle_1`],
+        fps: 8,
+        loop: 'once',
+      },
+      attack: {
+        frames: [`${enemyKey}_atk_1`, enemyKey],
+        fps: 8,
+        loop: 'once',
+      },
+      hit: {
+        frames: [enemyKey, `${enemyKey}_atk_1`],
+        fps: 10,
+        loop: 'once',
+      },
+    };
+  }
+
   // Construct animations dictionary
   tilesetJson.animations = {
     // Player Shells
@@ -128,6 +260,11 @@ async function main() {
         frameDurationsMs: [110, 60],
         loop: 'once',
       },
+      interact: {
+        frames: ['player_vanguard', 'player_vanguard_idle_1'],
+        fps: 8,
+        loop: 'once',
+      },
     },
     player_bastion: {
       idle: {
@@ -144,6 +281,11 @@ async function main() {
       attack: {
         frames: ['player_bastion_atk_1', 'player_bastion'],
         frameDurationsMs: [110, 60],
+        loop: 'once',
+      },
+      interact: {
+        frames: ['player_bastion', 'player_bastion_idle_1'],
+        fps: 8,
         loop: 'once',
       },
     },
@@ -164,6 +306,11 @@ async function main() {
         frameDurationsMs: [110, 60],
         loop: 'once',
       },
+      interact: {
+        frames: ['player_ghost', 'player_ghost_idle_1'],
+        fps: 8,
+        loop: 'once',
+      },
     },
     player: {
       idle: {
@@ -182,168 +329,28 @@ async function main() {
         frameDurationsMs: [110, 60],
         loop: 'once',
       },
-    },
-
-    // Enemies (T1..T3)
-    enemy_null_pointer: {
-      idle: {
-        frames: ['enemy_null_pointer', 'enemy_null_pointer_idle_1', 'enemy_null_pointer_atk_1'],
-        fps: 5,
-        loop: 'pingpong',
-      },
-      attack: {
-        frames: ['enemy_null_pointer', 'enemy_null_pointer_atk_1'],
-        fps: 10,
-        loop: 'once',
-      },
-      hit: {
-        frames: ['enemy_null_pointer', 'enemy_null_pointer_atk_1'],
-        fps: 12,
-        loop: 'once',
-      },
-    },
-    enemy_buffer_overflow: {
-      idle: {
-        frames: ['enemy_buffer_overflow', 'enemy_buffer_overflow_idle_1', 'enemy_buffer_overflow_atk_1'],
-        fps: 5,
-        loop: 'pingpong',
-      },
-      attack: {
-        frames: ['enemy_buffer_overflow', 'enemy_buffer_overflow_atk_1'],
-        fps: 10,
-        loop: 'once',
-      },
-      hit: {
-        frames: ['enemy_buffer_overflow', 'enemy_buffer_overflow_atk_1'],
-        fps: 12,
-        loop: 'once',
-      },
-    },
-    enemy_fragmenter: {
-      idle: {
-        frames: ['enemy_fragmenter', 'enemy_fragmenter_idle_1', 'enemy_fragmenter_atk_1'],
-        fps: 5,
-        loop: 'pingpong',
-      },
-      attack: {
-        frames: ['enemy_fragmenter', 'enemy_fragmenter_atk_1'],
-        fps: 10,
-        loop: 'once',
-      },
-      hit: {
-        frames: ['enemy_fragmenter', 'enemy_fragmenter_atk_1'],
-        fps: 12,
-        loop: 'once',
-      },
-    },
-    enemy_logic_leaker: {
-      idle: {
-        frames: ['enemy_logic_leaker', 'enemy_logic_leaker_idle_1', 'enemy_logic_leaker_atk_1'],
-        fps: 5,
-        loop: 'pingpong',
-      },
-      attack: {
-        frames: ['enemy_logic_leaker', 'enemy_logic_leaker_atk_1'],
-        fps: 10,
-        loop: 'once',
-      },
-      hit: {
-        frames: ['enemy_logic_leaker', 'enemy_logic_leaker_atk_1'],
-        fps: 12,
-        loop: 'once',
-      },
-    },
-    enemy_seed_eater: {
-      idle: {
-        frames: ['enemy_seed_eater', 'enemy_seed_eater_idle_1', 'enemy_seed_eater_atk_1'],
-        fps: 5,
-        loop: 'pingpong',
-      },
-      attack: {
-        frames: ['enemy_seed_eater', 'enemy_seed_eater_atk_1'],
-        fps: 10,
-        loop: 'once',
-      },
-      hit: {
-        frames: ['enemy_seed_eater', 'enemy_seed_eater_atk_1'],
-        fps: 12,
-        loop: 'once',
-      },
-    },
-    enemy_system_admin: {
-      idle: {
-        frames: ['enemy_system_admin', 'enemy_system_admin_idle_1', 'enemy_system_admin_atk_1'],
-        fps: 5,
-        loop: 'pingpong',
-      },
-      attack: {
-        frames: ['enemy_system_admin', 'enemy_system_admin_atk_1'],
-        fps: 10,
-        loop: 'once',
-      },
-      hit: {
-        frames: ['enemy_system_admin', 'enemy_system_admin_atk_1'],
-        fps: 12,
+      interact: {
+        frames: ['player', 'player_idle_1'],
+        fps: 8,
         loop: 'once',
       },
     },
 
-    // Workstations
-    prop_workstation: {
-      idle: {
-        frames: ['prop_workstation', 'prop_workstation_n_anim_1'],
-        frameDurationsMs: [400, 400],
-        loop: 'loop',
-      },
-      searched: {
-        frames: ['prop_workstation'],
-        loop: 'once',
-      },
-    },
-    prop_workstation_n: {
-      idle: {
-        frames: ['prop_workstation_n', 'prop_workstation_n_anim_1'],
-        frameDurationsMs: [400, 400],
-        loop: 'loop',
-      },
-      searched: {
-        frames: ['prop_workstation_n'],
-        loop: 'once',
-      },
-    },
-    prop_workstation_e: {
-      idle: {
-        frames: ['prop_workstation_e', 'prop_workstation_e_anim_1'],
-        frameDurationsMs: [400, 400],
-        loop: 'loop',
-      },
-      searched: {
-        frames: ['prop_workstation_e'],
-        loop: 'once',
-      },
-    },
-    prop_workstation_s: {
-      idle: {
-        frames: ['prop_workstation_s', 'prop_workstation_s_anim_1'],
-        frameDurationsMs: [400, 400],
-        loop: 'loop',
-      },
-      searched: {
-        frames: ['prop_workstation_s'],
-        loop: 'once',
-      },
-    },
-    prop_workstation_w: {
-      idle: {
-        frames: ['prop_workstation_w', 'prop_workstation_w_anim_1'],
-        frameDurationsMs: [400, 400],
-        loop: 'loop',
-      },
-      searched: {
-        frames: ['prop_workstation_w'],
-        loop: 'once',
-      },
-    },
+    // Enemies (T1..T3) — subtle ambient idle loops and dedicated move clips
+    enemy_null_pointer: makeEnemyAnim('enemy_null_pointer'),
+    enemy_buffer_overflow: makeEnemyAnim('enemy_buffer_overflow'),
+    enemy_fragmenter: makeEnemyAnim('enemy_fragmenter'),
+    enemy_logic_leaker: makeEnemyAnim('enemy_logic_leaker'),
+    enemy_seed_eater: makeEnemyAnim('enemy_seed_eater'),
+    enemy_system_admin: makeEnemyAnim('enemy_system_admin'),
+
+    // Workstations (base, active template, and directional variants)
+    prop_workstation: makeWorkstationAnim('prop_workstation', 'prop_workstation_n_anim_1'),
+    prop_workstation_active: makeWorkstationAnim('prop_workstation_active', 'prop_workstation_n_anim_1'),
+    prop_workstation_n: makeWorkstationAnim('prop_workstation_n', 'prop_workstation_n_anim_1'),
+    prop_workstation_e: makeWorkstationAnim('prop_workstation_e', 'prop_workstation_e_anim_1'),
+    prop_workstation_s: makeWorkstationAnim('prop_workstation_s', 'prop_workstation_s_anim_1'),
+    prop_workstation_w: makeWorkstationAnim('prop_workstation_w', 'prop_workstation_w_anim_1'),
 
     // Cooling Vent
     prop_cooling_vent: {
@@ -351,6 +358,12 @@ async function main() {
         frames: ['prop_cooling_vent', 'prop_cooling_vent_spin_1', 'prop_cooling_vent_spin_2'],
         fps: 8,
         loop: 'loop',
+      },
+      interact: {
+        frames: ['prop_cooling_vent', 'prop_cooling_vent_spin_1'],
+        fps: 8,
+        loop: 'once',
+        nextState: 'searched',
       },
       searched: {
         frames: ['prop_cooling_vent'],
@@ -363,18 +376,29 @@ async function main() {
         fps: 8,
         loop: 'loop',
       },
+      interact: {
+        frames: ['prop_cooling_vent_ready', 'prop_cooling_vent_spin_1'],
+        fps: 8,
+        loop: 'once',
+        nextState: 'searched',
+      },
       searched: {
         frames: ['prop_cooling_vent_ready'],
         loop: 'once',
       },
     },
 
-    // Reality Stabilizer
+    // Reality Stabilizer & Stability Anchor
     prop_stabilizer: {
       idle: {
         frames: ['prop_stabilizer', 'prop_stabilizer_pulse_1', 'prop_stabilizer_pulse_2'],
         fps: 5,
         loop: 'pingpong',
+      },
+      interact: {
+        frames: ['prop_stabilizer', 'prop_stabilizer_pulse_1'],
+        fps: 8,
+        loop: 'once',
       },
       searched: {
         frames: ['prop_stabilizer'],
@@ -387,8 +411,25 @@ async function main() {
         fps: 5,
         loop: 'pingpong',
       },
+      interact: {
+        frames: ['prop_stabilizer_active', 'prop_stabilizer_pulse_1'],
+        fps: 8,
+        loop: 'once',
+      },
       searched: {
         frames: ['prop_stabilizer_active'],
+        loop: 'once',
+      },
+    },
+    prop_stability_anchor: {
+      idle: {
+        frames: ['anchor', 'anchor_pulse_1', 'anchor_pulse_2'],
+        fps: 4,
+        loop: 'pingpong',
+      },
+      interact: {
+        frames: ['anchor', 'anchor_pulse_1'],
+        fps: 8,
         loop: 'once',
       },
     },
@@ -400,12 +441,22 @@ async function main() {
         fps: 5,
         loop: 'loop',
       },
+      interact: {
+        frames: ['prop_cryo_vat', 'prop_cryo_vat_anim_1'],
+        fps: 8,
+        loop: 'once',
+      },
     },
     prop_capacitor_bank: {
       idle: {
         frames: ['prop_capacitor_bank', 'prop_capacitor_bank_anim_1', 'prop_capacitor_bank_anim_2'],
         fps: 6,
         loop: 'pingpong',
+      },
+      interact: {
+        frames: ['prop_capacitor_bank', 'prop_capacitor_bank_anim_1'],
+        fps: 8,
+        loop: 'once',
       },
     },
 
@@ -415,6 +466,12 @@ async function main() {
         frames: ['prop_dead_drop', 'prop_dead_drop_anim_1'],
         frameDurationsMs: [500, 250],
         loop: 'loop',
+      },
+      interact: {
+        frames: ['prop_dead_drop', 'prop_dead_drop_anim_1'],
+        fps: 8,
+        loop: 'once',
+        nextState: 'searched',
       },
       searched: {
         frames: ['prop_dead_drop'],
@@ -427,6 +484,12 @@ async function main() {
         frameDurationsMs: [500, 250],
         loop: 'loop',
       },
+      interact: {
+        frames: ['prop_dead_drop_ready', 'prop_dead_drop_anim_1'],
+        fps: 8,
+        loop: 'once',
+        nextState: 'searched',
+      },
       searched: {
         frames: ['prop_dead_drop_ready'],
         loop: 'once',
@@ -438,13 +501,35 @@ async function main() {
         frameDurationsMs: [500, 250],
         loop: 'loop',
       },
+      interact: {
+        frames: ['prop_subnet_console', 'prop_subnet_console_anim_1'],
+        fps: 8,
+        loop: 'once',
+        nextState: 'searched',
+      },
       searched: {
         frames: ['prop_subnet_console'],
         loop: 'once',
       },
     },
 
-    // Safes & Lockers
+    // Safes
+    prop_safe: {
+      idle: {
+        frames: ['prop_safe'],
+        loop: 'once',
+      },
+      interact: {
+        frames: ['prop_safe_locked', 'prop_safe'],
+        fps: 8,
+        loop: 'once',
+        nextState: 'searched',
+      },
+      searched: {
+        frames: ['prop_safe'],
+        loop: 'once',
+      },
+    },
     prop_safe_locked: {
       locked: {
         frames: ['prop_safe_locked', 'prop_safe_locked_blink_1'],
@@ -456,99 +541,49 @@ async function main() {
         frameDurationsMs: [700, 200],
         loop: 'loop',
       },
+      interact: {
+        frames: ['prop_safe_locked', 'prop_safe'],
+        fps: 8,
+        loop: 'once',
+        nextState: 'searched',
+      },
       searched: {
-        frames: ['prop_safe_locked'],
+        frames: ['prop_safe'],
         loop: 'once',
       },
     },
-    prop_locker_n: {
-      idle: {
-        frames: ['prop_locker_n', 'prop_locker_blink_1'],
-        frameDurationsMs: [700, 200],
-        loop: 'loop',
-      },
-      searched: {
-        frames: ['prop_locker_n'],
-        loop: 'once',
-      },
-    },
-    prop_locker_e: {
-      idle: {
-        frames: ['prop_locker_e', 'prop_locker_blink_1'],
-        frameDurationsMs: [700, 200],
-        loop: 'loop',
-      },
-      searched: {
-        frames: ['prop_locker_e'],
-        loop: 'once',
-      },
-    },
-    prop_locker_s: {
-      idle: {
-        frames: ['prop_locker_s', 'prop_locker_blink_1'],
-        frameDurationsMs: [700, 200],
-        loop: 'loop',
-      },
-      searched: {
-        frames: ['prop_locker_s'],
-        loop: 'once',
-      },
-    },
-    prop_locker_w: {
-      idle: {
-        frames: ['prop_locker_w', 'prop_locker_blink_1'],
-        frameDurationsMs: [700, 200],
-        loop: 'loop',
-      },
-      searched: {
-        frames: ['prop_locker_w'],
-        loop: 'once',
-      },
-    },
-    prop_biocabinet_n: {
-      idle: {
-        frames: ['prop_biocabinet_n', 'prop_biocabinet_blink_1'],
-        frameDurationsMs: [700, 200],
-        loop: 'loop',
-      },
-      searched: {
-        frames: ['prop_biocabinet_n'],
-        loop: 'once',
-      },
-    },
-    prop_biocabinet_e: {
-      idle: {
-        frames: ['prop_biocabinet_e', 'prop_biocabinet_blink_1'],
-        frameDurationsMs: [700, 200],
-        loop: 'loop',
-      },
-      searched: {
-        frames: ['prop_biocabinet_e'],
-        loop: 'once',
-      },
-    },
-    prop_biocabinet_s: {
-      idle: {
-        frames: ['prop_biocabinet_s', 'prop_biocabinet_blink_1'],
-        frameDurationsMs: [700, 200],
-        loop: 'loop',
-      },
-      searched: {
-        frames: ['prop_biocabinet_s'],
-        loop: 'once',
-      },
-    },
-    prop_biocabinet_w: {
-      idle: {
-        frames: ['prop_biocabinet_w', 'prop_biocabinet_blink_1'],
-        frameDurationsMs: [700, 200],
-        loop: 'loop',
-      },
-      searched: {
-        frames: ['prop_biocabinet_w'],
-        loop: 'once',
-      },
-    },
+
+    // Lockers (base, closed template, and directional variants)
+    prop_locker: makeLockerAnim('prop_locker'),
+    prop_locker_closed: makeLockerAnim('prop_locker_closed'),
+    prop_locker_n: makeLockerAnim('prop_locker_n'),
+    prop_locker_e: makeLockerAnim('prop_locker_e'),
+    prop_locker_s: makeLockerAnim('prop_locker_s'),
+    prop_locker_w: makeLockerAnim('prop_locker_w'),
+
+    // Bio-Cabinets (base, full template, and directional variants)
+    prop_biocabinet: makeBiocabinetAnim('prop_biocabinet'),
+    prop_biocabinet_full: makeBiocabinetAnim('prop_biocabinet_full'),
+    prop_biocabinet_n: makeBiocabinetAnim('prop_biocabinet_n'),
+    prop_biocabinet_e: makeBiocabinetAnim('prop_biocabinet_e'),
+    prop_biocabinet_s: makeBiocabinetAnim('prop_biocabinet_s'),
+    prop_biocabinet_w: makeBiocabinetAnim('prop_biocabinet_w'),
+
+    // Vault Doors (base, locked template, and directional variants)
+    prop_vault_door: makeVaultDoorAnim('prop_vault_door'),
+    prop_vault_door_locked: makeVaultDoorAnim('prop_vault_door_locked'),
+    prop_vault_door_n: makeVaultDoorAnim('prop_vault_door_n'),
+    prop_vault_door_e: makeVaultDoorAnim('prop_vault_door_e'),
+    prop_vault_door_s: makeVaultDoorAnim('prop_vault_door_s'),
+    prop_vault_door_w: makeVaultDoorAnim('prop_vault_door_w'),
+    prop_vault_door_locked_n: makeVaultDoorAnim('prop_vault_door_locked_n'),
+    prop_vault_door_locked_e: makeVaultDoorAnim('prop_vault_door_locked_e'),
+    prop_vault_door_locked_s: makeVaultDoorAnim('prop_vault_door_locked_s'),
+    prop_vault_door_locked_w: makeVaultDoorAnim('prop_vault_door_locked_w'),
+    vault_door_locked_n: makeVaultDoorAnim('vault_door_locked_n'),
+    vault_door_locked_e: makeVaultDoorAnim('vault_door_locked_e'),
+    vault_door_locked_s: makeVaultDoorAnim('vault_door_locked_s'),
+    vault_door_locked_w: makeVaultDoorAnim('vault_door_locked_w'),
 
     // World Fixtures
     anchor: {
