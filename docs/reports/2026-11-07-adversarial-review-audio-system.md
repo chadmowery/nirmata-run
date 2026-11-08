@@ -277,6 +277,17 @@ this.audioEngine.setAmbianceState({
 2. **`isPaused` Ducking Is Never Triggered**:
    Although `AmbianceState.isPaused` is handled in `AudioEngine.setAmbianceState()` and required by [`docs/design/AUDIO-SYSTEM.md` §5.2.3](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/docs/design/AUDIO-SYSTEM.md#L406-L410), nothing in the codebase ever calls `setAmbianceState({ isPaused: true })` when entering `GameState.Paused` (`AbortMissionDialog`) or opening `SystemSettingsModal`.
 
+#### Resolution
+- In `src/app/page.tsx`:
+  - Reset `audioEngine.setAmbianceState({ heatTier: 0, sectorCondition: null, isAnchorDucked: false, isPaused: false, cutoffMultiplier: 1.0, resonanceQ: 1.0 })` whenever entering `GameState.MainMenu` or `GameState.Hub`, ensuring clean wide-open audio filters without carry-over from prior runs.
+  - Added an effect ducking ambiance (`isPaused: true`) when `status === GameState.Paused` and restoring (`isPaused: false`) when returning to `GameState.Playing`.
+- In `src/game/audio/game-audio-system.ts`:
+  - Subscribed to `STATE_TRANSITION` events on `eventBus` to automatically duck ambiance when `newState === GameState.Paused` and un-duck on `GameState.Playing`.
+  - Added full ambiance DSP reset in `destroy()` on run completion/teardown.
+- In `src/components/ui/AbortMissionDialog.tsx` & `src/components/ui/SystemSettingsModal.tsx`:
+  - Added lifecycle hooks calling `getAudioEngine().setAmbianceState({ isPaused: true })` while open and restoring on close/unmount (with state checks to preserve ducking if another pause dialog remains open).
+- Added unit tests across `src/engine/audio/__tests__/audio-engine.test.ts`, `src/game/audio/__tests__/game-audio-system.test.ts`, `src/components/ui/__tests__/AbortMissionDialog.test.tsx`, and `src/components/ui/__tests__/SystemSettingsModal.test.tsx` validating pause ducking transitions, modal lifecycle ducking, and hub/menu filter restoration.
+
 ---
 
 ### 2.8 `AUD-REV-08`: 8 Canonical Sound Cues Are Never Triggered (P1)

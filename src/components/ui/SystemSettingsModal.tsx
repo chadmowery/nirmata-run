@@ -3,6 +3,8 @@
 import React, { useEffect, useCallback } from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
+import { getAudioEngine } from '@engine/audio';
+import { GameState } from '@/game/states/types';
 import { TaikokuPlacard, BtnLever } from './atomic';
 import { AudioSettingsPanel } from './AudioSettingsPanel';
 import styles from './SystemSettingsModal.module.css';
@@ -14,6 +16,19 @@ export const SystemSettingsModal: React.FC = () => {
   const handleClose = useCallback(() => {
     setVisible(false);
   }, [setVisible]);
+
+  // Pause ducking for ambiance while settings modal is open
+  useEffect(() => {
+    if (!visible) return;
+    getAudioEngine().setAmbianceState({ isPaused: true });
+    return () => {
+      const state = gameStore.getState();
+      const stillPaused = state.gameStatus === GameState.Paused || state.abortDialogVisible;
+      if (!stillPaused) {
+        getAudioEngine().setAmbianceState({ isPaused: false });
+      }
+    };
+  }, [visible]);
 
   useEffect(() => {
     if (!visible) return;

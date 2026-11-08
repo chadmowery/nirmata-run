@@ -278,6 +278,29 @@ describe('AudioEngine', () => {
     engine.setAmbianceState({ isAnchorDucked: true });
     expect(filter.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(350, expect.any(Number));
 
+    // Pause ducking with custom pauseMenuCutoffHz
+    engine.setAmbianceState({
+      isAnchorDucked: false,
+      isPaused: true,
+      pauseMenuCutoffHz: 420,
+    });
+    expect(filter.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(420, expect.any(Number));
+
+    // Resetting ambiance DSP state for Hub / Main Menu restores pristine normal cutoff and Q
+    engine.setAmbianceState({
+      heatTier: 0,
+      sectorCondition: null,
+      isAnchorDucked: false,
+      isPaused: false,
+      cutoffMultiplier: 1.0,
+      resonanceQ: 1.0,
+    });
+    expect(filter.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(
+      DEFAULT_AMBIANCE_CUTOFF_NORMAL,
+      expect.any(Number),
+    );
+    expect(filter.Q.linearRampToValueAtTime).toHaveBeenCalledWith(1.0, expect.any(Number));
+
     engine.destroy();
   });
 

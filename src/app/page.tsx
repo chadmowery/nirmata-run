@@ -252,6 +252,16 @@ export default function GamePage() {
     }
 
     const engine = getAudioEngine();
+    // Reset ambiance DSP state when entering MainMenu or Hub to avoid stuck low-pass or distortion
+    engine.setAmbianceState({
+      heatTier: 0,
+      sectorCondition: null,
+      isAnchorDucked: false,
+      isPaused: false,
+      cutoffMultiplier: 1.0,
+      resonanceQ: 1.0,
+    });
+
     if (!('playAmbianceCue' in engine)) return;
     const clientEngine = engine as AudioEngine;
 
@@ -293,6 +303,15 @@ export default function GamePage() {
     };
 
     syncAndPlay();
+  }, [status]);
+
+  // Effect 4b: Ambiance ducking when gameStatus enters or leaves Paused state
+  useEffect(() => {
+    if (status === GameState.Paused) {
+      getAudioEngine().setAmbianceState({ isPaused: true });
+    } else if (status === GameState.Playing) {
+      getAudioEngine().setAmbianceState({ isPaused: false });
+    }
   }, [status]);
 
   // Effect 5: Autoplay unlock on first user gesture

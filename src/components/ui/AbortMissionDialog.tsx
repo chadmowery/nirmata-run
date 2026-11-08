@@ -7,6 +7,8 @@ import { dispatchUIAction } from '@/game/input/input-bridge';
 import { GameAction } from '@/game/input/actions';
 import { getActiveGameContext } from '@/game/active-context';
 import { Dying } from '@shared/components';
+import { getAudioEngine } from '@engine/audio';
+import { GameState } from '@/game/states/types';
 import { TaikokuPlacard, BtnLever } from './atomic';
 import { AudioSettingsPanel } from './AudioSettingsPanel';
 import styles from './AbortMissionDialog.module.css';
@@ -57,6 +59,18 @@ export const AbortMissionDialog: React.FC<AbortMissionDialogProps> = ({
       console.error('[AbortMissionDialog] Failed to abort run:', err);
     }
   }, [onConfirmAbort, setAbortDialogVisible]);
+
+  // Pause ducking for ambiance while abort/pause dialog is open
+  useEffect(() => {
+    getAudioEngine().setAmbianceState({ isPaused: true });
+    return () => {
+      const state = gameStore.getState();
+      const stillPaused = state.gameStatus === GameState.Paused || state.systemSettingsModalVisible;
+      if (!stillPaused) {
+        getAudioEngine().setAmbianceState({ isPaused: false });
+      }
+    };
+  }, []);
 
   // Handle ESC key to dismiss abort dialog and resume game
   useEffect(() => {

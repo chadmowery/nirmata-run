@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { World } from '@engine/ecs/world';
 import { EventBus } from '@engine/events/event-bus';
 import { GameEvents } from '@game/events/types';
+import { GameState } from '@game/states/types';
 import { Grid } from '@engine/grid/grid';
 import { EventOriginContext } from '@engine/utils/event-context';
 import { Position, Shell, AudioProfile, AmbientEmitter, Prop, FloorState, CorruptedNode } from '@shared/components';
@@ -288,6 +289,34 @@ describe('GameAudioSystem Bridge', () => {
     expect(mockAudioEngine.setAmbianceState).toHaveBeenCalledWith({ isAnchorDucked: false });
 
     audioSystem.destroy();
+  });
+
+  it('ducks ambiance on STATE_TRANSITION to Paused and restores on Playing, and resets on destroy', () => {
+    const audioSystem = createGameAudioSystem({
+      world,
+      eventBus,
+      getPlayerEntity: () => playerId,
+      getGrid: () => grid,
+      audioEngine: mockAudioEngine,
+    });
+
+    eventBus.emit('STATE_TRANSITION', { newState: GameState.Paused });
+    eventBus.flush();
+    expect(mockAudioEngine.setAmbianceState).toHaveBeenCalledWith({ isPaused: true });
+
+    eventBus.emit('STATE_TRANSITION', { newState: GameState.Playing });
+    eventBus.flush();
+    expect(mockAudioEngine.setAmbianceState).toHaveBeenCalledWith({ isPaused: false });
+
+    audioSystem.destroy();
+    expect(mockAudioEngine.setAmbianceState).toHaveBeenCalledWith({
+      heatTier: 0,
+      sectorCondition: null,
+      isAnchorDucked: false,
+      isPaused: false,
+      cutoffMultiplier: 1.0,
+      resonanceQ: 1.0,
+    });
   });
 
   it('triggers kernel panic alarm when heat exceeds maxSafe', () => {

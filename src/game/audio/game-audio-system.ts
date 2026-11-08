@@ -8,6 +8,7 @@ import { World } from '@engine/ecs/world';
 import { EntityId } from '@engine/ecs/types';
 import { EventBus } from '@engine/events/event-bus';
 import { GameEvents } from '@game/events/types';
+import { GameState } from '@game/states/types';
 import { Grid } from '@engine/grid/grid';
 import { EventOriginContext } from '@engine/utils/event-context';
 import {
@@ -569,6 +570,15 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
     updateAmbientEmitters();
   });
 
+  // 14. Pause & Game State Ambiance Ducking
+  subscribe('STATE_TRANSITION', (payload) => {
+    if (payload.newState === GameState.Paused) {
+      audioEngine.setAmbianceState({ isPaused: true });
+    } else if (payload.newState === GameState.Playing) {
+      audioEngine.setAmbianceState({ isPaused: false });
+    }
+  });
+
   return {
     destroy: () => {
       for (const unsub of unsubs) {
@@ -586,6 +596,14 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
       positionCache.clear();
       activeEmitters.clear();
       dedup.clear();
+      audioEngine.setAmbianceState({
+        heatTier: 0,
+        sectorCondition: null,
+        isAnchorDucked: false,
+        isPaused: false,
+        cutoffMultiplier: 1.0,
+        resonanceQ: 1.0,
+      });
     },
     updateAmbianceForFloor,
   };

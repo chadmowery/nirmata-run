@@ -1,7 +1,8 @@
 import React from 'react';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { gameStore } from '@/game/ui/store';
+import { getAudioEngine } from '@engine/audio';
 import { SystemSettingsModal } from '../SystemSettingsModal';
 
 describe('SystemSettingsModal Component', () => {
@@ -52,5 +53,22 @@ describe('SystemSettingsModal Component', () => {
     const doneBtn = screen.getByText(/DONE \[完了\]/i);
     fireEvent.click(doneBtn);
     expect(gameStore.getState().systemSettingsModalVisible).toBe(false);
+  });
+
+  it('ducks ambiance when visible and restores when closed', () => {
+    const engine = getAudioEngine();
+    const spy = vi.spyOn(engine, 'setAmbianceState');
+
+    act(() => {
+      gameStore.setState({ systemSettingsModalVisible: true });
+    });
+    const { unmount } = render(<SystemSettingsModal />);
+    expect(spy).toHaveBeenCalledWith({ isPaused: true });
+
+    act(() => {
+      gameStore.setState({ systemSettingsModalVisible: false });
+    });
+    unmount();
+    expect(spy).toHaveBeenCalledWith({ isPaused: false });
   });
 });

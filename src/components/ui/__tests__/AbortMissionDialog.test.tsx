@@ -4,6 +4,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { AbortMissionDialog } from '../AbortMissionDialog';
 import { gameStore } from '@/game/ui/store';
 import { GameState } from '@/game/states/types';
+import { getAudioEngine } from '@engine/audio';
 
 describe('AbortMissionDialog', () => {
   beforeEach(() => {
@@ -92,5 +93,17 @@ describe('AbortMissionDialog', () => {
 
     expect(submitAction).toHaveBeenCalledWith({ type: 'ABORT_RUN' });
     setActiveGameContext(null);
+  });
+
+  it('ducks ambiance on mount and restores on unmount when game resumes', () => {
+    const engine = getAudioEngine();
+    const spy = vi.spyOn(engine, 'setAmbianceState');
+
+    const { unmount } = render(<AbortMissionDialog />);
+    expect(spy).toHaveBeenCalledWith({ isPaused: true });
+
+    gameStore.setState({ gameStatus: GameState.Playing, abortDialogVisible: false });
+    unmount();
+    expect(spy).toHaveBeenCalledWith({ isPaused: false });
   });
 });
