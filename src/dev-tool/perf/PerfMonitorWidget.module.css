@@ -1,0 +1,535 @@
+/* ==========================================================================
+   TAIKOKU TELEMETRY OSCILLOSCOPE (TK-PERF-900) STYLES
+   ========================================================================== */
+
+.widgetContainer {
+  position: fixed;
+  z-index: 2800;
+  font-family: var(--font-mono, 'JetBrains Mono', 'Share Tech Mono', monospace);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--c-text, #ffffff);
+  user-select: none;
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+/* Docking Positions */
+.posTopLeft {
+  top: 12px;
+  left: 12px;
+}
+
+.posTopRight {
+  top: 12px;
+  right: 12px;
+}
+
+.posBottomLeft {
+  bottom: 12px;
+  left: 12px;
+}
+
+.posBottomRight {
+  bottom: 12px;
+  right: 12px;
+}
+
+/* Ghost Mode: Click-Through Overlay */
+.ghostMode {
+  pointer-events: none !important;
+  opacity: 0.60;
+}
+
+.ghostRestoreBtn {
+  pointer-events: auto !important;
+  cursor: pointer;
+  background: var(--c-surface-elevated, #111722);
+  color: var(--c-accent, #d8ff00);
+  border: 1px solid var(--c-accent, #d8ff00);
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 2px;
+}
+
+.ghostRestoreBtn:hover {
+  background: var(--c-accent, #d8ff00);
+  color: #040609;
+}
+
+/* Panel Card Framing with Taikoku Dual Corner L-Brackets */
+.panelCard {
+  background: rgba(4, 6, 9, 0.94);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--c-border, #1c2638);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.8), 0 0 1px rgba(216, 255, 0, 0.2);
+  position: relative;
+  box-sizing: border-box;
+}
+
+.panelCard::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 6px;
+  height: 6px;
+  border-top: 2px solid var(--c-accent, #d8ff00);
+  border-left: 2px solid var(--c-accent, #d8ff00);
+  pointer-events: none;
+}
+
+.panelCard::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 6px;
+  height: 6px;
+  border-bottom: 2px solid var(--c-accent-secondary, #00f0ff);
+  border-right: 2px solid var(--c-accent-secondary, #00f0ff);
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------------------
+   MODE 1: MINI PILL
+   -------------------------------------------------------------------------- */
+.miniPill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 10px;
+  width: max-content;
+  max-width: 440px;
+  white-space: nowrap;
+}
+
+.miniFps {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.miniSparkline {
+  width: 48px;
+  height: 14px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--c-border, #1c2638);
+  display: block;
+}
+
+.miniStat {
+  color: var(--c-text-dim, #79889e);
+  font-variant-numeric: tabular-nums;
+}
+
+.miniStat strong {
+  color: var(--c-text, #ffffff);
+}
+
+.miniActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+}
+
+/* --------------------------------------------------------------------------
+   MODE 2: STANDARD WIDGET (380px)
+   -------------------------------------------------------------------------- */
+.standardWidget {
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --------------------------------------------------------------------------
+   MODE 3: EXPANDED WORKSTATION (720px)
+   -------------------------------------------------------------------------- */
+.expandedWidget {
+  width: 720px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --------------------------------------------------------------------------
+   PLACARD HEADER (Inverted Ivory/Dark)
+   -------------------------------------------------------------------------- */
+.placardHeader {
+  background: var(--c-surface-ivory, #f4f4f0);
+  color: #040609;
+  padding: 4px 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--c-border, #1c2638);
+}
+
+.placardTitle {
+  font-family: var(--font-display, 'Space Grotesk', sans-serif);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.placardTag {
+  background: #040609;
+  color: var(--c-accent, #d8ff00);
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.headerControls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ctrlBtn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #040609;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: all 120ms ease;
+  line-height: 1.2;
+}
+
+.ctrlBtn:hover {
+  background: #040609;
+  color: var(--c-accent, #d8ff00);
+  border-color: #040609;
+}
+
+.ctrlBtnActive {
+  background: #040609;
+  color: var(--c-accent, #d8ff00);
+}
+
+/* --------------------------------------------------------------------------
+   SUMMARY / METRICS ROW
+   -------------------------------------------------------------------------- */
+.metricsRow {
+  padding: 6px 10px 4px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+  border-bottom: 1px solid rgba(28, 38, 56, 0.6);
+  background: rgba(10, 14, 21, 0.4);
+}
+
+.metricItem {
+  font-size: 10px;
+  color: var(--c-text-dim, #79889e);
+}
+
+.metricValue {
+  font-weight: 700;
+  color: var(--c-text, #ffffff);
+}
+
+/* --------------------------------------------------------------------------
+   OSCILLOSCOPE CANVAS & FRAME BUDGET
+   -------------------------------------------------------------------------- */
+.oscilloscopeSection {
+  padding: 8px 10px 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+}
+
+.oscilloscopeHeader {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--c-text-muted, #4a5668);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.oscilloscopeCanvas {
+  background: #020305;
+  border: 1px solid var(--c-border, #1c2638);
+  display: block;
+  cursor: crosshair;
+}
+
+.budgetBar {
+  height: 6px;
+  background: #020305;
+  border: 1px solid var(--c-border, #1c2638);
+  display: flex;
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.budgetSegment {
+  height: 100%;
+  transition: width 150ms ease;
+}
+
+.budgetLabels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 9px;
+  color: var(--c-text-dim, #79889e);
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.budgetLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.budgetDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+}
+
+/* --------------------------------------------------------------------------
+   DOMAIN TABS
+   -------------------------------------------------------------------------- */
+.tabBar {
+  display: flex;
+  border-top: 1px solid var(--c-border, #1c2638);
+  border-bottom: 1px solid var(--c-border, #1c2638);
+  background: rgba(10, 14, 21, 0.8);
+}
+
+.tabBtn {
+  flex: 1;
+  padding: 5px 2px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--c-border, #1c2638);
+  color: var(--c-text-dim, #79889e);
+  font-family: var(--font-display, sans-serif);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  transition: all 120ms ease;
+}
+
+.tabBtn:last-child {
+  border-right: none;
+}
+
+.tabBtn:hover {
+  color: var(--c-text, #ffffff);
+  background: rgba(216, 255, 0, 0.05);
+}
+
+.tabBtnActive {
+  color: var(--c-accent, #d8ff00);
+  background: rgba(216, 255, 0, 0.1);
+  box-shadow: inset 0 -2px 0 var(--c-accent, #d8ff00);
+}
+
+/* --------------------------------------------------------------------------
+   TAB BODY / READOUT DATA
+   -------------------------------------------------------------------------- */
+.tabContent {
+  padding: 8px 10px;
+  max-height: 240px;
+  overflow-y: auto;
+  font-size: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dataRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.dataLabel {
+  color: var(--c-text-dim, #79889e);
+  letter-spacing: 0.02em;
+}
+
+.dataVal {
+  color: var(--c-text, #ffffff);
+  font-weight: 600;
+}
+
+.dataSub {
+  color: var(--c-text-muted, #4a5668);
+  font-size: 9px;
+  margin-left: 4px;
+}
+
+.divider {
+  border-top: 1px dashed rgba(28, 38, 56, 0.8);
+  margin: 4px 0;
+}
+
+/* --------------------------------------------------------------------------
+   EXPANDED 2-COLUMN LAYOUT
+   -------------------------------------------------------------------------- */
+.expandedLayout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 10px;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionBox {
+  background: rgba(10, 14, 21, 0.6);
+  border: 1px solid var(--c-border, #1c2638);
+  padding: 8px;
+  border-radius: 2px;
+}
+
+.sectionTitle {
+  font-family: var(--font-display, sans-serif);
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--c-accent, #d8ff00);
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* DataTable */
+.perfTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.perfTable th {
+  text-align: left;
+  color: var(--c-text-muted, #4a5668);
+  border-bottom: 1px solid var(--c-border, #1c2638);
+  padding: 2px 4px;
+  font-weight: 700;
+}
+
+.perfTable td {
+  padding: 2px 4px;
+  border-bottom: 1px solid rgba(28, 38, 56, 0.4);
+}
+
+.bisectionItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--c-text, #ffffff);
+  cursor: pointer;
+}
+
+.bisectionItem input {
+  accent-color: var(--c-accent, #d8ff00);
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------------------------
+   BOTTOM STATUS BAR
+   -------------------------------------------------------------------------- */
+.bottomBar {
+  padding: 4px 8px;
+  background: #020305;
+  border-top: 1px solid var(--c-border, #1c2638);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 9px;
+}
+
+.bottomActionBtn {
+  background: rgba(17, 23, 34, 0.8);
+  border: 1px solid var(--c-border, #1c2638);
+  color: var(--c-text-dim, #79889e);
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+  padding: 2px 6px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.bottomActionBtn:hover {
+  background: var(--c-accent, #d8ff00);
+  color: #040609;
+  border-color: var(--c-accent, #d8ff00);
+}
+
+.spikeTrapSelect {
+  background: #0a0e15;
+  border: 1px solid var(--c-border, #1c2638);
+  color: var(--c-warning, #ff6600);
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+  padding: 1px 4px;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.cornerDockBtn {
+  background: transparent;
+  border: 1px solid var(--c-border, #1c2638);
+  color: var(--c-text-muted, #4a5668);
+  font-size: 8px;
+  padding: 1px 3px;
+  cursor: pointer;
+}
+
+.cornerDockBtn:hover {
+  color: var(--c-text, #ffffff);
+  border-color: var(--c-accent-secondary, #00f0ff);
+}
+
+/* Spike Trap Forensic Banner */
+.spikeBanner {
+  background: rgba(255, 42, 75, 0.15);
+  border: 1px solid var(--c-danger, #ff2a4b);
+  padding: 4px 8px;
+  font-size: 10px;
+  color: #ff99a8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.spikeClearBtn {
+  background: var(--c-danger, #ff2a4b);
+  color: #ffffff;
+  border: none;
+  padding: 1px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 2px;
+}
