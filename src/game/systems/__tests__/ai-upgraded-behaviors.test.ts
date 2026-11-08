@@ -19,6 +19,8 @@ import {
   SpawnEntityIntent,
   ApplyStatusEffectIntent,
   DamageIntent,
+  Acting,
+  AlertIntent,
 } from '@shared/components/intents';
 import { SecurityLock, InteractiveSurface, Prop } from '@shared/components/environment';
 import { BlocksMovement } from '@shared/components/blocks-movement';
@@ -602,6 +604,116 @@ describe('AI Behavior Trees & Dijkstra Maps Specification Verification', () => {
       // Should NOT emit MoveIntent onto (4, 5)
       const move = world.getComponent(enemy, MoveIntent);
       expect(move).toBeUndefined();
+    });
+  });
+
+  describe('(7) Multi-Enemy Sequential Turn Loop Alert & Pack State', () => {
+    it('preserves AlertIntent across sequential enemy action sequences in the same turn', () => {
+      // Player at (5, 5)
+      setupPlayer(5, 5);
+
+      // Enemy 1 at (1, 5) without LOS to player (wall in between)
+      const enemy1 = world.createEntity();
+      world.addComponent(enemy1, Position, { x: 1, y: 5 });
+      world.addComponent(enemy1, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.BASIC,
+        treeId: 'basic',
+        sightRadius: 6,
+      });
+      world.addComponent(enemy1, FovAwareness, { canSeePlayer: false });
+      grid.addEntity(enemy1, 1, 5);
+
+      // Enemy 2 at (1, 6) without LOS to player
+      const enemy2 = world.createEntity();
+      world.addComponent(enemy2, Position, { x: 1, y: 6 });
+      world.addComponent(enemy2, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.BASIC,
+        treeId: 'basic',
+        sightRadius: 6,
+      });
+      world.addComponent(enemy2, FovAwareness, { canSeePlayer: false });
+      grid.addEntity(enemy2, 1, 6);
+
+      // Block LOS with walls at x=2
+      grid.setTile(2, 4, { walkable: false, transparent: false, terrain: 'wall' });
+      grid.setTile(2, 5, { walkable: false, transparent: false, terrain: 'wall' });
+      grid.setTile(2, 6, { walkable: false, transparent: false, terrain: 'wall' });
+      grid.setTile(2, 7, { walkable: false, transparent: false, terrain: 'wall' });
+
+      // Acoustic alert attaches AlertIntent to both enemies
+      world.addComponent(enemy1, AlertIntent, { sourceX: 5, sourceY: 5 });
+      world.addComponent(enemy2, AlertIntent, { sourceX: 5, sourceY: 5 });
+
+      // TurnManager sequential execution:
+      // Pass 1: Enemy 1 is Acting
+      world.addComponent(enemy1, Acting, {});
+      aiSystem.update(world);
+      world.removeComponent(enemy1, Acting);
+
+      // Enemy 1 consumed its alert and emitted MoveIntent
+      expect(world.hasComponent(enemy1, AlertIntent)).toBe(false);
+      expect(world.hasComponent(enemy1, MoveIntent)).toBe(true);
+
+      // Enemy 2 MUST still retain its AlertIntent before its pass!
+      expect(world.hasComponent(enemy2, AlertIntent)).toBe(true);
+
+      // Pass 2: Enemy 2 is Acting
+      world.addComponent(enemy2, Acting, {});
+      aiSystem.update(world);
+      world.removeComponent(enemy2, Acting);
+
+      // Enemy 2 consumed its alert and emitted MoveIntent
+      expect(world.hasComponent(enemy2, AlertIntent)).toBe(false);
+      expect(world.hasComponent(enemy2, MoveIntent)).toBe(true);
+    });
+
+    it('propagates pack alerts across sequential enemy turn passes', () => {
+      setupPlayer(5, 5);
+
+      // Enemy 1 has LOS to player and is in pack "alpha"
+      const enemy1 = world.createEntity();
+      world.addComponent(enemy1, Position, { x: 3, y: 5 });
+      world.addComponent(enemy1, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.BUFFER_OVERFLOW,
+        treeId: 'buffer-overflow',
+        sightRadius: 10,
+      });
+      world.addComponent(enemy1, FovAwareness, { canSeePlayer: true });
+      world.addComponent(enemy1, PackMember, { packId: 'alpha', isLeader: true });
+      grid.addEntity(enemy1, 3, 5);
+
+      // Enemy 2 has NO LOS (behind wall) but is also in pack "alpha"
+      const enemy2 = world.createEntity();
+      world.addComponent(enemy2, Position, { x: 1, y: 1 });
+      world.addComponent(enemy2, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.BUFFER_OVERFLOW,
+        treeId: 'buffer-overflow',
+        sightRadius: 10,
+      });
+      world.addComponent(enemy2, FovAwareness, { canSeePlayer: false });
+      world.addComponent(enemy2, PackMember, { packId: 'alpha', isLeader: false });
+      grid.addEntity(enemy2, 1, 1);
+
+      // Pass 1: Enemy 1 acts
+      world.addComponent(enemy1, Acting, {});
+      aiSystem.update(world);
+      world.removeComponent(enemy1, Acting);
+
+      expect(world.hasComponent(enemy1, MoveIntent)).toBe(true);
+
+      // Pass 2: Enemy 2 acts sequentially in same turn
+      world.addComponent(enemy2, Acting, {});
+      aiSystem.update(world);
+      world.removeComponent(enemy2, Acting);
+
+      // Enemy 2 joins pack swarm because Enemy 1 alerted the pack
+      expect(world.hasComponent(enemy2, MoveIntent)).toBe(true);
+      const enemy2AI = world.getComponent(enemy2, AIState);
+      expect(enemy2AI?.behavior).toBe(AIBehavior.CHASING);
     });
   });
 });

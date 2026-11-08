@@ -80,8 +80,26 @@ export function createAISystem<T extends GameplayEvents>(
   const spatialSystem = new AISpatialSystem(world, grid);
   const alertedThisTurn = new Set<EntityId>();
   const packAlerted = new Set<EntityId>();
+  let lastProcessedTurn = -1;
 
   let updateHandler: ((w: World<T>) => void) | null = null;
+
+  function isPackAlerted(packId: string): boolean {
+    const packMembers = world.query(PackMember, FovAwareness);
+    for (const id of packMembers) {
+      const memberPack = world.getComponent(id, PackMember)!;
+      if (memberPack.packId !== packId) continue;
+      const awareness = world.getComponent(id, FovAwareness)!;
+      if (
+        awareness.canSeePlayer ||
+        alertedThisTurn.has(id) ||
+        world.hasComponent(id, AlertIntent)
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   /**
    * Finds the player entity in the world.
@@ -196,60 +214,12 @@ export function createAISystem<T extends GameplayEvents>(
     },
 
     update(w: World<T>): void {
-      alertedThisTurn.clear();
-      packAlerted.clear();
-
-      // 1. Process pending AlertIntents
-      const alertedEntities = w.query(AlertIntent);
-      for (const entityId of alertedEntities) {
-        const alert = w.getComponent(entityId, AlertIntent)!;
-        alertedThisTurn.add(entityId);
-        if (w.hasComponent(entityId, FovAwareness)) {
-          w.patchComponent(entityId, FovAwareness, {
-            canSeePlayer: true,
-            lastKnownPlayerX: alert.sourceX,
-            lastKnownPlayerY: alert.sourceY,
-          });
-        }
-        if (w.hasComponent(entityId, AIState)) {
-          w.patchComponent(entityId, AIState, {
-            behavior: AIBehavior.CHASING,
-            remainingMemoryTurns: 5,
-          });
-        }
-        w.removeComponent(entityId, AlertIntent);
-      }
-
-      // 2. Update Pack-Wide Tactical Awareness
-      const packMembers = w.query(PackMember, FovAwareness);
-      const alertedPacks = new Set<string>();
-
-      for (const id of packMembers) {
-        const pack = w.getComponent(id, PackMember)!;
-        const awareness = w.getComponent(id, FovAwareness)!;
-        if (awareness.canSeePlayer || alertedThisTurn.has(id)) {
-          alertedPacks.add(pack.packId);
-        }
-      }
-
-      for (const id of packMembers) {
-        const pack = w.getComponent(id, PackMember)!;
-        if (alertedPacks.has(pack.packId)) {
-          packAlerted.add(id);
-        }
-      }
-
-      // 3. Reset turn-based Dijkstra spatial cache
-      const player = findPlayerEntity();
-      if (player) {
-        const floorStates = w.query(FloorState);
-        const floor = floorStates.length > 0 ? w.getComponent(floorStates[0], FloorState) : null;
-        const turnNumber = floor?.turnNumber ?? 0;
-        spatialSystem.resetTurnCache(turnNumber, player.x, player.y);
-      }
-
-      // 4. Process all entities marked as 'Acting'
       const actingEntities = w.query(Acting, AIState);
+      if (actingEntities.length === 0) {
+        return;
+      }
+
+      // Process all entities marked as 'Acting'
       for (const entityId of actingEntities) {
         this.processEnemyTurn(entityId);
       }
@@ -268,6 +238,40 @@ export function createAISystem<T extends GameplayEvents>(
       const player = findPlayerEntity();
       if (!player) return;
 
+      const floorStates = world.query(FloorState);
+      const floor = floorStates.length > 0 ? world.getComponent(floorStates[0], FloorState) : null;
+      const turnNumber = floor?.turnNumber ?? 0;
+
+      if (turnNumber !== lastProcessedTurn) {
+        lastProcessedTurn = turnNumber;
+        alertedThisTurn.clear();
+        packAlerted.clear();
+      }
+
+      spatialSystem.resetTurnCache(turnNumber, player.x, player.y);
+
+      // Consume AlertIntent if attached to this specific enemy
+      if (world.hasComponent(entityId, AlertIntent)) {
+        const alert = world.getComponent(entityId, AlertIntent)!;
+        alertedThisTurn.add(entityId);
+        world.patchComponent(entityId, FovAwareness, {
+          canSeePlayer: true,
+          lastKnownPlayerX: alert.sourceX,
+          lastKnownPlayerY: alert.sourceY,
+        });
+        world.patchComponent(entityId, AIState, {
+          behavior: AIBehavior.CHASING,
+          remainingMemoryTurns: 5,
+        });
+        world.removeComponent(entityId, AlertIntent);
+      }
+
+      const packMember = world.getComponent(entityId, PackMember);
+      const packIsAlerted = packMember ? isPackAlerted(packMember.packId) : false;
+      if (packIsAlerted) {
+        packAlerted.add(entityId);
+      }
+
       // Decrement server cooldown timers at start of turn
       const cooldowns = { ...(ai.cooldowns ?? {}) };
       for (const [key, val] of Object.entries(cooldowns)) {
@@ -281,7 +285,7 @@ export function createAISystem<T extends GameplayEvents>(
       const visibleTiles = computeEnemyFov(pos.x, pos.y, ai.sightRadius ?? 6);
       const playerKey = `${player.x},${player.y}`;
       const isVisibleInFov = visibleTiles.has(playerKey);
-      const canSeePlayer = isVisibleInFov || alertedThisTurn.has(entityId) || packAlerted.has(entityId);
+      const canSeePlayer = isVisibleInFov || alertedThisTurn.has(entityId) || packIsAlerted;
 
       let remainingMemory = ai.remainingMemoryTurns ?? 0;
       if (isVisibleInFov) {
@@ -318,8 +322,6 @@ export function createAISystem<T extends GameplayEvents>(
       }
 
       // 3. Construct deterministic PRNG
-      const floorStates = world.query(FloorState);
-      const floor = floorStates.length > 0 ? world.getComponent(floorStates[0], FloorState) : null;
       const seedStr = `${floor?.runSeed ?? 'ai_seed'}_${floor?.turnNumber ?? 0}_${entityId}`;
       const rng = createDeterministicRng(seedStr);
 
