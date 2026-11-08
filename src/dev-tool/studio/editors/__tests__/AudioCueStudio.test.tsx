@@ -180,7 +180,7 @@ describe('AudioCueStudio Component', () => {
     expect(playAmbianceMock).toHaveBeenCalledTimes(1);
     expect(setAmbianceMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        depthBand: 'FLOORS 1–5 (SUBNET)',
+        depthBand: 'FLOORS 1–5 (CORRUPTED_DATA)',
         heatTier: 0,
         isAnchorDucked: false,
       }),
@@ -265,5 +265,39 @@ describe('AudioCueStudio Component', () => {
 
     unmount();
     expect(stopAllAudioMock).toHaveBeenCalled();
+  });
+
+  it('clones active cue with _copy suffix and sets clone source', async () => {
+    const store = useGamedataStore.getState();
+    const selectSpy = vi.spyOn(store, 'selectItem');
+    const setCloneSpy = vi.spyOn(store, 'setCloneSource');
+
+    render(<AudioCueStudio name="sfx_test_cue" />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/AUDIO CUE \/\/ sfx_test_cue/i)).toBeDefined();
+    });
+
+    const cloneBtn = screen.getByRole('button', { name: /^CLONE$/i });
+    fireEvent.click(cloneBtn);
+
+    expect(setCloneSpy).toHaveBeenCalledWith('sfx_test_cue');
+    expect(selectSpy).toHaveBeenCalledWith('audioCues', '__new__');
+  });
+
+  it('selects matched ambiance depth band keys and OVERCLOCKED_GRID in simulator', async () => {
+    render(<AudioCueStudio name="sfx_test_cue" />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/AUDIO CUE \/\/ sfx_test_cue/i)).toBeDefined();
+    });
+
+    const depthSelect = screen.getByDisplayValue(/FLOORS 1–5 \(CORRUPTED_DATA\)/i) as HTMLSelectElement;
+    fireEvent.change(depthSelect, { target: { value: 'FLOORS 6–10 (STATIC_HORRORS)' } });
+    expect(depthSelect.value).toBe('FLOORS 6–10 (STATIC_HORRORS)');
+
+    const conditionSelect = screen.getByDisplayValue(/NORMAL \(None\)/i) as HTMLSelectElement;
+    fireEvent.change(conditionSelect, { target: { value: 'OVERCLOCKED_GRID' } });
+    expect(conditionSelect.value).toBe('OVERCLOCKED_GRID');
   });
 });

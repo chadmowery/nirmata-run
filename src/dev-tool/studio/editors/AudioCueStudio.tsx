@@ -55,6 +55,7 @@ const DEFAULT_CUE: SoundCueDef = {
 
 export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
   const {
+    setCloneSource,
     selectItem,
     clearSelection,
     setDirty,
@@ -77,7 +78,7 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
   const [holdProgress, setHoldProgress] = useState<number>(0);
 
   // Ambiance Simulator State
-  const [simDepthBand, setSimDepthBand] = useState<string>('FLOORS 1–5 (SUBNET)');
+  const [simDepthBand, setSimDepthBand] = useState<string>('FLOORS 1–5 (CORRUPTED_DATA)');
   const [simCondition, setSimCondition] = useState<string>('NORMAL');
   const [simHeatTier, setSimHeatTier] = useState<number>(0);
   const [simAnchorDucked, setSimAnchorDucked] = useState<boolean>(false);
@@ -90,7 +91,7 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
       fetch(`/api/dev/gamedata/audio-cues/${cloneFrom}`)
         .then((r) => r.json())
         .then((data: SoundCueDef) => {
-          setCueData({ ...data, id: '' });
+          setCueData({ ...data, id: `${cloneFrom}_copy` });
           setDirty(true);
         })
         .catch(() => setErrors(['Failed to load clone source']));
@@ -348,6 +349,9 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
       } else if (simCondition === 'CORRUPTED') {
         cutoff = Math.round(cutoff * 0.7);
         q = 2.0;
+      } else if (simCondition === 'OVERCLOCKED_GRID') {
+        cutoff = Math.round(cutoff * 1.0);
+        q = 1.8;
       }
     }
 
@@ -416,6 +420,14 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
   // Clone handler
   const handleClone = () => {
     if (!cueData) return;
+    const baseId = cueData.id || name || 'sound_cue';
+    const clonedId = `${baseId}_copy`;
+    setCloneSource(baseId);
+    setCueData({
+      ...JSON.parse(JSON.stringify(cueData)),
+      id: clonedId,
+    });
+    setDirty(true);
     selectItem('audioCues', '__new__');
   };
 
@@ -1125,9 +1137,9 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
                 onChange={(e) => handleDepthBandChange(e.target.value)}
               >
                 <option value="MAIN_MENU">MAIN_MENU</option>
-                <option value="FLOORS 1–5 (SUBNET)">FLOORS 1–5 (SUBNET)</option>
-                <option value="FLOORS 6–10 (FOUNDRY)">FLOORS 6–10 (FOUNDRY)</option>
-                <option value="FLOORS 11–15 (CORE)">FLOORS 11–15 (CORE)</option>
+                <option value="FLOORS 1–5 (CORRUPTED_DATA)">FLOORS 1–5 (CORRUPTED_DATA)</option>
+                <option value="FLOORS 6–10 (STATIC_HORRORS)">FLOORS 6–10 (STATIC_HORRORS)</option>
+                <option value="FLOORS 11–15 (LOGIC_BREAKERS)">FLOORS 11–15 (LOGIC_BREAKERS)</option>
               </select>
             </div>
 
@@ -1139,7 +1151,9 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
                 onChange={(e) => handleConditionChange(e.target.value)}
               >
                 <option value="NORMAL">NORMAL (None)</option>
+                <option value="OVERCLOCKED_GRID">OVERCLOCKED_GRID</option>
                 <option value="IONIC_STORM">IONIC_STORM</option>
+                <option value="DARK_SUBNET">DARK_SUBNET</option>
                 <option value="THERMAL_FLARE">THERMAL_FLARE</option>
                 <option value="CORRUPTED">CORRUPTED</option>
               </select>
