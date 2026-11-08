@@ -1,7 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { ThemedTilesetManifestSchema, AnimationClipDef } from '@shared/tileset-types';
-import { resolveFallbackSpriteKey } from '@rendering/sprite-map';
+import { ThemedTilesetManifestSchema, AnimationClipDef, resolveFallbackSpriteKey } from '@shared/tileset-types';
 
 export const REQUIRED_WALL_AUTOTILE_FRAMES = [
   'wall_single',

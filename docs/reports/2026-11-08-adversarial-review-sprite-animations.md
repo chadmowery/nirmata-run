@@ -33,7 +33,7 @@ An adversarial audit was conducted across the 9 commits on `feature/sprite-anima
 | **`MED-02`** | **P2 (Medium)** | `scripts/` / `assets/` | **Missing `meta.themeId` & `meta.themeName` in Generated Themed Manifests**: `scripts/generate-themed-tilesets.cjs` clones `tileset.json` without setting `meta.themeId` or `meta.themeName`, causing `validateThemeFile('traxus_foundry')` to report `themeId: 'default'`. | **OPEN** |
 | **`MED-03`** | **P2 (Medium)** | `@dev-tool` | **Unawaited `loadAtlas` Race Conditions, Unconditional 60 FPS Loop on Static Sprites in `ResolvedPreviewPanel`, and Missing Strategy B Rotation in `PrefabEditor`**: `InspectorSpritePreview` runs a 60 FPS rAF loop even when `isAnim === false` (violating Spec §7.2.1), never calls `loadAtlas('default')`, and fails to reset `activeState` on entity switch. `ComponentSchemaViewer` and `PrefabEditor` do not trigger a redraw when `loadAtlas` resolves, and `PrefabEditor` omits `angleDegrees` for Strategy B rotational props. | **OPEN** |
 | **`MED-04`** | **P2 (Medium)** | `@game` / `@engine` | **Off-Screen AI Simulation Gating Freezes Cooldowns & Suppresses Ambient Patrol / Scavenge Behaviors (`1a507186`, `54871197`)**: Early return `if (!isAware && !isVisibleToPlayer) return;` in `AISystem.processEntity()` executes before cooldown decrements and prevents unaware off-screen `System-Admin` (`patrol_anchors`) and `Seed-Eater` (`scavenge_nearest_loot`) entities from executing ambient floor-wide behaviors. `DijkstraMap` SPFA queue lacks a `len === 0` guard. | **OPEN** |
-| **`LOW-01`** | **P3 (Low)** | `@dev-tool` / `@shared` | **Server API Route Pulls `pixi.js` via `@rendering/sprite-map` Import**: `src/app/api/dev/gamedata/tileset-validator.ts` imports `resolveFallbackSpriteKey` from `@rendering/sprite-map` (which top-level imports `pixi.js`). | **OPEN** |
+| **`LOW-01`** | **P3 (Low)** | `@dev-tool` / `@shared` | **Server API Route Pulls `pixi.js` via `@rendering/sprite-map` Import**: `src/app/api/dev/gamedata/tileset-validator.ts` imports `resolveFallbackSpriteKey` from `@rendering/sprite-map` (which top-level imports `pixi.js`). | **RESOLVED** |
 
 ---
 
@@ -251,7 +251,7 @@ An adversarial audit was conducted across the 9 commits on `feature/sprite-anima
 4. **[x] Fix Event Listener Cleanup & Enemy VFX Parity (`MED-01` — [`src/rendering/render-system.ts`](../../src/rendering/render-system.ts))**:
    - Store bound handler references for `ITEM_PICKED_UP`, `DUNGEON_GENERATED`, and `STATE_RECONCILED` and unregister all three in `RenderSystem.destroy()`.
    - Ensure `AIState` entities initialized in `init()`, `onDungeonGenerated()`, and `reconcileSprites()` receive `applyPersistentGlitch` and `attachNeonEmitter`.
-5. **[ ] Move `resolveFallbackSpriteKey` to `@shared/tileset-types` (`LOW-01`)**:
+5. **[x] Move `resolveFallbackSpriteKey` to `@shared/tileset-types` (`LOW-01`)**:
    - Export `resolveFallbackSpriteKey` from [`src/shared/tileset-types.ts`](../../src/shared/tileset-types.ts), re-export it from [`src/rendering/sprite-map.ts`](../../src/rendering/sprite-map.ts), and import it from `@shared/tileset-types` in [`src/app/api/dev/gamedata/tileset-validator.ts`](../../src/app/api/dev/gamedata/tileset-validator.ts).
 
 ### Phase 2: Fix Atlas Generation Scripts, Animation Catalog & Prop Orientation Preservation (`HIGH-02`, `HIGH-03`, `MED-02`)

@@ -3,24 +3,12 @@ import { EntityId } from '../engine/ecs/types';
 import { TILE_SIZE } from './constants';
 import { getActiveThemeId } from './assets';
 import { logger } from '../engine/utils/logger';
+import { resolveFallbackSpriteKey } from '../shared/tileset-types';
+
+export { resolveFallbackSpriteKey };
 
 const entitySprites = new Map<EntityId, Sprite>();
 const entitySpriteKeys = new Map<EntityId, string>();
-
-/**
- * Resolves a canonical fallback frame key for a directional or variant sprite key.
- */
-export function resolveFallbackSpriteKey(spriteKey: string): string | undefined {
-  if (spriteKey.startsWith('prop_workstation_')) return 'prop_workstation';
-  if (spriteKey.startsWith('prop_locker_')) return 'prop_locker';
-  if (spriteKey.startsWith('prop_biocabinet_')) return 'prop_biocabinet';
-  if (spriteKey.startsWith('prop_vault_door_locked_')) return 'prop_vault_door_locked';
-  if (spriteKey.startsWith('prop_vault_door_')) return 'prop_vault_door';
-  if (spriteKey.startsWith('prop_crate_cover_')) return 'prop_crate_cover';
-  if (spriteKey.startsWith('wall_')) return 'wall';
-  if (spriteKey.startsWith('door_')) return 'door';
-  return undefined;
-}
 
 /**
  * Resolves a PixiJS Texture for a given sprite key from the active themed atlas,
