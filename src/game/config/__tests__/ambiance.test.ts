@@ -132,4 +132,11 @@ describe('Ambiance Configuration System', () => {
     const high = resolveAmbianceForFloor(99);
     expect(high.cueId).toBe('amb_band_3_logic');
   });
+
+  it('bundles valid canonical cues for mainMenu and hub in ambiance.json', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const rawAmbiance = require('../ambiance.json');
+    expect(rawAmbiance.scenes.mainMenu.cueId).toBe('amb_main_menu');
+    expect(rawAmbiance.scenes.hub.cueId).toBe('amb_hub_deck');
+  });
 });

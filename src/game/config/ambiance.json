@@ -1,12 +1,11 @@
 {
   "scenes": {
     "mainMenu": {
-      "cueId": "amb_menu_2",
-      "description": "Main Menu vector scanline oscilloscope drone",
-      "samplePath": ""
+      "cueId": "amb_main_menu",
+      "description": "Main Menu vector scanline oscilloscope drone"
     },
     "hub": {
-      "cueId": "amb_menu_2",
+      "cueId": "amb_hub_deck",
       "description": "Safe zone hub air circulation & server data-pulse"
     }
   },

@@ -399,6 +399,15 @@ Cross-referencing all cue IDs in `sound-cues.json` and [`docs/design/AUDIO-SYSTE
 - In [`src/game/config/ambiance.json`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/game/config/ambiance.json#L3-L11), both `scenes.mainMenu.cueId` and `scenes.hub.cueId` were left pointing to `"amb_menu_2"` instead of `"amb_main_menu"` and `"amb_hub_deck"`.
 - In [`src/game/audio/sound-cues.json`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/game/audio/sound-cues.json#L1114-L1139), `"amb_main_menu_2"` points to `"/audio/music/cyber-punkbeat.mp3"` (a non-existent path missing `/assets/` and hyphenated differently from `/assets/audio/music/cyberpunk-beat.mp3`), and `"amb_menu_2"` has SFX settings (`pitchVariance: 0.05, cooldownMs: 30`) on a music track.
 
+#### Resolution
+- In `src/game/config/ambiance.json`:
+  - Updated `scenes.mainMenu.cueId` to point to `"amb_main_menu"`.
+  - Updated `scenes.hub.cueId` to point to `"amb_hub_deck"`.
+- In `src/game/audio/sound-cues.json`:
+  - Removed scratch entry `"amb_main_menu_2"` with invalid path.
+  - Sanitized `"amb_menu_2"` to clean background ambiance defaults (`cooldownMs: 0`, `pitchVariance: 0`).
+- Added test in `src/game/config/__tests__/ambiance.test.ts` validating bundled canonical cue targets for `mainMenu` and `hub`.
+
 ---
 
 ### 2.12 `AUD-REV-12`: `@engine/audio` Browser DOM Coupling (P2)
