@@ -255,6 +255,13 @@ this.audioEngine.setAmbianceState({
 ```
 `resolved.baseVolume`, `resolved.cutoffMultiplier`, and `resolved.resonanceQ` are completely ignored! Inside [`AudioEngine.setAmbianceState()`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/engine/audio/audio-engine.ts#L569-L612), the engine ignores `ambiance.json` and instead uses hardcoded constants (`DEFAULT_AMBIANCE_CUTOFF_NORMAL = 18000`, `DEFAULT_AMBIANCE_CUTOFF_DUCKED = 380`, ramp `0.25s`) and a hardcoded `switch (this.ambianceState.sectorCondition)` that doesn't even include `OVERCLOCKED_GRID`.
 
+#### Resolution
+- Extended `AmbianceState` in `src/engine/audio/types.ts` to support declarative DSP configuration overrides: `cutoffMultiplier`, `resonanceQ`, `baseVolume`, `stabilityAnchorCutoffHz`, `pauseMenuCutoffHz`, `duckingRampDurationSec`, and `crossfadeDurationSec`.
+- Updated `AudioEngine.setAmbianceState()` to prioritize these declarative parameters over hardcoded defaults, dynamically adjusting target cutoff, resonance Q, and ramp transitions, and added `OVERCLOCKED_GRID` (cutoff multiplier 1.0, Q = 1.8) into the fallback switch table.
+- Updated `AudioEngine.playAmbianceCue()` to accept `{ volumeMultiplier?, crossfadeDurationSec? }` to honor `resolved.baseVolume` and declarative crossfade durations.
+- Updated `GameAudioSystem.updateAmbianceForFloor()` to forward `resolved.baseVolume`, `resolved.cutoffMultiplier`, `resolved.resonanceQ`, and global ducking parameters (`stabilityAnchorCutoffHz`, `pauseMenuCutoffHz`, `duckingRampDurationSec`, `crossfadeDurationSec`) from `getAmbianceConfig()` directly into `playAmbianceCue` and `setAmbianceState`.
+- Added unit tests in `src/engine/audio/__tests__/audio-engine.test.ts` and `src/game/audio/__tests__/game-audio-system.test.ts` verifying `OVERCLOCKED_GRID` and `ambiance.json` parameter pass-through.
+
 ---
 
 ### 2.7 `AUD-REV-07`: Ambiance DSP State Bleeds Into Hub/MainMenu & Pause Ducking (`isPaused`) Is Unwired (P1)

@@ -71,8 +71,12 @@ export class NoopAudioEngine implements IAudioEngine {
   public stopAllAudio(fadeDurationSec?: number): void {
     void fadeDurationSec;
   }
-  public playAmbianceCue(cue: SoundCueDef): void {
+  public playAmbianceCue(
+    cue: SoundCueDef,
+    options?: { volumeMultiplier?: number; crossfadeDurationSec?: number },
+  ): void {
     void cue;
+    void options;
   }
   public setAmbianceState(state: Partial<AmbianceState>): void {
     void state;
@@ -625,29 +629,39 @@ export class AudioEngine implements IAudioEngine {
 
     // Base cutoff frequency
     let targetCutoff = shouldDuck
-      ? DEFAULT_AMBIANCE_CUTOFF_DUCKED
+      ? (this.ambianceState.isPaused
+          ? (this.ambianceState.pauseMenuCutoffHz ?? DEFAULT_AMBIANCE_CUTOFF_DUCKED)
+          : (this.ambianceState.stabilityAnchorCutoffHz ?? DEFAULT_AMBIANCE_CUTOFF_DUCKED))
       : DEFAULT_AMBIANCE_CUTOFF_NORMAL;
 
     // Sector condition filter & resonance modulation
-    let targetQ = 1.0;
-    if (!shouldDuck && this.ambianceState.sectorCondition) {
-      switch (this.ambianceState.sectorCondition) {
-        case 'IONIC_STORM':
-        case 'DARK_SUBNET':
-          targetCutoff = Math.max(300, targetCutoff * 0.6); // -40% lowpass reduction
-          targetQ = 2.5;
-          break;
-        case 'THERMAL_FLARE':
-        case 'THERMAL_SURGE':
-          targetCutoff = Math.max(300, targetCutoff * 0.85);
-          targetQ = 3.2; // Resonant warmth peak
-          break;
-        case 'CORRUPTED':
-          targetCutoff = Math.max(300, targetCutoff * 0.7);
-          targetQ = 2.0;
-          break;
-        default:
-          break;
+    let targetQ = this.ambianceState.resonanceQ ?? 1.0;
+    if (!shouldDuck) {
+      if (this.ambianceState.cutoffMultiplier !== undefined) {
+        targetCutoff = Math.max(300, targetCutoff * this.ambianceState.cutoffMultiplier);
+      } else if (this.ambianceState.sectorCondition) {
+        switch (this.ambianceState.sectorCondition) {
+          case 'IONIC_STORM':
+          case 'DARK_SUBNET':
+            targetCutoff = Math.max(300, targetCutoff * 0.6); // -40% lowpass reduction
+            targetQ = 2.5;
+            break;
+          case 'THERMAL_FLARE':
+          case 'THERMAL_SURGE':
+            targetCutoff = Math.max(300, targetCutoff * 0.85);
+            targetQ = 3.2; // Resonant warmth peak
+            break;
+          case 'CORRUPTED':
+            targetCutoff = Math.max(300, targetCutoff * 0.7);
+            targetQ = 2.0;
+            break;
+          case 'OVERCLOCKED_GRID':
+            targetCutoff = Math.max(300, targetCutoff * 1.0);
+            targetQ = 1.8;
+            break;
+          default:
+            break;
+        }
       }
     }
 
@@ -659,17 +673,19 @@ export class AudioEngine implements IAudioEngine {
       }
     }
 
+    const rampDuration = this.ambianceState.duckingRampDurationSec ?? 0.25;
+
     // Smooth exponential ramp for cutoff and linear ramp for resonance Q
     this.ambianceFilter.frequency.cancelScheduledValues(now);
     this.ambianceFilter.frequency.setValueAtTime(this.ambianceFilter.frequency.value, now);
     this.ambianceFilter.frequency.exponentialRampToValueAtTime(
       Math.max(20, targetCutoff),
-      now + 0.25,
+      now + rampDuration,
     );
 
     this.ambianceFilter.Q.cancelScheduledValues(now);
     this.ambianceFilter.Q.setValueAtTime(this.ambianceFilter.Q.value, now);
-    this.ambianceFilter.Q.linearRampToValueAtTime(targetQ, now + 0.25);
+    this.ambianceFilter.Q.linearRampToValueAtTime(targetQ, now + rampDuration);
   }
 
   public getAmbianceState(): AmbianceState {
@@ -679,7 +695,10 @@ export class AudioEngine implements IAudioEngine {
   /**
    * Starts or updates continuous ambiance drone with a given sound cue.
    */
-  public playAmbianceCue(cue: SoundCueDef): void {
+  public playAmbianceCue(
+    cue: SoundCueDef,
+    options?: { volumeMultiplier?: number; crossfadeDurationSec?: number },
+  ): void {
     this.lastRequestedAmbianceCue = cue;
 
     if (
@@ -701,20 +720,23 @@ export class AudioEngine implements IAudioEngine {
     const busNode = this.ambianceFilter;
     if (!busNode) return;
 
-    // Crossfade: stop existing synth voice over 800ms
+    const crossfadeSec =
+      options?.crossfadeDurationSec ?? this.ambianceState.crossfadeDurationSec ?? 0.8;
+
+    // Crossfade: stop existing synth voice over crossfadeSec
     if (this.activeAmbianceVoice) {
-      this.activeAmbianceVoice.stop(0.8);
+      this.activeAmbianceVoice.stop(crossfadeSec);
       this.activeAmbianceVoice = null;
     }
 
-    // Crossfade: stop existing sample source over 800ms
+    // Crossfade: stop existing sample source over crossfadeSec
     if (this.activeAmbianceSampleSource && this.activeAmbianceSampleGain) {
       try {
         const prevGain = this.activeAmbianceSampleGain;
         const prevSrc = this.activeAmbianceSampleSource;
         const now = this.ctx.currentTime;
         prevGain.gain.setValueAtTime(prevGain.gain.value, now);
-        prevGain.gain.linearRampToValueAtTime(0.0001, now + 0.8);
+        prevGain.gain.linearRampToValueAtTime(0.0001, now + crossfadeSec);
         setTimeout(() => {
           try {
             prevSrc.stop();
@@ -722,7 +744,7 @@ export class AudioEngine implements IAudioEngine {
           } catch {
             // Safe to ignore
           }
-        }, 850);
+        }, (crossfadeSec + 0.05) * 1000);
       } catch {
         // Safe to ignore
       }
@@ -731,14 +753,16 @@ export class AudioEngine implements IAudioEngine {
     }
 
     this.currentAmbianceCueId = cue.id;
+    const finalVolume =
+      options?.volumeMultiplier ?? this.ambianceState.baseVolume ?? cue.baseVolume ?? 0.6;
 
     if (cue.mode === 'synth' && cue.synth) {
       this.activeAmbianceVoice = playSynthVoice(this.ctx, busNode, cue.synth, {
-        volumeMultiplier: cue.baseVolume ?? 0.6,
+        volumeMultiplier: finalVolume,
         loop: true,
       });
     } else if (cue.mode === 'sample' && cue.samplePath) {
-      this.playAmbianceSample(cue, busNode, cue.baseVolume ?? 0.6);
+      this.playAmbianceSample(cue, busNode, finalVolume);
     }
 
     // Immediately apply existing filter cutoff and Q to the newly started voice/sample

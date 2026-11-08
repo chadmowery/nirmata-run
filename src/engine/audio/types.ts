@@ -93,6 +93,13 @@ export interface AmbianceState {
   isAnchorDucked: boolean;
   isPaused: boolean;
   macroTrack?: string;
+  cutoffMultiplier?: number;
+  resonanceQ?: number;
+  baseVolume?: number;
+  stabilityAnchorCutoffHz?: number;
+  pauseMenuCutoffHz?: number;
+  duckingRampDurationSec?: number;
+  crossfadeDurationSec?: number;
 }
 
 export interface PlayCueOptions {
@@ -107,7 +114,10 @@ export interface IAudioEngine {
   playCue(cue: SoundCueDef, options?: PlayCueOptions): number | undefined;
   stopVoice(voiceId: number, fadeDurationSec?: number): void;
   updateVoiceSpatial(voiceId: number, spatial: SpatialCoords, volumeMultiplier?: number): void;
-  playAmbianceCue(cue: SoundCueDef): void;
+  playAmbianceCue(
+    cue: SoundCueDef,
+    options?: { volumeMultiplier?: number; crossfadeDurationSec?: number },
+  ): void;
   startHoldRamp(cue: SoundCueDef): string;
   updateHoldRamp(voiceId: string, progress: number): void;
   stopHoldRamp(voiceId: string): void;

@@ -19,7 +19,7 @@ import {
 } from '@engine/audio';
 import { Position, Shell, AudioProfile, Heat, AmbientEmitter, Prop, FloorState, CorruptedNode } from '@shared/components';
 import { getSoundCue } from './cue-registry';
-import { resolveAmbianceForFloor } from '@game/config/ambiance';
+import { resolveAmbianceForFloor, getAmbianceConfig } from '@game/config/ambiance';
 
 export interface GameAudioSystemOptions {
   world: World<GameEvents>;
@@ -522,15 +522,26 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
         ? floorState.sectorCondition
         : null;
 
+    const duckingConfig = getAmbianceConfig().ducking;
     const resolved = resolveAmbianceForFloor(floorNumber, condition);
 
     const cue = getSoundCue(resolved.cueId);
-    if (cue && 'playAmbianceCue' in audioEngine) {
-      (audioEngine as AudioEngine).playAmbianceCue(cue);
+    if (cue) {
+      audioEngine.playAmbianceCue(cue, {
+        volumeMultiplier: resolved.baseVolume,
+        crossfadeDurationSec: duckingConfig?.crossfadeDurationSec,
+      });
     }
     audioEngine.setAmbianceState({
       depthBand: resolved.depthBand,
       sectorCondition: condition,
+      cutoffMultiplier: resolved.cutoffMultiplier,
+      resonanceQ: resolved.resonanceQ,
+      baseVolume: resolved.baseVolume,
+      stabilityAnchorCutoffHz: duckingConfig?.stabilityAnchorCutoffHz,
+      pauseMenuCutoffHz: duckingConfig?.pauseMenuCutoffHz,
+      duckingRampDurationSec: duckingConfig?.duckingRampDurationSec,
+      crossfadeDurationSec: duckingConfig?.crossfadeDurationSec,
     });
     updateAmbientEmitters();
   };

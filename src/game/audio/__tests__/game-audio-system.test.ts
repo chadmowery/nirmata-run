@@ -653,10 +653,16 @@ describe('GameAudioSystem Bridge', () => {
       expect.objectContaining({
         depthBand: 'STATIC_HORRORS',
         sectorCondition: 'THERMAL_SURGE',
+        cutoffMultiplier: 0.85,
+        resonanceQ: 3.2,
       }),
     );
     expect(mockAudioEngine.playAmbianceCue).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'amb_band_2_static' }),
+      expect.objectContaining({
+        volumeMultiplier: 0.65,
+        crossfadeDurationSec: 0.8,
+      }),
     );
 
     audioSystem.destroy();

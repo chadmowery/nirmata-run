@@ -253,6 +253,31 @@ describe('AudioEngine', () => {
     engine.setAmbianceState({ heatTier: 3 });
     expect(filter.Q.linearRampToValueAtTime).toHaveBeenCalledWith(2.5 + 3 * 0.5, expect.any(Number));
 
+    // OVERCLOCKED_GRID fallback condition
+    engine.setAmbianceState({ heatTier: 0, sectorCondition: 'OVERCLOCKED_GRID' });
+    expect(filter.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(
+      DEFAULT_AMBIANCE_CUTOFF_NORMAL * 1.0,
+      expect.any(Number),
+    );
+    expect(filter.Q.linearRampToValueAtTime).toHaveBeenCalledWith(1.8, expect.any(Number));
+
+    // Declarative overrides from ambiance.json (cutoffMultiplier, resonanceQ, ducking parameters)
+    engine.setAmbianceState({
+      cutoffMultiplier: 0.75,
+      resonanceQ: 2.8,
+      stabilityAnchorCutoffHz: 350,
+      duckingRampDurationSec: 0.3,
+    });
+    expect(filter.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(
+      DEFAULT_AMBIANCE_CUTOFF_NORMAL * 0.75,
+      expect.any(Number),
+    );
+    expect(filter.Q.linearRampToValueAtTime).toHaveBeenCalledWith(2.8, expect.any(Number));
+
+    // Ducking with custom stabilityAnchorCutoffHz
+    engine.setAmbianceState({ isAnchorDucked: true });
+    expect(filter.frequency.exponentialRampToValueAtTime).toHaveBeenCalledWith(350, expect.any(Number));
+
     engine.destroy();
   });
 
