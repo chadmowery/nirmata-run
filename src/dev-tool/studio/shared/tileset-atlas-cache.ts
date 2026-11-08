@@ -1,3 +1,11 @@
+import {
+  AnimationLoopMode,
+  AnimationStateKey,
+  AnimationClipDef,
+  EntityAnimationSet,
+} from '@shared/tileset-types';
+import { stepAnimationClip } from '../../../rendering/sprite-animator';
+
 export interface FrameRect {
   x: number;
   y: number;
@@ -5,8 +13,18 @@ export interface FrameRect {
   h: number;
 }
 
+export interface ResolvedAnimationClip {
+  state: AnimationStateKey;
+  frames: string[];
+  fps: number;
+  loop: AnimationLoopMode;
+  frameDurationsMs?: number[];
+  totalDurationMs: number;
+}
+
 export interface TilesetAtlasData {
   frames: Record<string, { frame: FrameRect }>;
+  animations?: Record<string, EntityAnimationSet | AnimationClipDef>;
   meta?: { size: { w: number; h: number } };
 }
 
@@ -42,8 +60,8 @@ export class TilesetAtlasCache {
       return this.loadPromises.get(cacheKey)!;
     }
 
-    const defaultManifest = themeId === 'default' ? '/assets/tileset.json' : `/assets/themes/${themeId}/tileset.json`;
-    const defaultImage = themeId === 'default' ? '/assets/tileset.png' : `/assets/themes/${themeId}/tileset.png`;
+    const defaultManifest = themeId === 'default' ? '/assets/tileset.json' : `/assets/tileset_${themeId}.json`;
+    const defaultImage = themeId === 'default' ? '/assets/tileset.png' : `/assets/tileset_${themeId}.png`;
 
     const mUrl = manifestUrl || defaultManifest;
     const iUrl = imageUrl || defaultImage;
@@ -75,8 +93,15 @@ export class TilesetAtlasCache {
     return promise;
   }
 
+  public setAtlasData(themeId: string, manifest: TilesetAtlasData, image?: HTMLImageElement): void {
+    this.manifests.set(themeId, manifest);
+    if (image) {
+      this.images.set(themeId, image);
+    }
+  }
+
   public getFrameKeys(themeId: string = 'default'): string[] {
-    const manifest = this.manifests.get(themeId);
+    const manifest = this.manifests.get(themeId) || this.manifests.get('default');
     if (!manifest) return [];
     return Object.keys(manifest.frames);
   }
@@ -85,6 +110,120 @@ export class TilesetAtlasCache {
     const manifest = this.manifests.get(themeId) || this.manifests.get('default');
     if (!manifest || !manifest.frames[frameKey]) return null;
     return manifest.frames[frameKey].frame;
+  }
+
+  /**
+   * Returns all animation state keys ('idle', 'move', 'attack', etc.) available for a sprite key.
+   */
+  public getAnimationStates(spriteKey: string, themeId: string = 'default'): AnimationStateKey[] {
+    const manifest = this.manifests.get(themeId) || this.manifests.get('default');
+    if (!manifest || !manifest.animations) return [];
+
+    const entry = manifest.animations[spriteKey];
+    if (!entry) return [];
+
+    if ('frames' in entry && Array.isArray(entry.frames)) {
+      return ['idle'];
+    }
+
+    return Object.keys(entry) as AnimationStateKey[];
+  }
+
+  /**
+   * Checks if a sprite key has any registered animations in the manifest.
+   */
+  public isKeyAnimated(spriteKey: string, themeId: string = 'default'): boolean {
+    return this.getAnimationStates(spriteKey, themeId).length > 0;
+  }
+
+  /**
+   * Returns all sprite keys that have an animations entry in the manifest.
+   */
+  public getAnimatedSpriteKeys(themeId: string = 'default'): string[] {
+    const manifest = this.manifests.get(themeId) || this.manifests.get('default');
+    if (!manifest || !manifest.animations) return [];
+    return Object.keys(manifest.animations);
+  }
+
+  /**
+   * Resolves a normalized clip definition for `(spriteKey, state, themeId)`, or null if static.
+   */
+  public getAnimationClip(
+    spriteKey: string,
+    state: AnimationStateKey = 'idle',
+    themeId: string = 'default',
+  ): ResolvedAnimationClip | null {
+    const manifest = this.manifests.get(themeId) || this.manifests.get('default');
+    if (!manifest || !manifest.animations) return null;
+
+    const entry = manifest.animations[spriteKey];
+    if (!entry) return null;
+
+    let clip: AnimationClipDef | null = null;
+    if ('frames' in entry && Array.isArray((entry as AnimationClipDef).frames)) {
+      if (state === 'idle') clip = entry as AnimationClipDef;
+    } else {
+      clip = (entry as EntityAnimationSet)[state] ?? null;
+    }
+
+    if (!clip || !Array.isArray(clip.frames) || clip.frames.length === 0) return null;
+
+    const fps = clip.fps ?? 6;
+    const loop = clip.loop ?? 'loop';
+    const defaultDur = 1000 / (fps > 0 ? fps : 6);
+    const N = clip.frames.length;
+    const effectiveLen = loop === 'pingpong' && N > 2 ? 2 * N - 2 : N;
+
+    let totalDurationMs = 0;
+    for (let i = 0; i < effectiveLen; i++) {
+      const origIdx = loop === 'pingpong' && N > 2
+        ? (i < N ? i : 2 * N - 2 - i)
+        : (i % N);
+      totalDurationMs += clip.frameDurationsMs?.[origIdx] ?? defaultDur;
+    }
+
+    return {
+      state,
+      frames: clip.frames,
+      fps,
+      loop,
+      frameDurationsMs: clip.frameDurationsMs,
+      totalDurationMs,
+    };
+  }
+
+  /**
+   * Computes the active frame key and frame index at `elapsedMs` for a clip.
+   */
+  public resolveAnimatedFrameAtTime(
+    spriteKey: string,
+    state: AnimationStateKey = 'idle',
+    elapsedMs: number,
+    themeId: string = 'default',
+  ): { frameKey: string; frameIndex: number; totalFrames: number } {
+    const clip = this.getAnimationClip(spriteKey, state, themeId);
+    if (!clip || clip.frames.length === 0) {
+      return { frameKey: spriteKey, frameIndex: 0, totalFrames: 1 };
+    }
+
+    const step = stepAnimationClip(
+      {
+        frames: clip.frames,
+        fps: clip.fps,
+        loop: clip.loop,
+        frameDurationsMs: clip.frameDurationsMs,
+        desyncPhase: false,
+      },
+      elapsedMs,
+      0,
+      false,
+    );
+
+    return {
+      frameKey: step.frameKey,
+      frameIndex: step.frameIndex,
+      totalFrames: clip.frames.length,
+    };
   }
 
   /**

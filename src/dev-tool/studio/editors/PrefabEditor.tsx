@@ -81,6 +81,8 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
   const [brushOrientation, setBrushOrientation] = useState<CardinalOrientation>('NORTH');
   const [activeTool, setActiveTool] = useState<EditorTool>('pencil');
   const [viewMode, setViewMode] = useState<ViewMode>('SPRITE');
+  const [isAnimatingPreview, setIsAnimatingPreview] = useState(false);
+  const animElapsedRef = useRef<number>(0);
 
   // Box drag state
   const [boxStart, setBoxStart] = useState<{ x: number; y: number } | null>(null);
@@ -396,205 +398,250 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
   }, [prefabData]);
 
   // HTML5 Canvas Sprite Renderer
-  useEffect(() => {
-    if (viewMode !== 'SPRITE' || !canvasRef.current || !prefabData || !autotiledGrid) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+  const renderCanvas = useCallback(
+    (elapsedMs: number = 0) => {
+      if (viewMode !== 'SPRITE' || !canvasRef.current || !prefabData || !autotiledGrid) return;
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
-    const { width, height, layout, portals, faradayShielded } = prefabData;
-    const tileSize = Math.round(32 * zoomScale);
+      const { width, height, layout, portals, faradayShielded } = prefabData;
+      const tileSize = Math.round(32 * zoomScale);
 
-    canvas.width = width * tileSize;
-    canvas.height = height * tileSize;
+      canvas.width = width * tileSize;
+      canvas.height = height * tileSize;
 
-    // Layer 0: Void backing
-    ctx.fillStyle = '#040609';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Layer 0: Void backing
+      ctx.fillStyle = '#040609';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Layer 1 & 2: Floor & Autotiled Walls / Hazards
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const char = layout[y]?.[x] ?? '#';
-        const dx = x * tileSize;
-        const dy = y * tileSize;
+      // Layer 1 & 2: Floor & Autotiled Walls / Hazards
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const char = layout[y]?.[x] ?? '#';
+          const dx = x * tileSize;
+          const dy = y * tileSize;
 
-        // Draw floor substrate underneath everything
-        tilesetAtlasCache.drawAtlasFrame(ctx, 'floor', dx, dy, tileSize);
+          // Draw floor substrate underneath everything
+          tilesetAtlasCache.drawAtlasFrame(ctx, 'floor', dx, dy, tileSize);
 
-        if (char === '#') {
-          const frameKey = autotiledGrid.resolved[y]?.[x]?.frameKey || 'wall_straight_h';
-          tilesetAtlasCache.drawAtlasFrame(ctx, frameKey, dx, dy, tileSize);
-        } else if (char === '~') {
-          // Dead-zone hazard hatch
-          ctx.fillStyle = 'rgba(255, 0, 85, 0.35)';
-          ctx.fillRect(dx, dy, tileSize, tileSize);
-          ctx.strokeStyle = '#ff0055';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(dx, dy + tileSize);
-          ctx.lineTo(dx + tileSize, dy);
-          ctx.stroke();
-        } else if (char === '+' || char === 'V') {
-          if (char === 'V') {
-            tilesetAtlasCache.drawAtlasFrame(ctx, 'prop_vault_door_n', dx, dy, tileSize);
-          } else {
-            const doorFrame = autotiledGrid.resolved[y]?.[x]?.frameKey || 'door_h_closed';
-            tilesetAtlasCache.drawAtlasFrame(ctx, doorFrame, dx, dy, tileSize);
+          if (char === '#') {
+            const frameKey = autotiledGrid.resolved[y]?.[x]?.frameKey || 'wall_straight_h';
+            tilesetAtlasCache.drawAtlasFrame(ctx, frameKey, dx, dy, tileSize);
+          } else if (char === '~') {
+            // Dead-zone hazard hatch
+            ctx.fillStyle = 'rgba(255, 0, 85, 0.35)';
+            ctx.fillRect(dx, dy, tileSize, tileSize);
+            ctx.strokeStyle = '#ff0055';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(dx, dy + tileSize);
+            ctx.lineTo(dx + tileSize, dy);
+            ctx.stroke();
+          } else if (char === '+' || char === 'V') {
+            if (char === 'V') {
+              let vFrame = 'prop_vault_door_n';
+              if (isAnimatingPreview) {
+                const phaseOffset = (x * 31 + y * 17) * 40;
+                vFrame = tilesetAtlasCache.resolveAnimatedFrameAtTime(
+                  vFrame,
+                  'idle',
+                  elapsedMs + phaseOffset,
+                ).frameKey;
+              }
+              tilesetAtlasCache.drawAtlasFrame(ctx, vFrame, dx, dy, tileSize);
+            } else {
+              const doorFrame = autotiledGrid.resolved[y]?.[x]?.frameKey || 'door_h_closed';
+              tilesetAtlasCache.drawAtlasFrame(ctx, doorFrame, dx, dy, tileSize);
+            }
           }
         }
       }
-    }
 
-    // Layer 3: Perimeter Portals
-    for (const p of portals) {
-      const px = p.x * tileSize;
-      const py = p.y * tileSize;
+      // Layer 3: Perimeter Portals
+      for (const p of portals) {
+        const px = p.x * tileSize;
+        const py = p.y * tileSize;
 
-      ctx.fillStyle = 'rgba(0, 240, 255, 0.2)';
-      ctx.fillRect(px, py, tileSize, tileSize);
-      ctx.strokeStyle = '#00f0ff';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(px + 1, py + 1, tileSize - 2, tileSize - 2);
-
-      // Cyan arrow badge
-      ctx.fillStyle = '#00f0ff';
-      ctx.font = `bold ${Math.max(12, Math.round(14 * zoomScale))}px monospace`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const arrow =
-        p.direction === 'north'
-          ? '▲'
-          : p.direction === 'south'
-            ? '▼'
-            : p.direction === 'west'
-              ? '◀'
-              : '▶';
-      ctx.fillText(arrow, px + tileSize / 2, py + tileSize / 2);
-    }
-
-    // Layer 4: Interactive Props & Orientation Indicators
-    for (const prop of propSpawnsWithOrient) {
-      const px = prop.x * tileSize;
-      const py = prop.y * tileSize;
-      const o = prop.orientation.toLowerCase()[0]; // 'n', 'e', 's', 'w'
-
-      let frame = 'prop_workstation_n';
-      if (prop.guaranteedTemplate) {
-        if (prop.guaranteedTemplate === 'prop-workstation') frame = `prop_workstation_${o}`;
-        else if (prop.guaranteedTemplate === 'prop-locker') frame = `prop_locker_${o}`;
-        else if (prop.guaranteedTemplate === 'prop-biocabinet') frame = `prop_biocabinet_${o}`;
-        else if (prop.guaranteedTemplate === 'prop-crate-cover')
-          frame = o === 'n' || o === 's' ? 'prop_crate_cover_h' : 'prop_crate_cover_v';
-        else if (prop.guaranteedTemplate === 'prop-safe') frame = 'prop_safe_locked';
-        else if (prop.guaranteedTemplate === 'prop-subnet-console') frame = 'prop_subnet_console';
-        else if (prop.guaranteedTemplate === 'prop-cryo-vat') frame = 'prop_cryo_vat';
-        else if (prop.guaranteedTemplate === 'prop-capacitor-bank') frame = 'prop_capacitor_bank';
-        else if (prop.guaranteedTemplate === 'prop-reality-stabilizer') frame = 'prop_stabilizer';
-        else if (prop.guaranteedTemplate === 'prop-cooling-vent') frame = 'prop_cooling_vent';
-        else if (prop.guaranteedTemplate === 'prop-dead-drop') frame = 'prop_dead_drop';
-      } else {
-        if (prop.anchorType === 'PROP_DESK_CORNER') frame = `prop_workstation_${o}`;
-        else if (prop.anchorType === 'PROP_LOCKER_WALL') frame = `prop_locker_${o}`;
-        else if (prop.anchorType === 'SURFACE_TABLE_TOP') frame = 'prop_crate_cover_h';
-        else if (prop.anchorType === 'CONTAINER_RARE') frame = 'prop_safe_locked';
-      }
-
-      const drawn = tilesetAtlasCache.drawAtlasFrame(ctx, frame, px, py, tileSize);
-      if (!drawn) {
-        // Fallback badge
-        ctx.fillStyle = 'rgba(216, 255, 0, 0.2)';
+        ctx.fillStyle = 'rgba(0, 240, 255, 0.2)';
         ctx.fillRect(px, py, tileSize, tileSize);
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(px + 1, py + 1, tileSize - 2, tileSize - 2);
+
+        // Cyan arrow badge
+        ctx.fillStyle = '#00f0ff';
+        ctx.font = `bold ${Math.max(12, Math.round(14 * zoomScale))}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const arrow =
+          p.direction === 'north'
+            ? '▲'
+            : p.direction === 'south'
+              ? '▼'
+              : p.direction === 'west'
+                ? '◀'
+                : '▶';
+        ctx.fillText(arrow, px + tileSize / 2, py + tileSize / 2);
       }
 
-      // Translucent directional indicator
-      const badgeSize = Math.max(12, Math.round(14 * zoomScale));
-      const offset = tileSize - badgeSize;
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.fillRect(px + offset, py + offset, badgeSize, badgeSize);
-      ctx.fillStyle = '#d8ff00';
-      ctx.font = `${Math.max(9, Math.round(10 * zoomScale))}px monospace`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(
-        ORIENTATION_ARROWS[prop.orientation],
-        px + offset + badgeSize / 2,
-        py + offset + badgeSize / 2,
-      );
-    }
+      // Layer 4: Interactive Props & Orientation Indicators
+      for (const prop of propSpawnsWithOrient) {
+        const px = prop.x * tileSize;
+        const py = prop.y * tileSize;
+        const o = prop.orientation.toLowerCase()[0]; // 'n', 'e', 's', 'w'
 
-    // Layer 5: Faraday Cage Scanline Shroud
-    if (faradayShielded) {
-      ctx.fillStyle = 'rgba(0, 240, 255, 0.08)';
-      ctx.fillRect(tileSize, tileSize, (width - 2) * tileSize, (height - 2) * tileSize);
+        let frame = 'prop_workstation_n';
+        if (prop.guaranteedTemplate) {
+          if (prop.guaranteedTemplate === 'prop-workstation') frame = `prop_workstation_${o}`;
+          else if (prop.guaranteedTemplate === 'prop-locker') frame = `prop_locker_${o}`;
+          else if (prop.guaranteedTemplate === 'prop-biocabinet') frame = `prop_biocabinet_${o}`;
+          else if (prop.guaranteedTemplate === 'prop-crate-cover')
+            frame = o === 'n' || o === 's' ? 'prop_crate_cover_h' : 'prop_crate_cover_v';
+          else if (prop.guaranteedTemplate === 'prop-safe') frame = 'prop_safe_locked';
+          else if (prop.guaranteedTemplate === 'prop-subnet-console') frame = 'prop_subnet_console';
+          else if (prop.guaranteedTemplate === 'prop-cryo-vat') frame = 'prop_cryo_vat';
+          else if (prop.guaranteedTemplate === 'prop-capacitor-bank') frame = 'prop_capacitor_bank';
+          else if (prop.guaranteedTemplate === 'prop-reality-stabilizer') frame = 'prop_stabilizer';
+          else if (prop.guaranteedTemplate === 'prop-cooling-vent') frame = 'prop_cooling_vent';
+          else if (prop.guaranteedTemplate === 'prop-dead-drop') frame = 'prop_dead_drop';
+        } else {
+          if (prop.anchorType === 'PROP_DESK_CORNER') frame = `prop_workstation_${o}`;
+          else if (prop.anchorType === 'PROP_LOCKER_WALL') frame = `prop_locker_${o}`;
+          else if (prop.anchorType === 'SURFACE_TABLE_TOP') frame = 'prop_crate_cover_h';
+          else if (prop.anchorType === 'CONTAINER_RARE') frame = 'prop_safe_locked';
+        }
 
-      ctx.fillStyle = 'rgba(0, 240, 255, 0.05)';
-      for (let y = tileSize; y < (height - 1) * tileSize; y += 4) {
-        ctx.fillRect(tileSize, y, (width - 2) * tileSize, 2);
+        if (isAnimatingPreview) {
+          const phaseOffset = (prop.x * 31 + prop.y * 17) * 40;
+          const animElapsed = elapsedMs + phaseOffset;
+          const resolved = tilesetAtlasCache.resolveAnimatedFrameAtTime(frame, 'idle', animElapsed);
+          frame = resolved.frameKey;
+        }
+
+        const drawn = tilesetAtlasCache.drawAtlasFrame(ctx, frame, px, py, tileSize);
+        if (!drawn) {
+          // Fallback badge
+          ctx.fillStyle = 'rgba(216, 255, 0, 0.2)';
+          ctx.fillRect(px, py, tileSize, tileSize);
+        }
+
+        // Translucent directional indicator
+        const badgeSize = Math.max(12, Math.round(14 * zoomScale));
+        const offset = tileSize - badgeSize;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(px + offset, py + offset, badgeSize, badgeSize);
+        ctx.fillStyle = '#d8ff00';
+        ctx.font = `${Math.max(9, Math.round(10 * zoomScale))}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(
+          ORIENTATION_ARROWS[prop.orientation],
+          px + offset + badgeSize / 2,
+          py + offset + badgeSize / 2,
+        );
       }
 
-      ctx.fillStyle = 'rgba(0, 240, 255, 0.8)';
-      ctx.font = `bold ${Math.max(8, Math.round(9 * zoomScale))}px monospace`;
-      ctx.textAlign = 'left';
-      ctx.fillText('⚡ FARADAY SHIELDED', tileSize + 4, tileSize + Math.round(12 * zoomScale));
-    }
+      // Layer 5: Faraday Cage Scanline Shroud
+      if (faradayShielded) {
+        ctx.fillStyle = 'rgba(0, 240, 255, 0.08)';
+        ctx.fillRect(tileSize, tileSize, (width - 2) * tileSize, (height - 2) * tileSize);
 
-    // Grid Overlay
-    ctx.strokeStyle = '#1c2638';
-    ctx.lineWidth = 1;
-    for (let x = 0; x <= width; x++) {
-      ctx.beginPath();
-      ctx.moveTo(x * tileSize, 0);
-      ctx.lineTo(x * tileSize, height * tileSize);
-      ctx.stroke();
-    }
-    for (let y = 0; y <= height; y++) {
-      ctx.beginPath();
-      ctx.moveTo(0, y * tileSize);
-      ctx.lineTo(width * tileSize, y * tileSize);
-      ctx.stroke();
-    }
+        ctx.fillStyle = 'rgba(0, 240, 255, 0.05)';
+        for (let y = tileSize; y < (height - 1) * tileSize; y += 4) {
+          ctx.fillRect(tileSize, y, (width - 2) * tileSize, 2);
+        }
 
-    // Drag box outline preview
-    if (activeTool === 'box' && boxStart && hoverPos) {
-      const minX = Math.min(boxStart.x, hoverPos.x);
-      const maxX = Math.max(boxStart.x, hoverPos.x);
-      const minY = Math.min(boxStart.y, hoverPos.y);
-      const maxY = Math.max(boxStart.y, hoverPos.y);
+        ctx.fillStyle = 'rgba(0, 240, 255, 0.8)';
+        ctx.font = `bold ${Math.max(8, Math.round(9 * zoomScale))}px monospace`;
+        ctx.textAlign = 'left';
+        ctx.fillText('⚡ FARADAY SHIELDED', tileSize + 4, tileSize + Math.round(12 * zoomScale));
+      }
 
-      ctx.fillStyle = 'rgba(0, 240, 255, 0.2)';
-      ctx.fillRect(
-        minX * tileSize,
-        minY * tileSize,
-        (maxX - minX + 1) * tileSize,
-        (maxY - minY + 1) * tileSize,
-      );
-      ctx.strokeStyle = '#00f0ff';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(
-        minX * tileSize,
-        minY * tileSize,
-        (maxX - minX + 1) * tileSize,
-        (maxY - minY + 1) * tileSize,
-      );
-    }
-
-    // Cursor reticle
-    if (hoverPos) {
-      ctx.strokeStyle = '#d8ff00';
+      // Grid Overlay
+      ctx.strokeStyle = '#1c2638';
       ctx.lineWidth = 1;
-      ctx.strokeRect(hoverPos.x * tileSize, hoverPos.y * tileSize, tileSize, tileSize);
+      for (let x = 0; x <= width; x++) {
+        ctx.beginPath();
+        ctx.moveTo(x * tileSize, 0);
+        ctx.lineTo(x * tileSize, height * tileSize);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= height; y++) {
+        ctx.beginPath();
+        ctx.moveTo(0, y * tileSize);
+        ctx.lineTo(width * tileSize, y * tileSize);
+        ctx.stroke();
+      }
+
+      // Drag box outline preview
+      if (activeTool === 'box' && boxStart && hoverPos) {
+        const minX = Math.min(boxStart.x, hoverPos.x);
+        const maxX = Math.max(boxStart.x, hoverPos.x);
+        const minY = Math.min(boxStart.y, hoverPos.y);
+        const maxY = Math.max(boxStart.y, hoverPos.y);
+
+        ctx.fillStyle = 'rgba(0, 240, 255, 0.2)';
+        ctx.fillRect(
+          minX * tileSize,
+          minY * tileSize,
+          (maxX - minX + 1) * tileSize,
+          (maxY - minY + 1) * tileSize,
+        );
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(
+          minX * tileSize,
+          minY * tileSize,
+          (maxX - minX + 1) * tileSize,
+          (maxY - minY + 1) * tileSize,
+        );
+      }
+
+      // Cursor reticle
+      if (hoverPos) {
+        ctx.strokeStyle = '#d8ff00';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(hoverPos.x * tileSize, hoverPos.y * tileSize, tileSize, tileSize);
+      }
+    },
+    [
+      viewMode,
+      prefabData,
+      propSpawnsWithOrient,
+      autotiledGrid,
+      hoverPos,
+      boxStart,
+      activeTool,
+      zoomScale,
+      isAnimatingPreview,
+    ],
+  );
+
+  // Initial / Static Canvas Render Effect
+  useEffect(() => {
+    if (!isAnimatingPreview) {
+      renderCanvas(animElapsedRef.current);
     }
-  }, [
-    viewMode,
-    prefabData,
-    propSpawnsWithOrient,
-    autotiledGrid,
-    hoverPos,
-    boxStart,
-    activeTool,
-    zoomScale,
-  ]);
+  }, [renderCanvas, isAnimatingPreview]);
+
+  // Live rAF loop when isAnimatingPreview is active
+  useEffect(() => {
+    if (!isAnimatingPreview || viewMode !== 'SPRITE') return;
+    let animId: number;
+    let lastTime = performance.now();
+
+    const loop = (now: number) => {
+      const dt = now - lastTime;
+      lastTime = now;
+      animElapsedRef.current += dt;
+      renderCanvas(animElapsedRef.current);
+      animId = requestAnimationFrame(loop);
+    };
+
+    animId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(animId);
+  }, [isAnimatingPreview, viewMode, renderCanvas]);
 
   // Painting handlers
   const paintCell = useCallback(
@@ -1503,6 +1550,24 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
               >
                 RAW ASCII
               </button>
+
+              {viewMode === 'SPRITE' && (
+                <button
+                  type="button"
+                  className={styles.toolButton}
+                  onClick={() => setIsAnimatingPreview((prev) => !prev)}
+                  style={{
+                    background: isAnimatingPreview ? 'var(--c-accent, #d8ff00)' : 'rgba(216, 255, 0, 0.15)',
+                    color: isAnimatingPreview ? '#040609' : 'var(--c-accent, #d8ff00)',
+                    borderColor: 'var(--c-accent, #d8ff00)',
+                    fontWeight: 700,
+                    marginLeft: '6px',
+                  }}
+                  title={isAnimatingPreview ? 'Pause animation preview' : 'Animate props and terminals in room preview'}
+                >
+                  {isAnimatingPreview ? '⏸ PAUSE ANIMATION' : '▶ ANIMATE PREVIEW'}
+                </button>
+              )}
             </div>
 
             {/* Zoom Controls */}

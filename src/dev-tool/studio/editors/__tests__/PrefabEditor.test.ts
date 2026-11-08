@@ -77,4 +77,47 @@ describe('PrefabEditor Studio Enhancements (Milestone 5)', () => {
       expect(doorResult.angleDegrees).toBe(0);
     });
   });
+
+  describe('Live Room Animated Preview Frame Resolution [ANIM-04]', () => {
+    it('desyncs animated props across spatial grid cells via phase offset', async () => {
+      const { tilesetAtlasCache } = await import('../../shared/tileset-atlas-cache');
+      tilesetAtlasCache.setAtlasData('default', {
+        frames: {
+          prop_workstation_n: { frame: { x: 0, y: 0, w: 32, h: 32 } },
+          prop_workstation_n_idle_1: { frame: { x: 32, y: 0, w: 32, h: 32 } },
+        },
+        animations: {
+          prop_workstation_n: {
+            idle: {
+              frames: ['prop_workstation_n', 'prop_workstation_n_idle_1'],
+              fps: 2, // 500ms per frame
+              loop: 'loop',
+            },
+          },
+        },
+      });
+
+      const elapsedMs = 100;
+      // Prop at (1, 1) phase = (1*31 + 1*17)*40 = 1920ms -> total 2020ms -> 2020 % 1000 = 20ms -> frame 0
+      const phase1 = (1 * 31 + 1 * 17) * 40;
+      const res1 = tilesetAtlasCache.resolveAnimatedFrameAtTime(
+        'prop_workstation_n',
+        'idle',
+        elapsedMs + phase1,
+      );
+
+      // Prop at (5, 8) phase = (5*31 + 8*17)*40 = (155 + 136)*40 = 11640ms -> total 11740ms -> 11740 % 1000 = 740ms -> frame 1
+      const phase2 = (5 * 31 + 8 * 17) * 40;
+      const res2 = tilesetAtlasCache.resolveAnimatedFrameAtTime(
+        'prop_workstation_n',
+        'idle',
+        elapsedMs + phase2,
+      );
+
+      expect(res1.frameIndex).toBe(0);
+      expect(res2.frameIndex).toBe(1);
+      expect(res1.frameKey).toBe('prop_workstation_n');
+      expect(res2.frameKey).toBe('prop_workstation_n_idle_1');
+    });
+  });
 });
