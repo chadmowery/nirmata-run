@@ -2123,6 +2123,1068 @@
         "w": 32,
         "h": 32
       }
+    },
+    "player_vanguard_idle_1": {
+      "frame": {
+        "x": 0,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "player_vanguard_idle": {
+      "frame": {
+        "x": 0,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "player_vanguard_atk_1": {
+      "frame": {
+        "x": 32,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "player_vanguard_attack_1": {
+      "frame": {
+        "x": 32,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "player_bastion_idle_1": {
+      "frame": {
+        "x": 64,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "player_bastion_idle": {
+      "frame": {
+        "x": 64,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "player_bastion_atk_1": {
+      "frame": {
+        "x": 96,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "player_bastion_attack_1": {
+      "frame": {
+        "x": 96,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "player_ghost_idle_1": {
+      "frame": {
+        "x": 128,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "player_ghost_idle": {
+      "frame": {
+        "x": 128,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "player_ghost_atk_1": {
+      "frame": {
+        "x": 160,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "player_ghost_attack_1": {
+      "frame": {
+        "x": 160,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "player_idle_1": {
+      "frame": {
+        "x": 192,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "player_idle": {
+      "frame": {
+        "x": 192,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "player_atk_1": {
+      "frame": {
+        "x": 224,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "player_attack_1": {
+      "frame": {
+        "x": 224,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "enemy_null_pointer_idle_1": {
+      "frame": {
+        "x": 256,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "enemy_null_pointer_atk_1": {
+      "frame": {
+        "x": 288,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "enemy_null_pointer_idle_2": {
+      "frame": {
+        "x": 288,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "enemy_buffer_overflow_idle_1": {
+      "frame": {
+        "x": 320,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "enemy_buffer_overflow_atk_1": {
+      "frame": {
+        "x": 352,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "enemy_buffer_overflow_idle_2": {
+      "frame": {
+        "x": 352,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "enemy_fragmenter_idle_1": {
+      "frame": {
+        "x": 384,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "enemy_fragmenter_atk_1": {
+      "frame": {
+        "x": 416,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "enemy_fragmenter_idle_2": {
+      "frame": {
+        "x": 416,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "enemy_logic_leaker_idle_1": {
+      "frame": {
+        "x": 448,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "enemy_logic_leaker_atk_1": {
+      "frame": {
+        "x": 480,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "enemy_logic_leaker_idle_2": {
+      "frame": {
+        "x": 480,
+        "y": 384,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "enemy_seed_eater_idle_1": {
+      "frame": {
+        "x": 0,
+        "y": 416,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "enemy_seed_eater_atk_1": {
+      "frame": {
+        "x": 32,
+        "y": 416,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "enemy_seed_eater_idle_2": {
+      "frame": {
+        "x": 32,
+        "y": 416,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "enemy_system_admin_idle_1": {
+      "frame": {
+        "x": 64,
+        "y": 416,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "enemy_system_admin_atk_1": {
+      "frame": {
+        "x": 96,
+        "y": 416,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "enemy_system_admin_idle_2": {
+      "frame": {
+        "x": 96,
+        "y": 416,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "prop_workstation_n_anim_1": {
+      "frame": {
+        "x": 128,
+        "y": 416,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "prop_workstation_anim_1": {
+      "frame": {
+        "x": 128,
+        "y": 416,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "prop_workstation_e_anim_1": {
+      "frame": {
+        "x": 160,
+        "y": 416,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "prop_workstation_s_anim_1": {
+      "frame": {
+        "x": 192,
+        "y": 416,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "prop_workstation_w_anim_1": {
+      "frame": {
+        "x": 224,
+        "y": 416,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "prop_cooling_vent_spin_1": {
+      "frame": {
+        "x": 256,
+        "y": 416,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "prop_cooling_vent_spin_2": {
+      "frame": {
+        "x": 288,
+        "y": 416,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "prop_stabilizer_pulse_1": {
+      "frame": {
+        "x": 320,
+        "y": 416,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "prop_stabilizer_pulse_2": {
+      "frame": {
+        "x": 352,
+        "y": 416,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "prop_cryo_vat_anim_1": {
+      "frame": {
+        "x": 384,
+        "y": 416,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "prop_cryo_vat_anim_2": {
+      "frame": {
+        "x": 416,
+        "y": 416,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "prop_capacitor_bank_anim_1": {
+      "frame": {
+        "x": 448,
+        "y": 416,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "prop_capacitor_bank_anim_2": {
+      "frame": {
+        "x": 480,
+        "y": 416,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "prop_dead_drop_anim_1": {
+      "frame": {
+        "x": 0,
+        "y": 448,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "prop_subnet_console_anim_1": {
+      "frame": {
+        "x": 32,
+        "y": 448,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "prop_safe_locked_blink_1": {
+      "frame": {
+        "x": 64,
+        "y": 448,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "prop_locker_blink_1": {
+      "frame": {
+        "x": 96,
+        "y": 448,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "prop_biocabinet_blink_1": {
+      "frame": {
+        "x": 128,
+        "y": 448,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "anchor_pulse_1": {
+      "frame": {
+        "x": 160,
+        "y": 448,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "anchor_pulse_2": {
+      "frame": {
+        "x": 192,
+        "y": 448,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "staircase_pulse_1": {
+      "frame": {
+        "x": 224,
+        "y": 448,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "item_flux_glint_1": {
+      "frame": {
+        "x": 256,
+        "y": 448,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "item_potion_glint_1": {
+      "frame": {
+        "x": 288,
+        "y": 448,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "item_blueprint_glint_1": {
+      "frame": {
+        "x": 320,
+        "y": 448,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
+    },
+    "item_access_key_glint_1": {
+      "frame": {
+        "x": 352,
+        "y": 448,
+        "w": 32,
+        "h": 32
+      },
+      "sourceSize": {
+        "w": 32,
+        "h": 32
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 32,
+        "h": 32
+      }
     }
   },
   "meta": {
@@ -2133,5 +3195,786 @@
       "h": 512
     },
     "scale": 1
+  },
+  "animations": {
+    "player_vanguard": {
+      "idle": {
+        "frames": [
+          "player_vanguard",
+          "player_vanguard_idle_1"
+        ],
+        "frameDurationsMs": [
+          550,
+          250
+        ],
+        "loop": "loop",
+        "desyncPhase": false
+      },
+      "move": {
+        "frames": [
+          "player_vanguard_idle_1",
+          "player_vanguard"
+        ],
+        "fps": 12,
+        "loop": "once"
+      },
+      "attack": {
+        "frames": [
+          "player_vanguard_atk_1",
+          "player_vanguard"
+        ],
+        "frameDurationsMs": [
+          110,
+          60
+        ],
+        "loop": "once"
+      }
+    },
+    "player_bastion": {
+      "idle": {
+        "frames": [
+          "player_bastion",
+          "player_bastion_idle_1"
+        ],
+        "frameDurationsMs": [
+          550,
+          250
+        ],
+        "loop": "loop",
+        "desyncPhase": false
+      },
+      "move": {
+        "frames": [
+          "player_bastion_idle_1",
+          "player_bastion"
+        ],
+        "fps": 12,
+        "loop": "once"
+      },
+      "attack": {
+        "frames": [
+          "player_bastion_atk_1",
+          "player_bastion"
+        ],
+        "frameDurationsMs": [
+          110,
+          60
+        ],
+        "loop": "once"
+      }
+    },
+    "player_ghost": {
+      "idle": {
+        "frames": [
+          "player_ghost",
+          "player_ghost_idle_1"
+        ],
+        "frameDurationsMs": [
+          550,
+          250
+        ],
+        "loop": "loop",
+        "desyncPhase": false
+      },
+      "move": {
+        "frames": [
+          "player_ghost_idle_1",
+          "player_ghost"
+        ],
+        "fps": 12,
+        "loop": "once"
+      },
+      "attack": {
+        "frames": [
+          "player_ghost_atk_1",
+          "player_ghost"
+        ],
+        "frameDurationsMs": [
+          110,
+          60
+        ],
+        "loop": "once"
+      }
+    },
+    "player": {
+      "idle": {
+        "frames": [
+          "player",
+          "player_idle_1"
+        ],
+        "frameDurationsMs": [
+          550,
+          250
+        ],
+        "loop": "loop",
+        "desyncPhase": false
+      },
+      "move": {
+        "frames": [
+          "player_idle_1",
+          "player"
+        ],
+        "fps": 12,
+        "loop": "once"
+      },
+      "attack": {
+        "frames": [
+          "player_atk_1",
+          "player"
+        ],
+        "frameDurationsMs": [
+          110,
+          60
+        ],
+        "loop": "once"
+      }
+    },
+    "enemy_null_pointer": {
+      "idle": {
+        "frames": [
+          "enemy_null_pointer",
+          "enemy_null_pointer_idle_1",
+          "enemy_null_pointer_atk_1"
+        ],
+        "fps": 5,
+        "loop": "pingpong"
+      },
+      "attack": {
+        "frames": [
+          "enemy_null_pointer",
+          "enemy_null_pointer_atk_1"
+        ],
+        "fps": 10,
+        "loop": "once"
+      },
+      "hit": {
+        "frames": [
+          "enemy_null_pointer",
+          "enemy_null_pointer_atk_1"
+        ],
+        "fps": 12,
+        "loop": "once"
+      }
+    },
+    "enemy_buffer_overflow": {
+      "idle": {
+        "frames": [
+          "enemy_buffer_overflow",
+          "enemy_buffer_overflow_idle_1",
+          "enemy_buffer_overflow_atk_1"
+        ],
+        "fps": 5,
+        "loop": "pingpong"
+      },
+      "attack": {
+        "frames": [
+          "enemy_buffer_overflow",
+          "enemy_buffer_overflow_atk_1"
+        ],
+        "fps": 10,
+        "loop": "once"
+      },
+      "hit": {
+        "frames": [
+          "enemy_buffer_overflow",
+          "enemy_buffer_overflow_atk_1"
+        ],
+        "fps": 12,
+        "loop": "once"
+      }
+    },
+    "enemy_fragmenter": {
+      "idle": {
+        "frames": [
+          "enemy_fragmenter",
+          "enemy_fragmenter_idle_1",
+          "enemy_fragmenter_atk_1"
+        ],
+        "fps": 5,
+        "loop": "pingpong"
+      },
+      "attack": {
+        "frames": [
+          "enemy_fragmenter",
+          "enemy_fragmenter_atk_1"
+        ],
+        "fps": 10,
+        "loop": "once"
+      },
+      "hit": {
+        "frames": [
+          "enemy_fragmenter",
+          "enemy_fragmenter_atk_1"
+        ],
+        "fps": 12,
+        "loop": "once"
+      }
+    },
+    "enemy_logic_leaker": {
+      "idle": {
+        "frames": [
+          "enemy_logic_leaker",
+          "enemy_logic_leaker_idle_1",
+          "enemy_logic_leaker_atk_1"
+        ],
+        "fps": 5,
+        "loop": "pingpong"
+      },
+      "attack": {
+        "frames": [
+          "enemy_logic_leaker",
+          "enemy_logic_leaker_atk_1"
+        ],
+        "fps": 10,
+        "loop": "once"
+      },
+      "hit": {
+        "frames": [
+          "enemy_logic_leaker",
+          "enemy_logic_leaker_atk_1"
+        ],
+        "fps": 12,
+        "loop": "once"
+      }
+    },
+    "enemy_seed_eater": {
+      "idle": {
+        "frames": [
+          "enemy_seed_eater",
+          "enemy_seed_eater_idle_1",
+          "enemy_seed_eater_atk_1"
+        ],
+        "fps": 5,
+        "loop": "pingpong"
+      },
+      "attack": {
+        "frames": [
+          "enemy_seed_eater",
+          "enemy_seed_eater_atk_1"
+        ],
+        "fps": 10,
+        "loop": "once"
+      },
+      "hit": {
+        "frames": [
+          "enemy_seed_eater",
+          "enemy_seed_eater_atk_1"
+        ],
+        "fps": 12,
+        "loop": "once"
+      }
+    },
+    "enemy_system_admin": {
+      "idle": {
+        "frames": [
+          "enemy_system_admin",
+          "enemy_system_admin_idle_1",
+          "enemy_system_admin_atk_1"
+        ],
+        "fps": 5,
+        "loop": "pingpong"
+      },
+      "attack": {
+        "frames": [
+          "enemy_system_admin",
+          "enemy_system_admin_atk_1"
+        ],
+        "fps": 10,
+        "loop": "once"
+      },
+      "hit": {
+        "frames": [
+          "enemy_system_admin",
+          "enemy_system_admin_atk_1"
+        ],
+        "fps": 12,
+        "loop": "once"
+      }
+    },
+    "prop_workstation": {
+      "idle": {
+        "frames": [
+          "prop_workstation",
+          "prop_workstation_n_anim_1"
+        ],
+        "frameDurationsMs": [
+          400,
+          400
+        ],
+        "loop": "loop"
+      },
+      "searched": {
+        "frames": [
+          "prop_workstation"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_workstation_n": {
+      "idle": {
+        "frames": [
+          "prop_workstation_n",
+          "prop_workstation_n_anim_1"
+        ],
+        "frameDurationsMs": [
+          400,
+          400
+        ],
+        "loop": "loop"
+      },
+      "searched": {
+        "frames": [
+          "prop_workstation_n"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_workstation_e": {
+      "idle": {
+        "frames": [
+          "prop_workstation_e",
+          "prop_workstation_e_anim_1"
+        ],
+        "frameDurationsMs": [
+          400,
+          400
+        ],
+        "loop": "loop"
+      },
+      "searched": {
+        "frames": [
+          "prop_workstation_e"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_workstation_s": {
+      "idle": {
+        "frames": [
+          "prop_workstation_s",
+          "prop_workstation_s_anim_1"
+        ],
+        "frameDurationsMs": [
+          400,
+          400
+        ],
+        "loop": "loop"
+      },
+      "searched": {
+        "frames": [
+          "prop_workstation_s"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_workstation_w": {
+      "idle": {
+        "frames": [
+          "prop_workstation_w",
+          "prop_workstation_w_anim_1"
+        ],
+        "frameDurationsMs": [
+          400,
+          400
+        ],
+        "loop": "loop"
+      },
+      "searched": {
+        "frames": [
+          "prop_workstation_w"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_cooling_vent": {
+      "idle": {
+        "frames": [
+          "prop_cooling_vent",
+          "prop_cooling_vent_spin_1",
+          "prop_cooling_vent_spin_2"
+        ],
+        "fps": 8,
+        "loop": "loop"
+      },
+      "searched": {
+        "frames": [
+          "prop_cooling_vent"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_cooling_vent_ready": {
+      "idle": {
+        "frames": [
+          "prop_cooling_vent_ready",
+          "prop_cooling_vent_spin_1",
+          "prop_cooling_vent_spin_2"
+        ],
+        "fps": 8,
+        "loop": "loop"
+      },
+      "searched": {
+        "frames": [
+          "prop_cooling_vent_ready"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_stabilizer": {
+      "idle": {
+        "frames": [
+          "prop_stabilizer",
+          "prop_stabilizer_pulse_1",
+          "prop_stabilizer_pulse_2"
+        ],
+        "fps": 5,
+        "loop": "pingpong"
+      },
+      "searched": {
+        "frames": [
+          "prop_stabilizer"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_stabilizer_active": {
+      "idle": {
+        "frames": [
+          "prop_stabilizer_active",
+          "prop_stabilizer_pulse_1",
+          "prop_stabilizer_pulse_2"
+        ],
+        "fps": 5,
+        "loop": "pingpong"
+      },
+      "searched": {
+        "frames": [
+          "prop_stabilizer_active"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_cryo_vat": {
+      "idle": {
+        "frames": [
+          "prop_cryo_vat",
+          "prop_cryo_vat_anim_1",
+          "prop_cryo_vat_anim_2"
+        ],
+        "fps": 5,
+        "loop": "loop"
+      }
+    },
+    "prop_capacitor_bank": {
+      "idle": {
+        "frames": [
+          "prop_capacitor_bank",
+          "prop_capacitor_bank_anim_1",
+          "prop_capacitor_bank_anim_2"
+        ],
+        "fps": 6,
+        "loop": "pingpong"
+      }
+    },
+    "prop_dead_drop": {
+      "idle": {
+        "frames": [
+          "prop_dead_drop",
+          "prop_dead_drop_anim_1"
+        ],
+        "frameDurationsMs": [
+          500,
+          250
+        ],
+        "loop": "loop"
+      },
+      "searched": {
+        "frames": [
+          "prop_dead_drop"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_dead_drop_ready": {
+      "idle": {
+        "frames": [
+          "prop_dead_drop_ready",
+          "prop_dead_drop_anim_1"
+        ],
+        "frameDurationsMs": [
+          500,
+          250
+        ],
+        "loop": "loop"
+      },
+      "searched": {
+        "frames": [
+          "prop_dead_drop_ready"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_subnet_console": {
+      "idle": {
+        "frames": [
+          "prop_subnet_console",
+          "prop_subnet_console_anim_1"
+        ],
+        "frameDurationsMs": [
+          500,
+          250
+        ],
+        "loop": "loop"
+      },
+      "searched": {
+        "frames": [
+          "prop_subnet_console"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_safe_locked": {
+      "locked": {
+        "frames": [
+          "prop_safe_locked",
+          "prop_safe_locked_blink_1"
+        ],
+        "frameDurationsMs": [
+          700,
+          200
+        ],
+        "loop": "loop"
+      },
+      "idle": {
+        "frames": [
+          "prop_safe_locked",
+          "prop_safe_locked_blink_1"
+        ],
+        "frameDurationsMs": [
+          700,
+          200
+        ],
+        "loop": "loop"
+      },
+      "searched": {
+        "frames": [
+          "prop_safe_locked"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_locker_n": {
+      "idle": {
+        "frames": [
+          "prop_locker_n",
+          "prop_locker_blink_1"
+        ],
+        "frameDurationsMs": [
+          700,
+          200
+        ],
+        "loop": "loop"
+      },
+      "searched": {
+        "frames": [
+          "prop_locker_n"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_locker_e": {
+      "idle": {
+        "frames": [
+          "prop_locker_e",
+          "prop_locker_blink_1"
+        ],
+        "frameDurationsMs": [
+          700,
+          200
+        ],
+        "loop": "loop"
+      },
+      "searched": {
+        "frames": [
+          "prop_locker_e"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_locker_s": {
+      "idle": {
+        "frames": [
+          "prop_locker_s",
+          "prop_locker_blink_1"
+        ],
+        "frameDurationsMs": [
+          700,
+          200
+        ],
+        "loop": "loop"
+      },
+      "searched": {
+        "frames": [
+          "prop_locker_s"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_locker_w": {
+      "idle": {
+        "frames": [
+          "prop_locker_w",
+          "prop_locker_blink_1"
+        ],
+        "frameDurationsMs": [
+          700,
+          200
+        ],
+        "loop": "loop"
+      },
+      "searched": {
+        "frames": [
+          "prop_locker_w"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_biocabinet_n": {
+      "idle": {
+        "frames": [
+          "prop_biocabinet_n",
+          "prop_biocabinet_blink_1"
+        ],
+        "frameDurationsMs": [
+          700,
+          200
+        ],
+        "loop": "loop"
+      },
+      "searched": {
+        "frames": [
+          "prop_biocabinet_n"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_biocabinet_e": {
+      "idle": {
+        "frames": [
+          "prop_biocabinet_e",
+          "prop_biocabinet_blink_1"
+        ],
+        "frameDurationsMs": [
+          700,
+          200
+        ],
+        "loop": "loop"
+      },
+      "searched": {
+        "frames": [
+          "prop_biocabinet_e"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_biocabinet_s": {
+      "idle": {
+        "frames": [
+          "prop_biocabinet_s",
+          "prop_biocabinet_blink_1"
+        ],
+        "frameDurationsMs": [
+          700,
+          200
+        ],
+        "loop": "loop"
+      },
+      "searched": {
+        "frames": [
+          "prop_biocabinet_s"
+        ],
+        "loop": "once"
+      }
+    },
+    "prop_biocabinet_w": {
+      "idle": {
+        "frames": [
+          "prop_biocabinet_w",
+          "prop_biocabinet_blink_1"
+        ],
+        "frameDurationsMs": [
+          700,
+          200
+        ],
+        "loop": "loop"
+      },
+      "searched": {
+        "frames": [
+          "prop_biocabinet_w"
+        ],
+        "loop": "once"
+      }
+    },
+    "anchor": {
+      "frames": [
+        "anchor",
+        "anchor_pulse_1",
+        "anchor_pulse_2"
+      ],
+      "fps": 4,
+      "loop": "pingpong"
+    },
+    "staircase": {
+      "frames": [
+        "staircase",
+        "staircase_pulse_1"
+      ],
+      "fps": 3,
+      "loop": "loop"
+    },
+    "item_flux": {
+      "frames": [
+        "item_flux",
+        "item_flux_glint_1"
+      ],
+      "frameDurationsMs": [
+        900,
+        150
+      ],
+      "loop": "loop"
+    },
+    "item_potion": {
+      "frames": [
+        "item_potion",
+        "item_potion_glint_1"
+      ],
+      "frameDurationsMs": [
+        900,
+        150
+      ],
+      "loop": "loop"
+    },
+    "item_blueprint": {
+      "frames": [
+        "item_blueprint",
+        "item_blueprint_glint_1"
+      ],
+      "frameDurationsMs": [
+        900,
+        150
+      ],
+      "loop": "loop"
+    },
+    "item_access_key": {
+      "frames": [
+        "item_access_key",
+        "item_access_key_glint_1"
+      ],
+      "frameDurationsMs": [
+        900,
+        150
+      ],
+      "loop": "loop"
+    }
   }
 }

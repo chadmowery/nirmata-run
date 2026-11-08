@@ -13,7 +13,7 @@
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write src/",
-    "build:tiles": "node scripts/build-environment-tiles.cjs && node scripts/add-environment-sprites.cjs && node scripts/build-all-directional-tiles.cjs && node scripts/add-directional-tiles.cjs && node scripts/generate-themed-tilesets.cjs"
+    "build:tiles": "node scripts/build-environment-tiles.cjs && node scripts/add-environment-sprites.cjs && node scripts/build-all-directional-tiles.cjs && node scripts/add-directional-tiles.cjs && node scripts/build-animation-frames.cjs && node scripts/add-animation-frames.cjs && node scripts/generate-themed-tilesets.cjs"
   },
   "keywords": [],
   "author": "",

@@ -194,10 +194,22 @@ export function validateTilesetManifest(manifest: unknown): TilesetValidationRes
  * Reads and validates a theme tileset JSON file from the filesystem.
  */
 export async function validateThemeFile(themeId: string): Promise<TilesetValidationResult> {
-  const filePath =
+  let filePath =
     themeId === 'default'
       ? path.join(process.cwd(), 'public/assets/tileset.json')
-      : path.join(process.cwd(), `public/assets/themes/${themeId}/tileset.json`);
+      : path.join(process.cwd(), `public/assets/tileset_${themeId}.json`);
+
+  try {
+    await fs.access(filePath);
+  } catch {
+    const fallbackPath = path.join(process.cwd(), `public/assets/themes/${themeId}/tileset.json`);
+    try {
+      await fs.access(fallbackPath);
+      filePath = fallbackPath;
+    } catch {
+      // Keep original filePath to report error below
+    }
+  }
 
   try {
     const rawContent = await fs.readFile(filePath, 'utf-8');
