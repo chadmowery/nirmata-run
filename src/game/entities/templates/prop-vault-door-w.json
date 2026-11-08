@@ -2,7 +2,10 @@
   "name": "prop-vault-door-w",
   "mixins": [],
   "components": {
-    "position": { "x": 0, "y": 0 },
+    "position": {
+      "x": 0,
+      "y": 0
+    },
     "prop": {
       "propId": "vault_door",
       "faction": "cyberacme",
@@ -21,13 +24,16 @@
     },
     "directionalProp": {
       "requiresFrontAccess": true,
-      "frontFacingVector": { "x": -1, "y": 0 },
+      "frontFacingVector": {
+        "x": -1,
+        "y": 0
+      },
       "hasDirectionalCover": true,
       "coverArcDegrees": 180
     },
-    "blocksMovement": {}
-  },
-  "overrides": {
-    "sprite": { "key": "vault_door_locked_w" }
+    "blocksMovement": {},
+    "sprite": {
+      "key": "vault_door_locked_w"
+    }
   }
 }

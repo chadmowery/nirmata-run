@@ -5,6 +5,7 @@ import type { FieldMeta } from '@/app/api/dev/gamedata/schema-introspect';
 import { useGamedataStore } from '../store';
 import { buildDefaultComponentData } from '../shared/default-values';
 import { ComponentFieldGroup } from './shared/ComponentFieldGroup';
+import { SpritePicker } from '../shared/SpritePicker';
 import styles from './editors.module.css';
 
 interface Props {
@@ -85,13 +86,25 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
       .catch(() => {});
   }, []);
 
+  const normalizeTemplate = (raw: TemplateData): TemplateData => {
+    const copy = { ...raw };
+    if (!copy.components) copy.components = {};
+    if (copy.overrides?.sprite && !copy.components.sprite) {
+      copy.components.sprite = copy.overrides.sprite;
+      const rest = { ...copy.overrides };
+      delete rest.sprite;
+      copy.overrides = Object.keys(rest).length > 0 ? rest : undefined;
+    }
+    return copy;
+  };
+
   // Load template data
   useEffect(() => {
     if (isNew && cloneFrom) {
       fetch(`/api/dev/gamedata/entities/${cloneFrom}`)
         .then((r) => r.json())
         .then((data) => {
-          setTemplateData({ ...data, name: '' });
+          setTemplateData(normalizeTemplate({ ...data, name: '' }));
           setDirty(true);
         })
         .catch(() => setErrors(['Failed to load clone source']));
@@ -99,7 +112,7 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
       fetch(`/api/dev/gamedata/entities/${name}`)
         .then((r) => r.json())
         .then((data) => {
-          setTemplateData(data);
+          setTemplateData(normalizeTemplate(data));
           setDirty(false);
         })
         .catch(() => setErrors(['Failed to load template']));
@@ -299,12 +312,20 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
   const handleComponentFieldChange = (compKey: string, fieldKey: string, value: unknown) => {
     if (!templateData) return;
     const currentComp = templateData.components?.[compKey] ?? {};
+    const nextComponents = {
+      ...(templateData.components ?? {}),
+      [compKey]: { ...currentComp, [fieldKey]: value },
+    };
+    let nextOverrides = templateData.overrides;
+    if (compKey === 'sprite' && nextOverrides?.sprite) {
+      const rest = { ...nextOverrides };
+      delete rest.sprite;
+      nextOverrides = Object.keys(rest).length > 0 ? rest : undefined;
+    }
     setTemplateData({
       ...templateData,
-      components: {
-        ...(templateData.components ?? {}),
-        [compKey]: { ...currentComp, [fieldKey]: value },
-      },
+      components: nextComponents,
+      overrides: nextOverrides,
     });
     setDirty(true);
   };
@@ -313,7 +334,13 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
     if (!templateData) return;
     const nextComponents = { ...(templateData.components ?? {}) };
     delete nextComponents[compKey];
-    setTemplateData({ ...templateData, components: nextComponents });
+    let nextOverrides = templateData.overrides;
+    if (compKey === 'sprite' && nextOverrides?.sprite) {
+      const rest = { ...nextOverrides };
+      delete rest.sprite;
+      nextOverrides = Object.keys(rest).length > 0 ? rest : undefined;
+    }
+    setTemplateData({ ...templateData, components: nextComponents, overrides: nextOverrides });
     setDirty(true);
   };
 
@@ -463,6 +490,26 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
               setDirty(true);
             }}
           />
+        </div>
+
+        <div className={styles.fieldRow}>
+          <label className={styles.fieldLabel}>Sprite & Animation</label>
+          <div style={{ flex: 1 }}>
+            <SpritePicker
+              value={String(
+                (templateData.components?.sprite as { key?: string } | undefined)?.key ??
+                (templateData.overrides?.sprite as { key?: string } | undefined)?.key ??
+                ''
+              )}
+              onChange={(newKey) => {
+                if (newKey) {
+                  handleComponentFieldChange('sprite', 'key', newKey);
+                } else {
+                  handleRemoveComponent('sprite');
+                }
+              }}
+            />
+          </div>
         </div>
       </div>
 

@@ -2,7 +2,10 @@
   "name": "prop-cryo-vat",
   "mixins": [],
   "components": {
-    "position": { "x": 0, "y": 0 },
+    "position": {
+      "x": 0,
+      "y": 0
+    },
     "interactiveSurface": {
       "surfaceId": "cryo_vat",
       "providesCover": true,
@@ -17,9 +20,9 @@
       "current": 10,
       "isAlive": true
     },
-    "blocksMovement": {}
-  },
-  "overrides": {
-    "sprite": { "key": "prop_cryo_vat" }
+    "blocksMovement": {},
+    "sprite": {
+      "key": "prop_cryo_vat"
+    }
   }
 }

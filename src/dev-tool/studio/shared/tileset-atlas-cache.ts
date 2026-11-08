@@ -194,27 +194,53 @@ export class TilesetAtlasCache {
 
   /**
    * Computes the active frame key and frame index at `elapsedMs` for a clip.
+   * In DevTool preview contexts, loops even one-shot clips ('once') so designers can inspect and preview them continuously.
    */
   public resolveAnimatedFrameAtTime(
     spriteKey: string,
     state: AnimationStateKey = 'idle',
     elapsedMs: number,
     themeId: string = 'default',
+    previewLoop: boolean = true,
   ): { frameKey: string; frameIndex: number; totalFrames: number } {
     const clip = this.getAnimationClip(spriteKey, state, themeId);
     if (!clip || clip.frames.length === 0) {
       return { frameKey: spriteKey, frameIndex: 0, totalFrames: 1 };
     }
 
+    let effectiveElapsedMs = elapsedMs;
+    let loopMode = clip.loop;
+
+    if (previewLoop && clip.loop === 'once') {
+      // In devtool preview, loop one-shot clips (such as move, attack, hit, interact)
+      // For action clips (attack, hit, interact, death), add a 350ms resting hold on the final frame before repeating
+      const restHoldMs = state === 'move' ? 0 : 350;
+      const totalCycleWithHold = clip.totalDurationMs + restHoldMs;
+      const t = totalCycleWithHold > 0 ? elapsedMs % totalCycleWithHold : 0;
+
+      if (t < clip.totalDurationMs) {
+        effectiveElapsedMs = t;
+        loopMode = 'once';
+      } else {
+        // Holding on last frame
+        const lastIdx = clip.frames.length - 1;
+        return {
+          frameKey: clip.frames[lastIdx],
+          frameIndex: lastIdx,
+          totalFrames: clip.frames.length,
+        };
+      }
+    }
+
     const step = stepAnimationClip(
       {
         frames: clip.frames,
         fps: clip.fps,
-        loop: clip.loop,
+        loop: loopMode,
         frameDurationsMs: clip.frameDurationsMs,
         desyncPhase: false,
       },
-      elapsedMs,
+      effectiveElapsedMs,
       0,
       false,
     );

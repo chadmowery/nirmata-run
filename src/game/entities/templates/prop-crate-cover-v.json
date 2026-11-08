@@ -2,7 +2,10 @@
   "name": "prop-crate-cover-v",
   "mixins": [],
   "components": {
-    "position": { "x": 0, "y": 0 },
+    "position": {
+      "x": 0,
+      "y": 0
+    },
     "interactiveSurface": {
       "surfaceId": "crate_cover",
       "providesCover": true,
@@ -16,7 +19,10 @@
     },
     "directionalProp": {
       "requiresFrontAccess": false,
-      "frontFacingVector": { "x": 0, "y": -1 },
+      "frontFacingVector": {
+        "x": 0,
+        "y": -1
+      },
       "hasDirectionalCover": true,
       "coverArcDegrees": 180
     },
@@ -25,9 +31,9 @@
       "current": 15,
       "isAlive": true
     },
-    "blocksMovement": {}
-  },
-  "overrides": {
-    "sprite": { "key": "prop_crate_cover_v" }
+    "blocksMovement": {},
+    "sprite": {
+      "key": "prop_crate_cover_v"
+    }
   }
 }

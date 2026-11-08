@@ -2,7 +2,10 @@
   "name": "prop-capacitor-bank",
   "mixins": [],
   "components": {
-    "position": { "x": 0, "y": 0 },
+    "position": {
+      "x": 0,
+      "y": 0
+    },
     "interactiveSurface": {
       "surfaceId": "capacitor_bank",
       "providesCover": true,
@@ -17,9 +20,9 @@
       "current": 10,
       "isAlive": true
     },
-    "blocksMovement": {}
-  },
-  "overrides": {
-    "sprite": { "key": "prop_capacitor_bank" }
+    "blocksMovement": {},
+    "sprite": {
+      "key": "prop_capacitor_bank"
+    }
   }
 }

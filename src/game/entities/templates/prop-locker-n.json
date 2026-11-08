@@ -2,7 +2,10 @@
   "name": "prop-locker-n",
   "mixins": [],
   "components": {
-    "position": { "x": 0, "y": 0 },
+    "position": {
+      "x": 0,
+      "y": 0
+    },
     "prop": {
       "propId": "locker",
       "faction": "traxus",
@@ -19,13 +22,16 @@
     },
     "directionalProp": {
       "requiresFrontAccess": true,
-      "frontFacingVector": { "x": 0, "y": -1 },
+      "frontFacingVector": {
+        "x": 0,
+        "y": -1
+      },
       "hasDirectionalCover": true,
       "coverArcDegrees": 180
     },
-    "blocksMovement": {}
-  },
-  "overrides": {
-    "sprite": { "key": "prop_locker_n" }
+    "blocksMovement": {},
+    "sprite": {
+      "key": "prop_locker_n"
+    }
   }
 }

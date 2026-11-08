@@ -2,7 +2,10 @@
   "name": "prop-safe-locked",
   "mixins": [],
   "components": {
-    "position": { "x": 0, "y": 0 },
+    "position": {
+      "x": 0,
+      "y": 0
+    },
     "prop": {
       "propId": "encrypted_safe",
       "faction": "cyberacme",
@@ -21,9 +24,9 @@
     "audioProfile": {
       "interactCue": "sfx_lock_keycard"
     },
-    "blocksMovement": {}
-  },
-  "overrides": {
-    "sprite": { "key": "prop_safe_locked" }
+    "blocksMovement": {},
+    "sprite": {
+      "key": "prop_safe_locked"
+    }
   }
 }

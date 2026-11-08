@@ -193,4 +193,46 @@ describe('SpritePicker Studio Animation Previews & Scrubber [ANIM-04]', () => {
     fireEvent.click(screen.getByText('wall_straight_h'));
     expect(handleChange).toHaveBeenCalledWith('wall_straight_h');
   });
+
+  it('loops one-shot clips in preview mode across multiple cycles instead of freezing', () => {
+    // player_vanguard 'move' clip has loop: 'once', frames: ['player_vanguard_move_0', 'player_vanguard_move_1'], fps: 4 (250ms/f, 500ms total)
+    const frameAtCycle1Start = tilesetAtlasCache.resolveAnimatedFrameAtTime(
+      'player_vanguard',
+      'move',
+      50,
+      'default',
+      true,
+    );
+    expect(frameAtCycle1Start.frameIndex).toBe(0);
+
+    const frameAtCycle1End = tilesetAtlasCache.resolveAnimatedFrameAtTime(
+      'player_vanguard',
+      'move',
+      350,
+      'default',
+      true,
+    );
+    expect(frameAtCycle1End.frameIndex).toBe(1);
+
+    // After 1 full cycle (> 500ms), in preview mode it must loop back to frame 0 instead of freezing on frame 1
+    const frameAtCycle2Start = tilesetAtlasCache.resolveAnimatedFrameAtTime(
+      'player_vanguard',
+      'move',
+      550,
+      'default',
+      true,
+    );
+    expect(frameAtCycle2Start.frameIndex).toBe(0);
+    expect(frameAtCycle2Start.frameKey).toBe('player_vanguard_move_0');
+  });
+
+  it('resolves non-player and enemy entity sprites directly from entity component definitions', async () => {
+    const { getTemplateSpriteKey } = await import('@/game/entities');
+    expect(getTemplateSpriteKey('anchor')).toBe('anchor');
+    expect(getTemplateSpriteKey('staircase')).toBe('staircase');
+    expect(getTemplateSpriteKey('prop-workstation', 'NORTH')).toBe('prop_workstation_n');
+    expect(getTemplateSpriteKey('prop-cooling-vent')).toBe('prop_cooling_vent_ready');
+    expect(getTemplateSpriteKey('prop-stabilizer')).toBe('prop_stabilizer_active');
+    expect(getTemplateSpriteKey('prop-safe-locked')).toBe('prop_safe_locked');
+  });
 });

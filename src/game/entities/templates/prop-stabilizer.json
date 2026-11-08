@@ -2,7 +2,10 @@
   "name": "prop-stabilizer",
   "mixins": [],
   "components": {
-    "position": { "x": 0, "y": 0 },
+    "position": {
+      "x": 0,
+      "y": 0
+    },
     "prop": {
       "propId": "stabilizer",
       "faction": "sekiguchi",
@@ -19,9 +22,9 @@
     "audioProfile": {
       "interactCue": "sfx_anchor_handshake"
     },
-    "blocksMovement": {}
-  },
-  "overrides": {
-    "sprite": { "key": "prop_stabilizer_active" }
+    "blocksMovement": {},
+    "sprite": {
+      "key": "prop_stabilizer_active"
+    }
   }
 }

@@ -1,5 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
+import { tilesetAtlasCache } from './tileset-atlas-cache';
+import { AnimationStateKey } from '@shared/tileset-types';
 import styles from './telemetry.module.css';
 
 interface Props {
@@ -20,6 +22,129 @@ interface Props {
   };
 }
 
+function InspectorSpritePreview({ spriteKey }: { spriteKey: string }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const isAnim = useMemo(() => tilesetAtlasCache.isKeyAnimated(spriteKey), [spriteKey]);
+  const states = useMemo(() => tilesetAtlasCache.getAnimationStates(spriteKey), [spriteKey]);
+  const [activeState, setActiveState] = useState<AnimationStateKey>('idle');
+
+  useEffect(() => {
+    let animId: number;
+    const start = performance.now();
+
+    const loop = (now: number) => {
+      const elapsed = now - start;
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          const resolved = tilesetAtlasCache.resolveAnimatedFrameAtTime(
+            spriteKey,
+            activeState,
+            elapsed,
+            'default',
+            true,
+          );
+          const drawn = tilesetAtlasCache.drawAtlasFrame(ctx, resolved.frameKey, 0, 0, 48);
+          if (!drawn) {
+            ctx.fillStyle = '#1c2638';
+            ctx.fillRect(0, 0, 48, 48);
+          }
+        }
+      }
+      animId = requestAnimationFrame(loop);
+    };
+
+    animId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(animId);
+  }, [spriteKey, activeState]);
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        padding: '10px 12px',
+        background: 'var(--c-surface-elevated, #111722)',
+        borderBottom: '1px solid var(--c-border, #1c2638)',
+      }}
+    >
+      <canvas
+        ref={canvasRef}
+        width={48}
+        height={48}
+        style={{
+          width: '40px',
+          height: '40px',
+          imageRendering: 'pixelated',
+          background: '#040609',
+          border: isAnim
+            ? '1px solid var(--c-accent-secondary, #00f0ff)'
+            : '1px solid var(--c-border, #1c2638)',
+          borderRadius: '2px',
+          flexShrink: 0,
+        }}
+      />
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span
+            style={{
+              fontSize: '11px',
+              fontFamily: 'var(--font-mono, monospace)',
+              color: 'var(--c-text-ivory, #f4f4f0)',
+              fontWeight: 700,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {spriteKey}
+          </span>
+          <span
+            style={{
+              fontSize: '9px',
+              color: isAnim ? 'var(--c-accent-secondary, #00f0ff)' : 'var(--c-text-dim, #79889e)',
+              background: isAnim ? 'rgba(0, 240, 255, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+              padding: '1px 4px',
+              borderRadius: '2px',
+            }}
+          >
+            {isAnim ? 'ANIMATED' : 'STATIC'}
+          </span>
+        </div>
+        {states.length > 1 && (
+          <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
+            {states.map((st) => (
+              <button
+                key={st}
+                type="button"
+                onClick={() => setActiveState(st)}
+                style={{
+                  fontSize: '8px',
+                  fontFamily: 'var(--font-mono, monospace)',
+                  padding: '1px 4px',
+                  borderRadius: '2px',
+                  border: '1px solid',
+                  cursor: 'pointer',
+                  background: activeState === st ? 'var(--c-accent-secondary, #00f0ff)' : 'transparent',
+                  color: activeState === st ? '#040609' : 'var(--c-text-dim, #79889e)',
+                  borderColor: activeState === st ? 'var(--c-accent-secondary, #00f0ff)' : 'var(--c-border, #1c2638)',
+                  fontWeight: activeState === st ? 700 : 400,
+                  textTransform: 'uppercase',
+                }}
+              >
+                {st}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ResolvedPreviewPanel({
   selectedItem,
   effectiveData,
@@ -29,6 +154,17 @@ export function ResolvedPreviewPanel({
   const [collapsed, setCollapsed] = useState(false);
 
   const formattedJson = effectiveData ? JSON.stringify(effectiveData, null, 2) : '{}';
+
+  const effObj = effectiveData && typeof effectiveData === 'object' ? (effectiveData as Record<string, unknown>) : null;
+  const effComps = effObj?.effectiveComponents as Record<string, unknown> | undefined;
+  const ownComps = effObj?.components as Record<string, unknown> | undefined;
+  const overrides = effObj?.overrides as Record<string, unknown> | undefined;
+
+  const spriteKey =
+    ((effComps?.sprite as { key?: string })?.key) ||
+    ((ownComps?.sprite as { key?: string })?.key) ||
+    ((overrides?.sprite as { key?: string })?.key) ||
+    (typeof effObj?.sprite === 'string' ? effObj.sprite : null);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(formattedJson);
@@ -85,6 +221,11 @@ export function ResolvedPreviewPanel({
           ▶
         </button>
       </div>
+
+      {/* Live Visual Sprite & Animation Preview Badge */}
+      {spriteKey && (
+        <InspectorSpritePreview spriteKey={spriteKey} />
+      )}
 
       {/* Validation Status Card */}
       <div className={styles.sectionCard}>

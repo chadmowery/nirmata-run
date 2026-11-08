@@ -2,7 +2,10 @@
   "name": "prop-biocabinet",
   "mixins": [],
   "components": {
-    "position": { "x": 0, "y": 0 },
+    "position": {
+      "x": 0,
+      "y": 0
+    },
     "prop": {
       "propId": "biocabinet",
       "faction": "sekiguchi",
@@ -12,9 +15,9 @@
       "containerId": "biocabinet",
       "capacity": 4
     },
-    "blocksMovement": {}
-  },
-  "overrides": {
-    "sprite": { "key": "prop_biocabinet_full" }
+    "blocksMovement": {},
+    "sprite": {
+      "key": "prop_biocabinet_full"
+    }
   }
 }

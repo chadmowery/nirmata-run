@@ -2,7 +2,10 @@
   "name": "prop-cooling-vent",
   "mixins": [],
   "components": {
-    "position": { "x": 0, "y": 0 },
+    "position": {
+      "x": 0,
+      "y": 0
+    },
     "prop": {
       "propId": "cooling_vent",
       "faction": "nucaloric",
@@ -19,9 +22,9 @@
     "audioProfile": {
       "interactCue": "sfx_vent_purge"
     },
-    "blocksMovement": {}
-  },
-  "overrides": {
-    "sprite": { "key": "prop_cooling_vent_ready" }
+    "blocksMovement": {},
+    "sprite": {
+      "key": "prop_cooling_vent_ready"
+    }
   }
 }

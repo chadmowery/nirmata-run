@@ -2,9 +2,12 @@
   "name": "anchor",
   "mixins": [],
   "components": {
-    "position": { "x": 0, "y": 0 }
-  },
-  "overrides": {
-    "sprite": { "key": "anchor" }
+    "position": {
+      "x": 0,
+      "y": 0
+    },
+    "sprite": {
+      "key": "anchor"
+    }
   }
 }

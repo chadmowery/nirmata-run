@@ -2,14 +2,17 @@
   "name": "item-access-key",
   "mixins": [],
   "components": {
-    "position": { "x": 0, "y": 0 },
+    "position": {
+      "x": 0,
+      "y": 0
+    },
     "item": {
       "name": "Access Key",
       "type": "key",
       "description": "Cryptographic keycard for floor vaults"
+    },
+    "sprite": {
+      "key": "item_access_key"
     }
-  },
-  "overrides": {
-    "sprite": { "key": "item_access_key" }
   }
 }

@@ -2,7 +2,10 @@
   "name": "prop-workstation-e",
   "mixins": [],
   "components": {
-    "position": { "x": 0, "y": 0 },
+    "position": {
+      "x": 0,
+      "y": 0
+    },
     "prop": {
       "propId": "workstation",
       "faction": "cyberacme",
@@ -20,13 +23,16 @@
     },
     "directionalProp": {
       "requiresFrontAccess": true,
-      "frontFacingVector": { "x": 1, "y": 0 },
+      "frontFacingVector": {
+        "x": 1,
+        "y": 0
+      },
       "hasDirectionalCover": true,
       "coverArcDegrees": 180
     },
-    "blocksMovement": {}
-  },
-  "overrides": {
-    "sprite": { "key": "prop_workstation_e" }
+    "blocksMovement": {},
+    "sprite": {
+      "key": "prop_workstation_e"
+    }
   }
 }

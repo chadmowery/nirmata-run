@@ -2,7 +2,10 @@
   "name": "prop-workstation",
   "mixins": [],
   "components": {
-    "position": { "x": 0, "y": 0 },
+    "position": {
+      "x": 0,
+      "y": 0
+    },
     "prop": {
       "propId": "workstation",
       "faction": "cyberacme",
@@ -13,9 +16,9 @@
       "containerId": "workstation",
       "capacity": 4
     },
-    "blocksMovement": {}
-  },
-  "overrides": {
-    "sprite": { "key": "prop_workstation_active" }
+    "blocksMovement": {},
+    "sprite": {
+      "key": "prop_workstation_active"
+    }
   }
 }

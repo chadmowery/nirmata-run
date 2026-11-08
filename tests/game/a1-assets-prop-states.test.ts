@@ -23,7 +23,10 @@ describe('A1: Asset and Sprite State Transitions', () => {
   const rootDir = process.cwd();
 
   it('A1.1: item-access-key.json uses item_access_key sprite key instead of item_flux', () => {
-    expect(itemAccessKeyTemplate.overrides.sprite.key).toBe('item_access_key');
+    const spriteKey =
+      itemAccessKeyTemplate.components?.sprite?.key ||
+      (itemAccessKeyTemplate as any).overrides?.sprite?.key;
+    expect(spriteKey).toBe('item_access_key');
   });
 
   it('A1.2: prop interaction transitions sprite keys upon unlock and search', () => {

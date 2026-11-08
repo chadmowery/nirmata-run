@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import type { RoomPrefabTemplate, PropAnchorTag } from '@/game/generation/prefabs/types';
 import { Grid } from '@/engine/grid/grid';
 import { AutotileSolver } from '@/game/generation/autotile-solver';
+import { getTemplateSpriteKey } from '@/game/entities';
 import { useGamedataStore } from '../store';
 import { tilesetAtlasCache } from '../shared/tileset-atlas-cache';
 import {
@@ -489,28 +490,17 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
       for (const prop of propSpawnsWithOrient) {
         const px = prop.x * tileSize;
         const py = prop.y * tileSize;
-        const o = prop.orientation.toLowerCase()[0]; // 'n', 'e', 's', 'w'
 
-        let frame = 'prop_workstation_n';
-        if (prop.guaranteedTemplate) {
-          if (prop.guaranteedTemplate === 'prop-workstation') frame = `prop_workstation_${o}`;
-          else if (prop.guaranteedTemplate === 'prop-locker') frame = `prop_locker_${o}`;
-          else if (prop.guaranteedTemplate === 'prop-biocabinet') frame = `prop_biocabinet_${o}`;
-          else if (prop.guaranteedTemplate === 'prop-crate-cover')
-            frame = o === 'n' || o === 's' ? 'prop_crate_cover_h' : 'prop_crate_cover_v';
-          else if (prop.guaranteedTemplate === 'prop-safe') frame = 'prop_safe_locked';
-          else if (prop.guaranteedTemplate === 'prop-subnet-console') frame = 'prop_subnet_console';
-          else if (prop.guaranteedTemplate === 'prop-cryo-vat') frame = 'prop_cryo_vat';
-          else if (prop.guaranteedTemplate === 'prop-capacitor-bank') frame = 'prop_capacitor_bank';
-          else if (prop.guaranteedTemplate === 'prop-reality-stabilizer') frame = 'prop_stabilizer';
-          else if (prop.guaranteedTemplate === 'prop-cooling-vent') frame = 'prop_cooling_vent';
-          else if (prop.guaranteedTemplate === 'prop-dead-drop') frame = 'prop_dead_drop';
-        } else {
-          if (prop.anchorType === 'PROP_DESK_CORNER') frame = `prop_workstation_${o}`;
-          else if (prop.anchorType === 'PROP_LOCKER_WALL') frame = `prop_locker_${o}`;
-          else if (prop.anchorType === 'SURFACE_TABLE_TOP') frame = 'prop_crate_cover_h';
-          else if (prop.anchorType === 'CONTAINER_RARE') frame = 'prop_safe_locked';
+        let templateName = prop.guaranteedTemplate;
+        if (!templateName) {
+          if (prop.anchorType === 'PROP_DESK_CORNER') templateName = 'prop-workstation';
+          else if (prop.anchorType === 'PROP_LOCKER_WALL') templateName = 'prop-locker';
+          else if (prop.anchorType === 'SURFACE_TABLE_TOP') templateName = 'prop-crate-cover';
+          else if (prop.anchorType === 'CONTAINER_RARE') templateName = 'prop-safe-locked';
+          else templateName = 'prop-workstation';
         }
+
+        let frame = getTemplateSpriteKey(templateName, prop.orientation) ?? 'prop_workstation_n';
 
         if (isAnimatingPreview) {
           const phaseOffset = (prop.x * 31 + prop.y * 17) * 40;

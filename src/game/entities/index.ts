@@ -194,3 +194,52 @@ export function registerGameTemplates(registry: EntityRegistry): void {
   registry.register(prop_crate_cover_h as unknown as RawTemplate);
   registry.register(prop_crate_cover_v as unknown as RawTemplate);
 }
+
+let defaultEntityRegistry: EntityRegistry | null = null;
+
+/**
+ * Returns a shared singleton EntityRegistry populated with all default templates.
+ */
+export function getDefaultEntityRegistry(): EntityRegistry {
+  if (!defaultEntityRegistry) {
+    defaultEntityRegistry = new EntityRegistry();
+    registerGameTemplates(defaultEntityRegistry);
+  }
+  return defaultEntityRegistry;
+}
+
+/**
+ * Resolves the authoritative sprite key for an entity template, with directional variant support.
+ */
+export function getTemplateSpriteKey(templateName: string, orientation?: string): string | null {
+  const reg = getDefaultEntityRegistry();
+  if (orientation) {
+    const o = orientation.toLowerCase()[0];
+    const directionalName = `${templateName}-${o}`;
+    const dirTmpl = reg.get(directionalName);
+    if (dirTmpl) {
+      const spriteKey =
+        (dirTmpl.components?.sprite as { key?: string } | undefined)?.key ||
+        (dirTmpl.overrides?.sprite as { key?: string } | undefined)?.key;
+      if (spriteKey) return spriteKey;
+    }
+    const hvName = `${templateName}-${o === 'n' || o === 's' ? 'h' : 'v'}`;
+    const hvTmpl = reg.get(hvName);
+    if (hvTmpl) {
+      const spriteKey =
+        (hvTmpl.components?.sprite as { key?: string } | undefined)?.key ||
+        (hvTmpl.overrides?.sprite as { key?: string } | undefined)?.key;
+      if (spriteKey) return spriteKey;
+    }
+  }
+
+  const tmpl = reg.get(templateName);
+  if (tmpl) {
+    const spriteKey =
+      (tmpl.components?.sprite as { key?: string } | undefined)?.key ||
+      (tmpl.overrides?.sprite as { key?: string } | undefined)?.key;
+    if (spriteKey) return spriteKey;
+  }
+
+  return null;
+}
