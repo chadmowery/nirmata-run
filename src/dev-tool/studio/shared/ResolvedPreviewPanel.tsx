@@ -24,41 +24,76 @@ interface Props {
 
 function InspectorSpritePreview({ spriteKey }: { spriteKey: string }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const isAnim = useMemo(() => tilesetAtlasCache.isKeyAnimated(spriteKey), [spriteKey]);
-  const states = useMemo(() => tilesetAtlasCache.getAnimationStates(spriteKey), [spriteKey]);
+  const [atlasLoaded, setAtlasLoaded] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    tilesetAtlasCache.loadAtlas('default').then((success) => {
+      if (active && success) {
+        setAtlasLoaded(true);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const isAnim = useMemo(() => tilesetAtlasCache.isKeyAnimated(spriteKey), [spriteKey, atlasLoaded]);
+  const states = useMemo(() => tilesetAtlasCache.getAnimationStates(spriteKey), [spriteKey, atlasLoaded]);
   const [activeState, setActiveState] = useState<AnimationStateKey>('idle');
 
   useEffect(() => {
+    if (states.length > 0 && !states.includes(activeState)) {
+      setActiveState(states[0] ?? 'idle');
+    }
+  }, [states, activeState]);
+
+  useEffect(() => {
     let animId: number;
+    let active = true;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    if (!isAnim || states.length === 0) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const drawn = tilesetAtlasCache.drawAtlasFrame(ctx, spriteKey, 0, 0, 48);
+      if (!drawn) {
+        ctx.fillStyle = '#1c2638';
+        ctx.fillRect(0, 0, 48, 48);
+      }
+      return;
+    }
+
     const start = performance.now();
 
     const loop = (now: number) => {
+      if (!active) return;
       const elapsed = now - start;
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          const resolved = tilesetAtlasCache.resolveAnimatedFrameAtTime(
-            spriteKey,
-            activeState,
-            elapsed,
-            'default',
-            true,
-          );
-          const drawn = tilesetAtlasCache.drawAtlasFrame(ctx, resolved.frameKey, 0, 0, 48);
-          if (!drawn) {
-            ctx.fillStyle = '#1c2638';
-            ctx.fillRect(0, 0, 48, 48);
-          }
-        }
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const resolved = tilesetAtlasCache.resolveAnimatedFrameAtTime(
+        spriteKey,
+        activeState,
+        elapsed,
+        'default',
+        true,
+      );
+      const drawn = tilesetAtlasCache.drawAtlasFrame(ctx, resolved.frameKey, 0, 0, 48);
+      if (!drawn) {
+        ctx.fillStyle = '#1c2638';
+        ctx.fillRect(0, 0, 48, 48);
       }
       animId = requestAnimationFrame(loop);
     };
 
     animId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animId);
-  }, [spriteKey, activeState]);
+    return () => {
+      active = false;
+      cancelAnimationFrame(animId);
+    };
+  }, [spriteKey, activeState, isAnim, states.length, atlasLoaded]);
 
   return (
     <div

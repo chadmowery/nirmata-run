@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { ThemedTilesetManifestSchema, AnimationClipDef, resolveFallbackSpriteKey } from '@shared/tileset-types';
+import { ThemedTilesetManifestSchema, AnimationClipDef, resolveFallbackSpriteKey, resolveThemeAssetPaths } from '@shared/tileset-types';
 
 export const REQUIRED_WALL_AUTOTILE_FRAMES = [
   'wall_single',
@@ -193,10 +193,8 @@ export function validateTilesetManifest(manifest: unknown): TilesetValidationRes
  * Reads and validates a theme tileset JSON file from the filesystem.
  */
 export async function validateThemeFile(themeId: string): Promise<TilesetValidationResult> {
-  let filePath =
-    themeId === 'default'
-      ? path.join(process.cwd(), 'public/assets/tileset.json')
-      : path.join(process.cwd(), `public/assets/tileset_${themeId}.json`);
+  const assetPaths = resolveThemeAssetPaths(themeId);
+  let filePath = path.join(process.cwd(), 'public', assetPaths.json);
 
   try {
     await fs.access(filePath);

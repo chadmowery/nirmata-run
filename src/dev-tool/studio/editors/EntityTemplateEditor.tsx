@@ -5,7 +5,6 @@ import type { FieldMeta } from '@/app/api/dev/gamedata/schema-introspect';
 import { useGamedataStore } from '../store';
 import { buildDefaultComponentData } from '../shared/default-values';
 import { ComponentFieldGroup } from './shared/ComponentFieldGroup';
-import { SpritePicker } from '../shared/SpritePicker';
 import styles from './editors.module.css';
 
 interface Props {
@@ -89,12 +88,7 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
   const normalizeTemplate = (raw: TemplateData): TemplateData => {
     const copy = { ...raw };
     if (!copy.components) copy.components = {};
-    if (copy.overrides?.sprite && !copy.components.sprite) {
-      copy.components.sprite = copy.overrides.sprite;
-      const rest = { ...copy.overrides };
-      delete rest.sprite;
-      copy.overrides = Object.keys(rest).length > 0 ? rest : undefined;
-    }
+    if (!copy.overrides) copy.overrides = {};
     return copy;
   };
 
@@ -490,26 +484,6 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
               setDirty(true);
             }}
           />
-        </div>
-
-        <div className={styles.fieldRow}>
-          <label className={styles.fieldLabel}>Sprite & Animation</label>
-          <div style={{ flex: 1 }}>
-            <SpritePicker
-              value={String(
-                (templateData.components?.sprite as { key?: string } | undefined)?.key ??
-                (templateData.overrides?.sprite as { key?: string } | undefined)?.key ??
-                ''
-              )}
-              onChange={(newKey) => {
-                if (newKey) {
-                  handleComponentFieldChange('sprite', 'key', newKey);
-                } else {
-                  handleRemoveComponent('sprite');
-                }
-              }}
-            />
-          </div>
         </div>
       </div>
 

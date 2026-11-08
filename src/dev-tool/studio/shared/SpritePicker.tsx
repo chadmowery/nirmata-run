@@ -23,6 +23,7 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
   const [isPlaying, setIsPlaying] = useState(true);
   const [speedMultiplier, setSpeedMultiplier] = useState<number>(1);
   const [manualFrameIndex, setManualFrameIndex] = useState<number | null>(null);
+  const [playbackFrameIndex, setPlaybackFrameIndex] = useState<number>(0);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const filmstripCanvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
@@ -96,21 +97,31 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
       return;
     }
 
-    if (!isPlaying && manualFrameIndex !== null) {
-      const targetKey = activeClip.frames[manualFrameIndex] ?? value;
-      drawFrame(targetKey);
+    if (!isPlaying) {
+      if (manualFrameIndex !== null) {
+        const targetKey = activeClip.frames[manualFrameIndex] ?? value;
+        drawFrame(targetKey);
+      } else {
+        const resolved = tilesetAtlasCache.resolveAnimatedFrameAtTime(
+          value,
+          currentState,
+          elapsedOffsetRef.current,
+          'default',
+        );
+        drawFrame(resolved.frameKey);
+        setPlaybackFrameIndex(resolved.frameIndex);
+      }
       return;
     }
 
     let lastTime = performance.now();
+    let lastFrameIdx = -1;
 
     const loop = (time: number) => {
       const delta = (time - lastTime) * speedMultiplier;
       lastTime = time;
 
-      if (isPlaying) {
-        elapsedOffsetRef.current += delta;
-      }
+      elapsedOffsetRef.current += delta;
 
       const resolved = tilesetAtlasCache.resolveAnimatedFrameAtTime(
         value,
@@ -120,6 +131,12 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
       );
 
       drawFrame(resolved.frameKey);
+
+      if (resolved.frameIndex !== lastFrameIdx) {
+        lastFrameIdx = resolved.frameIndex;
+        setPlaybackFrameIndex(resolved.frameIndex);
+      }
+
       animFrameIdRef.current = requestAnimationFrame(loop);
     };
 
@@ -163,17 +180,7 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
     return result;
   }, [frameKeys, filterMode, search]);
 
-  const activeFrameIndex = useMemo(() => {
-    if (!activeClip) return 0;
-    if (manualFrameIndex !== null) return manualFrameIndex;
-    const resolved = tilesetAtlasCache.resolveAnimatedFrameAtTime(
-      value,
-      currentState,
-      elapsedOffsetRef.current,
-      'default',
-    );
-    return resolved.frameIndex;
-  }, [activeClip, manualFrameIndex, value, currentState]);
+  const activeFrameIndex = manualFrameIndex !== null ? manualFrameIndex : playbackFrameIndex;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -474,7 +481,7 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
 
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', fontSize: '9px', color: 'var(--c-text-dim, #79889e)' }}>
                 <span style={{ fontWeight: 700, color: 'var(--c-accent-secondary, #00f0ff)', textTransform: 'uppercase' }}>
-                  {activeClip.loop} • {activeClip.fps} FPS ({Math.round(1000 / activeClip.fps)}ms/f)
+                  {activeClip.loop} • {activeClip.frameDurationsMs ? `Custom [${activeClip.frameDurationsMs.join(', ')}ms]` : `${activeClip.fps} FPS (${Math.round(1000 / activeClip.fps)}ms/f)`}
                 </span>
                 <span>Click any frame cell to scrub</span>
               </div>

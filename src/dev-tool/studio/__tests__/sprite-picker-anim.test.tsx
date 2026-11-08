@@ -235,4 +235,53 @@ describe('SpritePicker Studio Animation Previews & Scrubber [ANIM-04]', () => {
     expect(getTemplateSpriteKey('prop-stabilizer')).toBe('prop_stabilizer_active');
     expect(getTemplateSpriteKey('prop-safe-locked')).toBe('prop_safe_locked');
   });
+
+  describe('Theme Unification & Asset Path Resolution (CRIT-03)', () => {
+    it('resolves canonical themes and corporate aliases to valid manifest paths without 404', async () => {
+      const { resolveThemeAssetPaths, THEME_MANIFEST_MAP } = await import('@shared/tileset-types');
+      const { validateThemeFile } = await import('@/app/api/dev/gamedata/tileset-validator');
+
+      // Canonical theme IDs
+      expect(resolveThemeAssetPaths('traxus_foundry').json).toBe('assets/tileset_traxus_foundry.json');
+      expect(resolveThemeAssetPaths('sekiguchi_biolabs').json).toBe('assets/tileset_sekiguchi_biolabs.json');
+      expect(resolveThemeAssetPaths('dark_subnet').json).toBe('assets/tileset_dark_subnet.json');
+      expect(resolveThemeAssetPaths('default').json).toBe('assets/tileset.json');
+
+      // Corporate aliases
+      expect(resolveThemeAssetPaths('traxus').json).toBe('assets/tileset_traxus_foundry.json');
+      expect(resolveThemeAssetPaths('sekiguchi').json).toBe('assets/tileset_sekiguchi_biolabs.json');
+      expect(resolveThemeAssetPaths('cyberacme').json).toBe('assets/tileset.json');
+      expect(resolveThemeAssetPaths('nucaloric').json).toBe('assets/tileset.json');
+      expect(resolveThemeAssetPaths('system').json).toBe('assets/tileset.json');
+
+      // Validate all themes resolve and parse cleanly
+      const themesToTest = ['default', 'traxus', 'traxus_foundry', 'sekiguchi', 'sekiguchi_biolabs', 'dark_subnet', 'cyberacme'];
+      for (const th of themesToTest) {
+        const res = await validateThemeFile(th);
+        expect(res.valid, `Theme ${th} validation failed: ${res.errors.join(', ')}`).toBe(true);
+        expect(res.errors).toHaveLength(0);
+      }
+    });
+  });
+
+  describe('SpritePicker Scrubber & Inactive Loop Safeguards (HIGH-04)', () => {
+    it('stops requestAnimationFrame loop when isPlaying is paused', async () => {
+      const rafSpy = vi.spyOn(window, 'requestAnimationFrame');
+      const cancelSpy = vi.spyOn(window, 'cancelAnimationFrame');
+
+      const handleChange = vi.fn();
+      render(<SpritePicker value="player_vanguard" onChange={handleChange} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /⏸ PAUSE/i })).toBeDefined();
+      });
+
+      // Pause playback
+      const pauseBtn = screen.getByRole('button', { name: /⏸ PAUSE/i });
+      fireEvent.click(pauseBtn);
+
+      expect(screen.getByRole('button', { name: /▶ PLAY/i })).toBeDefined();
+      expect(cancelSpy).toHaveBeenCalled();
+    });
+  });
 });

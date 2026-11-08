@@ -91,6 +91,42 @@ export const ThemedTilesetManifestSchema = z.object({
 export type ThemedTilesetManifest = z.infer<typeof ThemedTilesetManifestSchema>;
 
 /**
+ * Theme manifest and texture asset path mapping for canonical themes and corporate aliases.
+ */
+export const THEME_MANIFEST_MAP: Record<string, { json: string; png: string }> = {
+  default: { json: 'assets/tileset.json', png: 'assets/tileset.png' },
+  traxus: { json: 'assets/tileset_traxus_foundry.json', png: 'assets/tileset_traxus_foundry.png' },
+  traxus_foundry: { json: 'assets/tileset_traxus_foundry.json', png: 'assets/tileset_traxus_foundry.png' },
+  sekiguchi: { json: 'assets/tileset_sekiguchi_biolabs.json', png: 'assets/tileset_sekiguchi_biolabs.png' },
+  sekiguchi_biolabs: { json: 'assets/tileset_sekiguchi_biolabs.json', png: 'assets/tileset_sekiguchi_biolabs.png' },
+  dark_subnet: { json: 'assets/tileset_dark_subnet.json', png: 'assets/tileset_dark_subnet.png' },
+  cyberacme: { json: 'assets/tileset.json', png: 'assets/tileset.png' },
+  nucaloric: { json: 'assets/tileset.json', png: 'assets/tileset.png' },
+  system: { json: 'assets/tileset.json', png: 'assets/tileset.png' },
+};
+
+/**
+ * Resolves the relative path for a theme's JSON manifest and PNG texture.
+ */
+export function resolveThemeAssetPaths(themeId: string): { json: string; png: string } {
+  const mapped = THEME_MANIFEST_MAP[themeId];
+  if (mapped) return mapped;
+  return {
+    json: `assets/tileset_${themeId}.json`,
+    png: `assets/tileset_${themeId}.png`,
+  };
+}
+
+export const STUDIO_THEMES = [
+  'default',
+  'traxus_foundry',
+  'sekiguchi_biolabs',
+  'dark_subnet',
+  'cyberacme',
+  'nucaloric',
+] as const;
+
+/**
  * Resolves a canonical fallback frame key for a directional or variant sprite key.
  */
 export function resolveFallbackSpriteKey(spriteKey: string): string | undefined {

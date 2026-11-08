@@ -27,23 +27,38 @@ interface TilesetValidation {
   animatedKeys?: string[];
 }
 
-const THEMES = ['default', 'traxus', 'cyberacme', 'sekiguchi', 'nucaloric'] as const;
+const THEMES = [
+  'default',
+  'traxus_foundry',
+  'sekiguchi_biolabs',
+  'dark_subnet',
+  'cyberacme',
+  'nucaloric',
+] as const;
 
 function FrameCanvasPreview({ frameKey, themeId }: { frameKey: string; themeId: string }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    let active = true;
+    tilesetAtlasCache.loadAtlas(themeId).then(() => {
+      if (!active) return;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const drawn = tilesetAtlasCache.drawAtlasFrame(ctx, frameKey, 0, 0, 32, 0, themeId);
-    if (!drawn) {
-      ctx.fillStyle = '#1c2638';
-      ctx.fillRect(0, 0, 32, 32);
-    }
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const drawn = tilesetAtlasCache.drawAtlasFrame(ctx, frameKey, 0, 0, 32, 0, themeId);
+      if (!drawn) {
+        ctx.fillStyle = '#1c2638';
+        ctx.fillRect(0, 0, 32, 32);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
   }, [frameKey, themeId]);
 
   return (
@@ -92,42 +107,61 @@ function AnimatedSpriteCard({
 
   useEffect(() => {
     let animId: number;
-    const start = performance.now();
+    let active = true;
 
-    const loop = (now: number) => {
-      const elapsed = now - start;
+    tilesetAtlasCache.loadAtlas(themeId).then(() => {
+      if (!active) return;
       const canvas = canvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          const resolved = tilesetAtlasCache.resolveAnimatedFrameAtTime(
-            entityKey,
-            activeState,
-            elapsed,
-            themeId,
-          );
-          const drawn = tilesetAtlasCache.drawAtlasFrame(
-            ctx,
-            resolved.frameKey,
-            0,
-            0,
-            32,
-            0,
-            themeId,
-          );
-          if (!drawn) {
-            ctx.fillStyle = '#1c2638';
-            ctx.fillRect(0, 0, 32, 32);
-          }
-        }
-      }
-      animId = requestAnimationFrame(loop);
-    };
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
-    animId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animId);
-  }, [entityKey, activeState, themeId]);
+      if (!clip || clip.frames.length <= 1) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const frame = clip?.frames[0] ?? entityKey;
+        const drawn = tilesetAtlasCache.drawAtlasFrame(ctx, frame, 0, 0, 32, 0, themeId);
+        if (!drawn) {
+          ctx.fillStyle = '#1c2638';
+          ctx.fillRect(0, 0, 32, 32);
+        }
+        return;
+      }
+
+      const start = performance.now();
+      const loop = (now: number) => {
+        if (!active) return;
+        const elapsed = now - start;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const resolved = tilesetAtlasCache.resolveAnimatedFrameAtTime(
+          entityKey,
+          activeState,
+          elapsed,
+          themeId,
+        );
+        const drawn = tilesetAtlasCache.drawAtlasFrame(
+          ctx,
+          resolved.frameKey,
+          0,
+          0,
+          32,
+          0,
+          themeId,
+        );
+        if (!drawn) {
+          ctx.fillStyle = '#1c2638';
+          ctx.fillRect(0, 0, 32, 32);
+        }
+        animId = requestAnimationFrame(loop);
+      };
+
+      animId = requestAnimationFrame(loop);
+    });
+
+    return () => {
+      active = false;
+      cancelAnimationFrame(animId);
+    };
+  }, [entityKey, activeState, themeId, clip]);
 
   return (
     <div
@@ -161,7 +195,9 @@ function AnimatedSpriteCard({
             borderRadius: '2px',
           }}
         >
-          {clip ? `${clip.loop.toUpperCase()} • ${clip.fps} FPS` : 'STATIC'}
+          {clip
+            ? `${clip.loop.toUpperCase()} • ${clip.frameDurationsMs ? `Custom [${clip.frameDurationsMs.join(',')}ms]` : `${clip.fps} FPS`}`
+            : 'STATIC'}
         </span>
       </div>
 

@@ -113,10 +113,17 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [atlasLoaded, setAtlasLoaded] = useState(false);
 
   // Load atlas texture
   useEffect(() => {
-    tilesetAtlasCache.loadAtlas('default');
+    let active = true;
+    tilesetAtlasCache.loadAtlas('default').then((success) => {
+      if (active && success) setAtlasLoaded(true);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Load prefab data
@@ -509,7 +516,9 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
           frame = resolved.frameKey;
         }
 
-        const drawn = tilesetAtlasCache.drawAtlasFrame(ctx, frame, px, py, tileSize);
+        const isDirectionalFrame = /_[neswhv]$/.test(frame);
+        const angleDegrees = isDirectionalFrame ? 0 : (ORIENTATION_DEGREES[prop.orientation] ?? 0);
+        const drawn = tilesetAtlasCache.drawAtlasFrame(ctx, frame, px, py, tileSize, angleDegrees);
         if (!drawn) {
           // Fallback badge
           ctx.fillStyle = 'rgba(216, 255, 0, 0.2)';
@@ -613,7 +622,7 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
     if (!isAnimatingPreview) {
       renderCanvas(animElapsedRef.current);
     }
-  }, [renderCanvas, isAnimatingPreview]);
+  }, [renderCanvas, isAnimatingPreview, atlasLoaded]);
 
   // Live rAF loop when isAnimatingPreview is active
   useEffect(() => {

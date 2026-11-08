@@ -3,6 +3,7 @@ import {
   AnimationStateKey,
   AnimationClipDef,
   EntityAnimationSet,
+  resolveThemeAssetPaths,
 } from '@shared/tileset-types';
 import { stepAnimationClip } from '../../../rendering/sprite-animator';
 
@@ -60,8 +61,9 @@ export class TilesetAtlasCache {
       return this.loadPromises.get(cacheKey)!;
     }
 
-    const defaultManifest = themeId === 'default' ? '/assets/tileset.json' : `/assets/tileset_${themeId}.json`;
-    const defaultImage = themeId === 'default' ? '/assets/tileset.png' : `/assets/tileset_${themeId}.png`;
+    const assetPaths = resolveThemeAssetPaths(themeId);
+    const defaultManifest = `/${assetPaths.json}`;
+    const defaultImage = `/${assetPaths.png}`;
 
     const mUrl = manifestUrl || defaultManifest;
     const iUrl = imageUrl || defaultImage;
