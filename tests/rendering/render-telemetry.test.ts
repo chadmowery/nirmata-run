@@ -179,8 +179,13 @@ describe('Render Telemetry and Bisection Flags (PERF-02)', () => {
   it('supports render bisection flags to disable sprite and world filters', () => {
     const propId = world.createEntity();
     world.addComponent(propId, Position, { x: 6, y: 5 });
-    world.addComponent(propId, Prop, { propType: 'safe', isSearched: false });
-    world.addComponent(propId, SecurityLock, { isLocked: true, accessLevel: 1 });
+    world.addComponent(propId, Prop, {
+      propId: 'prop_safe',
+      faction: 'traxus',
+      propClass: 'encrypted_safe',
+      isSearched: false,
+    });
+    world.addComponent(propId, SecurityLock, { isLocked: true });
     world.addComponent(propId, SpriteComponent, { key: 'prop_safe' });
 
     // Enable bisection flag to disable sprite filters
