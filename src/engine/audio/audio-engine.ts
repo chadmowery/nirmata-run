@@ -38,7 +38,9 @@ export class NoopAudioEngine implements IAudioEngine {
   public init(): void {}
   public resume(): void {}
   public destroy(): void {}
-  public setSampleLoader?(_loader: SampleLoader): void {}
+  public setSampleLoader?(_loader: SampleLoader): void {
+    void _loader;
+  }
   public registerUnlockListeners?(): void {}
   public unregisterUnlockListeners?(): void {}
   public playCue(cue: SoundCueDef, options?: PlayCueOptions): number | undefined {

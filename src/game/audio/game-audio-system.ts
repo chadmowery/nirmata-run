@@ -14,7 +14,6 @@ import { EventOriginContext } from '@engine/utils/event-context';
 import {
   IAudioEngine,
   getAudioEngine,
-  AudioEngine,
   PredictionDeduplicator,
   SpatialCoords,
 } from '@engine/audio';
