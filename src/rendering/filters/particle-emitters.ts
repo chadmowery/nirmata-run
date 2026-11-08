@@ -22,6 +22,23 @@ const emitters = new WeakMap<Sprite, EmitterState>();
 const activeSprites = new Set<Sprite>();
 
 /**
+ * Returns read-only particle emitter telemetry.
+ */
+export function getParticleTelemetry(): { activeEmitters: number; totalParticles: number } {
+  let totalParticles = 0;
+  for (const sprite of activeSprites) {
+    const emitter = emitters.get(sprite);
+    if (emitter) {
+      totalParticles += emitter.particles.length;
+    }
+  }
+  return {
+    activeEmitters: activeSprites.size,
+    totalParticles,
+  };
+}
+
+/**
  * Maps AIBehaviorType to its corresponding neon particle color.
  */
 function getColorForBehavior(behaviorType: AIBehaviorType): number {

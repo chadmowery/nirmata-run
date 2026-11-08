@@ -54,6 +54,32 @@ import { EventOriginContext } from '@engine/utils/event-context';
 export { setActiveGameContext, getActiveGameContext } from './active-context';
 import { setActiveGameContext, getActiveGameContext } from './active-context';
 
+export interface TurnTelemetryData {
+  turnNumber: number;
+  actionType: string;
+  clientPredictionMs: number;
+  networkRttMs: number;
+  serverTurnMs: number;
+  serverPhaseTimings: Record<string, number>;
+  serverTopSystems: Array<{ name: string; phase: string; durationMs: number }>;
+  reconcileMs: number;
+  syncType: 'FULL' | 'DELTA';
+  payloadBytes: number;
+  deltaEntitiesAdded: number;
+  deltaEntitiesRemoved: number;
+  deltaComponentsSet: number;
+  deltaComponentsRemoved: number;
+  deltaEventsCount: number;
+}
+
+export type TurnTelemetryHook = (data: TurnTelemetryData) => void;
+
+let turnTelemetryHook: TurnTelemetryHook | null = null;
+
+export function setTurnTelemetryHook(hook: TurnTelemetryHook | null): void {
+  turnTelemetryHook = hook;
+}
+
 /**
  * Canonically resolves the active client sessionId with a consistent fallback chain.
  */
@@ -362,15 +388,20 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
       // Submit action to engine
       // We encode targeting data into the action key for the TurnManager's playerActionHandler
       // though the prediction here calls firmwareSystem directly.
+      const tPredict0 = performance.now();
       systems.firmware.activateAbility(context.playerId, slotIndex, targetX, targetY);
       turnManager.submitAction(`USE_FIRMWARE_${slotIndex}`);
+      const clientPredictionMs = performance.now() - tPredict0;
 
-      await sendActionToServer({
-        type: 'USE_FIRMWARE',
-        slotIndex,
-        targetX,
-        targetY,
-      });
+      await sendActionToServer(
+        {
+          type: 'USE_FIRMWARE',
+          slotIndex,
+          targetX,
+          targetY,
+        },
+        clientPredictionMs,
+      );
 
       inputManager.setRequestPending(false);
     }
@@ -729,13 +760,15 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
       }
 
       inputManager.setRequestPending(true);
+      const tPredict0 = performance.now();
       turnManager.submitAction(action);
-      await sendActionToServer(getActionIntent(action));
+      const clientPredictionMs = performance.now() - tPredict0;
+      await sendActionToServer(getActionIntent(action), clientPredictionMs);
       inputManager.setRequestPending(false);
     }
   }
 
-  async function sendActionToServer(intent: ActionIntent | null) {
+  async function sendActionToServer(intent: ActionIntent | null, clientPredictionMs = 0) {
     if (!intent) return;
     const activeSessionId = resolveActiveSessionId(context.sessionId);
     try {
@@ -743,6 +776,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
         `[CLIENT] Sending action to server. SessionId: ${activeSessionId}`,
         'NETWORK',
       );
+      const tFetch0 = performance.now();
       const response = await fetch('/api/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -751,6 +785,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
           action: intent,
         }),
       });
+      const networkRttMs = performance.now() - tFetch0;
 
       if (response.ok) {
         const result = await response.json();
@@ -759,7 +794,35 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
           const { applyStateDelta } = await import('@shared/reconciliation');
           // Update playerId before applying delta so that events emitted during sync see the correct ID (D-05 regression)
           context.playerId = serverState.playerId;
+          const tReconcile0 = performance.now();
           applyStateDelta(world, grid, turnManager, eventBus, serverState);
+          const reconcileMs = performance.now() - tReconcile0;
+
+          if (turnTelemetryHook) {
+            const devPerf = result._devPerf;
+            turnTelemetryHook({
+              turnNumber: turnManager.getTurnNumber(),
+              actionType: intent.type,
+              clientPredictionMs: Math.round(clientPredictionMs * 100) / 100,
+              networkRttMs: Math.round(networkRttMs * 100) / 100,
+              serverTurnMs: devPerf?.serverTurnMs ?? 0,
+              serverPhaseTimings: devPerf?.phaseTimingsMs ?? {},
+              serverTopSystems: devPerf?.topSystems ?? [],
+              reconcileMs: Math.round(reconcileMs * 100) / 100,
+              syncType: serverState.type ?? (devPerf?.syncType || 'DELTA'),
+              payloadBytes: devPerf?.payloadBytes ?? 0,
+              deltaEntitiesAdded:
+                devPerf?.entitiesAdded ?? (serverState.worldDelta?.entitiesAdded?.length ?? 0),
+              deltaEntitiesRemoved:
+                devPerf?.entitiesRemoved ?? (serverState.worldDelta?.entitiesRemoved?.length ?? 0),
+              deltaComponentsSet:
+                devPerf?.componentsSet ?? (serverState.worldDelta?.componentsSet?.length ?? 0),
+              deltaComponentsRemoved:
+                devPerf?.componentsRemoved ??
+                (serverState.worldDelta?.componentsRemoved?.length ?? 0),
+              deltaEventsCount: serverState.events?.length ?? (devPerf?.eventsEmitted ?? 0),
+            });
+          }
         }
       } else {
         let errorMessage = `Action failed (HTTP ${response.status})`;

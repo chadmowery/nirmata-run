@@ -26,6 +26,13 @@ interface TweenAnimation {
 let activeAnimations: TweenAnimation[] = [];
 
 /**
+ * Returns the count of currently running tween animations.
+ */
+export function getActiveAnimationCount(): number {
+  return activeAnimations.length;
+}
+
+/**
  * Updates all active animations.
  * Called every frame by the PixiJS ticker.
  */

@@ -7,6 +7,23 @@ export type PropVisualState = 'safe' | 'locked' | 'corrupted' | 'searched';
 const activePropFilters = new Map<Sprite, Filter[]>();
 
 /**
+ * Returns read-only active filter telemetry.
+ */
+export function getFilterTelemetry(): {
+  activePropFilterSprites: number;
+  totalPropFilters: number;
+} {
+  let totalPropFilters = 0;
+  for (const filters of activePropFilters.values()) {
+    totalPropFilters += filters.length;
+  }
+  return {
+    activePropFilterSprites: activePropFilters.size,
+    totalPropFilters,
+  };
+}
+
+/**
  * Applies a visual outline/glitch effect to an interactive prop sprite based on its state:
  * - 'safe': #00F0FF (Cyan) clean outline
  * - 'locked': #FF9500 (Orange) security barrier outline

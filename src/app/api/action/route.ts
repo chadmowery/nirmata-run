@@ -30,6 +30,19 @@ import { getRunModeConfig } from '@game/systems/run-mode-config';
 import { TurnPhase } from '@engine/turn/types';
 import { logTurnExecutionError } from '@/server/utils/error-logger';
 
+export interface ServerTurnDevPerf {
+  serverTurnMs: number;
+  phaseTimingsMs: Record<string, number>;
+  topSystems: Array<{ name: string; phase: string; durationMs: number }>;
+  payloadBytes: number;
+  syncType: 'FULL' | 'DELTA';
+  entitiesAdded: number;
+  entitiesRemoved: number;
+  componentsSet: number;
+  componentsRemoved: number;
+  eventsEmitted: number;
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -78,6 +91,18 @@ export async function POST(req: Request) {
     // 3. Execute turn within a transactional checkpoint (ARCH-01)
     let turnExecutionFailed = false;
     let turnErrorMessage = '';
+
+    const isDev = process.env.NODE_ENV === 'development';
+    const serverTurnT0 = isDev ? performance.now() : 0;
+    const phaseTimings: Record<string, number> = {};
+    const systemTimings: Array<{ name: string; phase: string; durationMs: number }> = [];
+
+    if (isDev) {
+      world.setSystemTimingHook((phase, systemName, durationMs) => {
+        phaseTimings[phase] = (phaseTimings[phase] ?? 0) + durationMs;
+        systemTimings.push({ name: systemName, phase, durationMs });
+      });
+    }
 
     if (process.env.NODE_ENV === 'production' && action.type === 'DEBUG_COMMAND') {
       return NextResponse.json(
@@ -143,6 +168,9 @@ export async function POST(req: Request) {
     }
 
     // Stop capturing
+    if (isDev) {
+      world.setSystemTimingHook(null);
+    }
     eventBus.offAny(eventCaptureHandler);
 
     if (turnExecutionFailed) {
@@ -411,10 +439,47 @@ export async function POST(req: Request) {
       };
     }
 
-      return NextResponse.json({
-        sessionId,
-        payload: syncPayload,
-      });
+    let devPerf: ServerTurnDevPerf | undefined;
+    if (isDev) {
+      const topSystems = systemTimings
+        .sort((a, b) => b.durationMs - a.durationMs)
+        .slice(0, 5)
+        .map((s) => ({ ...s, durationMs: Math.round(s.durationMs * 100) / 100 }));
+
+      devPerf = {
+        serverTurnMs: Math.round((performance.now() - serverTurnT0) * 100) / 100,
+        phaseTimingsMs: Object.fromEntries(
+          Object.entries(phaseTimings).map(([k, v]) => [k, Math.round(v * 100) / 100]),
+        ),
+        topSystems,
+        payloadBytes: 0,
+        syncType: syncPayload.type,
+        entitiesAdded: syncPayload.type === 'DELTA' ? (clientDelta?.entitiesAdded?.length ?? 0) : 0,
+        entitiesRemoved:
+          syncPayload.type === 'DELTA' ? (clientDelta?.entitiesRemoved?.length ?? 0) : 0,
+        componentsSet:
+          syncPayload.type === 'DELTA' ? (clientDelta?.componentsSet?.length ?? 0) : 0,
+        componentsRemoved:
+          syncPayload.type === 'DELTA' ? (clientDelta?.componentsRemoved?.length ?? 0) : 0,
+        eventsEmitted: capturedEvents.length,
+      };
+    }
+
+    const responseBody: {
+      sessionId: string;
+      payload: SyncPayload;
+      _devPerf?: ServerTurnDevPerf;
+    } = {
+      sessionId,
+      payload: syncPayload,
+      ...(devPerf ? { _devPerf: devPerf } : {}),
+    };
+
+    if (devPerf) {
+      devPerf.payloadBytes = new TextEncoder().encode(JSON.stringify(responseBody)).length;
+    }
+
+    return NextResponse.json(responseBody);
     } finally {
       sessionManager.releaseSessionLock(sessionId);
     }

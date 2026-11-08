@@ -633,5 +633,48 @@ describe('Action API Route', () => {
       const stability = world.getComponent(playerId, Stability);
       expect(stability?.current).toBeCloseTo(50, 1);
     });
+
+    it('attaches _devPerf in development mode and omits it in production', async () => {
+      const origEnv = process.env.NODE_ENV;
+
+      try {
+        // Development mode
+        // @ts-expect-error mutating NODE_ENV for test
+        process.env.NODE_ENV = 'development';
+        const devReq = new Request('http://localhost/api/action', {
+          method: 'POST',
+          body: JSON.stringify({
+            sessionId,
+            action: { type: 'WAIT' },
+          }),
+        });
+
+        const devRes = await POST(devReq);
+        expect(devRes.status).toBe(200);
+        const devData = (await devRes.json()) as { _devPerf?: unknown };
+        expect(devData._devPerf).toBeDefined();
+        expect(devData._devPerf).toHaveProperty('serverTurnMs');
+        expect(devData._devPerf).toHaveProperty('topSystems');
+
+        // Production mode
+        // @ts-expect-error mutating NODE_ENV for test
+        process.env.NODE_ENV = 'production';
+        const prodReq = new Request('http://localhost/api/action', {
+          method: 'POST',
+          body: JSON.stringify({
+            sessionId,
+            action: { type: 'WAIT' },
+          }),
+        });
+
+        const prodRes = await POST(prodReq);
+        expect(prodRes.status).toBe(200);
+        const prodData = (await prodRes.json()) as { _devPerf?: unknown };
+        expect(prodData._devPerf).toBeUndefined();
+      } finally {
+        // @ts-expect-error restoring NODE_ENV
+        process.env.NODE_ENV = origEnv;
+      }
+    });
   });
 });

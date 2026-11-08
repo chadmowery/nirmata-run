@@ -150,7 +150,7 @@ export interface IAudioEngine {
   updateSettings(settings: Partial<AudioSettings>): void;
   getSettings(): AudioSettings;
   isMuted(): boolean;
-  getDiagnostics(): AudioDiagnostics;
+  getDiagnostics?(): AudioDiagnostics;
   setSampleLoader?(loader: SampleLoader): void;
   registerUnlockListeners?(): void;
   unregisterUnlockListeners?(): void;

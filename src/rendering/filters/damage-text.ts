@@ -8,6 +8,13 @@ interface DamageTextState {
 
 let activeTexts: DamageTextState[] = [];
 
+/**
+ * Returns the count of currently active floating damage text fragments.
+ */
+export function getActiveDamageTextCount(): number {
+  return activeTexts.length;
+}
+
 const TEXT_POOL = [
   '0xFF',
   'NULL',

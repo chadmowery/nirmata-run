@@ -30,7 +30,7 @@ import {
   clearExplored,
 } from './fov';
 import { computeCameraTarget, lerpCamera, getVisibleTileRange } from './camera';
-import { buildTilemap, clearTilemap } from './tilemap';
+import { buildTilemap, clearTilemap, getTilemapTelemetry, TilemapTelemetry } from './tilemap';
 import {
   createEntitySprite,
   destroyEntitySprite,
@@ -45,12 +45,14 @@ import {
   queueDeathAnimation,
   clearAnimations,
   hasActiveAnimation,
+  getActiveAnimationCount,
 } from './animations';
 import { spriteAnimator } from './sprite-animator';
 import {
   applyPersistentGlitch,
   applyDamageDistortion,
   applyPropOutline,
+  getFilterTelemetry,
 } from './filters/glitch-effects';
 import { queueTypedDeathAnimation } from './filters/death-effects';
 import { AIState } from '@shared/components/ai-state';
@@ -71,12 +73,60 @@ import {
   updateAllEmitters,
   cleanupEmitter,
   disposeAllEmitters,
+  getParticleTelemetry,
 } from './filters/particle-emitters';
-import { spawnDamageText, updateDamageTexts, disposeDamageTexts } from './filters/damage-text';
+import {
+  spawnDamageText,
+  updateDamageTexts,
+  disposeDamageTexts,
+  getActiveDamageTextCount,
+} from './filters/damage-text';
 import { EventOriginContext } from '../engine/utils/event-context';
 import { resolveTileInspection, RememberedPropState } from './tile-inspector';
 import { Item } from '@shared/components/item';
 import { CurrencyItem } from '@shared/components/currency-item';
+
+export interface RenderStageTimings {
+  fovMs: number;
+  tilemapMs: number;
+  spriteSyncMs: number;
+  vfxMs: number;
+  hoverMs: number;
+  totalCpuMs: number;
+}
+
+export interface DevRenderBisectionFlags {
+  measureTimings: boolean;
+  disableSpriteFilters: boolean;
+  disableWorldFilters: boolean;
+  disableParticles: boolean;
+  cacheStaticTilemap: boolean;
+  cacheStaticFov: boolean;
+}
+
+export interface RenderTelemetry {
+  stageTimings: RenderStageTimings;
+  tilemap: TilemapTelemetry;
+  particles: { activeEmitters: number; totalParticles: number };
+  filters: { activePropFilterSprites: number; totalPropFilters: number };
+  activeAnimations: number;
+  activeDamageTexts: number;
+}
+
+export interface RenderSystem {
+  init(): void;
+  reconcileSprites(): void;
+  renderSystem(): void;
+  onDungeonGenerated(): void;
+  destroy(): void;
+  recenterCamera(): void;
+  exposeMap(): void;
+  getCameraZoom(): number;
+  setCameraZoom(zoom: number): void;
+  getCameraPanOffset(): { x: number; y: number };
+  getRenderTelemetry(): RenderTelemetry;
+  setDevRenderFlags(flags: Partial<DevRenderBisectionFlags>): void;
+}
 
 /**
  * Positions and rotates a sprite taking into account cardinal tile orientation.
@@ -181,6 +231,27 @@ export function createRenderSystem(config: RenderSystemConfig) {
     isMapRevealed: boolean;
   } | null = null;
   let currentFovSet: Set<string> = new Set();
+  let lastFovKey: string | null = null;
+  let lastFovResult: Set<string> | null = null;
+  let lastTilemapKey: string | null = null;
+
+  let devFlags: DevRenderBisectionFlags = {
+    measureTimings: false,
+    disableSpriteFilters: false,
+    disableWorldFilters: false,
+    disableParticles: false,
+    cacheStaticTilemap: false,
+    cacheStaticFov: false,
+  };
+
+  const latestStageTimings: RenderStageTimings = {
+    fovMs: 0,
+    tilemapMs: 0,
+    spriteSyncMs: 0,
+    vfxMs: 0,
+    hoverMs: 0,
+    totalCpuMs: 0,
+  };
 
   const isEntityInFov = (entityId: EntityId): boolean => {
     if (entityId === getPlayerEntity()) return true;
@@ -191,6 +262,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
   };
 
   const syncPropOutline = (entityId: EntityId, targetSprite?: Sprite) => {
+    if (devFlags.disableSpriteFilters) return;
     const outlineState = resolvePropOutlineState(world, entityId);
     if (!outlineState) return;
     const sprite = targetSprite ?? getEntitySprite(entityId);
@@ -272,6 +344,11 @@ export function createRenderSystem(config: RenderSystemConfig) {
         : null;
 
     if (elem && elem !== canvas) {
+      if (elem.closest && elem.closest('[data-perf-monitor="true"]')) {
+        gameStore.getState().setHoveredEntity(null);
+        return;
+      }
+
       const isCanvasWrapper =
         elem.id === 'canvas-container' || (canvas && canvas.parentElement === elem);
       if (!isCanvasWrapper && elem.closest && elem.closest('#ui-root')) {
@@ -427,8 +504,12 @@ export function createRenderSystem(config: RenderSystemConfig) {
       // Apply persistent glitch for enemies
       const aiState = world.getComponent(payload.entityId, AIState);
       if (aiState) {
-        applyPersistentGlitch(sprite, aiState.behaviorType);
-        attachNeonEmitter(sprite, aiState.behaviorType, layers.effectsLayer);
+        if (!devFlags.disableSpriteFilters) {
+          applyPersistentGlitch(sprite, aiState.behaviorType);
+        }
+        if (!devFlags.disableParticles) {
+          attachNeonEmitter(sprite, aiState.behaviorType, layers.effectsLayer);
+        }
       }
 
       // Apply client-visible prop outline for interactive props
@@ -623,6 +704,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
   };
 
   const handleApplyWorldFilter = (payload: { filterType: string }) => {
+    if (devFlags.disableWorldFilters) return;
     if (payload.filterType === 'grayscale') {
       applyGrayscaleToContainer(layers.worldContainer);
     }
@@ -635,16 +717,19 @@ export function createRenderSystem(config: RenderSystemConfig) {
   };
 
   const handleStabilityChanged = (payload: { newValue: number }) => {
+    if (devFlags.disableWorldFilters) return;
     applyStabilityDesaturation(layers.worldContainer, payload.newValue);
   };
 
   const handleHeatChanged = (payload: { entityId: EntityId; newHeat: number; maxSafe: number }) => {
     if (payload.entityId === getPlayerEntity()) {
       const tier = getHeatTier(payload.newHeat);
-      applyHeatTierFilters(layers.worldContainer, tier.tier);
+      if (!devFlags.disableWorldFilters) {
+        applyHeatTierFilters(layers.worldContainer, tier.tier);
+      }
 
       const sprite = getEntitySprite(payload.entityId);
-      if (sprite) {
+      if (sprite && !devFlags.disableSpriteFilters) {
         updateSpriteGhosting(sprite, tier.tier, layers.entityLayer);
       }
     }
@@ -664,6 +749,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
   const updateCameraFrame = (ticker: Ticker) => {
     const deltaMs = ticker.deltaMS;
+    const tVfx0 = devFlags.measureTimings ? performance.now() : 0;
     const newPos = lerpCamera(
       layers.worldContainer.x,
       layers.worldContainer.y,
@@ -686,8 +772,13 @@ export function createRenderSystem(config: RenderSystemConfig) {
     );
 
     // Update visual systems
-    updateAllEmitters(deltaMs);
+    if (!devFlags.disableParticles) {
+      updateAllEmitters(deltaMs);
+    }
     updateDamageTexts(deltaMs);
+    if (devFlags.measureTimings) {
+      latestStageTimings.vfxMs = performance.now() - tVfx0;
+    }
   };
 
   const handleDungeonGenerated = () => {
@@ -800,6 +891,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       if (!playerPos) return;
 
       // 1. Dynamic FOV (D-15 Extended Sight Logic)
+      const tFov0 = devFlags.measureTimings ? performance.now() : 0;
       let effectiveRadius = FOV_RADIUS;
       const floorState = world.getComponent(playerEntity, FloorState);
       if (floorState?.sectorCondition === 'DARK_SUBNET') {
@@ -815,25 +907,38 @@ export function createRenderSystem(config: RenderSystemConfig) {
         }
       }
 
-      const fovSet = computeFov(
-        playerPos.x,
-        playerPos.y,
-        effectiveRadius,
-        lightPasses,
-        exploredSet,
-      );
+      let fovSet: Set<string>;
+      const fovKey = `${playerPos.x},${playerPos.y},${effectiveRadius},${floorState?.sectorCondition ?? ''},${isMapRevealed}`;
 
-      // Snapshot remembered state for tiles currently visible in player's real FOV
-      snapshotVisibleMemory(fovSet);
-      currentFovSet = new Set(fovSet);
+      if (devFlags.cacheStaticFov && lastFovKey === fovKey && lastFovResult) {
+        fovSet = lastFovResult;
+      } else {
+        fovSet = computeFov(
+          playerPos.x,
+          playerPos.y,
+          effectiveRadius,
+          lightPasses,
+          exploredSet,
+        );
 
-      if (isMapRevealed) {
-        for (const key of exploredSet) {
-          fovSet.add(key);
+        // Snapshot remembered state for tiles currently visible in player's real FOV
+        snapshotVisibleMemory(fovSet);
+        currentFovSet = new Set(fovSet);
+
+        if (isMapRevealed) {
+          for (const key of exploredSet) {
+            fovSet.add(key);
+          }
         }
+
+        lastFovKey = fovKey;
+        lastFovResult = fovSet;
+        eventBus.emit('FOV_UPDATED', { visibleSet: fovSet });
       }
 
-      eventBus.emit('FOV_UPDATED', { visibleSet: fovSet });
+      if (devFlags.measureTimings) {
+        latestStageTimings.fovMs = performance.now() - tFov0;
+      }
 
       // 1.5. Targeting UI Rendering
       const storeState = gameStore.getState();
@@ -884,16 +989,6 @@ export function createRenderSystem(config: RenderSystemConfig) {
         targetingCursor.lineTo(tx + margin, ty + TILE_SIZE - margin - len);
       }
 
-      // Refresh dynamic prop outlines if state has changed
-      const props = world.query(Prop);
-      for (const propId of props) {
-        const outlineState = resolvePropOutlineState(world, propId) ?? 'none';
-        if (lastPropOutlineState.get(propId) !== outlineState) {
-          lastPropOutlineState.set(propId, outlineState);
-          syncPropOutline(propId);
-        }
-      }
-
       // 2. Camera
       const baseTarget = computeCameraTarget(playerPos.x, playerPos.y, cameraZoom);
       cameraTarget = {
@@ -902,13 +997,38 @@ export function createRenderSystem(config: RenderSystemConfig) {
       };
 
       // 3. Tilemap
+      const tTile0 = devFlags.measureTimings ? performance.now() : 0;
       const visibleRange = getVisibleTileRange(layers.worldContainer.x, layers.worldContainer.y, cameraZoom);
-      buildTilemap(getGrid(), layers.terrainLayer, {
-        visibleRange,
-        fovSet,
-        exploredSet,
-        playerPos,
-      });
+      const tilemapKey = `${visibleRange.startX},${visibleRange.startY},${visibleRange.endX},${visibleRange.endY},${cameraZoom},${playerPos.x},${playerPos.y},${fovSet.size}`;
+
+      if (!devFlags.cacheStaticTilemap || lastTilemapKey !== tilemapKey) {
+        buildTilemap(getGrid(), layers.terrainLayer, {
+          visibleRange,
+          fovSet,
+          exploredSet,
+          playerPos,
+        });
+        lastTilemapKey = tilemapKey;
+      }
+
+      if (devFlags.measureTimings) {
+        latestStageTimings.tilemapMs = performance.now() - tTile0;
+      }
+
+      // 4. Entity Sprites Sync & Visibility
+      const tSprite0 = devFlags.measureTimings ? performance.now() : 0;
+
+      // Refresh dynamic prop outlines if state has changed
+      if (!devFlags.disableSpriteFilters) {
+        const props = world.query(Prop);
+        for (const propId of props) {
+          const outlineState = resolvePropOutlineState(world, propId) ?? 'none';
+          if (lastPropOutlineState.get(propId) !== outlineState) {
+            lastPropOutlineState.set(propId, outlineState);
+            syncPropOutline(propId);
+          }
+        }
+      }
 
       // 4. Entity Sprites Sync & Visibility
       const renderables = world.query(SpriteComponent, Position);
@@ -1001,6 +1121,10 @@ export function createRenderSystem(config: RenderSystemConfig) {
         playerSprite.parent.addChild(playerSprite);
       }
 
+      if (devFlags.measureTimings) {
+        latestStageTimings.spriteSyncMs = performance.now() - tSprite0;
+      }
+
       if (lastPointerEvent) {
         const needsHoverUpdate =
           !lastHoverCheckState ||
@@ -1014,6 +1138,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
           lastHoverCheckState.isMapRevealed !== isMapRevealed;
 
         if (needsHoverUpdate) {
+          const tHover0 = devFlags.measureTimings ? performance.now() : 0;
           lastHoverCheckState = {
             clientX: lastPointerEvent.clientX,
             clientY: lastPointerEvent.clientY,
@@ -1025,7 +1150,23 @@ export function createRenderSystem(config: RenderSystemConfig) {
             isMapRevealed,
           };
           updateHoverInspection(lastPointerEvent);
+          if (devFlags.measureTimings) {
+            latestStageTimings.hoverMs = performance.now() - tHover0;
+          }
+        } else if (devFlags.measureTimings) {
+          latestStageTimings.hoverMs = 0;
         }
+      } else if (devFlags.measureTimings) {
+        latestStageTimings.hoverMs = 0;
+      }
+
+      if (devFlags.measureTimings) {
+        latestStageTimings.totalCpuMs =
+          latestStageTimings.fovMs +
+          latestStageTimings.tilemapMs +
+          latestStageTimings.spriteSyncMs +
+          latestStageTimings.vfxMs +
+          latestStageTimings.hoverMs;
       }
 
       if (aiDebugOverlayEnabled) {
@@ -1182,6 +1323,9 @@ export function createRenderSystem(config: RenderSystemConfig) {
       layers.worldContainer.scale.set(1.0);
       lastPropOutlineState.clear();
       lastHoverCheckState = null;
+      lastFovKey = null;
+      lastFovResult = null;
+      lastTilemapKey = null;
       isMapRevealed = false;
       cachedDijkstraMap = null;
       lastDijkstraPlayerPos = null;
@@ -1291,6 +1435,32 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
     getCameraPanOffset(): { x: number; y: number } {
       return { ...cameraPanOffset };
+    },
+
+    getRenderTelemetry(): RenderTelemetry {
+      return {
+        stageTimings: { ...latestStageTimings },
+        tilemap: getTilemapTelemetry(),
+        particles: getParticleTelemetry(),
+        filters: getFilterTelemetry(),
+        activeAnimations: getActiveAnimationCount(),
+        activeDamageTexts: getActiveDamageTextCount(),
+      };
+    },
+
+    setDevRenderFlags(flags: Partial<DevRenderBisectionFlags>) {
+      devFlags = { ...devFlags, ...flags };
+      if (devFlags.disableSpriteFilters) {
+        for (const entityId of world.query(SpriteComponent)) {
+          const sprite = getEntitySprite(entityId);
+          if (sprite) {
+            sprite.filters = null;
+          }
+        }
+      }
+      if (devFlags.disableWorldFilters) {
+        removeFiltersFromContainer(layers.worldContainer);
+      }
     },
   };
 

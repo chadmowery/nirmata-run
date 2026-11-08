@@ -49,6 +49,23 @@ function computeAlpha(x: number, y: number, options?: BuildTilemapOptions): numb
 
 const spritePool: Map<string, Sprite> = new Map();
 
+export interface TilemapTelemetry {
+  poolSize: number;
+  visibleTiles: number;
+  lastAutotileSolves: number;
+}
+
+let lastVisibleTileCount = 0;
+let lastAutotileSolveCount = 0;
+
+export function getTilemapTelemetry(): TilemapTelemetry {
+  return {
+    poolSize: spritePool.size,
+    visibleTiles: lastVisibleTileCount,
+    lastAutotileSolves: lastAutotileSolveCount,
+  };
+}
+
 export interface ResolvedTerrainTile {
   frameKey: string;
   fallbackFrame: string;
@@ -109,6 +126,9 @@ export function buildTilemap(
     sprite.visible = false;
   }
 
+  let visibleCount = 0;
+  let autotileCount = 0;
+
   for (let y = startY; y <= endY; y++) {
     for (let x = startX; x <= endX; x++) {
       const tile = grid.getTile(x, y);
@@ -116,6 +136,10 @@ export function buildTilemap(
 
       const alpha = computeAlpha(x, y, options);
       if (alpha <= 0) continue;
+
+      if (tile.terrain === 'wall' || tile.terrain === 'door') {
+        autotileCount++;
+      }
 
       const key = `${x},${y}`;
       let sprite = spritePool.get(key);
@@ -154,8 +178,12 @@ export function buildTilemap(
       sprite.texture = texture;
       sprite.alpha = alpha;
       sprite.visible = true;
+      visibleCount++;
     }
   }
+
+  lastVisibleTileCount = visibleCount;
+  lastAutotileSolveCount = autotileCount;
 }
 
 /**
@@ -167,4 +195,6 @@ export function clearTilemap(container: Container) {
     sprite.destroy();
   }
   spritePool.clear();
+  lastVisibleTileCount = 0;
+  lastAutotileSolveCount = 0;
 }
