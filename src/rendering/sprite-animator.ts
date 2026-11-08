@@ -21,6 +21,7 @@ export interface EntityAnimRuntimeState {
   lastRenderedFrameKey: string;
   speedMultiplier: number;
   paused: boolean;
+  desyncPhase: boolean;
   phaseOffsetMs: number;
 }
 
@@ -240,6 +241,7 @@ export class SpriteAnimator {
       }
       if (config.speedMultiplier !== undefined) existing.speedMultiplier = config.speedMultiplier;
       if (config.paused !== undefined) existing.paused = config.paused;
+      if (config.desyncPhase !== undefined) existing.desyncPhase = config.desyncPhase;
       return existing;
     }
 
@@ -254,14 +256,35 @@ export class SpriteAnimator {
       ambientState,
       transientState: null,
       elapsedMs: 0,
-      lastRenderedFrameKey: initialFrame,
+      lastRenderedFrameKey: initialFrame === baseSpriteKey ? baseSpriteKey : '',
       speedMultiplier: config.speedMultiplier ?? 1,
       paused: config.paused ?? false,
+      desyncPhase: config.desyncPhase ?? true,
       phaseOffsetMs: 0,
     };
 
     this.runtimeStates.set(entityId, newState);
     return newState;
+  }
+
+  /**
+   * Sets paused state for an entity (locks to Frame 0 when true).
+   */
+  public setPaused(entityId: EntityId, paused: boolean): void {
+    const record = this.runtimeStates.get(entityId);
+    if (record) {
+      record.paused = paused;
+    }
+  }
+
+  /**
+   * Sets desyncPhase flag for an entity.
+   */
+  public setDesyncPhase(entityId: EntityId, desyncPhase: boolean): void {
+    const record = this.runtimeStates.get(entityId);
+    if (record) {
+      record.desyncPhase = desyncPhase;
+    }
   }
 
   /**
@@ -321,7 +344,16 @@ export class SpriteAnimator {
     const reducedMotion = isPrefersReducedMotion();
 
     for (const record of this.runtimeStates.values()) {
-      if (record.paused) continue;
+      if (record.paused) {
+        // Spec §4.2: paused locks the sprite to Frame 0 of its current state
+        const activeClip =
+          (record.transientState ? this.getClip(record.animationSetKey, record.transientState) : null) ??
+          this.getClip(record.animationSetKey, record.ambientState) ??
+          this.getClip(record.animationSetKey, 'idle');
+        const frame0 = activeClip?.frames[0] ?? record.baseSpriteKey;
+        this.applySparseTexture(record, frame0, getSpriteFn);
+        continue;
+      }
 
       if (getSpriteFn) {
         const sprite = getSpriteFn(record.entityId);
@@ -386,11 +418,12 @@ export class SpriteAnimator {
 
       // 5. Advance Timer and Step Frame
       record.elapsedMs += deltaMs * record.speedMultiplier;
+      const useDesync = record.desyncPhase && (activeClip.desyncPhase ?? true);
       const stepResult = stepAnimationClip(
         activeClip,
         record.elapsedMs,
         record.entityId,
-        activeClip.desyncPhase ?? true,
+        useDesync,
       );
 
       // 6. Handle One-Shot Completion

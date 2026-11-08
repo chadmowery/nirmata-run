@@ -315,6 +315,32 @@ describe('SpriteAnimator & Runtime Engine ([ANIM-03])', () => {
       expect(animator.getEntityState(6)?.transientState).toBeNull();
     });
 
+    it('locks entity to Frame 0 when paused=true, even mid-cycle (HIGH-01)', () => {
+      animator.registerEntity(7, { baseSpriteKey: 'player', desyncPhase: false });
+      // Tick to advance to player_idle_1 (frame 1)
+      animator.tick(350);
+      expect(animator.getEntityState(7)?.lastRenderedFrameKey).toBe('player_idle_1');
+
+      // Pause entity -> next tick must lock immediately back to Frame 0 ('player')
+      animator.setPaused(7, true);
+      animator.tick(16);
+      expect(animator.getEntityState(7)?.lastRenderedFrameKey).toBe('player');
+    });
+
+    it('respects entity-level desyncPhase=false overriding clip default (HIGH-01)', () => {
+      // Register two entities with desyncPhase: false
+      animator.registerEntity(10, { baseSpriteKey: 'player', desyncPhase: false });
+      animator.registerEntity(20, { baseSpriteKey: 'player', desyncPhase: false });
+
+      animator.tick(350);
+      const stateA = animator.getEntityState(10);
+      const stateB = animator.getEntityState(20);
+
+      // Both must be on identical frames because desync was disabled
+      expect(stateA?.lastRenderedFrameKey).toBe('player_idle_1');
+      expect(stateB?.lastRenderedFrameKey).toBe('player_idle_1');
+    });
+
     it('sparse texture update only updates sprite.texture when frame key actually changes', () => {
       let textureUpdates = 0;
       let currentTexture: any = { label: 'initial' };
