@@ -178,27 +178,34 @@ Each of the four corporate factions transforms the visual mood, architectural ge
 
 ## 6. Concept Visuals & Art Direction Plates
 
+> **Asset Directory & Breadcrumbs Catalog:** All active concept plates and historical iteration prompts are documented in [`docs/wip/images/README.md`](./images/README.md).
+
 The following four concept plates illustrate how *Nirmata Runner*'s world-building, 3/4 oblique perspective, spindly character scale, and volumetric lighting come together in practice.
 
-### 6.1 Concept Plate 1: Abyssal Megastructure Catwalk & Tactical Breach
-*Demonstrates the 3/4 oblique top-down camera, multi-tile tall bulkheads with **Marathon (2026)** acid-chartreuse/orange graphic markings, foreground parallax gantry beams/cables, bottomless **BLAME!** chasm mist, wet floor reflections, and **Hyper Light Drifter**-scale spindly Runner vs. Null-Pointer stalkers.*
+### 6.1 Concept Plate 1: Ominous Akira Subterranean Catwalk & Chasm
+*Features monumental subterranean brutalist infrastructure, stepped concrete foundations, a massive ventilation turbine, and suffocating waterfalls of high-voltage industrial cables and ribbed ducts swallowed in inky shadow (`#020408`), with Marathon graphic decals blazing out under harsh spotlights.*
 
-![Abyssal Megastructure Catwalk Mockup](watermarked_img_2590727502806577676.jpg)
+![Ominous Akira Subterranean Catwalk](watermarked_img_8969658380484004604.jpg)
 
-### 6.2 Concept Plate 2: Sekiguchi Gene-Labs Cleanroom & Tether Anchor
-*Demonstrates how sterile surgical-white architecture interacts with **REPLACED / The Last Night** nocturnal lighting, mirror-like specular floor reflections, normal-mapped ground cryo-mist, an octahedral cyan Tether Anchor (`anchor.json`), and a towering biomechanical `Fragmenter` construct lurking in the shadows.*
+### 6.2 Concept Plate 2: Deep Underground Sekiguchi Cleanroom & Tether Anchor
+*An ominous underground research bunker with extreme chiaroscuro contrast: pitch-black ceiling and corners, chaotic masses of black umbilical feeder hoses draping across wet mirrored tiles, glowing emerald cryo-vats, and a cyan Tether Anchor with Japanese kanji markings.*
 
-![Sekiguchi Gene-Labs Cleanroom Mockup](watermarked_img_9594035196980791450.jpg)
+![Deep Underground Sekiguchi Cleanroom](watermarked_img_1235849820866029106.jpg)
 
-### 6.3 Concept Plate 3: Corporate Sector Biome & Lighting Moodboard
-*Compares the dramatic shift in color script, volumetric fog, emissive bloom, and megastructure architecture across all four corporate factions (**Traxus Heavy Foundry**, **Sekiguchi Gene-Labs**, **CyberAcme Mainframe**, and **NuCaloric Bio-Storage**).*
+### 6.3 Concept Plate 3: Subterranean Megastructure Breach & Alien Overgrowth (Hybrid Outdoor Biome)
+*Features an AKIRA-scale industrial breach where cracked concrete seismic pylons, massive turbine housings, and rusty Traxus I-beams meet shattered Sekiguchi cryo-cylinders. Waterfalls of black umbilical cables pour across the fractured catwalks, overgrown with minimalist alien moss and geometric ferns, illuminated by blinding sunbeams and floating dust motes against inky void shadows.*
 
-![4-Faction Corporate Biome Moodboard](watermarked_img_13875928006620938260.jpg)
+![Subterranean Megastructure Breach](watermarked_img_15277113124328266146.jpg)
 
-### 6.4 Concept Plate 4: Spindly Biomechanical Shell & Enemy Silhouette Sheet
-*Establishes the elongated `1px–2px` limb proportions, synthetic ceramic/PVC color blocking, exposed carbon-fiber ribcages, and trailing umbilical cables for the three Runner Shells (`VANGUARD`, `BASTION`, `GHOST`) and three physicalized Megastructure Threats (`Stalker / Null-Pointer`, `Siege Construct / Fragmenter`, `Custodian / System-Admin`).*
+### 6.4 Concept Plate 4: 4-Faction Corporate Biome Moodboard (Megastructure & Cabling)
+*Compares architectural scale, dense ceiling and floor cabling, volumetric fog, and graphic color scripts across all four corporate factions (**Traxus Heavy Foundry**, **Sekiguchi Gene-Labs**, **CyberAcme Mainframe**, and **NuCaloric Bio-Storage**).*
 
-![Spindly Biomechanical Character & Enemy Sheet](watermarked_img_12240624312266687342.jpg)
+![4-Faction Corporate Biome Moodboard](watermarked_img_6084510415740805834.jpg)
+
+### 6.5 Concept Plate 5: Spindly Biomechanical Shell & Enemy Sprite Sheet (Approved Baseline)
+*The authentic flat-shaded, low-cluster pixel art sprite standard directly inspired by **Hyper Light Drifter** and **Marathon (2026)** graphic color blocking (`VANGUARD`, `BASTION`, `GHOST`, `STALKER`, `SIEGE MECH`, `CUSTODIAN`).*
+
+![Spindly Biomechanical Character & Enemy Sheet](watermarked_img_2200047371947429369.jpg)
 
 ---
 
@@ -225,3 +232,64 @@ Expand the scene graph in [`src/rendering/layers.ts`](../../src/rendering/layers
 In the single-pass Deferred Uber-Lighting Shader ([`DEFERRED-LIGHTING-RENDERING.md`](./DEFERRED-LIGHTING-RENDERING.md) Section 3.2):
 1. **Screen-Space Vertical Emissive Reflection**: For floor pixels (`Height Z <= 2px`) with high specularity (`S > 0.6`), sample `albedoTexture` and `materialHeightTexture.r` (`Emissive`) at vertically mirrored screen offsets `(uv.x + rippleNoise, uv.y - offset)` to render soft, wet vertical reflections of glowing Cryo-Vats, Tether Anchors, and Runner visors on the floor tiles in front of them.
 2. **Fresnel Rim-Light Boost**: Add a grazing-angle rim term $I_{\text{rim}} = (1.0 - N_z)^2 \cdot \max(0.0, \vec{N}_{xy} \cdot \vec{L}_{xy})$ weighted by light intensity so tall character silhouettes and multi-tile walls catch dramatic [*REPLACED*](https://store.steampowered.com/app/1663850/REPLACED/)-style edge highlights against dark backgrounds.
+
+
+---
+
+## 8. Exact 32×32px Pure Top-Down Orthographic Projection (Complete 5-Concept Suite)
+
+Below is the definitive translation of all 5 concepts mapped strictly into Nirmata Runner's active **90-degree overhead top-down perspective** and **exact 32×32px tile footprint** (30×20 viewport at 960×640px), dialing up oppressive subterranean darkness, hard lighting contrast, and heavy industrial atmosphere:
+
+### 8.1 Concept Plate 6: 32×32 Top-Down Abyssal Catwalk & Breach (Extreme Chiaroscuro)
+*Features a 3-tile wide steel diamond-tread catwalk bridging inky black void (#000103). Dark slate wall caps carry bold Marathon 2026 acid-chartreuse (#d8ff00) and signal-orange (#ff5500) hazard chevrons. Thick 1-tile conduit snakes run along the floor perimeter, with a single stark spotlight casting deep pitch-black shadows as a 32×32 white/lime Runner faces two red-eyed stalkers.*
+
+![Strict 32x32 Top-Down Catwalk](watermarked_img_17102923253943974385.jpg)
+
+### 8.2 Concept Plate 7: 32×32 Top-Down Sekiguchi Subterranean Cleanroom
+*An ominous subterranean research bunker where unlit areas drop into total inky pitch-black (#000205). The floor features 32×32 surgical white and dark slate tiles with wet mirror reflections. Glowing emerald (#10b981) cryo-vats and a cyan wireframe Tether Anchor pulse with intense bloom, while tangled umbilical feeder hoses coil toward an angular biomechanical siege construct in the shadows.*
+
+![Strict 32x32 Top-Down Sekiguchi Cleanroom](watermarked_img_13766442457749602789.jpg)
+
+### 8.3 Concept Plate 8: 32×32 Top-Down Subterranean Breach & Saturated Alien Overgrowth
+*An intense, blinding volumetric sunbeam cuts down through an abstract circular ceiling rupture into pitch-black void (#000204). 32×32 concrete grid tiles are overgrown with ultra-saturated minimalist alien flora—electric lime moss (#00ff66), glowing cyan tendrils (#00f0ff), and magenta blossoms (#ff007f)—amidst shattered Sekiguchi canisters leaking glowing emerald fluid and coiled black cables.*
+
+![Strict 32x32 Top-Down Overgrown Breach](watermarked_img_16941135489672830680.jpg)
+
+### 8.4 Concept Plate 9: 4-Faction Corporate Biome Moodboard (Megastructure & Cabling)
+*Compares architectural scale, dense ceiling and floor cabling, volumetric fog, and graphic color scripts across all four corporate factions (Traxus Heavy Foundry, Sekiguchi Gene-Labs, CyberAcme Mainframe, and NuCaloric Bio-Storage).*
+
+![4-Faction Corporate Sector Biome Moodboard](watermarked_img_11617984131472828000.jpg)
+
+### 8.5 Concept Plate 10: 32×32 Strict Top-Down 4-Directional Sprite Sheet (Shells & Constructs)
+*Establishes the authentic in-game sprite standard in a strict 90-degree overhead bird's-eye view across all 4 cardinal facings (North, East, South, West) within 32×32 bounding boxes: Vanguard (curved chartreuse visor crown and trailing ribbons), Bastion (heavy graphite pads and massive signal-orange blast collar), Ghost (porcelain skull crown and cyan neural spine), Stalker, and Siege Construct.*
+
+![Strict 32x32 Top-Down 4-Way Sprite Sheet](watermarked_img_8819018939117897372.jpg)
+
+
+---
+
+## 9. Perspective Trade-Off Evaluation: 3/4 Oblique vs. Strict 90° Top-Down
+
+To resolve whether *Nirmata Runner* should transition to a **3/4 Oblique Perspective** (like [*Hyper Light Drifter*](https://store.steampowered.com/app/257850/Hyper_Light_Drifter/) and [*REPLACED*](https://store.steampowered.com/app/1663850/REPLACED/)) or remain in its current **Strict 90° Overhead Top-Down Perspective** (like classic roguelikes and [*Hotline Miami*](https://store.steampowered.com/app/219150/Hotline_Miami/)), the **Sekiguchi Subterranean Cleanroom** chamber was rendered side-by-side in both projections:
+
+### Perspective Candidate A: 3/4 Oblique Orthographic View
+*Features 2-tile tall (64px–96px) vertical wall facades with Marathon 2026 graphic stencils, tall 32×64px glass cryo-vats, thick umbilical cables draped from ceiling trusses, and 32×48px spindly character silhouettes with directional 2.5D cast shadows.*
+
+![Sekiguchi Cleanroom 3/4 Oblique View](watermarked_img_1228180653554878582.jpg)
+
+### Perspective Candidate B: Strict 90° Overhead Top-Down View
+*Features authentic 32×32px tiles on a 30×20 grid (960×640px) with zero perspective tilt. Walls are viewed straight down onto dark slate wall caps with graphic hazard chevrons. Cryo-vats are circular footprints with radial emerald glow, with 32px floor cable runs and pure overhead character crowns.*
+
+![Sekiguchi Cleanroom Strict 90-Degree Top-Down](watermarked_img_1213918646151266247.jpg)
+
+---
+
+### Architectural & Gameplay Trade-Off Matrix
+
+| Evaluation Dimension | Candidate A: 3/4 Oblique Perspective (*HLD* / *Replaced*) | Candidate B: Strict 90° Overhead Top-Down (*As-Is*) |
+| :--- | :--- | :--- |
+| **1. Environmental Scale & Monumentality** | **Unrivaled Cinematic Scale**: Tall 64px–96px vertical wall facades, towering 64px cryo-cylinders, and foreground gantry trusses provide a massive canvas for *Marathon* supergraphics and *Akira* brutalist depth. | **Abstract Blueprint Feel**: Walls are flat 32px strips; scale is communicated horizontally through large room footprints and floor-plane decals rather than height. |
+| **2. Character Silhouette Readability** | **Expressive Anatomical Postures**: Long 1px–2px limbs, helmet visors, and trailing cables read clearly from the front/side, enabling distinct combat stances, weapon aiming, and secondary cloth motion. | **Compact Overhead Crown**: Characters are identified primarily by helmet tops, shoulder pads, and radial limb extensions; requires distinctive overhead color coding. |
+| **3. Tactical Grid Clarity & Occlusion** | **Requires Occlusion Handling**: Tall vertical walls and multi-tile props on  naturally occlude floor tiles directly behind them (), requiring sprite alpha transparency or silhouette highlights when enemies/items stand behind obstacles. | **Zero Occlusion (100% Unambiguous)**: Every single 32×32 grid cell is completely visible at all times. Bump-to-loot, line-of-sight checks, and range counts are mathematically trivial. |
+| **4. Volumetric Lighting & Shadows** | **Dramatic 2.5D Silhouettes**: Directional spotlights cast long, sweeping floor shadows behind characters, crates, and vats. Grazing rim lights catch tall bulkhead corners. | **Radial Overhead Halos**: Point lights cast circular radial falloffs with subtle 2D drop-shadows or raymarched floor relief; lighting feels clean and clinical like an operational scanner. |
+| **5. Engine & Asset Pipeline Impact** | **Requires Multi-Tile Sprites & Y-Sorting**: Requires decoupling visual sprite height (, ) from the logical grid, bottom-anchoring sprites (), and maintaining . | **Zero Code Drift**: Fully compatible with existing  frame schemas in , existing autotiling solvers, and isotropic movement prediction. |
