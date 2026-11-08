@@ -5,6 +5,7 @@ import { getActiveThemeId } from './assets';
 import { logger } from '../engine/utils/logger';
 
 const entitySprites = new Map<EntityId, Sprite>();
+const entitySpriteKeys = new Map<EntityId, string>();
 
 /**
  * Resolves a canonical fallback frame key for a directional or variant sprite key.
@@ -88,22 +89,28 @@ export function updateEntitySpriteOrientation(sprite: Sprite, angleDegrees: numb
 
 /**
  * Creates a sprite for an entity and adds it to the specified container.
- * If a sprite already exists for this entity, it updates its texture if needed and returns the existing one.
+ * If a sprite already exists for this entity, it preserves active animation frame textures
+ * and only updates the texture when the canonical base sprite key itself changes.
  */
 export function createEntitySprite(
   entityId: EntityId,
   spriteKey: string,
   container: Container,
 ): Sprite {
-  const texture = getTextureForSpriteKey(spriteKey);
   const existing = entitySprites.get(entityId);
   if (existing) {
-    if (texture && texture !== Texture.EMPTY && existing.texture !== texture) {
-      existing.texture = texture;
+    const prevKey = entitySpriteKeys.get(entityId);
+    if (prevKey !== spriteKey) {
+      entitySpriteKeys.set(entityId, spriteKey);
+      const texture = getTextureForSpriteKey(spriteKey);
+      if (texture && texture !== Texture.EMPTY) {
+        existing.texture = texture;
+      }
     }
     return existing;
   }
 
+  const texture = getTextureForSpriteKey(spriteKey);
   if (!texture || texture.width === 1) {
     logger.warn(`Texture not found or empty for key: ${spriteKey} in 'tileset'`, 'RENDER');
   }
@@ -114,6 +121,7 @@ export function createEntitySprite(
 
   container.addChild(sprite);
   entitySprites.set(entityId, sprite);
+  entitySpriteKeys.set(entityId, spriteKey);
 
   return sprite;
 }
@@ -128,6 +136,7 @@ export function destroyEntitySprite(entityId: EntityId): void {
   sprite.removeFromParent();
   sprite.destroy({ children: true });
   entitySprites.delete(entityId);
+  entitySpriteKeys.delete(entityId);
 }
 
 /**
@@ -135,6 +144,13 @@ export function destroyEntitySprite(entityId: EntityId): void {
  */
 export function getEntitySprite(entityId: EntityId): Sprite | undefined {
   return entitySprites.get(entityId);
+}
+
+/**
+ * Gets the canonical base sprite key associated with an entity.
+ */
+export function getEntitySpriteKey(entityId: EntityId): string | undefined {
+  return entitySpriteKeys.get(entityId);
 }
 
 /**
@@ -173,4 +189,5 @@ export function clearAllSprites(): void {
   for (const entityId of entitySprites.keys()) {
     destroyEntitySprite(entityId);
   }
+  entitySpriteKeys.clear();
 }

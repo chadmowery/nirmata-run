@@ -712,9 +712,13 @@ export function createRenderSystem(config: RenderSystemConfig) {
         const pos = world.getComponent(entityId, Position)!;
         const orientation = world.getComponent(entityId, TileOrientation);
         const sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
+        spriteAnimator.registerEntity(entityId, spriteComp);
         applySpriteTransform(sprite, pos.x, pos.y, orientation?.angleDegrees ?? 0);
         syncPropOutline(entityId, sprite);
       }
+
+      // Initial render pass to populate viewport, FOV, and textures
+      this.renderSystem();
     },
 
     reconcileSprites() {
@@ -1141,6 +1145,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
         const pos = world.getComponent(entityId, Position)!;
         const orientation = world.getComponent(entityId, TileOrientation);
         const sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
+        spriteAnimator.registerEntity(entityId, spriteComp);
         applySpriteTransform(sprite, pos.x, pos.y, orientation?.angleDegrees ?? 0);
 
         // Ensure emitters are attached to enemies on re-init

@@ -297,5 +297,36 @@ describe('SpriteAnimator & Runtime Engine ([ANIM-03])', () => {
       animator.tick(20, undefined, undefined, getSprite);
       expect(textureUpdates).toBe(1);
     });
+
+    it('falls back to canonical base clip when directional variant does not define custom clips', () => {
+      const manifestWithBaseOnly: any = {
+        animations: {
+          prop_workstation: {
+            idle: {
+              frames: ['prop_workstation', 'prop_workstation_glow'],
+              fps: 4,
+              loop: 'loop',
+            },
+          },
+        },
+      };
+      animator.setCustomManifest(manifestWithBaseOnly);
+      const clip = animator.getClip('prop_workstation_n', 'idle');
+      expect(clip).toBeDefined();
+      expect(clip?.frames).toEqual(['prop_workstation', 'prop_workstation_glow']);
+    });
+
+    it('resets animation state and clock when baseSpriteKey changes on entity re-registration', () => {
+      animator.registerEntity(1, { baseSpriteKey: 'player', desyncPhase: false });
+      animator.tick(350);
+      expect(animator.getEntityState(1)?.lastRenderedFrameKey).toBe('player_idle_1');
+
+      // Shell swap or prop mutation
+      animator.registerEntity(1, { baseSpriteKey: 'prop_chest', desyncPhase: false });
+      const state = animator.getEntityState(1);
+      expect(state?.baseSpriteKey).toBe('prop_chest');
+      expect(state?.elapsedMs).toBe(0);
+      expect(state?.lastRenderedFrameKey).toBe('');
+    });
   });
 });

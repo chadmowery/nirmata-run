@@ -5,7 +5,7 @@ import {
   AnimationStateKey,
   ThemedTilesetManifest,
 } from '@shared/tileset-types';
-import { getTextureForSpriteKey } from './sprite-map';
+import { getTextureForSpriteKey, resolveFallbackSpriteKey } from './sprite-map';
 import { getActiveThemeId } from './assets';
 import baseTilesetJson from '../../public/assets/tileset.json';
 
@@ -149,7 +149,13 @@ export function resolveClipFromManifest(
   const animations = typedManifest.animations;
   if (!animations) return null;
 
-  const entry = animations[animSetKey];
+  let entry = animations[animSetKey];
+  if (!entry) {
+    const fallbackKey = resolveFallbackSpriteKey(animSetKey);
+    if (fallbackKey && animations[fallbackKey]) {
+      entry = animations[fallbackKey];
+    }
+  }
   if (!entry) return null;
 
   if ('frames' in entry && Array.isArray((entry as AnimationClipDef).frames)) {
@@ -225,8 +231,13 @@ export class SpriteAnimator {
     const existing = this.runtimeStates.get(entityId);
 
     if (existing) {
-      existing.baseSpriteKey = baseSpriteKey;
-      existing.animationSetKey = animSetKey;
+      if (existing.baseSpriteKey !== baseSpriteKey || existing.animationSetKey !== animSetKey) {
+        existing.baseSpriteKey = baseSpriteKey;
+        existing.animationSetKey = animSetKey;
+        existing.elapsedMs = 0;
+        existing.transientState = null;
+        existing.lastRenderedFrameKey = '';
+      }
       if (config.speedMultiplier !== undefined) existing.speedMultiplier = config.speedMultiplier;
       if (config.paused !== undefined) existing.paused = config.paused;
       return existing;
@@ -314,7 +325,7 @@ export class SpriteAnimator {
 
       // 1. Fog-of-War Freezing (U1 Invariant):
       // If entity is positioned on a tile outside active FOV, freeze on Frame 0 of ambient state.
-      if (fovSet && getPositionFn) {
+      if (fovSet && fovSet.size > 0 && getPositionFn) {
         const pos = getPositionFn(record.entityId);
         if (pos) {
           const tileKey = `${pos.x},${pos.y}`;

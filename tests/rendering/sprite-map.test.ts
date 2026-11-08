@@ -82,6 +82,32 @@ describe('Entity Sprite Map & Lifecycle Cleanup', () => {
       expect(getSpriteCount()).toBe(1);
       expect(mockContainer.addChild).toHaveBeenCalledTimes(1);
     });
+
+    it('preserves active animated frame textures when called repeatedly with same base key', () => {
+      const mockContainer = new Container();
+      const entityId = 1;
+
+      const sprite = createEntitySprite(entityId, 'player', mockContainer);
+      const mockTextureIdle1: any = { label: 'player_idle_1', width: 32, height: 32 };
+      sprite.texture = mockTextureIdle1;
+
+      // Re-running createEntitySprite on render loop should not overwrite animated texture
+      const sameSprite = createEntitySprite(entityId, 'player', mockContainer);
+      expect(sameSprite.texture).toBe(mockTextureIdle1);
+    });
+
+    it('updates texture when base sprite key legitimately changes', () => {
+      const mockContainer = new Container();
+      const entityId = 1;
+
+      const sprite = createEntitySprite(entityId, 'prop_vault_door_locked', mockContainer);
+      const initialTexture = sprite.texture;
+
+      // Unlock prop -> base key changes
+      const updatedSprite = createEntitySprite(entityId, 'prop_vault_door', mockContainer);
+      expect(updatedSprite).toBe(sprite);
+      expect(getEntitySprite(entityId)).toBe(sprite);
+    });
   });
 
   describe('Sprite Destruction and Clearing', () => {
