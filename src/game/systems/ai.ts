@@ -491,7 +491,12 @@ export function createAISystem<T extends GameplayEvents>(
 
               switch (action.mapType) {
                 case 'approach_target':
-                  map = spatialSystem.getApproachTargetMap(player.x, player.y, avoidHazards);
+                  map = spatialSystem.getApproachTargetMap(
+                    player.x,
+                    player.y,
+                    avoidHazards,
+                    action.canCrushProps,
+                  );
                   break;
                 case 'flee_from_target':
                   map = spatialSystem.getFleeFromTargetMap(player.x, player.y, avoidHazards);
@@ -518,7 +523,12 @@ export function createAISystem<T extends GameplayEvents>(
                   break;
                 }
                 default:
-                  map = spatialSystem.getApproachTargetMap(player.x, player.y, avoidHazards);
+                  map = spatialSystem.getApproachTargetMap(
+                    player.x,
+                    player.y,
+                    avoidHazards,
+                    action.canCrushProps,
+                  );
                   break;
               }
 
@@ -537,7 +547,7 @@ export function createAISystem<T extends GameplayEvents>(
                   }
 
                   if (world.hasComponent(eid, BlocksMovement)) {
-                    return 0.5; // Soft penalty to fan out around allies
+                    return Infinity; // Impassable obstacle / ally: cannot step into occupied tile
                   }
                 }
                 return 0.0;

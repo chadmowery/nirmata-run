@@ -20,7 +20,8 @@ import {
   ApplyStatusEffectIntent,
   DamageIntent,
 } from '@shared/components/intents';
-import { SecurityLock, InteractiveSurface } from '@shared/components/environment';
+import { SecurityLock, InteractiveSurface, Prop } from '@shared/components/environment';
+import { BlocksMovement } from '@shared/components/blocks-movement';
 import { Attack } from '@shared/components/attack';
 import { StatusEffects } from '@shared/components/status-effects';
 import { Dying } from '@shared/components/dying';
@@ -470,6 +471,137 @@ describe('AI Behavior Trees & Dijkstra Maps Specification Verification', () => {
           type: 'combat',
         }),
       );
+    });
+  });
+
+  describe('(6) Dijkstra Passability & Dynamic Blocking', () => {
+    it('standard enemies route around static blocking props rather than walking into them', () => {
+      setupPlayer(6, 5);
+
+      // Enemy at (3, 5) with basic approach tree (canCrushProps: false)
+      const enemy = world.createEntity();
+      world.addComponent(enemy, Position, { x: 3, y: 5 });
+      world.addComponent(enemy, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.BASIC,
+        treeId: 'basic',
+        sightRadius: 20,
+      });
+      world.addComponent(enemy, FovAwareness, { canSeePlayer: true });
+      grid.addEntity(enemy, 3, 5);
+
+      // Static blocking prop at (4, 5) directly between enemy and player
+      const prop = world.createEntity();
+      world.addComponent(prop, Position, { x: 4, y: 5 });
+      world.addComponent(prop, Prop, { propId: 'safe_01', faction: 'system', propClass: 'encrypted_safe', isSearched: false });
+      world.addComponent(prop, BlocksMovement, {});
+      grid.addEntity(prop, 4, 5);
+
+      aiSystem.processEnemyTurn(enemy);
+
+      // Enemy should NOT emit MoveIntent onto (4, 5) (the prop tile)
+      const move = world.getComponent(enemy, MoveIntent);
+      expect(move).toBeDefined();
+      const targetX = 3 + move!.dx;
+      const targetY = 5 + move!.dy;
+      expect(`${targetX},${targetY}`).not.toBe('4,5');
+      // Should have routed around, e.g. (3, 4) or (3, 6)
+      expect([
+        { dx: 0, dy: -1 },
+        { dx: 0, dy: 1 },
+      ]).toContainEqual({ dx: move!.dx, dy: move!.dy });
+    });
+
+    it('standard enemies route around locked SecurityLock doors', () => {
+      setupPlayer(7, 5);
+
+      // Enemy at (3, 5)
+      const enemy = world.createEntity();
+      world.addComponent(enemy, Position, { x: 3, y: 5 });
+      world.addComponent(enemy, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.BASIC,
+        treeId: 'basic',
+        sightRadius: 20,
+      });
+      world.addComponent(enemy, FovAwareness, { canSeePlayer: true });
+      grid.addEntity(enemy, 3, 5);
+
+      // Locked door at (4, 5)
+      const door = world.createEntity();
+      world.addComponent(door, Position, { x: 4, y: 5 });
+      world.addComponent(door, Prop, { propId: 'door_01', faction: 'system', propClass: 'vault_door', isSearched: false });
+      world.addComponent(door, SecurityLock, { isLocked: true, keyIdRequired: 'vault_key' });
+      world.addComponent(door, BlocksMovement, {});
+      grid.addEntity(door, 4, 5);
+
+      aiSystem.processEnemyTurn(enemy);
+
+      const move = world.getComponent(enemy, MoveIntent);
+      expect(move).toBeDefined();
+      const targetX = 3 + move!.dx;
+      const targetY = 5 + move!.dy;
+      expect(`${targetX},${targetY}`).not.toBe('4,5');
+    });
+
+    it('standard enemies step around allies occupying direct downhill step when alternate path exists', () => {
+      setupPlayer(5, 6);
+
+      // Enemy at (3, 5)
+      const enemy = world.createEntity();
+      world.addComponent(enemy, Position, { x: 3, y: 5 });
+      world.addComponent(enemy, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.BASIC,
+        treeId: 'basic',
+        sightRadius: 20,
+      });
+      world.addComponent(enemy, FovAwareness, { canSeePlayer: true });
+      grid.addEntity(enemy, 3, 5);
+
+      // Ally enemy at (4, 5) (downhill step)
+      const ally = world.createEntity();
+      world.addComponent(ally, Position, { x: 4, y: 5 });
+      world.addComponent(ally, BlocksMovement, {});
+      grid.addEntity(ally, 4, 5);
+
+      aiSystem.processEnemyTurn(enemy);
+
+      const move = world.getComponent(enemy, MoveIntent);
+      expect(move).toBeDefined();
+      const targetX = 3 + move!.dx;
+      const targetY = 5 + move!.dy;
+      // Enemy should step around ally to (3, 6) rather than bumping into (4, 5)
+      expect(`${targetX},${targetY}`).toBe('3,6');
+      expect(move).toEqual({ dx: 0, dy: 1 });
+    });
+
+    it('standard enemies do not step into allies when no alternate downhill step exists', () => {
+      setupPlayer(6, 5);
+
+      // Enemy at (3, 5)
+      const enemy = world.createEntity();
+      world.addComponent(enemy, Position, { x: 3, y: 5 });
+      world.addComponent(enemy, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.BASIC,
+        treeId: 'basic',
+        sightRadius: 20,
+      });
+      world.addComponent(enemy, FovAwareness, { canSeePlayer: true });
+      grid.addEntity(enemy, 3, 5);
+
+      // Ally enemy at (4, 5) (downhill step)
+      const ally = world.createEntity();
+      world.addComponent(ally, Position, { x: 4, y: 5 });
+      world.addComponent(ally, BlocksMovement, {});
+      grid.addEntity(ally, 4, 5);
+
+      aiSystem.processEnemyTurn(enemy);
+
+      // Should NOT emit MoveIntent onto (4, 5)
+      const move = world.getComponent(enemy, MoveIntent);
+      expect(move).toBeUndefined();
     });
   });
 });

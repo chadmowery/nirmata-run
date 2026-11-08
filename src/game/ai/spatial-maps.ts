@@ -9,7 +9,9 @@ import { Grid } from '@engine/grid/grid';
 import { DijkstraMap, DijkstraSeed, DIJKSTRA_IMPASSABLE } from '@engine/ai/dijkstra-map';
 import { Position } from '@shared/components/position';
 import { DeadZone } from '@shared/components/dead-zone';
-import { CorruptedNode, InteractiveSurface } from '@shared/components/environment';
+import { CorruptedNode, InteractiveSurface, Prop, SecurityLock } from '@shared/components/environment';
+import { BlocksMovement } from '@shared/components/blocks-movement';
+import { Health } from '@shared/components/health';
 
 export interface SpatialMapOptions {
   avoidHazards?: boolean;
@@ -51,6 +53,7 @@ export class AISpatialSystem<T extends EngineEvents = EngineEvents> {
   // Cached base maps
   private approachMapAvoidHazards: DijkstraMap | null = null;
   private approachMapIgnoreHazards: DijkstraMap | null = null;
+  private approachMapCrushProps: DijkstraMap | null = null;
   private fleeMapAvoidHazards: DijkstraMap | null = null;
   private fleeMapIgnoreHazards: DijkstraMap | null = null;
   private kiteCoverMap: DijkstraMap | null = null;
@@ -85,6 +88,7 @@ export class AISpatialSystem<T extends EngineEvents = EngineEvents> {
   public clearCache(): void {
     this.approachMapAvoidHazards = null;
     this.approachMapIgnoreHazards = null;
+    this.approachMapCrushProps = null;
     this.fleeMapAvoidHazards = null;
     this.fleeMapIgnoreHazards = null;
     this.kiteCoverMap = null;
@@ -99,13 +103,15 @@ export class AISpatialSystem<T extends EngineEvents = EngineEvents> {
   }
 
   /**
-   * Returns traversal cost function accounting for static walkability, DeadZones, and traps.
+   * Returns traversal cost function accounting for static walkability, DeadZones, traps,
+   * static blocking props, and locked doors.
    */
   public getStepCostFn(
     avoidHazards: boolean,
     targetX?: number,
     targetY?: number,
     isFleeing: boolean = false,
+    canCrushProps: boolean = false,
   ): (x: number, y: number) => number {
     const deadZoneTiles = new Set<string>();
     const corruptedTiles = new Set<string>();
@@ -139,6 +145,31 @@ export class AISpatialSystem<T extends EngineEvents = EngineEvents> {
         return DIJKSTRA_IMPASSABLE;
       }
 
+      // Check blocking entities (Props, locked SecurityLock doors)
+      if (!isTarget) {
+        const occupants = this.grid.getEntitiesAt(x, y);
+        for (const eid of occupants) {
+          if (this.world.hasComponent(eid, BlocksMovement)) {
+            const isProp = this.world.hasComponent(eid, Prop);
+            const lock = this.world.getComponent(eid, SecurityLock);
+            const isLocked = lock && lock.isLocked;
+
+            if (isProp || isLocked) {
+              if (canCrushProps) {
+                const surface = this.world.getComponent(eid, InteractiveSurface);
+                const health = this.world.getComponent(eid, Health);
+                if (surface && surface.destructible !== false && health && health.isAlive !== false) {
+                  return 2.0; // Crushable obstacle penalty for System_Admin
+                }
+                return DIJKSTRA_IMPASSABLE; // Indestructible prop or locked door
+              } else {
+                return DIJKSTRA_IMPASSABLE; // Standard enemies cannot pass props or locked doors
+              }
+            }
+          }
+        }
+      }
+
       const key = `${x},${y}`;
       if (deadZoneTiles.has(key)) {
         return 6.0;
@@ -158,19 +189,25 @@ export class AISpatialSystem<T extends EngineEvents = EngineEvents> {
     targetX: number,
     targetY: number,
     avoidHazards: boolean = true,
+    canCrushProps: boolean = false,
   ): DijkstraMap {
-    if (avoidHazards && this.approachMapAvoidHazards) {
+    if (canCrushProps && this.approachMapCrushProps) {
+      return this.approachMapCrushProps;
+    }
+    if (!canCrushProps && avoidHazards && this.approachMapAvoidHazards) {
       return this.approachMapAvoidHazards;
     }
-    if (!avoidHazards && this.approachMapIgnoreHazards) {
+    if (!canCrushProps && !avoidHazards && this.approachMapIgnoreHazards) {
       return this.approachMapIgnoreHazards;
     }
 
     const map = new DijkstraMap(this.grid.width, this.grid.height);
-    const stepCost = this.getStepCostFn(avoidHazards, targetX, targetY, false);
+    const stepCost = this.getStepCostFn(avoidHazards, targetX, targetY, false, canCrushProps);
     map.compute([{ x: targetX, y: targetY, value: 0 }], stepCost);
 
-    if (avoidHazards) {
+    if (canCrushProps) {
+      this.approachMapCrushProps = map;
+    } else if (avoidHazards) {
       this.approachMapAvoidHazards = map;
     } else {
       this.approachMapIgnoreHazards = map;

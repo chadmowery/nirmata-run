@@ -462,6 +462,7 @@
 
 - [ ] **[BT-M5] Adversarial Architecture & Implementation Remediation (`BT-REV-01` – `BT-REV-08`)**
   - **`BT-REV-01`**: Fixed `System_Admin` prop crushing, adjacency termination, and disruption log. Added `Attack` component (`power: 999, range: 1, defense: 99`) to `system-admin.json` allowing `CombatSystem` to one-shot destructible props targeted via `canCrushProps: true`; wired `CombatSystem` and `RunEnderReactionSystem` to trigger `FATAL: ADMIN_CONTACT` when active `System_Admin` targets player with `AttackIntent` or is adjacent to player; restored `"System_Admin is disrupted and cannot move!"` combat message in `ai/system-admin.json`. Verified with integration tests in `ai-upgraded-behaviors.test.ts`.
+  - **`BT-REV-02`**: Fixed Dijkstra passability and dynamic entity penalty routing. Updated `AISpatialSystem.getStepCostFn` to check for `BlocksMovement` entities (Props, locked `SecurityLock` doors), returning `DIJKSTRA_IMPASSABLE` for standard enemies (`canCrushProps: false`) and destructible cost `2.0` / locked door `DIJKSTRA_IMPASSABLE` for `System_Admin` (`canCrushProps: true`). Cached `approachMapCrushProps` in `AISpatialSystem`. Updated `AISystem.executeMoveDijkstra` `dynamicPenaltyFn` to return `Infinity` for any non-destructible/ally entity with `BlocksMovement`, preventing wasted bump turns and guiding enemies smoothly around props and allies. Verified with unit/integration tests in `ai-upgraded-behaviors.test.ts`.
 
 ---
 
