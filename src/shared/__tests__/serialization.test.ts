@@ -14,6 +14,7 @@ import {
 import { Position } from '../../shared/components/position';
 import { Health } from '../../shared/components/health';
 import { Container, CorruptedNode } from '../components/environment';
+import { AIState, AIBehavior, AIBehaviorType } from '../components/ai-state';
 import { createECSWorldDelta } from '../ecs-delta';
 
 describe('Serialization', () => {
@@ -131,10 +132,62 @@ describe('Serialization', () => {
       expect(redactedContainer.storedLoot).toBeUndefined();
       expect(redactedContainer.scrapYield).toBeUndefined();
     });
+
+    it('redacts AIState server timers and inlineTree from world state', () => {
+      const e1 = world.createEntity();
+      world.addComponent(e1, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.BASIC,
+        sightRadius: 6,
+        cooldowns: { phase_ambush: 2 },
+        remainingMemoryTurns: 4,
+        inlineTree: { type: 'ACTION', task: { action: 'WAIT' } },
+      });
+
+      const raw = serializeWorld(world);
+      const redacted = redactWorldForClient(raw);
+
+      const rawAi = raw.stores['aiState']?.[String(e1)] as Record<string, unknown>;
+      expect(rawAi.cooldowns).toBeDefined();
+      expect(rawAi.remainingMemoryTurns).toBe(4);
+      expect(rawAi.inlineTree).toBeDefined();
+
+      const redactedAi = redacted.stores['aiState']?.[String(e1)] as Record<string, unknown>;
+      expect(redactedAi.cooldowns).toBeUndefined();
+      expect(redactedAi.remainingMemoryTurns).toBeUndefined();
+      expect(redactedAi.inlineTree).toBeUndefined();
+    });
+
+    it('redactWorldForClient strips lastEvaluatedPath on non-visible entities when visibleEntityIds is supplied', () => {
+      const visibleEnemy = world.createEntity();
+      world.addComponent(visibleEnemy, AIState, {
+        behavior: AIBehavior.ATTACKING,
+        behaviorType: AIBehaviorType.BASIC,
+        lastEvaluatedPath: 'root > attack [SUCCESS]',
+      });
+
+      const hiddenEnemy = world.createEntity();
+      world.addComponent(hiddenEnemy, AIState, {
+        behavior: AIBehavior.CHASING,
+        behaviorType: AIBehaviorType.BASIC,
+        lastEvaluatedPath: 'root > sneaky-flank [SUCCESS]',
+      });
+
+      const raw = serializeWorld(world);
+      const redacted = redactWorldForClient(raw, {
+        visibleEntityIds: new Set([visibleEnemy]),
+      });
+
+      const visibleAi = redacted.stores['aiState']?.[String(visibleEnemy)] as Record<string, unknown>;
+      expect(visibleAi.lastEvaluatedPath).toBe('root > attack [SUCCESS]');
+
+      const hiddenAi = redacted.stores['aiState']?.[String(hiddenEnemy)] as Record<string, unknown>;
+      expect(hiddenAi.lastEvaluatedPath).toBeUndefined();
+    });
   });
 
   describe('Delta Redaction', () => {
-    it('redactDeltaForClient strips container secrets and unrevealed trapType', () => {
+    it('redactDeltaForClient strips container secrets, unrevealed trapType, and AI timers', () => {
       const oldWorld = serializeWorld(world);
 
       const e1 = world.createEntity();
@@ -150,6 +203,15 @@ describe('Serialization', () => {
         trapType: 'hud_glitch',
         revealed: false,
       });
+      const e3 = world.createEntity();
+      world.addComponent(e3, AIState, {
+        behavior: AIBehavior.IDLE,
+        behaviorType: AIBehaviorType.BASIC,
+        sightRadius: 6,
+        cooldowns: { phase_ambush: 2 },
+        remainingMemoryTurns: 3,
+        inlineTree: { type: 'ACTION', task: { action: 'WAIT' } },
+      });
 
       const newWorld = serializeWorld(world);
       const delta = createECSWorldDelta(oldWorld, newWorld, { redactForClient: true });
@@ -164,6 +226,47 @@ describe('Serialization', () => {
       expect(nodeComp).toBeDefined();
       const nodeData = nodeComp!.data as Record<string, unknown>;
       expect(nodeData.trapType).toBeUndefined();
+
+      const aiComp = delta.componentsSet.find((c) => c.component === 'aiState');
+      expect(aiComp).toBeDefined();
+      const aiData = aiComp!.data as Record<string, unknown>;
+      expect(aiData.cooldowns).toBeUndefined();
+      expect(aiData.remainingMemoryTurns).toBeUndefined();
+      expect(aiData.inlineTree).toBeUndefined();
+    });
+
+    it('redactDeltaForClient strips lastEvaluatedPath for non-visible entities', () => {
+      const delta = {
+        componentsSet: [
+          {
+            component: 'aiState',
+            entityId: 10,
+            data: {
+              behavior: AIBehavior.CHASING,
+              lastEvaluatedPath: 'root > visible-action',
+            },
+          },
+          {
+            component: 'aiState',
+            entityId: 20,
+            data: {
+              behavior: AIBehavior.IDLE,
+              lastEvaluatedPath: 'root > hidden-action',
+            },
+          },
+        ],
+        componentsRemoved: [],
+        entitiesAdded: [],
+        entitiesRemoved: [],
+      };
+
+      const redacted = redactDeltaForClient(delta as any, { visibleEntityIds: [10] });
+
+      const e10 = redacted.componentsSet.find((c) => c.entityId === 10);
+      expect((e10?.data as any).lastEvaluatedPath).toBe('root > visible-action');
+
+      const e20 = redacted.componentsSet.find((c) => c.entityId === 20);
+      expect((e20?.data as any).lastEvaluatedPath).toBeUndefined();
     });
   });
 

@@ -137,6 +137,6 @@ describe('Ambiance Configuration System', () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const rawAmbiance = require('../ambiance.json');
     expect(rawAmbiance.scenes.mainMenu.cueId).toBe('amb_main_menu');
-    expect(rawAmbiance.scenes.hub.cueId).toBe('amb_hub_deck');
+    expect(rawAmbiance.scenes.hub.cueId).toBe('amb_menu_2');
   });
 });

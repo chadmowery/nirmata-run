@@ -5,8 +5,9 @@
     "actor": { "isPlayer": false },
     "energy": { "current": 0, "speed": 35, "threshold": 1000 },
     "sprite": { "key": "enemy_system_admin" },
+    "attack": { "power": 999 },
     "hostile": {},
-    "aiState": { "behavior": "idle", "sightRadius": 20, "behaviorType": "system_admin" },
+    "aiState": { "behavior": "idle", "sightRadius": 20, "behaviorType": "system_admin", "treeId": "system_admin" },
     "fovAwareness": { "canSeePlayer": false },
     "blocksMovement": {},
     "audioProfile": {

@@ -22,6 +22,10 @@ export const RUNTIME_INTENT_OR_TAG_KEYS = new Set<string>([
   'firmwareIntent',
   'acting',
   'pickupIntent',
+  'dropItemIntent',
+  'spawnEntityIntent',
+  'alertIntent',
+  'actionAbortedTag',
   'interactPropIntent',
   'movedThisTurn',
   'dying',
@@ -41,6 +45,8 @@ export const ECS_RULES: EcsRule[] = [
     severity: 'error',
     message: 'Enemy entities must have both "hostile" and "aiState" components.',
     validate: (components) => {
+      // Entities marked invulnerable (e.g. system-admin environmental hazard) are exempt from requiring hostile
+      if ('invulnerable' in components) return true;
       const hasHostile = 'hostile' in components;
       const hasAiState = 'aiState' in components;
       if (hasHostile || hasAiState) return hasHostile && hasAiState;

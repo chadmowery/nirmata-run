@@ -6,7 +6,7 @@
     "energy": { "current": 0, "speed": 80, "threshold": 1000 },
     "sprite": { "key": "enemy_buffer_overflow" },
     "hostile": {},
-    "aiState": { "behavior": "idle", "sightRadius": 6, "behaviorType": "buffer_overflow" },
+    "aiState": { "behavior": "idle", "sightRadius": 6, "behaviorType": "buffer_overflow", "treeId": "buffer_overflow" },
     "fovAwareness": { "canSeePlayer": false },
     "blocksMovement": {},
     "packMember": { "packId": "", "isLeader": false },

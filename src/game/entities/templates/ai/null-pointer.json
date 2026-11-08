@@ -1,0 +1,57 @@
+{
+  "id": "null_pointer",
+  "root": {
+    "type": "SELECTOR",
+    "children": [
+      { "type": "SUBTREE", "ref": "skip-if-disrupted" },
+      {
+        "type": "SEQUENCE",
+        "name": "visible-engagement",
+        "children": [
+          { "type": "CONDITION", "condition": { "check": "CAN_SEE_TARGET" } },
+          {
+            "type": "SELECTOR",
+            "children": [
+              {
+                "type": "SEQUENCE",
+                "name": "melee-strike",
+                "children": [
+                  { "type": "CONDITION", "condition": { "check": "TARGET_DISTANCE_LTE", "distance": 1 } },
+                  { "type": "ACTION", "task": { "action": "MELEE_BUMP_TARGET" } }
+                ]
+              },
+              {
+                "type": "DECORATOR_COOLDOWN",
+                "cooldownId": "phase_ambush",
+                "turns": 2,
+                "child": {
+                  "type": "SEQUENCE",
+                  "name": "blink-behind-player",
+                  "children": [
+                    { "type": "CONDITION", "condition": { "check": "HAS_VALID_TELEPORT_AMBUSH_TILE", "minRange": 2, "maxRange": 8 } },
+                    {
+                      "type": "ACTION",
+                      "task": {
+                        "action": "TELEPORT_AMBUSH_BEHIND_TARGET",
+                        "minRange": 2,
+                        "maxRange": 8,
+                        "searchRadius": 2,
+                        "combatMessage": "A Null-Pointer teleports behind you!"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "ACTION",
+                "task": { "action": "MOVE_DIJKSTRA", "mapType": "approach_target", "avoidHazards": true }
+              }
+            ]
+          }
+        ]
+      },
+      { "type": "SUBTREE", "ref": "investigate-last-known-pos" },
+      { "type": "ACTION", "task": { "action": "WAIT" } }
+    ]
+  }
+}

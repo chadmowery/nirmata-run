@@ -1,0 +1,39 @@
+{
+  "id": "seed_eater",
+  "root": {
+    "type": "SELECTOR",
+    "children": [
+      { "type": "SUBTREE", "ref": "skip-if-disrupted" },
+      {
+        "type": "SEQUENCE",
+        "name": "corruption-combat",
+        "children": [
+          { "type": "CONDITION", "condition": { "check": "CAN_SEE_TARGET" } },
+          {
+            "type": "SELECTOR",
+            "children": [
+              {
+                "type": "SEQUENCE",
+                "name": "melee-bite",
+                "children": [
+                  { "type": "CONDITION", "condition": { "check": "TARGET_DISTANCE_LTE", "distance": 1 } },
+                  { "type": "ACTION", "task": { "action": "MELEE_BUMP_TARGET" } }
+                ]
+              },
+              {
+                "type": "ACTION",
+                "task": {
+                  "action": "MOVE_DIJKSTRA",
+                  "mapType": "approach_target",
+                  "avoidHazards": false
+                }
+              }
+            ]
+          }
+        ]
+      },
+      { "type": "SUBTREE", "ref": "investigate-last-known-pos" },
+      { "type": "ACTION", "task": { "action": "WAIT" } }
+    ]
+  }
+}

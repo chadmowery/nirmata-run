@@ -1,0 +1,59 @@
+{
+  "id": "system_admin",
+  "root": {
+    "type": "SELECTOR",
+    "children": [
+      {
+        "type": "SEQUENCE",
+        "name": "skip-if-disrupted",
+        "children": [
+          {
+            "type": "SELECTOR",
+            "children": [
+              { "type": "CONDITION", "condition": { "check": "HAS_STATUS_EFFECT", "statusName": "DISRUPT" } },
+              { "type": "CONDITION", "condition": { "check": "HAS_STATUS_EFFECT", "statusName": "STUN" } }
+            ]
+          },
+          {
+            "type": "ACTION",
+            "task": {
+              "action": "WAIT",
+              "message": "System_Admin is disrupted and cannot move!"
+            }
+          }
+        ]
+      },
+      {
+        "type": "SEQUENCE",
+        "name": "crusher-combat",
+        "children": [
+          { "type": "CONDITION", "condition": { "check": "CAN_SEE_TARGET" } },
+          {
+            "type": "SELECTOR",
+            "children": [
+              {
+                "type": "SEQUENCE",
+                "name": "melee-crush",
+                "children": [
+                  { "type": "CONDITION", "condition": { "check": "TARGET_DISTANCE_LTE", "distance": 1 } },
+                  { "type": "ACTION", "task": { "action": "MELEE_BUMP_TARGET" } }
+                ]
+              },
+              {
+                "type": "ACTION",
+                "task": {
+                  "action": "MOVE_DIJKSTRA",
+                  "mapType": "approach_target",
+                  "avoidHazards": false,
+                  "canCrushProps": true
+                }
+              }
+            ]
+          }
+        ]
+      },
+      { "type": "SUBTREE", "ref": "investigate-last-known-pos" },
+      { "type": "ACTION", "task": { "action": "WAIT" } }
+    ]
+  }
+}

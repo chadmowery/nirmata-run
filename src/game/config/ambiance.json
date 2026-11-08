@@ -5,7 +5,7 @@
       "description": "Main Menu vector scanline oscilloscope drone"
     },
     "hub": {
-      "cueId": "amb_hub_deck",
+      "cueId": "amb_menu_2",
       "description": "Safe zone hub air circulation & server data-pulse"
     }
   },

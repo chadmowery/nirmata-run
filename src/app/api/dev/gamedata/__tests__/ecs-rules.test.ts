@@ -49,6 +49,12 @@ describe('ECS consistency rules', () => {
     expect(validLock.valid).toBe(true);
   });
 
+  it('should validate invulnerable hazard entity with aiState without requiring hostile', () => {
+    const adminComponents = { invulnerable: {}, aiState: {}, health: {} };
+    const result = validateEcsRules(adminComponents);
+    expect(result.errors.some((e) => e.id === 'enemy-requires-hostile-and-aistate')).toBe(false);
+  });
+
   it('should reject runtime intents and tags in static templates', () => {
     const withMoveIntent = validateEcsRules({ moveIntent: {} });
     expect(withMoveIntent.valid).toBe(false);
@@ -57,5 +63,13 @@ describe('ECS consistency rules', () => {
     const withDying = validateEcsRules({ dying: {} });
     expect(withDying.valid).toBe(false);
     expect(withDying.errors.some((e) => e.id === 'no-runtime-intents-in-templates')).toBe(true);
+
+    const withSpawnEntityIntent = validateEcsRules({ spawnEntityIntent: {} });
+    expect(withSpawnEntityIntent.valid).toBe(false);
+    expect(withSpawnEntityIntent.errors.some((e) => e.id === 'no-runtime-intents-in-templates')).toBe(true);
+
+    const withAlertIntent = validateEcsRules({ alertIntent: {} });
+    expect(withAlertIntent.valid).toBe(false);
+    expect(withAlertIntent.errors.some((e) => e.id === 'no-runtime-intents-in-templates')).toBe(true);
   });
 });

@@ -60,10 +60,12 @@ export const DEFAULT_BINDINGS: Record<string, GameAction> = {
   KeyV: GameAction.VENT,
   KeyC: GameAction.RECENTER_CAMERA,
 
+  // Autopathing shortcut
+  KeyP: GameAction.DEBUG_PATHFIND_ANCHOR,
+
   // Development debug shortcuts
   ...(process.env.NODE_ENV === 'development'
     ? {
-        KeyP: GameAction.DEBUG_PATHFIND_ANCHOR,
         'Shift+Backquote': GameAction.DEBUG_TOGGLE_TIMELINE,
       }
     : {}),

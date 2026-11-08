@@ -233,30 +233,6 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
         useDebugStore.getState().addTimelineEvent(type, payload, EventOriginContext.current);
       });
     });
-
-    import('@dev-tool/debug/auto-pathfind').then(({ AutoPathfinder }) => {
-      const autoPathfinder = new AutoPathfinder(
-        async (intent) => {
-          inputManager.setRequestPending(true);
-          await sendActionToServer(intent);
-          inputManager.setRequestPending(false);
-        },
-        (action) => {
-          if (DIRECTIONS[action]) {
-            return { type: 'MOVE', dx: DIRECTIONS[action].dx, dy: DIRECTIONS[action].dy };
-          }
-          if (action === GameAction.WAIT) {
-            return { type: 'WAIT' };
-          }
-          if (action === GameAction.VENT) {
-            return { type: 'VENT' };
-          }
-          return null;
-        },
-      );
-      autoPathfinder.setContext(context);
-      context.autoPathfinder = autoPathfinder;
-    });
   }
 
   syncEngineToStore(context);
@@ -554,8 +530,29 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     }
 
     if (action === GameAction.DEBUG_PATHFIND_ANCHOR) {
-      if (process.env.NODE_ENV === 'development') {
-        context.autoPathfinder?.toggle();
+      if (!context.autoPathfinder) {
+        import('@dev-tool/debug/auto-pathfind').then(({ AutoPathfinder }) => {
+          const autoPathfinder = new AutoPathfinder(
+            async (intent) => {
+              inputManager.setRequestPending(true);
+              await sendActionToServer(intent);
+              inputManager.setRequestPending(false);
+            },
+            (act) => {
+              if (DIRECTIONS[act]) {
+                return { type: 'MOVE', dx: DIRECTIONS[act].dx, dy: DIRECTIONS[act].dy };
+              }
+              if (act === GameAction.WAIT) return { type: 'WAIT' };
+              if (act === GameAction.VENT) return { type: 'VENT' };
+              return null;
+            },
+          );
+          autoPathfinder.setContext(context);
+          context.autoPathfinder = autoPathfinder;
+          autoPathfinder.toggle();
+        });
+      } else {
+        context.autoPathfinder.toggle();
       }
       return;
     }

@@ -414,6 +414,87 @@
   - **`AUD-REV-12`**: Decoupled browser DOM listeners and injected sample loader in `AudioEngine`; added `SampleLoader` and `AudioEngineOptions` interfaces; decoupled `window.addEventListener` autoplay unlock listeners by default; exposed `resume()` on `IAudioEngine` and managed user gesture unlock in `page.tsx`.
   - **Verification Sweep**: Verified full test suite passes (203/203 files, 1,271/1,271 tests), 0 type errors (`tsc --noEmit`), 0 lint warnings (`eslint src/`), and clean Next.js production build (`next build`).
 
+---
+
+## Workstream 3: AI Architecture Specification — Stateless Behavior Trees & Shared Dijkstra Maps (v3.0 Upgrade)
+
+> **Specification**: [`docs/design/AI-BEHAVIOR-TREES-DIJKSTRA.md`](./design/AI-BEHAVIOR-TREES-DIJKSTRA.md)  
+> **Status**: Complete & Verified (M1–M4)
+
+- [x] **[BT-M1] Engine Primitives (`@engine/ai`)**
+  - **Stateless Tree Evaluation (`evaluateBehaviorTree`)**: Pure, tick-to-intent recursive evaluation of `SELECTOR`, `SEQUENCE`, `UTILITY_SELECTOR`, `DECORATOR_COOLDOWN`, `DECORATOR_INVERT`, `DECORATOR_CHANCE`, `SUBTREE`, `CONDITION`, and `ACTION` nodes without mutable state or internal blackboard clocks.
+  - **Shared Dijkstra Maps (`DijkstraMap`)**: Optimized 80x45 Float32Array distance grids using a binary min-heap relaxation queue ($O(V \log V)$ for arbitrary positive step costs).
+  - **Flee Map Generation (`createFleeMap`)**: Goal-inverted Dijkstra map with $v \times -1.2$ attraction sinks and impassable threat tiles, ensuring enemies run away into corridors and out of corners rather than stalling against walls.
+  - **Linear Combination Algebra (`DijkstraMap.combine`)**: Multi-layer weighted map blending with unreachable tile propagation.
+  - **Utility AI Response Curves (`evaluateCurve`, `evaluateUtilityBranchScore`)**: Response curve mathematics (`linear`, `quadratic`, `logistic`, `step`) with slope, inversion, and normalized clamping domain for utility motivation scoring.
+  - **Verification**: Verified with 9 unit tests in `src/engine/ai/__tests__/dijkstra-map.test.ts` and 11 unit tests in `src/engine/ai/__tests__/behavior-tree.test.ts`.
+
+- [x] **[BT-M2] Shared Schemas, Intents & Serialization Redaction (`@shared`)**
+  - **Recursive Behavior Tree Schemas (`src/shared/components/ai-tree.ts`)**: Zod schemas for 12 conditions (`AIConditionSchema`), 6 atomic actions (`AIActionSchema`), utility considerations (`UtilityConsiderationSchema`), and recursive `BehaviorTreeNodeSchema` via `z.lazy`.
+  - **Upgraded AIState Component (`src/shared/components/ai-state.ts`)**: Added `treeId`, `inlineTree`, `sightRadius`, `memoryTurns`, `cooldowns`, `remainingMemoryTurns`, and `lastEvaluatedPath`, while maintaining backward-compatible `behavior` and `behaviorType` fields.
+  - **Decoupled Spawn Intent (`src/shared/components/intents.ts`)**: Added `SpawnEntityIntent` enabling systems (`Fragmenter`, `TileCorruptionSystem`) to request entity spawns across phases without direct factory RPCs.
+  - **Anti-Cheat Client Delta Redaction (`src/shared/serialization.ts`)**: Automatic redaction of internal server-only `cooldowns`, `remainingMemoryTurns`, and `inlineTree` on `aiState` during wire compression in `redactWorldForClient` and `redactDeltaForClient`.
+  - **Verification**: Verified with 6 unit tests in `src/shared/components/__tests__/ai-tree.test.ts` and 6 serialization tests in `src/shared/__tests__/serialization.test.ts`.
+
+- [x] **[BT-M3] Spatial Subsystem & Enemy Bestiary Migration (`@game`)**
+  - **Authoritative AISpatialSystem (`src/game/ai/spatial-maps.ts`)**: Precomputes and caches shared 80x45 Float32Array maps per turn: `approach_target` (avoiding or ignoring hazards), `flee_from_target` (corner escape), `kite_to_cover` (seeking directional cover relative to player vector), and `pack_surround_cardinal` (cardinal reservation system).
+  - **AIBehaviorRegistry (`src/game/ai/tree-registry.ts`)**: Central registry for registered Behavior Tree ASTs and reusable subtrees (`skip-if-disrupted`, `investigate-last-known-pos`).
+  - **Decoupled SpawnEntitySystem (`src/game/systems/spawn-entity.ts`)**: Phase.ACTION and Phase.POST_TURN system that resolves `SpawnEntityIntent` components and registers spawned entities onto the spatial `Grid`.
+  - **Deterministic Tile Corruption (`src/game/systems/tile-corruption.ts`)**: Replaced non-deterministic `Math.random` with a seeded mulberry32/splitmix PRNG seeded from `FloorState.runSeed + turnNumber + entityId`, emitting `SpawnEntityIntent` for sub-processes.
+  - **Bestiary Migration**: Authored bespoke JSON behavior trees in `src/game/entities/templates/ai/`:
+    - `null-pointer`: Faraday-safe teleport directional ambush behind player vector.
+    - `buffer-overflow`: Pack swarmer coordinating via shared pack alerts and reserving cardinal tiles.
+    - `fragmenter`: Heavy area-denier emitting `SpawnEntityIntent` for cardinal Dead Zones dealing 2 tick damage.
+    - `logic-leaker`: Ranged kiter using `flee_from_target` when player closes to $\le 2$ tiles and `kite_to_cover` at range 3..5.
+    - `system-admin`: Disruption check and dynamic prop crushing (`canCrushProps: true`).
+    - `seed-eater`: Deterministic sub-process spawner and melee corruption.
+    - `basic`: Fallback approach-and-bump tree.
+  - **Verification**: Verified with 8 comprehensive integration tests in `src/game/systems/__tests__/ai-upgraded-behaviors.test.ts` and 9 unit tests in `src/game/systems/ai.test.ts`.
+
+- [x] **[BT-M4] Gamedata Studio AST Builder & Dev Terminal Telemetry (`@dev-tool`, `@rendering`)**
+  - **BehaviorTreeEditor AST Builder (`src/dev-tool/studio/editors/subeditors/BehaviorTreeEditor.tsx`)**: Visual recursive AST builder supporting all composite nodes, decorators, subtrees, conditions, actions, and utility considerations with raw JSON view toggle.
+  - **EntityTemplateEditor Integration (`src/dev-tool/studio/editors/shared/ComponentFieldGroup.tsx`)**: The `aiState` component card displays a `treeId` dropdown populated from `/api/dev/gamedata/ai-trees` and an `[EDIT INLINE TREE]` toggle.
+  - **AI Tree API Endpoints (`src/app/api/dev/gamedata/ai-trees/route.ts`, `[treeId]/route.ts`)**: Development-only REST endpoints listing available behavior tree templates and subtrees.
+  - **DevTerminal Telemetry (`src/dev-tool/terminal/DevTerminal.tsx`, `debug-api.ts`)**: Added `/debug-ai [mapType]` command to the backtick terminal and updated `/list`.
+  - **Dijkstra Heatmap Overlay (`src/rendering/render-system.ts`)**: Rendered interactive Dijkstra distance heatmap overlay directly onto the PixiJS viewport on `DEBUG_TOGGLE_AI` signal.
+  - **Tactical Hover Tooltip BT Path (`src/rendering/tile-inspector.ts`)**: Inspects and displays the enemy's last evaluated Behavior Tree execution path (`BT: root > ... [SUCCESS]`).
+  - **Verification**: Verified with unit tests in `src/dev-tool/studio/editors/subeditors/__tests__/BehaviorTreeEditor.test.tsx` (5 tests), `src/dev-tool/terminal/__tests__/DevTerminal.test.tsx` (5 tests), and `src/rendering/__tests__/tile-inspector.test.ts` (16 tests). Full project test suite passes (208/208 test files, 1,319/1,319 tests), 0 type errors, 0 lint warnings, and clean Next.js production build (`next build`).
+
+- [x] **[BT-M5] Adversarial Architecture & Implementation Remediation (`BT-REV-01` – `BT-REV-08`)**
+  - **`BT-REV-01`**: Fixed `System_Admin` prop crushing, adjacency termination, and disruption log. Added `Attack` component (`power: 999, range: 1, defense: 99`) to `system-admin.json` allowing `CombatSystem` to one-shot destructible props targeted via `canCrushProps: true`; wired `CombatSystem` and `RunEnderReactionSystem` to trigger `FATAL: ADMIN_CONTACT` when active `System_Admin` targets player with `AttackIntent` or is adjacent to player; restored `"System_Admin is disrupted and cannot move!"` combat message in `ai/system-admin.json`. Verified with integration tests in `ai-upgraded-behaviors.test.ts`.
+  - **`BT-REV-02`**: Fixed Dijkstra passability and dynamic entity penalty routing. Updated `AISpatialSystem.getStepCostFn` to check for `BlocksMovement` entities (Props, locked `SecurityLock` doors), returning `DIJKSTRA_IMPASSABLE` for standard enemies (`canCrushProps: false`) and destructible cost `2.0` / locked door `DIJKSTRA_IMPASSABLE` for `System_Admin` (`canCrushProps: true`). Cached `approachMapCrushProps` in `AISpatialSystem`. Updated `AISystem.executeMoveDijkstra` `dynamicPenaltyFn` to return `Infinity` for any non-destructible/ally entity with `BlocksMovement`, preventing wasted bump turns and guiding enemies smoothly around props and allies. Verified with unit/integration tests in `ai-upgraded-behaviors.test.ts`.
+  - **`BT-REV-03`**: Fixed multi-enemy sequential turn loop alert and pack state. Scoped `AlertIntent` consumption and `alertedThisTurn` / `packAlerted` evaluation strictly to the currently acting enemy in `processEnemyTurn()`, checking floor turn number rather than wiping state on every `update()` call. Implemented `isPackAlerted()` dynamically querying pack members for FOV detection, alert flags, and active `AlertIntent`s. Verified with multi-enemy sequential pass tests in `ai-upgraded-behaviors.test.ts`.
+  - **`BT-REV-04`**: Fixed `Logic-Leaker` cover kiting and unwired schema parameters. Updated `logic-leaker.json` behavior tree to insert `reposition-to-cover-if-exposed` checking `IN_DIRECTIONAL_COVER_FROM_TARGET` with `DECORATOR_INVERT` before firing `corrupted-packet-volley`, falling back gracefully to firing if reposition fails or when already in cover; wired `optimalRangeMin`/`optimalRangeMax` into `AISpatialSystem.getKiteToCoverMap()`; wired `scavenge_nearest_loot` and `patrol_anchors` spatial maps and `action.mapType` handlers; returned `BTStatus.FAILURE` when `step.dx === 0 && step.dy === 0` to enable selector fallbacks; wired `action.count` into `executeSpawnEntitiesAroundSelf`; implemented `nearby_loot_value` in utility considerations querying nearby floor items and currency. Verified with tests in `ai-upgraded-behaviors.test.ts`.
+  - **`BT-REV-05`**: Fixed `/debug-ai` PixiJS overlay Dijkstra rendering. Replaced fake Manhattan distance calculation with actual `DijkstraMap` solver computation from `@engine/ai/dijkstra-map`, evaluating real wall/hazard walkability and caching maps for `approach_target`, `flee_from_target` (with `-1.2` inversion), `pack_surround_cardinal`, and `kite_to_cover` (with cover detection). Verified with unit tests in `tests/rendering/debug-ai-overlay.test.ts`.
+  - **`BT-REV-06`**: Fixed behavior tree telemetry trace rollback and client fog-of-war redaction. Updated `evaluateBehaviorTree` in `src/engine/ai/behavior-tree.ts` to snapshot and roll back trace entries on failed `SELECTOR`, `SEQUENCE`, and `UTILITY_SELECTOR` branches so `lastEvaluatedPath` only retains the winning execution path; recorded winning branch names in `UTILITY_SELECTOR`; updated `AISystem` to only patch `lastEvaluatedPath` when it changes to eliminate redundant delta bloat; updated `redactWorldForClient` and `redactDeltaForClient` to strip `AIState.lastEvaluatedPath` for entities outside player FOV when `visibleEntityIds` is supplied. Verified with tests in `src/engine/ai/__tests__/behavior-tree.test.ts` and `src/shared/__tests__/serialization.test.ts`.
+  - **`BT-REV-07`**: Fixed `TileCorruptionSystem` state accumulation, occupant displacement collisions, and duplicate `DeadZone` hazard stacking. Accumulated `newlyCorrupted` tile keys in `TileCorruptionSystem.spreadCorruption` before applying a single atomic `world.patchComponent`, preventing loop overwrites and ensuring all created walls are tracked and reverted upon entity death. Updated `findNearestWalkable` to check `grid.getEntitiesAt(x, y)` for `BlocksMovement` entities so displaced occupants are never placed on blocking props or locked doors, and emitted `GameplayEvents.ENTITY_MOVED` upon displacement. Updated `executeSpawnEntitiesAroundSelf` in `AISystem` to detect existing non-dying `DeadZone` hazards on candidate tiles and refresh their `remainingTurns` and `damagePerTick` via `patchComponent` rather than spawning duplicate entities on the same tile. Verified with tests in `tile-corruption.test.ts` and `ai-upgraded-behaviors.test.ts`.
+  - **`BT-REV-08`**: Fixed Gamedata Studio `BehaviorTreeEditor` schema compliance, field persistence, and ECS consistency rules. Ensured `handleTypeChange` seeds non-empty default sub-items (`children` for `SELECTOR`/`SEQUENCE`, `branches` and `considerations` for `UTILITY_SELECTOR`, and `considerations` for `+ Add Utility Branch`) so generated ASTs satisfy Zod `.min(1)` requirements immediately. Guarded removal buttons on composite children, utility branches, and considerations to prevent deleting the last element. Preserved existing `combatMessage` / `WAIT.message` text when switching action types. Added controls for `UtilityConsideration` (`slope`, `minInput`, `maxInput`), `AICondition` (`metric` for distance checks, `target` for `HAS_STATUS_EFFECT`), and `AIAction` (`WAIT.message`, `optimalRangeMin`/`optimalRangeMax`, `RANGED_ATTACK_TARGET.statusEffect`, `SPAWN_ENTITIES_AROUND_SELF.count` & `deadZoneConfig`, and `TELEPORT_AMBUSH_BEHIND_TARGET` ranges). Updated `ComponentFieldGroup` to fork the active archetype tree template via `/api/dev/gamedata/ai-trees/${targetTreeId}` on `[EDIT INLINE TREE]`. Added runtime intents (`spawnEntityIntent`, `alertIntent`, `dropItemIntent`, `actionAbortedTag`) to `ecs-rules.ts` and exempted `invulnerable` entities from `enemy-requires-hostile-and-aistate`. Verified with unit tests in `BehaviorTreeEditor.test.tsx` and `ecs-rules.test.ts`.
+
+---
+
+## Workstream 6: Sprite Animation System & DevTool Preview Architecture (v2.8)
+
+> **Specification**: [`docs/design/SPRITE-ANIMATIONS.md`](./design/SPRITE-ANIMATIONS.md)  
+> **Status**: Specified & Planned (Ready for Implementation)
+
+- [ ] **[ANIM-01] Shared Manifest & Component Schemas + Tileset Validator (`@shared`, `@dev-tool`)**
+  - Extend [`src/shared/tileset-types.ts`](../src/shared/tileset-types.ts) with `AnimationLoopModeSchema` (`'loop' | 'pingpong' | 'once'`), `AnimationStateKeySchema`, `AnimationClipDefSchema`, `EntityAnimationSetSchema`, and `animations` on `ThemedTilesetManifestSchema`.
+  - Extend [`src/shared/components/sprite.ts`](../src/shared/components/sprite.ts) (`SpriteComponent`) with backward-compatible optional `animationSet`, `initialState`, `speedMultiplier`, `paused`, and `desyncPhase` fields.
+  - Extend [`src/app/api/dev/gamedata/tileset-validator.ts`](../src/app/api/dev/gamedata/tileset-validator.ts) with `VAL-ANIM-01`–`VAL-ANIM-03` frame reference, atlas bounds, and duration array validation.
+- [ ] **[ANIM-02] Single-Atlas Animation Frame Generation & Themed Packing (`scripts/`, `public/assets/`)**
+  - Author `scripts/build-animation-frames.cjs` and `scripts/add-animation-frames.cjs` to pack 44 animation delta cells into Rows 12–14 (`y = 384..480`) of the existing `512 × 512` `public/assets/tileset.png` using Frame-0 Base Reuse and Ping-Pong compression (zero extra GPU VRAM).
+  - Update [`scripts/generate-themed-tilesets.cjs`](../scripts/generate-themed-tilesets.cjs) and `npm run build:tiles` so all corporate faction themes (`traxus_foundry`, `sekiguchi_biolabs`, `dark_subnet`) automatically palette-remap animation frames and inherit the `"animations"` manifest dictionary.
+- [ ] **[ANIM-03] Client `SpriteAnimator` Runtime & `RenderSystem` Integration (`@rendering`)**
+  - Implement `src/rendering/sprite-animator.ts` managing per-entity ambient states (`idle`, `locked`, `searched`, `corrupted`) and event-driven one-shot clips (`move`, `attack`, `hit`, `interact`, `death`) on existing `PIXI.Sprite` instances in [`src/rendering/sprite-map.ts`](../src/rendering/sprite-map.ts).
+  - Wire [`src/rendering/render-system.ts`](../src/rendering/render-system.ts) events (`ENTITY_MOVED` with `EventOriginContext` deduplication, `DAMAGE_DEALT`, `FIRMWARE_ACTIVATED`, `PROP_INTERACTED`, `LOCK_UNLOCKED`), active FOV culling (`currentFovSet`), fog-of-war freeze (`U1`), `prefers-reduced-motion` (`U11`), and deterministic `EntityId` phase desynchronization.
+  - Update [`src/rendering/assets.ts`](../src/rendering/assets.ts) (`loadThemedAssets`) to unload previous non-default theme atlases on floor theme transitions.
+- [ ] **[ANIM-04] Gamedata Studio (`/dev/gamedata`) Live Preview, Filmstrip Scrubber & Prefab Toggle (`@dev-tool`)**
+  - Extend [`src/dev-tool/studio/shared/tileset-atlas-cache.ts`](../src/dev-tool/studio/shared/tileset-atlas-cache.ts) with `getAnimationStates`, `getAnimationClip`, and `resolveAnimatedFrameAtTime`.
+  - Upgrade [`src/dev-tool/studio/shared/SpritePicker.tsx`](../src/dev-tool/studio/shared/SpritePicker.tsx) with a live 64×64 animated canvas preview, `[▶/⏸]` transport controls, state selector pills, speed toggles, interactive frame filmstrip scrubber, and `[ALL | ANIMATED | STATIC]` dropdown filtering.
+  - Add `[▶ ANIMATE PREVIEW]` toggle to [`src/dev-tool/studio/editors/PrefabEditor.tsx`](../src/dev-tool/studio/editors/PrefabEditor.tsx) and the **Animated Sprites & State Matrix** panel to [`src/dev-tool/studio/editors/ComponentSchemaViewer.tsx`](../src/dev-tool/studio/editors/ComponentSchemaViewer.tsx).
+
+
+
 
 
 

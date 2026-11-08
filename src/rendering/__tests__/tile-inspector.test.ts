@@ -6,7 +6,7 @@ import { resolveTileInspection } from '../tile-inspector';
 import { resolvePropOutlineState } from '../render-system';
 import { Position } from '@shared/components/position';
 import { Actor } from '@shared/components/actor';
-import { AIState } from '@shared/components/ai-state';
+import { AIState, AIBehavior, AIBehaviorType } from '@shared/components/ai-state';
 import { Health } from '@shared/components/health';
 import { Prop, SecurityLock, Container, CorruptedNode } from '@shared/components/environment';
 import { StaircaseMarker } from '@shared/components/staircase-marker';
@@ -142,9 +142,9 @@ describe('resolveTileInspection', () => {
     world.addComponent(enemy, Position, { x: 4, y: 4 });
     world.addComponent(enemy, Actor, { isPlayer: false });
     world.addComponent(enemy, AIState, {
-      behavior: 'chase',
+      behavior: AIBehavior.CHASING,
       sightRadius: 8,
-      behaviorType: 'null_pointer',
+      behaviorType: AIBehaviorType.NULL_POINTER,
     });
     world.addComponent(enemy, Health, { current: 5, max: 10, isAlive: true });
 
@@ -455,6 +455,38 @@ describe('resolveTileInspection', () => {
         rememberedTileItems,
       });
       expect(unseenItemInspect).toBeNull();
+    });
+
+    it('displays BT evaluated path in behavior field when lastEvaluatedPath is present', () => {
+      const enemy = world.createEntity();
+      world.addComponent(enemy, Position, { x: 7, y: 7 });
+      world.addComponent(enemy, Actor, { isPlayer: false });
+      world.addComponent(enemy, Health, { current: 15, max: 20, isAlive: true });
+      world.addComponent(enemy, AIState, {
+        behavior: AIBehavior.CHASING,
+        behaviorType: AIBehaviorType.BASIC,
+        treeId: 'basic',
+        sightRadius: 6,
+        lastEvaluatedPath: 'root > visible-engagement > attack [SUCCESS]',
+      });
+      grid.addEntity(enemy, 7, 7);
+
+      const inspection = resolveTileInspection({
+        world,
+        grid,
+        gx: 7,
+        gy: 7,
+        screenX: 100,
+        screenY: 100,
+        isVisibleInFov: true,
+        isExplored: true,
+        playerEntity,
+        detailedFlavorTextEnabled: false,
+      });
+
+      expect(inspection).not.toBeNull();
+      expect(inspection?.type).toBe('enemy');
+      expect(inspection?.behavior).toBe('BT: root > visible-engagement > attack [SUCCESS]');
     });
   });
 });

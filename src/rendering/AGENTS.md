@@ -27,4 +27,5 @@ The Rendering layer provides the client-only 2D hardware-accelerated presentatio
 
 ## 3. Related Documentation
 - [`TILEMAP_GUIDE.md`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/docs/TILEMAP_GUIDE.md) — 32×32 tileset specifications, autotiling solvers, and atlas packing.
+- [`SPRITE-ANIMATIONS.md`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/docs/design/SPRITE-ANIMATIONS.md) — Single-atlas sprite animation runtime, state machine, FOV culling, and DevTool preview architecture.
 - [`UI-DESIGN-SYSTEM.md`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/docs/design/UI-DESIGN-SYSTEM.md) — Visual styling, color tokens, and CRT post-processing.

@@ -26,6 +26,7 @@ import { createAISystem } from './ai';
 import { createFirmwareSystem } from './firmware';
 import { createTileCorruptionSystem } from './tile-corruption';
 import { createPropInteractionSystem } from './prop-interaction';
+import { createSpawnEntitySystem } from './spawn-entity';
 import { RunMode } from '@shared/run-mode';
 
 /**
@@ -88,6 +89,12 @@ export function registerCoreSystems<T extends GameplayEvents>(
     entityFactory,
     componentRegistry,
   );
+  const spawnEntity = createSpawnEntitySystem(
+    world,
+    grid,
+    entityFactory,
+    componentRegistry,
+  );
 
   const isClient = options.isClient === true;
 
@@ -99,6 +106,7 @@ export function registerCoreSystems<T extends GameplayEvents>(
   teleport.init();
   movement.init();
   if (!isClient) {
+    spawnEntity.init();
     propInteraction.init();
   }
   equipment.init();
@@ -168,5 +176,6 @@ export function registerCoreSystems<T extends GameplayEvents>(
     firmware,
     tileCorruption,
     propInteraction,
+    spawnEntity,
   };
 }

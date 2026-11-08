@@ -1,0 +1,27 @@
+{
+  "skip-if-disrupted": {
+    "type": "SEQUENCE",
+    "name": "stun-or-disrupt-guard",
+    "children": [
+      {
+        "type": "SELECTOR",
+        "children": [
+          { "type": "CONDITION", "condition": { "check": "HAS_STATUS_EFFECT", "statusName": "DISRUPT" } },
+          { "type": "CONDITION", "condition": { "check": "HAS_STATUS_EFFECT", "statusName": "STUN" } }
+        ]
+      },
+      { "type": "ACTION", "task": { "action": "WAIT" } }
+    ]
+  },
+  "investigate-last-known-pos": {
+    "type": "SEQUENCE",
+    "name": "pursue-memory",
+    "children": [
+      { "type": "CONDITION", "condition": { "check": "HAS_LAST_KNOWN_TARGET_POS" } },
+      {
+        "type": "ACTION",
+        "task": { "action": "MOVE_DIJKSTRA", "mapType": "investigate_last_known", "avoidHazards": true }
+      }
+    ]
+  }
+}

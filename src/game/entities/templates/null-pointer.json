@@ -6,7 +6,7 @@
     "energy": { "current": 0, "speed": 120, "threshold": 1000 },
     "sprite": { "key": "enemy_null_pointer" },
     "hostile": {},
-    "aiState": { "behavior": "idle", "sightRadius": 8, "behaviorType": "null_pointer" },
+    "aiState": { "behavior": "idle", "sightRadius": 8, "behaviorType": "null_pointer", "treeId": "null_pointer" },
     "fovAwareness": { "canSeePlayer": false },
     "blocksMovement": {},
     "audioProfile": {
