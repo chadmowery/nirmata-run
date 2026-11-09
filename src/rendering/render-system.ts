@@ -969,24 +969,24 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
         // Render range indicator (pulsing ring)
         if (storeState.targetingRange > 0) {
-          targetingCursor.lineStyle(2, 0x00ffff, 0.3);
-          targetingCursor.drawCircle(
-            playerPos.x * TILE_SIZE + TILE_SIZE / 2,
-            playerPos.y * TILE_SIZE + TILE_SIZE / 2,
-            storeState.targetingRange * TILE_SIZE,
-          );
+          targetingCursor
+            .circle(
+              playerPos.x * TILE_SIZE + TILE_SIZE / 2,
+              playerPos.y * TILE_SIZE + TILE_SIZE / 2,
+              storeState.targetingRange * TILE_SIZE,
+            )
+            .stroke({ width: 2, color: 0x00ffff, alpha: 0.3 });
         }
 
         // Render target tile highlight
-        targetingCursor.lineStyle(2, 0x00ffff, 0.8);
-        targetingCursor.beginFill(0x00ffff, 0.2);
-        targetingCursor.drawRect(tx, ty, TILE_SIZE, TILE_SIZE);
-        targetingCursor.endFill();
+        targetingCursor
+          .rect(tx, ty, TILE_SIZE, TILE_SIZE)
+          .fill({ color: 0x00ffff, alpha: 0.2 })
+          .stroke({ width: 2, color: 0x00ffff, alpha: 0.8 });
 
         // Corner brackets for "hacking" aesthetic
         const margin = 4;
         const len = 8;
-        targetingCursor.lineStyle(2, 0x00ffff, 1.0);
 
         // Top Left
         targetingCursor.moveTo(tx + margin, ty + margin + len);
@@ -1007,6 +1007,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
         targetingCursor.moveTo(tx + margin + len, ty + TILE_SIZE - margin);
         targetingCursor.lineTo(tx + margin, ty + TILE_SIZE - margin);
         targetingCursor.lineTo(tx + margin, ty + TILE_SIZE - margin - len);
+
+        targetingCursor.stroke({ width: 2, color: 0x00ffff, alpha: 1.0 });
       }
 
       // 2. Camera

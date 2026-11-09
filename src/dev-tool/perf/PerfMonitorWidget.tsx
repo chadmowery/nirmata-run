@@ -70,6 +70,10 @@ export function PerfMonitorWidget({
   const scrubPosRef = useRef<{ x: number; y: number } | null>(null);
   const [scrubData, setScrubData] = useState<ScrubInspectData | null>(null);
 
+  // Magnetic Corner Drag Refs
+  const dragStartRef = useRef<{ startX: number; startY: number } | null>(null);
+  const isDraggingRef = useRef(false);
+
   // Floating Cyberpunk Tooltip State
   const [activeTooltip, setActiveTooltip] = useState<{
     id: PerfTooltipId;
@@ -549,6 +553,58 @@ export function PerfMonitorWidget({
     return () => cancelAnimationFrame(animId);
   }, [mode, isPaused]);
 
+  // --------------------------------------------------------------------------
+  // Magnetic Corner Drag Handlers (Declared before early returns for Rules of Hooks)
+  // --------------------------------------------------------------------------
+  const handleDragPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('button') || target?.closest('input') || target?.closest('select')) {
+      return;
+    }
+    dragStartRef.current = { startX: e.clientX, startY: e.clientY };
+    isDraggingRef.current = false;
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      // Ignore
+    }
+  };
+
+  const handleDragPointerMove = (e: React.PointerEvent) => {
+    if (!dragStartRef.current) return;
+    const dx = Math.abs(e.clientX - dragStartRef.current.startX);
+    const dy = Math.abs(e.clientY - dragStartRef.current.startY);
+    if (dx > 5 || dy > 5) {
+      isDraggingRef.current = true;
+    }
+  };
+
+  const handleDragPointerUp = (e: React.PointerEvent) => {
+    if (!dragStartRef.current) return;
+    const wasDragging = isDraggingRef.current;
+    dragStartRef.current = null;
+    isDraggingRef.current = false;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      // Ignore
+    }
+
+    if (wasDragging) {
+      const isTop = e.clientY < window.innerHeight / 2;
+      const isLeft = e.clientX < window.innerWidth / 2;
+      const nextCorner: PerfDockPosition = isTop
+        ? isLeft
+          ? 'TOP_LEFT'
+          : 'TOP_RIGHT'
+        : isLeft
+        ? 'BOTTOM_LEFT'
+        : 'BOTTOM_RIGHT';
+      setDockPosition(nextCorner);
+    }
+  };
+
   if (mode === 'OFF') {
     return null;
   }
@@ -598,61 +654,6 @@ export function PerfMonitorWidget({
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  };
-
-  // --------------------------------------------------------------------------
-  // Magnetic Corner Drag Handlers
-  // --------------------------------------------------------------------------
-  const dragStartRef = useRef<{ startX: number; startY: number } | null>(null);
-  const isDraggingRef = useRef(false);
-
-  const handleDragPointerDown = (e: React.PointerEvent) => {
-    if (e.button !== 0) return;
-    const target = e.target as HTMLElement | null;
-    if (target?.closest('button') || target?.closest('input') || target?.closest('select')) {
-      return;
-    }
-    dragStartRef.current = { startX: e.clientX, startY: e.clientY };
-    isDraggingRef.current = false;
-    try {
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    } catch {
-      // Ignore
-    }
-  };
-
-  const handleDragPointerMove = (e: React.PointerEvent) => {
-    if (!dragStartRef.current) return;
-    const dx = Math.abs(e.clientX - dragStartRef.current.startX);
-    const dy = Math.abs(e.clientY - dragStartRef.current.startY);
-    if (dx > 5 || dy > 5) {
-      isDraggingRef.current = true;
-    }
-  };
-
-  const handleDragPointerUp = (e: React.PointerEvent) => {
-    if (!dragStartRef.current) return;
-    const wasDragging = isDraggingRef.current;
-    dragStartRef.current = null;
-    isDraggingRef.current = false;
-    try {
-      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    } catch {
-      // Ignore
-    }
-
-    if (wasDragging) {
-      const isTop = e.clientY < window.innerHeight / 2;
-      const isLeft = e.clientX < window.innerWidth / 2;
-      const nextCorner: PerfDockPosition = isTop
-        ? isLeft
-          ? 'TOP_LEFT'
-          : 'TOP_RIGHT'
-        : isLeft
-        ? 'BOTTOM_LEFT'
-        : 'BOTTOM_RIGHT';
-      setDockPosition(nextCorner);
-    }
   };
 
   // --------------------------------------------------------------------------

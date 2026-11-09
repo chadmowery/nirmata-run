@@ -778,4 +778,27 @@ describe('PerfMonitorWidget', () => {
 
     expect(usePerfStore.getState().dockPosition).toBe('TOP_RIGHT');
   });
+
+  it('toggles from OFF to STANDARD without violating Rules of Hooks', () => {
+    act(() => {
+      usePerfStore.setState({ mode: 'OFF' });
+    });
+
+    const { rerender } = render(<PerfMonitorWidget />);
+    expect(screen.queryByText(/TK-PERF-900/i)).toBeNull();
+
+    // Toggle to STANDARD
+    act(() => {
+      usePerfStore.setState({ mode: 'STANDARD' });
+    });
+    rerender(<PerfMonitorWidget />);
+    expect(screen.getByText(/TK-PERF-900/i)).toBeInTheDocument();
+
+    // Toggle back to OFF
+    act(() => {
+      usePerfStore.setState({ mode: 'OFF' });
+    });
+    rerender(<PerfMonitorWidget />);
+    expect(screen.queryByText(/TK-PERF-900/i)).toBeNull();
+  });
 });

@@ -132,9 +132,8 @@ export function updateEmitter(sprite: Sprite, deltaMs: number): void {
     state.spawnTimer = 0;
 
     const graphics = new Graphics();
-    graphics.beginFill(state.color);
-    graphics.drawRect(0, 0, 3, 3);
-    graphics.endFill();
+    graphics.rect(0, 0, 3, 3);
+    graphics.fill(state.color);
 
     // Spawn at random edge of sprite (assumed 32x32)
     const angle = Math.random() * Math.PI * 2;
