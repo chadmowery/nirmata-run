@@ -757,7 +757,7 @@ describe('PerfMonitorWidget', () => {
 
     const { container } = render(<PerfMonitorWidget />);
 
-    const header = container.querySelector('._placardHeader_7d2cfb');
+    const header = container.querySelector('[class*="placardHeader"]');
     expect(header).not.toBeNull();
 
     // Mock window dimensions
@@ -800,5 +800,55 @@ describe('PerfMonitorWidget', () => {
     });
     rerender(<PerfMonitorWidget />);
     expect(screen.queryByText(/TK-PERF-900/i)).toBeNull();
+  });
+
+  it('constrains expanded monitor within window bounds across all 4 dock quadrants', () => {
+    act(() => {
+      usePerfStore.setState({ mode: 'EXPANDED', dockPosition: 'BOTTOM_LEFT' });
+    });
+
+    const { container, rerender } = render(<PerfMonitorWidget />);
+    const root = container.querySelector('[data-perf-monitor="true"]');
+    expect(root).not.toBeNull();
+    expect(root?.className).toMatch(/posBottomLeft/);
+
+    // Placard header and action buttons must be accessible
+    expect(screen.getByText('性能監視 // TK-PERF-900')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /👻/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /⏸/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '📸' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '▬' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '⇤' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '✕' })).toBeInTheDocument();
+
+    // Verify expanded layout and columns
+    const expandedContainer = container.querySelector('[class*="expandedWidget"]');
+    expect(expandedContainer).not.toBeNull();
+    const expandedLayout = container.querySelector('[class*="expandedLayout"]');
+    expect(expandedLayout).not.toBeNull();
+
+    // Test transition to other quadrants
+    act(() => {
+      usePerfStore.setState({ dockPosition: 'BOTTOM_RIGHT' });
+    });
+    rerender(<PerfMonitorWidget />);
+    expect(root?.className).toMatch(/posBottomRight/);
+
+    act(() => {
+      usePerfStore.setState({ dockPosition: 'TOP_LEFT' });
+    });
+    rerender(<PerfMonitorWidget />);
+    expect(root?.className).toMatch(/posTopLeft/);
+
+    act(() => {
+      usePerfStore.setState({ dockPosition: 'TOP_RIGHT' });
+    });
+    rerender(<PerfMonitorWidget />);
+    expect(root?.className).toMatch(/posTopRight/);
+
+    // Clicking shrink button ⇤ transitions back to STANDARD mode
+    const shrinkBtn = screen.getByRole('button', { name: /⇤/i });
+    fireEvent.click(shrinkBtn);
+    expect(usePerfStore.getState().mode).toBe('STANDARD');
   });
 });

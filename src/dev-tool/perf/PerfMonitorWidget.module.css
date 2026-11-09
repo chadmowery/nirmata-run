@@ -12,27 +12,34 @@
   user-select: none;
   box-sizing: border-box;
   pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  max-width: calc(100vw - 24px);
 }
 
-/* Docking Positions */
+/* Docking Positions with Strict Viewport Boundaries */
 .posTopLeft {
   top: 54px;
   left: 12px;
+  max-height: calc(100vh - 66px);
 }
 
 .posTopRight {
   top: 12px;
   right: 12px;
+  max-height: calc(100vh - 24px);
 }
 
 .posBottomLeft {
   bottom: 12px;
   left: 12px;
+  max-height: calc(100vh - 66px);
 }
 
 .posBottomRight {
   bottom: 12px;
   right: 12px;
+  max-height: calc(100vh - 24px);
 }
 
 /* Ghost Mode: Click-Through Overlay with Recoverable Interactive Controls */
@@ -85,6 +92,7 @@
   justify-content: center;
   gap: 6px;
   animation: ghostBannerPulse 2.5s infinite ease-in-out;
+  flex-shrink: 0;
 }
 
 .ghostBanner:hover {
@@ -105,6 +113,11 @@
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.8), 0 0 1px rgba(216, 255, 0, 0.2);
   position: relative;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  max-width: 100%;
+  min-height: 0;
 }
 
 .panelCard::before {
@@ -222,6 +235,8 @@
   width: 380px;
   display: flex;
   flex-direction: column;
+  max-width: 100%;
+  min-height: 0;
 }
 
 /* --------------------------------------------------------------------------
@@ -231,6 +246,8 @@
   width: 720px;
   display: flex;
   flex-direction: column;
+  max-width: 100%;
+  min-height: 0;
 }
 
 /* --------------------------------------------------------------------------
@@ -244,6 +261,7 @@
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--c-border, #1c2638);
+  flex-shrink: 0;
 }
 
 .placardTitle {
@@ -308,6 +326,7 @@
   font-variant-numeric: tabular-nums;
   border-bottom: 1px solid rgba(28, 38, 56, 0.6);
   background: rgba(10, 14, 21, 0.4);
+  flex-shrink: 0;
 }
 
 .metricItem {
@@ -329,6 +348,7 @@
   flex-direction: column;
   gap: 4px;
   position: relative;
+  flex-shrink: 0;
 }
 
 .oscilloscopeHeader {
@@ -572,6 +592,7 @@
   border-top: 1px solid var(--c-border, #1c2638);
   border-bottom: 1px solid var(--c-border, #1c2638);
   background: rgba(10, 14, 21, 0.8);
+  flex-shrink: 0;
 }
 
 .tabBtn {
@@ -609,12 +630,30 @@
    -------------------------------------------------------------------------- */
 .tabContent {
   padding: 8px 10px;
+  flex: 1 1 auto;
+  min-height: 0;
   max-height: 240px;
   overflow-y: auto;
+  overflow-x: hidden;
   font-size: 10px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-accent, #d8ff00) rgba(0, 0, 0, 0.4);
+}
+
+.tabContent::-webkit-scrollbar {
+  width: 4px;
+}
+
+.tabContent::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.tabContent::-webkit-scrollbar-thumb {
+  background: var(--c-accent, #d8ff00);
+  border-radius: 2px;
 }
 
 .dataRow {
@@ -650,15 +689,35 @@
    -------------------------------------------------------------------------- */
 .expandedLayout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
   padding: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-accent, #d8ff00) rgba(0, 0, 0, 0.4);
+}
+
+.expandedLayout::-webkit-scrollbar {
+  width: 4px;
+}
+
+.expandedLayout::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.expandedLayout::-webkit-scrollbar-thumb {
+  background: var(--c-accent, #d8ff00);
+  border-radius: 2px;
 }
 
 .column {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 .sectionBox {
@@ -666,6 +725,7 @@
   border: 1px solid var(--c-border, #1c2638);
   padding: 8px;
   border-radius: 2px;
+  min-width: 0;
 }
 
 .sectionTitle {
@@ -727,6 +787,7 @@
   justify-content: space-between;
   align-items: center;
   font-size: 9px;
+  flex-shrink: 0;
 }
 
 .bottomActionBtn {
@@ -782,6 +843,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex-shrink: 0;
 }
 
 .spikeCardHeader {
@@ -960,4 +1022,17 @@
 .budgetSegment[data-perf-tooltip],
 .budgetLegendItem[data-perf-tooltip] {
   cursor: help;
+}
+
+/* --------------------------------------------------------------------------
+   RESPONSIVE BOUNDARIES (Small screens & viewports)
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .expandedWidget {
+    width: calc(100vw - 24px);
+  }
+
+  .expandedLayout {
+    grid-template-columns: 1fr;
+  }
 }
