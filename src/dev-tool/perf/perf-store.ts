@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { RenderStageTimings, DevRenderBisectionFlags } from '@rendering/render-system';
+import { RenderStageTimings, DevRenderBisectionFlags, RenderTelemetry } from '@rendering/render-system';
 import { WebGLFrameStats, TextureMemoryBreakdown } from './webgl-probe';
 import { WorldDiagnostics } from '@engine/ecs/world';
 import { GridDiagnostics } from '@engine/grid/grid';
@@ -19,6 +19,7 @@ export type PerfDockPosition = 'TOP_LEFT' | 'TOP_RIGHT' | 'BOTTOM_LEFT' | 'BOTTO
 export interface PerfThrottledData {
   metrics: RollingFrameMetrics;
   stageTimings: RenderStageTimings;
+  renderTelemetry: RenderTelemetry | null;
   webglStats: WebGLFrameStats;
   textureMemory: TextureMemoryBreakdown;
   ecsDiagnostics: WorldDiagnostics | null;
@@ -108,6 +109,7 @@ const initialThrottledData: PerfThrottledData = {
     hoverMs: 0,
     totalCpuMs: 0,
   },
+  renderTelemetry: null,
   webglStats: {
     drawCalls: 0,
     triangles: 0,

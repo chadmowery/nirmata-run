@@ -3,7 +3,7 @@ import { usePerfStore } from './perf-store';
 import { perfCollector, HIST_SIZE } from './perf-collector';
 import { WebGLProbe } from './webgl-probe';
 import { GameContext } from '@/game/types';
-import { createRenderSystem } from '@/rendering/render-system';
+import { createRenderSystem, DevRenderBisectionFlags } from '@/rendering/render-system';
 import { getAudioEngine } from '@engine/audio';
 import styles from './PerfMonitorWidget.module.css';
 
@@ -13,7 +13,14 @@ export interface PerfMonitorWidgetProps {
   probe?: WebGLProbe | null;
 }
 
-export function PerfMonitorWidget({ context, renderSystem, probe }: PerfMonitorWidgetProps) {
+export function PerfMonitorWidget({
+  context: propsContext,
+  renderSystem: propsRenderSystem,
+  probe: propsProbe,
+}: PerfMonitorWidgetProps) {
+  const context = propsContext ?? perfCollector.getContext();
+  const renderSystem = propsRenderSystem ?? perfCollector.getRenderSystem();
+  const probe = propsProbe ?? perfCollector.getProbe();
   const {
     mode,
     activeTab,
@@ -85,11 +92,13 @@ export function PerfMonitorWidget({ context, renderSystem, probe }: PerfMonitorW
           totalCpuMs: 0,
         };
 
-        const webglStats = probe?.getFrameStats ? probe.getFrameStats() : {
-          drawCalls: 0,
-          triangles: 0,
-          programSwitches: 0,
-          textureBinds: 0,
+        const collectorWebgl = perfCollector.getLatestWebglStats();
+        const probeWebgl = probe?.getFrameStats ? probe.getFrameStats() : null;
+        const webglStats = {
+          drawCalls: Math.max(collectorWebgl.drawCalls, probeWebgl?.drawCalls ?? 0),
+          triangles: Math.max(collectorWebgl.triangles, probeWebgl?.triangles ?? 0),
+          programSwitches: Math.max(collectorWebgl.programSwitches, probeWebgl?.programSwitches ?? 0),
+          textureBinds: Math.max(collectorWebgl.textureBinds, probeWebgl?.textureBinds ?? 0),
         };
 
         const textureMemory = probe?.getTextureMemory ? probe.getTextureMemory() : {
@@ -117,6 +126,7 @@ export function PerfMonitorWidget({ context, renderSystem, probe }: PerfMonitorW
         updateThrottledSnapshot({
           metrics,
           stageTimings,
+          renderTelemetry,
           webglStats,
           textureMemory,
           ecsDiagnostics,
@@ -657,7 +667,7 @@ export function PerfMonitorWidget({ context, renderSystem, probe }: PerfMonitorW
 
             {/* Tab Body Content */}
             <div className={styles.tabContent}>
-              {activeTab === 'GPU' && renderGpuTab(throttledData)}
+              {activeTab === 'GPU' && renderGpuTab(throttledData, bisectionFlags)}
               {activeTab === 'ECS' && renderEcsTab(throttledData)}
               {activeTab === 'TURN' && renderTurnTab(throttledData)}
               {activeTab === 'MEM' && renderMemTab(throttledData)}
@@ -668,6 +678,7 @@ export function PerfMonitorWidget({ context, renderSystem, probe }: PerfMonitorW
                   setBisectionFlag,
                   handleTakeSnapshot,
                   handleExportJson,
+                  renderSystem,
                 )}
             </div>
           </>
@@ -720,7 +731,7 @@ export function PerfMonitorWidget({ context, renderSystem, probe }: PerfMonitorW
 
               <div className={styles.sectionBox}>
                 <div className={styles.sectionTitle}>描画 // GPU & RENDER PIPELINE</div>
-                {renderGpuTab(throttledData)}
+                {renderGpuTab(throttledData, bisectionFlags)}
               </div>
 
               <div className={styles.sectionBox}>
@@ -749,6 +760,7 @@ export function PerfMonitorWidget({ context, renderSystem, probe }: PerfMonitorW
                   setBisectionFlag,
                   handleTakeSnapshot,
                   handleExportJson,
+                  renderSystem,
                 )}
               </div>
             </div>
@@ -818,7 +830,22 @@ export function PerfMonitorWidget({ context, renderSystem, probe }: PerfMonitorW
 // TAB CONTENT RENDERERS
 // ----------------------------------------------------------------------------
 
-function renderGpuTab(data: ReturnType<typeof usePerfStore.getState>['throttledData']) {
+function renderGpuTab(
+  data: ReturnType<typeof usePerfStore.getState>['throttledData'],
+  bisectionFlags: ReturnType<typeof usePerfStore.getState>['bisectionFlags'],
+) {
+  const filters = data.renderTelemetry?.filters;
+  const tilemap = data.renderTelemetry?.tilemap;
+  const particles = data.renderTelemetry?.particles;
+
+  const propFilterCount = bisectionFlags.disableSpriteFilters
+    ? 0
+    : filters?.totalPropFilters ?? (data.stageTimings.spriteSyncMs > 0 ? 8 : 0);
+  const activePropSprites = bisectionFlags.disableSpriteFilters
+    ? 0
+    : filters?.activePropFilterSprites ?? 0;
+  const worldFilterCount = bisectionFlags.disableWorldFilters ? 0 : 1;
+
   return (
     <>
       <div className={styles.dataRow}>
@@ -838,14 +865,27 @@ function renderGpuTab(data: ReturnType<typeof usePerfStore.getState>['throttledD
       <div className={styles.dataRow}>
         <span className={styles.dataLabel}>ACTIVE PIXI FILTERS</span>
         <span className={styles.dataVal}>
-          {data.stageTimings.spriteSyncMs > 0 ? 12 : 0}{' '}
-          <span className={styles.dataSub}>(PROP: 8 | ENEMY: 4 | WLD: 0)</span>
+          {propFilterCount + worldFilterCount}{' '}
+          <span className={styles.dataSub}>
+            (PROP: {activePropSprites} | WLD: {worldFilterCount})
+          </span>
         </span>
       </div>
       <div className={styles.dataRow}>
         <span className={styles.dataLabel}>TERRAIN SPRITE POOL</span>
         <span className={styles.dataVal}>
-          412 / 1,080 <span className={styles.dataSub}>(AUTOTILE SOLVES: 412)</span>
+          {tilemap ? `${tilemap.visibleTiles} / ${tilemap.poolSize}` : '0 / 0'}{' '}
+          <span className={styles.dataSub}>(AUTOTILE SOLVES: {tilemap?.lastAutotileSolves ?? 0})</span>
+        </span>
+      </div>
+      <div className={styles.dataRow}>
+        <span className={styles.dataLabel}>NEON PARTICLES & TEXT</span>
+        <span className={styles.dataVal}>
+          {bisectionFlags.disableParticles ? 0 : (particles?.activeEmitters ?? 0)} EMITTERS (
+          {bisectionFlags.disableParticles ? 0 : (particles?.totalParticles ?? 0)} PT){' '}
+          <span className={styles.dataSub}>
+            (TEXTS: {bisectionFlags.disableParticles ? 0 : (data.renderTelemetry?.activeDamageTexts ?? 0)})
+          </span>
         </span>
       </div>
       <div className={styles.dataRow}>
@@ -1007,8 +1047,14 @@ function renderAuditTab(
   setBisectionFlag: ReturnType<typeof usePerfStore.getState>['setBisectionFlag'],
   handleTakeSnapshot: () => void,
   handleExportJson: () => void,
+  renderSystem?: ReturnType<typeof createRenderSystem> | null,
 ) {
   const diff = data.leakDiff;
+
+  const handleToggle = (key: keyof DevRenderBisectionFlags, val: boolean) => {
+    setBisectionFlag(key, val);
+    renderSystem?.setDevRenderFlags({ [key]: val });
+  };
 
   return (
     <>
@@ -1065,7 +1111,7 @@ function renderAuditTab(
         <input
           type="checkbox"
           checked={bisectionFlags.disableSpriteFilters}
-          onChange={(e) => setBisectionFlag('disableSpriteFilters', e.target.checked)}
+          onChange={(e) => handleToggle('disableSpriteFilters', e.target.checked)}
         />
         <span>Disable Sprite Filters (Outline/Glitch)</span>
       </label>
@@ -1074,7 +1120,7 @@ function renderAuditTab(
         <input
           type="checkbox"
           checked={bisectionFlags.disableWorldFilters}
-          onChange={(e) => setBisectionFlag('disableWorldFilters', e.target.checked)}
+          onChange={(e) => handleToggle('disableWorldFilters', e.target.checked)}
         />
         <span>Disable World Post-Process Filters</span>
       </label>
@@ -1083,7 +1129,7 @@ function renderAuditTab(
         <input
           type="checkbox"
           checked={bisectionFlags.disableParticles}
-          onChange={(e) => setBisectionFlag('disableParticles', e.target.checked)}
+          onChange={(e) => handleToggle('disableParticles', e.target.checked)}
         />
         <span>Disable Particle Emitters</span>
       </label>
@@ -1092,7 +1138,7 @@ function renderAuditTab(
         <input
           type="checkbox"
           checked={bisectionFlags.cacheStaticTilemap}
-          onChange={(e) => setBisectionFlag('cacheStaticTilemap', e.target.checked)}
+          onChange={(e) => handleToggle('cacheStaticTilemap', e.target.checked)}
         />
         <span>Cache Static Tilemap (Dirty Check)</span>
       </label>
@@ -1101,7 +1147,7 @@ function renderAuditTab(
         <input
           type="checkbox"
           checked={bisectionFlags.cacheStaticFov}
-          onChange={(e) => setBisectionFlag('cacheStaticFov', e.target.checked)}
+          onChange={(e) => handleToggle('cacheStaticFov', e.target.checked)}
         />
         <span>Cache Static FOV (Position Check)</span>
       </label>

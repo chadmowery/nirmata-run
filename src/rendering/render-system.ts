@@ -1457,9 +1457,33 @@ export function createRenderSystem(config: RenderSystemConfig) {
             sprite.filters = null;
           }
         }
+      } else if (flags.disableSpriteFilters === false) {
+        for (const entityId of world.query(SpriteComponent)) {
+          const sprite = getEntitySprite(entityId);
+          if (sprite) {
+            syncPropOutline(entityId, sprite);
+            const ai = world.getComponent(entityId, AIState);
+            if (ai) {
+              applyPersistentGlitch(sprite, ai.behaviorType);
+            }
+          }
+        }
       }
+
       if (devFlags.disableWorldFilters) {
         removeFiltersFromContainer(layers.worldContainer);
+      }
+
+      if (flags.disableParticles !== undefined) {
+        layers.effectsLayer.visible = !devFlags.disableParticles;
+      }
+
+      if (flags.cacheStaticTilemap === false) {
+        lastTilemapKey = '';
+      }
+
+      if (flags.cacheStaticFov === false) {
+        lastFovKey = '';
       }
     },
   };

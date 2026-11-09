@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { createGame, destroyGame } from '@/game/setup';
 import { loadAssets } from '@/rendering/assets';
@@ -53,6 +53,7 @@ export default function GamePage() {
   const tickerCallbackRef = useRef<(() => void) | null>(null);
   const webglProbeRef = useRef<import('@dev-tool/perf/webgl-probe').WebGLProbe | null>(null);
   const perfCollectorRef = useRef<import('@dev-tool/perf/perf-collector').PerfCollector | null>(null);
+  const [engineReady, setEngineReady] = useState(false);
 
   const showCanvas =
     status === GameState.Playing || status === GameState.Paused || status === GameState.GameOver;
@@ -173,6 +174,8 @@ export default function GamePage() {
           webglProbeRef.current = probe;
           import('@dev-tool/perf/perf-collector').then(({ perfCollector }) => {
             perfCollector.setProbe(probe);
+            perfCollector.setContext(context);
+            perfCollector.setRenderSystem(renderSystem);
             perfCollectorRef.current = perfCollector;
           });
         });
@@ -212,6 +215,7 @@ export default function GamePage() {
 
       // Focus management: ensure window is focused for input
       window.focus();
+      setEngineReady(true);
       logger.info('--- ENGINE READY ---', 'SYSTEM');
     } catch (error) {
       logger.error('CRITICAL: Game initialization failed', 'SYSTEM', { error });
@@ -259,7 +263,11 @@ export default function GamePage() {
         webglProbeRef.current.detach();
         webglProbeRef.current = null;
       }
+      perfCollectorRef.current?.setContext(null);
+      perfCollectorRef.current?.setRenderSystem(null);
+      perfCollectorRef.current?.setProbe(null);
       perfCollectorRef.current = null;
+      setEngineReady(false);
       destroyGame(contextRef.current);
       contextRef.current = null;
 
@@ -299,7 +307,11 @@ export default function GamePage() {
         webglProbeRef.current.detach();
         webglProbeRef.current = null;
       }
+      perfCollectorRef.current?.setContext(null);
+      perfCollectorRef.current?.setRenderSystem(null);
+      perfCollectorRef.current?.setProbe(null);
       perfCollectorRef.current = null;
+      setEngineReady(false);
       destroyRenderer();
       getAudioEngine().destroy();
     };
@@ -443,9 +455,9 @@ export default function GamePage() {
         {process.env.NODE_ENV === 'development' && <DevTerminal />}
         {process.env.NODE_ENV === 'development' && (
           <PerfMonitorWidget
-            context={contextRef.current}
-            renderSystem={renderSystemRef.current}
-            probe={webglProbeRef.current}
+            context={engineReady ? contextRef.current : null}
+            renderSystem={engineReady ? renderSystemRef.current : null}
+            probe={engineReady ? webglProbeRef.current : null}
           />
         )}
       </div>

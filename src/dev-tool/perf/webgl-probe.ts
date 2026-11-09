@@ -82,12 +82,25 @@ export class WebGLProbe {
     }
     this.app = app;
     if (app) {
-      // PixiJS 8 WebGLRenderer exposes .gl or .renderer.gl
+      // PixiJS 8 WebGLRenderer exposes .gl, .context.gl, or via canvas context
       const renderer = app.renderer as unknown as {
         gl?: WebGLSpyContext;
         context?: { gl?: WebGLSpyContext };
+        canvas?: HTMLCanvasElement;
+        view?: { canvas?: HTMLCanvasElement };
       };
-      const gl = renderer?.gl ?? renderer?.context?.gl;
+
+      const canvas =
+        (app.canvas as HTMLCanvasElement | undefined) ??
+        renderer?.canvas ??
+        renderer?.view?.canvas;
+
+      let canvasGl: WebGLSpyContext | null = null;
+      if (canvas?.getContext) {
+        canvasGl = (canvas.getContext('webgl2') ?? canvas.getContext('webgl')) as unknown as WebGLSpyContext;
+      }
+
+      const gl = renderer?.gl ?? renderer?.context?.gl ?? canvasGl;
       if (gl) {
         this.gl = gl;
       }
@@ -102,7 +115,11 @@ export class WebGLProbe {
   }
 
   public attach(): void {
-    if (this.isAttached || !this.gl) return;
+    if (this.isAttached) return;
+    if (!this.gl && this.app) {
+      this.setApplication(this.app);
+    }
+    if (!this.gl) return;
 
     const gl = this.gl;
 
@@ -235,11 +252,16 @@ export class WebGLProbe {
     if (!this.app) return result;
 
     const renderer = this.app.renderer as unknown as {
-      texture?: { managedTextures?: PixiManagedTexture[] };
+      texture?: {
+        managedTextures?: PixiManagedTexture[];
+        _managedTextures?: { items?: Record<string, PixiManagedTexture> };
+      };
       textureGenerator?: { managedTextures?: PixiManagedTexture[] };
     };
-    const managedTextures =
-      renderer?.texture?.managedTextures ??
+    const managedTextures: PixiManagedTexture[] =
+      (Array.isArray(renderer?.texture?.managedTextures) ? renderer?.texture?.managedTextures : null) ??
+      (renderer?.texture?._managedTextures?.items ? Object.values(renderer.texture._managedTextures.items) : null) ??
+      (renderer?.texture?.managedTextures ? Object.values(renderer.texture.managedTextures) : null) ??
       renderer?.textureGenerator?.managedTextures ??
       [];
 

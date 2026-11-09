@@ -1,6 +1,7 @@
-import { RenderStageTimings } from '@rendering/render-system';
+import { RenderStageTimings, RenderSystem } from '@rendering/render-system';
 import { WebGLFrameStats, WebGLProbe } from './webgl-probe';
 import { TurnTelemetryData } from '@/game/setup';
+import { GameContext } from '@/game/types';
 
 export const HIST_SIZE = 240;
 
@@ -86,6 +87,14 @@ export class PerfCollector {
 
   // Subsystem References
   private probe: WebGLProbe | null = null;
+  private context: GameContext | null = null;
+  private renderSystem: RenderSystem | null = null;
+  private latestWebglStats: WebGLFrameStats = {
+    drawCalls: 0,
+    triangles: 0,
+    programSwitches: 0,
+    textureBinds: 0,
+  };
 
   constructor(probe?: WebGLProbe) {
     if (probe) {
@@ -95,6 +104,30 @@ export class PerfCollector {
 
   public setProbe(probe: WebGLProbe | null): void {
     this.probe = probe;
+  }
+
+  public getProbe(): WebGLProbe | null {
+    return this.probe;
+  }
+
+  public setContext(context: GameContext | null): void {
+    this.context = context;
+  }
+
+  public getContext(): GameContext | null {
+    return this.context;
+  }
+
+  public setRenderSystem(renderSystem: RenderSystem | null): void {
+    this.renderSystem = renderSystem;
+  }
+
+  public getRenderSystem(): RenderSystem | null {
+    return this.renderSystem;
+  }
+
+  public getLatestWebglStats(): WebGLFrameStats {
+    return { ...this.latestWebglStats };
   }
 
   public getHeadIndex(): number {
@@ -147,6 +180,7 @@ export class PerfCollector {
     webglStats: WebGLFrameStats,
     webglPassMs = 0,
   ): void {
+    this.latestWebglStats = { ...webglStats };
     if (this.isFrozen) return;
 
     // Spike Trap Auto-Freeze Trigger
