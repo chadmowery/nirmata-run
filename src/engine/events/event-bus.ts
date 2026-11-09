@@ -26,8 +26,16 @@ export class EventBus<TEventMap extends Record<string, any>> {
   private queue: Array<{ type: keyof TEventMap; event: unknown }> = [];
   private isFlushing = false;
   private readonly MAX_FLUSH_DEPTH = 10;
+  private diagnosticsEnabled = process.env.NODE_ENV !== 'production';
   private totalEmissions = 0;
   private emissionsByType: Map<string, number> = new Map();
+
+  /**
+   * Enable or disable emission diagnostics auditing.
+   */
+  setDiagnosticsEnabled(enabled: boolean): void {
+    this.diagnosticsEnabled = enabled;
+  }
 
   /**
    * Subscribe a handler to an event type.
@@ -67,10 +75,12 @@ export class EventBus<TEventMap extends Record<string, any>> {
    * Queue an event to be processed on the next flush.
    */
   emit<K extends keyof TEventMap>(type: K, event: TEventMap[K]): void {
-    // 1. Audit emission
-    this.totalEmissions++;
-    const typeStr = String(type);
-    this.emissionsByType.set(typeStr, (this.emissionsByType.get(typeStr) ?? 0) + 1);
+    // 1. Audit emission (dev/test or opt-in)
+    if (this.diagnosticsEnabled) {
+      this.totalEmissions++;
+      const typeStr = String(type);
+      this.emissionsByType.set(typeStr, (this.emissionsByType.get(typeStr) ?? 0) + 1);
+    }
 
     const isServer = typeof window === 'undefined';
     const isDebugEnabled = isServer

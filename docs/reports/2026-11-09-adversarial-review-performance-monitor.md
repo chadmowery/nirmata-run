@@ -38,7 +38,7 @@ Despite passing surface-level unit tests, the implementation contains **3 Critic
 | **`MED-02`** | **P2 (Medium)** | `@dev-tool` / `@app` | **Broken macOS `Alt+P` / `Shift+Alt+P` Hotkeys (`e.key === 'π'`), Top-Left HUD Occlusion, and Missing Drag-to-Corner Docking (Spec §2, §4.1, §5.3)**: `page.tsx` checks `e.key === 'p' || e.key === 'P'` under `e.altKey`, which fails on macOS where Option+P emits `e.key = 'π'` (`e.code = 'KeyP'`). Also `Ctrl+Shift+P` (`isCtrlShiftP`) toggles instead of cycling when `Shift` is held. `.posTopLeft` (`top: 12px; left: 12px`) overlaps the top HUD ribbon instead of docking below it, and magnetic drag-to-corner docking is unimplemented (`MINI` mode has no dock controls at all). |
 | **`MED-03`** | **P2 (Medium)** | `@rendering` | **`cacheStaticFov` Bisection Flag Skips `snapshotVisibleMemory()` After Same-Tile World Mutations (Spec §3.5.3)**: `fovKey` only hashes `playerPos.x, playerPos.y, effectiveRadius, sectorCondition, isMapRevealed`. When a prop is searched/unlocked, an item is picked up/dropped, or a door/wall changes while the player remains on the same tile, `cacheStaticFov` skips `computeFov` and `snapshotVisibleMemory()`, leaving fog-of-war memory stale. |
 | **`MED-04`** | **P2 (Medium)** | `@dev-tool` | **Missing `Avg FPS` & `Frame Jitter (σ)` Readouts and Unwired `STANDARD` Mode Oscilloscope Scrubbing (Spec §3.1, §4.1)**: `computeRollingMetrics()` calculates `fpsAvg` and `frameTimeJitter` ($\sigma$), but neither is rendered in the UI. `STANDARD` mode's oscilloscope `<canvas>` tooltip promises click/drag frame scrubbing, but no mouse handlers are attached in `STANDARD` mode. |
-| **`LOW-01`** | **P3 (Low)** | `@app` / `@engine` | **Production Bundle & Runtime Hygiene (`next/dynamic` & `EventBus` Unbounded Map)**: `PerfMonitorWidget` and `DevTerminal` `dynamic()` declarations in `src/app/page.tsx` are evaluated at module top-level outside a `process.env.NODE_ENV === 'development'` ternary, and `EventBus.emit()` increments `emissionsByType` Map on every event in production without bound. |
+| **`LOW-01`** | **P3 (Low)** | `@app` / `@engine` | **RESOLVED** — Production Bundle & Runtime Hygiene (`next/dynamic` ternary in `page.tsx` & `EventBus` diagnostic gating). |
 | **`LOW-02`** | **P3 (Low)** | `@dev-tool` | **Duplicate `setDevRenderFlags` Invocations on Bisection Toggle**: `renderAuditTab`'s `handleToggle` calls `renderSystem?.setDevRenderFlags({ [key]: val })` directly while `useEffect([bisectionFlags, renderSystem])` immediately calls `renderSystem.setDevRenderFlags(bisectionFlags)` a second time with all flags. |
 
 ---
@@ -299,7 +299,7 @@ Despite passing surface-level unit tests, the implementation contains **3 Critic
 
 ---
 
-### `LOW-01` (P3 Low): Production Bundle & Runtime Hygiene (`next/dynamic` & `EventBus` Unbounded Map)
+### `LOW-01` (P3 Low): [RESOLVED] Production Bundle & Runtime Hygiene (`next/dynamic` & `EventBus` Unbounded Map)
 
 - **Locations**:
   - [`src/app/page.tsx:31-39`](../../src/app/page.tsx#L31-L39)
@@ -322,7 +322,7 @@ Despite passing surface-level unit tests, the implementation contains **3 Critic
 
 | Spec Section | Requirement | Current Branch Status | Finding ID |
 | :--- | :--- | :--- | :--- |
-| **§1.1.2 / §2.1** | Strict `@dev-tool` quarantine; zero upward imports from foundation layers | **PARTIAL** — ESLint boundaries pass, but `dynamic()` in `page.tsx` is not guarded by `NODE_ENV` ternary | `LOW-01` |
+| **§1.1.2 / §2.1** | Strict `@dev-tool` quarantine; zero upward imports from foundation layers | **RESOLVED** — `dynamic()` in `page.tsx` guarded by `NODE_ENV` ternary | `LOW-01` |
 | **§1.1.3 / §5.2** | `0.00ms` overhead when `OFF` (all probes/hooks detached); zero heap allocations on 60Hz tick | **FAILED** — Probe & `measureTimings` stay attached when `OFF`; 7+ objects allocated per 60Hz frame | `CRIT-02` |
 | **§3.1** | `FPS` (Current, Avg, 1% Low) & `Frame Time` (`ms` & Jitter $\sigma$) | **PARTIAL** — `Avg FPS` and `Jitter σ` computed but not displayed | `MED-04` |
 | **§3.1 / §4.1** | Stage 1–6 timings including **Stage 6: `WebGL Render Pass` (`ms`)** in budget bar & scrub card | **FAILED** — Stage 6 (`webglPassMs`) is always `0`; Scrub card computes `cpuTime - cpuTime = 0` | `CRIT-03` |

@@ -28,15 +28,21 @@ import { HubLayout } from '@/components/ui/hub/HubLayout';
 import { GameContext } from '@/game/types';
 import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT, DEFAULT_SHELL_ID } from '@/shared/constants';
 
-const DevTerminal = dynamic(
-  () => import('@dev-tool/terminal/DevTerminal').then((m) => m.DevTerminal),
-  { ssr: false },
-);
+const DevTerminal =
+  process.env.NODE_ENV === 'development'
+    ? dynamic(
+        () => import('@dev-tool/terminal/DevTerminal').then((m) => m.DevTerminal),
+        { ssr: false },
+      )
+    : () => null;
 
-const PerfMonitorWidget = dynamic(
-  () => import('@dev-tool/perf/PerfMonitorWidget').then((m) => m.PerfMonitorWidget),
-  { ssr: false },
-);
+const PerfMonitorWidget =
+  process.env.NODE_ENV === 'development'
+    ? dynamic(
+        () => import('@dev-tool/perf/PerfMonitorWidget').then((m) => m.PerfMonitorWidget),
+        { ssr: false },
+      )
+    : () => null;
 
 export default function GamePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
