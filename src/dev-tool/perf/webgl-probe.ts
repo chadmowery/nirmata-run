@@ -251,50 +251,55 @@ export class WebGLProbe {
 
     if (!this.app) return result;
 
-    const renderer = this.app.renderer as unknown as {
-      texture?: {
-        managedTextures?: PixiManagedTexture[];
-        _managedTextures?: { items?: Record<string, PixiManagedTexture> };
+    try {
+      const renderer = this.app.renderer as unknown as {
+        texture?: {
+          managedTextures?: PixiManagedTexture[];
+          _managedTextures?: { items?: Record<string, PixiManagedTexture> };
+        };
+        textureGenerator?: { managedTextures?: PixiManagedTexture[] };
       };
-      textureGenerator?: { managedTextures?: PixiManagedTexture[] };
-    };
-    const managedTextures: PixiManagedTexture[] =
-      (Array.isArray(renderer?.texture?.managedTextures) ? renderer?.texture?.managedTextures : null) ??
-      (renderer?.texture?._managedTextures?.items ? Object.values(renderer.texture._managedTextures.items) : null) ??
-      (renderer?.texture?.managedTextures ? Object.values(renderer.texture.managedTextures) : null) ??
-      renderer?.textureGenerator?.managedTextures ??
-      [];
+      const rawManaged: PixiManagedTexture[] =
+        (Array.isArray(renderer?.texture?.managedTextures) ? renderer?.texture?.managedTextures : null) ??
+        (renderer?.texture?._managedTextures?.items ? Object.values(renderer.texture._managedTextures.items) : null) ??
+        (renderer?.texture?.managedTextures ? Object.values(renderer.texture.managedTextures) : null) ??
+        renderer?.textureGenerator?.managedTextures ??
+        [];
 
-    if (!Array.isArray(managedTextures)) return result;
+      if (!Array.isArray(rawManaged)) return result;
 
-    result.totalTextures = managedTextures.length;
+      const validTextures = rawManaged.filter((t): t is PixiManagedTexture => Boolean(t && typeof t === 'object'));
+      result.totalTextures = validTextures.length;
 
-    for (const tex of managedTextures) {
-      const w = tex.width || tex.pixelWidth || 0;
-      const h = tex.height || tex.pixelHeight || 0;
-      const mipmapFactor = tex.mipmaps || tex.autoGenerateMipmaps ? 1.33 : 1.0;
-      const bytes = Math.round(w * h * 4 * mipmapFactor);
-      result.estimatedVramBytes += bytes;
+      for (const tex of validTextures) {
+        const w = tex.width || tex.pixelWidth || 0;
+        const h = tex.height || tex.pixelHeight || 0;
+        const mipmapFactor = tex.mipmaps || tex.autoGenerateMipmaps ? 1.33 : 1.0;
+        const bytes = Math.round(w * h * 4 * mipmapFactor);
+        result.estimatedVramBytes += bytes;
 
-      const label = String(tex.label || tex.source?.label || '').toLowerCase();
-      const isCanvas =
-        (typeof HTMLCanvasElement !== 'undefined' && tex.resource instanceof HTMLCanvasElement) ||
-        (typeof HTMLCanvasElement !== 'undefined' && tex.source?.resource instanceof HTMLCanvasElement) ||
-        label.includes('canvas') ||
-        label.includes('text');
-      const isFbo =
-        Boolean(tex.isRenderTexture) ||
-        label.includes('fbo') ||
-        label.includes('render-texture') ||
-        label.includes('filter');
+        const label = String(tex.label || tex.source?.label || '').toLowerCase();
+        const isCanvas =
+          (typeof HTMLCanvasElement !== 'undefined' && tex.resource instanceof HTMLCanvasElement) ||
+          (typeof HTMLCanvasElement !== 'undefined' && tex.source?.resource instanceof HTMLCanvasElement) ||
+          label.includes('canvas') ||
+          label.includes('text');
+        const isFbo =
+          Boolean(tex.isRenderTexture) ||
+          label.includes('fbo') ||
+          label.includes('render-texture') ||
+          label.includes('filter');
 
-      if (isCanvas) {
-        result.textOrCanvasTextures++;
-      } else if (isFbo) {
-        result.renderTextures++;
-      } else {
-        result.atlasTextures++;
+        if (isCanvas) {
+          result.textOrCanvasTextures++;
+        } else if (isFbo) {
+          result.renderTextures++;
+        } else {
+          result.atlasTextures++;
+        }
       }
+    } catch {
+      // Gracefully return partial or zero metrics if texture system is GCing or context is lost
     }
 
     return result;

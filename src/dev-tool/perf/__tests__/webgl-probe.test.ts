@@ -67,4 +67,25 @@ describe('WebGLProbe', () => {
     expect(mem.renderTextures).toBe(1);
     expect(mem.estimatedVramBytes).toBe(1048576 + 262144);
   });
+
+  it('handles null or sparse entries in managedTextures without throwing', () => {
+    const mockApp = {
+      renderer: {
+        texture: {
+          managedTextures: [
+            null,
+            { width: 512, height: 512, label: 'tileset' },
+            undefined,
+          ],
+        },
+      },
+    };
+
+    probe.setApplication(mockApp as any);
+    const mem = probe.getTextureMemory();
+
+    expect(mem.totalTextures).toBe(1);
+    expect(mem.atlasTextures).toBe(1);
+    expect(mem.estimatedVramBytes).toBe(512 * 512 * 4);
+  });
 });
