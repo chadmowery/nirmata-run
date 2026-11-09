@@ -34,6 +34,8 @@ export interface ServerTurnDevPerf {
   serverTurnMs: number;
   phaseTimingsMs: Record<string, number>;
   topSystems: Array<{ name: string; phase: string; durationMs: number }>;
+  enemyTurnsProcessed?: number;
+  energySubTicks?: number;
   payloadBytes: number;
   syncType: 'FULL' | 'DELTA';
   entitiesAdded: number;
@@ -441,7 +443,19 @@ export async function POST(req: Request) {
 
     let devPerf: ServerTurnDevPerf | undefined;
     if (isDev) {
-      const topSystems = systemTimings
+      // Aggregate system timings by name and phase across all sub-ticks
+      const aggregatedMap = new Map<string, { name: string; phase: string; durationMs: number }>();
+      for (const sys of systemTimings) {
+        const key = `${sys.name}::${sys.phase}`;
+        const existing = aggregatedMap.get(key);
+        if (existing) {
+          existing.durationMs += sys.durationMs;
+        } else {
+          aggregatedMap.set(key, { ...sys });
+        }
+      }
+
+      const topSystems = Array.from(aggregatedMap.values())
         .sort((a, b) => b.durationMs - a.durationMs)
         .slice(0, 5)
         .map((s) => ({ ...s, durationMs: Math.round(s.durationMs * 100) / 100 }));
@@ -452,6 +466,8 @@ export async function POST(req: Request) {
           Object.entries(phaseTimings).map(([k, v]) => [k, Math.round(v * 100) / 100]),
         ),
         topSystems,
+        enemyTurnsProcessed: turnManager.getLastEnemyTurnsProcessed(),
+        energySubTicks: turnManager.getLastEnergySubTicks(),
         payloadBytes: 0,
         syncType: syncPayload.type,
         entitiesAdded: syncPayload.type === 'DELTA' ? (clientDelta?.entitiesAdded?.length ?? 0) : 0,

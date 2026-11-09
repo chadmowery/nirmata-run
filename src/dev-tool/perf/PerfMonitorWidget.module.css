@@ -484,6 +484,47 @@
 }
 
 /* --------------------------------------------------------------------------
+   TURN WATERFALL & PHASE BREAKDOWN
+   -------------------------------------------------------------------------- */
+.turnWaterfallBar {
+  height: 6px;
+  background: #020305;
+  border: 1px solid var(--c-border, #1c2638);
+  display: flex;
+  overflow: hidden;
+  margin: 3px 0;
+}
+
+.waterfallSegment {
+  height: 100%;
+  transition: width 150ms ease;
+}
+
+.turnWaterfallFlow {
+  font-size: 8px;
+  font-family: var(--font-mono, monospace);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.phaseBreakdownGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  font-size: 8px;
+  margin-bottom: 2px;
+}
+
+.phaseItem {
+  background: rgba(28, 38, 56, 0.4);
+  padding: 1px 4px;
+  border-radius: 2px;
+  color: var(--c-text-dim, #79889e);
+}
+
+/* --------------------------------------------------------------------------
    DOMAIN TABS
    -------------------------------------------------------------------------- */
 .tabBar {

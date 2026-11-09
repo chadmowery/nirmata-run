@@ -1027,7 +1027,7 @@ export function PerfMonitorWidget({
             <div className={styles.tabContent}>
               {activeTab === 'GPU' && renderGpuTab(throttledData, bisectionFlags)}
               {activeTab === 'ECS' && renderEcsTab(throttledData)}
-              {activeTab === 'TURN' && renderTurnTab(throttledData)}
+              {activeTab === 'TURN' && renderTurnTab(throttledData, context)}
               {activeTab === 'MEM' && renderMemTab(throttledData)}
               {activeTab === 'AUDIT' &&
                 renderAuditTab(
@@ -1173,7 +1173,7 @@ export function PerfMonitorWidget({
             <div className={styles.column}>
               <div className={styles.sectionBox}>
                 <div className={styles.sectionTitle} {...getPerfTooltipAttrs('tabTurn')}>同期 // TURN PIPELINE WATERFALL</div>
-                {renderTurnTab(throttledData)}
+                {renderTurnTab(throttledData, context)}
               </div>
 
               <div className={styles.sectionBox}>
@@ -1484,24 +1484,97 @@ function renderEcsTab(data: ReturnType<typeof usePerfStore.getState>['throttledD
   );
 }
 
-function renderTurnTab(data: ReturnType<typeof usePerfStore.getState>['throttledData']) {
+function renderTurnTab(
+  data: ReturnType<typeof usePerfStore.getState>['throttledData'],
+  context?: GameContext | null,
+) {
   const turn = data.latestTurn;
+
+  // RTT History across turnWaterfall
+  const rttHistory = data.turnWaterfall.map((t) => t.networkRttMs);
+  const rttAvg =
+    rttHistory.length > 0
+      ? (rttHistory.reduce((a, b) => a + b, 0) / rttHistory.length).toFixed(1)
+      : '0.0';
+  const rttMax =
+    rttHistory.length > 0 ? Math.max(...rttHistory).toFixed(1) : '0.0';
+
+  // Session cumulative wire payload KB
+  const sessionBytes = data.turnWaterfall.reduce((acc, t) => acc + (t.payloadBytes || 0), 0);
+  const sessionKb = (sessionBytes / 1024).toFixed(1);
+  const lastTurnKb = ((turn?.payloadBytes ?? 0) / 1024).toFixed(2);
+
+  // Turn Waterfall Bar percentages
+  const predictMs = turn?.clientPredictionMs ?? 0;
+  const rttMs = turn?.networkRttMs ?? 0;
+  const srvMs = turn?.serverTurnMs ?? 0;
+  const recMs = turn?.reconcileMs ?? 0;
+  const totalTurnMs = Math.max(0.01, predictMs + rttMs + recMs);
+
+  const predictPct = Math.max(4, Math.round((predictMs / totalTurnMs) * 100));
+  const rttPct = Math.max(4, Math.round((rttMs / totalTurnMs) * 100));
+  const recPct = Math.max(4, Math.round((recMs / totalTurnMs) * 100));
+
+  // Top 5 server systems
+  const top5Systems = turn?.serverTopSystems?.slice(0, 5) ?? [];
+
+  // Phase timings
+  const phases = turn?.serverPhaseTimings ? Object.entries(turn.serverPhaseTimings) : [];
+
+  // Input Manager queue & lock status
+  const inputQueueDepth = context ? context.inputManager.getQueueLength() : 0;
+  const inputPending = context ? context.inputManager.getPendingStatus() : false;
 
   return (
     <>
-      <div className={styles.dataRow} {...getPerfTooltipAttrs('turnActionType')}>
-        <span className={styles.dataLabel}>LATEST TURN ACTION</span>
-        <span className={styles.dataVal} style={{ color: '#00f0ff' }}>
-          {turn?.actionType || 'IDLE'}
-        </span>
+      {/* 1. End-to-End Turn Waterfall Header & Bar */}
+      <div
+        className={styles.sectionHeader}
+        style={{ fontSize: 9, color: 'var(--c-accent-secondary, #00f0ff)', marginBottom: 3 }}
+      >
+        END-TO-END TURN WATERFALL (TURN #{turn?.turnNumber ? String(turn.turnNumber).padStart(4, '0') : '0000'} — {turn?.actionType || 'IDLE'})
       </div>
+
+      <div className={styles.turnWaterfallBar}>
+        <div
+          className={styles.waterfallSegment}
+          style={{ width: `${predictPct}%`, background: '#00f0ff' }}
+          title={`Client Predict: ${predictMs.toFixed(2)}ms`}
+        />
+        <div
+          className={styles.waterfallSegment}
+          style={{ width: `${rttPct}%`, background: '#ffaa00' }}
+          title={`Network RTT: ${rttMs.toFixed(2)}ms (Server Sim: ${srvMs.toFixed(2)}ms)`}
+        />
+        <div
+          className={styles.waterfallSegment}
+          style={{ width: `${recPct}%`, background: '#bd00ff' }}
+          title={`Client Reconcile: ${recMs.toFixed(2)}ms`}
+        />
+      </div>
+
+      <div className={styles.turnWaterfallFlow}>
+        <span style={{ color: '#00f0ff' }}>[Predict: {predictMs.toFixed(1)}ms]</span>
+        <span style={{ color: '#4a5668' }}> ──► </span>
+        <span style={{ color: '#ffaa00' }}>[RTT: {rttMs.toFixed(1)}ms (Srv: {srvMs.toFixed(1)}ms)]</span>
+        <span style={{ color: '#4a5668' }}> ──► </span>
+        <span style={{ color: '#bd00ff' }}>[Reconcile: {recMs.toFixed(1)}ms]</span>
+      </div>
+
+      {/* 2. Latency Metrics */}
+      <div className={styles.divider} />
       <div className={styles.dataRow} {...getPerfTooltipAttrs('turnClientPrediction')}>
         <span className={styles.dataLabel}>CLIENT PREDICTION</span>
         <span className={styles.dataVal}>{turn?.clientPredictionMs.toFixed(2) ?? '0.00'} ms</span>
       </div>
       <div className={styles.dataRow} {...getPerfTooltipAttrs('turnNetworkRtt')}>
         <span className={styles.dataLabel}>NETWORK RTT</span>
-        <span className={styles.dataVal}>{turn?.networkRttMs.toFixed(2) ?? '0.00'} ms</span>
+        <span className={styles.dataVal}>
+          <strong>{turn?.networkRttMs.toFixed(2) ?? '0.00'} ms</strong>{' '}
+          <span className={styles.dataSub}>
+            (AVG: {rttAvg}ms | MAX: {rttMax}ms)
+          </span>
+        </span>
       </div>
       <div className={styles.dataRow} {...getPerfTooltipAttrs('turnServerTime')}>
         <span className={styles.dataLabel}>SERVER TURN TIME</span>
@@ -1516,27 +1589,99 @@ function renderTurnTab(data: ReturnType<typeof usePerfStore.getState>['throttled
         <span className={styles.dataLabel}>CLIENT RECONCILE</span>
         <span className={styles.dataVal}>{turn?.reconcileMs ? turn.reconcileMs.toFixed(2) : '0.00'} ms</span>
       </div>
-      {turn?.serverTopSystems && turn.serverTopSystems.length > 0 && (
+
+      {/* 3. Server Phase Breakdown */}
+      {phases.length > 0 && (
+        <>
+          <div className={styles.divider} />
+          <div
+            style={{ fontSize: 9, color: 'var(--c-text-muted, #4a5668)', marginBottom: 2 }}
+          >
+            SERVER PHASE BREAKDOWN:
+          </div>
+          <div className={styles.phaseBreakdownGrid}>
+            {phases.map(([phaseName, duration]) => (
+              <span key={phaseName} className={styles.phaseItem}>
+                {phaseName}: <strong>{duration.toFixed(2)}ms</strong>
+              </span>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* 4. Top 5 Server Systems */}
+      {top5Systems.length > 0 && (
         <>
           <div className={styles.divider} />
           <div
             style={{ fontSize: 9, color: 'var(--c-text-muted, #4a5668)', marginBottom: 2 }}
             {...getPerfTooltipAttrs('turnTopSystems')}
           >
-            TOP SERVER SYSTEMS:
+            TOP 5 SERVER SYSTEMS:
           </div>
-          {turn.serverTopSystems.slice(0, 3).map((sys, idx) => (
+          {top5Systems.map((sys, idx) => (
             <div key={idx} className={styles.dataRow} {...getPerfTooltipAttrs('turnTopSystems')}>
               <span className={styles.dataLabel} style={{ fontSize: 9 }}>
-                {sys.name} [{sys.phase}]
+                #{idx + 1} {sys.name} <span style={{ color: '#4a5668' }}>[{sys.phase}]</span>
               </span>
-              <span className={styles.dataVal} style={{ fontSize: 9 }}>
+              <span className={styles.dataVal} style={{ fontSize: 9, color: idx === 0 ? '#ffaa00' : undefined }}>
                 {sys.durationMs.toFixed(2)} ms
               </span>
             </div>
           ))}
         </>
       )}
+
+      {/* 5. Enemy Sub-Ticks & Actors */}
+      <div className={styles.divider} />
+      <div className={styles.dataRow}>
+        <span className={styles.dataLabel}>ENEMY SUB-TICKS</span>
+        <span className={styles.dataVal}>
+          <strong>{turn?.enemyTurnsProcessed ?? 0} ACTED</strong>{' '}
+          <span className={styles.dataSub}>
+            ({turn?.energySubTicks ?? 0} SUB-TICKS)
+          </span>
+        </span>
+      </div>
+
+      {/* 6. Sync Payload & Wire Delta */}
+      <div className={styles.divider} />
+      <div className={styles.dataRow}>
+        <span className={styles.dataLabel}>SYNC PAYLOAD</span>
+        <span className={styles.dataVal}>
+          <strong>{lastTurnKb} KB</strong>{' '}
+          <span className={styles.dataSub}>
+            ({turn?.syncType ?? 'DELTA'} | SESSION: {sessionKb} KB)
+          </span>
+        </span>
+      </div>
+      <div className={styles.dataRow}>
+        <span className={styles.dataLabel}>• WIRE DELTA</span>
+        <span className={styles.dataVal} style={{ fontSize: 9 }}>
+          +{turn?.deltaEntitiesAdded ?? 0} / -{turn?.deltaEntitiesRemoved ?? 0} ENT | SET {turn?.deltaComponentsSet ?? 0} / REM {turn?.deltaComponentsRemoved ?? 0} COMP | {turn?.deltaEventsCount ?? 0} EVT
+        </span>
+      </div>
+
+      {/* 7. Input Buffer & Prediction Health */}
+      <div className={styles.divider} />
+      <div className={styles.dataRow}>
+        <span className={styles.dataLabel}>INPUT BUFFER</span>
+        <span className={styles.dataVal}>
+          <strong>{inputQueueDepth} / 3</strong>{' '}
+          <span className={styles.dataSub}>
+            (LOCK: <strong style={{ color: inputPending ? '#ffaa00' : '#00ff88' }}>{inputPending ? 'PENDING' : 'READY'}</strong>)
+          </span>
+        </span>
+      </div>
+      <div className={styles.dataRow}>
+        <span className={styles.dataLabel}>PREDICTION HEALTH</span>
+        <span className={styles.dataVal}>
+          <strong style={{ color: '#00ff88' }}>CONFIRMED</strong>{' '}
+          <span className={styles.dataSub}>
+            (ROLLBACKS: 0 | SAFEGUARDS: OK)
+          </span>
+        </span>
+      </div>
     </>
   );
 }

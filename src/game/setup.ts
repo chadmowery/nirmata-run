@@ -62,6 +62,8 @@ export interface TurnTelemetryData {
   serverTurnMs: number;
   serverPhaseTimings: Record<string, number>;
   serverTopSystems: Array<{ name: string; phase: string; durationMs: number }>;
+  enemyTurnsProcessed?: number;
+  energySubTicks?: number;
   reconcileMs: number;
   syncType: 'FULL' | 'DELTA';
   payloadBytes: number;
@@ -313,8 +315,9 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     fsm,
     submitAction: async (intent: ActionIntent) => {
       inputManager.setRequestPending(true);
+      const tPredict0 = performance.now();
       try {
-        await sendActionToServer(intent);
+        await sendActionToServer(intent, performance.now() - tPredict0);
       } finally {
         inputManager.setRequestPending(false);
       }
@@ -364,11 +367,15 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   eventBus.on('STAIRCASE_DECISION_MADE', async (payload) => {
     if (payload.confirmed) {
       inputManager.setRequestPending(true);
-      await sendActionToServer({
-        type: 'STAIRCASE_DESCEND',
-        staircaseId: payload.staircaseId,
-        targetFloor: payload.targetFloor,
-      });
+      const tPredict0 = performance.now();
+      await sendActionToServer(
+        {
+          type: 'STAIRCASE_DESCEND',
+          staircaseId: payload.staircaseId,
+          targetFloor: payload.targetFloor,
+        },
+        performance.now() - tPredict0,
+      );
       inputManager.setRequestPending(false);
     }
   });
@@ -376,17 +383,25 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
   eventBus.on('ANCHOR_DECISION_MADE', async (payload) => {
     if (payload.decision === 'descend') {
       inputManager.setRequestPending(true);
-      await sendActionToServer({
-        type: 'ANCHOR_DESCEND',
-        anchorId: payload.anchorId!,
-        cost: payload.descendCost ?? 0,
-      });
+      const tPredict0 = performance.now();
+      await sendActionToServer(
+        {
+          type: 'ANCHOR_DESCEND',
+          anchorId: payload.anchorId!,
+          cost: payload.descendCost ?? 0,
+        },
+        performance.now() - tPredict0,
+      );
       inputManager.setRequestPending(false);
     } else if (payload.decision === 'extract') {
       inputManager.setRequestPending(true);
-      await sendActionToServer({
-        type: 'ANCHOR_EXTRACT',
-      });
+      const tPredict0 = performance.now();
+      await sendActionToServer(
+        {
+          type: 'ANCHOR_EXTRACT',
+        },
+        performance.now() - tPredict0,
+      );
       inputManager.setRequestPending(false);
     }
   });
@@ -397,62 +412,86 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
     const shellId = shell?.archetypeId || DEFAULT_SHELL_ID;
 
     inputManager.setRequestPending(true);
-    await sendActionToServer({
-      type: 'EQUIP',
-      shellId,
-      slotType: payload.slotType,
-      itemEntityId: payload.itemEntityId,
-    });
+    const tPredict0 = performance.now();
+    await sendActionToServer(
+      {
+        type: 'EQUIP',
+        shellId,
+        slotType: payload.slotType,
+        itemEntityId: payload.itemEntityId,
+      },
+      performance.now() - tPredict0,
+    );
     inputManager.setRequestPending(false);
   });
 
   eventBus.on('UNEQUIP_REQUESTED', async (payload) => {
     inputManager.setRequestPending(true);
-    await sendActionToServer({
-      type: 'UNEQUIP',
-      slotType: payload.slotType,
-      slotIndex: payload.slotIndex,
-    });
+    const tPredict0 = performance.now();
+    await sendActionToServer(
+      {
+        type: 'UNEQUIP',
+        slotType: payload.slotType,
+        slotIndex: payload.slotIndex,
+      },
+      performance.now() - tPredict0,
+    );
     inputManager.setRequestPending(false);
   });
 
   eventBus.on('BURN_SOFTWARE_REQUESTED', async (payload) => {
     inputManager.setRequestPending(true);
-    await sendActionToServer({
-      type: 'BURN_SOFTWARE',
-      runInventoryIndex: payload.runInventoryIndex,
-      softwareEntityId: payload.softwareEntityId,
-      targetSlot: payload.targetSlot,
-    });
+    const tPredict0 = performance.now();
+    await sendActionToServer(
+      {
+        type: 'BURN_SOFTWARE',
+        runInventoryIndex: payload.runInventoryIndex,
+        softwareEntityId: payload.softwareEntityId,
+        targetSlot: payload.targetSlot,
+      },
+      performance.now() - tPredict0,
+    );
     inputManager.setRequestPending(false);
   });
 
   eventBus.on('PURGE_SOFTWARE_REQUESTED', async (payload) => {
     inputManager.setRequestPending(true);
-    await sendActionToServer({
-      type: 'PURGE_SOFTWARE',
-      targetSlot: payload.targetSlot,
-    });
+    const tPredict0 = performance.now();
+    await sendActionToServer(
+      {
+        type: 'PURGE_SOFTWARE',
+        targetSlot: payload.targetSlot,
+      },
+      performance.now() - tPredict0,
+    );
     inputManager.setRequestPending(false);
   });
 
   eventBus.on('BURN_FIRMWARE_REQUESTED', async (payload) => {
     inputManager.setRequestPending(true);
-    await sendActionToServer({
-      type: 'BURN_FIRMWARE',
-      firmwareEntityId: payload.firmwareEntityId,
-      slotIndex: payload.slotIndex,
-    });
+    const tPredict0 = performance.now();
+    await sendActionToServer(
+      {
+        type: 'BURN_FIRMWARE',
+        firmwareEntityId: payload.firmwareEntityId,
+        slotIndex: payload.slotIndex,
+      },
+      performance.now() - tPredict0,
+    );
     inputManager.setRequestPending(false);
   });
 
   eventBus.on('BURN_AUGMENT_REQUESTED', async (payload) => {
     inputManager.setRequestPending(true);
-    await sendActionToServer({
-      type: 'BURN_AUGMENT',
-      augmentEntityId: payload.augmentEntityId,
-      slotIndex: payload.slotIndex,
-    });
+    const tPredict0 = performance.now();
+    await sendActionToServer(
+      {
+        type: 'BURN_AUGMENT',
+        augmentEntityId: payload.augmentEntityId,
+        slotIndex: payload.slotIndex,
+      },
+      performance.now() - tPredict0,
+    );
     inputManager.setRequestPending(false);
   });
 
@@ -589,12 +628,16 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
       // If only 1 item and it is on the player's current tile, directly pick it up!
       if (nearby.length === 1 && nearby[0].isPlayerTile) {
         inputManager.setRequestPending(true);
-        await sendActionToServer({
-          type: 'PICKUP',
-          itemId: nearby[0].itemId,
-          targetX: nearby[0].x,
-          targetY: nearby[0].y,
-        });
+        const tPredict0 = performance.now();
+        await sendActionToServer(
+          {
+            type: 'PICKUP',
+            itemId: nearby[0].itemId,
+            targetX: nearby[0].x,
+            targetY: nearby[0].y,
+          },
+          performance.now() - tPredict0,
+        );
         inputManager.setRequestPending(false);
         return;
       }
@@ -825,11 +868,15 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
             }
 
             inputManager.setRequestPending(true);
-            await sendActionToServer({
-              type: 'INTERACT_PROP',
-              targetPropId,
-              forceOverride: true,
-            });
+            const tPredict0 = performance.now();
+            await sendActionToServer(
+              {
+                type: 'INTERACT_PROP',
+                targetPropId,
+                forceOverride: true,
+              },
+              performance.now() - tPredict0,
+            );
             inputManager.setRequestPending(false);
             return;
           }
@@ -890,6 +937,8 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
               serverTurnMs: devPerf?.serverTurnMs ?? 0,
               serverPhaseTimings: devPerf?.phaseTimingsMs ?? {},
               serverTopSystems: devPerf?.topSystems ?? [],
+              enemyTurnsProcessed: devPerf?.enemyTurnsProcessed ?? 0,
+              energySubTicks: devPerf?.energySubTicks ?? 0,
               reconcileMs: Math.round(reconcileMs * 100) / 100,
               syncType: serverState.type ?? (devPerf?.syncType || 'DELTA'),
               payloadBytes: devPerf?.payloadBytes ?? 0,

@@ -14,6 +14,8 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
   private turnNumber: number = 0;
   private playerActionHandler: PlayerActionHandler | null = null;
   private _paused = false;
+  private lastEnemyTurnsProcessed: number = 0;
+  private lastEnergySubTicks: number = 0;
 
   constructor(
     private world: World<TEvents>,
@@ -122,6 +124,10 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
       return;
     }
 
+    // Reset enemy sub-tick telemetry
+    this.lastEnemyTurnsProcessed = 0;
+    this.lastEnergySubTicks = 0;
+
     // 3. Enemy turns (for those already ready)
     this.phase = TurnPhase.ENEMY_TURNS;
     logger.debug('Processing Ready Enemies', 'TURN');
@@ -186,6 +192,7 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
         continue;
       }
 
+      this.lastEnemyTurnsProcessed++;
       logger.info(`Enemy Acting: ${enemyId}`, 'TURN');
       this.adapter.onBeforeActorAct?.(enemyId);
 
@@ -230,6 +237,8 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
 
       subTickCount++;
     }
+
+    this.lastEnergySubTicks = subTickCount;
 
     if (subTickCount >= MAX_SUB_TICKS) {
       logger.error(
@@ -301,5 +310,13 @@ export class TurnManager<TEvents extends EngineEvents = EngineEvents> {
   }
   get isPaused(): boolean {
     return this._paused;
+  }
+
+  getLastEnemyTurnsProcessed(): number {
+    return this.lastEnemyTurnsProcessed;
+  }
+
+  getLastEnergySubTicks(): number {
+    return this.lastEnergySubTicks;
   }
 }

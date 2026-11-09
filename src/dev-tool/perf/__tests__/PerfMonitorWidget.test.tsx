@@ -512,4 +512,137 @@ describe('PerfMonitorWidget', () => {
     expect(screen.getByText('1800')).toBeInTheDocument(); // 60Hz FOV
     expect(screen.getByText('50')).toBeInTheDocument(); // Discrete
   });
+
+  it('renders Domain 3 TURN tab with waterfall bar, phase breakdown, top 5 systems, sub-ticks, and wire delta', () => {
+    act(() => {
+      usePerfStore.setState({
+        mode: 'STANDARD',
+        activeTab: 'TURN',
+        throttledData: {
+          ...usePerfStore.getState().throttledData,
+          latestTurn: {
+            turnNumber: 42,
+            actionType: 'MOVE_EAST',
+            clientPredictionMs: 0.45,
+            networkRttMs: 14.2,
+            serverTurnMs: 3.12,
+            serverPhaseTimings: {
+              PRE_TURN: 0.12,
+              GATHER_INTENT: 0.45,
+              ACTION: 1.25,
+              REACTION: 0.55,
+              CLEANUP: 0.2,
+              POST_TURN: 0.15,
+              ENEMY_TURNS: 0.4,
+            },
+            serverTopSystems: [
+              { name: 'AISystem', phase: 'ACTION', durationMs: 1.25 },
+              { name: 'CombatSystem', phase: 'REACTION', durationMs: 0.55 },
+              { name: 'PropInteractionSystem', phase: 'ACTION', durationMs: 0.4 },
+              { name: 'StabilitySystem', phase: 'CLEANUP', durationMs: 0.2 },
+              { name: 'TileCorruptionSystem', phase: 'POST_TURN', durationMs: 0.15 },
+            ],
+            enemyTurnsProcessed: 3,
+            energySubTicks: 4,
+            reconcileMs: 0.9,
+            syncType: 'DELTA',
+            payloadBytes: 1536,
+            deltaEntitiesAdded: 1,
+            deltaEntitiesRemoved: 0,
+            deltaComponentsSet: 4,
+            deltaComponentsRemoved: 1,
+            deltaEventsCount: 2,
+            timestamp: Date.now(),
+          },
+          turnWaterfall: [
+            {
+              turnNumber: 41,
+              actionType: 'MOVE_NORTH',
+              clientPredictionMs: 0.4,
+              networkRttMs: 12.0,
+              serverTurnMs: 2.8,
+              serverPhaseTimings: {},
+              serverTopSystems: [],
+              enemyTurnsProcessed: 2,
+              energySubTicks: 2,
+              reconcileMs: 0.8,
+              syncType: 'DELTA',
+              payloadBytes: 1024,
+              deltaEntitiesAdded: 0,
+              deltaEntitiesRemoved: 0,
+              deltaComponentsSet: 2,
+              deltaComponentsRemoved: 0,
+              deltaEventsCount: 1,
+              timestamp: Date.now() - 1000,
+            },
+            {
+              turnNumber: 42,
+              actionType: 'MOVE_EAST',
+              clientPredictionMs: 0.45,
+              networkRttMs: 14.2,
+              serverTurnMs: 3.12,
+              serverPhaseTimings: {},
+              serverTopSystems: [],
+              enemyTurnsProcessed: 3,
+              energySubTicks: 4,
+              reconcileMs: 0.9,
+              syncType: 'DELTA',
+              payloadBytes: 1536,
+              deltaEntitiesAdded: 1,
+              deltaEntitiesRemoved: 0,
+              deltaComponentsSet: 4,
+              deltaComponentsRemoved: 1,
+              deltaEventsCount: 2,
+              timestamp: Date.now(),
+            },
+          ],
+        },
+      });
+    });
+
+    const mockContext: any = {
+      inputManager: {
+        getQueueLength: () => 1,
+        getPendingStatus: () => false,
+      },
+    };
+
+    render(<PerfMonitorWidget context={mockContext} />);
+
+    // Waterfall bar header & flow
+    expect(screen.getByText(/END-TO-END TURN WATERFALL \(TURN #0042 — MOVE_EAST\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/\[Predict: 0.5ms\]/i)).toBeInTheDocument();
+    expect(screen.getByText(/\[RTT: 14.2ms \(Srv: 3.1ms\)\]/i)).toBeInTheDocument();
+    expect(screen.getByText(/\[Reconcile: 0.9ms\]/i)).toBeInTheDocument();
+
+    // RTT stats (AVG: 13.1ms | MAX: 14.2ms)
+    expect(screen.getByText(/AVG: 13.1ms \| MAX: 14.2ms/i)).toBeInTheDocument();
+
+    // Phase breakdown
+    expect(screen.getByText(/SERVER PHASE BREAKDOWN:/i)).toBeInTheDocument();
+    expect(screen.getByText(/GATHER_INTENT:/i)).toBeInTheDocument();
+    expect(screen.getByText(/ENEMY_TURNS:/i)).toBeInTheDocument();
+
+    // Top 5 systems (all 5 rendered)
+    expect(screen.getByText(/TOP 5 SERVER SYSTEMS:/i)).toBeInTheDocument();
+    expect(screen.getByText(/#1 AISystem/i)).toBeInTheDocument();
+    expect(screen.getByText(/#2 CombatSystem/i)).toBeInTheDocument();
+    expect(screen.getByText(/#3 PropInteractionSystem/i)).toBeInTheDocument();
+    expect(screen.getByText(/#4 StabilitySystem/i)).toBeInTheDocument();
+    expect(screen.getByText(/#5 TileCorruptionSystem/i)).toBeInTheDocument();
+
+    // Enemy Sub-Ticks
+    expect(screen.getByText(/3 ACTED/i)).toBeInTheDocument();
+    expect(screen.getByText(/\(4 SUB-TICKS\)/i)).toBeInTheDocument();
+
+    // Sync payload & wire delta
+    expect(screen.getByText(/1.50 KB/i)).toBeInTheDocument();
+    expect(screen.getByText(/\(DELTA \| SESSION: 2.5 KB\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/\+1 \/ -0 ENT \| SET 4 \/ REM 1 COMP \| 2 EVT/i)).toBeInTheDocument();
+
+    // Input buffer & prediction health
+    expect(screen.getByText(/1 \/ 3/i)).toBeInTheDocument();
+    expect(screen.getByText(/READY/i)).toBeInTheDocument();
+    expect(screen.getByText(/CONFIRMED/i)).toBeInTheDocument();
+  });
 });
