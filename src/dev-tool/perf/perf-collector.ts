@@ -3,9 +3,41 @@ import { WebGLFrameStats, WebGLProbe } from './webgl-probe';
 import { TurnTelemetryData } from '@/game/setup';
 import { GameContext } from '@/game/types';
 import { FloorState } from '@shared/components/floor-state';
+import { Hostile } from '@shared/components/hostile';
+import { Dying } from '@shared/components/dying';
+import { Prop, SecurityLock, CorruptedNode } from '@shared/components/environment';
+import { Item } from '@shared/components/item';
+import { CurrencyItem } from '@shared/components/currency-item';
+import { Position } from '@shared/components/position';
+import { Parent } from '@shared/components/parent';
+import { DeadZone } from '@shared/components/dead-zone';
+import { CorruptionState } from '@shared/components/corruption-state';
 import { getAudioEngine } from '@engine/audio';
 
 export const HIST_SIZE = 240;
+
+export interface ArchetypeCensus {
+  playerCount: number;
+  hostileCount: number;
+  dyingCount: number;
+  totalProps: number;
+  lockedProps: number;
+  corruptedProps: number;
+  searchedProps: number;
+  groundItems: number;
+  childItems: number;
+  deadZones: number;
+  corruptions: number;
+}
+
+export interface EventBusTelemetry {
+  eventsPerSec: number;
+  totalEmissions: number;
+  discreteEmissions: number;
+  fovEmissions: number;
+  handlerCount: number;
+  queueLength: number;
+}
 
 export interface SpikeForensicsCard {
   frameDurationMs: number;
@@ -304,6 +336,83 @@ export class PerfCollector {
 
   public getLatestTurn(): TurnWaterfallEntry | null {
     return this.turnWaterfall.length > 0 ? this.turnWaterfall[this.turnWaterfall.length - 1] : null;
+  }
+
+  private lastEventBusEmissions = 0;
+  private lastEventBusTimestamp = 0;
+
+  public getArchetypeCensus(): ArchetypeCensus | null {
+    if (!this.context) return null;
+    const world = this.context.world;
+
+    const playerCount = this.context.playerId !== undefined ? 1 : 0;
+    const hostileCount = world.query(Hostile).length;
+    const dyingCount = world.query(Dying).length;
+
+    const propEntities = world.query(Prop);
+    const totalProps = propEntities.length;
+    let lockedProps = 0;
+    let corruptedProps = 0;
+    let searchedProps = 0;
+
+    for (const id of propEntities) {
+      const propData = world.getComponent(id, Prop);
+      if (propData?.isSearched) searchedProps++;
+      const lockData = world.getComponent(id, SecurityLock);
+      if (lockData && lockData.isLocked !== false) lockedProps++;
+      const corruptData = world.getComponent(id, CorruptedNode);
+      if (corruptData && !corruptData.isDisarmed) corruptedProps++;
+    }
+
+    const groundItems =
+      world.query(Position, Item).filter((id) => !world.hasComponent(id, Parent)).length +
+      world.query(Position, CurrencyItem).filter((id) => !world.hasComponent(id, Parent)).length;
+    const childItems = world.query(Parent).length;
+
+    const deadZones = world.query(DeadZone).length;
+    const corruptions = world.query(CorruptionState).length;
+
+    return {
+      playerCount,
+      hostileCount,
+      dyingCount,
+      totalProps,
+      lockedProps,
+      corruptedProps,
+      searchedProps,
+      groundItems,
+      childItems,
+      deadZones,
+      corruptions,
+    };
+  }
+
+  public getEventBusTelemetry(): EventBusTelemetry | null {
+    if (!this.context) return null;
+    const diag = this.context.eventBus.getDiagnostics();
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    let eventsPerSec = 0;
+
+    if (this.lastEventBusTimestamp > 0) {
+      const dt = (now - this.lastEventBusTimestamp) / 1000;
+      if (dt > 0.05) {
+        eventsPerSec = Math.max(0, (diag.totalEmissions - this.lastEventBusEmissions) / dt);
+      }
+    }
+    this.lastEventBusEmissions = diag.totalEmissions;
+    this.lastEventBusTimestamp = now;
+
+    const fovEmissions = diag.emissionsByType['FOV_UPDATED'] ?? 0;
+    const discreteEmissions = Math.max(0, diag.totalEmissions - fovEmissions);
+
+    return {
+      eventsPerSec: Math.round(eventsPerSec * 10) / 10,
+      totalEmissions: diag.totalEmissions,
+      discreteEmissions,
+      fovEmissions,
+      handlerCount: diag.handlerCount,
+      queueLength: diag.queueLength,
+    };
   }
 
   public captureCurrentSnapshot(): LeakBaselineSnapshot {

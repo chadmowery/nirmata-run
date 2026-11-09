@@ -10,6 +10,8 @@ import {
   LeakBaselineSnapshot,
   LeakDiff,
   SpikeForensicsCard,
+  ArchetypeCensus,
+  EventBusTelemetry,
   perfCollector,
 } from './perf-collector';
 
@@ -32,6 +34,8 @@ export interface PerfThrottledData {
   baselineSnapshot: LeakBaselineSnapshot | null;
   leakDiff: LeakDiff | null;
   spikeForensics: SpikeForensicsCard | null;
+  archetypeCensus: ArchetypeCensus | null;
+  eventBusTelemetry: EventBusTelemetry | null;
 }
 
 export interface PerfStoreState {
@@ -135,6 +139,8 @@ const initialThrottledData: PerfThrottledData = {
   baselineSnapshot: null,
   leakDiff: null,
   spikeForensics: null,
+  archetypeCensus: null,
+  eventBusTelemetry: null,
 };
 
 export const usePerfStore = create<PerfStoreState>((set, get) => {

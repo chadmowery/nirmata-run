@@ -420,4 +420,96 @@ describe('PerfMonitorWidget', () => {
     expect(resumeBtn).toBeInTheDocument();
     fireEvent.click(resumeBtn);
   });
+
+  it('renders Domain 2 ECS tab with Archetype Census, Top 6 Stores, FOV/Fog Memory, and EventBus throughput', () => {
+    act(() => {
+      usePerfStore.setState({
+        mode: 'STANDARD',
+        activeTab: 'ECS',
+        throttledData: {
+          ...usePerfStore.getState().throttledData,
+          ecsDiagnostics: {
+            entityCount: 142,
+            nextId: 143,
+            storeCount: 18,
+            totalComponentInstances: 480,
+            systemCount: 12,
+            storeSizes: {
+              position: 140,
+              sprite: 85,
+              prop: 24,
+              item: 35,
+              parent: 12,
+              hostile: 8,
+              actor: 9,
+            },
+          },
+          archetypeCensus: {
+            playerCount: 1,
+            hostileCount: 8,
+            dyingCount: 2,
+            totalProps: 24,
+            lockedProps: 5,
+            corruptedProps: 3,
+            searchedProps: 10,
+            groundItems: 14,
+            childItems: 12,
+            deadZones: 4,
+            corruptions: 1,
+          },
+          renderTelemetry: {
+            stageTimings: { fovMs: 0, tilemapMs: 0, spriteSyncMs: 0, vfxMs: 0, hoverMs: 0, totalCpuMs: 0 },
+            tilemap: { visibleTiles: 0, poolSize: 0, lastAutotileSolves: 0 },
+            particles: { activeEmitters: 0, totalParticles: 0 },
+            filters: {
+              totalPropFilters: 0,
+              totalEnemyFilters: 0,
+              activePropFilterSprites: 0,
+              activeEnemyFilterSprites: 0,
+              activeDamageFilters: 0,
+              worldFiltersCount: 0,
+            },
+            sprites: { visibleSprites: 0, totalSprites: 0 },
+            activeAnimations: 0,
+            activeDamageTexts: 0,
+            fovTiles: 320,
+            exploredTiles: 1200,
+            rememberedPropsCount: 18,
+            rememberedItemsCount: 7,
+          },
+          eventBusTelemetry: {
+            eventsPerSec: 62.4,
+            totalEmissions: 1850,
+            discreteEmissions: 50,
+            fovEmissions: 1800,
+            handlerCount: 42,
+            queueLength: 0,
+          },
+        },
+      });
+    });
+
+    render(<PerfMonitorWidget />);
+
+    expect(screen.getByText('ARCHETYPE CENSUS')).toBeInTheDocument();
+    expect(screen.getByText(/HOSTILE: 8/i)).toBeInTheDocument();
+    expect(screen.getByText(/DYING: 2/i)).toBeInTheDocument();
+    expect(screen.getByText(/LOCK: 5/i)).toBeInTheDocument();
+    expect(screen.getByText(/CORRUPT: 3/i)).toBeInTheDocument();
+    expect(screen.getByText(/SEARCHED: 10/i)).toBeInTheDocument();
+    expect(screen.getByText(/CHILD\/INV: 12/i)).toBeInTheDocument();
+
+    // Top 6 stores
+    expect(screen.getByText('• TOP 6 STORES')).toBeInTheDocument();
+    expect(screen.getByText('140')).toBeInTheDocument(); // position: 140
+
+    // FOV & Fog memory
+    expect(screen.getByText('320 ACTIVE / 1200 EXPLORED')).toBeInTheDocument();
+    expect(screen.getByText('PROPS: 18 | ITEMS: 7')).toBeInTheDocument();
+
+    // EventBus Throughput
+    expect(screen.getByText('62.4 evt/s')).toBeInTheDocument();
+    expect(screen.getByText('1800')).toBeInTheDocument(); // 60Hz FOV
+    expect(screen.getByText('50')).toBeInTheDocument(); // Discrete
+  });
 });

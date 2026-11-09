@@ -271,6 +271,8 @@ export function PerfMonitorWidget({
         };
 
         const leakDiff = perfCollector.computeLeakDiff(currentCensus);
+        const archetypeCensus = perfCollector.getArchetypeCensus();
+        const eventBusTelemetry = perfCollector.getEventBusTelemetry();
 
         updateThrottledSnapshot({
           metrics,
@@ -287,6 +289,8 @@ export function PerfMonitorWidget({
           baselineSnapshot,
           leakDiff,
           spikeForensics,
+          archetypeCensus,
+          eventBusTelemetry,
         });
       });
     }, 250);
@@ -1351,6 +1355,16 @@ function renderGpuTab(
 function renderEcsTab(data: ReturnType<typeof usePerfStore.getState>['throttledData']) {
   const ecs = data.ecsDiagnostics;
   const grid = data.gridDiagnostics;
+  const census = data.archetypeCensus;
+  const evtBus = data.eventBusTelemetry;
+  const render = data.renderTelemetry;
+
+  // Top 6 component stores sorted descending by instance count
+  const topStores = ecs?.storeSizes
+    ? Object.entries(ecs.storeSizes)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 6)
+    : [];
 
   return (
     <>
@@ -1358,24 +1372,110 @@ function renderEcsTab(data: ReturnType<typeof usePerfStore.getState>['throttledD
         <span className={styles.dataLabel}>TOTAL LIVE ENTITIES</span>
         <span className={styles.dataVal}>{ecs?.entityCount ?? 0}</span>
       </div>
+
+      {/* 1. Entity Archetype Census */}
+      <div className={styles.sectionHeader} style={{ marginTop: 4, marginBottom: 2, fontSize: 9, color: 'var(--c-accent-secondary, #00f0ff)' }}>
+        ARCHETYPE CENSUS
+      </div>
+      <div className={styles.dataRow}>
+        <span className={styles.dataLabel}>• ACTORS</span>
+        <span className={styles.dataVal}>
+          PLAYER: <strong>{census?.playerCount ?? 0}</strong>{' '}
+          <span className={styles.dataSub}>
+            (HOSTILE: {census?.hostileCount ?? 0} | DYING: {census?.dyingCount ?? 0})
+          </span>
+        </span>
+      </div>
+      <div className={styles.dataRow}>
+        <span className={styles.dataLabel}>• PROPS</span>
+        <span className={styles.dataVal}>
+          TOTAL: <strong>{census?.totalProps ?? 0}</strong>{' '}
+          <span className={styles.dataSub}>
+            (LOCK: {census?.lockedProps ?? 0} | CORRUPT: {census?.corruptedProps ?? 0} | SEARCHED: {census?.searchedProps ?? 0})
+          </span>
+        </span>
+      </div>
+      <div className={styles.dataRow}>
+        <span className={styles.dataLabel}>• ITEMS & GEAR</span>
+        <span className={styles.dataVal}>
+          GROUND: <strong>{census?.groundItems ?? 0}</strong>{' '}
+          <span className={styles.dataSub}>(CHILD/INV: {census?.childItems ?? 0})</span>
+        </span>
+      </div>
+      <div className={styles.dataRow}>
+        <span className={styles.dataLabel}>• HAZARDS</span>
+        <span className={styles.dataVal}>
+          DEAD ZONE: <strong>{census?.deadZones ?? 0}</strong>{' '}
+          <span className={styles.dataSub}>(CORRUPTION: {census?.corruptions ?? 0})</span>
+        </span>
+      </div>
+
+      {/* 2. Component Stores & Top 6 */}
+      <div className={styles.divider} />
       <div className={styles.dataRow} {...getPerfTooltipAttrs('ecsComponentStores')}>
         <span className={styles.dataLabel}>COMPONENT STORES</span>
         <span className={styles.dataVal}>
           {ecs?.storeCount ?? 0} <span className={styles.dataSub}>({ecs?.totalComponentInstances ?? 0} inst)</span>
         </span>
       </div>
+      {topStores.length > 0 && (
+        <div className={styles.dataRow}>
+          <span className={styles.dataLabel}>• TOP 6 STORES</span>
+          <span className={styles.dataVal} style={{ fontSize: 9, display: 'flex', flexWrap: 'wrap', gap: '3px 6px', justifyContent: 'flex-end' }}>
+            {topStores.map(([name, size]) => (
+              <span key={name} style={{ background: 'rgba(28,38,56,0.6)', padding: '0 3px', borderRadius: 2 }}>
+                {name}: <strong style={{ color: '#00f0ff' }}>{size}</strong>
+              </span>
+            ))}
+          </span>
+        </div>
+      )}
+
+      {/* 3. Spatial Grid & FOV Coverage */}
       <div className={styles.divider} />
       <div className={styles.dataRow} {...getPerfTooltipAttrs('ecsSpatialGrid')}>
         <span className={styles.dataLabel}>SPATIAL GRID</span>
         <span className={styles.dataVal}>
-          {grid?.width ?? 80} × {grid?.height ?? 45}{' '}
-          <span className={styles.dataSub}>(ENT CELLS: {grid?.occupiedEntityCells ?? 0})</span>
+          {grid?.width ?? 80} × {grid?.height ?? 45} ({(grid?.width ?? 80) * (grid?.height ?? 45)} TILES){' '}
+          <span className={styles.dataSub}>
+            (ENT: {grid?.occupiedEntityCells ?? 0} | ITEM: {grid?.groundItemCells ?? 0})
+          </span>
         </span>
       </div>
-      <div className={styles.dataRow} {...getPerfTooltipAttrs('ecsGroundItemCells')}>
-        <span className={styles.dataLabel}>GROUND ITEM CELLS</span>
-        <span className={styles.dataVal}>{grid?.groundItemCells ?? 0}</span>
+      <div className={styles.dataRow}>
+        <span className={styles.dataLabel}>FOV COVERAGE</span>
+        <span className={styles.dataVal}>
+          {render?.fovTiles ?? 0} ACTIVE / {render?.exploredTiles ?? 0} EXPLORED
+        </span>
       </div>
+      <div className={styles.dataRow}>
+        <span className={styles.dataLabel}>FOG MEMORY CACHE</span>
+        <span className={styles.dataVal}>
+          PROPS: {render?.rememberedPropsCount ?? 0} | ITEMS: {render?.rememberedItemsCount ?? 0}
+        </span>
+      </div>
+
+      {/* 4. EventBus Throughput */}
+      <div className={styles.divider} />
+      <div className={styles.dataRow}>
+        <span className={styles.dataLabel}>EVENTBUS THROUGHPUT</span>
+        <span className={styles.dataVal}>
+          <strong style={{ color: '#d8ff00' }}>{evtBus?.eventsPerSec ?? 0} evt/s</strong>{' '}
+          <span className={styles.dataSub}>
+            (TOTAL: {evtBus?.totalEmissions ?? 0} | HANDLERS: {evtBus?.handlerCount ?? 0})
+          </span>
+        </span>
+      </div>
+      <div className={styles.dataRow}>
+        <span className={styles.dataLabel}>• CHURN SEPARATION</span>
+        <span className={styles.dataVal}>
+          60Hz FOV: <strong>{evtBus?.fovEmissions ?? 0}</strong>{' '}
+          <span className={styles.dataSub}>
+            (DISCRETE: <strong style={{ color: '#00f0ff' }}>{evtBus?.discreteEmissions ?? 0}</strong>)
+          </span>
+        </span>
+      </div>
+
       <div className={styles.dataRow} {...getPerfTooltipAttrs('ecsRegisteredSystems')}>
         <span className={styles.dataLabel}>REGISTERED SYSTEMS</span>
         <span className={styles.dataVal}>{ecs?.systemCount ?? 0}</span>
