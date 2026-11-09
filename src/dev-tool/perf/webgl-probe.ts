@@ -62,6 +62,14 @@ export class WebGLProbe {
   private programSwitches = 0;
   private textureBinds = 0;
 
+  // Pre-allocated frame stats to avoid 60Hz heap allocations
+  private cachedFrameStats: WebGLFrameStats = {
+    drawCalls: 0,
+    triangles: 0,
+    programSwitches: 0,
+    textureBinds: 0,
+  };
+
   // Original Method Backups
   private origDrawElements: WebGLRenderingContext['drawElements'] | null = null;
   private origDrawArrays: WebGLRenderingContext['drawArrays'] | null = null;
@@ -232,12 +240,11 @@ export class WebGLProbe {
   }
 
   public getFrameStats(): WebGLFrameStats {
-    return {
-      drawCalls: this.drawCalls,
-      triangles: Math.round(this.triangles),
-      programSwitches: this.programSwitches,
-      textureBinds: this.textureBinds,
-    };
+    this.cachedFrameStats.drawCalls = this.drawCalls;
+    this.cachedFrameStats.triangles = Math.round(this.triangles);
+    this.cachedFrameStats.programSwitches = this.programSwitches;
+    this.cachedFrameStats.textureBinds = this.textureBinds;
+    return this.cachedFrameStats;
   }
 
   public getTextureMemory(): TextureMemoryBreakdown {

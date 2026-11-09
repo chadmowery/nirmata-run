@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { UPDATE_PRIORITY } from 'pixi.js';
 import { createGame, destroyGame, setTurnTelemetryHook } from '@/game/setup';
 import { loadAssets } from '@/rendering/assets';
 import { initRenderer, destroyRenderer, getApp } from '@/rendering/renderer';
@@ -57,6 +58,8 @@ export default function GamePage() {
   const renderSystemRef = useRef<ReturnType<typeof createRenderSystem> | null>(null);
   const gameAudioSystemRef = useRef<GameAudioSystem | null>(null);
   const tickerCallbackRef = useRef<(() => void) | null>(null);
+  const perfTickerCallbackRef = useRef<(() => void) | null>(null);
+  const unsubscribePerfModeRef = useRef<(() => void) | null>(null);
   const webglProbeRef = useRef<import('@dev-tool/perf/webgl-probe').WebGLProbe | null>(null);
   const perfCollectorRef = useRef<import('@dev-tool/perf/perf-collector').PerfCollector | null>(null);
   const [engineReady, setEngineReady] = useState(false);
@@ -154,40 +157,58 @@ export default function GamePage() {
       renderSystem.init();
       renderSystemRef.current = renderSystem;
 
-      // Start rendering loop sync
+      // Start rendering loop sync (Normal priority: executes world and stage updates)
       const tickerCallback = () => {
         renderSystem.renderSystem();
-        if (perfCollectorRef.current) {
-          const telemetry = renderSystem.getRenderTelemetry();
-          const stats = webglProbeRef.current?.getFrameStats() ?? {
-            drawCalls: 0,
-            triangles: 0,
-            programSwitches: 0,
-            textureBinds: 0,
-          };
-          perfCollectorRef.current.recordFrame(app.ticker.deltaMS, telemetry.stageTimings, stats);
-          webglProbeRef.current?.resetFrame();
-        }
       };
       app.ticker.add(tickerCallback);
       tickerCallbackRef.current = tickerCallback;
 
       // Attach Development Performance Instrumentation
       if (process.env.NODE_ENV === 'development') {
-        import('@dev-tool/perf/webgl-probe').then(({ WebGLProbe }) => {
+        Promise.all([
+          import('@dev-tool/perf/webgl-probe'),
+          import('@dev-tool/perf/perf-collector'),
+          import('@dev-tool/perf/perf-store'),
+        ]).then(([{ WebGLProbe }, { perfCollector }, { usePerfStore }]) => {
           const probe = new WebGLProbe(app);
-          probe.attach();
           webglProbeRef.current = probe;
-          import('@dev-tool/perf/perf-collector').then(({ perfCollector }) => {
-            perfCollector.setProbe(probe);
-            perfCollector.setContext(context);
-            perfCollector.setRenderSystem(renderSystem);
-            perfCollectorRef.current = perfCollector;
-          });
-        });
+          perfCollector.setProbe(probe);
+          perfCollector.setContext(context);
+          perfCollector.setRenderSystem(renderSystem);
+          perfCollectorRef.current = perfCollector;
 
-        import('@dev-tool/perf/perf-collector').then(({ perfCollector }) => {
-          setTurnTelemetryHook((telemetry) => perfCollector.recordTurnTelemetry(telemetry));
+          const syncMode = (mode: string) => {
+            if (mode === 'OFF') {
+              probe.detach();
+              renderSystem.setDevRenderFlags({ measureTimings: false });
+              setTurnTelemetryHook(null);
+            } else {
+              probe.attach();
+              renderSystem.setDevRenderFlags(usePerfStore.getState().bisectionFlags);
+              setTurnTelemetryHook((telemetry) => perfCollector.recordTurnTelemetry(telemetry));
+            }
+          };
+
+          syncMode(usePerfStore.getState().mode);
+          unsubscribePerfModeRef.current = usePerfStore.subscribe((state) => {
+            syncMode(state.mode);
+          });
+
+          const perfTicker = () => {
+            if (usePerfStore.getState().mode === 'OFF') return;
+            const stageTimings = renderSystem.getStageTimings();
+            const stats = probe.getFrameStats();
+            perfCollector.recordFrame(
+              app.ticker.deltaMS,
+              stageTimings,
+              stats,
+              (stats as { renderPassMs?: number }).renderPassMs ?? 0,
+            );
+            probe.resetFrame();
+          };
+          perfTickerCallbackRef.current = perfTicker;
+          app.ticker.add(perfTicker, undefined, UPDATE_PRIORITY.UTILITY);
         });
 
         context.eventBus.on('ENTITY_CREATED', () =>
@@ -257,7 +278,16 @@ export default function GamePage() {
       if (app && tickerCallbackRef.current) {
         app.ticker.remove(tickerCallbackRef.current);
         tickerCallbackRef.current = null;
-
+      }
+      if (app && perfTickerCallbackRef.current) {
+        app.ticker.remove(perfTickerCallbackRef.current);
+        perfTickerCallbackRef.current = null;
+      }
+      if (unsubscribePerfModeRef.current) {
+        unsubscribePerfModeRef.current();
+        unsubscribePerfModeRef.current = null;
+      }
+      if (app) {
         // 3. Clear Stage - Important to remove the worldContainer
         app.stage.removeChildren();
       }

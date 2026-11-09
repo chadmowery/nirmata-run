@@ -149,9 +149,13 @@ export function PerfMonitorWidget({
   // Sync Bisection Flags with RenderSystem
   useEffect(() => {
     if (renderSystem?.setDevRenderFlags) {
-      renderSystem.setDevRenderFlags(bisectionFlags);
+      if (mode === 'OFF') {
+        renderSystem.setDevRenderFlags({ measureTimings: false });
+      } else {
+        renderSystem.setDevRenderFlags(bisectionFlags);
+      }
     }
-  }, [bisectionFlags, renderSystem]);
+  }, [bisectionFlags, renderSystem, mode]);
 
   // Sync Spike Trap Threshold with Collector
   useEffect(() => {

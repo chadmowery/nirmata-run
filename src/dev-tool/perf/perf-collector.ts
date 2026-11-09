@@ -180,7 +180,10 @@ export class PerfCollector {
     webglStats: WebGLFrameStats,
     webglPassMs = 0,
   ): void {
-    this.latestWebglStats = { ...webglStats };
+    this.latestWebglStats.drawCalls = webglStats.drawCalls;
+    this.latestWebglStats.triangles = webglStats.triangles;
+    this.latestWebglStats.programSwitches = webglStats.programSwitches;
+    this.latestWebglStats.textureBinds = webglStats.textureBinds;
     if (this.isFrozen) return;
 
     // Spike Trap Auto-Freeze Trigger

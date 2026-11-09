@@ -124,6 +124,7 @@ export interface RenderSystem {
   getCameraZoom(): number;
   setCameraZoom(zoom: number): void;
   getCameraPanOffset(): { x: number; y: number };
+  getStageTimings(): Readonly<RenderStageTimings>;
   getRenderTelemetry(): RenderTelemetry;
   setDevRenderFlags(flags: Partial<DevRenderBisectionFlags>): void;
 }
@@ -1435,6 +1436,10 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
     getCameraPanOffset(): { x: number; y: number } {
       return { ...cameraPanOffset };
+    },
+
+    getStageTimings(): Readonly<RenderStageTimings> {
+      return latestStageTimings;
     },
 
     getRenderTelemetry(): RenderTelemetry {
