@@ -10,6 +10,7 @@ import {
   LeakBaselineSnapshot,
   LeakDiff,
   SpikeForensicsCard,
+  perfCollector,
 } from './perf-collector';
 
 export type PerfDisplayMode = 'OFF' | 'MINI' | 'STANDARD' | 'EXPANDED';
@@ -55,6 +56,7 @@ export interface PerfStoreState {
   setDockPosition: (pos: PerfDockPosition) => void;
   setSpikeTrapThreshold: (threshold: number) => void;
   togglePause: () => void;
+  setPaused: (paused: boolean) => void;
   setBisectionFlag: (key: keyof DevRenderBisectionFlags, value: boolean) => void;
   updateThrottledSnapshot: (data: Partial<PerfThrottledData>) => void;
 }
@@ -135,8 +137,15 @@ const initialThrottledData: PerfThrottledData = {
   spikeForensics: null,
 };
 
-export const usePerfStore = create<PerfStoreState>((set, get) => ({
-  mode: saved.mode ?? 'OFF',
+export const usePerfStore = create<PerfStoreState>((set, get) => {
+  perfCollector.setOnFreezeCallback((frozen) => {
+    if (get().isPaused !== frozen) {
+      set({ isPaused: frozen });
+    }
+  });
+
+  return {
+    mode: saved.mode ?? 'OFF',
   lastActiveMode: saved.mode && saved.mode !== 'OFF' ? saved.mode : 'STANDARD',
   activeTab: saved.activeTab ?? 'GPU',
   ghostMode: false,
@@ -234,7 +243,16 @@ export const usePerfStore = create<PerfStoreState>((set, get) => ({
   },
 
   togglePause: () => {
-    set((state) => ({ isPaused: !state.isPaused }));
+    set((state) => {
+      const next = !state.isPaused;
+      perfCollector.setFrozen(next);
+      return { isPaused: next };
+    });
+  },
+
+  setPaused: (paused) => {
+    perfCollector.setFrozen(paused);
+    set({ isPaused: paused });
   },
 
   setBisectionFlag: (key, value) => {
@@ -254,4 +272,5 @@ export const usePerfStore = create<PerfStoreState>((set, get) => ({
       },
     }));
   },
-}));
+};
+});

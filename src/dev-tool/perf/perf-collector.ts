@@ -153,6 +153,12 @@ export class PerfCollector {
     return this.spikeTrapThresholdMs;
   }
 
+  private onFreezeCallback?: (frozen: boolean) => void;
+
+  public setOnFreezeCallback(cb?: (frozen: boolean) => void): void {
+    this.onFreezeCallback = cb;
+  }
+
   public getActiveSpikeCard(): SpikeForensicsCard | null {
     return this.activeSpikeCard;
   }
@@ -160,10 +166,15 @@ export class PerfCollector {
   public clearSpikeCard(): void {
     this.activeSpikeCard = null;
     this.isFrozen = false;
+    this.onFreezeCallback?.(false);
   }
 
   public setFrozen(frozen: boolean): void {
     this.isFrozen = frozen;
+    if (!frozen) {
+      this.activeSpikeCard = null;
+    }
+    this.onFreezeCallback?.(frozen);
   }
 
   public getIsFrozen(): boolean {
@@ -201,6 +212,7 @@ export class PerfCollector {
         recentEvents: [...this.recentEventsRing],
         timestamp: Date.now(),
       };
+      this.onFreezeCallback?.(true);
     }
 
     const idx = this.head;

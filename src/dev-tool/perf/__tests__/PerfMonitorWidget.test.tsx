@@ -321,4 +321,58 @@ describe('PerfMonitorWidget', () => {
     render(<PerfMonitorWidget />);
     expect(screen.getByText('[F3 / Alt+P: HIDE]')).toBeInTheDocument();
   });
+
+  it('displays rolling Avg FPS and Frame Jitter in summary metrics row and syncs pause state with collector', () => {
+    act(() => {
+      usePerfStore.setState({
+        mode: 'STANDARD',
+        throttledData: {
+          ...usePerfStore.getState().throttledData,
+          metrics: {
+            fpsCurrent: 58.5,
+            fpsAvg: 59.2,
+            fpsOnePercentLow: 52.0,
+            frameTimeMs: 17.1,
+            frameTimeJitter: 0.85,
+          },
+        },
+      });
+    });
+
+    render(<PerfMonitorWidget />);
+
+    expect(screen.getByText(/\(AVG:/i)).toBeInTheDocument();
+    expect(screen.getByText('59.2')).toBeInTheDocument();
+    expect(screen.getByText(/\(σ:/i)).toBeInTheDocument();
+    expect(screen.getByText('0.85ms')).toBeInTheDocument();
+
+    // Pause toggle syncs with perfCollector
+    const pauseBtn = screen.getByRole('button', { name: /⏸/i });
+    fireEvent.click(pauseBtn);
+    expect(usePerfStore.getState().isPaused).toBe(true);
+    expect(perfCollector.getIsFrozen()).toBe(true);
+
+    fireEvent.click(pauseBtn);
+    expect(usePerfStore.getState().isPaused).toBe(false);
+    expect(perfCollector.getIsFrozen()).toBe(false);
+  });
+
+  it('supports scrubbing on STANDARD mode oscilloscope canvas', () => {
+    act(() => {
+      usePerfStore.setState({ mode: 'STANDARD' });
+    });
+
+    const { container } = render(<PerfMonitorWidget />);
+    const canvas = container.querySelector('canvas');
+    expect(canvas).toBeInTheDocument();
+
+    // Hover over canvas to scrub
+    fireEvent.mouseMove(canvas!, { clientX: 180, clientY: 35 });
+    expect(screen.getByText(/TOTAL FRAME:/i)).toBeInTheDocument();
+    expect(screen.getByText(/CPU RENDER:/i)).toBeInTheDocument();
+
+    // Mouse leave clears scrub hover card
+    fireEvent.mouseLeave(canvas!);
+    expect(screen.queryByText(/TOTAL FRAME:/i)).toBeNull();
+  });
 });

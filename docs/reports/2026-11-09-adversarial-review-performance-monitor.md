@@ -28,7 +28,7 @@ Despite passing surface-level unit tests, the implementation contains **3 Critic
 | **`CRIT-01`** | **P0 (Critical)** | `@dev-tool` / `@app` | **RESOLVED** — `captureCurrentSnapshot()` gathers live engine census (entities, components, entity sprites, tilemap pool, filters, textures, VRAM, audio voices, JS heap) across UI, terminal, and debug API; auto-baselines on Floor 1 boot and audits floor transitions via `recordFloorTransitionSnapshot()`; expanded 9-row diff audit table with threshold alerts and floor history. |
 | **`CRIT-02`** | **P0 (Critical)** | `@app` / `@rendering` / `@dev-tool` | **RESOLVED** — Zero-overhead when `OFF` via synchronized detachment and zero-allocation 60Hz tick via `getStageTimings()`, pre-allocated stats, and in-place collector updates. |
 | **`CRIT-03`** | **P0 (Critical)** | `@dev-tool` / `@app` / `@rendering` | **RESOLVED** — Stage 6 `WebGL Render Pass (ms)` wrapped and measured via `renderer.render`, wired to budget bar/legend (`GL`), and scrub card reads `webglTimes`. |
-| **`HIGH-01`** | **P1 (High)** | `@dev-tool` | **Pause (`isPaused`) vs. Collector Freeze (`isFrozen`) Desync Corrupts Scrubbing & Suppresses Crosshair Rendering While Paused (Spec §3.5.2, §4.1)**: Clicking `[⏸]` or clicking the waveform canvas sets `usePerfStore.isPaused = true` without calling `perfCollector.setFrozen(true)`. Ring buffers continue overwriting at 60Hz while paused, so scrubbing a "paused" waveform reads live mutating frames that do not match the frozen canvas image. Worse, `renderWaveforms` skips drawing when `isPaused === true`, so the scrub crosshair and sample dots never render while paused, and switching modes while paused yields a blank canvas. |
+| **`HIGH-01`** | **P1 (High)** | `@dev-tool` | **RESOLVED** — Synchronized `isPaused` and `perfCollector.setFrozen()` via bidirectional freeze callbacks; eliminated `!isPaused` guard from `renderWaveforms` allowing scrub crosshairs and reticle dots to render while paused without canvas stalling. |
 | **`HIGH-02`** | **P1 (High)** | `@dev-tool` | **RESOLVED** — PixiJS 8 `WebGLProbe.getTextureMemory()` accurately categorizes `TextureSource` instances (FBOs with `resource: null` and `uploadMethodId: 'unknown'`) and calculates physical pixel VRAM on Retina displays. |
 | **`HIGH-03`** | **P1 (High)** | `@rendering` / `@dev-tool` | **RESOLVED** — Full bisection state restoration (outlines, heat ghosting, world desaturation/heat tier), enemy persistent glitch tracking, and `ENTITY SPRITE MAP` row in `GPU` tab. |
 | **`HIGH-04`** | **P1 (High)** | `@dev-tool` / `@rendering` / `@engine` | **Domain 2 (`ECS / WORLD`) Omits Entity Archetype Census, Top 6 Component Stores, FOV / Fog Memory Coverage, and EventBus Throughput (Spec §3.2)**: `renderEcsTab()` renders only 5 basic numbers, omitting Actor/Hostile/Condemned/Prop/Loot/Child/Hazard archetype counts, top 6 component stores from `ecsDiagnostics.storeSizes`, active FOV vs. explored tiles and `rememberedProps`/`rememberedTileItems` cache counts, and `EventBus` `evt/s` + `FOV_UPDATED` churn separation (`EventBus.getDiagnostics()` is never called). |
@@ -37,7 +37,7 @@ Despite passing surface-level unit tests, the implementation contains **3 Critic
 | **`MED-01`** | **P2 (Medium)** | `@dev-tool` / `@app` | **Spike Trap Forensics Card Omits Sub-Stage Breakdown & Per-Frame Emitted Events (Spec §3.5.2)**: `SpikeBanner` only displays `frameDurationMs` and `thresholdMs`, ignoring `spikeForensics.stageTimings`, `webglStats`, and `recentEvents`. `page.tsx` only listens to 4 hardcoded event types (without cleanup on destroy) and `recentEventsRing` is never cleared between frames. |
 | **`MED-02`** | **P2 (Medium)** | `@dev-tool` / `@app` | **Broken macOS `Alt+P` / `Shift+Alt+P` Hotkeys (`e.key === 'π'`), Top-Left HUD Occlusion, and Missing Drag-to-Corner Docking (Spec §2, §4.1, §5.3)**: `page.tsx` checks `e.key === 'p' || e.key === 'P'` under `e.altKey`, which fails on macOS where Option+P emits `e.key = 'π'` (`e.code = 'KeyP'`). Also `Ctrl+Shift+P` (`isCtrlShiftP`) toggles instead of cycling when `Shift` is held. `.posTopLeft` (`top: 12px; left: 12px`) overlaps the top HUD ribbon instead of docking below it, and magnetic drag-to-corner docking is unimplemented (`MINI` mode has no dock controls at all). |
 | **`MED-03`** | **P2 (Medium)** | `@rendering` | **RESOLVED** — `cacheStaticFov` and `cacheStaticTilemap` invalidated upon `STATE_RECONCILED`, `PROP_INTERACTED`, `LOCK_UNLOCKED`, `ITEM_PICKED_UP`, and `DUNGEON_GENERATED`. |
-| **`MED-04`** | **P2 (Medium)** | `@dev-tool` | **Missing `Avg FPS` & `Frame Jitter (σ)` Readouts and Unwired `STANDARD` Mode Oscilloscope Scrubbing (Spec §3.1, §4.1)**: `computeRollingMetrics()` calculates `fpsAvg` and `frameTimeJitter` ($\sigma$), but neither is rendered in the UI. `STANDARD` mode's oscilloscope `<canvas>` tooltip promises click/drag frame scrubbing, but no mouse handlers are attached in `STANDARD` mode. |
+| **`MED-04`** | **P2 (Medium)** | `@dev-tool` | **RESOLVED** — Rendered `Avg FPS` and `Jitter σ` in summary metrics row; wired click/drag scrubbing, scrub canvas container, and scrub hover cards to `STANDARD` mode oscilloscope canvas. |
 | **`LOW-01`** | **P3 (Low)** | `@app` / `@engine` | **RESOLVED** — Production Bundle & Runtime Hygiene (`next/dynamic` ternary in `page.tsx` & `EventBus` diagnostic gating). |
 | **`LOW-02`** | **P3 (Low)** | `@dev-tool` | **RESOLVED** — Removed duplicate `renderSystem.setDevRenderFlags` call in `handleToggle`, deferring to `useEffect`. |
 
@@ -132,7 +132,7 @@ Despite passing surface-level unit tests, the implementation contains **3 Critic
 
 ---
 
-### `HIGH-01` (P1 High): Pause (`isPaused`) vs. Collector Freeze (`isFrozen`) Desync Corrupts Scrubbing & Suppresses Crosshair Rendering While Paused
+### `HIGH-01` (P1 High): [RESOLVED] Pause (`isPaused`) vs. Collector Freeze (`isFrozen`) Desync Corrupts Scrubbing & Suppresses Crosshair Rendering While Paused
 
 - **Locations**:
   - [`src/dev-tool/perf/perf-store.ts:235-237`](../../src/dev-tool/perf/perf-store.ts#L235-L237)
@@ -288,7 +288,7 @@ Despite passing surface-level unit tests, the implementation contains **3 Critic
 
 ---
 
-### `MED-04` (P2 Medium): Missing `Avg FPS` & `Frame Jitter (σ)` Readouts and Unwired `STANDARD` Mode Oscilloscope Scrubbing
+### `MED-04` (P2 Medium): [RESOLVED] Missing `Avg FPS` & `Frame Jitter (σ)` Readouts and Unwired `STANDARD` Mode Oscilloscope Scrubbing
 
 - **Locations**:
   - [`src/dev-tool/perf/PerfMonitorWidget.tsx:681-700, 712-718`](../../src/dev-tool/perf/PerfMonitorWidget.tsx#L681-L718)

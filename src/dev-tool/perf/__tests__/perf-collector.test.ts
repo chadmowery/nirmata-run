@@ -162,4 +162,33 @@ describe('PerfCollector', () => {
     expect(collector.getFloorHistory()).toHaveLength(2);
     expect(collector.getBaselineSnapshot()).toBe(snap1);
   });
+
+  it('notifies onFreezeCallback when frozen, unpaused, or tripped by spike trap', () => {
+    const freezeEvents: boolean[] = [];
+    collector.setOnFreezeCallback((frozen) => {
+      freezeEvents.push(frozen);
+    });
+
+    collector.setFrozen(true);
+    expect(collector.getIsFrozen()).toBe(true);
+    expect(freezeEvents).toEqual([true]);
+
+    collector.setFrozen(false);
+    expect(collector.getIsFrozen()).toBe(false);
+    expect(freezeEvents).toEqual([true, false]);
+
+    // Spike trap auto freeze notifies callback
+    collector.setSpikeTrapThreshold(20);
+    collector.recordFrame(
+      35.0,
+      { fovMs: 1, tilemapMs: 1, spriteSyncMs: 1, vfxMs: 1, hoverMs: 1, totalCpuMs: 5 },
+      { drawCalls: 10, triangles: 100, programSwitches: 1, textureBinds: 2 },
+    );
+    expect(collector.getIsFrozen()).toBe(true);
+    expect(freezeEvents).toEqual([true, false, true]);
+
+    collector.clearSpikeCard();
+    expect(collector.getIsFrozen()).toBe(false);
+    expect(freezeEvents).toEqual([true, false, true, false]);
+  });
 });

@@ -147,6 +147,50 @@ export function PerfMonitorWidget({
     );
   };
 
+  const renderScrubHoverCard = () => {
+    if (!scrubData) return null;
+    return (
+      <div
+        className={styles.scrubHoverCard}
+        style={{
+          left:
+            scrubData.clientX > 195
+              ? scrubData.clientX - 184 - 14
+              : scrubData.clientX + 14,
+          top: 6,
+        }}
+      >
+        <div className={styles.scrubCardHeader}>
+          <span className={styles.scrubFrameTag}>FRAME #{scrubData.frameIndex}</span>
+          <span className={styles.scrubOffset}>(-{scrubData.timeAgo}s)</span>
+          <span className={scrubData.isSpike ? styles.scrubBadgeSpike : styles.scrubBadgeOk}>
+            {scrubData.isSpike ? 'SPIKE >16.7ms' : '60 FPS OK'}
+          </span>
+        </div>
+        <div className={styles.scrubRow}>
+          <span style={{ color: '#d8ff00' }}>TOTAL FRAME:</span>
+          <strong style={{ color: '#d8ff00' }}>{scrubData.frameTime.toFixed(2)} ms</strong>
+        </div>
+        <div className={styles.scrubRow}>
+          <span style={{ color: '#00f0ff' }}>CPU RENDER:</span>
+          <strong style={{ color: '#00f0ff' }}>{scrubData.cpuTime.toFixed(2)} ms</strong>
+        </div>
+        <div className={styles.scrubSubBreakdown}>
+          <span>FOV: {scrubData.fov.toFixed(2)}ms</span>
+          <span>TILE: {scrubData.tilemap.toFixed(2)}ms</span>
+          <span>SPRITE: {scrubData.sprite.toFixed(2)}ms</span>
+          <span>VFX: {scrubData.vfx.toFixed(2)}ms</span>
+          <span>HOVER: {scrubData.hover.toFixed(2)}ms</span>
+          <span>GL: {scrubData.webgl.toFixed(2)}ms</span>
+        </div>
+        <div className={styles.scrubRow}>
+          <span style={{ color: '#a0b0c0' }}>WEBGL DRAWS:</span>
+          <strong>{scrubData.drawCalls} DC</strong>
+        </div>
+      </div>
+    );
+  };
+
   // Sync Bisection Flags with RenderSystem
   useEffect(() => {
     if (renderSystem?.setDevRenderFlags) {
@@ -288,7 +332,7 @@ export function PerfMonitorWidget({
       }
 
       // 2. Standard Mode Oscilloscope (120 frames = 2.0s)
-      if (mode === 'STANDARD' && oscilloscopeRef.current && !isPaused) {
+      if (mode === 'STANDARD' && oscilloscopeRef.current) {
         const canvas = oscilloscopeRef.current;
         const ctx = canvas.getContext('2d');
         if (ctx) {
@@ -349,11 +393,51 @@ export function PerfMonitorWidget({
             else ctx.lineTo(i * stepX, y);
           }
           ctx.stroke();
+
+          // Draw Scrub Crosshair and Sample Dots if Hovered
+          if (scrubPosRef.current !== null) {
+            const sx = scrubPosRef.current.x;
+            ctx.strokeStyle = '#ffffff';
+            ctx.setLineDash([2, 2]);
+            ctx.beginPath();
+            ctx.moveTo(sx, 0);
+            ctx.lineTo(sx, h);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Reticle sample dots on the lines
+            const frameOffset = Math.floor((sx / w) * framesToDraw);
+            const clampedOffset = Math.max(0, Math.min(framesToDraw - 1, frameOffset));
+            const targetIdx = (head - framesToDraw + clampedOffset + HIST_SIZE) % HIST_SIZE;
+
+            const t = perfCollector.frameTimes[targetIdx] || 0;
+            const cpu =
+              perfCollector.fovTimes[targetIdx] +
+              perfCollector.tilemapTimes[targetIdx] +
+              perfCollector.spriteTimes[targetIdx] +
+              perfCollector.vfxTimes[targetIdx] +
+              perfCollector.hoverTimes[targetIdx];
+
+            const yFrame = Math.max(2, Math.min(h - 2, h - (t / 40.0) * h));
+            const yCpu = Math.max(2, Math.min(h - 2, h - (cpu / 40.0) * h));
+
+            // Yellow dot on Frame Time line
+            ctx.fillStyle = '#d8ff00';
+            ctx.beginPath();
+            ctx.arc(sx, yFrame, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Cyan dot on CPU Render line
+            ctx.fillStyle = '#00f0ff';
+            ctx.beginPath();
+            ctx.arc(sx, yCpu, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
       }
 
       // 3. Expanded Mode Oscilloscope (240 frames = 4.0s)
-      if (mode === 'EXPANDED' && expandedOscilloscopeRef.current && !isPaused) {
+      if (mode === 'EXPANDED' && expandedOscilloscopeRef.current) {
         const canvas = expandedOscilloscopeRef.current;
         const ctx = canvas.getContext('2d');
         if (ctx) {
@@ -682,7 +766,8 @@ export function PerfMonitorWidget({
           <div className={styles.metricItem} {...getPerfTooltipAttrs('metricFps')}>
             FPS: <span className={styles.metricValue} style={{ color: fpsColor }}>{fps.toFixed(1)}</span>{' '}
             <span {...getPerfTooltipAttrs('metricFpsLow')}>
-              (1% LOW: <span className={styles.metricValue}>{throttledData.metrics.fpsOnePercentLow.toFixed(1)}</span>)
+              (AVG: <span className={styles.metricValue}>{throttledData.metrics.fpsAvg.toFixed(1)}</span> | 1% LOW:{' '}
+              <span className={styles.metricValue}>{throttledData.metrics.fpsOnePercentLow.toFixed(1)}</span>)
             </span>
           </div>
           <div className={styles.metricItem} {...getPerfTooltipAttrs('metricFrameTime')}>
@@ -691,7 +776,7 @@ export function PerfMonitorWidget({
               {throttledData.metrics.frameTimeMs.toFixed(2)} ms
             </span>{' '}
             <span {...getPerfTooltipAttrs('metricBudget')}>
-              ({budgetPct}% BUDGET)
+              (σ: <span className={styles.metricValue}>{throttledData.metrics.frameTimeJitter.toFixed(2)}ms</span> | {budgetPct}% BUDGET)
             </span>
           </div>
           <div className={styles.metricItem} {...getPerfTooltipAttrs('metricDrawCalls')}>
@@ -709,13 +794,64 @@ export function PerfMonitorWidget({
                 <span>CYAN: 16.7ms | CRIMSON: 33.3ms</span>
               </div>
 
-              <canvas
-                ref={oscilloscopeRef}
-                width={360}
-                height={70}
-                className={styles.oscilloscopeCanvas}
-                {...getPerfTooltipAttrs('oscilloscopeCanvas')}
-              />
+              <div className={styles.scrubCanvasContainer}>
+                <canvas
+                  ref={oscilloscopeRef}
+                  width={360}
+                  height={70}
+                  className={styles.oscilloscopeCanvas}
+                  onClick={() => togglePause()}
+                  aria-label="Standard 2.0s oscilloscope waveform canvas. Click to pause or resume playback."
+                  onMouseMove={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const rawX = e.clientX - rect.left;
+                    const rawY = e.clientY - rect.top;
+                    const scaleX = 360 / (rect.width || 360);
+                    const canvasX = Math.max(0, Math.min(360, rawX * scaleX));
+                    scrubPosRef.current = { x: canvasX, y: rawY };
+
+                    const frameOffset = Math.floor((canvasX / 360) * 120);
+                    const clampedOffset = Math.max(0, Math.min(119, frameOffset));
+                    const head = perfCollector.getHeadIndex();
+                    const targetIdx = (head - 120 + clampedOffset + HIST_SIZE) % HIST_SIZE;
+
+                    const frameTime = perfCollector.frameTimes[targetIdx] || 0;
+                    const fov = perfCollector.fovTimes[targetIdx] || 0;
+                    const tilemap = perfCollector.tilemapTimes[targetIdx] || 0;
+                    const sprite = perfCollector.spriteTimes[targetIdx] || 0;
+                    const vfx = perfCollector.vfxTimes[targetIdx] || 0;
+                    const hover = perfCollector.hoverTimes[targetIdx] || 0;
+                    const webgl = perfCollector.webglTimes[targetIdx] || 0;
+                    const cpuTime = fov + tilemap + sprite + vfx + hover;
+                    const drawCalls = perfCollector.drawCalls[targetIdx] || 0;
+                    const framesAgo = 120 - 1 - clampedOffset;
+                    const timeAgo = ((framesAgo * (1000 / 60)) / 1000).toFixed(2);
+
+                    setScrubData({
+                      frameIndex: targetIdx,
+                      frameTime,
+                      cpuTime,
+                      fov,
+                      tilemap,
+                      sprite,
+                      vfx,
+                      hover,
+                      webgl,
+                      drawCalls,
+                      timeAgo,
+                      isSpike: frameTime > 16.67,
+                      clientX: rawX,
+                      clientY: rawY,
+                    });
+                  }}
+                  onMouseLeave={() => {
+                    scrubPosRef.current = null;
+                    setScrubData(null);
+                  }}
+                  {...getPerfTooltipAttrs('oscilloscopeCanvas')}
+                />
+                {renderScrubHoverCard()}
+              </div>
 
               {/* Stacked Frame Budget Breakdown */}
               <div className={styles.budgetBar} {...getPerfTooltipAttrs('budgetBar')}>
@@ -943,46 +1079,7 @@ export function PerfMonitorWidget({
                   />
 
                   {/* Floating Cyberpunk Scrub Tooltip Over Waveform */}
-                  {scrubData && (
-                    <div
-                      className={styles.scrubHoverCard}
-                      style={{
-                        left:
-                          scrubData.clientX > 195
-                            ? scrubData.clientX - 184 - 14
-                            : scrubData.clientX + 14,
-                        top: 6,
-                      }}
-                    >
-                      <div className={styles.scrubCardHeader}>
-                        <span className={styles.scrubFrameTag}>FRAME #{scrubData.frameIndex}</span>
-                        <span className={styles.scrubOffset}>(-{scrubData.timeAgo}s)</span>
-                        <span className={scrubData.isSpike ? styles.scrubBadgeSpike : styles.scrubBadgeOk}>
-                          {scrubData.isSpike ? 'SPIKE >16.7ms' : '60 FPS OK'}
-                        </span>
-                      </div>
-                      <div className={styles.scrubRow}>
-                        <span style={{ color: '#d8ff00' }}>TOTAL FRAME:</span>
-                        <strong style={{ color: '#d8ff00' }}>{scrubData.frameTime.toFixed(2)} ms</strong>
-                      </div>
-                      <div className={styles.scrubRow}>
-                        <span style={{ color: '#00f0ff' }}>CPU RENDER:</span>
-                        <strong style={{ color: '#00f0ff' }}>{scrubData.cpuTime.toFixed(2)} ms</strong>
-                      </div>
-                      <div className={styles.scrubSubBreakdown}>
-                        <span>FOV: {scrubData.fov.toFixed(2)}ms</span>
-                        <span>TILE: {scrubData.tilemap.toFixed(2)}ms</span>
-                        <span>SPRITE: {scrubData.sprite.toFixed(2)}ms</span>
-                        <span>VFX: {scrubData.vfx.toFixed(2)}ms</span>
-                        <span>HOVER: {scrubData.hover.toFixed(2)}ms</span>
-                        <span>GL: {scrubData.webgl.toFixed(2)}ms</span>
-                      </div>
-                      <div className={styles.scrubRow}>
-                        <span style={{ color: '#a0b0c0' }}>WEBGL DRAWS:</span>
-                        <strong>{scrubData.drawCalls} DC</strong>
-                      </div>
-                    </div>
-                  )}
+                  {renderScrubHoverCard()}
                 </div>
 
                 {/* Persistent Dock Bar Under Waveform */}
