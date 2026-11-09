@@ -41,12 +41,23 @@ describe('PerfMonitorWidget', () => {
       usePerfStore.setState({ mode: 'MINI' });
     });
 
-    render(<PerfMonitorWidget />);
+    const { container } = render(<PerfMonitorWidget />);
+
+    const pill = container.querySelector('[class*="miniPill"]');
+    expect(pill).not.toBeNull();
 
     expect(screen.getByText(/FPS/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/ms/i).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(/DC/i)).toBeInTheDocument();
     expect(screen.getByText(/ENT/i)).toBeInTheDocument();
     expect(screen.getByText(/RTT/i)).toBeInTheDocument();
+    expect(screen.getByText(/MB/i)).toBeInTheDocument();
+
+    // Verify all 4 dock buttons exist in mini pill
+    expect(screen.getByRole('button', { name: 'TL' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'TR' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'BL' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'BR' })).toBeInTheDocument();
 
     // Toggle ghost button
     const ghostBtn = screen.getByRole('button', { name: /👻/i });
