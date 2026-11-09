@@ -41,14 +41,17 @@ interface PixiManagedTexture {
   height?: number;
   pixelWidth?: number;
   pixelHeight?: number;
+  resolution?: number;
   mipmaps?: boolean;
   autoGenerateMipmaps?: boolean;
   label?: string;
   isRenderTexture?: boolean;
   resource?: unknown;
+  uploadMethodId?: string;
   source?: {
     label?: string;
     resource?: unknown;
+    uploadMethodId?: string;
   };
 }
 
@@ -306,26 +309,44 @@ export class WebGLProbe {
       result.totalTextures = validTextures.length;
 
       for (const tex of validTextures) {
-        const w = tex.width || tex.pixelWidth || 0;
-        const h = tex.height || tex.pixelHeight || 0;
+        const res = tex.resolution ?? 1;
+        const w = tex.pixelWidth || (tex.width ? Math.round(tex.width * res) : 0);
+        const h = tex.pixelHeight || (tex.height ? Math.round(tex.height * res) : 0);
         const mipmapFactor = tex.mipmaps || tex.autoGenerateMipmaps ? 1.33 : 1.0;
         const bytes = Math.round(w * h * 4 * mipmapFactor);
         result.estimatedVramBytes += bytes;
 
         const label = String(tex.label || tex.source?.label || '').toLowerCase();
+        const uploadMethodId = tex.uploadMethodId || tex.source?.uploadMethodId;
         const isCanvas =
-          (typeof HTMLCanvasElement !== 'undefined' && tex.resource instanceof HTMLCanvasElement) ||
-          (typeof HTMLCanvasElement !== 'undefined' && tex.source?.resource instanceof HTMLCanvasElement) ||
+          (typeof HTMLCanvasElement !== 'undefined' &&
+            (tex.resource instanceof HTMLCanvasElement || tex.source?.resource instanceof HTMLCanvasElement)) ||
           label.includes('canvas') ||
-          label.includes('text');
+          label.includes('text') ||
+          Boolean(tex.resource && typeof (tex.resource as { getContext?: unknown }).getContext === 'function');
+
+        const isKnownAtlas =
+          label.includes('tileset') ||
+          label.includes('atlas') ||
+          label.includes('theme') ||
+          label.includes('traxus') ||
+          label.includes('sekiguchi') ||
+          label.includes('dark_subnet');
+
         const isFbo =
-          Boolean(tex.isRenderTexture) ||
-          label.includes('fbo') ||
-          label.includes('render-texture') ||
-          label.includes('filter');
+          !isCanvas &&
+          !isKnownAtlas &&
+          (Boolean(tex.isRenderTexture) ||
+            label.includes('fbo') ||
+            label.includes('render-texture') ||
+            label.includes('filter') ||
+            uploadMethodId === 'unknown' ||
+            (tex.resource == null && (w > 0 || h > 0)));
 
         if (isCanvas) {
           result.textOrCanvasTextures++;
+        } else if (isKnownAtlas) {
+          result.atlasTextures++;
         } else if (isFbo) {
           result.renderTextures++;
         } else {

@@ -110,4 +110,31 @@ describe('WebGLProbe', () => {
     probe.detach();
     expect(mockApp.renderer.render).toBe(origRender);
   });
+
+  it('correctly classifies PixiJS 8 filter FBOs with resource null and handles Retina high-DPI resolution', () => {
+    const mockApp = {
+      renderer: {
+        texture: {
+          managedTextures: [
+            // PixiJS 8 Filter FBO TextureSource (resource is null, uploadMethodId unknown)
+            { pixelWidth: 400, pixelHeight: 300, resource: null, uploadMethodId: 'unknown' },
+            // High-DPI canvas (width: 100, height: 100, resolution: 2 -> pixelWidth: 200, pixelHeight: 200)
+            { width: 100, height: 100, resolution: 2, label: 'text-damage', resource: {} },
+            // Static atlas
+            { width: 512, height: 512, label: 'theme-atlas', resource: {} },
+          ],
+        },
+      },
+    };
+
+    probe.setApplication(mockApp as any);
+    const mem = probe.getTextureMemory();
+
+    expect(mem.totalTextures).toBe(3);
+    expect(mem.renderTextures).toBe(1);
+    expect(mem.textOrCanvasTextures).toBe(1);
+    expect(mem.atlasTextures).toBe(1);
+    // VRAM: (400*300*4) + (200*200*4) + (512*512*4)
+    expect(mem.estimatedVramBytes).toBe(400 * 300 * 4 + 200 * 200 * 4 + 512 * 512 * 4);
+  });
 });
