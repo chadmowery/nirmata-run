@@ -850,7 +850,6 @@ export function PerfMonitorWidget({
                   setBisectionFlag,
                   handleTakeSnapshot,
                   handleExportJson,
-                  renderSystem,
                 )}
             </div>
           </>
@@ -1043,7 +1042,6 @@ export function PerfMonitorWidget({
                   setBisectionFlag,
                   handleTakeSnapshot,
                   handleExportJson,
-                  renderSystem,
                 )}
               </div>
             </div>
@@ -1127,14 +1125,20 @@ function renderGpuTab(
   const filters = data.renderTelemetry?.filters;
   const tilemap = data.renderTelemetry?.tilemap;
   const particles = data.renderTelemetry?.particles;
+  const sprites = data.renderTelemetry?.sprites;
 
   const propFilterCount = bisectionFlags.disableSpriteFilters
     ? 0
-    : filters?.totalPropFilters ?? (data.stageTimings.spriteSyncMs > 0 ? 8 : 0);
-  const activePropSprites = bisectionFlags.disableSpriteFilters
+    : filters?.totalPropFilters ?? 0;
+  const enemyFilterCount = bisectionFlags.disableSpriteFilters
     ? 0
-    : filters?.activePropFilterSprites ?? 0;
-  const worldFilterCount = bisectionFlags.disableWorldFilters ? 0 : 1;
+    : filters?.totalEnemyFilters ?? 0;
+  const damageFilterCount = filters?.activeDamageFilters ?? 0;
+  const worldFilterCount = bisectionFlags.disableWorldFilters
+    ? 0
+    : filters?.worldFiltersCount ?? 0;
+  const totalFilterCount =
+    propFilterCount + enemyFilterCount + damageFilterCount + worldFilterCount;
 
   return (
     <>
@@ -1156,9 +1160,9 @@ function renderGpuTab(
       <div className={styles.dataRow} {...getPerfTooltipAttrs('gpuPixiFilters')}>
         <span className={styles.dataLabel}>ACTIVE PIXI FILTERS</span>
         <span className={styles.dataVal}>
-          {propFilterCount + worldFilterCount}{' '}
+          {totalFilterCount}{' '}
           <span className={styles.dataSub}>
-            (PROP: {activePropSprites} | WLD: {worldFilterCount})
+            (PROP: {propFilterCount} | ENEMY: {enemyFilterCount} | WLD: {worldFilterCount})
           </span>
         </span>
       </div>
@@ -1168,6 +1172,15 @@ function renderGpuTab(
           {tilemap ? `${tilemap.visibleTiles} / ${tilemap.poolSize}` : '0 / 0'}{' '}
           <span className={styles.dataSub} {...getPerfTooltipAttrs('gpuAutotileSolves')}>
             (AUTOTILE SOLVES: {tilemap?.lastAutotileSolves ?? 0})
+          </span>
+        </span>
+      </div>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('gpuEntitySprites')}>
+        <span className={styles.dataLabel}>ENTITY SPRITE MAP</span>
+        <span className={styles.dataVal}>
+          {sprites ? `${sprites.visibleSprites} / ${sprites.totalSprites} VISIBLE` : '0 / 0 VISIBLE'}{' '}
+          <span className={styles.dataSub}>
+            (TWEENS: {data.renderTelemetry?.activeAnimations ?? 0})
           </span>
         </span>
       </div>
@@ -1345,13 +1358,11 @@ function renderAuditTab(
   setBisectionFlag: ReturnType<typeof usePerfStore.getState>['setBisectionFlag'],
   handleTakeSnapshot: () => void,
   handleExportJson: () => void,
-  renderSystem?: ReturnType<typeof createRenderSystem> | null,
 ) {
   const diff = data.leakDiff;
 
   const handleToggle = (key: keyof DevRenderBisectionFlags, val: boolean) => {
     setBisectionFlag(key, val);
-    renderSystem?.setDevRenderFlags({ [key]: val });
   };
 
   return (

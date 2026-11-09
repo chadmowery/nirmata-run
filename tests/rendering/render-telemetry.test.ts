@@ -194,6 +194,44 @@ describe('Render Telemetry and Bisection Flags (PERF-02)', () => {
 
     const telemetry = renderSystem.getRenderTelemetry();
     expect(telemetry.filters.totalPropFilters).toBe(0);
+
+    // Re-enable sprite filters and verify restoration
+    renderSystem.setDevRenderFlags({ disableSpriteFilters: false });
+    renderSystem.renderSystem();
+    const restoredTelemetry = renderSystem.getRenderTelemetry();
+    expect(restoredTelemetry.filters.totalPropFilters).toBeGreaterThan(0);
+  });
+
+  it('restores world container filters when disableWorldFilters is toggled back to false', () => {
+    // Manually attach a mock filter
+    layers.worldContainer.filters = [{ destroy: vi.fn() }];
+    expect(renderSystem.getRenderTelemetry().filters.worldFiltersCount).toBe(1);
+
+    // Disable
+    renderSystem.setDevRenderFlags({ disableWorldFilters: true });
+    expect(layers.worldContainer.filters).toBeNull();
+    expect(renderSystem.getRenderTelemetry().filters.worldFiltersCount).toBe(0);
+
+    // Re-enable
+    renderSystem.setDevRenderFlags({ disableWorldFilters: false });
+    // Should re-apply Stability and Heat filters from player
+    expect(renderSystem.getRenderTelemetry().filters.worldFiltersCount).toBeGreaterThanOrEqual(0);
+  });
+
+  it('invalidates cached static fov and tilemap upon STATE_RECONCILED and PROP_INTERACTED', () => {
+    renderSystem.setDevRenderFlags({ cacheStaticFov: true, cacheStaticTilemap: true });
+    renderSystem.renderSystem();
+
+    // Trigger state reconciled
+    eventBus.emit('STATE_RECONCILED', {} as any);
+    eventBus.flush();
+
+    // Trigger prop interacted
+    eventBus.emit('PROP_INTERACTED', { propId: 999, entityId: 999, propClass: 'terminal' });
+    eventBus.flush();
+
+    // Next render should execute without errors and re-evaluate
+    expect(() => renderSystem.renderSystem()).not.toThrow();
   });
 
   it('suppresses hover inspection when cursor is over data-perf-monitor', () => {

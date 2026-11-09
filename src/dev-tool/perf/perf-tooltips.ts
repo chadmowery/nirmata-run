@@ -207,6 +207,11 @@ export const PERF_TOOLTIPS = {
     desc: 'Visible terrain sprites rendered in the viewport versus total pooled sprite objects allocated in memory.',
     detail: 'Culls offscreen tiles outside the camera frustum',
   },
+  gpuEntitySprites: {
+    tag: 'RENDER',
+    title: 'Entity Sprite Map & Tweens',
+    desc: 'Count of active entity sprites culled in viewport vs. total tracked, and running movement/attack tweens.',
+  },
   gpuAutotileSolves: {
     tag: 'RENDER',
     title: 'Autotile Solves',

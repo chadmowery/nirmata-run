@@ -66,6 +66,10 @@ export function getTilemapTelemetry(): TilemapTelemetry {
   };
 }
 
+export function resetAutotileSolveCount(): void {
+  lastAutotileSolveCount = 0;
+}
+
 export interface ResolvedTerrainTile {
   frameKey: string;
   fallbackFrame: string;

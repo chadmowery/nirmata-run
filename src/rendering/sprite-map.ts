@@ -179,3 +179,24 @@ export function clearAllSprites(): void {
   }
   entitySpriteKeys.clear();
 }
+
+export interface SpriteTelemetry {
+  totalSprites: number;
+  visibleSprites: number;
+}
+
+/**
+ * Returns telemetry regarding active tracked sprites and viewport visibility.
+ */
+export function getSpriteTelemetry(): SpriteTelemetry {
+  let visibleSprites = 0;
+  for (const sprite of entitySprites.values()) {
+    if (sprite.visible) {
+      visibleSprites++;
+    }
+  }
+  return {
+    totalSprites: entitySprites.size,
+    visibleSprites,
+  };
+}

@@ -30,13 +30,15 @@ import {
   clearExplored,
 } from './fov';
 import { computeCameraTarget, lerpCamera, getVisibleTileRange } from './camera';
-import { buildTilemap, clearTilemap, getTilemapTelemetry, TilemapTelemetry } from './tilemap';
+import { buildTilemap, clearTilemap, getTilemapTelemetry, TilemapTelemetry, resetAutotileSolveCount } from './tilemap';
 import {
   createEntitySprite,
   destroyEntitySprite,
   getEntitySprite,
   clearAllSprites,
   purgeOrphanedSprites,
+  getSpriteTelemetry,
+  SpriteTelemetry,
 } from './sprite-map';
 import {
   tickAnimations,
@@ -53,9 +55,13 @@ import {
   applyDamageDistortion,
   applyPropOutline,
   getFilterTelemetry,
+  removePersistentGlitch,
+  FilterTelemetry,
 } from './filters/glitch-effects';
 import { queueTypedDeathAnimation } from './filters/death-effects';
 import { AIState } from '@shared/components/ai-state';
+import { Stability } from '@shared/components/stability';
+import { Heat } from '@shared/components/heat';
 import {
   applyGrayscaleToContainer,
   removeFiltersFromContainer,
@@ -108,9 +114,14 @@ export interface RenderTelemetry {
   stageTimings: RenderStageTimings;
   tilemap: TilemapTelemetry;
   particles: { activeEmitters: number; totalParticles: number };
-  filters: { activePropFilterSprites: number; totalPropFilters: number };
+  filters: FilterTelemetry & { worldFiltersCount: number };
+  sprites: SpriteTelemetry;
   activeAnimations: number;
   activeDamageTexts: number;
+  fovTiles: number;
+  exploredTiles: number;
+  rememberedPropsCount: number;
+  rememberedItemsCount: number;
 }
 
 export interface RenderSystem {
@@ -519,6 +530,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
   };
 
   const handlePropUpdated = (payload: { propId: number }) => {
+    lastFovKey = '';
+    lastTilemapKey = '';
     const entityId = payload.propId;
     if (entityId) {
       const spriteComp = world.getComponent(entityId, SpriteComponent);
@@ -560,6 +573,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
   };
 
   const handleItemPickedUp = (payload: { entityId?: EntityId; itemId: EntityId }) => {
+    lastFovKey = '';
+    lastTilemapKey = '';
     destroyEntitySprite(payload.itemId);
     spriteAnimator.unregisterEntity(payload.itemId);
   };
@@ -783,10 +798,14 @@ export function createRenderSystem(config: RenderSystemConfig) {
   };
 
   const handleDungeonGenerated = () => {
+    lastFovKey = '';
+    lastTilemapKey = '';
     system.onDungeonGenerated();
   };
 
   const handleStateReconciled = () => {
+    lastFovKey = '';
+    lastTilemapKey = '';
     system.reconcileSprites();
   };
 
@@ -1010,6 +1029,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
           playerPos,
         });
         lastTilemapKey = tilemapKey;
+      } else {
+        resetAutotileSolveCount();
       }
 
       if (devFlags.measureTimings) {
@@ -1443,13 +1464,29 @@ export function createRenderSystem(config: RenderSystemConfig) {
     },
 
     getRenderTelemetry(): RenderTelemetry {
+      const glitchTelemetry = getFilterTelemetry();
+      const worldFilters = layers.worldContainer.filters;
+      const worldFiltersCount = Array.isArray(worldFilters)
+        ? worldFilters.length
+        : worldFilters
+          ? 1
+          : 0;
+
       return {
         stageTimings: { ...latestStageTimings },
         tilemap: getTilemapTelemetry(),
         particles: getParticleTelemetry(),
-        filters: getFilterTelemetry(),
+        filters: {
+          ...glitchTelemetry,
+          worldFiltersCount,
+        },
+        sprites: getSpriteTelemetry(),
         activeAnimations: getActiveAnimationCount(),
         activeDamageTexts: getActiveDamageTextCount(),
+        fovTiles: currentFovSet.size,
+        exploredTiles: exploredSet.size,
+        rememberedPropsCount: rememberedProps.size,
+        rememberedItemsCount: rememberedTileItems.size,
       };
     },
 
@@ -1459,8 +1496,13 @@ export function createRenderSystem(config: RenderSystemConfig) {
         for (const entityId of world.query(SpriteComponent)) {
           const sprite = getEntitySprite(entityId);
           if (sprite) {
-            sprite.filters = null;
+            removePersistentGlitch(sprite);
           }
+        }
+        lastPropOutlineState.clear();
+        const playerSprite = getEntitySprite(getPlayerEntity());
+        if (playerSprite) {
+          updateSpriteGhosting(playerSprite, 0, layers.entityLayer);
         }
       } else if (flags.disableSpriteFilters === false) {
         for (const entityId of world.query(SpriteComponent)) {
@@ -1473,10 +1515,29 @@ export function createRenderSystem(config: RenderSystemConfig) {
             }
           }
         }
+        const playerSprite = getEntitySprite(getPlayerEntity());
+        const heat = world.getComponent(getPlayerEntity(), Heat);
+        if (playerSprite && heat) {
+          const tier = getHeatTier(heat.current);
+          updateSpriteGhosting(playerSprite, tier.tier, layers.entityLayer);
+        }
       }
 
       if (devFlags.disableWorldFilters) {
         removeFiltersFromContainer(layers.worldContainer);
+      } else if (flags.disableWorldFilters === false) {
+        const playerId = getPlayerEntity();
+        if (playerId) {
+          const stability = world.getComponent(playerId, Stability);
+          if (stability) {
+            applyStabilityDesaturation(layers.worldContainer, stability.current);
+          }
+          const heat = world.getComponent(playerId, Heat);
+          if (heat) {
+            const tier = getHeatTier(heat.current);
+            applyHeatTierFilters(layers.worldContainer, tier.tier);
+          }
+        }
       }
 
       if (flags.disableParticles !== undefined) {

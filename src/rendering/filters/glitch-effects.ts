@@ -5,21 +5,35 @@ import { AIBehaviorType } from '@shared/components/ai-state';
 export type PropVisualState = 'safe' | 'locked' | 'corrupted' | 'searched';
 
 const activePropFilters = new Map<Sprite, Filter[]>();
+const activeEnemyFilters = new Map<Sprite, Filter[]>();
+let activeDamageFilterCount = 0;
+
+export interface FilterTelemetry {
+  activePropFilterSprites: number;
+  totalPropFilters: number;
+  activeEnemyFilterSprites: number;
+  totalEnemyFilters: number;
+  activeDamageFilters: number;
+}
 
 /**
  * Returns read-only active filter telemetry.
  */
-export function getFilterTelemetry(): {
-  activePropFilterSprites: number;
-  totalPropFilters: number;
-} {
+export function getFilterTelemetry(): FilterTelemetry {
   let totalPropFilters = 0;
   for (const filters of activePropFilters.values()) {
     totalPropFilters += filters.length;
   }
+  let totalEnemyFilters = 0;
+  for (const filters of activeEnemyFilters.values()) {
+    totalEnemyFilters += filters.length;
+  }
   return {
     activePropFilterSprites: activePropFilters.size,
     totalPropFilters,
+    activeEnemyFilterSprites: activeEnemyFilters.size,
+    totalEnemyFilters,
+    activeDamageFilters: activeDamageFilterCount,
   };
 }
 
@@ -197,6 +211,14 @@ export function applyPersistentGlitch(sprite: Sprite, behaviorType: AIBehaviorTy
       break;
   }
 
+  // Clean up any existing persistent glitch filters
+  const existing = activeEnemyFilters.get(sprite);
+  if (existing) {
+    for (const f of existing) {
+      if (typeof f.destroy === 'function') f.destroy();
+    }
+  }
+  activeEnemyFilters.set(sprite, filters);
   sprite.filters = filters;
 }
 
@@ -244,6 +266,7 @@ export function applyDamageDistortion(sprite: Sprite, duration: number = 200): v
     cleanupDamageFilter(sprite);
   }, duration);
 
+  activeDamageFilterCount++;
   activeDamageFilters.set(sprite, { filter: damageGlitch, timeoutId });
 }
 
@@ -253,9 +276,14 @@ export function applyDamageDistortion(sprite: Sprite, duration: number = 200): v
 function cleanupDamageFilter(sprite: Sprite): void {
   const state = activeDamageFilters.get(sprite);
   if (!state || sprite.destroyed) {
+    if (state) {
+      activeDamageFilterCount = Math.max(0, activeDamageFilterCount - 1);
+    }
     activeDamageFilters.delete(sprite);
     return;
   }
+
+  activeDamageFilterCount = Math.max(0, activeDamageFilterCount - 1);
 
   const filters = sprite.filters;
   if (!filters) {
@@ -285,6 +313,7 @@ export function removePersistentGlitch(sprite: Sprite): void {
   const state = activeDamageFilters.get(sprite);
   if (state) {
     clearTimeout(state.timeoutId);
+    activeDamageFilterCount = Math.max(0, activeDamageFilterCount - 1);
     activeDamageFilters.delete(sprite);
   }
 
@@ -295,6 +324,15 @@ export function removePersistentGlitch(sprite: Sprite): void {
       if (typeof f.destroy === 'function') f.destroy();
     }
     activePropFilters.delete(sprite);
+  }
+
+  // Clear any active enemy glitch filters and destroy them
+  const enemyFilters = activeEnemyFilters.get(sprite);
+  if (enemyFilters) {
+    for (const f of enemyFilters) {
+      if (typeof f.destroy === 'function') f.destroy();
+    }
+    activeEnemyFilters.delete(sprite);
   }
 
   sprite.filters = null;

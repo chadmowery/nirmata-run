@@ -30,16 +30,16 @@ Despite passing surface-level unit tests, the implementation contains **3 Critic
 | **`CRIT-03`** | **P0 (Critical)** | `@dev-tool` / `@app` / `@rendering` | **RESOLVED** — Stage 6 `WebGL Render Pass (ms)` wrapped and measured via `renderer.render`, wired to budget bar/legend (`GL`), and scrub card reads `webglTimes`. |
 | **`HIGH-01`** | **P1 (High)** | `@dev-tool` | **Pause (`isPaused`) vs. Collector Freeze (`isFrozen`) Desync Corrupts Scrubbing & Suppresses Crosshair Rendering While Paused (Spec §3.5.2, §4.1)**: Clicking `[⏸]` or clicking the waveform canvas sets `usePerfStore.isPaused = true` without calling `perfCollector.setFrozen(true)`. Ring buffers continue overwriting at 60Hz while paused, so scrubbing a "paused" waveform reads live mutating frames that do not match the frozen canvas image. Worse, `renderWaveforms` skips drawing when `isPaused === true`, so the scrub crosshair and sample dots never render while paused, and switching modes while paused yields a blank canvas. |
 | **`HIGH-02`** | **P1 (High)** | `@dev-tool` | **RESOLVED** — PixiJS 8 `WebGLProbe.getTextureMemory()` accurately categorizes `TextureSource` instances (FBOs with `resource: null` and `uploadMethodId: 'unknown'`) and calculates physical pixel VRAM on Retina displays. |
-| **`HIGH-03`** | **P1 (High)** | `@rendering` / `@dev-tool` | **Broken Render Bisection State Restoration & Missing Enemy / World / Entity-Sprite Telemetry in Domain 1 (`GPU`) (Spec §3.1, §3.5.3, §4.1)**: `setDevRenderFlags({ disableSpriteFilters: true })` sets `sprite.filters = null` without clearing/destroying `activePropFilters` or player heat ghost sprites; unchecking `disableWorldFilters` never restores Heat or Stability world filters; `cacheStaticTilemap` leaves stale `lastAutotileSolves` when skipping rebuilds; `getFilterTelemetry()` ignores enemy persistent glitch filters and damage filters; `worldFilterCount` is hardcoded to `1`; and the `ENTITY SPRITE MAP` & `TWEENS` row is missing from the `GPU` tab. |
+| **`HIGH-03`** | **P1 (High)** | `@rendering` / `@dev-tool` | **RESOLVED** — Full bisection state restoration (outlines, heat ghosting, world desaturation/heat tier), enemy persistent glitch tracking, and `ENTITY SPRITE MAP` row in `GPU` tab. |
 | **`HIGH-04`** | **P1 (High)** | `@dev-tool` / `@rendering` / `@engine` | **Domain 2 (`ECS / WORLD`) Omits Entity Archetype Census, Top 6 Component Stores, FOV / Fog Memory Coverage, and EventBus Throughput (Spec §3.2)**: `renderEcsTab()` renders only 5 basic numbers, omitting Actor/Hostile/Condemned/Prop/Loot/Child/Hazard archetype counts, top 6 component stores from `ecsDiagnostics.storeSizes`, active FOV vs. explored tiles and `rememberedProps`/`rememberedTileItems` cache counts, and `EventBus` `evt/s` + `FOV_UPDATED` churn separation (`EventBus.getDiagnostics()` is never called). |
 | **`HIGH-05`** | **P1 (High)** | `@app/api` / `@game` / `@dev-tool` | **Domain 3 (`TURN / SYNC`) Unaggregated Server `topSystems`, Missing Phase Breakdown, Missing Sub-Ticks, Missing Wire Delta & Input Buffer Health, and Uninstrumented Action Senders (Spec §3.3, §5.1.D)**: `/api/action` pushes per-system timings without aggregating across player + enemy sub-ticks (producing duplicate system rows); `renderTurnTab()` slices top 3 instead of Top 5, omits the visual waterfall bar, omits `serverPhaseTimings`, omits RTT Avg/Max, omits wire payload `KB` & delta mutation counts (`+Ent/-Ent`, `CompSet/CompRem`, `Events`), and omits `InputManager` queue depth & prediction accuracy. `TurnManager` does not report `enemyTurnsProcessed` or `energySubTicks`. 10 of 12 `sendActionToServer` call sites in `setup.ts` do not measure `clientPredictionMs`. |
 | **`HIGH-06`** | **P1 (High)** | `@dev-tool` / `@engine` | **Domain 4 (`MEMORY / ASSETS`) Omits Sprite/Tile Pool Utilization, JS Heap Allocation Rate, Audio Output Latency, and Biquad Filter Readouts, and Double-Counts Ambient Audio Voices (Spec §3.4)**: `renderMemTab()` omits `Sprite & Tile Pool Utilization`, `Allocation Rate` (`MB/s` or `KB/frame`), `outputLatencyMs`, and `ambianceCutoffHz` / `ambianceResonanceQ` (despite `AudioEngine.getDiagnostics()` computing them). `AudioEngine.getDiagnostics()` adds `ambientLoops` onto `activeVoiceCount`. |
 | **`MED-01`** | **P2 (Medium)** | `@dev-tool` / `@app` | **Spike Trap Forensics Card Omits Sub-Stage Breakdown & Per-Frame Emitted Events (Spec §3.5.2)**: `SpikeBanner` only displays `frameDurationMs` and `thresholdMs`, ignoring `spikeForensics.stageTimings`, `webglStats`, and `recentEvents`. `page.tsx` only listens to 4 hardcoded event types (without cleanup on destroy) and `recentEventsRing` is never cleared between frames. |
 | **`MED-02`** | **P2 (Medium)** | `@dev-tool` / `@app` | **Broken macOS `Alt+P` / `Shift+Alt+P` Hotkeys (`e.key === 'π'`), Top-Left HUD Occlusion, and Missing Drag-to-Corner Docking (Spec §2, §4.1, §5.3)**: `page.tsx` checks `e.key === 'p' || e.key === 'P'` under `e.altKey`, which fails on macOS where Option+P emits `e.key = 'π'` (`e.code = 'KeyP'`). Also `Ctrl+Shift+P` (`isCtrlShiftP`) toggles instead of cycling when `Shift` is held. `.posTopLeft` (`top: 12px; left: 12px`) overlaps the top HUD ribbon instead of docking below it, and magnetic drag-to-corner docking is unimplemented (`MINI` mode has no dock controls at all). |
-| **`MED-03`** | **P2 (Medium)** | `@rendering` | **`cacheStaticFov` Bisection Flag Skips `snapshotVisibleMemory()` After Same-Tile World Mutations (Spec §3.5.3)**: `fovKey` only hashes `playerPos.x, playerPos.y, effectiveRadius, sectorCondition, isMapRevealed`. When a prop is searched/unlocked, an item is picked up/dropped, or a door/wall changes while the player remains on the same tile, `cacheStaticFov` skips `computeFov` and `snapshotVisibleMemory()`, leaving fog-of-war memory stale. |
+| **`MED-03`** | **P2 (Medium)** | `@rendering` | **RESOLVED** — `cacheStaticFov` and `cacheStaticTilemap` invalidated upon `STATE_RECONCILED`, `PROP_INTERACTED`, `LOCK_UNLOCKED`, `ITEM_PICKED_UP`, and `DUNGEON_GENERATED`. |
 | **`MED-04`** | **P2 (Medium)** | `@dev-tool` | **Missing `Avg FPS` & `Frame Jitter (σ)` Readouts and Unwired `STANDARD` Mode Oscilloscope Scrubbing (Spec §3.1, §4.1)**: `computeRollingMetrics()` calculates `fpsAvg` and `frameTimeJitter` ($\sigma$), but neither is rendered in the UI. `STANDARD` mode's oscilloscope `<canvas>` tooltip promises click/drag frame scrubbing, but no mouse handlers are attached in `STANDARD` mode. |
 | **`LOW-01`** | **P3 (Low)** | `@app` / `@engine` | **RESOLVED** — Production Bundle & Runtime Hygiene (`next/dynamic` ternary in `page.tsx` & `EventBus` diagnostic gating). |
-| **`LOW-02`** | **P3 (Low)** | `@dev-tool` | **Duplicate `setDevRenderFlags` Invocations on Bisection Toggle**: `renderAuditTab`'s `handleToggle` calls `renderSystem?.setDevRenderFlags({ [key]: val })` directly while `useEffect([bisectionFlags, renderSystem])` immediately calls `renderSystem.setDevRenderFlags(bisectionFlags)` a second time with all flags. |
+| **`LOW-02`** | **P3 (Low)** | `@dev-tool` | **RESOLVED** — Removed duplicate `renderSystem.setDevRenderFlags` call in `handleToggle`, deferring to `useEffect`. |
 
 ---
 
@@ -169,7 +169,7 @@ Despite passing surface-level unit tests, the implementation contains **3 Critic
 
 ---
 
-### `HIGH-03` (P1 High): Broken Render Bisection State Restoration & Missing Enemy / World / Entity-Sprite Telemetry in Domain 1 (`GPU`)
+### `HIGH-03` (P1 High): [RESOLVED] Broken Render Bisection State Restoration & Missing Enemy / World / Entity-Sprite Telemetry in Domain 1 (`GPU`)
 
 - **Locations**:
   - [`src/rendering/render-system.ts:1451-1489`](../../src/rendering/render-system.ts#L1451-L1489)
@@ -280,7 +280,7 @@ Despite passing surface-level unit tests, the implementation contains **3 Critic
 
 ---
 
-### `MED-03` (P2 Medium): `cacheStaticFov` Bisection Flag Skips `snapshotVisibleMemory()` After Same-Tile World Mutations
+### `MED-03` (P2 Medium): [RESOLVED] `cacheStaticFov` Bisection Flag Skips `snapshotVisibleMemory()` After Same-Tile World Mutations
 
 - **Location**: [`src/rendering/render-system.ts:910-963`](../../src/rendering/render-system.ts#L910-L963)
 - **Root Cause**:
@@ -310,7 +310,7 @@ Despite passing surface-level unit tests, the implementation contains **3 Critic
 
 ---
 
-### `LOW-02` (P3 Low): Duplicate `setDevRenderFlags` Invocations on Bisection Toggle
+### `LOW-02` (P3 Low): [RESOLVED] Duplicate `setDevRenderFlags` Invocations on Bisection Toggle
 
 - **Location**: [`src/dev-tool/perf/PerfMonitorWidget.tsx:150-154, 1329-1332`](../../src/dev-tool/perf/PerfMonitorWidget.tsx#L1329-L1332)
 - **Root Cause**:
@@ -326,7 +326,7 @@ Despite passing surface-level unit tests, the implementation contains **3 Critic
 | **§1.1.3 / §5.2** | `0.00ms` overhead when `OFF` (all probes/hooks detached); zero heap allocations on 60Hz tick | **RESOLVED** — Probe & `measureTimings` detach cleanly; 60Hz tick uses pre-allocated buffers | `CRIT-02` |
 | **§3.1** | `FPS` (Current, Avg, 1% Low) & `Frame Time` (`ms` & Jitter $\sigma$) | **PARTIAL** — `Avg FPS` and `Jitter σ` computed but not displayed | `MED-04` |
 | **§3.1 / §4.1** | Stage 1–6 timings including **Stage 6: `WebGL Render Pass` (`ms`)** in budget bar & scrub card | **RESOLVED** — Stage 6 measured around `renderer.render`; budget bar & scrub card display real `GL` | `CRIT-03` |
-| **§3.1 / §4.1** | Active Pixi Filters (`Prop` \| `Enemy` \| `World`) & Entity Sprite Map (`Visible / Total` + `Tweens`) | **FAILED** — Enemy filters untracked; World filter hardcoded to `1`; Entity Sprite Map & Tweens row missing | `HIGH-03` |
+| **§3.1 / §4.1** | Active Pixi Filters (`Prop` \| `Enemy` \| `World`) & Entity Sprite Map (`Visible / Total` + `Tweens`) | **RESOLVED** — Full breakdown (`Prop` \| `Enemy` \| `World`), `ENTITY SPRITE MAP` & `TWEENS` displayed | `HIGH-03` |
 | **§3.2** | Entity Archetype Census (Actors, Hostiles, Dying, Props, Ground/Child Items, Hazards) | **MISSING** — Not queried or rendered in `ECS` tab | `HIGH-04` |
 | **§3.2** | Component Store Cardinality + Top 6 Stores by Size | **PARTIAL** — Total count shown; Top 6 stores from `storeSizes` not rendered | `HIGH-04` |
 | **§3.2** | Spatial Grid, Active FOV vs. Explored Tiles, & Fog Memory Cache (`rememberedProps`/`Items`) | **PARTIAL** — Grid cells shown; FOV & Fog Memory cache counts missing | `HIGH-04` |
@@ -338,7 +338,7 @@ Despite passing surface-level unit tests, the implementation contains **3 Critic
 | **§3.4** | Sprite & Tile Pool Utilization, JS Heap Allocation Rate, Audio Latency & Biquad Filter (`Hz`/`Q`) | **MISSING** — Omitted from `MEM` tab; `activeVoiceCount` double-counts ambient loops | `HIGH-06` |
 | **§3.5.1** | Floor-Transition Baseline Snapshot, Auto-Baseline on Floor 1, & `FLOOR_TRANSITION` History | **FAILED** — Hardcoded fake numbers (`1080`, `30`, `0`) in UI, all zeros in `/perf snap` & `DebugAPI`; `recordFloorTransitionSnapshot` never called | `CRIT-01` |
 | **§3.5.2** | Spike Trap Auto-Freeze & Forensics Card (sub-stage culprit + frame `EventBus` events) | **FAILED** — Pause/Freeze desync corrupts scrubbing & hides crosshair when paused; Forensics card omits sub-stages & events | `HIGH-01`, `MED-01` |
-| **§3.5.3** | Live Render Pass Bisection Toggles (5 non-destructive A/B toggles) | **PARTIAL** — Unchecking `disableWorldFilters` fails to restore filters; `disableSpriteFilters` leaves `activePropFilters` dirty; `cacheStaticFov` skips memory snapshot on same-tile actions | `HIGH-03`, `MED-03` |
+| **§3.5.3** | Live Render Pass Bisection Toggles (5 non-destructive A/B toggles) | **RESOLVED** — Full state restoration for sprite and world filters; invalidation on world mutations | `HIGH-03`, `MED-03`, `LOW-02` |
 | **§4.1 / §5.3** | 4 Modes (`MINI`, `STANDARD`, `EXPANDED`, `GHOST`), Magnetic Corner Dock, Hotkeys, `/perf` | **PARTIAL** — `Alt+P`/`Shift+Alt+P` broken on macOS (`e.key === 'π'`); `TOP_LEFT` overlaps HUD ribbon; drag-to-dock missing | `MED-02` |
 
 ---
