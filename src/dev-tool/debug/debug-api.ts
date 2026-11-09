@@ -235,19 +235,8 @@ export class DebugAPI {
       usePerfStore.getState().setMode(mode);
     },
     snapshot: () => {
-      const ecs = this.context.world?.getDiagnostics ? this.context.world.getDiagnostics() : null;
-      return perfCollector.takeBaselineSnapshot({
-        floor: 1,
-        entityCount: ecs?.entityCount ?? 0,
-        componentCount: ecs?.totalComponentInstances ?? 0,
-        entitySpriteCount: 0,
-        tilemapPoolSize: 0,
-        activeFilterCount: 0,
-        managedTextureCount: 0,
-        vramBytes: 0,
-        activeAudioVoiceCount: 0,
-        jsHeapBytes: 0,
-      });
+      const snap = perfCollector.captureCurrentSnapshot();
+      return perfCollector.takeBaselineSnapshot(snap);
     },
     getReport: () => {
       return perfCollector.generateReportJson();

@@ -25,7 +25,7 @@ Despite passing surface-level unit tests, the implementation contains **3 Critic
 
 | ID | Severity | Layer | Finding Summary |
 | :--- | :--- | :--- | :--- |
-| **`CRIT-01`** | **P0 (Critical)** | `@dev-tool` | **Leak Auditor & Baseline Snapshots Use Hardcoded Fake Constants (`floor: 1`, `tilemapPoolSize: 1080`, `entitySpriteCount: 30`, `activeFilterCount: 0`) & All-Zero Snapshots in `DevTerminal` / `DebugAPI` (Spec §3.5.1, §5.3)**: Clicking `[📸 SNAPSHOT]` in `PerfMonitorWidget` records fabricated constants (`1080`, `30`, `0`) and compares `entitySpriteCount` (`30`) against `tilemap.visibleTiles` (terrain tiles) on the 4Hz tick. `/perf snap` in `DevTerminal` and `window.__DEBUG__.perf.snapshot()` record `0` for every metric. `recordFloorTransitionSnapshot()` is dead code (never called on `FLOOR_TRANSITION`). |
+| **`CRIT-01`** | **P0 (Critical)** | `@dev-tool` / `@app` | **RESOLVED** — `captureCurrentSnapshot()` gathers live engine census (entities, components, entity sprites, tilemap pool, filters, textures, VRAM, audio voices, JS heap) across UI, terminal, and debug API; auto-baselines on Floor 1 boot and audits floor transitions via `recordFloorTransitionSnapshot()`; expanded 9-row diff audit table with threshold alerts and floor history. |
 | **`CRIT-02`** | **P0 (Critical)** | `@app` / `@rendering` / `@dev-tool` | **RESOLVED** — Zero-overhead when `OFF` via synchronized detachment and zero-allocation 60Hz tick via `getStageTimings()`, pre-allocated stats, and in-place collector updates. |
 | **`CRIT-03`** | **P0 (Critical)** | `@dev-tool` / `@app` / `@rendering` | **RESOLVED** — Stage 6 `WebGL Render Pass (ms)` wrapped and measured via `renderer.render`, wired to budget bar/legend (`GL`), and scrub card reads `webglTimes`. |
 | **`HIGH-01`** | **P1 (High)** | `@dev-tool` | **Pause (`isPaused`) vs. Collector Freeze (`isFrozen`) Desync Corrupts Scrubbing & Suppresses Crosshair Rendering While Paused (Spec §3.5.2, §4.1)**: Clicking `[⏸]` or clicking the waveform canvas sets `usePerfStore.isPaused = true` without calling `perfCollector.setFrozen(true)`. Ring buffers continue overwriting at 60Hz while paused, so scrubbing a "paused" waveform reads live mutating frames that do not match the frozen canvas image. Worse, `renderWaveforms` skips drawing when `isPaused === true`, so the scrub crosshair and sample dots never render while paused, and switching modes while paused yields a blank canvas. |
@@ -45,7 +45,7 @@ Despite passing surface-level unit tests, the implementation contains **3 Critic
 
 ## 2. Deep-Dive Root Cause Analysis
 
-### `CRIT-01` (P0 Critical): Leak Auditor & Baseline Snapshots Use Hardcoded Fake Constants (`floor: 1`, `tilemapPoolSize: 1080`, `entitySpriteCount: 30`, `activeFilterCount: 0`) & All-Zero Snapshots in `DevTerminal` / `DebugAPI`
+### `CRIT-01` (P0 Critical): [RESOLVED] Leak Auditor & Baseline Snapshots Use Hardcoded Fake Constants (`floor: 1`, `tilemapPoolSize: 1080`, `entitySpriteCount: 30`, `activeFilterCount: 0`) & All-Zero Snapshots in `DevTerminal` / `DebugAPI`
 
 - **Locations**:
   - [`src/dev-tool/perf/PerfMonitorWidget.tsx:207-219`](../../src/dev-tool/perf/PerfMonitorWidget.tsx#L207-L219)

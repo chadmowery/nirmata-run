@@ -213,9 +213,13 @@ export function PerfMonitorWidget({
         const currentCensus = {
           entityCount: ecsDiagnostics?.entityCount ?? 0,
           componentCount: ecsDiagnostics?.totalComponentInstances ?? 0,
-          entitySpriteCount: renderTelemetry?.tilemap?.visibleTiles ?? 0,
+          entitySpriteCount: renderTelemetry?.sprites?.totalSprites ?? 0,
           tilemapPoolSize: renderTelemetry?.tilemap?.poolSize ?? 0,
-          activeFilterCount: renderTelemetry?.filters?.totalPropFilters ?? 0,
+          activeFilterCount:
+            (renderTelemetry?.filters?.totalPropFilters ?? 0) +
+            (renderTelemetry?.filters?.totalEnemyFilters ?? 0) +
+            (renderTelemetry?.filters?.activeDamageFilters ?? 0) +
+            (renderTelemetry?.filters?.worldFiltersCount ?? 0),
           managedTextureCount: textureMemory.totalTextures,
           vramBytes: textureMemory.estimatedVramBytes,
           activeAudioVoiceCount: audioDiagnostics?.activeVoiceCount ?? 0,
@@ -489,19 +493,8 @@ export function PerfMonitorWidget({
 
   // Handler: Take Baseline Snapshot
   const handleTakeSnapshot = () => {
-    const currentCensus = {
-      floor: 1,
-      entityCount: throttledData.ecsDiagnostics?.entityCount ?? 0,
-      componentCount: throttledData.ecsDiagnostics?.totalComponentInstances ?? 0,
-      entitySpriteCount: throttledData.stageTimings.spriteSyncMs > 0 ? 30 : 0,
-      tilemapPoolSize: 1080,
-      activeFilterCount: 0,
-      managedTextureCount: throttledData.textureMemory.totalTextures,
-      vramBytes: throttledData.textureMemory.estimatedVramBytes,
-      activeAudioVoiceCount: throttledData.audioDiagnostics?.activeVoiceCount ?? 0,
-      jsHeapBytes: throttledData.gcTelemetry.heapUsedBytes,
-    };
-    perfCollector.takeBaselineSnapshot(currentCensus);
+    const snap = perfCollector.captureCurrentSnapshot();
+    perfCollector.takeBaselineSnapshot(snap);
   };
 
   // Handler: Export Telemetry JSON
@@ -1392,6 +1385,34 @@ function renderAuditTab(
               </td>
             </tr>
             <tr>
+              <td>Components</td>
+              <td>{diff.deltaComponents >= 0 ? `+${diff.deltaComponents}` : diff.deltaComponents}</td>
+              <td style={{ color: diff.deltaComponents > 25 ? '#ff2a4b' : '#10b981' }}>
+                {diff.deltaComponents > 25 ? 'GROW' : 'OK'}
+              </td>
+            </tr>
+            <tr>
+              <td>Entity Sprites</td>
+              <td>{diff.deltaSprites >= 0 ? `+${diff.deltaSprites}` : diff.deltaSprites}</td>
+              <td style={{ color: diff.deltaSprites > 5 ? '#ff2a4b' : '#10b981' }}>
+                {diff.deltaSprites > 5 ? 'LEAK?' : 'OK'}
+              </td>
+            </tr>
+            <tr>
+              <td>Tilemap Pool</td>
+              <td>{diff.deltaTilemapPool >= 0 ? `+${diff.deltaTilemapPool}` : diff.deltaTilemapPool}</td>
+              <td style={{ color: diff.deltaTilemapPool > 50 ? '#ff2a4b' : '#10b981' }}>
+                {diff.deltaTilemapPool > 50 ? 'GROW' : 'OK'}
+              </td>
+            </tr>
+            <tr>
+              <td>Active Filters</td>
+              <td>{diff.deltaFilters >= 0 ? `+${diff.deltaFilters}` : diff.deltaFilters}</td>
+              <td style={{ color: diff.deltaFilters > 0 ? '#ff2a4b' : '#10b981' }}>
+                {diff.deltaFilters > 0 ? 'LEAK?' : 'OK'}
+              </td>
+            </tr>
+            <tr>
               <td>Textures</td>
               <td>{diff.deltaTextures >= 0 ? `+${diff.deltaTextures}` : diff.deltaTextures}</td>
               <td style={{ color: diff.deltaTextures > 0 ? '#ff2a4b' : '#10b981' }}>
@@ -1401,13 +1422,61 @@ function renderAuditTab(
             <tr>
               <td>VRAM (MB)</td>
               <td>{(diff.deltaVramBytes / (1024 * 1024)).toFixed(2)}</td>
-              <td>OK</td>
+              <td style={{ color: diff.deltaVramBytes / (1024 * 1024) > 5 ? '#ff2a4b' : '#10b981' }}>
+                {diff.deltaVramBytes / (1024 * 1024) > 5 ? 'GROW' : 'OK'}
+              </td>
+            </tr>
+            <tr>
+              <td>Audio Voices</td>
+              <td>{diff.deltaVoices >= 0 ? `+${diff.deltaVoices}` : diff.deltaVoices}</td>
+              <td style={{ color: diff.deltaVoices > 2 ? '#ff2a4b' : '#10b981' }}>
+                {diff.deltaVoices > 2 ? 'LEAK?' : 'OK'}
+              </td>
+            </tr>
+            <tr>
+              <td>JS Heap (MB)</td>
+              <td>{(diff.deltaHeapBytes / (1024 * 1024)).toFixed(2)}</td>
+              <td style={{ color: diff.deltaHeapBytes / (1024 * 1024) > 15 ? '#ff2a4b' : '#10b981' }}>
+                {diff.deltaHeapBytes / (1024 * 1024) > 15 ? 'GROW' : 'OK'}
+              </td>
             </tr>
           </tbody>
         </table>
       ) : (
         <div style={{ fontSize: 9, color: 'var(--c-text-muted, #4a5668)', margin: '4px 0' }} {...getPerfTooltipAttrs('auditBaseline')}>
           No baseline snapshot recorded yet. Click SNAPSHOT to begin floor leak auditing.
+        </div>
+      )}
+
+      {perfCollector.getFloorHistory().length > 0 && (
+        <div style={{ marginTop: 6 }}>
+          <div style={{ fontSize: 9, color: 'var(--c-text-muted, #4a5668)', marginBottom: 2 }}>
+            FLOOR TRANSITION HISTORY ({perfCollector.getFloorHistory().length} FLOORS):
+          </div>
+          <table className={styles.perfTable} style={{ margin: '4px 0' }}>
+            <thead>
+              <tr>
+                <th>FL</th>
+                <th>ENT</th>
+                <th>COMP</th>
+                <th>SPR</th>
+                <th>TEX</th>
+                <th>VRAM</th>
+              </tr>
+            </thead>
+            <tbody>
+              {perfCollector.getFloorHistory().map((snap, i) => (
+                <tr key={i}>
+                  <td>F{String(snap.floor).padStart(2, '0')}</td>
+                  <td>{snap.entityCount}</td>
+                  <td>{snap.componentCount}</td>
+                  <td>{snap.entitySpriteCount}</td>
+                  <td>{snap.managedTextureCount}</td>
+                  <td>{(snap.vramBytes / (1024 * 1024)).toFixed(1)}M</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

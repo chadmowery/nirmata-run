@@ -195,6 +195,11 @@ export default function GamePage() {
             syncMode(state.mode);
           });
 
+          // Initial baseline snapshot for Floor 1 if not already set
+          if (!perfCollector.getBaselineSnapshot()) {
+            perfCollector.takeBaselineSnapshot(perfCollector.captureCurrentSnapshot());
+          }
+
           const perfTicker = () => {
             if (usePerfStore.getState().mode === 'OFF') return;
             const stageTimings = renderSystem.getStageTimings();
@@ -217,9 +222,13 @@ export default function GamePage() {
         context.eventBus.on('DAMAGE_DEALT', () =>
           perfCollectorRef.current?.recordEventEmission('DAMAGE_DEALT'),
         );
-        context.eventBus.on('FLOOR_TRANSITION', () =>
-          perfCollectorRef.current?.recordEventEmission('FLOOR_TRANSITION'),
-        );
+        context.eventBus.on('FLOOR_TRANSITION', () => {
+          perfCollectorRef.current?.recordEventEmission('FLOOR_TRANSITION');
+          if (perfCollectorRef.current) {
+            const snap = perfCollectorRef.current.captureCurrentSnapshot();
+            perfCollectorRef.current.recordFloorTransitionSnapshot(snap);
+          }
+        });
         context.eventBus.on('STATE_RECONCILED', () =>
           perfCollectorRef.current?.recordEventEmission('STATE_RECONCILED'),
         );

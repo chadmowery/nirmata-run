@@ -2,6 +2,8 @@ import { RenderStageTimings, RenderSystem } from '@rendering/render-system';
 import { WebGLFrameStats, WebGLProbe } from './webgl-probe';
 import { TurnTelemetryData } from '@/game/setup';
 import { GameContext } from '@/game/types';
+import { FloorState } from '@shared/components/floor-state';
+import { getAudioEngine } from '@engine/audio';
 
 export const HIST_SIZE = 240;
 
@@ -284,19 +286,74 @@ export class PerfCollector {
     return this.turnWaterfall.length > 0 ? this.turnWaterfall[this.turnWaterfall.length - 1] : null;
   }
 
-  public takeBaselineSnapshot(stats: {
-    floor: number;
-    entityCount: number;
-    componentCount: number;
-    entitySpriteCount: number;
-    tilemapPoolSize: number;
-    activeFilterCount: number;
-    managedTextureCount: number;
-    vramBytes: number;
-    activeAudioVoiceCount: number;
-    jsHeapBytes: number;
-  }): LeakBaselineSnapshot {
+  public captureCurrentSnapshot(): LeakBaselineSnapshot {
+    let floor = 1;
+    let entityCount = 0;
+    let componentCount = 0;
+
+    if (this.context) {
+      if (this.context.playerId !== undefined) {
+        const floorComp = this.context.world.getComponent(this.context.playerId, FloorState);
+        floor = floorComp?.currentFloor ?? 1;
+      }
+      const diag = this.context.world.getDiagnostics();
+      entityCount = diag.entityCount;
+      componentCount = diag.totalComponentInstances;
+    }
+
+    const renderTelemetry = this.renderSystem?.getRenderTelemetry();
+    const entitySpriteCount = renderTelemetry?.sprites?.totalSprites ?? 0;
+    const tilemapPoolSize = renderTelemetry?.tilemap?.poolSize ?? 0;
+    const activeFilterCount =
+      (renderTelemetry?.filters?.totalPropFilters ?? 0) +
+      (renderTelemetry?.filters?.totalEnemyFilters ?? 0) +
+      (renderTelemetry?.filters?.activeDamageFilters ?? 0) +
+      (renderTelemetry?.filters?.worldFiltersCount ?? 0);
+
+    const textureMem = this.probe?.getTextureMemory() ?? {
+      totalTextures: 0,
+      atlasTextures: 0,
+      renderTextures: 0,
+      textOrCanvasTextures: 0,
+      estimatedVramBytes: 0,
+    };
+
+    let activeAudioVoiceCount = 0;
+    try {
+      const audioDiag = getAudioEngine?.()?.getDiagnostics?.();
+      activeAudioVoiceCount = audioDiag?.activeVoiceCount ?? 0;
+    } catch {
+      // Audio engine may not be running in testing
+    }
+
+    let jsHeapBytes = 0;
+    if (
+      typeof performance !== 'undefined' &&
+      (performance as unknown as { memory?: { usedJSHeapSize?: number } }).memory?.usedJSHeapSize
+    ) {
+      jsHeapBytes =
+        (performance as unknown as { memory: { usedJSHeapSize: number } }).memory.usedJSHeapSize;
+    }
+
+    return {
+      floor,
+      entityCount,
+      componentCount,
+      entitySpriteCount,
+      tilemapPoolSize,
+      activeFilterCount,
+      managedTextureCount: textureMem.totalTextures,
+      vramBytes: textureMem.estimatedVramBytes,
+      activeAudioVoiceCount,
+      jsHeapBytes,
+      timestamp: Date.now(),
+    };
+  }
+
+  public takeBaselineSnapshot(stats?: Partial<LeakBaselineSnapshot>): LeakBaselineSnapshot {
+    const current = this.captureCurrentSnapshot();
     this.baselineSnapshot = {
+      ...current,
       ...stats,
       timestamp: Date.now(),
     };

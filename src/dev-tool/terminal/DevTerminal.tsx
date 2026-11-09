@@ -331,19 +331,15 @@ export function DevTerminal() {
               { text: `[OK] Performance monitor Ghost mode: ${usePerfStore.getState().ghostMode ? 'ON' : 'OFF'}`, type: 'output' },
             ]);
           } else if (sub === 'snap' || sub === 'snapshot') {
-            perfCollector.takeBaselineSnapshot({
-              floor: 1,
-              entityCount: 0,
-              componentCount: 0,
-              entitySpriteCount: 0,
-              tilemapPoolSize: 0,
-              activeFilterCount: 0,
-              managedTextureCount: 0,
-              vramBytes: 0,
-              activeAudioVoiceCount: 0,
-              jsHeapBytes: 0,
-            });
-            setHistory((prev) => [...prev, { text: '[OK] Baseline snapshot captured for floor-transition auditing', type: 'output' }]);
+            const snap = perfCollector.captureCurrentSnapshot();
+            perfCollector.takeBaselineSnapshot(snap);
+            setHistory((prev) => [
+              ...prev,
+              {
+                text: `[OK] Baseline snapshot captured for floor ${snap.floor} (${snap.entityCount} entities, ${(snap.vramBytes / (1024 * 1024)).toFixed(1)}MB VRAM)`,
+                type: 'output',
+              },
+            ]);
           } else if (sub === 'export') {
             const jsonStr = perfCollector.generateReportJson();
             if (typeof window !== 'undefined') {

@@ -145,4 +145,21 @@ describe('PerfCollector', () => {
     expect(parsed).toHaveProperty('summary');
     expect(parsed.turnWaterfall).toHaveLength(1);
   });
+
+  it('captures live census snapshot and tracks floor transition history', () => {
+    const snap1 = collector.captureCurrentSnapshot();
+    expect(snap1).toHaveProperty('floor');
+    expect(snap1).toHaveProperty('entityCount');
+    expect(snap1).toHaveProperty('componentCount');
+    expect(snap1).toHaveProperty('vramBytes');
+
+    collector.recordFloorTransitionSnapshot(snap1);
+    expect(collector.getFloorHistory()).toHaveLength(1);
+    expect(collector.getBaselineSnapshot()).toBe(snap1);
+
+    const snap2 = { ...snap1, floor: 2, entityCount: 150 };
+    collector.recordFloorTransitionSnapshot(snap2);
+    expect(collector.getFloorHistory()).toHaveLength(2);
+    expect(collector.getBaselineSnapshot()).toBe(snap1);
+  });
 });
