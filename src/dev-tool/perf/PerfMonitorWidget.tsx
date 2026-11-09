@@ -745,21 +745,74 @@ export function PerfMonitorWidget({
           </div>
         )}
 
-        {/* Spike Trap Forensics Banner if Active */}
-        {throttledData.spikeForensics && (
-          <div className={styles.spikeBanner}>
-            <span>
-              ⚡ SPIKE TRAP TRIPPED: {throttledData.spikeForensics.frameDurationMs}ms (Threshold:{' '}
-              {throttledData.spikeForensics.thresholdMs}ms)
-            </span>
-            <button
-              className={styles.spikeClearBtn}
-              onClick={() => perfCollector.clearSpikeCard()}
-            >
-              RESUME
-            </button>
-          </div>
-        )}
+        {/* Spike Trap Forensics Card if Active */}
+        {throttledData.spikeForensics && (() => {
+          const card = throttledData.spikeForensics;
+          const stages = [
+            { name: 'FOV', ms: card.stageTimings.fovMs },
+            { name: 'TILEMAP', ms: card.stageTimings.tilemapMs },
+            { name: 'SPRITES', ms: card.stageTimings.spriteSyncMs },
+            { name: 'VFX', ms: card.stageTimings.vfxMs },
+            { name: 'HOVER', ms: card.stageTimings.hoverMs },
+            { name: 'WEBGL', ms: card.webglStats.renderPassMs ?? 0 },
+          ];
+          let culprit = stages[0];
+          for (let i = 1; i < stages.length; i++) {
+            if (stages[i].ms > culprit.ms) {
+              culprit = stages[i];
+            }
+          }
+
+          return (
+            <div className={styles.spikeCard}>
+              <div className={styles.spikeCardHeader}>
+                <div className={styles.spikeCardTitle}>
+                  <span>⚡ SPIKE TRAP TRIPPED: {card.frameDurationMs.toFixed(2)}ms</span>
+                  <span style={{ fontSize: 9, color: 'var(--c-text-dim, #79889e)' }}>
+                    (THRESHOLD: {card.thresholdMs}ms)
+                  </span>
+                  <span className={styles.spikeCulpritBadge}>
+                    CULPRIT: {culprit.name} ({culprit.ms.toFixed(2)}ms)
+                  </span>
+                </div>
+                <button
+                  className={styles.spikeClearBtn}
+                  onClick={() => perfCollector.clearSpikeCard()}
+                  aria-label="Resume from spike trap freeze"
+                >
+                  RESUME
+                </button>
+              </div>
+
+              {/* Sub-Stage Breakdown */}
+              <div className={styles.spikeStagesGrid}>
+                <span>FOV: <strong>{card.stageTimings.fovMs.toFixed(2)}ms</strong></span>
+                <span>TILE: <strong>{card.stageTimings.tilemapMs.toFixed(2)}ms</strong></span>
+                <span>SPR: <strong>{card.stageTimings.spriteSyncMs.toFixed(2)}ms</strong></span>
+                <span>VFX: <strong>{card.stageTimings.vfxMs.toFixed(2)}ms</strong></span>
+                <span>HVR: <strong>{card.stageTimings.hoverMs.toFixed(2)}ms</strong></span>
+                <span>GL: <strong>{(card.webglStats.renderPassMs ?? 0).toFixed(2)}ms</strong></span>
+              </div>
+
+              {/* WebGL and Emitted Events */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 9 }}>
+                <span>DRAWS: <strong>{card.webglStats.drawCalls} DC</strong> | TRIS: <strong>{card.webglStats.triangles}</strong></span>
+                <span style={{ color: 'var(--c-text-dim, #79889e)' }}>SW: {card.webglStats.programSwitches} | TEX: {card.webglStats.textureBinds}</span>
+              </div>
+
+              <div className={styles.spikeEventsRow}>
+                <span style={{ color: 'var(--c-text-dim, #79889e)' }}>EVENTS IN FRAME:</span>
+                {card.recentEvents.length > 0 ? (
+                  card.recentEvents.map((evt, idx) => (
+                    <span key={idx} className={styles.spikeEventChip}>{evt}</span>
+                  ))
+                ) : (
+                  <span style={{ color: 'var(--c-text-muted, #4a5668)', fontStyle: 'italic' }}>None</span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Summary Metrics Row */}
         <div className={styles.metricsRow}>

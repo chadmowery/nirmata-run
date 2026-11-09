@@ -62,6 +62,8 @@ export default function GamePage() {
   const unsubscribePerfModeRef = useRef<(() => void) | null>(null);
   const webglProbeRef = useRef<import('@dev-tool/perf/webgl-probe').WebGLProbe | null>(null);
   const perfCollectorRef = useRef<import('@dev-tool/perf/perf-collector').PerfCollector | null>(null);
+  const perfAnyHandlerRef = useRef<((type: string, event: unknown) => void) | null>(null);
+  const perfFloorTransitionHandlerRef = useRef<(() => void) | null>(null);
   const [engineReady, setEngineReady] = useState(false);
 
   const showCanvas =
@@ -216,22 +218,23 @@ export default function GamePage() {
           app.ticker.add(perfTicker, undefined, UPDATE_PRIORITY.UTILITY);
         });
 
-        context.eventBus.on('ENTITY_CREATED', () =>
-          perfCollectorRef.current?.recordEventEmission('ENTITY_CREATED'),
-        );
-        context.eventBus.on('DAMAGE_DEALT', () =>
-          perfCollectorRef.current?.recordEventEmission('DAMAGE_DEALT'),
-        );
-        context.eventBus.on('FLOOR_TRANSITION', () => {
+        const anyHandler = (type: string) => {
+          if (type !== 'FOV_UPDATED') {
+            perfCollectorRef.current?.recordEventEmission(type);
+          }
+        };
+        const floorTransitionHandler = () => {
           perfCollectorRef.current?.recordEventEmission('FLOOR_TRANSITION');
           if (perfCollectorRef.current) {
             const snap = perfCollectorRef.current.captureCurrentSnapshot();
             perfCollectorRef.current.recordFloorTransitionSnapshot(snap);
           }
-        });
-        context.eventBus.on('STATE_RECONCILED', () =>
-          perfCollectorRef.current?.recordEventEmission('STATE_RECONCILED'),
-        );
+        };
+
+        perfAnyHandlerRef.current = anyHandler;
+        perfFloorTransitionHandlerRef.current = floorTransitionHandler;
+        context.eventBus.onAny(anyHandler);
+        context.eventBus.on('FLOOR_TRANSITION', floorTransitionHandler);
       }
 
       // 4. Init Audio System
@@ -310,6 +313,16 @@ export default function GamePage() {
       perfCollectorRef.current?.setRenderSystem(null);
       perfCollectorRef.current?.setProbe(null);
       perfCollectorRef.current = null;
+      if (contextRef.current) {
+        if (perfAnyHandlerRef.current) {
+          contextRef.current.eventBus.offAny(perfAnyHandlerRef.current);
+          perfAnyHandlerRef.current = null;
+        }
+        if (perfFloorTransitionHandlerRef.current) {
+          contextRef.current.eventBus.off('FLOOR_TRANSITION', perfFloorTransitionHandlerRef.current);
+          perfFloorTransitionHandlerRef.current = null;
+        }
+      }
       if (process.env.NODE_ENV === 'development') {
         setTurnTelemetryHook(null);
       }
@@ -346,6 +359,14 @@ export default function GamePage() {
         gameAudioSystemRef.current = null;
       }
       if (contextRef.current) {
+        if (perfAnyHandlerRef.current) {
+          contextRef.current.eventBus.offAny(perfAnyHandlerRef.current);
+          perfAnyHandlerRef.current = null;
+        }
+        if (perfFloorTransitionHandlerRef.current) {
+          contextRef.current.eventBus.off('FLOOR_TRANSITION', perfFloorTransitionHandlerRef.current);
+          perfFloorTransitionHandlerRef.current = null;
+        }
         destroyGame(contextRef.current);
         contextRef.current = null;
       }

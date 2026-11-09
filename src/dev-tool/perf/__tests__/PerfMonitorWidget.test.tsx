@@ -375,4 +375,49 @@ describe('PerfMonitorWidget', () => {
     fireEvent.mouseLeave(canvas!);
     expect(screen.queryByText(/TOTAL FRAME:/i)).toBeNull();
   });
+
+  it('renders rich Spike Forensics Card with sub-stage culprit badge, draw calls, and frame events', () => {
+    act(() => {
+      usePerfStore.setState({
+        mode: 'STANDARD',
+        throttledData: {
+          ...usePerfStore.getState().throttledData,
+          spikeForensics: {
+            frameDurationMs: 34.5,
+            thresholdMs: 20,
+            stageTimings: {
+              fovMs: 1.2,
+              tilemapMs: 18.4,
+              spriteSyncMs: 4.1,
+              vfxMs: 1.0,
+              hoverMs: 0.3,
+              totalCpuMs: 25.0,
+            },
+            webglStats: {
+              drawCalls: 48,
+              triangles: 1400,
+              programSwitches: 6,
+              textureBinds: 12,
+              renderPassMs: 3.2,
+            },
+            recentEvents: ['DAMAGE_DEALT', 'PROP_INTERACTED'],
+            timestamp: Date.now(),
+          },
+        },
+      });
+    });
+
+    render(<PerfMonitorWidget />);
+
+    expect(screen.getByText(/⚡ SPIKE TRAP TRIPPED: 34.50ms/i)).toBeInTheDocument();
+    expect(screen.getByText(/CULPRIT: TILEMAP \(18.40ms\)/i)).toBeInTheDocument();
+    expect(screen.getByText('18.40ms')).toBeInTheDocument();
+    expect(screen.getByText('48 DC')).toBeInTheDocument();
+    expect(screen.getByText('DAMAGE_DEALT')).toBeInTheDocument();
+    expect(screen.getByText('PROP_INTERACTED')).toBeInTheDocument();
+
+    const resumeBtn = screen.getByRole('button', { name: /RESUME/i });
+    expect(resumeBtn).toBeInTheDocument();
+    fireEvent.click(resumeBtn);
+  });
 });

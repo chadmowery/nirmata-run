@@ -73,6 +73,7 @@ export class PerfCollector {
   private spikeTrapThresholdMs = 0; // 0 = OFF
   private activeSpikeCard: SpikeForensicsCard | null = null;
   private recentEventsRing: string[] = [];
+  private currentFrameEvents: string[] = [];
   private readonly MAX_RECENT_EVENTS = 20;
 
   // Turn Telemetry Waterfall (Last 30 turns)
@@ -166,6 +167,7 @@ export class PerfCollector {
   public clearSpikeCard(): void {
     this.activeSpikeCard = null;
     this.isFrozen = false;
+    this.currentFrameEvents.length = 0;
     this.onFreezeCallback?.(false);
   }
 
@@ -173,6 +175,7 @@ export class PerfCollector {
     this.isFrozen = frozen;
     if (!frozen) {
       this.activeSpikeCard = null;
+      this.currentFrameEvents.length = 0;
     }
     this.onFreezeCallback?.(frozen);
   }
@@ -182,6 +185,7 @@ export class PerfCollector {
   }
 
   public recordEventEmission(eventType: string): void {
+    this.currentFrameEvents.push(eventType);
     if (this.recentEventsRing.length >= this.MAX_RECENT_EVENTS) {
       this.recentEventsRing.shift();
     }
@@ -208,8 +212,11 @@ export class PerfCollector {
         frameDurationMs: Math.round(frameDeltaMs * 100) / 100,
         thresholdMs: this.spikeTrapThresholdMs,
         stageTimings: { ...stageTimings },
-        webglStats: { ...webglStats },
-        recentEvents: [...this.recentEventsRing],
+        webglStats: { ...webglStats, renderPassMs: webglPassMs },
+        recentEvents:
+          this.currentFrameEvents.length > 0
+            ? [...this.currentFrameEvents]
+            : [...this.recentEventsRing],
         timestamp: Date.now(),
       };
       this.onFreezeCallback?.(true);
@@ -227,6 +234,7 @@ export class PerfCollector {
 
     this.head = (this.head + 1) % HIST_SIZE;
     this.totalRecorded++;
+    this.currentFrameEvents.length = 0;
   }
 
   public computeRollingMetrics(windowSize = 120): RollingFrameMetrics {
