@@ -81,6 +81,83 @@ export function setTurnTelemetryHook(hook: TurnTelemetryHook | null): void {
 }
 
 /**
+ * Resolves a human-readable, semantic action name (e.g. ATTACK, SEARCH, PICKUP)
+ * based on the intent sent to the server and the authoritative simulation events returned.
+ */
+export function deriveSemanticAction(
+  intent: ActionIntent | null,
+  serverEvents?: Array<{ type: string; payload?: unknown }> | null,
+  playerId?: number | null,
+): string {
+  if (!intent) return 'IDLE';
+
+  if (intent.type === 'WAIT') return 'WAIT';
+  if (intent.type === 'VENT') return 'VENT';
+  if (intent.type === 'USE_FIRMWARE') return 'FIRMWARE';
+  if (intent.type === 'INTERACT_PROP') return 'SEARCH';
+  if (intent.type === 'STAIRCASE_DESCEND' || intent.type === 'ANCHOR_DESCEND') return 'DESCEND';
+  if (intent.type === 'ANCHOR_EXTRACT') return 'EXTRACT';
+  if (intent.type === 'EQUIP') return 'EQUIP';
+  if (intent.type === 'UNEQUIP') return 'UNEQUIP';
+  if (intent.type === 'BURN_SOFTWARE') return 'BURN_SW';
+  if (intent.type === 'PURGE_SOFTWARE') return 'PURGE_SW';
+  if (intent.type === 'BURN_FIRMWARE') return 'BURN_FW';
+  if (intent.type === 'BURN_AUGMENT') return 'BURN_AUG';
+
+  if (intent.type === 'MOVE') {
+    if (serverEvents && serverEvents.length > 0) {
+      // 1. Check for player combat damage dealt (Attack)
+      const hasAttack = serverEvents.some((e) => {
+        if (e.type !== 'DAMAGE_DEALT') return false;
+        const payload = e.payload as { attackerId?: number } | undefined;
+        return playerId == null || payload?.attackerId === playerId;
+      });
+      if (hasAttack) return 'ATTACK';
+
+      // 2. Check for prop interaction / lock unlocked (Search)
+      const hasSearch = serverEvents.some((e) => {
+        if (
+          e.type !== 'PROP_INTERACTED' &&
+          e.type !== 'LOCK_UNLOCKED' &&
+          e.type !== 'DEAD_DROP_TRANSMITTED'
+        ) {
+          return false;
+        }
+        const payload = e.payload as { entityId?: number } | undefined;
+        return playerId == null || payload?.entityId === playerId;
+      });
+      if (hasSearch) return 'SEARCH';
+
+      // 3. Check for item or currency pickup
+      const hasPickup = serverEvents.some((e) => {
+        if (e.type !== 'ITEM_PICKED_UP' && e.type !== 'CURRENCY_PICKED_UP') return false;
+        const payload = e.payload as { entityId?: number } | undefined;
+        return playerId == null || payload?.entityId === playerId;
+      });
+      if (hasPickup) return 'PICKUP';
+
+      // 4. Check for floor descent / staircase interaction
+      const hasDescend = serverEvents.some(
+        (e) => e.type === 'FLOOR_TRANSITION' || e.type === 'STAIRCASE_INTERACTION',
+      );
+      if (hasDescend) return 'DESCEND';
+
+      // 5. Check for entity move confirmation
+      const hasMoved = serverEvents.some((e) => {
+        if (e.type !== 'ENTITY_MOVED') return false;
+        const payload = e.payload as { entityId?: number } | undefined;
+        return playerId == null || payload?.entityId === playerId;
+      });
+      if (hasMoved) return 'MOVE';
+    }
+
+    return 'MOVE';
+  }
+
+  return intent.type;
+}
+
+/**
  * Canonically resolves the active client sessionId with a consistent fallback chain.
  */
 export function resolveActiveSessionId(explicitSessionId?: string): string {
@@ -800,9 +877,14 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
           if (turnTelemetryHook) {
             const devPerf = result._devPerf;
+            const actionType = deriveSemanticAction(
+              intent,
+              serverState.events,
+              context.playerId,
+            );
             turnTelemetryHook({
               turnNumber: turnManager.getTurnNumber(),
-              actionType: intent.type,
+              actionType,
               clientPredictionMs: Math.round(clientPredictionMs * 100) / 100,
               networkRttMs: Math.round(networkRttMs * 100) / 100,
               serverTurnMs: devPerf?.serverTurnMs ?? 0,

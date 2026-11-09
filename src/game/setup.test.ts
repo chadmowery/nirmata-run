@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createGame } from './setup';
+import { createGame, deriveSemanticAction } from './setup';
 import { GameState } from './states/types';
 import { GameAction } from './input/actions';
 import { serializeWorld } from '@shared/serialization';
@@ -257,5 +257,48 @@ describe('Game Setup Integration', () => {
     );
     expect(ability0?.name).toBe('BASIC_STRIKE.exe');
     expect(ability1?.name).toBe('KINETIC_LINK.exe');
+  });
+
+  describe('deriveSemanticAction', () => {
+    it('returns specific intent names for non-move intents', () => {
+      expect(deriveSemanticAction({ type: 'WAIT' })).toBe('WAIT');
+      expect(deriveSemanticAction({ type: 'VENT' })).toBe('VENT');
+      expect(deriveSemanticAction({ type: 'USE_FIRMWARE', slotIndex: 0, targetX: 1, targetY: 1 })).toBe('FIRMWARE');
+      expect(deriveSemanticAction({ type: 'INTERACT_PROP', targetPropId: 5, forceOverride: false })).toBe('SEARCH');
+      expect(deriveSemanticAction({ type: 'STAIRCASE_DESCEND', staircaseId: 10, targetFloor: 2 })).toBe('DESCEND');
+      expect(deriveSemanticAction({ type: 'ANCHOR_EXTRACT' })).toBe('EXTRACT');
+    });
+
+    it('resolves ATTACK when MOVE intent results in player DAMAGE_DEALT', () => {
+      const intent = { type: 'MOVE' as const, dx: 1, dy: 0 };
+      const events = [
+        { type: 'DAMAGE_DEALT', payload: { attackerId: 1, defenderId: 99, amount: 10 } },
+      ];
+      expect(deriveSemanticAction(intent, events, 1)).toBe('ATTACK');
+    });
+
+    it('resolves SEARCH when MOVE intent results in PROP_INTERACTED or LOCK_UNLOCKED', () => {
+      const intent = { type: 'MOVE' as const, dx: 0, dy: 1 };
+      const events = [
+        { type: 'PROP_INTERACTED', payload: { entityId: 1, propId: 44, propClass: 'cache' } },
+      ];
+      expect(deriveSemanticAction(intent, events, 1)).toBe('SEARCH');
+    });
+
+    it('resolves PICKUP when MOVE intent results in ITEM_PICKED_UP or CURRENCY_PICKED_UP', () => {
+      const intent = { type: 'MOVE' as const, dx: -1, dy: 0 };
+      const events = [
+        { type: 'ITEM_PICKED_UP', payload: { entityId: 1, itemId: 55 } },
+      ];
+      expect(deriveSemanticAction(intent, events, 1)).toBe('PICKUP');
+    });
+
+    it('defaults to MOVE for standard movement without special events', () => {
+      const intent = { type: 'MOVE' as const, dx: 0, dy: -1 };
+      const events = [
+        { type: 'ENTITY_MOVED', payload: { entityId: 1, fromX: 2, fromY: 2, toX: 2, toY: 1 } },
+      ];
+      expect(deriveSemanticAction(intent, events, 1)).toBe('MOVE');
+    });
   });
 });

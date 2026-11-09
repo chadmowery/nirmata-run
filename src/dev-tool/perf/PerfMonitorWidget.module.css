@@ -35,10 +35,19 @@
   right: 12px;
 }
 
-/* Ghost Mode: Click-Through Overlay */
+/* Ghost Mode: Click-Through Overlay with Recoverable Interactive Controls */
 .ghostMode {
   pointer-events: none !important;
   opacity: 0.60;
+}
+
+.ghostMode .placardHeader,
+.ghostMode .headerControls,
+.ghostMode .ctrlBtn,
+.ghostMode .miniActions,
+.ghostMode .ghostBanner,
+.ghostMode .ghostRestoreBtn {
+  pointer-events: auto !important;
 }
 
 .ghostRestoreBtn {
@@ -51,11 +60,41 @@
   font-size: 10px;
   font-weight: 700;
   border-radius: 2px;
+  box-shadow: 0 0 8px rgba(216, 255, 0, 0.4);
 }
 
 .ghostRestoreBtn:hover {
   background: var(--c-accent, #d8ff00);
   color: #040609;
+}
+
+.ghostBanner {
+  background: rgba(216, 255, 0, 0.14);
+  border-bottom: 1px solid var(--c-accent, #d8ff00);
+  color: var(--c-accent, #d8ff00);
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+  font-weight: 800;
+  text-align: center;
+  padding: 4px 8px;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  animation: ghostBannerPulse 2.5s infinite ease-in-out;
+}
+
+.ghostBanner:hover {
+  background: var(--c-accent, #d8ff00);
+  color: #040609;
+}
+
+@keyframes ghostBannerPulse {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; border-color: #00f0ff; color: #00f0ff; }
 }
 
 /* Panel Card Framing with Taikoku Dual Corner L-Brackets */
@@ -261,11 +300,151 @@
   text-transform: uppercase;
 }
 
+.waveformLegend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  padding: 3px 6px;
+  background: rgba(2, 3, 5, 0.9);
+  border: 1px solid rgba(28, 38, 56, 0.8);
+  font-size: 8px;
+  font-variant-numeric: tabular-nums;
+  border-radius: 1px;
+}
+
+.legendChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.legendLine {
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+  display: inline-block;
+}
+
+.legendLineDashed {
+  width: 10px;
+  height: 0;
+  border-top: 1px dashed;
+  display: inline-block;
+}
+
+.scrubCanvasContainer {
+  position: relative;
+  width: 100%;
+}
+
 .oscilloscopeCanvas {
   background: #020305;
   border: 1px solid var(--c-border, #1c2638);
   display: block;
   cursor: crosshair;
+  width: 100%;
+}
+
+.scrubHoverCard {
+  position: absolute;
+  pointer-events: none;
+  z-index: 200;
+  background: rgba(4, 6, 9, 0.96);
+  border: 1px solid var(--c-accent-secondary, #00f0ff);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.9), 0 0 10px rgba(0, 240, 255, 0.25);
+  padding: 6px 8px;
+  border-radius: 2px;
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+  line-height: 1.35;
+  color: var(--c-text, #ffffff);
+  min-width: 200px;
+  max-width: 260px;
+  animation: perfTooltipIn 80ms ease-out;
+}
+
+.scrubCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  border-bottom: 1px solid rgba(28, 38, 56, 0.8);
+  padding-bottom: 3px;
+  margin-bottom: 4px;
+}
+
+.scrubFrameTag {
+  font-weight: 800;
+  color: #00f0ff;
+  letter-spacing: 0.05em;
+}
+
+.scrubOffset {
+  font-size: 8px;
+  color: var(--c-text-muted, #4a5668);
+}
+
+.scrubBadgeOk {
+  background: rgba(0, 255, 136, 0.15);
+  color: #00ff88;
+  border: 1px solid #00ff88;
+  font-size: 8px;
+  font-weight: 800;
+  padding: 0 4px;
+  border-radius: 1px;
+}
+
+.scrubBadgeSpike {
+  background: rgba(255, 42, 75, 0.2);
+  color: #ff2a4b;
+  border: 1px solid #ff2a4b;
+  font-size: 8px;
+  font-weight: 800;
+  padding: 0 4px;
+  border-radius: 1px;
+}
+
+.scrubRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  margin: 1px 0;
+}
+
+.scrubSubBreakdown {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px 6px;
+  font-size: 8px;
+  color: var(--c-text-dim, #79889e);
+  margin: 3px 0;
+  padding: 3px 4px;
+  background: rgba(2, 3, 5, 0.6);
+  border: 1px dashed rgba(28, 38, 56, 0.8);
+}
+
+.scrubDockBar {
+  margin-top: 4px;
+  padding: 3px 6px;
+  background: #020305;
+  border: 1px solid var(--c-border, #1c2638);
+  font-size: 9px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--c-text-dim, #79889e);
+}
+
+.scrubDockHint {
+  font-size: 8px;
+  color: var(--c-text-muted, #4a5668);
+  letter-spacing: 0.03em;
 }
 
 .budgetBar {
@@ -532,4 +711,104 @@
   font-weight: 700;
   cursor: pointer;
   border-radius: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   CYBERPUNK HUD TOOLTIP OVERLAY
+   -------------------------------------------------------------------------- */
+.perfTooltip {
+  position: fixed;
+  z-index: 2900;
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  background: rgba(4, 6, 10, 0.96);
+  border: 1px solid var(--c-border, #1c2638);
+  border-left: 3px solid var(--c-accent-secondary, #00f0ff);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.9), 0 0 10px rgba(0, 240, 255, 0.15);
+  padding: 8px 10px;
+  pointer-events: none;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 10px;
+  line-height: 1.4;
+  color: var(--c-text, #ffffff);
+  border-radius: 2px;
+  animation: perfTooltipIn 100ms ease-out;
+  box-sizing: border-box;
+}
+
+@keyframes perfTooltipIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.perfTooltipHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.perfTooltipTag {
+  background: #020305;
+  color: var(--c-accent, #d8ff00);
+  border: 1px solid rgba(216, 255, 0, 0.4);
+  font-size: 8px;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 1px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.perfTooltipTitle {
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--c-text, #ffffff);
+  letter-spacing: 0.02em;
+}
+
+.perfTooltipDesc {
+  color: var(--c-text-dim, #79889e);
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.perfTooltipDetail {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed rgba(28, 38, 56, 0.8);
+  color: var(--c-accent-secondary, #00f0ff);
+  font-size: 9px;
+  font-weight: 600;
+}
+
+/* Interactive Tooltip Cursor Hints */
+.dataRow[data-perf-tooltip] {
+  cursor: help;
+  transition: background 100ms ease;
+}
+
+.dataRow[data-perf-tooltip]:hover {
+  background: rgba(0, 240, 255, 0.05);
+}
+
+.metricItem[data-perf-tooltip] {
+  cursor: help;
+}
+
+.miniStat[data-perf-tooltip],
+.miniFps[data-perf-tooltip],
+.miniSparkline[data-perf-tooltip] {
+  cursor: help;
+}
+
+.budgetSegment[data-perf-tooltip],
+.budgetLegendItem[data-perf-tooltip] {
+  cursor: help;
 }

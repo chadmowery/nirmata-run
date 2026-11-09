@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { createGame, destroyGame } from '@/game/setup';
+import { createGame, destroyGame, setTurnTelemetryHook } from '@/game/setup';
 import { loadAssets } from '@/rendering/assets';
 import { initRenderer, destroyRenderer, getApp } from '@/rendering/renderer';
 import { createRenderSystem } from '@/rendering/render-system';
@@ -180,10 +180,8 @@ export default function GamePage() {
           });
         });
 
-        import('@/game/setup').then(({ setTurnTelemetryHook }) => {
-          import('@dev-tool/perf/perf-collector').then(({ perfCollector }) => {
-            setTurnTelemetryHook((telemetry) => perfCollector.recordTurnTelemetry(telemetry));
-          });
+        import('@dev-tool/perf/perf-collector').then(({ perfCollector }) => {
+          setTurnTelemetryHook((telemetry) => perfCollector.recordTurnTelemetry(telemetry));
         });
 
         context.eventBus.on('ENTITY_CREATED', () =>
@@ -267,6 +265,9 @@ export default function GamePage() {
       perfCollectorRef.current?.setRenderSystem(null);
       perfCollectorRef.current?.setProbe(null);
       perfCollectorRef.current = null;
+      if (process.env.NODE_ENV === 'development') {
+        setTurnTelemetryHook(null);
+      }
       setEngineReady(false);
       destroyGame(contextRef.current);
       contextRef.current = null;
@@ -311,6 +312,9 @@ export default function GamePage() {
       perfCollectorRef.current?.setRenderSystem(null);
       perfCollectorRef.current?.setProbe(null);
       perfCollectorRef.current = null;
+      if (process.env.NODE_ENV === 'development') {
+        setTurnTelemetryHook(null);
+      }
       setEngineReady(false);
       destroyRenderer();
       getAudioEngine().destroy();
@@ -400,17 +404,30 @@ export default function GamePage() {
     };
   }, []);
 
-  // Effect 6: Development Hotkeys for TK-PERF-900 (F3, Shift+F3, Alt+F3)
+  // Effect 6: Development Hotkeys for TK-PERF-900 (F3, Alt+P, Shift+F3, etc.)
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development') return;
 
     const handleHotkeys = (e: KeyboardEvent) => {
-      if (e.key === 'F3') {
+      // Don't trigger if user is typing in an input or textarea (e.g. DevTerminal)
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+      ) {
+        return;
+      }
+
+      const isF3 = e.key === 'F3';
+      const isAltP = e.altKey && (e.key === 'p' || e.key === 'P');
+      const isCtrlShiftP = e.ctrlKey && e.shiftKey && (e.key === 'p' || e.key === 'P');
+
+      if (isF3 || isAltP || isCtrlShiftP) {
         e.preventDefault();
         import('@dev-tool/perf/perf-store').then(({ usePerfStore }) => {
-          if (e.shiftKey) {
+          if (e.shiftKey && !isCtrlShiftP) {
             usePerfStore.getState().cycleMode();
-          } else if (e.altKey) {
+          } else if (e.altKey && isF3) {
             usePerfStore.getState().toggleGhost();
           } else {
             usePerfStore.getState().toggleMode();

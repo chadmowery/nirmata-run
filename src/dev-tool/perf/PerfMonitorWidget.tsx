@@ -5,12 +5,29 @@ import { WebGLProbe } from './webgl-probe';
 import { GameContext } from '@/game/types';
 import { createRenderSystem, DevRenderBisectionFlags } from '@/rendering/render-system';
 import { getAudioEngine } from '@engine/audio';
+import { PERF_TOOLTIPS, getPerfTooltipAttrs, PerfTooltipId, PerfTooltipEntry } from './perf-tooltips';
 import styles from './PerfMonitorWidget.module.css';
 
 export interface PerfMonitorWidgetProps {
   context?: GameContext | null;
   renderSystem?: ReturnType<typeof createRenderSystem> | null;
   probe?: WebGLProbe | null;
+}
+
+interface ScrubInspectData {
+  frameIndex: number;
+  frameTime: number;
+  cpuTime: number;
+  fov: number;
+  tilemap: number;
+  sprite: number;
+  vfx: number;
+  hover: number;
+  drawCalls: number;
+  timeAgo: string;
+  isSpike: boolean;
+  clientX: number;
+  clientY: number;
 }
 
 export function PerfMonitorWidget({
@@ -47,9 +64,87 @@ export function PerfMonitorWidget({
   const oscilloscopeRef = useRef<HTMLCanvasElement | null>(null);
   const expandedOscilloscopeRef = useRef<HTMLCanvasElement | null>(null);
 
-  // Expanded Scrub State
-  const [scrubIndex, setScrubIndex] = useState<number | null>(null);
-  const [scrubPosition, setScrubPosition] = useState<{ x: number; y: number } | null>(null);
+  // Expanded Scrub State & Crosshair Ref
+  const scrubPosRef = useRef<{ x: number; y: number } | null>(null);
+  const [scrubData, setScrubData] = useState<ScrubInspectData | null>(null);
+
+  // Floating Cyberpunk Tooltip State
+  const [activeTooltip, setActiveTooltip] = useState<{
+    id: PerfTooltipId;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  // Clear tooltip when Ghost Mode is toggled or Escape key is pressed
+  useEffect(() => {
+    if (ghostMode) {
+      setActiveTooltip(null);
+    }
+  }, [ghostMode]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveTooltip(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleContainerPointerOver = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (ghostMode) return;
+    const target = (e.target as HTMLElement).closest<HTMLElement>('[data-perf-tooltip]');
+    if (!target) return;
+    const id = target.getAttribute('data-perf-tooltip') as PerfTooltipId | null;
+    if (!id || !PERF_TOOLTIPS[id]) return;
+
+    const rect = target.getBoundingClientRect();
+    const tooltipWidth = 280;
+    const tooltipHeight = 90;
+    const margin = 10;
+
+    let x = rect.left;
+    let y = rect.bottom + 6;
+
+    // Flip horizontally if overflowing right edge
+    if (x + tooltipWidth > window.innerWidth - margin) {
+      x = Math.max(margin, window.innerWidth - tooltipWidth - margin);
+    }
+
+    // Flip vertically if overflowing bottom edge
+    if (y + tooltipHeight > window.innerHeight - margin) {
+      y = Math.max(margin, rect.top - tooltipHeight - 6);
+    }
+
+    setActiveTooltip({ id, x, y });
+  };
+
+  const handleContainerPointerOut = (e: React.PointerEvent<HTMLDivElement>) => {
+    const related = e.relatedTarget as HTMLElement | null;
+    if (!related || !related.closest('[data-perf-tooltip]')) {
+      setActiveTooltip(null);
+    }
+  };
+
+  const renderFloatingTooltip = () => {
+    if (!activeTooltip || !PERF_TOOLTIPS[activeTooltip.id]) return null;
+    const item: PerfTooltipEntry = PERF_TOOLTIPS[activeTooltip.id];
+    return (
+      <div
+        className={styles.perfTooltip}
+        style={{ left: activeTooltip.x, top: activeTooltip.y }}
+        role="tooltip"
+      >
+        <div className={styles.perfTooltipHeader}>
+          <span className={styles.perfTooltipTag}>{item.tag}</span>
+          <span className={styles.perfTooltipTitle}>{item.title}</span>
+        </div>
+        <div className={styles.perfTooltipDesc}>{item.desc}</div>
+        {item.detail && <div className={styles.perfTooltipDetail}>{item.detail}</div>}
+      </div>
+    );
+  };
 
   // Sync Bisection Flags with RenderSystem
   useEffect(() => {
@@ -306,15 +401,44 @@ export function PerfMonitorWidget({
           }
           ctx.stroke();
 
-          // Draw Scrub Crosshair if Hovered
-          if (scrubPosition !== null) {
+          // Draw Scrub Crosshair and Sample Dots if Hovered
+          if (scrubPosRef.current !== null) {
+            const sx = scrubPosRef.current.x;
             ctx.strokeStyle = '#ffffff';
             ctx.setLineDash([2, 2]);
             ctx.beginPath();
-            ctx.moveTo(scrubPosition.x, 0);
-            ctx.lineTo(scrubPosition.x, h);
+            ctx.moveTo(sx, 0);
+            ctx.lineTo(sx, h);
             ctx.stroke();
             ctx.setLineDash([]);
+
+            // Reticle sample dots on the lines
+            const frameOffset = Math.floor((sx / w) * HIST_SIZE);
+            const clampedOffset = Math.max(0, Math.min(HIST_SIZE - 1, frameOffset));
+            const targetIdx = (head - HIST_SIZE + clampedOffset + HIST_SIZE) % HIST_SIZE;
+
+            const t = perfCollector.frameTimes[targetIdx] || 0;
+            const cpu =
+              perfCollector.fovTimes[targetIdx] +
+              perfCollector.tilemapTimes[targetIdx] +
+              perfCollector.spriteTimes[targetIdx] +
+              perfCollector.vfxTimes[targetIdx] +
+              perfCollector.hoverTimes[targetIdx];
+
+            const yFrame = Math.max(2, Math.min(h - 2, h - (t / 40.0) * h));
+            const yCpu = Math.max(2, Math.min(h - 2, h - (cpu / 40.0) * h));
+
+            // Yellow dot on Frame Time line
+            ctx.fillStyle = '#d8ff00';
+            ctx.beginPath();
+            ctx.arc(sx, yFrame, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Cyan dot on CPU Render line
+            ctx.fillStyle = '#00f0ff';
+            ctx.beginPath();
+            ctx.arc(sx, yCpu, 3.5, 0, Math.PI * 2);
+            ctx.fill();
           }
         }
       }
@@ -324,7 +448,7 @@ export function PerfMonitorWidget({
 
     animId = requestAnimationFrame(renderWaveforms);
     return () => cancelAnimationFrame(animId);
-  }, [mode, isPaused, scrubPosition]);
+  }, [mode, isPaused]);
 
   if (mode === 'OFF') {
     return null;
@@ -395,12 +519,14 @@ export function PerfMonitorWidget({
       <div
         className={`${styles.widgetContainer} ${posClass} ${ghostMode ? styles.ghostMode : ''}`}
         data-perf-monitor="true"
+        onPointerOver={handleContainerPointerOver}
+        onPointerOut={handleContainerPointerOut}
       >
         <div className={`${styles.panelCard} ${styles.miniPill}`}>
-          <span className={styles.miniFps} style={{ color: fpsColor }}>
+          <span className={styles.miniFps} style={{ color: fpsColor }} {...getPerfTooltipAttrs('miniFps')}>
             ⚡ {fps.toFixed(0)} FPS
           </span>
-          <span className={styles.miniStat}>
+          <span className={styles.miniStat} {...getPerfTooltipAttrs('miniFrameTime')}>
             <strong>{throttledData.metrics.frameTimeMs.toFixed(1)}</strong>ms
           </span>
 
@@ -409,18 +535,19 @@ export function PerfMonitorWidget({
             width={48}
             height={14}
             className={styles.miniSparkline}
+            {...getPerfTooltipAttrs('miniSparkline')}
           />
 
-          <span className={styles.miniStat}>
+          <span className={styles.miniStat} {...getPerfTooltipAttrs('miniDc')}>
             <strong>{throttledData.webglStats.drawCalls}</strong> DC
           </span>
-          <span className={styles.miniStat}>
+          <span className={styles.miniStat} {...getPerfTooltipAttrs('miniEnt')}>
             <strong>{throttledData.ecsDiagnostics?.entityCount ?? 0}</strong> ENT
           </span>
-          <span className={styles.miniStat}>
+          <span className={styles.miniStat} {...getPerfTooltipAttrs('miniRtt')}>
             RTT <strong>{throttledData.latestTurn?.networkRttMs.toFixed(0) ?? 0}</strong>ms
           </span>
-          <span className={styles.miniStat}>
+          <span className={styles.miniStat} {...getPerfTooltipAttrs('miniVram')}>
             <strong>{(throttledData.textureMemory.estimatedVramBytes / (1024 * 1024)).toFixed(1)}</strong>MB
           </span>
 
@@ -428,26 +555,27 @@ export function PerfMonitorWidget({
             <button
               className={ghostMode ? styles.ghostRestoreBtn : styles.ctrlBtn}
               onClick={toggleGhost}
-              title="Alt+F3: Toggle Ghost Click-Through"
+              {...getPerfTooltipAttrs('btnGhost')}
             >
               👻
             </button>
             <button
               className={styles.ctrlBtn}
               onClick={() => setMode('STANDARD')}
-              title="Expand to Standard Widget"
+              {...getPerfTooltipAttrs('btnStandard')}
             >
               ⤢
             </button>
             <button
               className={styles.ctrlBtn}
               onClick={() => setMode('OFF')}
-              title="Close Performance Monitor (F3)"
+              {...getPerfTooltipAttrs('btnClose')}
             >
               ✕
             </button>
           </div>
         </div>
+        {renderFloatingTooltip()}
       </div>
     );
   }
@@ -461,6 +589,8 @@ export function PerfMonitorWidget({
     <div
       className={`${styles.widgetContainer} ${posClass} ${ghostMode ? styles.ghostMode : ''}`}
       data-perf-monitor="true"
+      onPointerOver={handleContainerPointerOver}
+      onPointerOut={handleContainerPointerOut}
     >
       <div
         className={`${styles.panelCard} ${
@@ -469,56 +599,67 @@ export function PerfMonitorWidget({
       >
         {/* Inverted Ivory Placard Header */}
         <div className={styles.placardHeader}>
-          <div className={styles.placardTitle}>
+          <div className={styles.placardTitle} {...getPerfTooltipAttrs('headerTitle')}>
             <span>性能監視 // TK-PERF-900</span>
-            <span className={styles.placardTag}>開発計測</span>
+            <span className={styles.placardTag} {...getPerfTooltipAttrs('headerTag')}>開発計測</span>
           </div>
 
           <div className={styles.headerControls}>
             <button
-              className={`${styles.ctrlBtn} ${ghostMode ? styles.ctrlBtnActive : ''}`}
+              className={ghostMode ? styles.ghostRestoreBtn : styles.ctrlBtn}
               onClick={toggleGhost}
-              title="Alt+F3: Ghost Click-Through Mode"
+              {...getPerfTooltipAttrs('btnGhost')}
             >
-              👻 GHOST
+              {ghostMode ? '👻 RESTORE' : '👻 GHOST'}
             </button>
             <button
               className={`${styles.ctrlBtn} ${isPaused ? styles.ctrlBtnActive : ''}`}
               onClick={togglePause}
-              title="Pause Waveform"
+              {...getPerfTooltipAttrs('btnPause')}
             >
               {isPaused ? '▶' : '⏸'}
             </button>
             <button
               className={styles.ctrlBtn}
               onClick={handleTakeSnapshot}
-              title="Take Baseline Snapshot"
+              {...getPerfTooltipAttrs('btnSnapshot')}
             >
               📸
             </button>
             <button
               className={styles.ctrlBtn}
               onClick={() => setMode('MINI')}
-              title="Mini Pill Mode"
+              {...getPerfTooltipAttrs('btnMini')}
             >
               ▬
             </button>
             <button
               className={styles.ctrlBtn}
               onClick={() => setMode(isExpanded ? 'STANDARD' : 'EXPANDED')}
-              title={isExpanded ? 'Collapse to Standard' : 'Expand to Workstation'}
+              {...getPerfTooltipAttrs(isExpanded ? 'btnStandard' : 'btnExpanded')}
             >
               {isExpanded ? '⇤' : '⤢'}
             </button>
             <button
               className={styles.ctrlBtn}
               onClick={() => setMode('OFF')}
-              title="Close (F3)"
+              {...getPerfTooltipAttrs('btnClose')}
             >
               ✕
             </button>
           </div>
         </div>
+
+        {/* Ghost Mode Active Recovery Banner */}
+        {ghostMode && (
+          <div
+            className={styles.ghostBanner}
+            onClick={toggleGhost}
+            title="Click to restore full mouse interaction to the performance monitor"
+          >
+            👻 GHOST MODE ACTIVE: BODY IS CLICK-THROUGH — CLICK TO RESTORE
+          </div>
+        )}
 
         {/* Spike Trap Forensics Banner if Active */}
         {throttledData.spikeForensics && (
@@ -538,18 +679,22 @@ export function PerfMonitorWidget({
 
         {/* Summary Metrics Row */}
         <div className={styles.metricsRow}>
-          <div className={styles.metricItem}>
+          <div className={styles.metricItem} {...getPerfTooltipAttrs('metricFps')}>
             FPS: <span className={styles.metricValue} style={{ color: fpsColor }}>{fps.toFixed(1)}</span>{' '}
-            (1% LOW: <span className={styles.metricValue}>{throttledData.metrics.fpsOnePercentLow.toFixed(1)}</span>)
+            <span {...getPerfTooltipAttrs('metricFpsLow')}>
+              (1% LOW: <span className={styles.metricValue}>{throttledData.metrics.fpsOnePercentLow.toFixed(1)}</span>)
+            </span>
           </div>
-          <div className={styles.metricItem}>
+          <div className={styles.metricItem} {...getPerfTooltipAttrs('metricFrameTime')}>
             FRAME:{' '}
             <span className={styles.metricValue}>
               {throttledData.metrics.frameTimeMs.toFixed(2)} ms
             </span>{' '}
-            ({budgetPct}% BUDGET)
+            <span {...getPerfTooltipAttrs('metricBudget')}>
+              ({budgetPct}% BUDGET)
+            </span>
           </div>
-          <div className={styles.metricItem}>
+          <div className={styles.metricItem} {...getPerfTooltipAttrs('metricDrawCalls')}>
             DC: <span className={styles.metricValue}>{throttledData.webglStats.drawCalls}</span>
           </div>
         </div>
@@ -559,7 +704,7 @@ export function PerfMonitorWidget({
           <>
             {/* 1px Vector Oscilloscope (120 frames, 2.0s) */}
             <div className={styles.oscilloscopeSection}>
-              <div className={styles.oscilloscopeHeader}>
+              <div className={styles.oscilloscopeHeader} {...getPerfTooltipAttrs('oscilloscopeCanvas')}>
                 <span>1PX OSCILLOSCOPE // 120 FRAMES (2.0s)</span>
                 <span>CYAN: 16.7ms | CRIMSON: 33.3ms</span>
               </div>
@@ -569,17 +714,18 @@ export function PerfMonitorWidget({
                 width={360}
                 height={70}
                 className={styles.oscilloscopeCanvas}
+                {...getPerfTooltipAttrs('oscilloscopeCanvas')}
               />
 
               {/* Stacked Frame Budget Breakdown */}
-              <div className={styles.budgetBar}>
+              <div className={styles.budgetBar} {...getPerfTooltipAttrs('budgetBar')}>
                 <div
                   className={styles.budgetSegment}
                   style={{
                     width: `${(stage.fovMs / totalStageMs) * 100}%`,
                     background: '#00f0ff',
                   }}
-                  title={`FOV: ${stage.fovMs.toFixed(2)}ms`}
+                  {...getPerfTooltipAttrs('stageFov')}
                 />
                 <div
                   className={styles.budgetSegment}
@@ -587,7 +733,7 @@ export function PerfMonitorWidget({
                     width: `${(stage.tilemapMs / totalStageMs) * 100}%`,
                     background: '#d8ff00',
                   }}
-                  title={`Tilemap: ${stage.tilemapMs.toFixed(2)}ms`}
+                  {...getPerfTooltipAttrs('stageTilemap')}
                 />
                 <div
                   className={styles.budgetSegment}
@@ -595,7 +741,7 @@ export function PerfMonitorWidget({
                     width: `${(stage.spriteSyncMs / totalStageMs) * 100}%`,
                     background: '#ffaa00',
                   }}
-                  title={`Sprites: ${stage.spriteSyncMs.toFixed(2)}ms`}
+                  {...getPerfTooltipAttrs('stageSpriteSync')}
                 />
                 <div
                   className={styles.budgetSegment}
@@ -603,7 +749,7 @@ export function PerfMonitorWidget({
                     width: `${(stage.vfxMs / totalStageMs) * 100}%`,
                     background: '#ff6600',
                   }}
-                  title={`VFX: ${stage.vfxMs.toFixed(2)}ms`}
+                  {...getPerfTooltipAttrs('stageVfx')}
                 />
                 <div
                   className={styles.budgetSegment}
@@ -611,21 +757,21 @@ export function PerfMonitorWidget({
                     width: `${(stage.hoverMs / totalStageMs) * 100}%`,
                     background: '#bd00ff',
                   }}
-                  title={`Hover: ${stage.hoverMs.toFixed(2)}ms`}
+                  {...getPerfTooltipAttrs('stageHover')}
                 />
               </div>
 
               <div className={styles.budgetLabels}>
-                <span className={styles.budgetLegendItem}>
+                <span className={styles.budgetLegendItem} {...getPerfTooltipAttrs('stageFov')}>
                   <span className={styles.budgetDot} style={{ background: '#00f0ff' }} /> FOV {stage.fovMs.toFixed(2)}m
                 </span>
-                <span className={styles.budgetLegendItem}>
+                <span className={styles.budgetLegendItem} {...getPerfTooltipAttrs('stageTilemap')}>
                   <span className={styles.budgetDot} style={{ background: '#d8ff00' }} /> TILE {stage.tilemapMs.toFixed(2)}m
                 </span>
-                <span className={styles.budgetLegendItem}>
+                <span className={styles.budgetLegendItem} {...getPerfTooltipAttrs('stageSpriteSync')}>
                   <span className={styles.budgetDot} style={{ background: '#ffaa00' }} /> SPR {stage.spriteSyncMs.toFixed(2)}m
                 </span>
-                <span className={styles.budgetLegendItem}>
+                <span className={styles.budgetLegendItem} {...getPerfTooltipAttrs('stageVfx')}>
                   <span className={styles.budgetDot} style={{ background: '#ff6600' }} /> VFX {stage.vfxMs.toFixed(2)}m
                 </span>
               </div>
@@ -636,30 +782,35 @@ export function PerfMonitorWidget({
               <button
                 className={`${styles.tabBtn} ${activeTab === 'GPU' ? styles.tabBtnActive : ''}`}
                 onClick={() => setActiveTab('GPU')}
+                {...getPerfTooltipAttrs('tabGpu')}
               >
                 描画 GPU
               </button>
               <button
                 className={`${styles.tabBtn} ${activeTab === 'ECS' ? styles.tabBtnActive : ''}`}
                 onClick={() => setActiveTab('ECS')}
+                {...getPerfTooltipAttrs('tabEcs')}
               >
                 実体 ECS
               </button>
               <button
                 className={`${styles.tabBtn} ${activeTab === 'TURN' ? styles.tabBtnActive : ''}`}
                 onClick={() => setActiveTab('TURN')}
+                {...getPerfTooltipAttrs('tabTurn')}
               >
                 同期 TURN
               </button>
               <button
                 className={`${styles.tabBtn} ${activeTab === 'MEM' ? styles.tabBtnActive : ''}`}
                 onClick={() => setActiveTab('MEM')}
+                {...getPerfTooltipAttrs('tabMem')}
               >
                 記憶 MEM
               </button>
               <button
                 className={`${styles.tabBtn} ${activeTab === 'AUDIT' ? styles.tabBtnActive : ''}`}
                 onClick={() => setActiveTab('AUDIT')}
+                {...getPerfTooltipAttrs('tabAudit')}
               >
                 監査 AUDIT {throttledData.leakDiff ? '●1' : ''}
               </button>
@@ -689,53 +840,159 @@ export function PerfMonitorWidget({
           <div className={styles.expandedLayout}>
             {/* Left Column: Oscilloscope, Scrub Inspector, GPU & MEM */}
             <div className={styles.column}>
-              <div className={styles.sectionBox}>
-                <div className={styles.sectionTitle}>
+              <div className={styles.sectionBox} style={{ position: 'relative' }}>
+                <div className={styles.sectionTitle} {...getPerfTooltipAttrs('scrubInspector')}>
                   <span>4.0s WAVEFORM // SCRUB INSPECTOR</span>
-                  {scrubIndex !== null && (
-                    <span style={{ color: '#00f0ff' }}>FRAME #{scrubIndex}</span>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    {isPaused && (
+                      <span style={{ color: '#ff2a4b', fontSize: 9, fontWeight: 700 }}>[PAUSED]</span>
+                    )}
+                    {scrubData !== null && (
+                      <span style={{ color: '#00f0ff', fontSize: 9 }}>FRAME #{scrubData.frameIndex}</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Waveform Legend Chips */}
+                <div className={styles.waveformLegend}>
+                  <span className={styles.legendChip} style={{ color: '#d8ff00' }}>
+                    <span className={styles.legendLine} style={{ background: '#d8ff00' }} />
+                    FRAME TIME
+                  </span>
+                  <span className={styles.legendChip} style={{ color: '#00f0ff' }}>
+                    <span className={styles.legendLine} style={{ background: '#00f0ff' }} />
+                    CPU RENDER
+                  </span>
+                  <span className={styles.legendChip} style={{ color: 'rgba(0, 240, 255, 0.7)' }}>
+                    <span className={styles.legendLineDashed} style={{ borderColor: '#00f0ff' }} />
+                    16.7ms (60 FPS)
+                  </span>
+                  <span className={styles.legendChip} style={{ color: '#ff2a4b' }}>
+                    <span className={styles.legendLineDashed} style={{ borderColor: '#ff2a4b' }} />
+                    33.3ms (30 FPS)
+                  </span>
+                </div>
+
+                <div className={styles.scrubCanvasContainer}>
+                  <canvas
+                    ref={expandedOscilloscopeRef}
+                    width={340}
+                    height={90}
+                    className={styles.oscilloscopeCanvas}
+                    onClick={() => togglePause()}
+                    title="Click canvas to freeze / pause waveform playback for frame inspection"
+                    onMouseMove={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const rawX = e.clientX - rect.left;
+                      const rawY = e.clientY - rect.top;
+                      const scaleX = 340 / (rect.width || 340);
+                      const canvasX = Math.max(0, Math.min(340, rawX * scaleX));
+                      scrubPosRef.current = { x: canvasX, y: rawY };
+
+                      const frameOffset = Math.floor((canvasX / 340) * HIST_SIZE);
+                      const clampedOffset = Math.max(0, Math.min(HIST_SIZE - 1, frameOffset));
+                      const head = perfCollector.getHeadIndex();
+                      const targetIdx = (head - HIST_SIZE + clampedOffset + HIST_SIZE) % HIST_SIZE;
+
+                      const frameTime = perfCollector.frameTimes[targetIdx] || 0;
+                      const fov = perfCollector.fovTimes[targetIdx] || 0;
+                      const tilemap = perfCollector.tilemapTimes[targetIdx] || 0;
+                      const sprite = perfCollector.spriteTimes[targetIdx] || 0;
+                      const vfx = perfCollector.vfxTimes[targetIdx] || 0;
+                      const hover = perfCollector.hoverTimes[targetIdx] || 0;
+                      const cpuTime = fov + tilemap + sprite + vfx + hover;
+                      const drawCalls = perfCollector.drawCalls[targetIdx] || 0;
+                      const framesAgo = HIST_SIZE - 1 - clampedOffset;
+                      const timeAgo = ((framesAgo * (1000 / 60)) / 1000).toFixed(2);
+
+                      setScrubData({
+                        frameIndex: targetIdx,
+                        frameTime,
+                        cpuTime,
+                        fov,
+                        tilemap,
+                        sprite,
+                        vfx,
+                        hover,
+                        drawCalls,
+                        timeAgo,
+                        isSpike: frameTime > 16.67,
+                        clientX: rawX,
+                        clientY: rawY,
+                      });
+                    }}
+                    onMouseLeave={() => {
+                      scrubPosRef.current = null;
+                      setScrubData(null);
+                    }}
+                  />
+
+                  {/* Floating Cyberpunk Scrub Tooltip Over Waveform */}
+                  {scrubData && (
+                    <div
+                      className={styles.scrubHoverCard}
+                      style={{
+                        left: Math.max(4, Math.min(scrubData.clientX - 100, 110)),
+                        top: Math.max(4, scrubData.clientY - 95),
+                      }}
+                    >
+                      <div className={styles.scrubCardHeader}>
+                        <span className={styles.scrubFrameTag}>FRAME #{scrubData.frameIndex}</span>
+                        <span className={styles.scrubOffset}>(-{scrubData.timeAgo}s)</span>
+                        <span className={scrubData.isSpike ? styles.scrubBadgeSpike : styles.scrubBadgeOk}>
+                          {scrubData.isSpike ? 'SPIKE >16.7ms' : '60 FPS OK'}
+                        </span>
+                      </div>
+                      <div className={styles.scrubRow}>
+                        <span style={{ color: '#d8ff00' }}>TOTAL FRAME:</span>
+                        <strong style={{ color: '#d8ff00' }}>{scrubData.frameTime.toFixed(2)} ms</strong>
+                      </div>
+                      <div className={styles.scrubRow}>
+                        <span style={{ color: '#00f0ff' }}>CPU RENDER:</span>
+                        <strong style={{ color: '#00f0ff' }}>{scrubData.cpuTime.toFixed(2)} ms</strong>
+                      </div>
+                      <div className={styles.scrubSubBreakdown}>
+                        <span>FOV: {scrubData.fov.toFixed(2)}ms</span>
+                        <span>TILE: {scrubData.tilemap.toFixed(2)}ms</span>
+                        <span>SPRITE: {scrubData.sprite.toFixed(2)}ms</span>
+                        <span>VFX: {scrubData.vfx.toFixed(2)}ms</span>
+                        <span>HOVER: {scrubData.hover.toFixed(2)}ms</span>
+                        <span>GL: {(Math.max(0, scrubData.cpuTime - (scrubData.fov + scrubData.tilemap + scrubData.sprite + scrubData.vfx + scrubData.hover))).toFixed(2)}ms</span>
+                      </div>
+                      <div className={styles.scrubRow}>
+                        <span style={{ color: '#a0b0c0' }}>WEBGL DRAWS:</span>
+                        <strong>{scrubData.drawCalls} DC</strong>
+                      </div>
+                    </div>
                   )}
                 </div>
 
-                <canvas
-                  ref={expandedOscilloscopeRef}
-                  width={340}
-                  height={90}
-                  className={styles.oscilloscopeCanvas}
-                  onMouseMove={(e) => {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const x = e.clientX - rect.left;
-                    const y = e.clientY - rect.top;
-                    setScrubPosition({ x, y });
-                    const frameOffset = Math.floor((x / rect.width) * HIST_SIZE);
-                    const head = perfCollector.getHeadIndex();
-                    const targetIdx = (head - HIST_SIZE + frameOffset + HIST_SIZE) % HIST_SIZE;
-                    setScrubIndex(targetIdx);
-                  }}
-                  onMouseLeave={() => {
-                    setScrubPosition(null);
-                    setScrubIndex(null);
-                  }}
-                />
-
-                {scrubIndex !== null && (
-                  <div className={styles.dataRow} style={{ marginTop: 4 }}>
-                    <span className={styles.dataLabel}>SCRUB TIMING:</span>
-                    <span className={styles.dataVal} style={{ color: '#d8ff00' }}>
-                      {perfCollector.frameTimes[scrubIndex].toFixed(2)} ms (DC:{' '}
-                      {perfCollector.drawCalls[scrubIndex]})
+                {/* Persistent Dock Bar Under Waveform */}
+                <div className={styles.scrubDockBar}>
+                  {scrubData ? (
+                    <>
+                      <span style={{ color: '#00f0ff' }}>
+                        FRAME #{scrubData.frameIndex} (-{scrubData.timeAgo}s)
+                      </span>
+                      <span>
+                        FRAME: <strong style={{ color: '#d8ff00' }}>{scrubData.frameTime.toFixed(2)}ms</strong> | CPU: <strong style={{ color: '#00f0ff' }}>{scrubData.cpuTime.toFixed(2)}ms</strong> | DC: {scrubData.drawCalls}
+                      </span>
+                    </>
+                  ) : (
+                    <span className={styles.scrubDockHint}>
+                      {isPaused ? '⏸ PAUSED: HOVER TO INSPECT SAMPLES • CLICK TO RESUME' : 'HOVER TO SCRUB • CLICK CANVAS TO FREEZE'}
                     </span>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               <div className={styles.sectionBox}>
-                <div className={styles.sectionTitle}>描画 // GPU & RENDER PIPELINE</div>
+                <div className={styles.sectionTitle} {...getPerfTooltipAttrs('tabGpu')}>描画 // GPU & RENDER PIPELINE</div>
                 {renderGpuTab(throttledData, bisectionFlags)}
               </div>
 
               <div className={styles.sectionBox}>
-                <div className={styles.sectionTitle}>記憶 // MEMORY, VRAM & DSP</div>
+                <div className={styles.sectionTitle} {...getPerfTooltipAttrs('tabMem')}>記憶 // MEMORY, VRAM & DSP</div>
                 {renderMemTab(throttledData)}
               </div>
             </div>
@@ -743,17 +1000,17 @@ export function PerfMonitorWidget({
             {/* Right Column: Turn Waterfall, ECS Census & Audit */}
             <div className={styles.column}>
               <div className={styles.sectionBox}>
-                <div className={styles.sectionTitle}>同期 // TURN PIPELINE WATERFALL</div>
+                <div className={styles.sectionTitle} {...getPerfTooltipAttrs('tabTurn')}>同期 // TURN PIPELINE WATERFALL</div>
                 {renderTurnTab(throttledData)}
               </div>
 
               <div className={styles.sectionBox}>
-                <div className={styles.sectionTitle}>実体 // ECS & SPATIAL CENSUS</div>
+                <div className={styles.sectionTitle} {...getPerfTooltipAttrs('tabEcs')}>実体 // ECS & SPATIAL CENSUS</div>
                 {renderEcsTab(throttledData)}
               </div>
 
               <div className={styles.sectionBox}>
-                <div className={styles.sectionTitle}>監査 // AUDIT & BISECTION TOOLS</div>
+                <div className={styles.sectionTitle} {...getPerfTooltipAttrs('tabAudit')}>監査 // AUDIT & BISECTION TOOLS</div>
                 {renderAuditTab(
                   throttledData,
                   bisectionFlags,
@@ -769,7 +1026,7 @@ export function PerfMonitorWidget({
 
         {/* Bottom Control Bar */}
         <div className={styles.bottomBar}>
-          <div>
+          <div {...getPerfTooltipAttrs('spikeTrapSelect')}>
             <label style={{ marginRight: 4, color: 'var(--c-text-dim, #79889e)' }}>TRAP:</label>
             <select
               className={styles.spikeTrapSelect}
@@ -783,45 +1040,52 @@ export function PerfMonitorWidget({
             </select>
           </div>
 
-          <button className={styles.bottomActionBtn} onClick={handleTakeSnapshot}>
+          <button
+            className={styles.bottomActionBtn}
+            onClick={handleTakeSnapshot}
+            {...getPerfTooltipAttrs('btnSnapshot')}
+          >
             📸 SNAPSHOT
           </button>
 
-          <div>
+          <div {...getPerfTooltipAttrs('dockPosition')}>
             <span style={{ color: 'var(--c-text-muted, #4a5668)', marginRight: 6 }}>DOCK:</span>
             <button
               className={styles.cornerDockBtn}
               onClick={() => setDockPosition('TOP_LEFT')}
-              title="Top Left"
+              {...getPerfTooltipAttrs('dockTopLeft')}
             >
               TL
             </button>
             <button
               className={styles.cornerDockBtn}
               onClick={() => setDockPosition('TOP_RIGHT')}
-              title="Top Right"
+              {...getPerfTooltipAttrs('dockTopRight')}
             >
               TR
             </button>
             <button
               className={styles.cornerDockBtn}
               onClick={() => setDockPosition('BOTTOM_LEFT')}
-              title="Bottom Left"
+              {...getPerfTooltipAttrs('dockBottomLeft')}
             >
               BL
             </button>
             <button
               className={styles.cornerDockBtn}
               onClick={() => setDockPosition('BOTTOM_RIGHT')}
-              title="Bottom Right"
+              {...getPerfTooltipAttrs('dockBottomRight')}
             >
               BR
             </button>
           </div>
 
-          <span style={{ color: 'var(--c-text-muted, #4a5668)' }}>[F3: HIDE]</span>
+          <span style={{ color: 'var(--c-text-muted, #4a5668)' }} {...getPerfTooltipAttrs('hotkeyGuide')}>
+            [F3 / Alt+P: HIDE]
+          </span>
         </div>
       </div>
+      {renderFloatingTooltip()}
     </div>
   );
 }
@@ -848,21 +1112,22 @@ function renderGpuTab(
 
   return (
     <>
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('gpuDrawCalls')}>
         <span className={styles.dataLabel}>WEBGL DRAW CALLS</span>
         <span className={styles.dataVal}>
           {data.webglStats.drawCalls} DC{' '}
           <span className={styles.dataSub}>
-            (TRIS: {data.webglStats.triangles} | PROG: {data.webglStats.programSwitches})
+            (<span {...getPerfTooltipAttrs('gpuTriangles')}>TRIS: {data.webglStats.triangles}</span> |{' '}
+            <span {...getPerfTooltipAttrs('gpuPrograms')}>PROG: {data.webglStats.programSwitches}</span>)
           </span>
         </span>
       </div>
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('gpuTextureBinds')}>
         <span className={styles.dataLabel}>TEXTURE BINDS</span>
         <span className={styles.dataVal}>{data.webglStats.textureBinds}</span>
       </div>
       <div className={styles.divider} />
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('gpuPixiFilters')}>
         <span className={styles.dataLabel}>ACTIVE PIXI FILTERS</span>
         <span className={styles.dataVal}>
           {propFilterCount + worldFilterCount}{' '}
@@ -871,14 +1136,16 @@ function renderGpuTab(
           </span>
         </span>
       </div>
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('gpuTerrainPool')}>
         <span className={styles.dataLabel}>TERRAIN SPRITE POOL</span>
         <span className={styles.dataVal}>
           {tilemap ? `${tilemap.visibleTiles} / ${tilemap.poolSize}` : '0 / 0'}{' '}
-          <span className={styles.dataSub}>(AUTOTILE SOLVES: {tilemap?.lastAutotileSolves ?? 0})</span>
+          <span className={styles.dataSub} {...getPerfTooltipAttrs('gpuAutotileSolves')}>
+            (AUTOTILE SOLVES: {tilemap?.lastAutotileSolves ?? 0})
+          </span>
         </span>
       </div>
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('gpuNeonParticles')}>
         <span className={styles.dataLabel}>NEON PARTICLES & TEXT</span>
         <span className={styles.dataVal}>
           {bisectionFlags.disableParticles ? 0 : (particles?.activeEmitters ?? 0)} EMITTERS (
@@ -888,7 +1155,7 @@ function renderGpuTab(
           </span>
         </span>
       </div>
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('gpuHoverInspector')}>
         <span className={styles.dataLabel}>HOVER INSPECTOR</span>
         <span className={styles.dataVal}>
           {data.stageTimings.hoverMs.toFixed(2)} ms{' '}
@@ -905,29 +1172,29 @@ function renderEcsTab(data: ReturnType<typeof usePerfStore.getState>['throttledD
 
   return (
     <>
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('ecsLiveEntities')}>
         <span className={styles.dataLabel}>TOTAL LIVE ENTITIES</span>
         <span className={styles.dataVal}>{ecs?.entityCount ?? 0}</span>
       </div>
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('ecsComponentStores')}>
         <span className={styles.dataLabel}>COMPONENT STORES</span>
         <span className={styles.dataVal}>
           {ecs?.storeCount ?? 0} <span className={styles.dataSub}>({ecs?.totalComponentInstances ?? 0} inst)</span>
         </span>
       </div>
       <div className={styles.divider} />
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('ecsSpatialGrid')}>
         <span className={styles.dataLabel}>SPATIAL GRID</span>
         <span className={styles.dataVal}>
           {grid?.width ?? 80} × {grid?.height ?? 45}{' '}
           <span className={styles.dataSub}>(ENT CELLS: {grid?.occupiedEntityCells ?? 0})</span>
         </span>
       </div>
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('ecsGroundItemCells')}>
         <span className={styles.dataLabel}>GROUND ITEM CELLS</span>
         <span className={styles.dataVal}>{grid?.groundItemCells ?? 0}</span>
       </div>
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('ecsRegisteredSystems')}>
         <span className={styles.dataLabel}>REGISTERED SYSTEMS</span>
         <span className={styles.dataVal}>{ecs?.systemCount ?? 0}</span>
       </div>
@@ -940,39 +1207,44 @@ function renderTurnTab(data: ReturnType<typeof usePerfStore.getState>['throttled
 
   return (
     <>
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('turnActionType')}>
         <span className={styles.dataLabel}>LATEST TURN ACTION</span>
         <span className={styles.dataVal} style={{ color: '#00f0ff' }}>
           {turn?.actionType || 'IDLE'}
         </span>
       </div>
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('turnClientPrediction')}>
         <span className={styles.dataLabel}>CLIENT PREDICTION</span>
         <span className={styles.dataVal}>{turn?.clientPredictionMs.toFixed(2) ?? '0.00'} ms</span>
       </div>
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('turnNetworkRtt')}>
         <span className={styles.dataLabel}>NETWORK RTT</span>
         <span className={styles.dataVal}>{turn?.networkRttMs.toFixed(2) ?? '0.00'} ms</span>
       </div>
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('turnServerTime')}>
         <span className={styles.dataLabel}>SERVER TURN TIME</span>
         <span className={styles.dataVal}>
           {turn?.serverTurnMs ? turn.serverTurnMs.toFixed(2) : '0.00'} ms{' '}
-          <span className={styles.dataSub}>({turn?.syncType ?? 'DELTA'})</span>
+          <span className={styles.dataSub} {...getPerfTooltipAttrs('turnSyncType')}>
+            ({turn?.syncType ?? 'DELTA'})
+          </span>
         </span>
       </div>
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('turnClientReconcile')}>
         <span className={styles.dataLabel}>CLIENT RECONCILE</span>
         <span className={styles.dataVal}>{turn?.reconcileMs ? turn.reconcileMs.toFixed(2) : '0.00'} ms</span>
       </div>
       {turn?.serverTopSystems && turn.serverTopSystems.length > 0 && (
         <>
           <div className={styles.divider} />
-          <div style={{ fontSize: 9, color: 'var(--c-text-muted, #4a5668)', marginBottom: 2 }}>
+          <div
+            style={{ fontSize: 9, color: 'var(--c-text-muted, #4a5668)', marginBottom: 2 }}
+            {...getPerfTooltipAttrs('turnTopSystems')}
+          >
             TOP SERVER SYSTEMS:
           </div>
           {turn.serverTopSystems.slice(0, 3).map((sys, idx) => (
-            <div key={idx} className={styles.dataRow}>
+            <div key={idx} className={styles.dataRow} {...getPerfTooltipAttrs('turnTopSystems')}>
               <span className={styles.dataLabel} style={{ fontSize: 9 }}>
                 {sys.name} [{sys.phase}]
               </span>
@@ -994,13 +1266,13 @@ function renderMemTab(data: ReturnType<typeof usePerfStore.getState>['throttledD
 
   return (
     <>
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('memVram')}>
         <span className={styles.dataLabel}>GPU TEXTURE VRAM</span>
         <span className={styles.dataVal} style={{ color: '#d8ff00' }}>
           {(tex.estimatedVramBytes / (1024 * 1024)).toFixed(2)} MB
         </span>
       </div>
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('memTextureCount')}>
         <span className={styles.dataLabel}>TEXTURE COUNT</span>
         <span className={styles.dataVal}>
           {tex.totalTextures}{' '}
@@ -1010,7 +1282,7 @@ function renderMemTab(data: ReturnType<typeof usePerfStore.getState>['throttledD
         </span>
       </div>
       <div className={styles.divider} />
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('memJsHeap')}>
         <span className={styles.dataLabel}>JS HEAP MEMORY</span>
         <span className={styles.dataVal}>
           {gc.heapUsedBytes > 0
@@ -1018,19 +1290,19 @@ function renderMemTab(data: ReturnType<typeof usePerfStore.getState>['throttledD
             : 'N/A (NON-CHROMIUM)'}
         </span>
       </div>
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('memGcSawtooth')}>
         <span className={styles.dataLabel}>GC SAWTOOTH EVENTS</span>
         <span className={styles.dataVal}>{gc.gcEvents}</span>
       </div>
       <div className={styles.divider} />
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('memAudioContext')}>
         <span className={styles.dataLabel}>AUDIO CONTEXT</span>
         <span className={styles.dataVal}>
           {audio?.contextState ?? 'suspended'}{' '}
           <span className={styles.dataSub}>({audio?.sampleRate ?? 44100} Hz)</span>
         </span>
       </div>
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('memAudioVoices')}>
         <span className={styles.dataLabel}>ACTIVE AUDIO VOICES</span>
         <span className={styles.dataVal}>
           {audio?.activeVoiceCount ?? 0}{' '}
@@ -1058,7 +1330,7 @@ function renderAuditTab(
 
   return (
     <>
-      <div className={styles.dataRow}>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('auditBaseline')}>
         <span className={styles.dataLabel}>BASELINE SNAPSHOT</span>
         <span className={styles.dataVal}>
           {data.baselineSnapshot ? `FLOOR #${data.baselineSnapshot.floor}` : 'NONE'}
@@ -1066,7 +1338,7 @@ function renderAuditTab(
       </div>
 
       {diff ? (
-        <table className={styles.perfTable} style={{ margin: '4px 0' }}>
+        <table className={styles.perfTable} style={{ margin: '4px 0' }} {...getPerfTooltipAttrs('auditDiffTable')}>
           <thead>
             <tr>
               <th>RESOURCE</th>
@@ -1097,7 +1369,7 @@ function renderAuditTab(
           </tbody>
         </table>
       ) : (
-        <div style={{ fontSize: 9, color: 'var(--c-text-muted, #4a5668)', margin: '4px 0' }}>
+        <div style={{ fontSize: 9, color: 'var(--c-text-muted, #4a5668)', margin: '4px 0' }} {...getPerfTooltipAttrs('auditBaseline')}>
           No baseline snapshot recorded yet. Click SNAPSHOT to begin floor leak auditing.
         </div>
       )}
@@ -1107,7 +1379,7 @@ function renderAuditTab(
         RENDER BISECTION (DEV-ONLY):
       </div>
 
-      <label className={styles.bisectionItem}>
+      <label className={styles.bisectionItem} {...getPerfTooltipAttrs('bisectSpriteFilters')}>
         <input
           type="checkbox"
           checked={bisectionFlags.disableSpriteFilters}
@@ -1116,7 +1388,7 @@ function renderAuditTab(
         <span>Disable Sprite Filters (Outline/Glitch)</span>
       </label>
 
-      <label className={styles.bisectionItem}>
+      <label className={styles.bisectionItem} {...getPerfTooltipAttrs('bisectWorldFilters')}>
         <input
           type="checkbox"
           checked={bisectionFlags.disableWorldFilters}
@@ -1125,7 +1397,7 @@ function renderAuditTab(
         <span>Disable World Post-Process Filters</span>
       </label>
 
-      <label className={styles.bisectionItem}>
+      <label className={styles.bisectionItem} {...getPerfTooltipAttrs('bisectParticles')}>
         <input
           type="checkbox"
           checked={bisectionFlags.disableParticles}
@@ -1134,7 +1406,7 @@ function renderAuditTab(
         <span>Disable Particle Emitters</span>
       </label>
 
-      <label className={styles.bisectionItem}>
+      <label className={styles.bisectionItem} {...getPerfTooltipAttrs('bisectCacheTilemap')}>
         <input
           type="checkbox"
           checked={bisectionFlags.cacheStaticTilemap}
@@ -1143,7 +1415,7 @@ function renderAuditTab(
         <span>Cache Static Tilemap (Dirty Check)</span>
       </label>
 
-      <label className={styles.bisectionItem}>
+      <label className={styles.bisectionItem} {...getPerfTooltipAttrs('bisectCacheFov')}>
         <input
           type="checkbox"
           checked={bisectionFlags.cacheStaticFov}
@@ -1159,6 +1431,7 @@ function renderAuditTab(
           className={styles.bottomActionBtn}
           style={{ flex: 1 }}
           onClick={handleTakeSnapshot}
+          {...getPerfTooltipAttrs('btnNewSnapshot')}
         >
           📸 NEW SNAPSHOT
         </button>
@@ -1166,6 +1439,7 @@ function renderAuditTab(
           className={styles.bottomActionBtn}
           style={{ flex: 1 }}
           onClick={handleExportJson}
+          {...getPerfTooltipAttrs('btnExportJson')}
         >
           ⬇ EXPORT JSON
         </button>
