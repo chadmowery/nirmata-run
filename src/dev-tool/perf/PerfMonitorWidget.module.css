@@ -16,7 +16,7 @@
 
 /* Docking Positions */
 .posTopLeft {
-  top: 12px;
+  top: 54px;
   left: 12px;
 }
 
@@ -173,6 +173,46 @@
   align-items: center;
   gap: 4px;
   margin-left: 6px;
+}
+
+.miniDockGroup {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 4px;
+  padding-left: 4px;
+  border-left: 1px solid var(--c-border, #1c2638);
+}
+
+.miniDockBtn {
+  background: transparent;
+  border: 1px solid var(--c-border, #1c2638);
+  color: var(--c-text-muted, #4a5668);
+  font-family: var(--font-mono, monospace);
+  font-size: 7px;
+  padding: 0 2px;
+  line-height: 1.2;
+  cursor: pointer;
+  border-radius: 1px;
+}
+
+.miniDockBtn:hover {
+  color: var(--c-text, #ffffff);
+  border-color: var(--c-accent-secondary, #00f0ff);
+}
+
+.miniDockBtnActive {
+  background: var(--c-border, #1c2638);
+  color: var(--c-accent-secondary, #00f0ff);
+  border-color: var(--c-accent-secondary, #00f0ff);
+}
+
+.draggableHeader {
+  cursor: grab;
+}
+
+.draggableHeader:active {
+  cursor: grabbing;
 }
 
 /* --------------------------------------------------------------------------

@@ -485,13 +485,18 @@ export default function GamePage() {
       }
 
       const isF3 = e.key === 'F3';
-      const isAltP = e.altKey && (e.key === 'p' || e.key === 'P');
-      const isCtrlShiftP = e.ctrlKey && e.shiftKey && (e.key === 'p' || e.key === 'P');
+      const isAltP =
+        e.altKey &&
+        (e.code === 'KeyP' || e.key === 'p' || e.key === 'P' || e.key === 'π' || e.key === '∏');
+      const isCtrlShiftP =
+        (e.ctrlKey || e.metaKey) &&
+        e.shiftKey &&
+        (e.code === 'KeyP' || e.key === 'p' || e.key === 'P');
 
       if (isF3 || isAltP || isCtrlShiftP) {
         e.preventDefault();
         import('@dev-tool/perf/perf-store').then(({ usePerfStore }) => {
-          if (e.shiftKey && !isCtrlShiftP) {
+          if (e.shiftKey) {
             usePerfStore.getState().cycleMode();
           } else if (e.altKey && isF3) {
             usePerfStore.getState().toggleGhost();

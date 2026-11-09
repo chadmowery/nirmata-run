@@ -730,4 +730,52 @@ describe('PerfMonitorWidget', () => {
     expect(screen.getByText('SPATIAL EMITTERS')).toBeInTheDocument();
     expect(screen.getByText('5')).toBeInTheDocument();
   });
+
+  it('renders corner dock buttons in MINI mode and updates dock position', () => {
+    act(() => {
+      usePerfStore.setState({ mode: 'MINI', dockPosition: 'TOP_LEFT' });
+    });
+
+    render(<PerfMonitorWidget />);
+
+    expect(screen.getByText('TL')).toBeInTheDocument();
+    expect(screen.getByText('TR')).toBeInTheDocument();
+    expect(screen.getByText('BL')).toBeInTheDocument();
+    expect(screen.getByText('BR')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('BR'));
+    expect(usePerfStore.getState().dockPosition).toBe('BOTTOM_RIGHT');
+
+    fireEvent.click(screen.getByText('TR'));
+    expect(usePerfStore.getState().dockPosition).toBe('TOP_RIGHT');
+  });
+
+  it('supports magnetic corner dragging on placard header and snaps to quadrant', () => {
+    act(() => {
+      usePerfStore.setState({ mode: 'STANDARD', dockPosition: 'TOP_LEFT' });
+    });
+
+    const { container } = render(<PerfMonitorWidget />);
+
+    const header = container.querySelector('._placardHeader_7d2cfb');
+    expect(header).not.toBeNull();
+
+    // Mock window dimensions
+    window.innerWidth = 1920;
+    window.innerHeight = 1080;
+
+    // Simulate drag to bottom-right quadrant (clientX: 1600, clientY: 900)
+    fireEvent.pointerDown(header!, { button: 0, clientX: 100, clientY: 100, pointerId: 1 });
+    fireEvent.pointerMove(header!, { clientX: 1600, clientY: 900, pointerId: 1 });
+    fireEvent.pointerUp(header!, { clientX: 1600, clientY: 900, pointerId: 1 });
+
+    expect(usePerfStore.getState().dockPosition).toBe('BOTTOM_RIGHT');
+
+    // Simulate drag to top-right quadrant (clientX: 1600, clientY: 100)
+    fireEvent.pointerDown(header!, { button: 0, clientX: 1600, clientY: 900, pointerId: 1 });
+    fireEvent.pointerMove(header!, { clientX: 1600, clientY: 100, pointerId: 1 });
+    fireEvent.pointerUp(header!, { clientX: 1600, clientY: 100, pointerId: 1 });
+
+    expect(usePerfStore.getState().dockPosition).toBe('TOP_RIGHT');
+  });
 });
