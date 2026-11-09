@@ -645,4 +645,89 @@ describe('PerfMonitorWidget', () => {
     expect(screen.getByText(/READY/i)).toBeInTheDocument();
     expect(screen.getByText(/CONFIRMED/i)).toBeInTheDocument();
   });
+
+  it('renders Domain 4 MEM tab with pool utilization, JS allocation rate, and audio DSP', () => {
+    act(() => {
+      usePerfStore.setState({
+        mode: 'STANDARD',
+        activeTab: 'MEM',
+        throttledData: {
+          ...usePerfStore.getState().throttledData,
+          textureMemory: {
+            totalTextures: 18,
+            atlasTextures: 12,
+            renderTextures: 4,
+            textOrCanvasTextures: 2,
+            estimatedVramBytes: 32 * 1024 * 1024,
+          },
+          renderTelemetry: {
+            stageTimings: { fovMs: 0, tilemapMs: 0, spriteSyncMs: 0, vfxMs: 0, hoverMs: 0, totalCpuMs: 0 },
+            tilemap: { visibleTiles: 412, poolSize: 1080, lastAutotileSolves: 412 },
+            particles: { activeEmitters: 0, totalParticles: 0 },
+            filters: {
+              totalPropFilters: 0,
+              totalEnemyFilters: 0,
+              activePropFilterSprites: 0,
+              activeEnemyFilterSprites: 0,
+              activeDamageFilters: 0,
+              worldFiltersCount: 0,
+            },
+            sprites: { visibleSprites: 24, totalSprites: 58 },
+            activeAnimations: 2,
+            activeDamageTexts: 0,
+            fovTiles: 0,
+            exploredTiles: 0,
+            rememberedPropsCount: 0,
+            rememberedItemsCount: 0,
+          },
+          gcTelemetry: {
+            heapUsedBytes: 45 * 1024 * 1024,
+            heapTotalBytes: 80 * 1024 * 1024,
+            gcEvents: 3,
+            allocationRateMbPerSec: 14.25,
+          },
+          audioDiagnostics: {
+            contextState: 'running',
+            sampleRate: 48000,
+            outputLatencyMs: 12.5,
+            activeVoiceCount: 8,
+            ambientLoopCount: 2,
+            ambianceCutoffHz: 12500,
+            ambianceResonanceQ: 1.45,
+          },
+        },
+      });
+    });
+
+    const mockContext: any = {
+      world: {
+        query: () => [101, 102, 103, 104, 105], // 5 ambient emitters
+      },
+    };
+
+    render(<PerfMonitorWidget context={mockContext} />);
+
+    // Pool utilization
+    expect(screen.getByText('POOL UTILIZATION')).toBeInTheDocument();
+    expect(screen.getByText(/412 \/ 1080 VISIBLE/i)).toBeInTheDocument();
+    expect(screen.getByText(/AUTOTILE: 412/i)).toBeInTheDocument();
+    expect(screen.getByText(/24 \/ 58 VISIBLE/i)).toBeInTheDocument();
+    expect(screen.getByText(/TWEENS: 2/i)).toBeInTheDocument();
+
+    // JS Heap & Allocation Rate
+    expect(screen.getByText(/45.0 \/ 80.0 MB/i)).toBeInTheDocument();
+    expect(screen.getByText('• ALLOCATION RATE')).toBeInTheDocument();
+    expect(screen.getByText(/14.25 MB\/s/i)).toBeInTheDocument();
+
+    // Web Audio Diagnostics
+    expect(screen.getByText(/running/i)).toBeInTheDocument();
+    expect(screen.getByText(/48000 Hz/i)).toBeInTheDocument();
+    expect(screen.getByText('12.5 ms')).toBeInTheDocument();
+    expect(screen.getByText(/8 ONE-SHOT/i)).toBeInTheDocument();
+    expect(screen.getByText(/AMBIENT LOOPS: 2/i)).toBeInTheDocument();
+    expect(screen.getByText(/12500 Hz/i)).toBeInTheDocument();
+    expect(screen.getByText(/Q: 1.45/i)).toBeInTheDocument();
+    expect(screen.getByText('SPATIAL EMITTERS')).toBeInTheDocument();
+    expect(screen.getByText('5')).toBeInTheDocument();
+  });
 });

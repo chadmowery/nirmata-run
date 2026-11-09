@@ -118,6 +118,8 @@ export class PerfCollector {
 
   // Memory & GC Sawtooth Tracker
   private lastHeapBytes = 0;
+  private lastHeapTimestamp = 0;
+  private allocationRateMbPerSec = 0;
   private gcSawtoothCount = 0;
 
   // Subsystem References
@@ -534,9 +536,15 @@ export class PerfCollector {
     };
   }
 
-  public checkGCSawtooth(): { heapUsedBytes: number; heapTotalBytes: number; gcEvents: number } {
+  public checkGCSawtooth(): {
+    heapUsedBytes: number;
+    heapTotalBytes: number;
+    gcEvents: number;
+    allocationRateMbPerSec: number;
+  } {
     let heapUsed = 0;
     let heapTotal = 0;
+    let allocRate = this.allocationRateMbPerSec;
 
     const perf =
       typeof window !== 'undefined'
@@ -547,17 +555,27 @@ export class PerfCollector {
     if (perf?.memory) {
       heapUsed = perf.memory.usedJSHeapSize ?? 0;
       heapTotal = perf.memory.totalJSHeapSize ?? 0;
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
 
-      if (this.lastHeapBytes > 0 && this.lastHeapBytes - heapUsed > 2 * 1024 * 1024) {
-        this.gcSawtoothCount++;
+      if (this.lastHeapBytes > 0 && this.lastHeapTimestamp > 0) {
+        const deltaBytes = heapUsed - this.lastHeapBytes;
+        const elapsedSec = (now - this.lastHeapTimestamp) / 1000;
+        if (deltaBytes > 0 && elapsedSec > 0) {
+          allocRate = Math.round((deltaBytes / (1024 * 1024) / elapsedSec) * 100) / 100;
+          this.allocationRateMbPerSec = allocRate;
+        } else if (deltaBytes < -2 * 1024 * 1024) {
+          this.gcSawtoothCount++;
+        }
       }
       this.lastHeapBytes = heapUsed;
+      this.lastHeapTimestamp = now;
     }
 
     return {
       heapUsedBytes: heapUsed,
       heapTotalBytes: heapTotal,
       gcEvents: this.gcSawtoothCount,
+      allocationRateMbPerSec: allocRate,
     };
   }
 

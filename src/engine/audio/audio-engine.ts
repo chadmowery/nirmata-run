@@ -977,7 +977,7 @@ export class AudioEngine implements IAudioEngine {
       contextState: this.ctx?.state ?? 'uninitialized',
       sampleRate: this.ctx?.sampleRate ?? 0,
       outputLatencyMs: latencySec * 1000,
-      activeVoiceCount: activeVoices + ambientLoops,
+      activeVoiceCount: activeVoices,
       ambientLoopCount: ambientLoops,
       ambianceCutoffHz: this.ambianceFilter?.frequency?.value ?? 0,
       ambianceResonanceQ: this.ambianceFilter?.Q?.value ?? 0,

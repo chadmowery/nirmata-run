@@ -5,6 +5,7 @@ import { WebGLProbe, WebGLFrameStats } from './webgl-probe';
 import { GameContext } from '@/game/types';
 import { createRenderSystem, DevRenderBisectionFlags } from '@/rendering/render-system';
 import { getAudioEngine } from '@engine/audio';
+import { AmbientEmitter } from '@shared/components';
 import { PERF_TOOLTIPS, getPerfTooltipAttrs, PerfTooltipId, PerfTooltipEntry } from './perf-tooltips';
 import styles from './PerfMonitorWidget.module.css';
 
@@ -1028,7 +1029,7 @@ export function PerfMonitorWidget({
               {activeTab === 'GPU' && renderGpuTab(throttledData, bisectionFlags)}
               {activeTab === 'ECS' && renderEcsTab(throttledData)}
               {activeTab === 'TURN' && renderTurnTab(throttledData, context)}
-              {activeTab === 'MEM' && renderMemTab(throttledData)}
+              {activeTab === 'MEM' && renderMemTab(throttledData, context)}
               {activeTab === 'AUDIT' &&
                 renderAuditTab(
                   throttledData,
@@ -1165,7 +1166,7 @@ export function PerfMonitorWidget({
 
               <div className={styles.sectionBox}>
                 <div className={styles.sectionTitle} {...getPerfTooltipAttrs('tabMem')}>記憶 // MEMORY, VRAM & DSP</div>
-                {renderMemTab(throttledData)}
+                {renderMemTab(throttledData, context)}
               </div>
             </div>
 
@@ -1686,13 +1687,20 @@ function renderTurnTab(
   );
 }
 
-function renderMemTab(data: ReturnType<typeof usePerfStore.getState>['throttledData']) {
+function renderMemTab(
+  data: ReturnType<typeof usePerfStore.getState>['throttledData'],
+  context?: GameContext | null,
+) {
   const tex = data.textureMemory;
   const audio = data.audioDiagnostics;
   const gc = data.gcTelemetry;
+  const render = data.renderTelemetry;
+
+  const spatialEmitters = context?.world ? context.world.query(AmbientEmitter).length : 0;
 
   return (
     <>
+      {/* 1. GPU Texture VRAM & Breakdown */}
       <div className={styles.dataRow} {...getPerfTooltipAttrs('memVram')}>
         <span className={styles.dataLabel}>GPU TEXTURE VRAM</span>
         <span className={styles.dataVal} style={{ color: '#d8ff00' }}>
@@ -1708,6 +1716,35 @@ function renderMemTab(data: ReturnType<typeof usePerfStore.getState>['throttledD
           </span>
         </span>
       </div>
+
+      {/* 2. Sprite & Tile Pool Utilization */}
+      <div className={styles.divider} />
+      <div
+        className={styles.sectionHeader}
+        style={{ fontSize: 9, color: 'var(--c-accent-secondary, #00f0ff)', marginBottom: 2 }}
+      >
+        POOL UTILIZATION
+      </div>
+      <div className={styles.dataRow} {...getPerfTooltipAttrs('gpuTerrainPool')}>
+        <span className={styles.dataLabel}>TERRAIN SPRITE POOL</span>
+        <span className={styles.dataVal}>
+          {render?.tilemap?.visibleTiles ?? 0} / {render?.tilemap?.poolSize ?? 0} VISIBLE{' '}
+          <span className={styles.dataSub}>
+            (AUTOTILE: {render?.tilemap?.lastAutotileSolves ?? 0})
+          </span>
+        </span>
+      </div>
+      <div className={styles.dataRow}>
+        <span className={styles.dataLabel}>ENTITY SPRITE MAP</span>
+        <span className={styles.dataVal}>
+          {render?.sprites?.visibleSprites ?? 0} / {render?.sprites?.totalSprites ?? 0} VISIBLE{' '}
+          <span className={styles.dataSub}>
+            (TWEENS: {render?.activeAnimations ?? 0})
+          </span>
+        </span>
+      </div>
+
+      {/* 3. JS Heap Memory & Allocation Rate */}
       <div className={styles.divider} />
       <div className={styles.dataRow} {...getPerfTooltipAttrs('memJsHeap')}>
         <span className={styles.dataLabel}>JS HEAP MEMORY</span>
@@ -1717,10 +1754,27 @@ function renderMemTab(data: ReturnType<typeof usePerfStore.getState>['throttledD
             : 'N/A (NON-CHROMIUM)'}
         </span>
       </div>
+      <div className={styles.dataRow}>
+        <span className={styles.dataLabel}>• ALLOCATION RATE</span>
+        <span className={styles.dataVal}>
+          {gc.heapUsedBytes > 0 ? (
+            <>
+              <strong>{gc.allocationRateMbPerSec.toFixed(2)} MB/s</strong>{' '}
+              <span className={styles.dataSub}>
+                (~{((gc.allocationRateMbPerSec * 1024) / 60).toFixed(1)} KB/frame)
+              </span>
+            </>
+          ) : (
+            'N/A'
+          )}
+        </span>
+      </div>
       <div className={styles.dataRow} {...getPerfTooltipAttrs('memGcSawtooth')}>
         <span className={styles.dataLabel}>GC SAWTOOTH EVENTS</span>
         <span className={styles.dataVal}>{gc.gcEvents}</span>
       </div>
+
+      {/* 4. Audio Engine & DSP Readouts */}
       <div className={styles.divider} />
       <div className={styles.dataRow} {...getPerfTooltipAttrs('memAudioContext')}>
         <span className={styles.dataLabel}>AUDIO CONTEXT</span>
@@ -1729,11 +1783,32 @@ function renderMemTab(data: ReturnType<typeof usePerfStore.getState>['throttledD
           <span className={styles.dataSub}>({audio?.sampleRate ?? 44100} Hz)</span>
         </span>
       </div>
+      <div className={styles.dataRow}>
+        <span className={styles.dataLabel}>OUTPUT LATENCY</span>
+        <span className={styles.dataVal}>
+          <strong>{audio?.outputLatencyMs ? audio.outputLatencyMs.toFixed(1) : '0.0'} ms</strong>
+        </span>
+      </div>
       <div className={styles.dataRow} {...getPerfTooltipAttrs('memAudioVoices')}>
         <span className={styles.dataLabel}>ACTIVE AUDIO VOICES</span>
         <span className={styles.dataVal}>
-          {audio?.activeVoiceCount ?? 0}{' '}
+          <strong>{audio?.activeVoiceCount ?? 0} ONE-SHOT</strong>{' '}
           <span className={styles.dataSub}>(AMBIENT LOOPS: {audio?.ambientLoopCount ?? 0})</span>
+        </span>
+      </div>
+      <div className={styles.dataRow}>
+        <span className={styles.dataLabel}>AMBIANCE BIQUAD FILTER</span>
+        <span className={styles.dataVal}>
+          {audio?.ambianceCutoffHz ? Math.round(audio.ambianceCutoffHz) : 20000} Hz{' '}
+          <span className={styles.dataSub}>
+            (Q: {audio?.ambianceResonanceQ ? audio.ambianceResonanceQ.toFixed(2) : '1.00'})
+          </span>
+        </span>
+      </div>
+      <div className={styles.dataRow}>
+        <span className={styles.dataLabel}>SPATIAL EMITTERS</span>
+        <span className={styles.dataVal}>
+          <strong>{spatialEmitters}</strong> ACTIVE
         </span>
       </div>
     </>

@@ -28,7 +28,12 @@ export interface PerfThrottledData {
   ecsDiagnostics: WorldDiagnostics | null;
   gridDiagnostics: GridDiagnostics | null;
   audioDiagnostics: AudioDiagnostics | null;
-  gcTelemetry: { heapUsedBytes: number; heapTotalBytes: number; gcEvents: number };
+  gcTelemetry: {
+    heapUsedBytes: number;
+    heapTotalBytes: number;
+    gcEvents: number;
+    allocationRateMbPerSec: number;
+  };
   latestTurn: TurnWaterfallEntry | null;
   turnWaterfall: TurnWaterfallEntry[];
   baselineSnapshot: LeakBaselineSnapshot | null;
@@ -133,7 +138,7 @@ const initialThrottledData: PerfThrottledData = {
   ecsDiagnostics: null,
   gridDiagnostics: null,
   audioDiagnostics: null,
-  gcTelemetry: { heapUsedBytes: 0, heapTotalBytes: 0, gcEvents: 0 },
+  gcTelemetry: { heapUsedBytes: 0, heapTotalBytes: 0, gcEvents: 0, allocationRateMbPerSec: 0 },
   latestTurn: null,
   turnWaterfall: [],
   baselineSnapshot: null,
