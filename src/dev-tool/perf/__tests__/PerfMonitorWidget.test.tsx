@@ -49,12 +49,12 @@ describe('PerfMonitorWidget', () => {
     expect(screen.getByText(/RTT/i)).toBeInTheDocument();
 
     // Toggle ghost button
-    const ghostBtn = screen.getByTitle(/Ghost/i);
+    const ghostBtn = screen.getByRole('button', { name: /👻/i });
     fireEvent.click(ghostBtn);
     expect(usePerfStore.getState().ghostMode).toBe(true);
 
     // Expand button
-    const expandBtn = screen.getByTitle(/Expand to Standard/i);
+    const expandBtn = screen.getByRole('button', { name: /⤢/i });
     fireEvent.click(expandBtn);
     expect(usePerfStore.getState().mode).toBe('STANDARD');
   });
@@ -208,7 +208,8 @@ describe('PerfMonitorWidget', () => {
 
     const miniFps = container.querySelector('[data-perf-tooltip="miniFps"]');
     expect(miniFps).not.toBeNull();
-    expect(miniFps?.getAttribute('title')).toContain('Frames Per Second (FPS)');
+    // Verify native browser title attribute is strictly NOT set to avoid duplicate web tooltips
+    expect(miniFps?.getAttribute('title')).toBeNull();
 
     fireEvent.pointerOver(miniFps!);
     const tooltip = screen.getByRole('tooltip');
@@ -269,6 +270,19 @@ describe('PerfMonitorWidget', () => {
     expect(screen.getByText(/TOTAL FRAME:/i)).toBeInTheDocument();
     expect(screen.getByText(/CPU RENDER:/i)).toBeInTheDocument();
     expect(screen.getByText(/WEBGL DRAWS:/i)).toBeInTheDocument();
+
+    // Verify anchor offset: at clientX=100, tooltip is placed 14px to the right (left = 114px), not centered
+    const hoverCard = container.querySelector('[class*="scrubHoverCard"]') as HTMLElement;
+    expect(hoverCard).not.toBeNull();
+    expect(hoverCard.style.left).toBe('114px');
+
+    // Move to right side of chart (clientX = 250)
+    fireEvent.mouseMove(canvas!, {
+      clientX: 250,
+      clientY: 50,
+    });
+    // Tooltip flips to the left (250 - 184 - 14 = 52px), leaving the cursor unobstructed
+    expect(hoverCard.style.left).toBe('52px');
 
     // 4. Click canvas to freeze / pause playback
     fireEvent.click(canvas!);

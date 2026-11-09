@@ -455,16 +455,14 @@ export const PERF_TOOLTIPS = {
 export type PerfTooltipId = keyof typeof PERF_TOOLTIPS;
 
 /**
- * Helper generating data attributes and accessible label for a perf monitor item.
+ * Helper generating data attributes for a perf monitor item.
+ * Strictly omits the native 'title' attribute so browsers only render the
+ * custom in-game cyberpunk floating tooltip, eliminating duplicate native tooltips.
  */
 export function getPerfTooltipAttrs(id: PerfTooltipId): {
   'data-perf-tooltip': string;
-  title: string;
 } {
-  const item: PerfTooltipEntry = PERF_TOOLTIPS[id];
-  const summary = `${item.title}: ${item.desc}${item.detail ? ` (${item.detail})` : ''}`;
   return {
     'data-perf-tooltip': id,
-    title: summary,
   };
 }

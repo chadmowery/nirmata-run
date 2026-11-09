@@ -655,7 +655,7 @@ export function PerfMonitorWidget({
           <div
             className={styles.ghostBanner}
             onClick={toggleGhost}
-            title="Click to restore full mouse interaction to the performance monitor"
+            aria-label="Click to restore full mouse interaction to the performance monitor"
           >
             👻 GHOST MODE ACTIVE: BODY IS CLICK-THROUGH — CLICK TO RESTORE
           </div>
@@ -880,7 +880,7 @@ export function PerfMonitorWidget({
                     height={90}
                     className={styles.oscilloscopeCanvas}
                     onClick={() => togglePause()}
-                    title="Click canvas to freeze / pause waveform playback for frame inspection"
+                    aria-label="Expanded 4.0s oscilloscope waveform canvas. Click to pause or resume playback."
                     onMouseMove={(e) => {
                       const rect = e.currentTarget.getBoundingClientRect();
                       const rawX = e.clientX - rect.left;
@@ -932,8 +932,11 @@ export function PerfMonitorWidget({
                     <div
                       className={styles.scrubHoverCard}
                       style={{
-                        left: Math.max(4, Math.min(scrubData.clientX - 100, 110)),
-                        top: Math.max(4, scrubData.clientY - 95),
+                        left:
+                          scrubData.clientX > 195
+                            ? scrubData.clientX - 184 - 14
+                            : scrubData.clientX + 14,
+                        top: 6,
                       }}
                     >
                       <div className={styles.scrubCardHeader}>
