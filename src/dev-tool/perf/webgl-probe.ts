@@ -5,6 +5,7 @@ export interface WebGLFrameStats {
   triangles: number;
   programSwitches: number;
   textureBinds: number;
+  renderPassMs?: number;
 }
 
 export interface TextureMemoryBreakdown {
@@ -68,7 +69,12 @@ export class WebGLProbe {
     triangles: 0,
     programSwitches: 0,
     textureBinds: 0,
+    renderPassMs: 0,
   };
+
+  // Stage 6 WebGL Render Pass Timing Wrapper
+  private origRender: ((...args: unknown[]) => unknown) | null = null;
+  private lastRenderPassMs = 0;
 
   // Original Method Backups
   private origDrawElements: WebGLRenderingContext['drawElements'] | null = null;
@@ -214,6 +220,19 @@ export class WebGLProbe {
       };
     }
 
+    // Stage 6: PixiJS app.renderer.render execution timing wrapper
+    const renderer = this.app?.renderer as { render?: (...args: unknown[]) => unknown } | undefined;
+    if (renderer && typeof renderer.render === 'function') {
+      const origRender = renderer.render;
+      this.origRender = origRender;
+      renderer.render = (...args: unknown[]) => {
+        const t0 = performance.now();
+        const ret = origRender.apply(renderer, args);
+        this.lastRenderPassMs = performance.now() - t0;
+        return ret;
+      };
+    }
+
     this.isAttached = true;
   }
 
@@ -229,6 +248,12 @@ export class WebGLProbe {
     if (this.origUseProgram) gl.useProgram = this.origUseProgram;
     if (this.origBindTexture) gl.bindTexture = this.origBindTexture;
 
+    const renderer = this.app?.renderer as { render?: (...args: unknown[]) => unknown } | undefined;
+    if (renderer && this.origRender) {
+      renderer.render = this.origRender;
+      this.origRender = null;
+    }
+
     this.isAttached = false;
   }
 
@@ -237,6 +262,7 @@ export class WebGLProbe {
     this.triangles = 0;
     this.programSwitches = 0;
     this.textureBinds = 0;
+    this.lastRenderPassMs = 0;
   }
 
   public getFrameStats(): WebGLFrameStats {
@@ -244,6 +270,7 @@ export class WebGLProbe {
     this.cachedFrameStats.triangles = Math.round(this.triangles);
     this.cachedFrameStats.programSwitches = this.programSwitches;
     this.cachedFrameStats.textureBinds = this.textureBinds;
+    this.cachedFrameStats.renderPassMs = Math.round(this.lastRenderPassMs * 100) / 100;
     return this.cachedFrameStats;
   }
 

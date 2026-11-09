@@ -94,6 +94,7 @@ export class PerfCollector {
     triangles: 0,
     programSwitches: 0,
     textureBinds: 0,
+    renderPassMs: 0,
   };
 
   constructor(probe?: WebGLProbe) {
@@ -184,6 +185,7 @@ export class PerfCollector {
     this.latestWebglStats.triangles = webglStats.triangles;
     this.latestWebglStats.programSwitches = webglStats.programSwitches;
     this.latestWebglStats.textureBinds = webglStats.textureBinds;
+    this.latestWebglStats.renderPassMs = webglPassMs;
     if (this.isFrozen) return;
 
     // Spike Trap Auto-Freeze Trigger

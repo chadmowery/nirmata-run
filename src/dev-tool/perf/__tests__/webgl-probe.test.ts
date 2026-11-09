@@ -88,4 +88,26 @@ describe('WebGLProbe', () => {
     expect(mem.atlasTextures).toBe(1);
     expect(mem.estimatedVramBytes).toBe(512 * 512 * 4);
   });
+
+  it('wraps renderer.render to measure renderPassMs and restores on detach()', () => {
+    const origRender = vi.fn();
+    const mockApp = {
+      renderer: {
+        render: origRender,
+      },
+    };
+
+    probe.setApplication(mockApp as any);
+    probe.attach();
+
+    expect(mockApp.renderer.render).not.toBe(origRender);
+    mockApp.renderer.render();
+    expect(origRender).toHaveBeenCalledTimes(1);
+
+    const stats = probe.getFrameStats();
+    expect(stats.renderPassMs).toBeGreaterThanOrEqual(0);
+
+    probe.detach();
+    expect(mockApp.renderer.render).toBe(origRender);
+  });
 });

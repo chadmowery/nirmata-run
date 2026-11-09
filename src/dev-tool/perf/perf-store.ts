@@ -115,6 +115,7 @@ const initialThrottledData: PerfThrottledData = {
     triangles: 0,
     programSwitches: 0,
     textureBinds: 0,
+    renderPassMs: 0,
   },
   textureMemory: {
     totalTextures: 0,

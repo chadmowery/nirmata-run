@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useTransition } from 'react';
 import { usePerfStore } from './perf-store';
 import { perfCollector, HIST_SIZE } from './perf-collector';
-import { WebGLProbe } from './webgl-probe';
+import { WebGLProbe, WebGLFrameStats } from './webgl-probe';
 import { GameContext } from '@/game/types';
 import { createRenderSystem, DevRenderBisectionFlags } from '@/rendering/render-system';
 import { getAudioEngine } from '@engine/audio';
@@ -23,6 +23,7 @@ interface ScrubInspectData {
   sprite: number;
   vfx: number;
   hover: number;
+  webgl: number;
   drawCalls: number;
   timeAgo: string;
   isSpike: boolean;
@@ -193,11 +194,12 @@ export function PerfMonitorWidget({
 
         const collectorWebgl = perfCollector.getLatestWebglStats();
         const probeWebgl = probe?.getFrameStats ? probe.getFrameStats() : null;
-        const webglStats = {
+        const webglStats: WebGLFrameStats = {
           drawCalls: Math.max(collectorWebgl.drawCalls, probeWebgl?.drawCalls ?? 0),
           triangles: Math.max(collectorWebgl.triangles, probeWebgl?.triangles ?? 0),
           programSwitches: Math.max(collectorWebgl.programSwitches, probeWebgl?.programSwitches ?? 0),
           textureBinds: Math.max(collectorWebgl.textureBinds, probeWebgl?.textureBinds ?? 0),
+          renderPassMs: Math.max(collectorWebgl.renderPassMs ?? 0, probeWebgl?.renderPassMs ?? 0),
         };
 
         const textureMemory = probe?.getTextureMemory ? probe.getTextureMemory() : {
@@ -477,9 +479,10 @@ export function PerfMonitorWidget({
       : 'var(--c-danger, #ff2a4b)';
 
   const stage = throttledData.stageTimings;
+  const webglPassMs = throttledData.webglStats.renderPassMs ?? 0;
   const totalStageMs = Math.max(
     0.01,
-    stage.fovMs + stage.tilemapMs + stage.spriteSyncMs + stage.vfxMs + stage.hoverMs,
+    stage.fovMs + stage.tilemapMs + stage.spriteSyncMs + stage.vfxMs + stage.hoverMs + webglPassMs,
   );
 
   const budgetPct = Math.min(100, Math.round((throttledData.metrics.frameTimeMs / 16.67) * 100));
@@ -763,6 +766,14 @@ export function PerfMonitorWidget({
                   }}
                   {...getPerfTooltipAttrs('stageHover')}
                 />
+                <div
+                  className={styles.budgetSegment}
+                  style={{
+                    width: `${(webglPassMs / totalStageMs) * 100}%`,
+                    background: '#00ff66',
+                  }}
+                  {...getPerfTooltipAttrs('stageGl')}
+                />
               </div>
 
               <div className={styles.budgetLabels}>
@@ -777,6 +788,12 @@ export function PerfMonitorWidget({
                 </span>
                 <span className={styles.budgetLegendItem} {...getPerfTooltipAttrs('stageVfx')}>
                   <span className={styles.budgetDot} style={{ background: '#ff6600' }} /> VFX {stage.vfxMs.toFixed(2)}m
+                </span>
+                <span className={styles.budgetLegendItem} {...getPerfTooltipAttrs('stageHover')}>
+                  <span className={styles.budgetDot} style={{ background: '#bd00ff' }} /> HVR {stage.hoverMs.toFixed(2)}m
+                </span>
+                <span className={styles.budgetLegendItem} {...getPerfTooltipAttrs('stageGl')}>
+                  <span className={styles.budgetDot} style={{ background: '#00ff66' }} /> GL {webglPassMs.toFixed(2)}m
                 </span>
               </div>
             </div>
@@ -904,6 +921,7 @@ export function PerfMonitorWidget({
                       const sprite = perfCollector.spriteTimes[targetIdx] || 0;
                       const vfx = perfCollector.vfxTimes[targetIdx] || 0;
                       const hover = perfCollector.hoverTimes[targetIdx] || 0;
+                      const webgl = perfCollector.webglTimes[targetIdx] || 0;
                       const cpuTime = fov + tilemap + sprite + vfx + hover;
                       const drawCalls = perfCollector.drawCalls[targetIdx] || 0;
                       const framesAgo = HIST_SIZE - 1 - clampedOffset;
@@ -918,6 +936,7 @@ export function PerfMonitorWidget({
                         sprite,
                         vfx,
                         hover,
+                        webgl,
                         drawCalls,
                         timeAgo,
                         isSpike: frameTime > 16.67,
@@ -964,7 +983,7 @@ export function PerfMonitorWidget({
                         <span>SPRITE: {scrubData.sprite.toFixed(2)}ms</span>
                         <span>VFX: {scrubData.vfx.toFixed(2)}ms</span>
                         <span>HOVER: {scrubData.hover.toFixed(2)}ms</span>
-                        <span>GL: {(Math.max(0, scrubData.cpuTime - (scrubData.fov + scrubData.tilemap + scrubData.sprite + scrubData.vfx + scrubData.hover))).toFixed(2)}ms</span>
+                        <span>GL: {scrubData.webgl.toFixed(2)}ms</span>
                       </div>
                       <div className={styles.scrubRow}>
                         <span style={{ color: '#a0b0c0' }}>WEBGL DRAWS:</span>
