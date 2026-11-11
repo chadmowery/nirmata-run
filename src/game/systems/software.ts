@@ -48,7 +48,7 @@ export function createSoftwareSystem<T extends GameplayEvents>(
     const intents = w.query(BurnSoftwareIntent);
     for (const entityId of intents) {
       const intent = w.getComponent(entityId, BurnSoftwareIntent)!;
-      const { softwareEntityId, targetSlot, inventoryIndex } = intent;
+      const { softwareEntityId, targetSlot } = intent;
 
       const swDef = w.getComponent(softwareEntityId, SoftwareDef);
       if (!swDef) {
@@ -145,15 +145,8 @@ export function createSoftwareSystem<T extends GameplayEvents>(
           [targetSlot]: softwareEntityId,
         });
       }
-      // Remove burned software from player inventory by entityId first, with fallback to index
-      const removed = InventoryUtil.removeItemByEntityId(w, entityId, softwareEntityId);
-      if (!removed) {
-        if (intent.isEquipmentList) {
-          InventoryUtil.removeEquipment(w, entityId, inventoryIndex);
-        } else {
-          InventoryUtil.removeSoftware(w, entityId, inventoryIndex);
-        }
-      }
+      // Remove burned software from player inventory by entityId
+      InventoryUtil.removeItemByEntityId(w, entityId, softwareEntityId);
 
       eventBus.emit('MESSAGE_EMITTED', {
         text: `Successfully burned ${swDef.name} onto ${targetSlot}.`,
