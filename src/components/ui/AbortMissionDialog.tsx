@@ -12,6 +12,7 @@ import { GameState } from '@/game/states/types';
 import { uiAudio } from '@/game/audio/ui-audio';
 import { TaikokuPlacard, BtnLever } from './atomic';
 import { AudioSettingsPanel } from './AudioSettingsPanel';
+import { useReportStore } from '@/client/reports/report-store';
 import styles from './AbortMissionDialog.module.css';
 
 interface AbortMissionDialogProps {
@@ -24,6 +25,7 @@ export const AbortMissionDialog: React.FC<AbortMissionDialogProps> = ({
   onConfirmAbort,
 }) => {
   const setAbortDialogVisible = useStore(gameStore, (s) => s.setAbortDialogVisible);
+  const reportsAvailable = useReportStore((s) => s.status.available);
 
   const handleClose = useCallback(() => {
     if (onClose) {
@@ -158,6 +160,18 @@ export const AbortMissionDialog: React.FC<AbortMissionDialogProps> = ({
           </div>
 
           <div className={styles.actionsRow}>
+            {reportsAvailable && (
+              <BtnLever
+                onClick={() => {
+                  handleClose();
+                  useReportStore.getState().openManualReport();
+                }}
+                rightSlot="[F8]"
+              >
+                REPORT ISSUE [問題報告]
+              </BtnLever>
+            )}
+
             <BtnLever variant="primary" onClick={handleClose} rightSlot="[ESC]">
               RESUME MISSION [任務継続]
             </BtnLever>

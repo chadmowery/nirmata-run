@@ -78,6 +78,7 @@ const HOTKEY_CATEGORIES: HotkeyCategory[] = [
     items: [
       { keys: ['`'], description: 'Toggle Cyber-Command Console [Dev Build only]' },
       { keys: ['/show-map'], description: 'Developer command: reveal sector map [Dev Build only]' },
+      { keys: ['F8'], description: 'Open In-Game Issue & Feedback Reporter' },
       { keys: ['?', 'H'], description: 'Toggle this Operator Directives Manual' },
     ],
   },

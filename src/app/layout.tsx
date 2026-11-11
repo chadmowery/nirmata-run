@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { IssueReporterRoot } from '@/components/ui/reports';
 
 export const metadata: Metadata = {
   title: 'Nirmata Runner // Taikoku Vector Manifest',
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="antialiased">
         <div className="crt-overlay" />
         {children}
+        <IssueReporterRoot />
       </body>
     </html>
   );

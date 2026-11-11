@@ -8,11 +8,13 @@ import { GameState } from '@/game/states/types';
 import { uiAudio } from '@/game/audio/ui-audio';
 import { TaikokuPlacard, BtnLever } from './atomic';
 import { AudioSettingsPanel } from './AudioSettingsPanel';
+import { useReportStore } from '@/client/reports/report-store';
 import styles from './SystemSettingsModal.module.css';
 
 export const SystemSettingsModal: React.FC = () => {
   const visible = useStore(gameStore, (s) => s.systemSettingsModalVisible);
   const setVisible = useStore(gameStore, (s) => s.setSystemSettingsModalVisible);
+  const reportsAvailable = useReportStore((s) => s.status.available);
 
   const handleClose = useCallback(() => {
     setVisible(false);
@@ -76,7 +78,18 @@ export const SystemSettingsModal: React.FC = () => {
         <div className={styles.body}>
           <AudioSettingsPanel showCardWrapper={false} />
 
-          <div className={styles.footer}>
+          <div className={styles.footer} style={{ justifyContent: 'space-between' }}>
+            {reportsAvailable ? (
+              <BtnLever
+                onClick={() => {
+                  handleClose();
+                  useReportStore.getState().openManualReport();
+                }}
+                rightSlot="[F8]"
+              >
+                REPORT ISSUE [問題報告]
+              </BtnLever>
+            ) : <div />}
             <BtnLever variant="primary" onClick={handleClose} rightSlot="[ESC]">
               DONE [完了]
             </BtnLever>

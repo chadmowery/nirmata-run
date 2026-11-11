@@ -10,6 +10,7 @@ import {
   BtnLever,
   DottedSpecRow,
 } from './atomic';
+import { useReportStore } from '@/client/reports/report-store';
 import styles from './MainMenu.module.css';
 
 export const MainMenu: React.FC = () => {
@@ -21,6 +22,7 @@ export const MainMenu: React.FC = () => {
     gameStore,
     (s) => s.setSystemSettingsModalVisible,
   );
+  const reportsAvailable = useReportStore((s) => s.status.available);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -221,6 +223,12 @@ export const MainMenu: React.FC = () => {
               <BtnLever onClick={() => setSystemSettingsModalVisible(true)} rightSlot="ESC">
                 [04] AUDIO & SETTINGS [音響設定]
               </BtnLever>
+
+              {reportsAvailable && (
+                <BtnLever onClick={() => useReportStore.getState().openManualReport()} rightSlot="F8">
+                  [05] REPORT ISSUE [問題報告]
+                </BtnLever>
+              )}
             </div>
           </div>
 
