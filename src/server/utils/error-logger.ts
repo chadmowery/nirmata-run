@@ -1,30 +1,9 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { World } from '@engine/ecs/world';
-import { TurnManager } from '@engine/turn/turn-manager';
-import { EntityId } from '@engine/ecs/types';
 import { EngineEvents } from '@engine/events/types';
-import {
-  Position,
-  Health,
-  Heat,
-  Stability,
-  Energy,
-  Shell,
-  FloorState,
-  RunInventory,
-  Actor,
-  AIState,
-} from '@shared/components';
+import { buildTurnSnapshot, type TurnErrorContext } from './turn-snapshot';
 
-export interface TurnErrorContext<TEvents extends EngineEvents = EngineEvents> {
-  sessionId: string;
-  action: unknown;
-  playerId: EntityId;
-  world: World<TEvents>;
-  turnManager: TurnManager<TEvents>;
-  error: unknown;
-}
+export { type TurnErrorContext };
 
 export const MAX_LOG_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
 export const MAX_BACKUP_FILES = 2;
@@ -63,64 +42,30 @@ export async function rotateLogFileIfNeeded(logFilePath: string): Promise<void> 
 export async function logTurnExecutionError<TEvents extends EngineEvents = EngineEvents>(
   ctx: TurnErrorContext<TEvents>,
 ): Promise<void> {
-  const timestamp = new Date().toISOString();
-  const errorObj = ctx.error instanceof Error ? ctx.error : new Error(String(ctx.error));
+  const snapshot = buildTurnSnapshot(ctx);
   const sanitizedSessionId =
     ctx.sessionId && ctx.sessionId.length > 12
       ? `${ctx.sessionId.slice(0, 8)}...`
       : ctx.sessionId;
 
-  // Extract Player Component Snapshot
-  const playerComponents = ctx.world.getEntityComponents(ctx.playerId);
-  const playerPos = ctx.world.getComponent(ctx.playerId, Position);
-  const playerHealth = ctx.world.getComponent(ctx.playerId, Health);
-  const playerHeat = ctx.world.getComponent(ctx.playerId, Heat);
-  const playerStability = ctx.world.getComponent(ctx.playerId, Stability);
-  const playerEnergy = ctx.world.getComponent(ctx.playerId, Energy);
-  const playerShell = ctx.world.getComponent(ctx.playerId, Shell);
-  const floorState = ctx.world.getComponent(ctx.playerId, FloorState);
-  const inventory = ctx.world.getComponent(ctx.playerId, RunInventory);
-
-  // Extract Active Actors Snapshot
-  const actorIds = ctx.world.query(Actor);
-  const livingEnemies: Array<{
-    id: EntityId;
-    pos?: { x: number; y: number };
-    hp?: number;
-    maxHp?: number;
-    energy?: number;
-    behavior?: string;
-  }> = [];
-
-  for (const id of actorIds) {
-    if (id === ctx.playerId) continue;
-    const pos = ctx.world.getComponent(id, Position);
-    const health = ctx.world.getComponent(id, Health);
-    const energy = ctx.world.getComponent(id, Energy);
-    const aiState = ctx.world.getComponent(id, AIState);
-
-    livingEnemies.push({
-      id,
-      pos: pos ? { x: pos.x, y: pos.y } : undefined,
-      hp: health?.current,
-      maxHp: health?.max,
-      energy: energy?.current,
-      behavior: aiState?.behaviorType,
-    });
-  }
-
   // Format Console Output
   const separator = '═'.repeat(80);
   const thinSeparator = '─'.repeat(80);
 
+  const playerPos = snapshot.player.pos;
+  const playerHealth = snapshot.player.health;
+  const playerHeat = snapshot.player.heat;
+  const playerStability = snapshot.player.stability;
+  const playerEnergy = snapshot.player.energy;
+
   const consoleLines = [
     '',
     `\x1b[31m${separator}\x1b[0m`,
-    `\x1b[1;31m[CRITICAL TURN EXECUTION FAILURE] - ${timestamp}\x1b[0m`,
+    `\x1b[1;31m[CRITICAL TURN EXECUTION FAILURE] - ${snapshot.timestamp}\x1b[0m`,
     `\x1b[33mSession ID:\x1b[0m   ${ctx.sessionId}`,
     `\x1b[33mAction:\x1b[0m       ${JSON.stringify(ctx.action)}`,
-    `\x1b[33mTurn State:\x1b[0m   Turn #${ctx.turnManager.getTurnNumber()} | Phase: ${ctx.turnManager.getPhase()} | Paused: ${ctx.turnManager.isPaused}`,
-    `\x1b[33mFloor:\x1b[0m        ${floorState?.currentFloor ?? 1} / 15 (Seed: ${floorState?.runSeed ?? 'unknown'}, Condition: ${floorState?.sectorCondition ?? 'NOMINAL'})`,
+    `\x1b[33mTurn State:\x1b[0m   Turn #${snapshot.turn} | Phase: ${snapshot.phase} | Paused: ${snapshot.isPaused}`,
+    `\x1b[33mFloor:\x1b[0m        ${snapshot.floor} / 15 (Seed: ${snapshot.runSeed}, Condition: ${snapshot.sectorCondition})`,
     thinSeparator,
     `\x1b[1;36mPlayer Entity State (ID: ${ctx.playerId}):\x1b[0m`,
     `  Position:   ${playerPos ? `(${playerPos.x}, ${playerPos.y})` : 'None'}`,
@@ -128,19 +73,19 @@ export async function logTurnExecutionError<TEvents extends EngineEvents = Engin
     `  Heat:       ${playerHeat ? `${playerHeat.current}/${playerHeat.maxSafe}` : 'None'}`,
     `  Stability:  ${playerStability ? `${playerStability.current}/${playerStability.max}` : 'None'}`,
     `  Energy:     ${playerEnergy ? `${playerEnergy.current} (speed: ${playerEnergy.speed})` : 'None'}`,
-    `  Shell:      ${playerShell?.archetypeId ?? 'unknown'}`,
-    `  Inventory:  ${inventory ? `${inventory.software.length} software, ${inventory.equipment.length} equip` : 'None'}`,
-    `  Components: ${Object.keys(playerComponents).join(', ')}`,
+    `  Shell:      ${snapshot.player.shell ?? 'unknown'}`,
+    `  Inventory:  ${snapshot.player.inventory ? `${snapshot.player.inventory.softwareCount} software, ${snapshot.player.inventory.equipmentCount} equip` : 'None'}`,
+    `  Components: ${snapshot.player.componentKeys.join(', ')}`,
     thinSeparator,
-    `\x1b[1;35mActive Living Enemies (${livingEnemies.length}):\x1b[0m`,
-    ...livingEnemies.slice(0, 10).map((e) =>
+    `\x1b[1;35mActive Living Enemies (${snapshot.livingEnemies.length}):\x1b[0m`,
+    ...snapshot.livingEnemies.slice(0, 10).map((e) =>
       `  ID ${e.id} [${e.behavior ?? 'enemy'}]: pos=${e.pos ? `(${e.pos.x},${e.pos.y})` : '?'}, hp=${e.hp}/${e.maxHp}, energy=${e.energy}`
     ),
-    ...(livingEnemies.length > 10 ? [`  ... and ${livingEnemies.length - 10} more enemies`] : []),
+    ...(snapshot.livingEnemies.length > 10 ? [`  ... and ${snapshot.livingEnemies.length - 10} more enemies`] : []),
     thinSeparator,
     `\x1b[1;31mError Details:\x1b[0m`,
-    `  Message:    ${errorObj.message}`,
-    `  Stack Trace:\n${errorObj.stack || '  (no stack trace)'}`,
+    `  Message:    ${snapshot.error.message}`,
+    `  Stack Trace:\n${snapshot.error.stack || '  (no stack trace)'}`,
     `\x1b[31m${separator}\x1b[0m`,
     '',
   ];
@@ -150,11 +95,11 @@ export async function logTurnExecutionError<TEvents extends EngineEvents = Engin
   // Format File Log Entry (strip ANSI colors & sanitize session ID)
   const fileLogEntry = [
     `\n${separator}`,
-    `[TURN EXECUTION FAILURE] - ${timestamp}`,
+    `[TURN EXECUTION FAILURE] - ${snapshot.timestamp}`,
     `Session ID:   ${sanitizedSessionId}`,
     `Action:       ${JSON.stringify(ctx.action, null, 2)}`,
-    `Turn State:   Turn #${ctx.turnManager.getTurnNumber()} | Phase: ${ctx.turnManager.getPhase()} | Paused: ${ctx.turnManager.isPaused}`,
-    `Floor:        ${floorState?.currentFloor ?? 1} (Seed: ${floorState?.runSeed ?? 'unknown'}, Condition: ${floorState?.sectorCondition ?? 'NOMINAL'})`,
+    `Turn State:   Turn #${snapshot.turn} | Phase: ${snapshot.phase} | Paused: ${snapshot.isPaused}`,
+    `Floor:        ${snapshot.floor} (Seed: ${snapshot.runSeed}, Condition: ${snapshot.sectorCondition})`,
     `Player ID:    ${ctx.playerId}`,
     `Player State: ${JSON.stringify(
       {
@@ -163,16 +108,16 @@ export async function logTurnExecutionError<TEvents extends EngineEvents = Engin
         heat: playerHeat,
         stability: playerStability,
         energy: playerEnergy,
-        shell: playerShell?.archetypeId,
+        shell: snapshot.player.shell,
       },
       null,
       2,
     )}`,
-    `Player All Components: ${JSON.stringify(playerComponents, null, 2)}`,
-    `Enemies:      ${JSON.stringify(livingEnemies, null, 2)}`,
-    `Error Name:   ${errorObj.name}`,
-    `Error Msg:    ${errorObj.message}`,
-    `Stack Trace:\n${errorObj.stack || '(no stack trace)'}`,
+    `Player All Components: ${JSON.stringify(ctx.world.getEntityComponents(ctx.playerId), null, 2)}`,
+    `Enemies:      ${JSON.stringify(snapshot.livingEnemies, null, 2)}`,
+    `Error Name:   ${snapshot.error.name}`,
+    `Error Msg:    ${snapshot.error.message}`,
+    `Stack Trace:\n${snapshot.error.stack || '(no stack trace)'}`,
     `${separator}\n`,
   ].join('\n');
 

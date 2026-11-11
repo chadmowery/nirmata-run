@@ -29,6 +29,8 @@ import { processAction } from '@game/pipeline/action-pipeline';
 import { getRunModeConfig } from '@game/systems/run-mode-config';
 import { TurnPhase } from '@engine/turn/types';
 import { logTurnExecutionError } from '@/server/utils/error-logger';
+import { createServerCrashDraft } from '@/server/utils/turn-snapshot';
+import type { CrashDraftOffer } from '@/shared/reports/schemas';
 
 export interface ServerTurnDevPerf {
   serverTurnMs: number;
@@ -46,6 +48,7 @@ export interface ServerTurnDevPerf {
 }
 
 export async function POST(req: Request) {
+  let crashDraftOffer: CrashDraftOffer | null = null;
   try {
     const body = await req.json();
     const result = ActionRequestSchema.safeParse(body);
@@ -136,6 +139,20 @@ export async function POST(req: Request) {
       turnExecutionFailed = true;
       turnErrorMessage = turnError instanceof Error ? turnError.message : String(turnError);
 
+      // SYNCHRONOUS: capture server crash draft BEFORE rolling back ECS state
+      try {
+        crashDraftOffer = createServerCrashDraft({
+          sessionId,
+          action,
+          playerId: session.playerId,
+          world,
+          turnManager,
+          error: turnError,
+        });
+      } catch (draftErr) {
+        logger.error('Failed to create server crash draft:', 'REPORTS', draftErr);
+      }
+
       // Non-blocking background error log and file write to avoid request latency
       void logTurnExecutionError({
         sessionId,
@@ -198,6 +215,7 @@ export async function POST(req: Request) {
         sessionId,
         payload: rollbackPayload,
         warning: `Turn execution rolled back due to error: ${turnErrorMessage}`,
+        ...(crashDraftOffer ? { crashReport: crashDraftOffer } : {}),
       });
     }
 
@@ -503,7 +521,11 @@ export async function POST(req: Request) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     logger.error('API Error:', 'API', error);
     return NextResponse.json(
-      { error: 'Internal Server Error', message: errorMessage },
+      {
+        error: 'Internal Server Error',
+        message: errorMessage,
+        ...(crashDraftOffer ? { crashReport: crashDraftOffer } : {}),
+      },
       { status: 500 },
     );
   }

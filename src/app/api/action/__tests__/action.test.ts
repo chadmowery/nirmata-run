@@ -561,6 +561,11 @@ describe('Action API Route', () => {
       expect(world.getComponent(playerId, Position)?.x).toBe(5);
       expect(world.getComponent(playerId, Position)?.y).toBe(5);
 
+      // Verify crash report draft offer was created and attached
+      expect(data.crashReport).toBeDefined();
+      expect(data.crashReport.draftId).toBeDefined();
+      expect(data.crashReport.preview.errorName).toBe('Error');
+
       // Verify rollback payload events contain error message
       const errorMsg = data.payload.events.find((e: any) => e.type === 'MESSAGE_EMITTED');
       expect(errorMsg).toBeDefined();
