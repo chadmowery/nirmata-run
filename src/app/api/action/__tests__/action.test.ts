@@ -25,6 +25,7 @@ import {
   HealIntent,
   ApplyStatusEffectIntent,
   StatusEffects,
+  Dying,
 } from '@shared/components';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { submitLeaderboardEntry } from '@/server/leaderboard/leaderboard-service';
@@ -193,8 +194,25 @@ describe('Action API Route', () => {
     expect(response.status).toBe(400);
   });
 
-  it('should reject action with 400 when player entity does not exist or is dying (GH-6)', async () => {
+  it('should reject action with 400 when player entity does not exist (GH-6)', async () => {
     world.destroyEntity(playerId);
+
+    const req = new Request('http://localhost/api/action', {
+      method: 'POST',
+      body: JSON.stringify({
+        sessionId,
+        action: { type: 'MOVE', dx: 0, dy: -1 },
+      }),
+    });
+
+    const response = await POST(req);
+    expect(response.status).toBe(400);
+    const data = (await response.json()) as any;
+    expect(data.error).toBe('Player is dead or run has ended');
+  });
+
+  it('should reject action with 400 when player entity is dying (GH-6)', async () => {
+    world.addComponent(playerId, Dying, { reason: 'death' });
 
     const req = new Request('http://localhost/api/action', {
       method: 'POST',
