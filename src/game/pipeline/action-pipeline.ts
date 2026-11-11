@@ -423,10 +423,10 @@ export function processAction(
           }
         }
         if (!swEntityId) {
-          if (swItem) {
+          if (swItem && world.hasComponent(swItem.entityId, SoftwareDef)) {
             swEntityId = swItem.entityId;
             isEquipmentList = false;
-          } else if (eqItem) {
+          } else if (eqItem && world.hasComponent(eqItem.entityId, SoftwareDef)) {
             swEntityId = eqItem.entityId;
             isEquipmentList = true;
           }

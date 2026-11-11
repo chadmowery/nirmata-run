@@ -423,6 +423,35 @@ describe('Software System', () => {
       expect(inv?.equipment.length).toBe(0);
     });
 
+    it('burn with non-software equipment at runInventoryIndex is rejected and not burned as software', () => {
+      const rifle = world.createEntity();
+      world.addComponent(rifle, EquipmentDef, { name: 'Standard Kinetic Rifle', slotType: 'weapon' });
+      InventoryUtil.addEquipment(world, playerId, {
+        entityId: rifle,
+        templateId: 'rifle',
+        rarityTier: 'v0.x',
+        pickedUpAtFloor: 1,
+        pickedUpAtTimestamp: Date.now(),
+      });
+
+      const { world: newWorld } = runActionPipeline(
+        world,
+        grid,
+        playerId,
+        {
+          type: 'BURN_SOFTWARE',
+          runInventoryIndex: 0,
+          targetSlot: 'weapon',
+        },
+        sessionId,
+      );
+
+      // Should not have burned anything and should not have attached BurnSoftwareIntent
+      expect(newWorld.hasComponent(playerId, BurnSoftwareIntent)).toBe(false);
+      expect(newWorld.getComponent(playerId, EquipmentSlots)).toBeUndefined();
+      expect(newWorld.getComponent(playerId, RunInventory)?.equipment.length).toBe(1);
+    });
+
     it('burn with wrong targetSlot is rejected', () => {
       const swEntity = world.createEntity();
       world.addComponent(swEntity, SoftwareDef, {

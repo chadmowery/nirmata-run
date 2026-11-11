@@ -220,6 +220,41 @@ describe('ActionPipeline', () => {
       const { world: newWorld } = runActionPipeline(world, grid, PLAYER_ID, action);
       expect(newWorld.getComponent(PLAYER_ID, Position)).toBeDefined();
     });
+
+    it('rejects BURN_SOFTWARE when item at runInventoryIndex is non-software equipment', () => {
+      const nonSoftwareItem = world.createEntity();
+      world.addComponent(PLAYER_ID, RunInventory, {
+        software: [],
+        equipment: [
+          {
+            entityId: nonSoftwareItem,
+            templateId: 'kinetic-rifle',
+            rarityTier: 'common',
+            pickedUpAtFloor: 1,
+            pickedUpAtTimestamp: 1000,
+          },
+        ],
+        maxSlots: 5,
+      });
+
+      let errorEmitted = false;
+      eventBus.on('MESSAGE_EMITTED', (msg) => {
+        if (msg.type === 'error' && msg.text.includes('not found in player inventory')) {
+          errorEmitted = true;
+        }
+      });
+
+      const actionKey = processAction(world, grid, eventBus, PLAYER_ID, {
+        type: 'BURN_SOFTWARE',
+        runInventoryIndex: 0,
+        targetSlot: 'weapon',
+      });
+      eventBus.flush();
+
+      expect(actionKey).toBeNull();
+      expect(world.hasComponent(PLAYER_ID, BurnSoftwareIntent)).toBe(false);
+      expect(errorEmitted).toBe(true);
+    });
   });
 
   describe('processAction unified intent handling', () => {
