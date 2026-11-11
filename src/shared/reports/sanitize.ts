@@ -1,0 +1,121 @@
+/**
+ * Input sanitization and fence formatting for issue reports.
+ * Hardens against prompt injection and formatting escapes in automated ticketing systems.
+ * Pure TypeScript, zero external dependencies.
+ */
+
+// Bidi overrides (Trojan Source: LRE, RLE, PDF, LRO, RLO, LRI, RLI, FSI, PDI)
+const BIDI_REGEX = /[\u202A-\u202E\u2066-\u2069]/g;
+
+// Zero-width characters (ZWSP, ZWNJ, ZWJ, BOM)
+const ZERO_WIDTH_REGEX = /[\u200B-\u200D\uFEFF]/g;
+
+// Control characters (excluding \t, \n, \r)
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS_REGEX = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g;
+
+// HTML comments and tags
+const HTML_COMMENTS_REGEX = /<!--[\s\S]*?-->/g;
+const HTML_TAGS_REGEX = /<[^>]+>/g;
+
+// Markdown links and images
+const MD_IMAGE_REGEX = /!\[([^\]]*)\]\([^)]*\)/g;
+const MD_LINK_REGEX = /\[([^\]]+)\]\([^)]*\)/g;
+
+// Mentions and GitHub issue/PR cross-references
+const MENTION_REGEX = /@([a-zA-Z0-9_-]+)/g;
+const ISSUE_REF_REGEX = /#([0-9]+)/g;
+
+export interface SanitizeOptions {
+  maxLength?: number;
+  singleLine?: boolean;
+}
+
+/**
+ * Sanitizes untrusted client/player input according to the untrusted-input contract.
+ */
+export function sanitizeText(input: string, options: SanitizeOptions = {}): string {
+  if (!input) return '';
+
+  // 1. Unicode NFC normalization
+  let result = input.normalize('NFC');
+
+  // 2. Strip bidi overrides and zero-width chars
+  result = result.replace(BIDI_REGEX, '');
+  result = result.replace(ZERO_WIDTH_REGEX, '');
+
+  // 3. Handle whitespace and control chars
+  if (options.singleLine) {
+    // Replace all control characters and newlines with a single space
+    // eslint-disable-next-line no-control-regex
+    result = result.replace(/[\x00-\x1F\x7F\s]+/g, ' ').trim();
+  } else {
+    // Retain standard newlines/tabs, strip remaining control chars
+    result = result.replace(CONTROL_CHARS_REGEX, '');
+  }
+
+  // 4. Remove HTML comments and tags
+  result = result.replace(HTML_COMMENTS_REGEX, '');
+  result = result.replace(HTML_TAGS_REGEX, '');
+
+  // 5. Rewrite markdown images and links to plain text
+  result = result.replace(MD_IMAGE_REGEX, '$1');
+  result = result.replace(MD_LINK_REGEX, '$1');
+
+  // 6. Neutralize @mentions and #123 cross-references by inserting zero-width space
+  result = result.replace(MENTION_REGEX, '@\u200B$1');
+  result = result.replace(ISSUE_REF_REGEX, '#\u200B$1');
+
+  // 7. Enforce maximum length
+  if (options.maxLength !== undefined && result.length > options.maxLength) {
+    result = result.slice(0, options.maxLength);
+  }
+
+  return result;
+}
+
+export function sanitizeTitle(title: string, maxLength = 120): string {
+  return sanitizeText(title, { singleLine: true, maxLength });
+}
+
+export function sanitizeDescription(desc: string, maxLength = 4000): string {
+  return sanitizeText(desc, { singleLine: false, maxLength });
+}
+
+export function sanitizeNote(note: string, maxLength = 1000): string {
+  return sanitizeText(note, { singleLine: false, maxLength });
+}
+
+export function sanitizeLogMessage(msg: string, maxLength = 500): string {
+  return sanitizeText(msg, { singleLine: true, maxLength });
+}
+
+export function sanitizeStack(stack: string, maxLength = 16384): string {
+  if (!stack) return '';
+  let sanitized = stack.normalize('NFC').replace(BIDI_REGEX, '').replace(CONTROL_CHARS_REGEX, '');
+  if (sanitized.length > maxLength) {
+    sanitized = sanitized.slice(0, maxLength);
+  }
+  return sanitized;
+}
+
+/**
+ * Creates a markdown code fence with backtick length max(3, longestBacktickRun + 1),
+ * preventing nested backtick sequences in the content from prematurely closing the block.
+ */
+export function createCodeFence(content: string, lang = ''): string {
+  const matches = content.match(/`+/g);
+  let maxBackticks = 0;
+  if (matches) {
+    for (const match of matches) {
+      if (match.length > maxBackticks) {
+        maxBackticks = match.length;
+      }
+    }
+  }
+
+  const fenceLength = Math.max(3, maxBackticks + 1);
+  const fence = '`'.repeat(fenceLength);
+  const safeContent = content.endsWith('\n') ? content : `${content}\n`;
+  return `${fence}${lang}\n${safeContent}${fence}`;
+}
