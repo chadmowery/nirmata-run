@@ -55,6 +55,9 @@ When extending or refactoring systems, preserve these established constraints (s
 - [ ] **Deferred Lighting & Volumetric Glow (`v3.2`)**:
   - Specification: [`docs/design/DEFERRED-LIGHTING-RENDERING.md`](./design/DEFERRED-LIGHTING-RENDERING.md).
   - Target: Custom PixiJS multi-pass lightmap render target, normal-mapped tile/prop illumination, flicker/pulse emission sources, and terminal glow effects.
+- [ ] **In-Game Issue Reporting & Crash Ticketing (`TK-RPT-100`)**:
+  - Specification: [`docs/design/IN-GAME-ISSUE-REPORTING.md`](./design/IN-GAME-ISSUE-REPORTING.md) (approved, ready to implement).
+  - Target: Manual bug/feature/feedback form and player-approved automatic crash reports posted as GitHub issues (auto-labelled `ai-ready`), with sealed server diagnostics, fingerprint dedupe, and a retrying outbox.
 - [ ] **Art Direction & World-Building Content Pipeline**:
   - Specification: [`docs/wip/ART-DIRECTION-WORLD-BUILDING.md`](./wip/ART-DIRECTION-WORLD-BUILDING.md).
   - Target: Faction narrative styling, visual identity tokens, environmental decors, and audio ambiance expansion.
