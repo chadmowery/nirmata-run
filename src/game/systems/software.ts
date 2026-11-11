@@ -145,12 +145,13 @@ export function createSoftwareSystem<T extends GameplayEvents>(
           [targetSlot]: softwareEntityId,
         });
       }
-      if (intent.isEquipmentList) {
-        InventoryUtil.removeEquipment(w, entityId, inventoryIndex);
-      } else {
-        const removed = InventoryUtil.removeSoftware(w, entityId, inventoryIndex);
-        if (!removed) {
-          InventoryUtil.removeItemByEntityId(w, entityId, softwareEntityId);
+      // Remove burned software from player inventory by entityId first, with fallback to index
+      const removed = InventoryUtil.removeItemByEntityId(w, entityId, softwareEntityId);
+      if (!removed) {
+        if (intent.isEquipmentList) {
+          InventoryUtil.removeEquipment(w, entityId, inventoryIndex);
+        } else {
+          InventoryUtil.removeSoftware(w, entityId, inventoryIndex);
         }
       }
 
