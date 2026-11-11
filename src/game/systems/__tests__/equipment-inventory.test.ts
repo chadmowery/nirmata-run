@@ -12,6 +12,7 @@ import {
   TemplateId,
   RarityTier,
   FloorState,
+  SoftwareDef,
 } from '@shared/components';
 import { createEquipmentSystem } from '../equipment';
 
@@ -154,5 +155,34 @@ describe('Equipment System — Inventory Integration', () => {
     expect(eq?.weapon).toBe(weaponEntity);
     expect(inv?.equipment).toHaveLength(5);
     expect(errorEmitted).toBe(true);
+  });
+
+  it('should return unequipped software to RunInventory.software instead of equipment', () => {
+    const swEntity = world.createEntity();
+    world.addComponent(swEntity, TemplateId, { id: 'bleed' });
+    world.addComponent(swEntity, SoftwareDef, {
+      name: 'Bleed.exe',
+      type: 'bleed',
+      targetSlot: 'weapon',
+      baseMagnitude: 2,
+      effectType: 'dot',
+      description: '...',
+      purchaseCost: 0,
+    });
+    world.addComponent(swEntity, RarityTier, { tier: 'v1.x', scaleFactor: 1.5, minFloor: 0 });
+
+    world.patchComponent(playerId, EquipmentSlots, { weapon: swEntity, armor: null });
+
+    // Act: Unequip software from bare weapon slot
+    world.addComponent(playerId, UnequipIntent, { slotType: 'weapon', slotIndex: 0 });
+    world.executeSystems(Phase.ACTION);
+
+    const eq = world.getComponent(playerId, EquipmentSlots);
+    const inv = world.getComponent(playerId, RunInventory);
+
+    expect(eq?.weapon).toBeNull();
+    expect(inv?.software).toHaveLength(1);
+    expect(inv?.software[0].entityId).toBe(swEntity);
+    expect(inv?.equipment).toHaveLength(0);
   });
 });

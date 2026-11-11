@@ -404,25 +404,58 @@ export function processAction(
           if (eqIdx !== -1) {
             foundIdx = eqIdx;
             isEquipmentList = true;
+          } else {
+            eventBus.emit('MESSAGE_EMITTED', {
+              text: 'Software item not found in player inventory.',
+              type: 'error',
+            });
+            return null;
           }
         }
-      } else if (inventory?.software[foundIdx]) {
-        swEntityId = inventory.software[foundIdx].entityId;
-        isEquipmentList = false;
-      } else if (inventory?.equipment[foundIdx]) {
-        swEntityId = inventory.equipment[foundIdx].entityId;
-        isEquipmentList = true;
+      } else {
+        // Resolve from index and targetSlot
+        const swItem = inventory?.software[foundIdx];
+        const eqItem = inventory?.equipment[foundIdx];
+        if (swItem && world.hasComponent(swItem.entityId, SoftwareDef)) {
+          const swDef = world.getComponent(swItem.entityId, SoftwareDef);
+          if (swDef?.targetSlot === action.targetSlot || !swDef?.targetSlot) {
+            swEntityId = swItem.entityId;
+            isEquipmentList = false;
+          }
+        }
+        if (!swEntityId && eqItem && world.hasComponent(eqItem.entityId, SoftwareDef)) {
+          const eqDef = world.getComponent(eqItem.entityId, SoftwareDef);
+          if (eqDef?.targetSlot === action.targetSlot || !eqDef?.targetSlot) {
+            swEntityId = eqItem.entityId;
+            isEquipmentList = true;
+          }
+        }
+        if (!swEntityId) {
+          if (swItem && world.hasComponent(swItem.entityId, SoftwareDef)) {
+            swEntityId = swItem.entityId;
+            isEquipmentList = false;
+          } else if (eqItem && world.hasComponent(eqItem.entityId, SoftwareDef)) {
+            swEntityId = eqItem.entityId;
+            isEquipmentList = true;
+          }
+        }
       }
 
-      if (swEntityId) {
-        world.addComponent(entityId, BurnSoftwareIntent, {
-          actorId: entityId,
-          softwareEntityId: swEntityId,
-          targetSlot: action.targetSlot,
-          inventoryIndex: foundIdx,
-          isEquipmentList,
+      if (!swEntityId) {
+        eventBus.emit('MESSAGE_EMITTED', {
+          text: 'Software item not found in player inventory.',
+          type: 'error',
         });
+        return null;
       }
+
+      world.addComponent(entityId, BurnSoftwareIntent, {
+        actorId: entityId,
+        softwareEntityId: swEntityId,
+        targetSlot: action.targetSlot,
+        inventoryIndex: foundIdx,
+        isEquipmentList,
+      });
       return 'BURN_SOFTWARE';
     }
     case 'PURGE_SOFTWARE': {

@@ -318,6 +318,140 @@ describe('Software System', () => {
       expect(newWorld.getComponent(playerId, RunInventory)?.software.length).toBe(0);
     });
 
+    it('burn with physical equipment equipped removes software from inventory', () => {
+      const rifle = world.createEntity();
+      world.addComponent(rifle, EquipmentDef, { name: 'Standard Kinetic Rifle', slotType: 'weapon' });
+      world.addComponent(playerId, EquipmentSlots, { weapon: rifle, armor: null });
+
+      const swEntity = world.createEntity();
+      world.addComponent(swEntity, SoftwareDef, {
+        name: 'Bleed.exe',
+        type: 'bleed',
+        targetSlot: 'weapon',
+        baseMagnitude: 2,
+        effectType: 'dot',
+        description: '...',
+        purchaseCost: 0,
+      });
+
+      InventoryUtil.addSoftware(world, playerId, {
+        entityId: swEntity,
+        templateId: 'bleed',
+        rarityTier: 'v0.x',
+        pickedUpAtFloor: 1,
+        pickedUpAtTimestamp: Date.now(),
+      });
+
+      const { world: newWorld } = runActionPipeline(
+        world,
+        grid,
+        playerId,
+        {
+          type: 'BURN_SOFTWARE',
+          softwareEntityId: swEntity,
+          runInventoryIndex: 0,
+          targetSlot: 'weapon',
+        },
+        sessionId,
+      );
+
+      const burned = newWorld.getComponent(playerId, EquipmentSlots);
+      expect(burned?.weapon).toBe(rifle);
+      expect(newWorld.getComponent(playerId, RunInventory)?.software.length).toBe(0);
+    });
+
+    it('burn via double-click burns the correct software from equipment list', () => {
+      const rifle = world.createEntity();
+      world.addComponent(rifle, EquipmentDef, { name: 'Standard Kinetic Rifle', slotType: 'weapon' });
+      world.addComponent(playerId, EquipmentSlots, { weapon: rifle, armor: null });
+
+      const vampEntity = world.createEntity();
+      world.addComponent(vampEntity, SoftwareDef, {
+        name: 'Vampire.exe',
+        type: 'vampire',
+        targetSlot: 'armor',
+        baseMagnitude: 5,
+        effectType: 'heal_on_kill',
+        description: '...',
+        purchaseCost: 0,
+      });
+
+      const bleedEntity = world.createEntity();
+      world.addComponent(bleedEntity, SoftwareDef, {
+        name: 'Bleed.exe',
+        type: 'bleed',
+        targetSlot: 'weapon',
+        baseMagnitude: 2,
+        effectType: 'dot',
+        description: '...',
+        purchaseCost: 0,
+      });
+
+      // vamp is in software list (index 0)
+      InventoryUtil.addSoftware(world, playerId, {
+        entityId: vampEntity,
+        templateId: 'vampire',
+        rarityTier: 'v0.x',
+        pickedUpAtFloor: 1,
+        pickedUpAtTimestamp: Date.now(),
+      });
+      // bleed is in equipment list (index 0)
+      InventoryUtil.addEquipment(world, playerId, {
+        entityId: bleedEntity,
+        templateId: 'bleed',
+        rarityTier: 'v0.x',
+        pickedUpAtFloor: 1,
+        pickedUpAtTimestamp: Date.now(),
+      });
+
+      // Double-click on bleed in BackpackGrid sends runInventoryIndex: 0 (index in equipmentItems) and targetSlot: 'weapon'
+      // WITHOUT softwareEntityId
+      const { world: newWorld } = runActionPipeline(
+        world,
+        grid,
+        playerId,
+        {
+          type: 'BURN_SOFTWARE',
+          runInventoryIndex: 0,
+          targetSlot: 'weapon',
+        },
+        sessionId,
+      );
+
+      const inv = newWorld.getComponent(playerId, RunInventory);
+      // Bleed should have been removed from equipment!
+      expect(inv?.equipment.length).toBe(0);
+    });
+
+    it('burn with non-software equipment at runInventoryIndex is rejected and not burned as software', () => {
+      const rifle = world.createEntity();
+      world.addComponent(rifle, EquipmentDef, { name: 'Standard Kinetic Rifle', slotType: 'weapon' });
+      InventoryUtil.addEquipment(world, playerId, {
+        entityId: rifle,
+        templateId: 'rifle',
+        rarityTier: 'v0.x',
+        pickedUpAtFloor: 1,
+        pickedUpAtTimestamp: Date.now(),
+      });
+
+      const { world: newWorld } = runActionPipeline(
+        world,
+        grid,
+        playerId,
+        {
+          type: 'BURN_SOFTWARE',
+          runInventoryIndex: 0,
+          targetSlot: 'weapon',
+        },
+        sessionId,
+      );
+
+      // Should not have burned anything and should not have attached BurnSoftwareIntent
+      expect(newWorld.hasComponent(playerId, BurnSoftwareIntent)).toBe(false);
+      expect(newWorld.getComponent(playerId, EquipmentSlots)).toBeUndefined();
+      expect(newWorld.getComponent(playerId, RunInventory)?.equipment.length).toBe(1);
+    });
+
     it('burn with wrong targetSlot is rejected', () => {
       const swEntity = world.createEntity();
       world.addComponent(swEntity, SoftwareDef, {
@@ -946,6 +1080,75 @@ describe('Software System', () => {
 
       // Software must be removed from backpack equipment
       expect(world.getComponent(player, RunInventory)?.equipment).toHaveLength(0);
+    });
+
+    it('BurnSoftwareIntent does not remove unrelated inventory item when softwareEntityId is not in inventory', () => {
+      const eventBus = new EventBus<GameplayEvents>();
+      const world = new World<GameplayEvents>(eventBus);
+      const softwareSys = createSoftwareSystem(world, eventBus);
+      softwareSys.init();
+
+      const player = world.createEntity();
+      const rifle = world.createEntity();
+      world.addComponent(rifle, EquipmentDef, { name: 'Standard Kinetic Rifle', slotType: 'weapon' });
+      world.addComponent(player, EquipmentSlots, { weapon: rifle, armor: null });
+
+      const unrelatedSw = world.createEntity();
+      world.addComponent(unrelatedSw, SoftwareDef, {
+        name: 'Vampire.exe',
+        type: 'vampire',
+        targetSlot: 'armor',
+        baseMagnitude: 5,
+        effectType: 'heal_on_kill',
+        description: '...',
+        purchaseCost: 0,
+      });
+
+      world.addComponent(player, RunInventory, {
+        maxSlots: 5,
+        software: [
+          {
+            entityId: unrelatedSw,
+            templateId: 'vampire',
+            rarityTier: 'v0.x',
+            pickedUpAtFloor: 1,
+            pickedUpAtTimestamp: Date.now(),
+          },
+        ],
+        equipment: [],
+      });
+      world.addComponent(player, RunCurrency, { stacks: [] });
+
+      const externalSw = world.createEntity();
+      world.addComponent(externalSw, SoftwareDef, {
+        name: 'Bleed.exe',
+        type: 'bleed',
+        targetSlot: 'weapon',
+        baseMagnitude: 2,
+        effectType: 'dot',
+        description: '...',
+        purchaseCost: 0,
+      });
+
+      world.addComponent(player, BurnSoftwareIntent, {
+        actorId: player,
+        softwareEntityId: externalSw,
+        targetSlot: 'weapon',
+        inventoryIndex: 0,
+        isEquipmentList: false,
+      });
+
+      world.executeSystems(Phase.ACTION);
+
+      // Software should be attached to weapon Children
+      const children = world.getComponent(rifle, Children)!;
+      expect(children).toBeDefined();
+      expect(children.entityIds).toContain(externalSw);
+
+      // Unrelated software in inventory index 0 must NOT have been deleted
+      const inv = world.getComponent(player, RunInventory)!;
+      expect(inv.software).toHaveLength(1);
+      expect(inv.software[0].entityId).toBe(unrelatedSw);
     });
 
     it('Unequipping weapon preserves burned software on the item entity', () => {

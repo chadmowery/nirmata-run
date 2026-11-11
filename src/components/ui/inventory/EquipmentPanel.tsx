@@ -131,13 +131,17 @@ export const EquipmentPanel: React.FC = () => {
       }
     }
 
-    // Check available compatible software in the backpack for this slot
-    const backpackSoftware = (inv?.software || [])
-      .map((item, index) => ({ item, index }))
-      .filter(({ item }) => {
-        const swDef = gameContext.world.getComponent(item.entityId, SoftwareDef);
-        return swDef && (swDef.targetSlot === slotType || !swDef.targetSlot);
-      });
+    // Check available compatible software in the backpack for this slot (checking both software and equipment lists)
+    const allSoftware = [
+      ...(inv?.software || []).map((item, index) => ({ item, index })),
+      ...(inv?.equipment || [])
+        .map((item, index) => ({ item, index }))
+        .filter(({ item }) => gameContext.world.hasComponent(item.entityId, SoftwareDef)),
+    ];
+    const backpackSoftware = allSoftware.filter(({ item }) => {
+      const swDef = gameContext.world.getComponent(item.entityId, SoftwareDef);
+      return swDef && (swDef.targetSlot === slotType || !swDef.targetSlot);
+    });
 
     // Class name based on drag states
     let borderStyle = {};

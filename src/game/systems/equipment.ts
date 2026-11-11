@@ -17,6 +17,7 @@ import {
   TemplateId,
   RarityTier,
   FloorState,
+  SoftwareDef,
 } from '@shared/components';
 import { RunInventoryItemSchema } from '@shared/components/run-inventory';
 import * as InventoryUtil from '@shared/utils/inventory-util';
@@ -75,14 +76,19 @@ export function createEquipmentSystem<T extends GameplayEvents>(
         const templateRef = w.getComponent(oldItemId, TemplateId);
         const rarity = w.getComponent(oldItemId, RarityTier);
         const floorState = w.getComponent(entityId, FloorState);
+        const isSw = w.hasComponent(oldItemId, SoftwareDef);
 
-        const added = InventoryUtil.addEquipment(w, entityId, {
+        const itemPayload = {
           entityId: oldItemId,
           templateId: templateRef?.id || 'unknown',
           rarityTier: rarity?.tier || 'v1.x',
           pickedUpAtFloor: floorState?.currentFloor || 1,
           pickedUpAtTimestamp: Date.now(),
-        });
+        };
+
+        const added = isSw
+          ? InventoryUtil.addSoftware(w, entityId, itemPayload)
+          : InventoryUtil.addEquipment(w, entityId, itemPayload);
 
         if (!added) {
           // Revert removal of the new item
@@ -201,14 +207,19 @@ export function createEquipmentSystem<T extends GameplayEvents>(
         const templateRef = w.getComponent(oldItemId, TemplateId);
         const rarity = w.getComponent(oldItemId, RarityTier);
         const floorState = w.getComponent(entityId, FloorState);
+        const isSw = w.hasComponent(oldItemId, SoftwareDef);
 
-        const added = InventoryUtil.addEquipment(w, entityId, {
+        const itemPayload = {
           entityId: oldItemId,
           templateId: templateRef?.id || 'unknown',
           rarityTier: rarity?.tier || 'v1.x',
           pickedUpAtFloor: floorState?.currentFloor || 1,
           pickedUpAtTimestamp: Date.now(),
-        });
+        };
+
+        const added = isSw
+          ? InventoryUtil.addSoftware(w, entityId, itemPayload)
+          : InventoryUtil.addEquipment(w, entityId, itemPayload);
 
         if (!added) {
           eventBus.emit('MESSAGE_EMITTED', {
