@@ -8,6 +8,13 @@ import { EventOriginContext } from './event-context';
 
 type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
 
+export type LogSinkFn = (entry: {
+  t: number;
+  level: LogLevel;
+  message: string;
+  category?: string;
+}) => void;
+
 const COLORS = {
   DEBUG: '#00ced1', // Cyber Teal
   INFO: '#39ff14', // Neural Green
@@ -29,6 +36,18 @@ const ANSI_COLORS = {
 
 class Logger {
   private isProduction = process.env.NODE_ENV === 'production';
+  private sinks: Set<LogSinkFn> = new Set();
+
+  /**
+   * Registers a log sink callback (e.g. for client report diagnostic buffers).
+   * Returns an unsubscribe function.
+   */
+  addSink(fn: LogSinkFn): () => void {
+    this.sinks.add(fn);
+    return () => {
+      this.sinks.delete(fn);
+    };
+  }
 
   private getTimestamp(): string {
     return new Date().toISOString();
@@ -39,6 +58,17 @@ class Logger {
   }
 
   private log(level: LogLevel, message: string, category?: string, ...args: any[]): void {
+    if (this.sinks.size > 0) {
+      const entry = { t: Date.now(), level, message, category };
+      for (const sink of this.sinks) {
+        try {
+          sink(entry);
+        } catch {
+          // Ignore sink failures
+        }
+      }
+    }
+
     if (level === 'DEBUG' && this.isProduction) return;
 
     const timestamp = this.getTimestamp();

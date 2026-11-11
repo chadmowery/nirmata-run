@@ -1,4 +1,5 @@
 import { gameStore, GroundItemInfo } from './ui/store';
+import { actionRingBuffer, useReportStore } from '@/client/reports';
 import { createEngineInstance, EngineInstance } from './engine-factory';
 import { createClientEngine, ClientEngineInstance } from '@client/game/client-engine-factory';
 import { applyStateDelta } from '@shared/reconciliation';
@@ -894,6 +895,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
   async function sendActionToServer(intent: ActionIntent | null, clientPredictionMs = 0) {
     if (!intent) return;
+    actionRingBuffer.push({ t: Date.now(), type: intent.type });
     const activeSessionId = resolveActiveSessionId(context.sessionId);
     try {
       logger.info(
@@ -913,6 +915,9 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
 
       if (response.ok) {
         const result = await response.json();
+        if (result.crashReport) {
+          useReportStore.getState().queueServerCrash(result.crashReport, activeSessionId);
+        }
         const serverState = result.payload;
         if (serverState) {
           const { applyStateDelta } = await import('@shared/reconciliation');
