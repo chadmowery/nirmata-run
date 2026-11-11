@@ -193,6 +193,23 @@ describe('Action API Route', () => {
     expect(response.status).toBe(400);
   });
 
+  it('should reject action with 400 when player entity does not exist or is dying (GH-6)', async () => {
+    world.destroyEntity(playerId);
+
+    const req = new Request('http://localhost/api/action', {
+      method: 'POST',
+      body: JSON.stringify({
+        sessionId,
+        action: { type: 'MOVE', dx: 0, dy: -1 },
+      }),
+    });
+
+    const response = await POST(req);
+    expect(response.status).toBe(400);
+    const data = (await response.json()) as any;
+    expect(data.error).toBe('Player is dead or run has ended');
+  });
+
   it('should process enemy turns during the player action request', async () => {
     // Setup additional movement system for AI if needed, but we used the same one
     // Already initialized in beforeEach

@@ -24,6 +24,7 @@ import {
   InteractPropIntent,
   DropItemIntent,
   PickupIntent,
+  Dying,
 } from '@shared/components';
 import { processAction } from '@game/pipeline/action-pipeline';
 import { getRunModeConfig } from '@game/systems/run-mode-config';
@@ -80,6 +81,17 @@ export async function POST(req: Request) {
 
     try {
       const { world, grid, turnManager, eventBus } = session;
+
+      if (!world.entityExists(session.playerId) || world.hasComponent(session.playerId, Dying)) {
+        logger.warn(
+          `[API] Rejecting action: player entity ${session.playerId} does not exist or is dying in session: ${sessionId}`,
+          'API',
+        );
+        return NextResponse.json(
+          { error: 'Player is dead or run has ended' },
+          { status: 400 },
+        );
+      }
 
     // 1. Snapshot initial state
     const oldWorldState = serializeWorld(world);

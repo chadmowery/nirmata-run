@@ -338,5 +338,23 @@ describe('ActionPipeline', () => {
         reason: 'OPERATOR_MANUAL_DESYNC',
       });
     });
+
+    it('safely returns null when entity does not exist or is dying (GH-6)', () => {
+      const NON_EXISTENT_ID = 999;
+      const resultNonExistent = processAction(world, grid, eventBus, NON_EXISTENT_ID, {
+        type: 'MOVE',
+        dx: 0,
+        dy: -1,
+      });
+      expect(resultNonExistent).toBeNull();
+
+      world.addComponent(PLAYER_ID, Dying, { killerId: ENEMY_ID, reason: 'death' });
+      const resultDying = processAction(world, grid, eventBus, PLAYER_ID, {
+        type: 'MOVE',
+        dx: 0,
+        dy: -1,
+      });
+      expect(resultDying).toBeNull();
+    });
   });
 });

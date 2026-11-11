@@ -137,6 +137,14 @@ export function processAction(
   action: ActionIntent,
   options?: ProcessActionOptions,
 ): string | null {
+  if (!world.entityExists(entityId) || world.hasComponent(entityId, Dying)) {
+    logger.warn(
+      `Cannot process action "${action.type}" for non-existent or dying entity: ${entityId}`,
+      'PIPELINE',
+    );
+    return null;
+  }
+
   switch (action.type) {
     case 'MOVE': {
       world.addComponent(entityId, MoveIntent, { dx: action.dx, dy: action.dy });
