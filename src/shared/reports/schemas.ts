@@ -83,7 +83,7 @@ const ClientCrashApproveSchema = z.object({
   fingerprint: z.string().length(16),
 });
 
-export const CrashApproveRequestSchema = z.discriminatedUnion('source', [
+export const CrashApproveRequestSchema = z.union([
   ServerCrashApproveSchema,
   ClientCrashApproveSchema,
 ]);
