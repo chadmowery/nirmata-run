@@ -366,6 +366,7 @@ export const BackpackGrid: React.FC = () => {
                     });
                   } else if (isSw && swDef) {
                     eventBus?.emit('BURN_SOFTWARE_REQUESTED', {
+                      softwareEntityId: entityId,
                       runInventoryIndex: isSoftware ? i : i - softwareItems.length,
                       targetSlot: swDef.targetSlot,
                     });
