@@ -1,4 +1,6 @@
 profiles/
 seeds/
 leaderboards/
+report-outbox/
+report-index.json
 
