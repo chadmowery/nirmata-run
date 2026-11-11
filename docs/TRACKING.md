@@ -1,7 +1,7 @@
 # Nirmata Runner — Project Tracking & System Index
 
-> **Current Baseline:** v3.1 (`feature/tk-perf-900-monitor`)  
-> **Last Updated:** 2026-11-09  
+> **Current Baseline:** v3.2 (`feature/tk-rpt-100-issue-reporting`)  
+> **Last Updated:** 2026-11-11  
 > **Architecture Overview:** [`docs/architecture/SYSTEM_OVERVIEW.md`](./architecture/SYSTEM_OVERVIEW.md) | Layer Rulebooks: [`AGENTS.md`](../AGENTS.md)
 
 ---
@@ -22,6 +22,7 @@ All prior development arcs and adversarial audits are complete and passing (clea
 | **AI Behavior Trees & Spatial Maps** | [`AI-BEHAVIOR-TREES-DIJKSTRA.md`](./design/AI-BEHAVIOR-TREES-DIJKSTRA.md) | Complete (v3.0) | Pure stateless behavior tree evaluator (`@engine/ai`), shared Dijkstra distance maps (approach, flee, kite-to-cover, pack surround), utility curves, bestiary migration. Audit: [`2026-11-07`](./reports/2026-11-07-adversarial-review-ai-behavior-trees.md). |
 | **Sprite Animation System** | [`SPRITE-ANIMATIONS.md`](./design/SPRITE-ANIMATIONS.md) | Complete (v2.8) | Single-atlas ping-pong delta frames (Rows 12–14), ambient states & one-shot clips, `SpriteAnimator` runtime, Studio scrubber preview. Audit: [`2026-11-08`](./reports/2026-11-08-adversarial-review-sprite-animations.md). |
 | **Performance & Telemetry Monitor** | [`PERFORMANCE-MONITOR-SPEC.md`](./design/PERFORMANCE-MONITOR-SPEC.md) | Complete (v2.9) | `TK-PERF-900` widget: WebGL2 probe, zero-alloc ring buffer telemetry, 4 display modes (`MINI`, `STANDARD`, `EXPANDED`, `GHOST`), sub-stage breakdown, dev hotkeys (`F3`, `Shift+F3`, `Alt+F3`). |
+| **In-Game Issue Reporting & Crash Ticketing** | [`IN-GAME-ISSUE-REPORTING.md`](./design/IN-GAME-ISSUE-REPORTING.md) | Complete (v3.2) | `TK-RPT-100`: Manual report modal (`F8`), post-crash approval dialog, GitHub issue creator (`ai-ready`), sealed turn diagnostics, client/server ring buffers, deterministic fingerprint dedupe, disk outbox with backoff retries. |
 
 ---
 
@@ -52,11 +53,14 @@ When extending or refactoring systems, preserve these established constraints (s
   - Configure `@vitest/coverage-v8` with enforceability thresholds for `@engine`, `@shared`, and `@server`.
 
 ### 3.2 Planned Feature Specifications
+- [ ] **Cloud Persistence, Accounts, Auth & Three-Tier Progression (`v3.3`)**:
+  - Specifications: [`docs/architecture/PERSISTENCE-AND-HOSTING-SPEC.md`](./architecture/PERSISTENCE-AND-HOSTING-SPEC.md), [`docs/design/ACCOUNTS-AUTH-AND-PROGRESSION-SPEC.md`](./design/ACCOUNTS-AUTH-AND-PROGRESSION-SPEC.md) (approved, ready to implement).
+  - Target: Firebase App Hosting (Cloud Run with sticky sessions), 100% server-only Cloud Firestore persistence (local Emulator Suite in dev, replacing `FSProfileRepository`), Firebase Auth (Anonymous-first + Google/Email binding for ranked modes), `CALLSIGN#1234` discriminator identity, in-memory `SessionManager` with milestone/debounced gzipped checkpoints & lazy hydration, and 3-tier progression (Permanent Account + Multi-Week Seasons + Weekly Reset) with data-driven Awards and Claimable Commendations.
 - [ ] **Deferred Lighting & Volumetric Glow (`v3.2`)**:
   - Specification: [`docs/design/DEFERRED-LIGHTING-RENDERING.md`](./design/DEFERRED-LIGHTING-RENDERING.md).
   - Target: Custom PixiJS multi-pass lightmap render target, normal-mapped tile/prop illumination, flicker/pulse emission sources, and terminal glow effects.
-- [ ] **In-Game Issue Reporting & Crash Ticketing (`TK-RPT-100`)**:
-  - Specification: [`docs/design/IN-GAME-ISSUE-REPORTING.md`](./design/IN-GAME-ISSUE-REPORTING.md) (approved, ready to implement).
+- [x] **In-Game Issue Reporting & Crash Ticketing (`TK-RPT-100`)**:
+  - Specification: [`docs/design/IN-GAME-ISSUE-REPORTING.md`](./design/IN-GAME-ISSUE-REPORTING.md) (Complete, v3.2).
   - Target: Manual bug/feature/feedback form and player-approved automatic crash reports posted as GitHub issues (auto-labelled `ai-ready`), with sealed server diagnostics, fingerprint dedupe, and a retrying outbox.
 - [ ] **Art Direction & World-Building Content Pipeline**:
   - Specification: [`docs/wip/ART-DIRECTION-WORLD-BUILDING.md`](./wip/ART-DIRECTION-WORLD-BUILDING.md).
