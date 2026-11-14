@@ -72,6 +72,19 @@ describe('Reports Composer', () => {
       expect(body).toContain('TypeError: Cannot read properties of null');
     });
 
+    it('includes Previously: #N in summary table when previousIssueNumber is provided (M-3)', () => {
+      const body = composeIssueBody({
+        ref: 'NR-PREV',
+        kind: 'CRASH',
+        crashSource: 'SERVER_TURN',
+        fingerprint: 'abcdef0123456789',
+        title: 'Reopened crash',
+        previousIssueNumber: 123,
+      });
+
+      expect(body).toContain('Previously: #123');
+    });
+
     it('enforces body truncation <= 60,000 characters when snapshot is massive', () => {
       const massiveSnapshot = {
         hugeArray: new Array(10000).fill({

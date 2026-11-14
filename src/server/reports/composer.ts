@@ -75,6 +75,7 @@ export interface IssueComposeParams {
   floor?: number;
   turn?: number;
   phase?: string;
+  previousIssueNumber?: number;
 }
 
 /**
@@ -201,6 +202,13 @@ export function composeIssueBody(params: IssueComposeParams): string {
     lines.push(`| Build | \`${build}\` · Mode \`${mode}\` · Floor ${floor} · Turn ${turn}${phaseSuffix} |`);
     lines.push(`| Session | \`${sess}\` |`);
     lines.push('| Occurrences | 1 |');
+    if (
+      typeof params.previousIssueNumber === 'number' &&
+      Number.isFinite(params.previousIssueNumber) &&
+      params.previousIssueNumber > 0
+    ) {
+      lines.push(`| Previous Issue | Previously: #${Math.trunc(params.previousIssueNumber)} |`);
+    }
     lines.push('');
 
     // Player note / description

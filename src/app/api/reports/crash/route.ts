@@ -9,9 +9,10 @@ import {
   composeTitle,
   composeIssueBody,
   composeDedupeComment,
+  type IssueComposeParams,
 } from '@/server/reports/composer';
 import { writeDryRunReport } from '@/server/reports/dry-run';
-import { getGitHubClient } from '@/server/reports/github-client';
+import { getGitHubClient, GitHubApiError } from '@/server/reports/github-client';
 import { getReportOutbox } from '@/server/reports/outbox';
 import { readJsonBodyWithLimit } from '@/server/reports/body-limit';
 import { draftStore } from '@/server/reports/draft-store';
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
   const labels = getLabelsForKind('CRASH');
 
   let title = '';
-  let body = '';
+  let composeParams: IssueComposeParams;
   let fingerprint = '';
   let sessionId = data.sessionId;
   let floor: number | undefined;
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
       errorMessage: draft.sealed.errorMessage,
     });
 
-    body = composeIssueBody({
+    composeParams = {
       ref,
       kind: 'CRASH',
       crashSource: draft.source,
@@ -102,7 +103,7 @@ export async function POST(req: NextRequest) {
       turn: draft.sealed.turn,
       phase: draft.sealed.phase,
       title,
-    });
+    };
   } else {
     // Client-origin crash: server recomputes fingerprint
     fingerprint = computeCrashFingerprint(
@@ -123,7 +124,7 @@ export async function POST(req: NextRequest) {
       errorMessage: data.error.message,
     });
 
-    body = composeIssueBody({
+    composeParams = {
       ref,
       kind: 'CRASH',
       crashSource: data.source,
@@ -135,11 +136,12 @@ export async function POST(req: NextRequest) {
       diagnostics: data.diagnostics,
       sessionId: data.sessionId,
       title,
-    });
+    };
   }
 
   // 5. Deduplication check
   let existingEntry = fingerprintIndex.get(fingerprint);
+  let previousIssueNumber: number | undefined;
 
   const client = getGitHubClient({
     token: cfg.githubToken,
@@ -166,9 +168,18 @@ export async function POST(req: NextRequest) {
       try {
         const issueState = await client.getIssue(existingEntry.issueNumber);
         isOpen = issueState.state === 'open';
-      } catch {
-        // If lookup fails, assume open to be safe
-        isOpen = true;
+        if (!isOpen) {
+          previousIssueNumber = existingEntry.issueNumber;
+        }
+      } catch (err) {
+        // HTTP 404 means issue is deleted/missing -> treat as closed/missing and open a new one
+        if (err instanceof GitHubApiError && err.status === 404) {
+          isOpen = false;
+          previousIssueNumber = existingEntry.issueNumber;
+        } else {
+          // If lookup fails transiently, assume open to avoid spurious duplicates
+          isOpen = true;
+        }
       }
     }
 
@@ -221,6 +232,11 @@ export async function POST(req: NextRequest) {
   }
 
   // 6. Create new crash issue
+  const body = composeIssueBody({
+    ...composeParams,
+    previousIssueNumber,
+  });
+
   if (status.mode === 'dry-run') {
     fingerprintIndex.recordNewIssue(fingerprint, 99999);
     writeDryRunReport({
