@@ -32,6 +32,7 @@ import { TurnPhase } from '@engine/turn/types';
 import { logTurnExecutionError } from '@/server/utils/error-logger';
 import { createServerCrashDraft, createMinimalServer5xxDraft } from '@/server/utils/turn-snapshot';
 import type { CrashDraftOffer } from '@/shared/reports/schemas';
+import { truncateSessionId } from '@shared/reports/sanitize';
 
 export interface ServerTurnDevPerf {
   serverTurnMs: number;
@@ -67,21 +68,22 @@ export async function POST(req: Request) {
     }
 
     const { sessionId, action } = result.data;
+    const truncatedSessionId = truncateSessionId(sessionId);
     parsedSessionId = sessionId;
     parsedAction = action;
     EventOriginContext.current = 'server';
-    logger.info(`[API] Processing action: ${action.type} for session: ${sessionId}`, 'API');
+    logger.info(`[API] Processing action: ${action.type} for session: ${truncatedSessionId}`, 'API');
     const session = sessionManager.getSession<GameplayEvents, EngineInstance['systems']>(sessionId);
     if (!session) {
-      logger.warn(`[API] Session NOT FOUND: ${sessionId}`, 'API');
+      logger.warn(`[API] Session NOT FOUND: ${truncatedSessionId}`, 'API');
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
     activeSession = session;
 
-    logger.info(`Session Found for ${sessionId}. PlayerId: ${session.playerId}`, 'API');
+    logger.info(`Session Found for ${truncatedSessionId}. PlayerId: ${session.playerId}`, 'API');
 
     if (!sessionManager.tryAcquireSessionLock(sessionId)) {
-      logger.warn(`[API] Rejecting overlapping action for busy session: ${sessionId}`, 'API');
+      logger.warn(`[API] Rejecting overlapping action for busy session: ${truncatedSessionId}`, 'API');
       return NextResponse.json(
         { error: 'Session is already processing an action' },
         { status: 409 },
@@ -93,7 +95,7 @@ export async function POST(req: Request) {
 
       if (!world.entityExists(session.playerId) || world.hasComponent(session.playerId, Dying)) {
         logger.warn(
-          `[API] Rejecting action: player entity ${session.playerId} does not exist or is dying in session: ${sessionId}`,
+          `[API] Rejecting action: player entity ${session.playerId} does not exist or is dying in session: ${truncatedSessionId}`,
           'API',
         );
         return NextResponse.json(
@@ -286,7 +288,7 @@ export async function POST(req: Request) {
             }
           }
           logger.info(
-            `Dead-Drop Uplink: Transmitted item ${item.templateId} to profile vault for ${sessionId}`,
+            `Dead-Drop Uplink: Transmitted item ${item.templateId} to profile vault for ${truncatedSessionId}`,
             'API',
           );
         } else if (ddPayload.blueprintId) {
@@ -304,7 +306,7 @@ export async function POST(req: Request) {
             });
           }
           logger.info(
-            `Dead-Drop Uplink: Transmitted blueprint ${ddPayload.blueprintId} to profile for ${sessionId}`,
+            `Dead-Drop Uplink: Transmitted blueprint ${ddPayload.blueprintId} to profile for ${truncatedSessionId}`,
             'API',
           );
         }
@@ -333,7 +335,7 @@ export async function POST(req: Request) {
         // Prioritize adding extracted items to the vault, then overflow
         const items = (payload.stats.itemsExtracted as VaultItem[]) || [];
         if (items.length > 0) {
-          logger.info(`Processing extraction for ${sessionId}: ${items.length} items.`, 'API');
+          logger.info(`Processing extraction for ${truncatedSessionId}: ${items.length} items.`, 'API');
 
           for (const item of items) {
             if (!item.vaultItemId) {
@@ -374,7 +376,7 @@ export async function POST(req: Request) {
             const duplicateFlux = economy.conversion?.duplicateBlueprintToFlux ?? 20;
             profile.wallet.flux = Math.min(economy.caps.flux, profile.wallet.flux + duplicateFlux);
             logger.info(
-              `Duplicate blueprint ${bp.blueprintId} converted to ${duplicateFlux} Flux for ${sessionId}`,
+              `Duplicate blueprint ${bp.blueprintId} converted to ${duplicateFlux} Flux for ${truncatedSessionId}`,
               'API',
             );
           } else {
@@ -384,7 +386,7 @@ export async function POST(req: Request) {
               compiledAt: Date.now(),
             });
             logger.info(
-              `New blueprint ${bp.blueprintId} (${bp.type}) added to library for ${sessionId}`,
+              `New blueprint ${bp.blueprintId} (${bp.type}) added to library for ${truncatedSessionId}`,
               'API',
             );
           }
@@ -402,13 +404,13 @@ export async function POST(req: Request) {
               (item) => item.shellId !== activeShellId,
             );
             logger.info(
-              `Death Penalty: Cleared installed items for shell ${activeShellId} on session ${sessionId}`,
+              `Death Penalty: Cleared installed items for shell ${activeShellId} on session ${truncatedSessionId}`,
               'API',
             );
           } else {
             profile.installedItems = [];
             logger.info(
-              `Death Penalty: Cleared all installed items on session ${sessionId}`,
+              `Death Penalty: Cleared all installed items on session ${truncatedSessionId}`,
               'API',
             );
           }
@@ -416,7 +418,7 @@ export async function POST(req: Request) {
 
         if (modeConfig.deathPenalty.resetShellUpgrades) {
           profile.shellUpgrades = {};
-          logger.info(`Death Penalty: Reset shell upgrades on session ${sessionId}`, 'API');
+          logger.info(`Death Penalty: Reset shell upgrades on session ${truncatedSessionId}`, 'API');
         }
       }
 

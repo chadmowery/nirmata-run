@@ -5,6 +5,8 @@ import {
   sanitizeDescription,
   sanitizeNote,
   sanitizeStack,
+  sanitizeLogMessage,
+  truncateSessionId,
   createCodeFence,
 } from '../sanitize';
 
@@ -90,6 +92,20 @@ describe('Reports Sanitizer', () => {
     expect(sanitizedNote).not.toContain('nr-fingerprint:');
     expect(sanitizedNote).not.toContain('nr-ref:');
     expect(sanitizeText(sanitizedNote)).toBe(sanitizedNote);
+  });
+
+  it('redacts UUIDs, session key-value pairs, and known session tokens in sanitizeLogMessage (NH-1)', () => {
+    const uuid = 'a1b2c3d4-e5f6-4789-abcd-1234567890ef';
+    const customToken = 'sess_bearer_secret_987654';
+    const log = `Server session initialized: ${uuid}; sessionId=${customToken}; other=${customToken}`;
+    const sanitized = sanitizeLogMessage(log, 500, [customToken]);
+
+    expect(sanitized).not.toContain(uuid);
+    expect(sanitized).not.toContain(customToken);
+    expect(sanitized).toContain('a1b2c3d4…');
+    expect(sanitized).toContain('sess_bea…');
+    expect(truncateSessionId(uuid)).toBe('a1b2c3d4…');
+    expect(truncateSessionId(undefined)).toBe('none');
   });
 
   describe('createCodeFence', () => {

@@ -15,6 +15,7 @@ import { getAmbianceConfig, setAmbianceConfig } from '@/game/config/ambiance';
 import { useStore } from 'zustand';
 import { gameStore, getSavedAudioSettings } from '@/game/ui/store';
 import { reportableFetch } from '@/client/reports';
+import { truncateSessionId } from '@shared/reports/sanitize';
 import { GameState } from '@/game/states/types';
 import { RunMode } from '@/shared/run-mode';
 import { logger } from '@engine/utils/logger';
@@ -98,7 +99,10 @@ export default function GamePage() {
         sessionId = launchConfig.sessionId;
         runMode = launchConfig.mode;
         shellId = launchConfig.shellId || fallbackShellId;
-        logger.info(`Using Hub launch configuration: ${JSON.stringify(launchConfig)}`, 'NETWORK');
+        logger.info(
+          `Using Hub launch configuration: mode=${launchConfig.mode}, shellId=${shellId}, sessionId=${truncateSessionId(sessionId)}`,
+          'NETWORK',
+        );
       } else {
         // Fallback for legacy/direct play
         shellId = fallbackShellId || DEFAULT_SHELL_ID;
@@ -121,7 +125,7 @@ export default function GamePage() {
           if (typeof window !== 'undefined' && sessionId) {
             window.localStorage?.setItem('nimrata_sessionId', sessionId);
           }
-          logger.info(`Server session initialized: ${sessionId}`, 'NETWORK');
+          logger.info(`Server session initialized: ${truncateSessionId(sessionId)}`, 'NETWORK');
         } else {
           logger.warn(
             'Failed to initialize server session. Falling back to local only.',

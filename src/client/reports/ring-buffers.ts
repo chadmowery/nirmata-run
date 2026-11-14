@@ -38,21 +38,42 @@ export const actionRingBuffer = new RingBuffer<ClientActionEntry>(25);
 
 let unsubscribeLogger: (() => void) | null = null;
 
+function getStoredSessionId(): string | null {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem('nimrata_sessionId');
+    }
+  } catch {
+    // Ignore storage access errors in restricted contexts
+  }
+  return null;
+}
+
 /**
  * Initializes the logger sink on the client.
- * Automatically buffers console messages with size and length constraints.
+ * Automatically buffers console messages with size, length, and session-token redaction constraints.
  */
-export function initLoggerSink(): () => void {
+export function initLoggerSink(
+  getKnownTokens?: () => ReadonlyArray<string | null | undefined>,
+): () => void {
   if (unsubscribeLogger) return unsubscribeLogger;
 
   unsubscribeLogger = logger.addSink((entry) => {
     // Skip DEBUG logs to avoid sanitizer regex overhead and buffer eviction in hot loops (L-7)
     if (entry.level === 'DEBUG') return;
+    const knownTokens: Array<string | null | undefined> = [getStoredSessionId()];
+    if (getKnownTokens) {
+      try {
+        knownTokens.push(...getKnownTokens());
+      } catch {
+        // Non-fatal
+      }
+    }
     logRingBuffer.push({
       t: entry.t,
       level: entry.level,
       cat: entry.category,
-      msg: sanitizeLogMessage(entry.message, 500),
+      msg: sanitizeLogMessage(entry.message, 500, knownTokens),
     });
   });
 

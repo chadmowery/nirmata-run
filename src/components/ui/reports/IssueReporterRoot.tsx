@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { useReportStore } from '@client/reports/report-store';
 import { initLoggerSink } from '@client/reports/ring-buffers';
 import { initErrorCollectors } from '@client/reports/collectors';
+import { gameStore } from '@/game/ui/store';
 import { ReportCrashModal } from './ReportCrashModal';
 import { ReportIssueModal } from './ReportIssueModal';
 
@@ -16,7 +17,7 @@ export const IssueReporterRoot: React.FC = () => {
     void fetchStatus();
 
     // 2. Initialize logger buffer and window error collectors
-    const cleanupLogger = initLoggerSink();
+    const cleanupLogger = initLoggerSink(() => [gameStore?.getState()?.launchConfig?.sessionId]);
     const cleanupErrors = initErrorCollectors();
 
     // 3. Global hotkey handler for F8

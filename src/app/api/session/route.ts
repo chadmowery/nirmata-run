@@ -11,6 +11,7 @@ import { globalShellRegistry, applyShellUpgradesToRecord } from '@/game/shells/s
 import { serializeWorld, serializeGrid } from '@shared/serialization';
 import { FullSyncPayload } from '@shared/types';
 import { TurnPhase } from '@engine/turn/types';
+import { truncateSessionId } from '@shared/reports/sanitize';
 
 const CreateSessionRequestSchema = z.object({
   seed: z.string().min(1),
@@ -87,7 +88,7 @@ export async function POST(req: Request) {
       shellId: requestedShellId || undefined,
     });
 
-    logger.info(`Session created: ${sessionId} (seed: ${seed})`, 'API');
+    logger.info(`Session created: ${truncateSessionId(sessionId)} (seed: ${seed})`, 'API');
 
     let initialState: FullSyncPayload | undefined;
     if (

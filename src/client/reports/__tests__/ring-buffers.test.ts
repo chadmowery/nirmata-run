@@ -38,4 +38,22 @@ describe('Diagnostics Ring Buffers', () => {
     logger.error('After unsubscribe', 'TEST');
     expect(logRingBuffer.toArray().length).toBe(2);
   });
+
+  it('redacts full sessionId bearer tokens captured by initLoggerSink (NH-1)', () => {
+    const fullUuid = 'deadbeef-1234-4abc-9def-0123456789ab';
+    const customSession = 'custom_bearer_token_abcdef';
+    const unsubscribe = initLoggerSink(() => [customSession]);
+
+    logger.info(`Server session initialized: ${fullUuid}`, 'NETWORK');
+    logger.info(`Launch config for ${customSession}`, 'NETWORK');
+
+    const logs = logRingBuffer.toArray();
+    expect(logs).toHaveLength(2);
+    expect(logs[0].msg).not.toContain(fullUuid);
+    expect(logs[0].msg).toContain('deadbeef…');
+    expect(logs[1].msg).not.toContain(customSession);
+    expect(logs[1].msg).toContain('custom_b…');
+
+    unsubscribe();
+  });
 });

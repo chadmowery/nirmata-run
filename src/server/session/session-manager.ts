@@ -6,6 +6,7 @@ import { EngineEvents } from '@engine/events/types';
 import { logger } from '@engine/utils/logger';
 
 import { RunMode } from '@shared/run-mode';
+import { truncateSessionId } from '@shared/reports/sanitize';
 
 /**
  * WorldState container for sessions.
@@ -89,13 +90,13 @@ export class SessionManager {
       }
 
       if (oldestKey) {
-        logger.info(`Session Evicted (Capacity): ${oldestKey}`, 'SESSION');
+        logger.info(`Session Evicted (Capacity): ${truncateSessionId(oldestKey)}`, 'SESSION');
         this.sessions.delete(oldestKey);
       }
     }
 
     const now = Date.now();
-    logger.info(`Session Created: ${sessionId}`, 'SESSION');
+    logger.info(`Session Created: ${truncateSessionId(sessionId)}`, 'SESSION');
     this.sessions.set(sessionId, {
       state: state as unknown as WorldState<EngineEvents, unknown>,
       createdAt: now,
@@ -108,13 +109,13 @@ export class SessionManager {
   ): WorldState<T, S> | undefined {
     const entry = this.sessions.get(sessionId);
     if (!entry) {
-      logger.debug(`Session Miss: ${sessionId}`, 'SESSION');
+      logger.debug(`Session Miss: ${truncateSessionId(sessionId)}`, 'SESSION');
       return undefined;
     }
 
     const now = Date.now();
     if (this.ttlMs > 0 && now - entry.lastAccessedAt > this.ttlMs) {
-      logger.info(`Session Expired (TTL): ${sessionId}`, 'SESSION');
+      logger.info(`Session Expired (TTL): ${truncateSessionId(sessionId)}`, 'SESSION');
       this.sessions.delete(sessionId);
       return undefined;
     }
@@ -125,7 +126,7 @@ export class SessionManager {
   }
 
   public deleteSession(sessionId: string): void {
-    logger.info(`Session Deleted: ${sessionId}`, 'SESSION');
+    logger.info(`Session Deleted: ${truncateSessionId(sessionId)}`, 'SESSION');
     this.sessions.delete(sessionId);
     this.activeSessionLocks.delete(sessionId);
   }

@@ -13,6 +13,7 @@ import {
   sanitizeLogMessage,
   sanitizeErrorName,
   sanitizeInlineValue,
+  redactKnownTokens,
 } from '@shared/reports/sanitize';
 import { getTitlePrefixForKind, type ReportKind, type CrashSource } from '@shared/reports/labels';
 import type { ClientDiagnostics } from '@shared/reports/schemas';
@@ -154,22 +155,30 @@ export function composeIssueBody(params: IssueComposeParams): string {
     : params.kind;
 
   // Untrusted text sections
+  const knownTokens = params.sessionId ? [params.sessionId] : undefined;
   const rawNote = params.note || params.description || '';
-  let sanitizedNote = sanitizeNote(rawNote);
+  let sanitizedNote = sanitizeNote(redactKnownTokens(rawNote, knownTokens));
 
   const safeErrorName = params.errorName ? sanitizeErrorName(params.errorName, 48) : '';
-  const safeErrorMessage = params.errorMessage ? sanitizeText(params.errorMessage, { singleLine: false, maxLength: 2000 }) : '';
+  const safeErrorMessage = params.errorMessage
+    ? sanitizeText(redactKnownTokens(params.errorMessage, knownTokens), {
+        singleLine: false,
+        maxLength: 2000,
+      })
+    : '';
 
-  let sanitizedStack = params.stack ? sanitizeStack(params.stack) : '';
+  let sanitizedStack = params.stack
+    ? sanitizeStack(redactKnownTokens(params.stack, knownTokens))
+    : '';
   let snapshotStr = params.stateSnapshot
-    ? JSON.stringify(params.stateSnapshot, null, 2)
+    ? redactKnownTokens(JSON.stringify(params.stateSnapshot, null, 2), knownTokens)
     : '';
   let logsStr = diag?.recentLogs && diag.recentLogs.length > 0
     ? diag.recentLogs
         .map((l) => {
           const ts = Number.isFinite(l.t) && l.t >= 0 && l.t <= 8.64e15 ? new Date(l.t).toISOString() : 'INVALID_TIME';
           const lvl = sanitizeInlineValue(l.level, 20);
-          const msg = sanitizeLogMessage(l.msg, 500);
+          const msg = sanitizeLogMessage(l.msg, 500, knownTokens);
           return `[${ts}] [${lvl}] ${msg}`;
         })
         .join('\n')
@@ -244,7 +253,10 @@ export function composeIssueBody(params: IssueComposeParams): string {
     if (params.failedAction) {
       lines.push('## Failed Action');
       lines.push('=== UNTRUSTED PLAYER INPUT ===');
-      const rawActionJson = JSON.stringify(params.failedAction, null, 2);
+      const rawActionJson = redactKnownTokens(
+        JSON.stringify(params.failedAction, null, 2),
+        knownTokens,
+      );
       const safeActionJson = sanitizeText(rawActionJson, { singleLine: false, maxLength: 8000 });
       lines.push(createCodeFence(safeActionJson, 'json'));
       lines.push('');

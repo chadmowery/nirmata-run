@@ -5,6 +5,7 @@ import { globalShellRegistry, applyShellUpgradesToRecord } from '@/game/shells/s
 import { logger } from '@engine/utils/logger';
 import { VaultItem, generateVaultItemId } from '@/shared/profile';
 import { isWeaponItem, isArmorItem } from '@/shared/utils/equipment-util';
+import { truncateSessionId } from '@shared/reports/sanitize';
 
 const EquipFromVaultRequestSchema = z
   .object({
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     const profile = await profileRepository.load(sessionId);
     if (!profile) {
-      logger.error(`[VaultEquipFromVault] Profile not found for sessionId: ${sessionId}`, 'API');
+      logger.error(`[VaultEquipFromVault] Profile not found for sessionId: ${truncateSessionId(sessionId)}`, 'API');
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 

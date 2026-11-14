@@ -1,5 +1,6 @@
 import { gameStore, GroundItemInfo } from './ui/store';
 import { actionRingBuffer, useReportStore, reportableFetch } from '@/client/reports';
+import { truncateSessionId } from '@shared/reports/sanitize';
 import { createEngineInstance, EngineInstance } from './engine-factory';
 import { createClientEngine, ClientEngineInstance } from '@client/game/client-engine-factory';
 import { applyStateDelta } from '@shared/reconciliation';
@@ -974,7 +975,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
           // Ignore non-JSON error body
         }
         if (response.status === 404) {
-          logger.warn(`[API] Session NOT FOUND: ${activeSessionId}`, 'API');
+          logger.warn(`[API] Session NOT FOUND: ${truncateSessionId(activeSessionId)}`, 'API');
         } else {
           logger.warn(`[API] Action rejected (${response.status}): ${errorMessage}`, 'API');
         }

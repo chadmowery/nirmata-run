@@ -3,6 +3,7 @@ import path from 'path';
 import { calculateScore } from '@/game/scoring';
 import { RunMode } from '@shared/run-mode';
 import { logger } from '@engine/utils/logger';
+import { truncateSessionId } from '@shared/reports/sanitize';
 
 const LEADERBOARD_DIR = path.join(process.cwd(), 'data', 'leaderboards');
 
@@ -78,7 +79,7 @@ export async function submitLeaderboardEntry(
     await fs.writeFile(filePath, JSON.stringify(entries, null, 2), 'utf-8');
 
     const rank = entries.findIndex((e) => e.sessionId === sessionId) + 1;
-    logger.info(`[Leaderboard] Submitted score for ${sessionId}: ${score} (Rank: ${rank})`, 'API');
+    logger.info(`[Leaderboard] Submitted score for ${truncateSessionId(sessionId)}: ${score} (Rank: ${rank})`, 'API');
 
     return { score, rank };
   } catch (error) {

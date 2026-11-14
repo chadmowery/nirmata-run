@@ -92,8 +92,69 @@ export function sanitizeNote(note: string, maxLength = 1000): string {
   return sanitizeText(note, { singleLine: false, maxLength });
 }
 
-export function sanitizeLogMessage(msg: string, maxLength = 500): string {
-  return sanitizeText(msg, { singleLine: true, maxLength });
+export function truncateSessionId(sessionId?: string | null): string {
+  if (!sessionId) return 'none';
+  return `${sessionId.slice(0, 8)}…`;
+}
+
+/**
+ * Redacts known token values (when longer than 8 chars) to their 8-char truncated form.
+ */
+export function redactKnownTokens(
+  input: string,
+  knownTokens?: ReadonlyArray<string | null | undefined>,
+): string {
+  if (!input || !knownTokens || knownTokens.length === 0) return input;
+  let result = input;
+  for (const token of knownTokens) {
+    if (token && token.length > 8) {
+      const truncated = truncateSessionId(token);
+      if (result.includes(token)) {
+        result = result.split(token).join(truncated);
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Defense-in-depth redaction for session bearer tokens and UUIDs in log strings.
+ */
+export function redactSessionTokens(
+  input: string,
+  knownTokens?: ReadonlyArray<string | null | undefined>,
+): string {
+  if (!input) return '';
+  let result = redactKnownTokens(input, knownTokens);
+
+  // Redact UUID v1-v5 patterns (such as generated sessionId bearer tokens)
+  result = result.replace(
+    /\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b/g,
+    (match) => truncateSessionId(match),
+  );
+
+  // Redact explicit session / sessionId / session_id key-value pairs (e.g. sessionId=..., session: ..., "sessionId":"...")
+  result = result.replace(
+    /(\b"?session(?:_?id)?"?\s*[:=]\s*"?)([a-zA-Z0-9._-]{9,})/gi,
+    (_match, prefix: string, token: string) => `${prefix}${truncateSessionId(token)}`,
+  );
+
+  // Redact whitespace-separated sessionId / session_id tokens (e.g. "sessionId abcdef123456")
+  result = result.replace(
+    /(\b"?session_?id"?\s+)([a-zA-Z0-9._-]{9,})/gi,
+    (_match, prefix: string, token: string) => `${prefix}${truncateSessionId(token)}`,
+  );
+
+  return result;
+}
+
+export function sanitizeLogMessage(
+  msg: string,
+  maxLength = 500,
+  knownTokens?: ReadonlyArray<string | null | undefined>,
+): string {
+  const redacted = redactSessionTokens(msg, knownTokens);
+  return sanitizeText(redacted, { singleLine: true, maxLength });
 }
 
 /**

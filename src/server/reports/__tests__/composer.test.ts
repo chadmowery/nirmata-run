@@ -130,6 +130,46 @@ describe('Reports Composer', () => {
       const fences = body.match(/^`{3,}.*$/gm) || [];
       expect(fences.length % 2).toBe(0);
     });
+
+    it('never leaks full sessionId via recentLogs into composed issue body (NH-1)', () => {
+      const uuidSession = '99887766-5544-4332-8110-aabbccddeeff';
+      const customSession = 'sess_live_token_secret_xyz123';
+
+      const body = composeIssueBody({
+        ref: 'NR-SESS',
+        kind: 'BUG',
+        title: 'Session redaction test',
+        sessionId: customSession,
+        diagnostics: {
+          build: 'dev',
+          route: '/',
+          userAgent: 'vitest',
+          viewport: { w: 1280, h: 720 },
+          gameStatus: 'Playing',
+          recentLogs: [
+            {
+              t: Date.now(),
+              level: 'INFO',
+              cat: 'NETWORK',
+              msg: `Server session initialized: ${uuidSession}`,
+            },
+            {
+              t: Date.now(),
+              level: 'INFO',
+              cat: 'NETWORK',
+              msg: `Using Hub launch configuration: {"sessionId":"${customSession}"}`,
+            },
+          ],
+          recentActions: [],
+          recentMessages: [],
+        },
+      });
+
+      expect(body).not.toContain(uuidSession);
+      expect(body).not.toContain(customSession);
+      expect(body).toContain('99887766…');
+      expect(body).toContain('sess_liv…');
+    });
   });
 
   describe('composeDedupeComment', () => {
