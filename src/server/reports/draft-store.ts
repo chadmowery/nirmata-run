@@ -4,7 +4,8 @@
  */
 
 import crypto from 'crypto';
-import type { RedactedCrashPreview } from '@/shared/reports/schemas';
+import type { RedactedCrashPreview } from '@shared/reports/schemas';
+import type { DraftStoreInterface } from './interfaces';
 
 export interface ServerCrashDraft {
   draftId: string;
@@ -32,7 +33,7 @@ export interface ServerCrashDraft {
   };
 }
 
-export class DraftStore {
+export class DraftStore implements DraftStoreInterface {
   private drafts: Map<string, ServerCrashDraft> = new Map();
   private readonly ttlMs = 30 * 60 * 1000; // 30 minutes
   private readonly maxEntries = 50;

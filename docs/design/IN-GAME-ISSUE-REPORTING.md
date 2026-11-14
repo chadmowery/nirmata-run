@@ -372,6 +372,6 @@ Branch: `feature/tk-rpt-100-issue-reporting` off `main`. Commit per milestone. A
 ## 13. Deferred / Future
 
 - **Screenshots** (canvas via Pixi extract + DOM overlay) requiring attachment hosting (repo branch / release assets / object storage) and the `Contents` scope.
-- **Shared storage for multi-instance deployments:** rate counters, draft store and fingerprint index currently live in local server memory/disk (single host). Scaling out needs a shared store (e.g. Redis or a database) behind the same interfaces. Keep these modules behind small interfaces (`RateLimiter`, `DraftStore`, `FingerprintIndex`, `Outbox`) so that swap is easy.
+- **Shared storage for multi-instance deployments / ephemeral hosting (`PERSISTENCE-AND-HOSTING-SPEC.md` reconciliation):** Rate counters, crash drafts, the outbox, and the fingerprint index currently live in local server memory/disk under a single-host assumption. Because [`PERSISTENCE-AND-HOSTING-SPEC.md`](../architecture/PERSISTENCE-AND-HOSTING-SPEC.md) targets Firebase App Hosting (`minInstances: 0` with an ephemeral container filesystem), production Cloud Run deploys with live reporting enabled must either set `minInstances: 1` (plus `SIGTERM` outbox flush) or swap the [`interfaces.ts`](../../src/server/reports/interfaces.ts) contracts (`RateLimiter`, `DraftStoreInterface`, `FingerprintIndexInterface`, `OutboxInterface`) to Firestore/Redis-backed adapters.
 - Per-session/IP rate limits (declined for now).
 - Player-visible report status, GitHub App credentials, and moderation tooling.

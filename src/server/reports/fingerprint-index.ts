@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { logger } from '@/engine/utils/logger';
+import type { FingerprintIndexInterface } from './interfaces';
 
 export interface FingerprintIndexEntry {
   issueNumber: number;
@@ -15,7 +16,7 @@ export interface FingerprintIndexEntry {
   updatedAt: number;
 }
 
-export class FingerprintIndex {
+export class FingerprintIndex implements FingerprintIndexInterface {
   private readonly filePath: string | null;
   private entries: Map<string, FingerprintIndexEntry> = new Map();
   private loaded = false;

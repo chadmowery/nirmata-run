@@ -324,6 +324,7 @@ This guarantees that rapid double-clicks or parallel requests to `/api/economy/c
    - Configures `apphosting`, `firestore` (`firestore.rules`, `firestore.indexes.json`), `auth` providers (Anonymous with 30-day auto-cleanup, Email/Password, Google), and `emulators` (`auth` on port `9099`, `firestore` on port `8080`, `ui` on port `4000`).
 2. **`apphosting.yaml`**:
    - Configures Cloud Run resource limits (`cpu: 1`, `memoryMiB: 1024`, `concurrency: 80`, `minInstances: 0`, `maxInstances: 1`) and sets `NEXT_MANUAL_SIG_HANDLE: "true"`.
+   - **In-Game Reporting Reconciliation (`TK-RPT-100`)**: The issue reporter (`src/server/reports/`) currently stores crash drafts/rate counters in memory and `data/report-index.json` / `data/report-outbox/` on local disk behind [`interfaces.ts`](../../src/server/reports/interfaces.ts). Before enabling `GITHUB_ISSUES_TOKEN` in production on App Hosting, set `minInstances: 1` (with `SIGTERM` outbox flush) or provide Firestore implementations for `RateLimiter`, `DraftStoreInterface`, `FingerprintIndexInterface`, and `OutboxInterface` so scale-to-zero does not drop queued reports or dedupe state.
    - Configure a GCP Artifact Registry cleanup policy retaining only the 3 most recent container images to stay within the free storage tier.
 3. **`firestore.rules`**:
    ```firestore

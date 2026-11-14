@@ -16,6 +16,7 @@ import {
 } from './github-client';
 import { fingerprintIndex } from './fingerprint-index';
 import { getReportsServerConfig } from './config';
+import type { OutboxInterface } from './interfaces';
 
 export type OutboxActionType = 'create-issue' | 'add-comment';
 
@@ -45,7 +46,7 @@ const BACKOFF_SCHEDULE_MS = [
 ];
 const MAX_ATTEMPTS = 8;
 
-export class ReportOutbox {
+export class ReportOutbox implements OutboxInterface {
   private readonly outboxDir: string;
   private readonly failedDir: string;
   private state: OutboxWorkerState = 'idle';

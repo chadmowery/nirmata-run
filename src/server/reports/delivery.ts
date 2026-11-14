@@ -22,6 +22,7 @@ import {
 } from './github-client';
 import { fingerprintIndex, dryRunFingerprintIndex } from './fingerprint-index';
 import { getReportOutbox, type OutboxActionType } from './outbox';
+import type { FingerprintIndexInterface, OutboxInterface } from './interfaces';
 
 export interface DeliveryOutcome {
   statusCode: number;
@@ -205,7 +206,8 @@ function enqueueOrRejectOnFailure(
     err: String(err),
   });
 
-  const queuedItem = getReportOutbox().enqueue(item);
+  const outbox: OutboxInterface = getReportOutbox();
+  const queuedItem = outbox.enqueue(item);
   return {
     statusCode: 200,
     payload: { status: 'queued', ref: queuedItem.ref },
@@ -256,7 +258,8 @@ export async function deliverManualReport(params: DeliverManualParams): Promise<
  */
 export async function deliverCrashReport(params: DeliverCrashParams): Promise<DeliveryOutcome> {
   const { cfg, status, ref, fingerprint, title, labels, composeParams, dedupeContext } = params;
-  const activeIndex = status.mode === 'dry-run' ? dryRunFingerprintIndex : fingerprintIndex;
+  const activeIndex: FingerprintIndexInterface =
+    status.mode === 'dry-run' ? dryRunFingerprintIndex : fingerprintIndex;
 
   return withFingerprintLock(fingerprint, async (): Promise<DeliveryOutcome> => {
     let existingEntry = activeIndex.get(fingerprint);

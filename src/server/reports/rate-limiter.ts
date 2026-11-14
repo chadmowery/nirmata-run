@@ -4,6 +4,7 @@
  */
 
 import { getReportsServerConfig } from './config';
+import type { RateLimiter } from './interfaces';
 
 export type ReportRateCategory = 'crash' | 'manual';
 
@@ -13,7 +14,7 @@ export interface RateLimitResult {
   retryAfterSeconds: number;
 }
 
-export class ReportsRateLimiter {
+export class ReportsRateLimiter implements RateLimiter {
   private crashTimestamps: number[] = [];
   private manualTimestamps: number[] = [];
   private readonly windowMs = 60 * 60 * 1000; // 1 hour sliding window
