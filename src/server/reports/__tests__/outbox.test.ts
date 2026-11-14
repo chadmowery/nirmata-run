@@ -19,6 +19,7 @@ describe('ReportOutbox', () => {
       fs.rmSync(testDir, { recursive: true, force: true });
     }
     mockClient = new GitHubClient({ repo: 'chadmowery/nirmata-run' });
+    vi.spyOn(mockClient, 'ensureLabels').mockResolvedValue(undefined);
     outbox = new ReportOutbox(testDir, mockClient);
   });
 

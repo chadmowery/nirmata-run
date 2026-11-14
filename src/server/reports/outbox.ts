@@ -11,6 +11,7 @@ import {
   GitHubClient,
   GitHubAuthError,
   GitHubRateLimitError,
+  getGitHubClient,
 } from './github-client';
 import { fingerprintIndex } from './fingerprint-index';
 import { getReportsServerConfig } from './config';
@@ -179,7 +180,7 @@ export class ReportOutbox {
   private getClient(): GitHubClient {
     if (this.githubClient) return this.githubClient;
     const cfg = getReportsServerConfig();
-    return new GitHubClient({
+    return getGitHubClient({
       token: cfg.githubToken,
       repo: cfg.githubRepo,
     });
@@ -206,10 +207,12 @@ export class ReportOutbox {
     for (const item of items) {
       try {
         if (item.action === 'create-issue') {
+          const issueLabels = item.labels || ['ai-ready', 'source:in-game'];
+          await client.ensureLabels(issueLabels);
           const res = await client.createIssue({
             title: item.title || '[Bug] Report',
             body: item.body,
-            labels: item.labels || ['ai-ready', 'source:in-game'],
+            labels: issueLabels,
           });
           if (item.fingerprint) {
             fingerprintIndex.recordNewIssue(item.fingerprint, res.number);

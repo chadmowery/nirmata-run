@@ -11,7 +11,7 @@ import {
   composeDedupeComment,
 } from '@/server/reports/composer';
 import { writeDryRunReport } from '@/server/reports/dry-run';
-import { GitHubClient } from '@/server/reports/github-client';
+import { getGitHubClient } from '@/server/reports/github-client';
 import { getReportOutbox } from '@/server/reports/outbox';
 import { readJsonBodyWithLimit } from '@/server/reports/body-limit';
 import { draftStore } from '@/server/reports/draft-store';
@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
   // 5. Deduplication check
   let existingEntry = fingerprintIndex.get(fingerprint);
 
-  const client = new GitHubClient({
+  const client = getGitHubClient({
     token: cfg.githubToken,
     repo: cfg.githubRepo,
   });

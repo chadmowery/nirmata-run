@@ -64,7 +64,7 @@ export class GitHubClient {
   private readonly token?: string;
   private readonly repo: string;
   private readonly fetch: typeof fetch;
-  private labelsEnsured = false;
+  private readonly ensuredLabels = new Set<string>();
 
   constructor(options: GitHubClientOptions) {
     this.token = options.token;
@@ -162,26 +162,32 @@ export class GitHubClient {
 
   /**
    * Idempotently ensures required labels exist in the target repository.
+   * Tracks ensured state per label and only caches a label after 2xx or HTTP 422 (already_exists).
    */
   async ensureLabels(labels: string[]): Promise<void> {
-    if (this.labelsEnsured) return;
-
     for (const label of labels) {
+      if (this.ensuredLabels.has(label)) continue;
       try {
         await this.request('/labels', {
           method: 'POST',
           body: JSON.stringify({ name: label }),
         });
+        this.ensuredLabels.add(label);
       } catch (err) {
         // HTTP 422: already_exists is expected and benign
-        if (err instanceof GitHubApiError && err.status === 422) {
+        if (
+          err instanceof GitHubApiError &&
+          !(err instanceof GitHubAuthError) &&
+          !(err instanceof GitHubRateLimitError) &&
+          err.status === 422
+        ) {
+          this.ensuredLabels.add(label);
           continue;
         }
-        // Log non-fatal error but don't crash
+        // Do not cache failed labels so future calls retry after transient/auth issues recover
         logger.warn(`Could not ensure label '${label}'`, 'REPORTS', { err: String(err) });
       }
     }
-    this.labelsEnsured = true;
   }
 
   /**
@@ -274,4 +280,27 @@ export class GitHubClient {
     }
     return null;
   }
+}
+
+const gClientStore = globalThis as unknown as {
+  __nirmataGitHubClients?: Map<string, GitHubClient>;
+};
+
+/**
+ * Returns a shared singleton GitHubClient keyed by repo + token so ensureLabels() persists across requests.
+ */
+export function getGitHubClient(options: GitHubClientOptions): GitHubClient {
+  if (options.fetchFn) {
+    return new GitHubClient(options);
+  }
+  if (!gClientStore.__nirmataGitHubClients) {
+    gClientStore.__nirmataGitHubClients = new Map();
+  }
+  const key = `${options.repo}::${options.token ?? ''}`;
+  let client = gClientStore.__nirmataGitHubClients.get(key);
+  if (!client) {
+    client = new GitHubClient(options);
+    gClientStore.__nirmataGitHubClients.set(key, client);
+  }
+  return client;
 }

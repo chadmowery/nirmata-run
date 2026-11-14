@@ -5,6 +5,7 @@ import {
   GitHubRateLimitError,
   GitHubNetworkError,
   GitHubApiError,
+  getGitHubClient,
 } from '../github-client';
 
 describe('GitHubClient', () => {
@@ -193,5 +194,60 @@ describe('GitHubClient', () => {
     await expect(
       client.createIssue({ title: 't', body: 'b', labels: [] })
     ).rejects.toThrow(GitHubRateLimitError);
+  });
+
+  it('caches ensured labels per label only on 2xx/422 and shares singleton client (M-2)', async () => {
+    const fetchMock = vi
+      .fn()
+      // First ensureLabels(['ai-ready', 'bug']): ai-ready fails 401, bug gets 422
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        headers: new Headers(),
+        json: async () => ({ message: 'Bad credentials' }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        headers: new Headers(),
+        json: async () => ({ message: 'already_exists' }),
+      })
+      // Second ensureLabels(['ai-ready', 'bug', 'crash']): ai-ready & crash retried, bug skipped
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        headers: new Headers(),
+        json: async () => ({ name: 'ai-ready' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 201,
+        headers: new Headers(),
+        json: async () => ({ name: 'crash' }),
+      });
+
+    const client = new GitHubClient({
+      token: 'test_token',
+      repo: 'chadmowery/nirmata-run',
+      fetchFn: fetchMock as unknown as typeof fetch,
+    });
+
+    await client.ensureLabels(['ai-ready', 'bug']);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    await client.ensureLabels(['ai-ready', 'bug', 'crash']);
+    // Only ai-ready (previously failed) and crash (new) were requested; bug (422) was cached
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+
+    // Repeating with all cached labels makes zero extra requests
+    await client.ensureLabels(['ai-ready', 'bug', 'crash']);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+
+    // Singleton factory reuses same instance for identical repo+token
+    const s1 = getGitHubClient({ token: 'tok-m2', repo: 'owner/repo' });
+    const s2 = getGitHubClient({ token: 'tok-m2', repo: 'owner/repo' });
+    const s3 = getGitHubClient({ token: 'tok-other', repo: 'owner/repo' });
+    expect(s1).toBe(s2);
+    expect(s1).not.toBe(s3);
   });
 });

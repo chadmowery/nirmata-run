@@ -5,7 +5,7 @@ import { getReportsStatus, getReportsServerConfig } from '@/server/reports/confi
 import { reportsRateLimiter } from '@/server/reports/rate-limiter';
 import { generateRefId, composeTitle, composeIssueBody } from '@/server/reports/composer';
 import { writeDryRunReport } from '@/server/reports/dry-run';
-import { GitHubClient, GitHubRateLimitError, GitHubNetworkError } from '@/server/reports/github-client';
+import { getGitHubClient, GitHubRateLimitError, GitHubNetworkError } from '@/server/reports/github-client';
 import { getReportOutbox } from '@/server/reports/outbox';
 import { readJsonBodyWithLimit } from '@/server/reports/body-limit';
 import { FloorState, Actor } from '@/shared/components';
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Live delivery
-  const client = new GitHubClient({
+  const client = getGitHubClient({
     token: cfg.githubToken,
     repo: cfg.githubRepo,
   });
