@@ -4,6 +4,7 @@ import fs from 'fs';
 import { ReportOutbox, getReportOutbox } from '../outbox';
 import {
   GitHubClient,
+  GitHubApiError,
   GitHubAuthError,
   GitHubRateLimitError,
   GitHubNetworkError,
@@ -211,5 +212,47 @@ describe('ReportOutbox', () => {
     expect(second.ref).not.toBe('NR-DUP1');
     expect(second.ref.startsWith('NR-DUP1-')).toBe(true);
     expect(outbox.listPending().length).toBe(2);
+  });
+
+  it('moves add-comment without issueNumber and permanent 4xx errors directly to failed/, and handles saveItem disk failures gracefully (L-4)', async () => {
+    outbox.enqueue({
+      ref: 'NR-NOISSUE',
+      action: 'add-comment',
+      body: 'orphan comment',
+    });
+
+    vi.spyOn(mockClient, 'createIssue').mockRejectedValue(
+      new GitHubApiError('Unprocessable Entity', 422, { message: 'Validation Failed' })
+    );
+    outbox.enqueue({
+      ref: 'NR-PERM422',
+      action: 'create-issue',
+      title: '[Bug] Invalid',
+      body: 'bad payload',
+    });
+
+    const res = await outbox.processOutboxOnce(Date.now());
+    expect(res.success).toBe(0);
+    expect(res.failed).toBe(2);
+    expect(outbox.listPending().length).toBe(0);
+    expect(fs.existsSync(path.join(testDir, 'failed', 'NR-NOISSUE.json'))).toBe(true);
+    expect(fs.existsSync(path.join(testDir, 'failed', 'NR-PERM422.json'))).toBe(true);
+
+    // Simulate disk write failure during enqueue: should not throw
+    const writeSpy = vi.spyOn(fs, 'writeFileSync').mockImplementation(() => {
+      throw new Error('ENOSPC: no space left on device');
+    });
+    try {
+      expect(() =>
+        outbox.enqueue({
+          ref: 'NR-ENOSPC',
+          action: 'create-issue',
+          title: '[Bug] Full disk',
+          body: 'body',
+        })
+      ).not.toThrow();
+    } finally {
+      writeSpy.mockRestore();
+    }
   });
 });

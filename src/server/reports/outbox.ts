@@ -9,6 +9,7 @@ import crypto from 'crypto';
 import { logger } from '@/engine/utils/logger';
 import {
   GitHubClient,
+  GitHubApiError,
   GitHubAuthError,
   GitHubRateLimitError,
   getGitHubClient,
@@ -123,12 +124,23 @@ export class ReportOutbox {
     return fullItem;
   }
 
-  saveItem(item: OutboxItem): void {
-    this.ensureDirs();
+  saveItem(item: OutboxItem): boolean {
     const targetPath = this.getItemPath(item.ref);
     const tempPath = `${targetPath}.${crypto.randomUUID()}.tmp`;
-    fs.writeFileSync(tempPath, JSON.stringify(item, null, 2), 'utf-8');
-    fs.renameSync(tempPath, targetPath);
+    try {
+      this.ensureDirs();
+      fs.writeFileSync(tempPath, JSON.stringify(item, null, 2), 'utf-8');
+      fs.renameSync(tempPath, targetPath);
+      return true;
+    } catch (err) {
+      logger.error(`Failed to persist outbox item ${item.ref}`, 'REPORTS', { err: String(err) });
+      try {
+        if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+      } catch {
+        // ignore cleanup failure
+      }
+      return false;
+    }
   }
 
   deleteItem(ref: string): void {
@@ -143,14 +155,22 @@ export class ReportOutbox {
   }
 
   moveToFailed(item: OutboxItem): void {
-    this.ensureDirs();
-    this.deleteItem(item.ref);
-    const failedPath = this.getFailedPath(item.ref);
-    fs.writeFileSync(failedPath, JSON.stringify(item, null, 2), 'utf-8');
-    logger.error(`Report ${item.ref} exceeded max retries and moved to failed/`, 'REPORTS', {
-      attempts: item.attempts,
-      lastError: item.lastError,
-    });
+    try {
+      this.ensureDirs();
+      this.deleteItem(item.ref);
+      const failedPath = this.getFailedPath(item.ref);
+      fs.writeFileSync(failedPath, JSON.stringify(item, null, 2), 'utf-8');
+      logger.error(`Report ${item.ref} moved to failed/`, 'REPORTS', {
+        attempts: item.attempts,
+        lastError: item.lastError,
+      });
+    } catch (err) {
+      logger.error(`Failed to move report ${item.ref} to failed/`, 'REPORTS', {
+        err: String(err),
+        attempts: item.attempts,
+        lastError: item.lastError,
+      });
+    }
   }
 
   listPending(): OutboxItem[] {
@@ -217,7 +237,14 @@ export class ReportOutbox {
           if (item.fingerprint) {
             fingerprintIndex.recordNewIssue(item.fingerprint, res.number);
           }
-        } else if (item.action === 'add-comment' && item.issueNumber) {
+        } else if (item.action === 'add-comment') {
+          if (!item.issueNumber) {
+            failed++;
+            item.attempts += 1;
+            item.lastError = 'Invalid add-comment item: missing issueNumber';
+            this.moveToFailed(item);
+            continue;
+          }
           await client.addComment(item.issueNumber, item.body);
         }
 
@@ -237,18 +264,24 @@ export class ReportOutbox {
           break; // Stop further processing until credentials update
         }
 
+        const isPermanent4xx =
+          err instanceof GitHubApiError &&
+          !(err instanceof GitHubRateLimitError) &&
+          err.status >= 400 &&
+          err.status < 500;
+
+        if (isPermanent4xx || item.attempts >= MAX_ATTEMPTS) {
+          this.moveToFailed(item);
+          continue;
+        }
+
         let delayMs = BACKOFF_SCHEDULE_MS[Math.min(item.attempts - 1, BACKOFF_SCHEDULE_MS.length - 1)];
         if (err instanceof GitHubRateLimitError && err.retryAfterSeconds > 0) {
           delayMs = Math.max(delayMs, err.retryAfterSeconds * 1000);
         }
 
         item.nextAttemptAt = now + delayMs;
-
-        if (item.attempts >= MAX_ATTEMPTS) {
-          this.moveToFailed(item);
-        } else {
-          this.saveItem(item);
-        }
+        this.saveItem(item);
       }
     }
 
