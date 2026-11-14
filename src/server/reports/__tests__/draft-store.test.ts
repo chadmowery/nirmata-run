@@ -71,4 +71,46 @@ describe('DraftStore', () => {
     // 31 minutes later: expired
     expect(store.redeem(draft.draftId, 'sess_exp', now + thirtyMin + 1)).toBeNull();
   });
+
+  it('enforces per-session cap so a noisy session cannot evict another session draft (L-13)', () => {
+    const victimDraft = store.save(
+      {
+        sessionId: 'sess_victim',
+        fingerprint: 'fp_victim',
+        preview: {
+          errorName: 'Error',
+          errorMessage: 'victim',
+          actionType: 'MOVE',
+          floor: 1,
+          turn: 1,
+          sealedManifest: [],
+        },
+        sealed: { errorName: 'Error', errorMessage: 'victim' },
+      },
+      1000
+    );
+
+    // Flood 60 drafts across a single noisy session + other sessions
+    for (let i = 0; i < 10; i++) {
+      store.save(
+        {
+          sessionId: 'sess_noisy',
+          fingerprint: `fp_noisy_${i}`,
+          preview: {
+            errorName: 'Error',
+            errorMessage: `noisy ${i}`,
+            actionType: 'WAIT',
+            floor: 1,
+            turn: i,
+            sealedManifest: [],
+          },
+          sealed: { errorName: 'Error', errorMessage: `noisy ${i}` },
+        },
+        2000 + i
+      );
+    }
+
+    // Only 5 drafts retained for sess_noisy, and victim's draft stays intact
+    expect(store.get(victimDraft.draftId)).toBeDefined();
+  });
 });

@@ -36,6 +36,7 @@ export class DraftStore {
   private drafts: Map<string, ServerCrashDraft> = new Map();
   private readonly ttlMs = 30 * 60 * 1000; // 30 minutes
   private readonly maxEntries = 50;
+  private readonly maxEntriesPerSession = 5;
 
   constructor() {}
 
@@ -45,6 +46,18 @@ export class DraftStore {
         this.drafts.delete(id);
       }
     }
+  }
+
+  private findOldestForSession(sessionId: string): string | null {
+    let oldestId: string | null = null;
+    let oldestTime = Infinity;
+    for (const [id, d] of this.drafts.entries()) {
+      if (d.sessionId === sessionId && d.createdAt < oldestTime) {
+        oldestTime = d.createdAt;
+        oldestId = id;
+      }
+    }
+    return oldestId;
   }
 
   /**
@@ -59,18 +72,44 @@ export class DraftStore {
   ): ServerCrashDraft {
     this.pruneExpired(now);
 
-    // Evict oldest if at max capacity
+    // Enforce per-session cap first so a single flooding session cannot starve others
+    const sessionDrafts = Array.from(this.drafts.values()).filter(
+      (d) => d.sessionId === data.sessionId
+    );
+    if (sessionDrafts.length >= this.maxEntriesPerSession) {
+      const oldestSessionId = this.findOldestForSession(data.sessionId);
+      if (oldestSessionId) {
+        this.drafts.delete(oldestSessionId);
+      }
+    }
+
+    // Enforce global capacity, prioritizing eviction from sessions holding the most drafts
     if (this.drafts.size >= this.maxEntries) {
-      let oldestId: string | null = null;
-      let oldestTime = Infinity;
-      for (const [id, d] of this.drafts.entries()) {
-        if (d.createdAt < oldestTime) {
-          oldestTime = d.createdAt;
-          oldestId = id;
+      const counts = new Map<string, number>();
+      for (const d of this.drafts.values()) {
+        counts.set(d.sessionId, (counts.get(d.sessionId) ?? 0) + 1);
+      }
+      let targetSession: string | null = null;
+      let highestCount = 1;
+      for (const [sid, count] of counts.entries()) {
+        if (count > highestCount) {
+          highestCount = count;
+          targetSession = sid;
         }
       }
-      if (oldestId) {
-        this.drafts.delete(oldestId);
+
+      let evictId = targetSession ? this.findOldestForSession(targetSession) : null;
+      if (!evictId) {
+        let oldestTime = Infinity;
+        for (const [id, d] of this.drafts.entries()) {
+          if (d.createdAt < oldestTime) {
+            oldestTime = d.createdAt;
+            evictId = id;
+          }
+        }
+      }
+      if (evictId) {
+        this.drafts.delete(evictId);
       }
     }
 
