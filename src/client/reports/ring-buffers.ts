@@ -46,6 +46,8 @@ export function initLoggerSink(): () => void {
   if (unsubscribeLogger) return unsubscribeLogger;
 
   unsubscribeLogger = logger.addSink((entry) => {
+    // Skip DEBUG logs to avoid sanitizer regex overhead and buffer eviction in hot loops (L-7)
+    if (entry.level === 'DEBUG') return;
     logRingBuffer.push({
       t: entry.t,
       level: entry.level,

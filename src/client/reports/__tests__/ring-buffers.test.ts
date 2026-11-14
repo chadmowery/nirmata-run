@@ -19,9 +19,10 @@ describe('Diagnostics Ring Buffers', () => {
     expect(buffer.toArray()).toEqual([2, 3, 4]);
   });
 
-  it('captures logs via logger sink hook and cleans up on unregister', () => {
+  it('captures logs via logger sink hook, skips DEBUG entries, and cleans up on unregister (L-7)', () => {
     const unsubscribe = initLoggerSink();
 
+    logger.debug('High frequency debug noise', 'TEST');
     logger.info('Test diagnostic message 1', 'TEST');
     logger.warn('Test diagnostic message 2', 'TEST');
 
