@@ -20,7 +20,7 @@ export const CrashSourceSchema = z.enum([
 ]);
 
 export const ClientLogEntrySchema = z.object({
-  t: z.number(),
+  t: z.number().finite().int().min(0).max(8.64e15),
   level: z.string().max(20),
   cat: z.string().max(50).optional(),
   msg: z.string().max(500),
@@ -28,7 +28,7 @@ export const ClientLogEntrySchema = z.object({
 export type ClientLogEntry = z.infer<typeof ClientLogEntrySchema>;
 
 export const ClientActionEntrySchema = z.object({
-  t: z.number(),
+  t: z.number().finite().int().min(0).max(8.64e15),
   type: z.string().max(100),
 });
 export type ClientActionEntry = z.infer<typeof ClientActionEntrySchema>;

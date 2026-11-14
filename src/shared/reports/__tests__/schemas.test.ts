@@ -86,4 +86,28 @@ describe('Reports Schemas and Labels', () => {
     };
     expect(CrashApproveRequestSchema.safeParse(clientApproval).success).toBe(true);
   });
+
+  it('rejects out-of-range or non-finite timestamps in recentLogs (M-5)', () => {
+    const baseDiag = {
+      build: 'dev',
+      route: '/game',
+      userAgent: 'Test',
+      viewport: { w: 800, h: 600 },
+      gameStatus: 'IN_RUN',
+      recentActions: [],
+      recentMessages: [],
+    };
+
+    const tooLarge = ClientDiagnosticsSchema.safeParse({
+      ...baseDiag,
+      recentLogs: [{ t: 9e15, level: 'INFO', msg: 'boom' }],
+    });
+    expect(tooLarge.success).toBe(false);
+
+    const negative = ClientDiagnosticsSchema.safeParse({
+      ...baseDiag,
+      recentLogs: [{ t: -1, level: 'INFO', msg: 'boom' }],
+    });
+    expect(negative.success).toBe(false);
+  });
 });
