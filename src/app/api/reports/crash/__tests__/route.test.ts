@@ -111,4 +111,40 @@ describe('POST /api/reports/crash', () => {
     expect(data.status).toBe('dry-run');
     expect(data.ref).toBeDefined();
   });
+
+  it('rejects payloads > 128 KB with 413 and does not consume quota while off or invalid (H-5)', async () => {
+    const hugeReq = new NextRequest('http://localhost:3000/api/reports/crash', {
+      method: 'POST',
+      body: JSON.stringify({ padding: 'x'.repeat(132 * 1024) }),
+    });
+    const hugeRes = await POST(hugeReq);
+    expect(hugeRes.status).toBe(413);
+
+    (process.env as Record<string, string | undefined>).NODE_ENV = 'production';
+    delete process.env.GITHUB_ISSUES_TOKEN;
+    for (let i = 0; i < 45; i++) {
+      const offReq = new NextRequest('http://localhost:3000/api/reports/crash', {
+        method: 'POST',
+        body: JSON.stringify({
+          source: 'SERVER_TURN',
+          draftId: 'draft-1',
+          sessionId: 'sess-1',
+        }),
+      });
+      const offRes = await POST(offReq);
+      expect(offRes.status).toBe(503);
+    }
+
+    (process.env as Record<string, string | undefined>).NODE_ENV = 'development';
+    const validAfter = new NextRequest('http://localhost:3000/api/reports/crash', {
+      method: 'POST',
+      body: JSON.stringify({
+        source: 'SERVER_TURN',
+        draftId: 'missing-draft',
+        sessionId: 'sess-1',
+      }),
+    });
+    const afterRes = await POST(validAfter);
+    expect(afterRes.status).toBe(404);
+  });
 });

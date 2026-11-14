@@ -13,30 +13,26 @@ import {
 import { writeDryRunReport } from '@/server/reports/dry-run';
 import { GitHubClient } from '@/server/reports/github-client';
 import { getReportOutbox } from '@/server/reports/outbox';
+import { readJsonBodyWithLimit } from '@/server/reports/body-limit';
 import { draftStore } from '@/server/reports/draft-store';
 import { buildAllowListedIssueSnapshot } from '@/server/utils/turn-snapshot';
 import { fingerprintIndex } from '@/server/reports/fingerprint-index';
 import { logger } from '@/engine/utils/logger';
 
 export async function POST(req: NextRequest) {
-  // 1. Independent rate limit check
-  const rate = reportsRateLimiter.consume('crash');
-  if (!rate.allowed) {
-    return NextResponse.json(
-      { error: 'Reporting is temporarily busy, try again later' },
-      { status: 429, headers: { 'Retry-After': String(rate.retryAfterSeconds) } }
-    );
+  // 1. Status check (never consume rate limit while feature is off)
+  const status = getReportsStatus();
+  if (status.mode === 'off' || !status.available) {
+    return NextResponse.json({ error: 'Issue reporting is currently unavailable' }, { status: 503 });
   }
 
-  // 2. Validate request payload
-  let rawBody: unknown;
-  try {
-    rawBody = await req.json();
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON request body' }, { status: 400 });
+  // 2. Bounded JSON read (<= 128 KB) & Zod validation
+  const bodyRead = await readJsonBodyWithLimit(req);
+  if (!bodyRead.ok) {
+    return NextResponse.json({ error: bodyRead.error }, { status: bodyRead.status });
   }
 
-  const parsed = CrashApproveRequestSchema.safeParse(rawBody);
+  const parsed = CrashApproveRequestSchema.safeParse(bodyRead.data);
   if (!parsed.success) {
     return NextResponse.json(
       { error: 'Validation failed', details: parsed.error.issues },
@@ -46,10 +42,13 @@ export async function POST(req: NextRequest) {
 
   const data = parsed.data;
 
-  // 3. Status check
-  const status = getReportsStatus();
-  if (status.mode === 'off' || !status.available) {
-    return NextResponse.json({ error: 'Issue reporting is currently unavailable' }, { status: 503 });
+  // 3. Independent rate limit check (only after availability & schema validation succeed)
+  const rate = reportsRateLimiter.consume('crash');
+  if (!rate.allowed) {
+    return NextResponse.json(
+      { error: 'Reporting is temporarily busy, try again later' },
+      { status: 429, headers: { 'Retry-After': String(rate.retryAfterSeconds) } }
+    );
   }
 
   const ref = generateRefId();

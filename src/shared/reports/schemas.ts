@@ -38,13 +38,13 @@ export const ClientDiagnosticsSchema = z.object({
   route: z.string().max(200),
   userAgent: z.string().max(500),
   viewport: z.object({
-    w: z.number(),
-    h: z.number(),
+    w: z.number().finite().int().min(0).max(100000),
+    h: z.number().finite().int().min(0).max(100000),
   }),
   gameStatus: z.string().max(100),
   mode: z.string().max(100).optional(),
-  floor: z.number().int().optional(),
-  turn: z.number().int().optional(),
+  floor: z.number().finite().int().min(0).max(10000).optional(),
+  turn: z.number().finite().int().min(0).max(10000000).optional(),
   shellId: z.string().max(100).optional(),
   recentLogs: z.array(ClientLogEntrySchema).max(100),
   recentActions: z.array(ClientActionEntrySchema).max(25),
@@ -91,7 +91,7 @@ export type CrashApproveRequest = z.infer<typeof CrashApproveRequestSchema>;
 
 export const SealedManifestItemSchema = z.object({
   label: z.string().max(100),
-  approxBytes: z.number(),
+  approxBytes: z.number().finite().int().min(0).max(100000000),
 });
 export type SealedManifestItem = z.infer<typeof SealedManifestItemSchema>;
 
@@ -99,8 +99,8 @@ export const RedactedCrashPreviewSchema = z.object({
   errorName: z.string(),
   errorMessage: z.string(),
   actionType: z.string(),
-  floor: z.number(),
-  turn: z.number(),
+  floor: z.number().finite().int().min(0).max(10000),
+  turn: z.number().finite().int().min(0).max(10000000),
   sealedManifest: z.array(SealedManifestItemSchema),
 });
 export type RedactedCrashPreview = z.infer<typeof RedactedCrashPreviewSchema>;

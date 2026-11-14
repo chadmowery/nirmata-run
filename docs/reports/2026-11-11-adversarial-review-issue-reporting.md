@@ -113,7 +113,7 @@ The verification suite did not exercise the wiring gaps below. They were found b
 - **Impact:** after flipping to live, the first matching crash finds the fake entry. `getIssue(99999)` fails, the error is swallowed, and `isOpen` stays `true` ([`#L158-L167`](../../src/app/api/reports/crash/route.ts#L158-L167)). The route then tries to comment on a nonexistent or unrelated issue, fails, and queues the comment (C-1). Real crashes never get their own issue.
 - **Fix:** never write to the persistent index in dry-run, or use a separate in-memory dry-run index. Treat a 404 from `getIssue` as "missing", which creates a new issue with `Previously: #N` per §6.4.
 
-#### H-5 — No request-body size cap, and rate limit is consumed before validation
+#### H-5 — No request-body size cap, and rate limit is consumed before validation ✅ Resolved
 - Spec §4: "request body ≤ 128 KB". Both routes call `req.json()` directly ([`route.ts#L27`](../../src/app/api/reports/route.ts#L27), [`crash/route.ts#L33`](../../src/app/api/reports/crash/route.ts#L33)). The per-field Zod limits (e.g. 100 logs × 500 chars + 2 × 16 KB stacks) are checked only after the full body is buffered and parsed.
 - The limiter is consumed **first** ([`route.ts#L16`](../../src/app/api/reports/route.ts#L16), [`crash/route.ts#L22`](../../src/app/api/reports/crash/route.ts#L22)), before JSON parsing, schema validation and the status/availability check. Garbage or invalid requests (including `503` while the feature is off) burn the global hourly quota. With global-only limits, an unauthenticated client can lock out all legitimate reporters with 20 or 40 trivial requests.
 - **Fix:**
@@ -208,7 +208,7 @@ The verification suite did not exercise the wiring gaps below. They were found b
 - [ ] **H-2** Buffer crashes until `fetchStatus` resolves. Do not discard recovered drafts.
 - [ ] **H-3** Give `global-error` a working, self-contained report panel.
 - [ ] **H-4** Stop writing a fake `99999` to the persistent index in dry-run. Treat a 404 as a missing issue.
-- [ ] **H-5** Enforce the 128 KB body cap. Validate before consuming the rate-limit slot.
+- [x] **H-5** Enforce the 128 KB body cap. Validate before consuming the rate-limit slot.
 - [ ] **H-6** Feed real build, floor, turn and phase into server-origin issue summaries.
 - [ ] **H-7** Add an in-flight per-fingerprint lock and an outbox re-entrancy guard.
 - [ ] **H-8** Add the missing tests: 429, dedupe comment vs new, session mismatch, live-path mocks, a boot-time crash and a bundle check.

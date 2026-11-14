@@ -65,4 +65,42 @@ describe('POST /api/reports', () => {
     const res = await POST(req);
     expect(res.status).toBe(429);
   });
+
+  it('rejects payloads > 128 KB with 413 and does not burn rate limit on invalid/503 requests (H-5)', async () => {
+    // 1. 25 invalid requests must not exhaust the 20/hr quota
+    for (let i = 0; i < 25; i++) {
+      const badReq = new NextRequest('http://localhost:3000/api/reports', {
+        method: 'POST',
+        body: JSON.stringify({ title: 'bad' }),
+      });
+      const badRes = await POST(badReq);
+      expect(badRes.status).toBe(400);
+    }
+
+    // 2. Oversized body (> 128 KB) returns 413
+    const hugeReq = new NextRequest('http://localhost:3000/api/reports', {
+      method: 'POST',
+      body: JSON.stringify({
+        kind: 'BUG',
+        title: 'Valid title here',
+        description: 'a'.repeat(132 * 1024),
+        includeDiagnostics: false,
+      }),
+    });
+    const hugeRes = await POST(hugeReq);
+    expect(hugeRes.status).toBe(413);
+
+    // 3. Valid request still succeeds (quota was not consumed by 400/413)
+    const okReq = new NextRequest('http://localhost:3000/api/reports', {
+      method: 'POST',
+      body: JSON.stringify({
+        kind: 'BUG',
+        title: 'Valid title after invalid spam',
+        description: 'Valid description after invalid spam.',
+        includeDiagnostics: false,
+      }),
+    });
+    const okRes = await POST(okReq);
+    expect(okRes.status).toBe(200);
+  });
 });
