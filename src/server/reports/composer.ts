@@ -96,6 +96,9 @@ export function composeIssueBody(params: IssueComposeParams): string {
     ? ` · Phase \`${sanitizeInlineValue(params.phase, 32)}\``
     : '';
 
+  const isServerOriginCrash =
+    params.crashSource === 'SERVER_TURN' || params.crashSource === 'SERVER_5XX';
+
   const typeDesc = params.kind === 'CRASH'
     ? `Crash (${sanitizeInlineValue(params.crashSource || 'UNKNOWN', 32)})`
     : params.kind;
@@ -162,6 +165,9 @@ export function composeIssueBody(params: IssueComposeParams): string {
     // Error details (for crash)
     if (safeErrorName || safeErrorMessage) {
       lines.push('## Error');
+      if (!isServerOriginCrash) {
+        lines.push('=== UNTRUSTED PLAYER INPUT ===');
+      }
       const errHeader = `${safeErrorName || 'Error'}: ${safeErrorMessage}`.trim();
       lines.push(createCodeFence(errHeader, 'text'));
       lines.push('');
@@ -170,18 +176,24 @@ export function composeIssueBody(params: IssueComposeParams): string {
     // Stack Trace
     if (stackContent) {
       lines.push('## Stack Trace');
+      if (!isServerOriginCrash) {
+        lines.push('=== UNTRUSTED PLAYER INPUT ===');
+      }
       lines.push(createCodeFence(stackContent, 'text'));
       lines.push('');
     }
 
-    // Failed action
+    // Failed action (client-supplied action payload is always untrusted)
     if (params.failedAction) {
       lines.push('## Failed Action');
-      lines.push(createCodeFence(JSON.stringify(params.failedAction, null, 2), 'json'));
+      lines.push('=== UNTRUSTED PLAYER INPUT ===');
+      const rawActionJson = JSON.stringify(params.failedAction, null, 2);
+      const safeActionJson = sanitizeText(rawActionJson, { singleLine: false, maxLength: 8000 });
+      lines.push(createCodeFence(safeActionJson, 'json'));
       lines.push('');
     }
 
-    // Game state snapshot
+    // Game state snapshot (server-sealed)
     if (snapshotContent) {
       lines.push('## Game State Snapshot');
       lines.push('<details><summary>Click to view structured game snapshot</summary>\n');
@@ -193,6 +205,7 @@ export function composeIssueBody(params: IssueComposeParams): string {
     // Recent events / logs
     if (logsContent) {
       lines.push('## Recent Client Events');
+      lines.push('=== UNTRUSTED PLAYER INPUT ===');
       lines.push('<details><summary>Click to view recent logs</summary>\n');
       lines.push(createCodeFence(logsContent, 'text'));
       lines.push('\n</details>');
@@ -206,6 +219,7 @@ export function composeIssueBody(params: IssueComposeParams): string {
       const vw = Number.isFinite(diag.viewport.w) ? Math.trunc(diag.viewport.w) : 0;
       const vh = Number.isFinite(diag.viewport.h) ? Math.trunc(diag.viewport.h) : 0;
       lines.push('## Environment');
+      lines.push('=== UNTRUSTED PLAYER INPUT ===');
       lines.push(
         createCodeFence(
           `Route: ${safeRoute}\nViewport: ${vw} x ${vh}\nUser Agent: ${safeUa}`,

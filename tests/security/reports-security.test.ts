@@ -206,6 +206,7 @@ describe('Reports Security & Privacy Invariants', () => {
     // Environment sits inside a fenced block with sanitized content
     const envSection = body.split('## Environment')[1];
     expect(envSection).toContain('```text');
+    expect(envSection).toContain('=== UNTRUSTED PLAYER INPUT ===');
     expect(envSection).not.toContain('https://evil.test');
     expect(envSection).not.toContain('<!--');
     expect(envSection).not.toContain('@everyone');
@@ -219,5 +220,63 @@ describe('Reports Security & Privacy Invariants', () => {
       sessionId: 'abc`|123456',
     });
     expect(comment).not.toContain('\nInject');
+  });
+
+  it('marks every client-supplied section with UNTRUSTED PLAYER INPUT delimiters (M-4)', () => {
+    const clientBody = composeIssueBody({
+      ref: 'NR-M4XX',
+      kind: 'CRASH',
+      crashSource: 'CLIENT_ERROR',
+      fingerprint: '0123456789abcdef',
+      title: 'Client crash',
+      errorName: 'TypeError',
+      errorMessage: 'Client error message',
+      stack: 'at render (app.js:1:1)',
+      failedAction: { type: 'MOVE', note: 'client payload' },
+      note: 'Player note',
+      diagnostics: {
+        build: 'dev',
+        route: '/game',
+        userAgent: 'TestUA',
+        viewport: { w: 100, h: 100 },
+        gameStatus: 'IN_RUN',
+        recentLogs: [{ t: 1000, level: 'INFO', msg: 'hello' }],
+        recentActions: [],
+        recentMessages: [],
+      },
+    });
+
+    for (const heading of [
+      '## Player Note',
+      '## Error',
+      '## Stack Trace',
+      '## Failed Action',
+      '## Recent Client Events',
+      '## Environment',
+    ]) {
+      const idx = clientBody.indexOf(heading);
+      expect(idx).toBeGreaterThan(-1);
+      const snippet = clientBody.slice(idx, idx + 100);
+      expect(snippet).toContain('=== UNTRUSTED PLAYER INPUT ===');
+    }
+
+    // Server-origin Error & Stack Trace are server-sealed (not tagged untrusted), while Failed Action still is
+    const serverBody = composeIssueBody({
+      ref: 'NR-M4SV',
+      kind: 'CRASH',
+      crashSource: 'SERVER_TURN',
+      fingerprint: '0123456789abcdef',
+      title: 'Server crash',
+      errorName: 'TypeError',
+      errorMessage: 'Server error',
+      stack: 'at tick (server.ts:1:1)',
+      failedAction: { type: 'WAIT' },
+      stateSnapshot: { floor: 1 },
+    });
+
+    const errIdx = serverBody.indexOf('## Error');
+    expect(serverBody.slice(errIdx, errIdx + 80)).not.toContain('=== UNTRUSTED PLAYER INPUT ===');
+    const actionIdx = serverBody.indexOf('## Failed Action');
+    expect(serverBody.slice(actionIdx, actionIdx + 80)).toContain('=== UNTRUSTED PLAYER INPUT ===');
   });
 });
