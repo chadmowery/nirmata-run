@@ -1,4 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import fs from 'fs';
+import path from 'path';
 import { POST } from '../route';
 import { NextRequest } from 'next/server';
 import { reportsRateLimiter } from '@/server/reports/rate-limiter';
@@ -146,5 +148,43 @@ describe('POST /api/reports/crash', () => {
     });
     const afterRes = await POST(validAfter);
     expect(afterRes.status).toBe(404);
+  });
+
+  it('uses server-stored draft source instead of trusting client source (M-6)', async () => {
+    const draft = draftStore.save({
+      sessionId: 'sess_m6',
+      source: 'SERVER_5XX',
+      fingerprint: 'fp_m6_source',
+      preview: {
+        errorName: 'Error',
+        errorMessage: 'Outer failure',
+        actionType: 'MOVE',
+        floor: 3,
+        turn: 10,
+        sealedManifest: [],
+      },
+      sealed: {
+        errorName: 'Error',
+        errorMessage: 'Outer failure',
+      },
+    });
+
+    const req = new NextRequest('http://localhost:3000/api/reports/crash', {
+      method: 'POST',
+      body: JSON.stringify({
+        source: 'SERVER_TURN', // Client spoofs SERVER_TURN
+        draftId: draft.draftId,
+        sessionId: 'sess_m6',
+      }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+
+    const dryRunFile = path.join(process.cwd(), 'logs', 'reports', `report-${data.ref}.json`);
+    const written = JSON.parse(fs.readFileSync(dryRunFile, 'utf-8')) as { body: string };
+    expect(written.body).toContain('Crash (SERVER_5XX)');
+    expect(written.body).not.toContain('Crash (SERVER_TURN)');
   });
 });

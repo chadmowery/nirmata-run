@@ -10,6 +10,7 @@ export interface ServerCrashDraft {
   draftId: string;
   sessionId: string;
   createdAt: number;
+  source: 'SERVER_TURN' | 'SERVER_5XX';
   fingerprint: string;
   preview: RedactedCrashPreview;
   sealed: {
@@ -49,7 +50,10 @@ export class DraftStore {
    * Stores a new sealed crash draft.
    */
   save(
-    data: Omit<ServerCrashDraft, 'draftId' | 'createdAt'> & { draftId?: string },
+    data: Omit<ServerCrashDraft, 'draftId' | 'createdAt' | 'source'> & {
+      draftId?: string;
+      source?: 'SERVER_TURN' | 'SERVER_5XX';
+    },
     now = Date.now()
   ): ServerCrashDraft {
     this.pruneExpired(now);
@@ -72,6 +76,7 @@ export class DraftStore {
     const draftId = data.draftId || crypto.randomUUID();
     const draft: ServerCrashDraft = {
       ...data,
+      source: data.source || 'SERVER_TURN',
       draftId,
       createdAt: now,
     };

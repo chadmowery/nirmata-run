@@ -108,6 +108,7 @@ export type RedactedCrashPreview = z.infer<typeof RedactedCrashPreviewSchema>;
 export const CrashDraftOfferSchema = z.object({
   draftId: z.string(),
   fingerprint: z.string(),
+  source: z.enum(['SERVER_TURN', 'SERVER_5XX']).optional(),
   preview: RedactedCrashPreviewSchema,
 });
 export type CrashDraftOffer = z.infer<typeof CrashDraftOfferSchema>;

@@ -30,6 +30,7 @@ export interface TurnErrorContext<TEvents extends EngineEvents = EngineEvents> {
   world: World<TEvents>;
   turnManager: TurnManager<TEvents>;
   error: unknown;
+  source?: 'SERVER_TURN' | 'SERVER_5XX';
 }
 
 export interface TurnSnapshotData {
@@ -176,9 +177,10 @@ export function createRedactedCrashPreview(snapshot: TurnSnapshotData): Redacted
 export function createServerCrashDraft<TEvents extends EngineEvents = EngineEvents>(
   ctx: TurnErrorContext<TEvents>
 ): CrashDraftOffer {
+  const source = ctx.source || 'SERVER_TURN';
   const snapshot = buildTurnSnapshot(ctx);
   const fingerprint = computeCrashFingerprint(
-    'SERVER_TURN',
+    source,
     snapshot.error.name,
     snapshot.error.message,
     snapshot.error.stack
@@ -187,6 +189,7 @@ export function createServerCrashDraft<TEvents extends EngineEvents = EngineEven
 
   const draft = draftStore.save({
     sessionId: ctx.sessionId,
+    source,
     fingerprint,
     preview,
     sealed: {
@@ -210,6 +213,7 @@ export function createServerCrashDraft<TEvents extends EngineEvents = EngineEven
   return {
     draftId: draft.draftId,
     fingerprint,
+    source: draft.source,
     preview,
   };
 }

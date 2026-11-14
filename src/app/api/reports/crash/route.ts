@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     body = composeIssueBody({
       ref,
       kind: 'CRASH',
-      crashSource: data.source,
+      crashSource: draft.source,
       fingerprint: draft.fingerprint,
       errorName: draft.sealed.errorName,
       errorMessage: draft.sealed.errorMessage,
