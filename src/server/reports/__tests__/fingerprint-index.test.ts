@@ -53,4 +53,17 @@ describe('FingerprintIndex', () => {
     expect(res3?.canComment).toBe(true);
     expect(res3?.count).toBe(4);
   });
+
+  it('allows immediate first comment when hydrated with lastCommentAt: 0 (NL-2)', () => {
+    const now = 10000000;
+    index.recordNewIssue('fp_hydrated', 555, now, { lastCommentAt: 0 });
+
+    const first = index.recordOccurrence('fp_hydrated', now + 10);
+    expect(first?.canComment).toBe(true);
+    expect(first?.count).toBe(2);
+
+    const second = index.recordOccurrence('fp_hydrated', now + 1000);
+    expect(second?.canComment).toBe(false);
+    expect(second?.count).toBe(3);
+  });
 });

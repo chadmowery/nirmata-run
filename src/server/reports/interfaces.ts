@@ -34,7 +34,12 @@ export interface DraftStoreInterface {
 
 export interface FingerprintIndexInterface {
   get(fingerprint: string): FingerprintIndexEntry | undefined;
-  recordNewIssue(fingerprint: string, issueNumber: number, now?: number): void;
+  recordNewIssue(
+    fingerprint: string,
+    issueNumber: number,
+    now?: number,
+    options?: { lastCommentAt?: number }
+  ): void;
   recordOccurrence(
     fingerprint: string,
     now?: number

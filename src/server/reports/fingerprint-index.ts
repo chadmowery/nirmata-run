@@ -83,12 +83,17 @@ export class FingerprintIndex implements FingerprintIndexInterface {
     return this.entries.get(fingerprint);
   }
 
-  recordNewIssue(fingerprint: string, issueNumber: number, now = Date.now()): void {
+  recordNewIssue(
+    fingerprint: string,
+    issueNumber: number,
+    now = Date.now(),
+    options?: { lastCommentAt?: number }
+  ): void {
     this.ensureLoaded();
     this.entries.set(fingerprint, {
       issueNumber,
       count: 1,
-      lastCommentAt: now,
+      lastCommentAt: options?.lastCommentAt ?? now,
       updatedAt: now,
     });
     this.save();

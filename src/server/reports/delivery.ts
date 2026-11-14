@@ -275,7 +275,8 @@ export async function deliverCrashReport(params: DeliverCrashParams): Promise<De
       try {
         const searchedIssue = await client.searchIssueByFingerprint(fingerprint);
         if (searchedIssue) {
-          activeIndex.recordNewIssue(fingerprint, searchedIssue);
+          // Hydrate with lastCommentAt=0 so the first post-restart occurrence can comment immediately (NL-2)
+          activeIndex.recordNewIssue(fingerprint, searchedIssue, Date.now(), { lastCommentAt: 0 });
           existingEntry = activeIndex.get(fingerprint);
         }
       } catch {

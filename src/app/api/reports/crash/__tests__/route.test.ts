@@ -615,4 +615,76 @@ describe('POST /api/reports/crash', () => {
       globalThis.fetch = origFetch;
     }
   });
+
+  it('posts first dedupe comment immediately when searchIssueByFingerprint hydrates an existing open issue (NL-2)', async () => {
+    process.env.GITHUB_ISSUES_ENABLED = 'true';
+    process.env.GITHUB_ISSUES_TOKEN = 'ghp_live_nl2';
+    process.env.GITHUB_ISSUES_REPO = 'owner/repo-nl2';
+
+    let commentCount = 0;
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes('/search/issues')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          json: async () => ({ items: [{ number: 808 }] }),
+        };
+      }
+      if (url.includes('/issues/808/comments') && init?.method === 'POST') {
+        commentCount++;
+        return { ok: true, status: 201, headers: new Headers(), json: async () => ({ id: commentCount }) };
+      }
+      if (url.includes('/issues/808')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          json: async () => ({ number: 808, state: 'open', title: '[Crash]' }),
+        };
+      }
+      return { ok: true, status: 200, headers: new Headers(), json: async () => ({}) };
+    });
+
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      const makeReq = (suffix: string) => {
+        const d = draftStore.save({
+          sessionId: `sess_nl2_${suffix}`,
+          fingerprint: 'fp_nl2_hydrated',
+          preview: {
+            errorName: 'Error',
+            errorMessage: 'Post-restart crash',
+            actionType: 'MOVE',
+            floor: 1,
+            turn: 3,
+            sealedManifest: [],
+          },
+          sealed: { errorName: 'Error', errorMessage: 'Post-restart crash' },
+        });
+        return new NextRequest('http://localhost:3000/api/reports/crash', {
+          method: 'POST',
+          body: JSON.stringify({
+            source: 'SERVER_TURN',
+            draftId: d.draftId,
+            sessionId: `sess_nl2_${suffix}`,
+          }),
+        });
+      };
+
+      const res1 = await POST(makeReq('1'));
+      expect(res1.status).toBe(200);
+      expect((await res1.json()).status).toBe('commented');
+      expect(commentCount).toBe(1);
+
+      // Subsequent occurrence within 10 minutes is still throttled
+      const res2 = await POST(makeReq('2'));
+      expect(res2.status).toBe(200);
+      expect((await res2.json()).status).toBe('commented');
+      expect(commentCount).toBe(1);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
 });
