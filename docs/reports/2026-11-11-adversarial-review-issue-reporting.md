@@ -98,11 +98,8 @@ The verification suite did not exercise the wiring gaps below. They were found b
   - Any error thrown before the status response arrives, typically the most important boot/hydration errors, is also dropped.
 - **Fix:** Added `statusLoaded` and `preStatusQueue` to [`report-store.ts`](../../src/client/reports/report-store.ts) so early and recovered crashes are buffered until `fetchStatus()` resolves (drained if `available: true`, cleared from queue and `sessionStorage` if disabled). `checkPendingFatalCrash()` preserves valid crashes through the buffer and only discards corrupt storage.
 
-#### H-3 — Root `global-error` cannot present a report UI
-- [`global-error.tsx`](../../src/app/global-error.tsx) replaces the root layout, which is where `IssueReporterRoot` is mounted ([`layout.tsx`](../../src/app/layout.tsx)). Collectors and modals are therefore not mounted. `captureClientCrash` queues into a store nobody renders.
-- Spec §5.1 requires "its own `<html>/<body>` with a self-contained report panel and a Reload button". The panel is missing.
-- The component also relies on Tailwind utility classes. Confirm they exist for the root error shell; the other app UI uses CSS modules and design tokens.
-- **Fix:** mount a self-contained report panel inside `global-error` that posts directly to `/api/reports/crash`, or render `<IssueReporterRoot />` inside it.
+#### H-3 — ✅ FIXED: Root `global-error` presents a self-contained report panel
+- [`global-error.tsx`](../../src/app/global-error.tsx) now uses self-contained inline styles (no external Tailwind CSS dependency) inside its `<html lang="en"><body>` shell, checks `/api/reports/status` on mount, and provides a standalone note + "Send Crash Report" panel posting `REACT_RENDER` diagnostics directly to `/api/reports/crash` alongside "Try Recover" (`reset`) and "Reload" controls.
 
 #### H-4 — Dry-run pollutes the persistent fingerprint index with a fake issue #99999 ✅ Resolved
 - [`crash/route.ts#L218-L219`](../../src/app/api/reports/crash/route.ts#L218-L219) called `fingerprintIndex.recordNewIssue(fingerprint, 99999)` in dry-run mode. The index persisted to `data/report-index.json`.
@@ -199,7 +196,7 @@ The verification suite did not exercise the wiring gaps below. They were found b
 **High**
 - [x] **H-1** Wire `reportableFetch`. Create a draft in the outer 500 catch. Handle `crashReport` on non-OK responses. Pass the real `SERVER_5XX` source.
 - [x] **H-2** Buffer crashes until `fetchStatus` resolves. Do not discard recovered drafts.
-- [ ] **H-3** Give `global-error` a working, self-contained report panel.
+- [x] **H-3** Give `global-error` a working, self-contained report panel.
 - [x] **H-4** Stop writing a fake `99999` to the persistent index in dry-run. Treat a 404 as a missing issue.
 - [x] **H-5** Enforce the 128 KB body cap. Validate before consuming the rate-limit slot.
 - [x] **H-6** Feed real build, floor, turn and phase into server-origin issue summaries.
