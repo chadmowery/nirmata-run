@@ -112,4 +112,31 @@ describe('useReportStore', () => {
     expect(queue.length).toBe(3);
     expect(queue.map((q) => q.fingerprint)).toEqual(['fp_3', 'fp_4', 'fp_5']);
   });
+
+  it('preserves SERVER_5XX source when queuing server crash drafts (H-1)', () => {
+    useReportStore.getState().queueServerCrash(
+      {
+        draftId: 'draft_5xx',
+        fingerprint: 'fp_5xx_server',
+        source: 'SERVER_5XX',
+        preview: {
+          errorName: 'Error',
+          errorMessage: 'Outer 500 failure',
+          actionType: 'WAIT',
+          floor: 2,
+          turn: 9,
+          sealedManifest: [],
+        },
+      },
+      'sess_h1_5xx'
+    );
+
+    const active = useReportStore.getState().activeCrash;
+    expect(active).toBeDefined();
+    expect(active?.origin).toBe('server');
+    if (active && active.origin === 'server') {
+      expect(active.source).toBe('SERVER_5XX');
+      expect(active.draftId).toBe('draft_5xx');
+    }
+  });
 });

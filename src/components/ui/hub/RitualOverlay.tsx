@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
+import { reportableFetch } from '@client/reports';
 import { RunMode } from '@/shared/run-mode';
 import { InstalledItem } from '@/shared/profile';
 import { TaikokuPlacard, DottedSpecRow, BtnLever } from '../atomic';
@@ -41,7 +42,7 @@ export const RitualOverlay: React.FC = () => {
 
     setIsDeploying(true);
     try {
-      const response = await fetch('/api/run-mode/launch', {
+      const response = await reportableFetch('/api/run-mode/launch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
+import { reportableFetch } from '@client/reports';
 import { ShellTemplate } from '@/game/shells/shared';
 import { VaultItem, InstalledItem, generateVaultItemId } from '@/shared/profile';
 import {
@@ -50,7 +51,7 @@ export const LoadoutTab: React.FC = () => {
   useEffect(() => {
     const fetchShells = async () => {
       try {
-        const response = await fetch('/api/shells');
+        const response = await reportableFetch('/api/shells');
         if (response.ok) {
           const data = await response.json();
           setTemplates(data.templates);
@@ -157,7 +158,7 @@ export const LoadoutTab: React.FC = () => {
     });
 
     try {
-      const response = await fetch('/api/vault/equip-from-vault', {
+      const response = await reportableFetch('/api/vault/equip-from-vault', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, vaultItemId, entityId, shellId, targetSlotType }),
@@ -245,7 +246,7 @@ export const LoadoutTab: React.FC = () => {
     });
 
     try {
-      const res = await fetch('/api/vault/socket-software', {
+      const res = await reportableFetch('/api/vault/socket-software', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -298,7 +299,7 @@ export const LoadoutTab: React.FC = () => {
     });
 
     try {
-      const uninstallRes = await fetch('/api/economy/uninstall', {
+      const uninstallRes = await reportableFetch('/api/economy/uninstall', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, blueprintId, entityId, shellId }),

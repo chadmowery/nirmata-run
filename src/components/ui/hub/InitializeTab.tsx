@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
+import { reportableFetch } from '@client/reports';
 import { RunMode } from '@/shared/run-mode';
 import { RunModeCard } from './RunModeCard';
 import { LeaderboardPanel } from './LeaderboardPanel';
@@ -27,7 +28,7 @@ export const InitializeTab: React.FC = () => {
     const fetchAvailability = async () => {
       if (!playerProfile?.sessionId) return;
       try {
-        const response = await fetch(
+        const response = await reportableFetch(
           `/api/run-mode/available?sessionId=${playerProfile.sessionId}`,
         );
         if (response.ok) {

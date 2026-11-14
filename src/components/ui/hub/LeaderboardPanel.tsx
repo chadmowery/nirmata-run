@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { logger } from '@engine/utils/logger';
 import { RunMode } from '@/shared/run-mode';
+import { reportableFetch } from '@client/reports';
 import { PanelCard } from '../atomic';
 import styles from './LeaderboardPanel.module.css';
 
@@ -32,7 +33,7 @@ export const LeaderboardPanel: React.FC<LeaderboardPanelProps> = ({ mode }) => {
     const fetchLeaderboard = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`/api/leaderboard/${activeMode}`);
+        const response = await reportableFetch(`/api/leaderboard/${activeMode}`);
         if (response.ok) {
           const data = await response.json();
           setEntries(data.entries || []);

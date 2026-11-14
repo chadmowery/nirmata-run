@@ -1,5 +1,5 @@
 import { gameStore, GroundItemInfo } from './ui/store';
-import { actionRingBuffer, useReportStore } from '@/client/reports';
+import { actionRingBuffer, useReportStore, reportableFetch } from '@/client/reports';
 import { createEngineInstance, EngineInstance } from './engine-factory';
 import { createClientEngine, ClientEngineInstance } from '@client/game/client-engine-factory';
 import { applyStateDelta } from '@shared/reconciliation';
@@ -903,7 +903,7 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
         'NETWORK',
       );
       const tFetch0 = performance.now();
-      const response = await fetch('/api/action', {
+      const response = await reportableFetch('/api/action', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -964,6 +964,9 @@ export function createGame(config: GameConfig & { sessionId?: string }): GameCon
         let errorMessage = `Action failed (HTTP ${response.status})`;
         try {
           const errData = await response.json();
+          if (errData?.crashReport) {
+            useReportStore.getState().queueServerCrash(errData.crashReport, activeSessionId);
+          }
           if (errData?.error) {
             errorMessage = errData.error;
           }

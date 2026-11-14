@@ -8,6 +8,7 @@ import {
   buildTurnSnapshot,
   createRedactedCrashPreview,
   createServerCrashDraft,
+  createMinimalServer5xxDraft,
 } from '../turn-snapshot';
 import { draftStore } from '@/server/reports/draft-store';
 
@@ -103,5 +104,18 @@ describe('turn-snapshot & server crash capture', () => {
     const retrieved = draftStore.get(offer.draftId);
     expect(retrieved).toBeDefined();
     expect(retrieved?.sealed.runSeed).toBe('987654321');
+  });
+
+  it('creates minimal SERVER_5XX draft when full ECS snapshot is unavailable (H-1)', () => {
+    const offer = createMinimalServer5xxDraft({
+      sessionId: 'sess_5xx_minimal',
+      action: { type: 'WAIT' },
+      error: new Error('Session lock acquisition failed'),
+    });
+
+    expect(offer.source).toBe('SERVER_5XX');
+    expect(offer.preview.actionType).toBe('WAIT');
+    const saved = draftStore.get(offer.draftId);
+    expect(saved?.source).toBe('SERVER_5XX');
   });
 });

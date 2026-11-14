@@ -87,12 +87,8 @@ The verification suite did not exercise the wiring gaps below. They were found b
 
 ### 🟠 High
 
-#### H-1 — Two of five crash triggers (D5) are not wired: API failures and 5xx
-- `reportableFetch` ([`reportable-fetch.ts`](../../src/client/reports/reportable-fetch.ts)) is **never imported** by production code. The `/api/action` call in [`setup.ts#L896-L903`](../../src/game/setup.ts#L896-L903) still uses raw `fetch`. The M3 call-site audit did not happen.
-- Spec §6.1 requires `createServerCrashDraft` in "both catch paths". In [`action/route.ts#L521-L531`](../../src/app/api/action/route.ts#L521-L531) the outer 500 `catch` only echoes `crashDraftOffer`, which is always `null` there. Nothing creates a draft, so `SERVER_5XX` is never produced.
-- Client side, `crashReport` is only read inside `if (response.ok)` ([`setup.ts#L916-L920`](../../src/game/setup.ts#L916-L920)). A 500 response carrying it would be ignored.
-- `queueServerCrash` hard-codes `source: 'SERVER_TURN'` ([`report-store.ts#L131-L140`](../../src/client/reports/report-store.ts#L131-L140)).
-- **Fix:** wire `reportableFetch` into `sendActionToServer` and the other `/api/*` call sites. Create the draft in the outer catch. Read `crashReport` on non-OK responses. Pass the real source.
+#### H-1 — Two of five crash triggers (D5) are not wired: API failures and 5xx ✅ Resolved
+- **Resolved:** Wired `reportableFetch` across `sendActionToServer`, `/api/session`, and all Hub `/api/*` call sites; created `SERVER_5XX` drafts in `action/route.ts`'s outer 500 catch handler; read `crashReport` on non-OK responses in `setup.ts`; preserved `offer.source` (`SERVER_5XX`) in `queueServerCrash`; and skipped duplicate `API_FAILURE` queuing in `reportableFetch` when a 500 carries `crashReport`.
 
 #### H-2 — Crashes that occur during boot are silently dropped (status race)
 - [`report-store.ts#L68`](../../src/client/reports/report-store.ts#L68) initialises `status` to `{available:false, mode:'off'}`. `queueCrash` returns immediately when `!status.available` ([`#L93`](../../src/client/reports/report-store.ts#L93)).
@@ -201,7 +197,7 @@ The verification suite did not exercise the wiring gaps below. They were found b
 - [x] **C-3** Sanitise or fence all client-supplied values in the Summary and Environment tables, and in the title. Add hostile-input tests.
 
 **High**
-- [ ] **H-1** Wire `reportableFetch`. Create a draft in the outer 500 catch. Handle `crashReport` on non-OK responses. Pass the real `SERVER_5XX` source.
+- [x] **H-1** Wire `reportableFetch`. Create a draft in the outer 500 catch. Handle `crashReport` on non-OK responses. Pass the real `SERVER_5XX` source.
 - [ ] **H-2** Buffer crashes until `fetchStatus` resolves. Do not discard recovered drafts.
 - [ ] **H-3** Give `global-error` a working, self-contained report panel.
 - [x] **H-4** Stop writing a fake `99999` to the persistent index in dry-run. Treat a 404 as a missing issue.

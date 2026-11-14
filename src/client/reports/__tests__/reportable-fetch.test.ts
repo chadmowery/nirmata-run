@@ -82,4 +82,33 @@ describe('reportableFetch', () => {
       expect(active.error.stack).not.toContain('secret_session_999');
     }
   });
+
+  it('skips duplicate API_FAILURE when 500 response includes a server crashReport offer (H-1)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      status: 500,
+      statusText: 'Internal Server Error',
+      ok: false,
+      clone: () => ({
+        json: async () => ({
+          error: 'Internal Server Error',
+          crashReport: {
+            draftId: 'draft_1',
+            fingerprint: 'fp_1',
+            source: 'SERVER_5XX',
+            preview: {
+              errorName: 'Error',
+              errorMessage: 'Boom',
+              actionType: 'MOVE',
+              floor: 1,
+              turn: 1,
+              sealedManifest: [],
+            },
+          },
+        }),
+      }),
+    }));
+
+    await reportableFetch('/api/action', { method: 'POST' });
+    expect(useReportStore.getState().activeCrash).toBeNull();
+  });
 });

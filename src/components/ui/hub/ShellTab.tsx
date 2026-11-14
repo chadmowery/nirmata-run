@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
+import { reportableFetch } from '@client/reports';
 import { ShellTemplate } from '@/game/shells/shared';
 import { PanelCard, DottedSpecRow } from '../atomic';
 import { ShellUpgradePanel } from './ShellUpgradePanel';
@@ -202,7 +203,7 @@ export const ShellTab: React.FC = () => {
   useEffect(() => {
     const fetchShells = async () => {
       try {
-        const response = await fetch('/api/shells');
+        const response = await reportableFetch('/api/shells');
         if (response.ok) {
           const data = await response.json();
           setTemplates(data.templates);

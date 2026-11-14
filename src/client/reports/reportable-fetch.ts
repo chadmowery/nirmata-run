@@ -53,6 +53,10 @@ export async function reportableFetch(
       try {
         const cloned = response.clone();
         const json = await cloned.json();
+        if (json?.crashReport) {
+          // Server returned a sealed crash draft offer; the caller handles queueServerCrash without duplicating an API_FAILURE.
+          return response;
+        }
         if (json.error) {
           errorDetails = `${errorDetails}: ${json.error}`;
         }

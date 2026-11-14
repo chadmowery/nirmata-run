@@ -14,6 +14,7 @@ import { getSoundCue, registerSoundCue } from '@/game/audio/cue-registry';
 import { getAmbianceConfig, setAmbianceConfig } from '@/game/config/ambiance';
 import { useStore } from 'zustand';
 import { gameStore, getSavedAudioSettings } from '@/game/ui/store';
+import { reportableFetch } from '@/client/reports';
 import { GameState } from '@/game/states/types';
 import { RunMode } from '@/shared/run-mode';
 import { logger } from '@engine/utils/logger';
@@ -102,7 +103,7 @@ export default function GamePage() {
         // Fallback for legacy/direct play
         shellId = fallbackShellId || DEFAULT_SHELL_ID;
         seed = `run-${Date.now()}`;
-        const sessionResponse = await fetch('/api/session', {
+        const sessionResponse = await reportableFetch('/api/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

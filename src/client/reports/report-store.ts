@@ -131,7 +131,7 @@ export const useReportStore = create<ReportStoreState>((set, get) => ({
   queueServerCrash: (offer: CrashDraftOffer, sessionId: string) => {
     get().queueCrash({
       origin: 'server',
-      source: 'SERVER_TURN',
+      source: offer.source ?? 'SERVER_TURN',
       draftId: offer.draftId,
       sessionId,
       fingerprint: offer.fingerprint,

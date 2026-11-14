@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
+import { reportableFetch } from '@client/reports';
 import { generateShopStock } from '@/game/systems/shop-rotation';
 import { BtnLever } from '../atomic';
 import { ItemTooltip } from './ItemTooltip';
@@ -36,7 +37,7 @@ export const SoftwareShop: React.FC = () => {
     if (profile.wallet.scrap < price) return;
 
     try {
-      const response = await fetch('/api/economy/purchase', {
+      const response = await reportableFetch('/api/economy/purchase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

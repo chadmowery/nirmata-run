@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
+import { reportableFetch } from '@client/reports';
 import economyConfig from '@/game/entities/templates/economy.json';
 import { ShellTemplate } from '@/game/shells/shared';
 import { PanelCard, BtnLever } from '../atomic';
@@ -20,7 +21,7 @@ export const ShellUpgradePanel: React.FC = () => {
   useEffect(() => {
     const fetchShells = async () => {
       try {
-        const response = await fetch('/api/shells');
+        const response = await reportableFetch('/api/shells');
         if (response.ok) {
           const data = await response.json();
           setShells(data.templates);
@@ -120,7 +121,7 @@ export const ShellUpgradePanel: React.FC = () => {
     if ((profile.wallet?.flux || 0) < cost) return;
 
     try {
-      const response = await fetch('/api/economy/upgrade', {
+      const response = await reportableFetch('/api/economy/upgrade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

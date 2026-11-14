@@ -716,5 +716,34 @@ describe('Action API Route', () => {
         process.env.NODE_ENV = origEnv;
       }
     });
+
+    it('creates a SERVER_5XX crashReport draft in the outer 500 catch handler (H-1)', async () => {
+      const lockSpy = vi
+        .spyOn(sessionManager, 'tryAcquireSessionLock')
+        .mockImplementationOnce(() => {
+          throw new Error('Lock table exploded');
+        });
+
+      try {
+        const req = new Request('http://localhost/api/action', {
+          method: 'POST',
+          body: JSON.stringify({
+            sessionId,
+            action: { type: 'WAIT' },
+          }),
+        });
+
+        const res = await POST(req);
+        expect(res.status).toBe(500);
+        const body = (await res.json()) as {
+          crashReport?: { draftId: string; source?: string; preview: { errorMessage: string } };
+        };
+        expect(body.crashReport).toBeDefined();
+        expect(body.crashReport?.source).toBe('SERVER_5XX');
+        expect(body.crashReport?.preview.errorMessage).toContain('Lock table exploded');
+      } finally {
+        lockSpy.mockRestore();
+      }
+    });
   });
 });

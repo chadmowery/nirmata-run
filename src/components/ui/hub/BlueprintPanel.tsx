@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
+import { reportableFetch } from '@client/reports';
 import economyConfig from '@/game/entities/templates/economy.json';
 import { BtnLever, TaikokuStamp } from '../atomic';
 import { ItemTooltip } from './ItemTooltip';
@@ -51,7 +52,7 @@ export const BlueprintPanel: React.FC = () => {
     setCompilingBlueprintId(templateId);
 
     try {
-      const response = await fetch('/api/economy/compile', {
+      const response = await reportableFetch('/api/economy/compile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

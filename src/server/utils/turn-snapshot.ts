@@ -221,6 +221,61 @@ export function createServerCrashDraft<TEvents extends EngineEvents = EngineEven
 }
 
 /**
+ * Fallback SERVER_5XX crash draft builder when full ECS world/turn state is unavailable.
+ */
+export function createMinimalServer5xxDraft(params: {
+  sessionId: string;
+  action?: unknown;
+  error: unknown;
+  mode?: string;
+}): CrashDraftOffer {
+  const errObj = params.error instanceof Error ? params.error : new Error(String(params.error));
+  const errorName = errObj.name || 'Error';
+  const errorMessage = errObj.message || 'Unknown server error';
+  const actionObj =
+    params.action && typeof params.action === 'object' && 'type' in params.action
+      ? String((params.action as { type: unknown }).type)
+      : 'UNKNOWN';
+
+  const fingerprint = computeCrashFingerprint('SERVER_5XX', errorName, errorMessage, errObj.stack);
+  const preview: RedactedCrashPreview = {
+    errorName,
+    errorMessage,
+    actionType: actionObj,
+    floor: 0,
+    turn: 0,
+    sealedManifest: [
+      {
+        label: 'Server Error & Request Context',
+        approxBytes: errorMessage.length + (errObj.stack?.length ?? 0),
+      },
+    ],
+  };
+
+  const draft = draftStore.save({
+    sessionId: params.sessionId,
+    source: 'SERVER_5XX',
+    fingerprint,
+    preview,
+    sealed: {
+      errorName,
+      errorMessage,
+      stack: errObj.stack,
+      action: params.action,
+      mode: params.mode,
+      timestamp: new Date().toISOString(),
+    },
+  });
+
+  return {
+    draftId: draft.draftId,
+    fingerprint,
+    source: draft.source,
+    preview,
+  };
+}
+
+/**
  * Builds an allow-listed, credential-free game state snapshot from sealed draft data
  * for inclusion in the GitHub issue Game State Snapshot section.
  * Explicitly omits sessionId, duplicated error stack, and untrusted raw action echoes.

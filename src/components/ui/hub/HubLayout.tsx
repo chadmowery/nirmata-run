@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { useStore } from 'zustand';
 import { gameStore, HubTab } from '@/game/ui/store';
+import { reportableFetch } from '@client/reports';
 import { TabBar } from './TabBar';
 import { ShellTab } from './ShellTab';
 import { LoadoutTab } from './LoadoutTab';
@@ -105,7 +106,7 @@ export const HubLayout: React.FC<HubLayoutProps> = ({ onLaunchComplete }) => {
       }
 
       try {
-        const response = await fetch(`/api/profile?sessionId=${sessionId}`);
+        const response = await reportableFetch(`/api/profile?sessionId=${sessionId}`);
         if (!response.ok) {
           throw new Error('Failed to fetch player profile');
         }

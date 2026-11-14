@@ -30,7 +30,7 @@ import { processAction } from '@game/pipeline/action-pipeline';
 import { getRunModeConfig } from '@game/systems/run-mode-config';
 import { TurnPhase } from '@engine/turn/types';
 import { logTurnExecutionError } from '@/server/utils/error-logger';
-import { createServerCrashDraft } from '@/server/utils/turn-snapshot';
+import { createServerCrashDraft, createMinimalServer5xxDraft } from '@/server/utils/turn-snapshot';
 import type { CrashDraftOffer } from '@/shared/reports/schemas';
 
 export interface ServerTurnDevPerf {
@@ -50,8 +50,14 @@ export interface ServerTurnDevPerf {
 
 export async function POST(req: Request) {
   let crashDraftOffer: CrashDraftOffer | null = null;
+  let parsedSessionId: string | undefined;
+  let parsedAction: unknown;
+  let activeSession: ReturnType<typeof sessionManager.getSession<GameplayEvents, EngineInstance['systems']>>;
   try {
     const body = await req.json();
+    if (body && typeof body === 'object' && 'sessionId' in body && typeof (body as { sessionId?: unknown }).sessionId === 'string') {
+      parsedSessionId = (body as { sessionId: string }).sessionId;
+    }
     const result = ActionRequestSchema.safeParse(body);
     if (!result.success) {
       return NextResponse.json(
@@ -61,6 +67,8 @@ export async function POST(req: Request) {
     }
 
     const { sessionId, action } = result.data;
+    parsedSessionId = sessionId;
+    parsedAction = action;
     EventOriginContext.current = 'server';
     logger.info(`[API] Processing action: ${action.type} for session: ${sessionId}`, 'API');
     const session = sessionManager.getSession<GameplayEvents, EngineInstance['systems']>(sessionId);
@@ -68,6 +76,7 @@ export async function POST(req: Request) {
       logger.warn(`[API] Session NOT FOUND: ${sessionId}`, 'API');
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
+    activeSession = session;
 
     logger.info(`Session Found for ${sessionId}. PlayerId: ${session.playerId}`, 'API');
 
@@ -534,6 +543,44 @@ export async function POST(req: Request) {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     logger.error('API Error:', 'API', error);
+
+    if (!crashDraftOffer && parsedSessionId) {
+      try {
+        if (activeSession) {
+          crashDraftOffer = createServerCrashDraft({
+            sessionId: parsedSessionId,
+            action: parsedAction ?? { type: 'UNKNOWN' },
+            playerId: activeSession.playerId,
+            world: activeSession.world,
+            turnManager: activeSession.turnManager,
+            error,
+            source: 'SERVER_5XX',
+            mode: activeSession.runMode,
+          });
+        } else {
+          crashDraftOffer = createMinimalServer5xxDraft({
+            sessionId: parsedSessionId,
+            action: parsedAction,
+            error,
+          });
+        }
+      } catch (outerDraftErr) {
+        try {
+          crashDraftOffer = createMinimalServer5xxDraft({
+            sessionId: parsedSessionId,
+            action: parsedAction,
+            error,
+            mode: activeSession?.runMode,
+          });
+        } catch (fallbackErr) {
+          logger.error('Failed to create outer SERVER_5XX crash draft:', 'REPORTS', {
+            outerDraftErr: String(outerDraftErr),
+            fallbackErr: String(fallbackErr),
+          });
+        }
+      }
+    }
+
     return NextResponse.json(
       {
         error: 'Internal Server Error',

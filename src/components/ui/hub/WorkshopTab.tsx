@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
+import { reportableFetch } from '@client/reports';
 import BlueprintPanel from './BlueprintPanel';
 import SoftwareShop from './SoftwareShop';
 import { PanelCard, DottedSpecRow, BtnLever } from '../atomic';
@@ -38,7 +39,7 @@ export const WorkshopTab: React.FC = () => {
     }));
 
     try {
-      const res = await fetch('/api/economy/compress', {
+      const res = await reportableFetch('/api/economy/compress', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId: playerProfile.sessionId, amount: 1 }),

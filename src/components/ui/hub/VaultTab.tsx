@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { logger } from '@engine/utils/logger';
 import { useStore } from 'zustand';
 import { gameStore } from '@/game/ui/store';
+import { reportableFetch } from '@client/reports';
 import VaultOverflowBanner from './VaultOverflowBanner';
 import { VaultItem } from '@/shared/profile';
 import { getVaultItemValue } from '@/shared/vault';
@@ -126,7 +127,7 @@ export const VaultTab: React.FC = () => {
       const vaultItemId = targetItem?.vaultItemId || (typeof itemIdentifier === 'string' ? itemIdentifier : undefined);
       const entityId = targetItem?.entityId ?? (typeof itemIdentifier === 'number' ? itemIdentifier : undefined);
 
-      const response = await fetch('/api/vault/sell', {
+      const response = await reportableFetch('/api/vault/sell', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -163,7 +164,7 @@ export const VaultTab: React.FC = () => {
       const vaultItemId = targetItem?.vaultItemId || (typeof itemIdentifier === 'string' ? itemIdentifier : undefined);
       const entityId = targetItem?.entityId ?? (typeof itemIdentifier === 'number' ? itemIdentifier : undefined);
 
-      const response = await fetch('/api/vault/discard', {
+      const response = await reportableFetch('/api/vault/discard', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -225,7 +226,7 @@ export const VaultTab: React.FC = () => {
     }
 
     try {
-      const response = await fetch('/api/vault/socket-software', {
+      const response = await reportableFetch('/api/vault/socket-software', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
