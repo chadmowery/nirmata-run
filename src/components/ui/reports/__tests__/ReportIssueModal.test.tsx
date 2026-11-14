@@ -122,4 +122,24 @@ describe('ReportIssueModal', () => {
     expect(spy.mock.calls.length).toBe(initialCalls);
     spy.mockRestore();
   });
+
+  it('delivers non-Escape keydown events to modal children without leaking to window listeners (NM-1)', () => {
+    useReportStore.getState().openManualReport();
+    render(<ReportIssueModal />);
+
+    const titleInput = screen.getByPlaceholderText(/Weapon swap intent failed/i);
+    const childHandler = vi.fn();
+    const windowBubbleHandler = vi.fn();
+
+    titleInput.addEventListener('keydown', childHandler);
+    window.addEventListener('keydown', windowBubbleHandler);
+    try {
+      titleInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
+      expect(childHandler).toHaveBeenCalledTimes(1);
+      expect(windowBubbleHandler).not.toHaveBeenCalled();
+    } finally {
+      titleInput.removeEventListener('keydown', childHandler);
+      window.removeEventListener('keydown', windowBubbleHandler);
+    }
+  });
 });

@@ -79,9 +79,7 @@ export const ReportIssueModal: React.FC = () => {
         e.preventDefault();
         e.stopPropagation();
         requestClose();
-        return;
       }
-      e.stopPropagation();
     };
 
     window.addEventListener('keydown', handleKeyDown, true);
@@ -141,6 +139,7 @@ export const ReportIssueModal: React.FC = () => {
       role="dialog"
       aria-modal="true"
       aria-labelledby="manual-report-title"
+      onKeyDown={(e) => e.stopPropagation()}
       onClick={requestClose}
     >
       <div

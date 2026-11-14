@@ -126,10 +126,17 @@ export class InputManager {
     if (this.enabled) return;
 
     this.keydownHandler = (event: KeyboardEvent) => {
-      // Ignore if event is repeating or if it's from an input element
+      // Ignore if event is repeating, from an input/select element, or while a modal dialog is open
       if (event.repeat) return;
-      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement)
+      if (
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement ||
+        event.target instanceof HTMLSelectElement ||
+        (typeof document !== 'undefined' &&
+          document.querySelector('[role="dialog"][aria-modal="true"]') !== null)
+      ) {
         return;
+      }
 
       // Construct the lookup key including modifiers
       let lookupKey = event.code;

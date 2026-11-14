@@ -121,4 +121,20 @@ describe('InputManager', () => {
     expect(mockHandler).not.toHaveBeenCalled();
     document.body.removeChild(input);
   });
+
+  it('should ignore input when an aria-modal dialog is open (NM-1)', () => {
+    inputManager.enable();
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    const btn = document.createElement('button');
+    dialog.appendChild(btn);
+    document.body.appendChild(dialog);
+    btn.focus();
+
+    btn.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW', bubbles: true }));
+    expect(mockHandler).not.toHaveBeenCalled();
+
+    document.body.removeChild(dialog);
+  });
 });

@@ -174,4 +174,38 @@ describe('ReportCrashModal', () => {
     expect(document.activeElement).toBe(triggerBtn);
     triggerBtn.remove();
   });
+
+  it('delivers non-Escape keydown events to modal children without leaking to window listeners (NM-1)', () => {
+    useReportStore.getState().queueCrash({
+      origin: 'server',
+      source: 'SERVER_TURN',
+      draftId: 'draft-nm1',
+      sessionId: 'sess-abc',
+      fingerprint: '1234567890abcdef',
+      preview: {
+        errorName: 'Error',
+        errorMessage: 'keydown propagation test',
+        actionType: 'MOVE',
+        floor: 1,
+        turn: 1,
+        sealedManifest: [],
+      },
+    });
+
+    render(<ReportCrashModal />);
+    const noteInput = screen.getByLabelText(/WHAT WERE YOU DOING/i);
+    const childHandler = vi.fn();
+    const windowBubbleHandler = vi.fn();
+
+    noteInput.addEventListener('keydown', childHandler);
+    window.addEventListener('keydown', windowBubbleHandler);
+    try {
+      noteInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      expect(childHandler).toHaveBeenCalledTimes(1);
+      expect(windowBubbleHandler).not.toHaveBeenCalled();
+    } finally {
+      noteInput.removeEventListener('keydown', childHandler);
+      window.removeEventListener('keydown', windowBubbleHandler);
+    }
+  });
 });

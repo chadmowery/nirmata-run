@@ -35,8 +35,6 @@ export const ReportCrashModal: React.FC = () => {
           dismissActiveCrash(false);
         }
       }
-      // Stop event from propagating to game input manager
-      e.stopPropagation();
     };
 
     window.addEventListener('keydown', handleKeyDown, true);
@@ -66,6 +64,7 @@ export const ReportCrashModal: React.FC = () => {
       role="dialog"
       aria-modal="true"
       aria-labelledby="crash-report-title"
+      onKeyDown={(e) => e.stopPropagation()}
       onClick={() => {
         if (!isSubmitting) dismissActiveCrash(false);
       }}
