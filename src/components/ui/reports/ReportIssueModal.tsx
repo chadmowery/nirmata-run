@@ -41,19 +41,13 @@ export const ReportIssueModal: React.FC = () => {
 
   const requestClose = useCallback(() => {
     if (useReportStore.getState().isSubmitting) return;
-    if (isDirty) {
-      setConfirmingDiscard((prev) => {
-        if (prev) {
-          closeManualReport();
-          return false;
-        }
-        return true;
-      });
+    if (isDirty && !confirmingDiscard) {
+      setConfirmingDiscard(true);
       return;
     }
     setConfirmingDiscard(false);
     closeManualReport();
-  }, [isDirty, closeManualReport]);
+  }, [isDirty, confirmingDiscard, closeManualReport]);
 
   useEffect(() => {
     if (!isManualModalOpen) return;

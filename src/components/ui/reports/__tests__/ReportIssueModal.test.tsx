@@ -142,4 +142,28 @@ describe('ReportIssueModal', () => {
       window.removeEventListener('keydown', windowBubbleHandler);
     }
   });
+
+  it('calls closeManualReport exactly once under StrictMode when confirming dirty discard (NL-1)', () => {
+    const closeSpy = vi.spyOn(useReportStore.getState(), 'closeManualReport');
+    useReportStore.getState().openManualReport();
+    render(
+      <React.StrictMode>
+        <ReportIssueModal />
+      </React.StrictMode>
+    );
+
+    const titleInput = screen.getByPlaceholderText(/Weapon swap intent failed/i);
+    fireEvent.change(titleInput, { target: { value: 'Unsaved strict mode bug' } });
+
+    // First Escape prompts for confirmation without closing
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(closeSpy).not.toHaveBeenCalled();
+    expect(useReportStore.getState().isManualModalOpen).toBe(true);
+
+    // Second Escape closes and invokes closeManualReport exactly once
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(closeSpy).toHaveBeenCalledTimes(1);
+    expect(useReportStore.getState().isManualModalOpen).toBe(false);
+    closeSpy.mockRestore();
+  });
 });
