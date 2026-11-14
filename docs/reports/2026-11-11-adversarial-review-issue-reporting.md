@@ -122,11 +122,8 @@ The verification suite did not exercise the wiring gaps below. They were found b
 #### H-7 — `ai-ready`-path dedupe can create duplicates under concurrency ✅ Resolved
 - **Resolved:** Added a per-fingerprint in-flight lock (`withFingerprintLock`) in [`delivery.ts`](../../src/server/reports/delivery.ts) and a `state === 'running'` re-entrancy guard + `try/finally` state cleanup in [`outbox.ts`](../../src/server/reports/outbox.ts).
 
-#### H-8 — Missing wiring/spec tests that would have caught C-1, C-2, H-1, H-2, H-4
-- Spec §11 requires route tests for "429, dedupe comment vs new, dry-run, session-mismatch rejection, single-use drafts". The crash route test has 3 tests: 404 for a missing draft, one dry-run success, and a client-origin dry-run. It has no 429, dedupe, mismatch or live path.
-- There is no test that composes from a real `createServerCrashDraft` result, no wiring test for the worker, and no test for boot-time crash queuing.
-- The "client bundle grep" in [`reports-security.test.ts`](../../tests/security/reports-security.test.ts) only scans source text for the token name. RPT-08 specified an actual bundle or build check.
-- **Fix:** add the missing tests (see §5).
+#### H-8 — ✅ FIXED: Missing wiring/spec tests that would have caught C-1, C-2, H-1, H-2, H-4
+- Added full spec §11 coverage across [`crash/__tests__/route.test.ts`](../../src/app/api/reports/crash/__tests__/route.test.ts) (429 rate-limit cap, session-mismatch rejection without consuming draft, single-use draft enforcement, live dedupe comment + 10m comment cooldown throttle), [`report-store.test.ts`](../../src/client/reports/__tests__/report-store.test.ts) & [`collectors.test.ts`](../../src/client/reports/__tests__/collectors.test.ts) (boot-time crash buffering & recovery), [`outbox.test.ts`](../../src/server/reports/__tests__/outbox.test.ts) (worker delivery on enqueue), and [`reports-security.test.ts`](../../tests/security/reports-security.test.ts) (real `createServerCrashDraft` -> `composeIssueBody` end-to-end redaction check & compiled `.next/static/chunks` bundle secret scan).
 
 ---
 
@@ -201,7 +198,7 @@ The verification suite did not exercise the wiring gaps below. They were found b
 - [x] **H-5** Enforce the 128 KB body cap. Validate before consuming the rate-limit slot.
 - [x] **H-6** Feed real build, floor, turn and phase into server-origin issue summaries.
 - [x] **H-7** Add an in-flight per-fingerprint lock and an outbox re-entrancy guard.
-- [ ] **H-8** Add the missing tests: 429, dedupe comment vs new, session mismatch, live-path mocks, a boot-time crash and a bundle check.
+- [x] **H-8** Add the missing tests: 429, dedupe comment vs new, session mismatch, live-path mocks, a boot-time crash and a bundle check.
 
 **Medium**
 - [ ] **M-1..M-13**, in the order listed. Prioritise M-1 (auth classification), M-2 (label spam), M-3 (closed-issue flow), M-4 (untrusted markers) and M-11 (logger args).

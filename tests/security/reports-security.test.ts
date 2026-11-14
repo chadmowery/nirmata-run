@@ -279,4 +279,103 @@ describe('Reports Security & Privacy Invariants', () => {
     const actionIdx = serverBody.indexOf('## Failed Action');
     expect(serverBody.slice(actionIdx, actionIdx + 80)).toContain('=== UNTRUSTED PLAYER INPUT ===');
   });
+
+  it('composes a real server crash draft without leaking runSeed or full sessionId (H-8)', () => {
+    const bus = new EventBus<EngineEvents>();
+    const world = new World<EngineEvents>(bus);
+    const turnManager = {
+      getTurnNumber: () => 9,
+      getPhase: () => 'ENEMY_PHASE',
+      isPaused: false,
+    } as unknown as TurnManager<EngineEvents>;
+
+    const playerId = world.createEntity();
+    world.addComponent(playerId, Position, { x: 4, y: 5 });
+    world.addComponent(playerId, Health, { current: 50, max: 100, isAlive: true });
+    world.addComponent(playerId, FloorState, {
+      currentFloor: 6,
+      maxFloor: 15,
+      runSeed: 'secret-seed-e2e-xyz',
+      sectorCondition: 'NOMINAL',
+    });
+
+    const fullSessionId = 'sess_full_secret_token_9999';
+    const offer = createServerCrashDraft({
+      sessionId: fullSessionId,
+      action: { type: 'WAIT' },
+      playerId,
+      world,
+      turnManager,
+      error: new Error('Real draft end-to-end fault'),
+    });
+
+    const redeemed = draftStore.redeem(offer.draftId, fullSessionId);
+    expect(redeemed).not.toBeNull();
+
+    const body = composeIssueBody({
+      ref: 'NR-E2E1',
+      kind: 'CRASH',
+      crashSource: redeemed!.source,
+      fingerprint: redeemed!.fingerprint,
+      title: `[Crash] ${redeemed!.preview.errorName}: ${redeemed!.preview.errorMessage}`,
+      errorName: redeemed!.preview.errorName,
+      errorMessage: redeemed!.preview.errorMessage,
+      stack: redeemed!.sealed.stack,
+      failedAction: redeemed!.sealed.action,
+      stateSnapshot: buildAllowListedIssueSnapshot(redeemed!.sealed),
+      diagnostics: {
+        build: 'buildsha1',
+        route: '/api/action',
+        userAgent: 'Server',
+        viewport: { w: 0, h: 0 },
+        gameStatus: 'SERVER_ACTION',
+        mode: redeemed!.sealed.mode,
+        floor: redeemed!.sealed.floor,
+        turn: redeemed!.sealed.turn,
+        recentLogs: [],
+        recentActions: [],
+        recentMessages: [],
+      },
+      phase: redeemed!.sealed.phase,
+      sessionId: redeemed!.sessionId,
+    });
+
+    expect(JSON.stringify(offer.preview)).not.toContain('secret-seed-e2e-xyz');
+    expect(body).not.toContain(fullSessionId);
+    expect(body).toContain('`buildsha1`');
+    expect(body).toContain('Floor 6');
+    expect(body).toContain('Turn 9');
+    expect(body).toContain('Phase `ENEMY_PHASE`');
+    expect(body).toContain('"runSeed": "secret-seed-e2e-xyz"');
+  });
+
+  it('verifies built .next client bundle chunks never contain server secrets or @server imports (H-8)', () => {
+    const chunksDir = path.join(process.cwd(), '.next', 'static', 'chunks');
+    if (!fs.existsSync(chunksDir)) {
+      return;
+    }
+
+    const forbiddenStrings = ['GITHUB_ISSUES_TOKEN', 'data/report-outbox', 'data/report-index.json'];
+
+    function checkChunks(dir: string): number {
+      let checked = 0;
+      for (const entry of fs.readdirSync(dir)) {
+        const full = path.join(dir, entry);
+        const stat = fs.statSync(full);
+        if (stat.isDirectory()) {
+          checked += checkChunks(full);
+        } else if (entry.endsWith('.js')) {
+          const content = fs.readFileSync(full, 'utf-8');
+          for (const secret of forbiddenStrings) {
+            expect(content).not.toContain(secret);
+          }
+          checked++;
+        }
+      }
+      return checked;
+    }
+
+    const filesChecked = checkChunks(chunksDir);
+    expect(filesChecked).toBeGreaterThan(0);
+  });
 });

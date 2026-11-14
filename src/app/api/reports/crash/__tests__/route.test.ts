@@ -426,4 +426,193 @@ describe('POST /api/reports/crash', () => {
       globalThis.fetch = origFetch;
     }
   });
+
+  it('enforces crash rate-limit 429 cap when quota is exhausted (H-8)', async () => {
+    process.env.REPORTS_CRASH_CAP_PER_HOUR = '1';
+
+    const r1 = await POST(
+      new NextRequest('http://localhost:3000/api/reports/crash', {
+        method: 'POST',
+        body: JSON.stringify({
+          source: 'CLIENT_ERROR',
+          error: { name: 'Error', message: 'Quota 1' },
+          fingerprint: '1111222233334444',
+          diagnostics: {
+            build: 'test',
+            route: '/',
+            userAgent: 'vitest',
+            viewport: { w: 800, h: 600 },
+            gameStatus: 'IDLE',
+            recentLogs: [],
+            recentActions: [],
+            recentMessages: [],
+          },
+        }),
+      })
+    );
+    expect(r1.status).toBe(200);
+
+    const r2 = await POST(
+      new NextRequest('http://localhost:3000/api/reports/crash', {
+        method: 'POST',
+        body: JSON.stringify({
+          source: 'CLIENT_ERROR',
+          error: { name: 'Error', message: 'Quota 2' },
+          fingerprint: '5555666677778888',
+          diagnostics: {
+            build: 'test',
+            route: '/',
+            userAgent: 'vitest',
+            viewport: { w: 800, h: 600 },
+            gameStatus: 'IDLE',
+            recentLogs: [],
+            recentActions: [],
+            recentMessages: [],
+          },
+        }),
+      })
+    );
+    expect(r2.status).toBe(429);
+  });
+
+  it('rejects session mismatch without consuming draft and enforces single-use drafts (H-8)', async () => {
+    const draft = draftStore.save({
+      sessionId: 'sess_owner_h8',
+      fingerprint: 'fp_single_use_h8',
+      preview: {
+        errorName: 'Error',
+        errorMessage: 'Single use fault',
+        actionType: 'MOVE',
+        floor: 1,
+        turn: 2,
+        sealedManifest: [],
+      },
+      sealed: { errorName: 'Error', errorMessage: 'Single use fault' },
+    });
+
+    // Wrong session is rejected and leaves draft intact
+    const mismatchRes = await POST(
+      new NextRequest('http://localhost:3000/api/reports/crash', {
+        method: 'POST',
+        body: JSON.stringify({
+          source: 'SERVER_TURN',
+          draftId: draft.draftId,
+          sessionId: 'sess_attacker_h8',
+        }),
+      })
+    );
+    expect(mismatchRes.status).toBe(404);
+
+    // Real owner can still redeem once
+    const ownerRes = await POST(
+      new NextRequest('http://localhost:3000/api/reports/crash', {
+        method: 'POST',
+        body: JSON.stringify({
+          source: 'SERVER_TURN',
+          draftId: draft.draftId,
+          sessionId: 'sess_owner_h8',
+        }),
+      })
+    );
+    expect(ownerRes.status).toBe(200);
+
+    // Second redemption of same draft fails (single-use)
+    const replayRes = await POST(
+      new NextRequest('http://localhost:3000/api/reports/crash', {
+        method: 'POST',
+        body: JSON.stringify({
+          source: 'SERVER_TURN',
+          draftId: draft.draftId,
+          sessionId: 'sess_owner_h8',
+        }),
+      })
+    );
+    expect(replayRes.status).toBe(404);
+  });
+
+  it('dedupes live issues via comment and throttles rapid repeat comments within 10 minutes (H-8)', async () => {
+    process.env.GITHUB_ISSUES_ENABLED = 'true';
+    process.env.GITHUB_ISSUES_TOKEN = 'ghp_live_h8_dedupe';
+    process.env.GITHUB_ISSUES_REPO = 'owner/repo-h8';
+
+    let createdCount = 0;
+    let commentCount = 0;
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes('/search/issues')) {
+        return { ok: true, status: 200, headers: new Headers(), json: async () => ({ items: [] }) };
+      }
+      if (url.endsWith('/labels')) {
+        return { ok: true, status: 201, headers: new Headers(), json: async () => ({}) };
+      }
+      if (url.endsWith('/issues') && init?.method === 'POST') {
+        createdCount++;
+        return {
+          ok: true,
+          status: 201,
+          headers: new Headers(),
+          json: async () => ({
+            number: 901,
+            html_url: 'https://github.com/owner/repo-h8/issues/901',
+            labels: [{ name: 'ai-ready' }],
+          }),
+        };
+      }
+      if (url.includes('/issues/901/comments') && init?.method === 'POST') {
+        commentCount++;
+        return { ok: true, status: 201, headers: new Headers(), json: async () => ({ id: commentCount }) };
+      }
+      if (url.includes('/issues/901')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          json: async () => ({ number: 901, state: 'open', title: '[Crash]' }),
+        };
+      }
+      return { ok: true, status: 200, headers: new Headers(), json: async () => ({}) };
+    });
+
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      const makeReq = (idSuffix: string) => {
+        const d = draftStore.save({
+          sessionId: `sess_h8_${idSuffix}`,
+          fingerprint: 'fp_live_dedupe_h8',
+          preview: {
+            errorName: 'Error',
+            errorMessage: 'Repeated live fault',
+            actionType: 'WAIT',
+            floor: 2,
+            turn: 5,
+            sealedManifest: [],
+          },
+          sealed: { errorName: 'Error', errorMessage: 'Repeated live fault' },
+        });
+        return new NextRequest('http://localhost:3000/api/reports/crash', {
+          method: 'POST',
+          body: JSON.stringify({ source: 'SERVER_TURN', draftId: d.draftId, sessionId: `sess_h8_${idSuffix}` }),
+        });
+      };
+
+      const res1 = await POST(makeReq('1'));
+      const res2 = await POST(makeReq('2'));
+      expect((await res1.json()).status).toBe('created');
+      expect((await res2.json()).status).toBe('commented');
+      expect(createdCount).toBe(1);
+      // Immediate repeat within 10 minutes of creation is throttled (no comment spam)
+      expect(commentCount).toBe(0);
+
+      // Simulate cooldown expiry (> 10 minutes since lastCommentAt): next hit posts a comment, then throttles again
+      fingerprintIndex.recordNewIssue('fp_live_dedupe_h8', 901, Date.now() - 11 * 60 * 1000);
+      const res3 = await POST(makeReq('3'));
+      const res4 = await POST(makeReq('4'));
+      expect((await res3.json()).status).toBe('commented');
+      expect((await res4.json()).status).toBe('commented');
+      expect(createdCount).toBe(1);
+      expect(commentCount).toBe(1);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
 });
