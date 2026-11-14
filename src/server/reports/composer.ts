@@ -33,6 +33,11 @@ export interface IssueComposeParams {
   stateSnapshot?: unknown;
   diagnostics?: ClientDiagnostics;
   sessionId?: string;
+  build?: string;
+  mode?: string;
+  floor?: number;
+  turn?: number;
+  phase?: string;
 }
 
 /**
@@ -79,12 +84,17 @@ export function composeIssueBody(params: IssueComposeParams): string {
   const sessRaw = params.sessionId ? sanitizeInlineValue(params.sessionId.slice(0, 8), 8) : '';
   const sess = sessRaw ? `${sessRaw}…` : 'none';
 
-  // Extract metadata (sanitized so untrusted client values cannot escape inline spans/tables)
+  // Extract metadata (prefer explicit server-trusted metadata, fallback to sanitized diagnostics)
   const diag = params.diagnostics;
-  const build = sanitizeInlineValue(diag?.build || 'dev', 64) || 'dev';
-  const mode = sanitizeInlineValue(diag?.mode || 'N/A', 64) || 'N/A';
-  const floor = typeof diag?.floor === 'number' && Number.isFinite(diag.floor) ? Math.trunc(diag.floor) : 'N/A';
-  const turn = typeof diag?.turn === 'number' && Number.isFinite(diag.turn) ? Math.trunc(diag.turn) : 'N/A';
+  const build = sanitizeInlineValue(params.build || diag?.build || 'dev', 64) || 'dev';
+  const mode = sanitizeInlineValue(params.mode || diag?.mode || 'N/A', 64) || 'N/A';
+  const rawFloor = params.floor ?? diag?.floor;
+  const rawTurn = params.turn ?? diag?.turn;
+  const floor = typeof rawFloor === 'number' && Number.isFinite(rawFloor) ? Math.trunc(rawFloor) : 'N/A';
+  const turn = typeof rawTurn === 'number' && Number.isFinite(rawTurn) ? Math.trunc(rawTurn) : 'N/A';
+  const phaseSuffix = params.phase
+    ? ` · Phase \`${sanitizeInlineValue(params.phase, 32)}\``
+    : '';
 
   const typeDesc = params.kind === 'CRASH'
     ? `Crash (${sanitizeInlineValue(params.crashSource || 'UNKNOWN', 32)})`
@@ -136,7 +146,7 @@ export function composeIssueBody(params: IssueComposeParams): string {
     lines.push('| Field | Value |');
     lines.push('| :-- | :-- |');
     lines.push(`| Type | ${typeDesc} |`);
-    lines.push(`| Build | \`${build}\` · Mode \`${mode}\` · Floor ${floor} · Turn ${turn} |`);
+    lines.push(`| Build | \`${build}\` · Mode \`${mode}\` · Floor ${floor} · Turn ${turn}${phaseSuffix} |`);
     lines.push(`| Session | \`${sess}\` |`);
     lines.push('| Occurrences | 1 |');
     lines.push('');

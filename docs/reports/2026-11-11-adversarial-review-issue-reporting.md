@@ -121,7 +121,7 @@ The verification suite did not exercise the wiring gaps below. They were found b
   - Run the status check and Zod validation first, then consume the slot.
   - Add `.max()` and a finite check on all numeric fields.
 
-#### H-6 — Server-origin issues show wrong/placeholder summary data
+#### H-6 — Server-origin issues show wrong/placeholder summary data ✅ Resolved
 - For draft redemption, `composeIssueBody` is called with no `diagnostics` ([`crash/route.ts#L85-L98`](../../src/app/api/reports/crash/route.ts#L85-L98)). The Summary table therefore always shows `Build dev · Mode N/A · Floor N/A · Turn N/A` ([`composer.ts#L77-L82`](../../src/server/reports/composer.ts#L77-L82)), even though floor, turn and phase are known in the sealed data.
 - The spec example shows the real build (`d7770af2`), mode, floor, turn and phase. The server config already has `buildSha`.
 - **Impact:** every server crash is mislabeled, which breaks triage and the dedupe comment (`build` is `undefined` → `dev`).
@@ -209,7 +209,7 @@ The verification suite did not exercise the wiring gaps below. They were found b
 - [ ] **H-3** Give `global-error` a working, self-contained report panel.
 - [ ] **H-4** Stop writing a fake `99999` to the persistent index in dry-run. Treat a 404 as a missing issue.
 - [x] **H-5** Enforce the 128 KB body cap. Validate before consuming the rate-limit slot.
-- [ ] **H-6** Feed real build, floor, turn and phase into server-origin issue summaries.
+- [x] **H-6** Feed real build, floor, turn and phase into server-origin issue summaries.
 - [ ] **H-7** Add an in-flight per-fingerprint lock and an outbox re-entrancy guard.
 - [ ] **H-8** Add the missing tests: 429, dedupe comment vs new, session mismatch, live-path mocks, a boot-time crash and a bundle check.
 

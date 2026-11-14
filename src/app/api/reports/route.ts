@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const cfg = getReportsServerConfig();
   const ref = generateRefId();
 
   // 4. Optionally capture sealed live diagnostics from active session (Assumption A2)
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest) {
     title: data.title,
     description: data.description,
     diagnostics: data.includeDiagnostics ? data.diagnostics : undefined,
+    build: data.diagnostics?.build || cfg.buildSha,
     sessionId: data.sessionId,
     stateSnapshot: liveSnapshot,
   });
@@ -96,7 +98,6 @@ export async function POST(req: NextRequest) {
   }
 
   // Live delivery
-  const cfg = getReportsServerConfig();
   const client = new GitHubClient({
     token: cfg.githubToken,
     repo: cfg.githubRepo,

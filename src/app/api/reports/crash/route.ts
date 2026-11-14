@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const cfg = getReportsServerConfig();
   const ref = generateRefId();
   const labels = getLabelsForKind('CRASH');
 
@@ -75,6 +76,7 @@ export async function POST(req: NextRequest) {
     fingerprint = draft.fingerprint;
     floor = draft.sealed.floor;
     turn = draft.sealed.turn;
+    build = cfg.buildSha;
 
     title = composeTitle({
       kind: 'CRASH',
@@ -94,6 +96,11 @@ export async function POST(req: NextRequest) {
       stateSnapshot: buildAllowListedIssueSnapshot(draft.sealed),
       note: data.note,
       sessionId: data.sessionId,
+      build: cfg.buildSha,
+      mode: draft.sealed.mode,
+      floor: draft.sealed.floor,
+      turn: draft.sealed.turn,
+      phase: draft.sealed.phase,
       title,
     });
   } else {
@@ -134,7 +141,6 @@ export async function POST(req: NextRequest) {
   // 5. Deduplication check
   let existingEntry = fingerprintIndex.get(fingerprint);
 
-  const cfg = getReportsServerConfig();
   const client = new GitHubClient({
     token: cfg.githubToken,
     repo: cfg.githubRepo,

@@ -20,6 +20,7 @@ export interface ServerCrashDraft {
     runSeed?: number | string;
     action?: unknown;
     phase?: string;
+    mode?: string;
     floor?: number;
     turn?: number;
     isPaused?: boolean;

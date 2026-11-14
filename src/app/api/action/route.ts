@@ -160,6 +160,8 @@ export async function POST(req: Request) {
           world,
           turnManager,
           error: turnError,
+          source: 'SERVER_TURN',
+          mode: session.runMode,
         });
       } catch (draftErr) {
         logger.error('Failed to create server crash draft:', 'REPORTS', draftErr);

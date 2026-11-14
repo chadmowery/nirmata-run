@@ -187,4 +187,50 @@ describe('POST /api/reports/crash', () => {
     expect(written.body).toContain('Crash (SERVER_5XX)');
     expect(written.body).not.toContain('Crash (SERVER_TURN)');
   });
+
+  it('populates real build, mode, floor, turn, and phase in server-origin issue summaries (H-6)', async () => {
+    process.env.NEXT_PUBLIC_BUILD_SHA = 'd7770af2';
+    const draft = draftStore.save({
+      sessionId: 'sess_h6',
+      source: 'SERVER_TURN',
+      fingerprint: 'fp_h6_summary',
+      preview: {
+        errorName: 'TypeError',
+        errorMessage: 'Phase fault',
+        actionType: 'MOVE',
+        floor: 4,
+        turn: 212,
+        sealedManifest: [],
+      },
+      sealed: {
+        errorName: 'TypeError',
+        errorMessage: 'Phase fault',
+        mode: 'WEEKLY',
+        floor: 4,
+        turn: 212,
+        phase: 'ACTION',
+      },
+    });
+
+    const req = new NextRequest('http://localhost:3000/api/reports/crash', {
+      method: 'POST',
+      body: JSON.stringify({
+        source: 'SERVER_TURN',
+        draftId: draft.draftId,
+        sessionId: 'sess_h6',
+      }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+
+    const dryRunFile = path.join(process.cwd(), 'logs', 'reports', `report-${data.ref}.json`);
+    const written = JSON.parse(fs.readFileSync(dryRunFile, 'utf-8')) as { body: string };
+    expect(written.body).toContain('`d7770af2`');
+    expect(written.body).toContain('Mode `WEEKLY`');
+    expect(written.body).toContain('Floor 4');
+    expect(written.body).toContain('Turn 212');
+    expect(written.body).toContain('Phase `ACTION`');
+  });
 });

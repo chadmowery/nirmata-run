@@ -31,6 +31,7 @@ export interface TurnErrorContext<TEvents extends EngineEvents = EngineEvents> {
   turnManager: TurnManager<TEvents>;
   error: unknown;
   source?: 'SERVER_TURN' | 'SERVER_5XX';
+  mode?: string;
 }
 
 export interface TurnSnapshotData {
@@ -199,6 +200,7 @@ export function createServerCrashDraft<TEvents extends EngineEvents = EngineEven
       runSeed: snapshot.runSeed,
       action: snapshot.action,
       phase: snapshot.phase,
+      mode: ctx.mode,
       floor: snapshot.floor,
       turn: snapshot.turn,
       isPaused: snapshot.isPaused,
