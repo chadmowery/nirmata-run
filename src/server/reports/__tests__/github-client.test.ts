@@ -144,4 +144,54 @@ describe('GitHubClient', () => {
       client.createIssue({ title: 't', body: 'b', labels: [] })
     ).rejects.toThrow(GitHubNetworkError);
   });
+
+  it('classifies 403 without rate-limit headers/message as GitHubAuthError (M-1)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      headers: new Headers(),
+      json: async () => ({ message: 'Resource not accessible by personal access token' }),
+    });
+
+    const client = new GitHubClient({
+      token: 'bad_scope_token',
+      repo: 'chadmowery/nirmata-run',
+      fetchFn: fetchMock as unknown as typeof fetch,
+    });
+
+    await expect(
+      client.createIssue({ title: 't', body: 'b', labels: [] })
+    ).rejects.toThrow(GitHubAuthError);
+  });
+
+  it('classifies 403 with x-ratelimit-remaining: 0 or secondary message as GitHubRateLimitError (M-1)', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        headers: new Headers({ 'x-ratelimit-remaining': '0', 'retry-after': '45' }),
+        json: async () => ({ message: 'API rate limit exceeded' }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        headers: new Headers(),
+        json: async () => ({ message: 'You have exceeded a secondary rate limit' }),
+      });
+
+    const client = new GitHubClient({
+      token: 'test_token',
+      repo: 'chadmowery/nirmata-run',
+      fetchFn: fetchMock as unknown as typeof fetch,
+    });
+
+    await expect(
+      client.createIssue({ title: 't', body: 'b', labels: [] })
+    ).rejects.toThrow(GitHubRateLimitError);
+
+    await expect(
+      client.createIssue({ title: 't', body: 'b', labels: [] })
+    ).rejects.toThrow(GitHubRateLimitError);
+  });
 });

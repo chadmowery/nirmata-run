@@ -111,13 +111,28 @@ export class GitHubClient {
         body = await res.text().catch(() => '<unreadable>');
       }
 
-      if (res.status === 401 || (res.status === 403 && typeof body === 'object' && body && 'message' in body && String((body as { message: unknown }).message).includes('credentials'))) {
+      const bodyMessage =
+        typeof body === 'object' && body && 'message' in body
+          ? String((body as { message: unknown }).message)
+          : typeof body === 'string'
+          ? body
+          : '';
+      const lowerMsg = bodyMessage.toLowerCase();
+      const retryHeader = res.headers?.get('retry-after');
+      const remainingHeader = res.headers?.get('x-ratelimit-remaining');
+      const is403RateLimit =
+        res.status === 403 &&
+        (Boolean(retryHeader) ||
+          remainingHeader === '0' ||
+          lowerMsg.includes('rate limit') ||
+          lowerMsg.includes('secondary'));
+
+      if (res.status === 401 || (res.status === 403 && !is403RateLimit)) {
         throw new GitHubAuthError(`GitHub authentication failed (${res.status})`, res.status, body);
       }
 
-      if (res.status === 429 || res.status === 403) {
-        const retryHeader = res.headers.get('retry-after');
-        const resetHeader = res.headers.get('x-ratelimit-reset');
+      if (res.status === 429 || is403RateLimit) {
+        const resetHeader = res.headers?.get('x-ratelimit-reset');
         let retrySeconds = 60;
         if (retryHeader) {
           retrySeconds = parseInt(retryHeader, 10) || 60;
