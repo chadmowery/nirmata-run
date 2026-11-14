@@ -125,3 +125,37 @@ export const ReportsStatusSchema = z.object({
   mode: z.enum(['live', 'dry-run', 'off']),
 });
 export type ReportsStatus = z.infer<typeof ReportsStatusSchema>;
+
+export const ServerPendingCrashSchema = z.object({
+  origin: z.literal('server'),
+  source: z.enum(['SERVER_TURN', 'SERVER_5XX']),
+  draftId: z.string().min(1).max(100),
+  sessionId: z.string().min(1).max(100),
+  fingerprint: z.string().min(1).max(64),
+  preview: RedactedCrashPreviewSchema,
+});
+
+export const ClientPendingCrashSchema = z.object({
+  origin: z.literal('client'),
+  source: z.enum(['CLIENT_ERROR', 'CLIENT_REJECTION', 'REACT_RENDER', 'API_FAILURE']),
+  fingerprint: z.string().min(1).max(64),
+  error: z.object({
+    name: z.string().max(200),
+    message: z.string().max(2000),
+    stack: z.string().max(16384).optional(),
+    componentStack: z.string().max(16384).optional(),
+  }),
+  diagnostics: ClientDiagnosticsSchema,
+  sessionId: z.string().max(100).optional(),
+});
+
+export const PendingCrashSchema = z.discriminatedUnion('origin', [
+  ServerPendingCrashSchema,
+  ClientPendingCrashSchema,
+]);
+export type PendingCrash = z.infer<typeof PendingCrashSchema>;
+
+export const PersistedPendingCrashesSchema = z.union([
+  PendingCrashSchema,
+  z.array(PendingCrashSchema).max(4),
+]);

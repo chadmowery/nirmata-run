@@ -139,4 +139,174 @@ describe('useReportStore', () => {
       expect(active.draftId).toBe('draft_5xx');
     }
   });
+
+  it('buffers pre-status crashes and flushes them when fetchStatus resolves available (H-2)', async () => {
+    const origFetch = globalThis.fetch;
+    const diag = {
+      build: 'test',
+      route: '/',
+      userAgent: 'vitest',
+      viewport: { w: 1024, h: 768 },
+      gameStatus: 'IDLE',
+      recentLogs: [],
+      recentActions: [],
+      recentMessages: [],
+    };
+    try {
+      useReportStore.setState({
+        status: { available: false, mode: 'off' },
+        statusLoaded: false,
+        preStatusQueue: [],
+        activeCrash: null,
+        pendingQueue: [],
+      });
+
+      useReportStore.getState().queueCrash({
+        origin: 'client',
+        source: 'CLIENT_ERROR',
+        error: { name: 'BootError', message: 'Hydration mismatch' },
+        diagnostics: diag,
+        fingerprint: 'fp_boot_1',
+      });
+
+      expect(useReportStore.getState().activeCrash).toBeNull();
+      expect(useReportStore.getState().preStatusQueue).toHaveLength(1);
+
+      globalThis.fetch = (async () =>
+        new Response(JSON.stringify({ available: true, mode: 'dry-run' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })) as typeof fetch;
+
+      await useReportStore.getState().fetchStatus();
+
+      const state = useReportStore.getState();
+      expect(state.statusLoaded).toBe(true);
+      expect(state.preStatusQueue).toHaveLength(0);
+      expect(state.activeCrash).not.toBeNull();
+      expect(state.activeCrash?.fingerprint).toBe('fp_boot_1');
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  it('drops buffered pre-status crashes when fetchStatus resolves unavailable (H-2)', async () => {
+    const origFetch = globalThis.fetch;
+    const diag = {
+      build: 'test',
+      route: '/',
+      userAgent: 'vitest',
+      viewport: { w: 1024, h: 768 },
+      gameStatus: 'IDLE',
+      recentLogs: [],
+      recentActions: [],
+      recentMessages: [],
+    };
+    try {
+      useReportStore.setState({
+        status: { available: false, mode: 'off' },
+        statusLoaded: false,
+        preStatusQueue: [],
+        activeCrash: null,
+        pendingQueue: [],
+      });
+
+      useReportStore.getState().queueCrash({
+        origin: 'client',
+        source: 'CLIENT_ERROR',
+        error: { name: 'BootError', message: 'Early failure' },
+        diagnostics: diag,
+        fingerprint: 'fp_boot_2',
+      });
+
+      globalThis.fetch = (async () =>
+        new Response(JSON.stringify({ available: false, mode: 'off' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })) as typeof fetch;
+
+      await useReportStore.getState().fetchStatus();
+
+      const state = useReportStore.getState();
+      expect(state.statusLoaded).toBe(true);
+      expect(state.preStatusQueue).toHaveLength(0);
+      expect(state.activeCrash).toBeNull();
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  it('ignores dismissActiveCrash while submitting and ignores stale submit results (M-8)', async () => {
+    const origFetch = globalThis.fetch;
+    const diag = {
+      build: 'test',
+      route: '/',
+      userAgent: 'vitest',
+      viewport: { w: 1024, h: 768 },
+      gameStatus: 'IDLE',
+      recentLogs: [],
+      recentActions: [],
+      recentMessages: [],
+    };
+    try {
+      const crash1 = {
+        origin: 'client' as const,
+        source: 'CLIENT_ERROR' as const,
+        error: { name: 'Err1', message: 'First' },
+        diagnostics: diag,
+        fingerprint: 'fp_m8_1',
+      };
+      const crash2 = {
+        origin: 'client' as const,
+        source: 'CLIENT_ERROR' as const,
+        error: { name: 'Err2', message: 'Second' },
+        diagnostics: diag,
+        fingerprint: 'fp_m8_2',
+      };
+
+      useReportStore.setState({
+        activeCrash: crash1,
+        isSubmitting: true,
+      });
+      useReportStore.getState().dismissActiveCrash();
+      expect(useReportStore.getState().activeCrash?.fingerprint).toBe('fp_m8_1');
+
+      useReportStore.setState({
+        activeCrash: crash1,
+        isSubmitting: false,
+        submissionResult: null,
+      });
+
+      let resolveFetch!: (res: Response) => void;
+      globalThis.fetch = (() =>
+        new Promise<Response>((resolve) => {
+          resolveFetch = resolve;
+        })) as typeof fetch;
+
+      const submitPromise = useReportStore.getState().submitActiveCrash('note');
+      expect(useReportStore.getState().isSubmitting).toBe(true);
+
+      // Simulate activeCrash changing before the in-flight response returns
+      useReportStore.setState({
+        activeCrash: crash2,
+        isSubmitting: false,
+        submissionResult: null,
+      });
+
+      resolveFetch(
+        new Response(JSON.stringify({ status: 'dry-run', ref: 'NR-ABCD' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+      await submitPromise;
+
+      const finalState = useReportStore.getState();
+      expect(finalState.activeCrash?.fingerprint).toBe('fp_m8_2');
+      expect(finalState.submissionResult).toBeNull();
+      expect(finalState.isSubmitting).toBe(false);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
 });

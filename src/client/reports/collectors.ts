@@ -4,7 +4,11 @@
  */
 
 import { computeCrashFingerprint } from '@/shared/reports/fingerprint';
-import type { ClientDiagnostics, CrashSource } from '@/shared/reports/schemas';
+import {
+  PersistedPendingCrashesSchema,
+  type ClientDiagnostics,
+  type CrashSource,
+} from '@/shared/reports/schemas';
 import { logRingBuffer, actionRingBuffer } from './ring-buffers';
 import { useReportStore, PENDING_CRASH_STORAGE_KEY } from './report-store';
 import { gameStore } from '@/game/ui/store';
@@ -102,22 +106,33 @@ export function captureClientCrash(
 }
 
 /**
- * Recovers any fatal pending crash that occurred right before an unexpected page exit/reload.
+ * Recovers any fatal pending crashes that occurred right before an unexpected page exit/reload.
+ * Validates persisted data with Zod and leaves storage cleanup to the store once processed (H-2, L-9).
  */
 export function checkPendingFatalCrash(): void {
   if (typeof window === 'undefined' || !window.sessionStorage) return;
 
   try {
     const raw = window.sessionStorage.getItem(PENDING_CRASH_STORAGE_KEY);
-    if (raw) {
+    if (!raw) return;
+
+    const json = JSON.parse(raw);
+    const parsed = PersistedPendingCrashesSchema.safeParse(json);
+    if (!parsed.success) {
       window.sessionStorage.removeItem(PENDING_CRASH_STORAGE_KEY);
-      const parsed = JSON.parse(raw);
-      if (parsed && parsed.fingerprint) {
-        useReportStore.getState().queueCrash(parsed);
-      }
+      return;
+    }
+
+    const items = Array.isArray(parsed.data) ? parsed.data : [parsed.data];
+    for (const crash of items) {
+      useReportStore.getState().queueCrash(crash);
     }
   } catch {
-    // Ignore corrupted storage
+    try {
+      window.sessionStorage.removeItem(PENDING_CRASH_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
   }
 }
 

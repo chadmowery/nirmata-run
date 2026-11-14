@@ -10,39 +10,41 @@ import type {
   ManualReportRequest,
   CrashApproveRequest,
   CrashDraftOffer,
-  RedactedCrashPreview,
-  ClientDiagnostics,
-  CrashSource,
+  PendingCrash,
 } from '@/shared/reports/schemas';
+
+export { type PendingCrash };
 
 export const DONT_ASK_AGAIN_KEY = 'nr_reports_dont_ask_again';
 export const PENDING_CRASH_STORAGE_KEY = 'nr_crash_pending_draft';
 
-export type PendingCrash =
-  | {
-      origin: 'server';
-      source: 'SERVER_TURN' | 'SERVER_5XX';
-      draftId: string;
-      sessionId: string;
-      fingerprint: string;
-      preview: RedactedCrashPreview;
+function persistPendingCrashes(activeCrash: PendingCrash | null, pendingQueue: PendingCrash[]): void {
+  if (typeof window === 'undefined' || !window.sessionStorage) return;
+  try {
+    const items = [...(activeCrash ? [activeCrash] : []), ...pendingQueue];
+    if (items.length === 0) {
+      window.sessionStorage.removeItem(PENDING_CRASH_STORAGE_KEY);
+    } else {
+      window.sessionStorage.setItem(PENDING_CRASH_STORAGE_KEY, JSON.stringify(items));
     }
-  | {
-      origin: 'client';
-      source: Exclude<CrashSource, 'SERVER_TURN' | 'SERVER_5XX'>;
-      fingerprint: string;
-      error: {
-        name: string;
-        message: string;
-        stack?: string;
-        componentStack?: string;
-      };
-      diagnostics: ClientDiagnostics;
-      sessionId?: string;
-    };
+  } catch {
+    // ignore storage quota/security failures
+  }
+}
+
+function clearPersistedPendingCrashes(): void {
+  if (typeof window === 'undefined' || !window.sessionStorage) return;
+  try {
+    window.sessionStorage.removeItem(PENDING_CRASH_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 interface ReportStoreState {
   status: ReportsStatus;
+  statusLoaded: boolean;
+  preStatusQueue: PendingCrash[];
   activeCrash: PendingCrash | null;
   pendingQueue: PendingCrash[];
   isManualModalOpen: boolean;
@@ -66,6 +68,8 @@ interface ReportStoreState {
 
 export const useReportStore = create<ReportStoreState>((set, get) => ({
   status: { available: false, mode: 'off' },
+  statusLoaded: false,
+  preStatusQueue: [],
   activeCrash: null,
   pendingQueue: [],
   isManualModalOpen: false,
@@ -79,31 +83,59 @@ export const useReportStore = create<ReportStoreState>((set, get) => ({
       const res = await fetch('/api/reports/status');
       if (res.ok) {
         const status = (await res.json()) as ReportsStatus;
-        set({ status });
+        const buffered = get().preStatusQueue;
+        set({ status, statusLoaded: true, preStatusQueue: [] });
+        if (status.available) {
+          for (const crash of buffered) {
+            get().queueCrash(crash);
+          }
+        } else {
+          clearPersistedPendingCrashes();
+        }
+        return;
       }
     } catch {
       // Offline or network error
     }
+    set({ statusLoaded: true, preStatusQueue: [] });
   },
 
   queueCrash: (crash: PendingCrash) => {
-    const { status, activeCrash, pendingQueue, suppressedFingerprints } = get();
+    const { status, statusLoaded, preStatusQueue, activeCrash, pendingQueue, suppressedFingerprints } = get();
 
-    // 1. If feature is disabled, never prompt (§5.2)
-    if (!status.available) return;
-
-    // 2. If player opted out for this session, suppress auto prompts
+    // 1. If player opted out for this session, suppress auto prompts
     if (typeof window !== 'undefined' && window.sessionStorage?.getItem(DONT_ASK_AGAIN_KEY) === 'true') {
       return;
     }
 
-    // 3. Once per fingerprint per session (§5.2)
+    // 2. Once per fingerprint per session (§5.2)
     if (suppressedFingerprints.has(crash.fingerprint)) {
       return;
     }
 
-    // 4. One modal at a time; additional crashes queue (max 3, oldest dropped)
+    // 3. Before initial status resolves, buffer early/boot crashes rather than dropping them (H-2)
+    if (!statusLoaded) {
+      if (preStatusQueue.some((q) => q.fingerprint === crash.fingerprint)) {
+        return;
+      }
+      const nextPre = [...preStatusQueue];
+      if (nextPre.length >= 4) {
+        nextPre.shift();
+      }
+      nextPre.push(crash);
+      set({ preStatusQueue: nextPre });
+      persistPendingCrashes(nextPre[0] ?? null, nextPre.slice(1));
+      return;
+    }
+
+    // 4. If feature is explicitly disabled, never prompt (§5.2)
+    if (!status.available) return;
+
+    // 5. One modal at a time; additional crashes queue (max 3, oldest dropped)
     if (activeCrash) {
+      if (activeCrash.fingerprint === crash.fingerprint) {
+        return;
+      }
       if (pendingQueue.some((q) => q.fingerprint === crash.fingerprint)) {
         return;
       }
@@ -113,18 +145,11 @@ export const useReportStore = create<ReportStoreState>((set, get) => ({
       }
       newQueue.push(crash);
       set({ pendingQueue: newQueue });
+      persistPendingCrashes(activeCrash, newQueue);
       return;
     }
 
-    // Store in sessionStorage in case of fatal page exit
-    if (typeof window !== 'undefined' && window.sessionStorage) {
-      try {
-        window.sessionStorage.setItem(PENDING_CRASH_STORAGE_KEY, JSON.stringify(crash));
-      } catch {
-        // ignore
-      }
-    }
-
+    persistPendingCrashes(crash, pendingQueue);
     set({ activeCrash: crash, submissionResult: null, submissionError: null });
   },
 
@@ -140,7 +165,10 @@ export const useReportStore = create<ReportStoreState>((set, get) => ({
   },
 
   dismissActiveCrash: (dontAskAgain = false) => {
-    const { activeCrash, pendingQueue, suppressedFingerprints } = get();
+    const { activeCrash, pendingQueue, suppressedFingerprints, isSubmitting } = get();
+
+    // Ignore dismissal while a crash submission is actively in flight (M-8)
+    if (isSubmitting) return;
 
     if (activeCrash) {
       suppressedFingerprints.add(activeCrash.fingerprint);
@@ -154,14 +182,6 @@ export const useReportStore = create<ReportStoreState>((set, get) => ({
       }
     }
 
-    if (typeof window !== 'undefined' && window.sessionStorage) {
-      try {
-        window.sessionStorage.removeItem(PENDING_CRASH_STORAGE_KEY);
-      } catch {
-        // ignore
-      }
-    }
-
     let nextCrash: PendingCrash | null = null;
     let nextQueue = pendingQueue;
 
@@ -169,6 +189,8 @@ export const useReportStore = create<ReportStoreState>((set, get) => ({
       nextCrash = pendingQueue[0];
       nextQueue = pendingQueue.slice(1);
     }
+
+    persistPendingCrashes(nextCrash, nextQueue);
 
     set({
       activeCrash: nextCrash,
@@ -183,6 +205,15 @@ export const useReportStore = create<ReportStoreState>((set, get) => ({
     if (!activeCrash) {
       throw new Error('No active crash to submit');
     }
+
+    const submittedFingerprint = activeCrash.fingerprint;
+    const submittedDraftId = activeCrash.origin === 'server' ? activeCrash.draftId : undefined;
+    const matchesSubmitted = () => {
+      const curr = get().activeCrash;
+      if (!curr || curr.fingerprint !== submittedFingerprint) return false;
+      if (curr.origin === 'server' && curr.draftId !== submittedDraftId) return false;
+      return true;
+    };
 
     set({ isSubmitting: true, submissionError: null });
 
@@ -224,25 +255,24 @@ export const useReportStore = create<ReportStoreState>((set, get) => ({
       }
 
       const result = (await res.json()) as ReportResult;
-      suppressedFingerprints.add(activeCrash.fingerprint);
+      suppressedFingerprints.add(submittedFingerprint);
 
-      if (typeof window !== 'undefined' && window.sessionStorage) {
-        try {
-          window.sessionStorage.removeItem(PENDING_CRASH_STORAGE_KEY);
-        } catch {
-          // ignore
-        }
-      }
+      persistPendingCrashes(null, get().pendingQueue);
 
-      set({
-        isSubmitting: false,
-        submissionResult: result,
-      });
+      set(
+        matchesSubmitted()
+          ? { isSubmitting: false, submissionResult: result }
+          : { isSubmitting: false }
+      );
 
       return result;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      set({ isSubmitting: false, submissionError: msg });
+      set(
+        matchesSubmitted()
+          ? { isSubmitting: false, submissionError: msg }
+          : { isSubmitting: false }
+      );
       throw err;
     }
   },
@@ -293,6 +323,8 @@ export const useReportStore = create<ReportStoreState>((set, get) => ({
   resetForTesting: () => {
     set({
       status: { available: true, mode: 'dry-run' },
+      statusLoaded: true,
+      preStatusQueue: [],
       activeCrash: null,
       pendingQueue: [],
       isManualModalOpen: false,

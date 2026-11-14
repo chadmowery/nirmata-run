@@ -23,11 +23,13 @@ export const ReportCrashModal: React.FC = () => {
     setNote('');
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Allow Escape to dismiss
+      // Allow Escape to dismiss unless a submission is currently in flight (M-8)
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        dismissActiveCrash(false);
+        if (!useReportStore.getState().isSubmitting) {
+          dismissActiveCrash(false);
+        }
       }
       // Stop event from propagating to game input manager
       e.stopPropagation();
@@ -60,7 +62,9 @@ export const ReportCrashModal: React.FC = () => {
       role="dialog"
       aria-modal="true"
       aria-labelledby="crash-report-title"
-      onClick={() => dismissActiveCrash(false)}
+      onClick={() => {
+        if (!isSubmitting) dismissActiveCrash(false);
+      }}
     >
       <div
         className={`${styles.modalContent} ${styles.dangerBorder}`}
@@ -71,7 +75,9 @@ export const ReportCrashModal: React.FC = () => {
           title="FAULT REPORT // TACTICAL SIMULATION EXCEPTION"
           stampText="FAULT // LOGGED"
           stampVariant="danger"
-          onClose={() => dismissActiveCrash(false)}
+          onClose={() => {
+            if (!isSubmitting) dismissActiveCrash(false);
+          }}
           closeLabel="✕ DISMISS [ESC]"
           style={{ marginBottom: 0, border: 'none', borderBottom: '2px solid var(--c-danger, #ff0055)' }}
         />

@@ -67,4 +67,87 @@ describe('Client Error Collectors', () => {
       expect(removeSpy).toHaveBeenCalledWith('unhandledrejection', expect.any(Function));
     });
   });
+
+  describe('checkPendingFatalCrash (H-2, L-9)', () => {
+    it('rejects and clears corrupt sessionStorage JSON without crashing', async () => {
+      const { checkPendingFatalCrash } = await import('../collectors');
+      const { useReportStore, PENDING_CRASH_STORAGE_KEY } = await import('../report-store');
+      useReportStore.getState().resetForTesting();
+      sessionStorage.setItem(PENDING_CRASH_STORAGE_KEY, '{not valid json');
+
+      checkPendingFatalCrash();
+
+      expect(sessionStorage.getItem(PENDING_CRASH_STORAGE_KEY)).toBeNull();
+      expect(useReportStore.getState().activeCrash).toBeNull();
+
+      sessionStorage.setItem(PENDING_CRASH_STORAGE_KEY, JSON.stringify([{ bad: 'shape' }]));
+      checkPendingFatalCrash();
+      expect(sessionStorage.getItem(PENDING_CRASH_STORAGE_KEY)).toBeNull();
+      expect(useReportStore.getState().activeCrash).toBeNull();
+    });
+
+    it('recovers valid multi-crash array into preStatusQueue until status loads', async () => {
+      const { checkPendingFatalCrash } = await import('../collectors');
+      const { useReportStore, PENDING_CRASH_STORAGE_KEY } = await import('../report-store');
+      const origFetch = globalThis.fetch;
+      const diag = {
+        build: 'test',
+        route: '/',
+        userAgent: 'vitest',
+        viewport: { w: 1024, h: 768 },
+        gameStatus: 'IDLE',
+        recentLogs: [],
+        recentActions: [],
+        recentMessages: [],
+      };
+      try {
+        useReportStore.getState().resetForTesting();
+        useReportStore.setState({
+          status: { available: false, mode: 'off' },
+          statusLoaded: false,
+          preStatusQueue: [],
+        });
+
+        const persisted = [
+          {
+            origin: 'client',
+            source: 'CLIENT_ERROR',
+            error: { name: 'Fatal1', message: 'First fatal' },
+            diagnostics: diag,
+            fingerprint: 'fp_fatal_1',
+          },
+          {
+            origin: 'client',
+            source: 'CLIENT_REJECTION',
+            error: { name: 'Fatal2', message: 'Second fatal' },
+            diagnostics: diag,
+            fingerprint: 'fp_fatal_2',
+          },
+        ];
+        sessionStorage.setItem(PENDING_CRASH_STORAGE_KEY, JSON.stringify(persisted));
+
+        checkPendingFatalCrash();
+
+        expect(useReportStore.getState().preStatusQueue).toHaveLength(2);
+        expect(useReportStore.getState().activeCrash).toBeNull();
+
+        globalThis.fetch = (async () =>
+          new Response(JSON.stringify({ available: true, mode: 'dry-run' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })) as typeof fetch;
+
+        await useReportStore.getState().fetchStatus();
+
+        const state = useReportStore.getState();
+        expect(state.preStatusQueue).toHaveLength(0);
+        expect(state.activeCrash?.fingerprint).toBe('fp_fatal_1');
+        expect(state.pendingQueue).toHaveLength(1);
+        expect(state.pendingQueue[0]?.fingerprint).toBe('fp_fatal_2');
+      } finally {
+        globalThis.fetch = origFetch;
+        sessionStorage.removeItem(PENDING_CRASH_STORAGE_KEY);
+      }
+    });
+  });
 });
