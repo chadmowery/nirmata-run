@@ -33,6 +33,9 @@ export const IssueReporterRoot: React.FC = () => {
       }
 
       if (e.key === 'F8') {
+        if (!useReportStore.getState().status.available) {
+          return;
+        }
         e.preventDefault();
         openManualReport();
       }

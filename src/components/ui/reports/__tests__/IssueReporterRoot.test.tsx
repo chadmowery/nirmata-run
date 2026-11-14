@@ -37,4 +37,27 @@ describe('IssueReporterRoot', () => {
     fireEvent.keyDown(input, { key: 'F8' });
     expect(useReportStore.getState().isManualModalOpen).toBe(false);
   });
+
+  it('ignores F8 and openManualReport when reporting status.available is false (M-9)', () => {
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ available: false, mode: 'off' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    ) as unknown as typeof fetch;
+
+    try {
+      useReportStore.setState({ status: { available: false, mode: 'off' }, statusLoaded: true });
+      render(<IssueReporterRoot />);
+
+      fireEvent.keyDown(window, { key: 'F8' });
+      expect(useReportStore.getState().isManualModalOpen).toBe(false);
+
+      useReportStore.getState().openManualReport();
+      expect(useReportStore.getState().isManualModalOpen).toBe(false);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
 });

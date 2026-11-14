@@ -278,6 +278,7 @@ export const useReportStore = create<ReportStoreState>((set, get) => ({
   },
 
   openManualReport: () => {
+    if (!get().status.available) return;
     set({ isManualModalOpen: true, submissionResult: null, submissionError: null });
   },
 
