@@ -255,4 +255,36 @@ describe('ReportOutbox', () => {
       writeSpy.mockRestore();
     }
   });
+
+  it('skips overlapping processOutboxOnce calls when worker is already running (H-7)', async () => {
+    let resolveIssue!: (val: { number: number; html_url: string; labels: string[] }) => void;
+    const createSpy = vi.spyOn(mockClient, 'createIssue').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveIssue = resolve;
+        })
+    );
+
+    outbox.enqueue({
+      ref: 'NR-CONC1',
+      action: 'create-issue',
+      title: '[Bug] Concurrent worker test',
+      body: 'body',
+    });
+
+    const firstRun = outbox.processOutboxOnce(Date.now());
+    // Yield a microtask so processOutboxOnce reaches await client.ensureLabels/createIssue and state === 'running'
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(outbox.getState()).toBe('running');
+
+    const overlappingRun = await outbox.processOutboxOnce(Date.now());
+    expect(overlappingRun).toEqual({ processed: 0, success: 0, failed: 0 });
+    expect(createSpy).toHaveBeenCalledTimes(1);
+
+    resolveIssue({ number: 88, html_url: 'http://example.com/88', labels: ['ai-ready'] });
+    const firstResult = await firstRun;
+    expect(firstResult.success).toBe(1);
+    expect(outbox.getState()).toBe('idle');
+  });
 });

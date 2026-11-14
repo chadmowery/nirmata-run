@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import { POST } from '../route';
 import { NextRequest } from 'next/server';
 import { reportsRateLimiter } from '@/server/reports/rate-limiter';
 import { draftStore } from '@/server/reports/draft-store';
-import { fingerprintIndex } from '@/server/reports/fingerprint-index';
+import { fingerprintIndex, dryRunFingerprintIndex } from '@/server/reports/fingerprint-index';
 
 describe('POST /api/reports/crash', () => {
   const origEnv = { ...process.env };
@@ -16,6 +16,7 @@ describe('POST /api/reports/crash', () => {
     reportsRateLimiter.reset();
     draftStore.clear();
     fingerprintIndex.clear();
+    dryRunFingerprintIndex.clear();
   });
 
   afterEach(() => {
@@ -23,6 +24,7 @@ describe('POST /api/reports/crash', () => {
     reportsRateLimiter.reset();
     draftStore.clear();
     fingerprintIndex.clear();
+    dryRunFingerprintIndex.clear();
   });
 
   it('returns 404 when server crash draft is missing or expired', async () => {
@@ -232,5 +234,182 @@ describe('POST /api/reports/crash', () => {
     expect(written.body).toContain('Floor 4');
     expect(written.body).toContain('Turn 212');
     expect(written.body).toContain('Phase `ACTION`');
+  });
+
+  it('isolates dry-run index from persistent index and opens Previously: #N issue on 404 in live mode (H-4)', async () => {
+    // 1. Dry-run crash must NOT write 99999 into persistent fingerprintIndex
+    const dryDraft = draftStore.save({
+      sessionId: 'sess_dry_h4',
+      fingerprint: 'h4_fp_isolation',
+      preview: {
+        errorName: 'Error',
+        errorMessage: 'Dry run boom',
+        actionType: 'MOVE',
+        floor: 1,
+        turn: 1,
+        sealedManifest: [],
+      },
+      sealed: { errorName: 'Error', errorMessage: 'Dry run boom' },
+    });
+
+    const dryRes = await POST(
+      new NextRequest('http://localhost:3000/api/reports/crash', {
+        method: 'POST',
+        body: JSON.stringify({ source: 'SERVER_TURN', draftId: dryDraft.draftId, sessionId: 'sess_dry_h4' }),
+      })
+    );
+    expect(dryRes.status).toBe(200);
+    expect(fingerprintIndex.get('h4_fp_isolation')).toBeUndefined();
+    expect(dryRunFingerprintIndex.get('h4_fp_isolation')?.issueNumber).toBe(99999);
+
+    // 2. If persistent index points to deleted issue #4040, live 404 creates a new issue noting Previously: #4040
+    process.env.GITHUB_ISSUES_ENABLED = 'true';
+    process.env.GITHUB_ISSUES_TOKEN = 'ghp_live_h4';
+    process.env.GITHUB_ISSUES_REPO = 'owner/repo-h4';
+
+    fingerprintIndex.recordNewIssue('h4_fp_missing', 4040);
+
+    let capturedBody = '';
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes('/issues/4040')) {
+        return {
+          ok: false,
+          status: 404,
+          headers: new Headers(),
+          json: async () => ({ message: 'Not Found' }),
+        };
+      }
+      if (url.endsWith('/labels')) {
+        return { ok: true, status: 201, headers: new Headers(), json: async () => ({}) };
+      }
+      if (url.endsWith('/issues')) {
+        const parsed = JSON.parse(String(init?.body || '{}')) as { body: string };
+        capturedBody = parsed.body;
+        return {
+          ok: true,
+          status: 201,
+          headers: new Headers(),
+          json: async () => ({
+            number: 5001,
+            html_url: 'https://github.com/owner/repo-h4/issues/5001',
+            labels: [{ name: 'ai-ready' }],
+          }),
+        };
+      }
+      return { ok: true, status: 200, headers: new Headers(), json: async () => ({}) };
+    });
+
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      const liveDraft = draftStore.save({
+        sessionId: 'sess_live_h4',
+        fingerprint: 'h4_fp_missing',
+        preview: {
+          errorName: 'Error',
+          errorMessage: 'Missing issue replacement',
+          actionType: 'MOVE',
+          floor: 2,
+          turn: 10,
+          sealedManifest: [],
+        },
+        sealed: { errorName: 'Error', errorMessage: 'Missing issue replacement' },
+      });
+
+      const liveRes = await POST(
+        new NextRequest('http://localhost:3000/api/reports/crash', {
+          method: 'POST',
+          body: JSON.stringify({ source: 'SERVER_TURN', draftId: liveDraft.draftId, sessionId: 'sess_live_h4' }),
+        })
+      );
+      expect(liveRes.status).toBe(200);
+      expect((await liveRes.json()).status).toBe('created');
+      expect(capturedBody).toContain('Previously: #4040');
+      expect(fingerprintIndex.get('h4_fp_missing')?.issueNumber).toBe(5001);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  it('serializes concurrent same-fingerprint crash submissions so only one issue is created (H-7)', async () => {
+    process.env.GITHUB_ISSUES_ENABLED = 'true';
+    process.env.GITHUB_ISSUES_TOKEN = 'ghp_live_h7';
+    process.env.GITHUB_ISSUES_REPO = 'owner/repo-h7';
+
+    let issueCreateCount = 0;
+    const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (url.includes('/search/issues')) {
+        return { ok: true, status: 200, headers: new Headers(), json: async () => ({ items: [] }) };
+      }
+      if (url.endsWith('/labels')) {
+        return { ok: true, status: 201, headers: new Headers(), json: async () => ({}) };
+      }
+      if (url.endsWith('/issues') && init?.method === 'POST') {
+        issueCreateCount++;
+        // Simulate GitHub latency so concurrent request overlaps without lock
+        await new Promise((r) => setTimeout(r, 25));
+        return {
+          ok: true,
+          status: 201,
+          headers: new Headers(),
+          json: async () => ({
+            number: 700 + issueCreateCount,
+            html_url: `https://github.com/owner/repo-h7/issues/${700 + issueCreateCount}`,
+            labels: [{ name: 'ai-ready' }],
+          }),
+        };
+      }
+      if (url.includes('/issues/701')) {
+        return {
+          ok: true,
+          status: 200,
+          headers: new Headers(),
+          json: async () => ({ number: 701, state: 'open', title: '[Crash]' }),
+        };
+      }
+      return { ok: true, status: 200, headers: new Headers(), json: async () => ({}) };
+    });
+
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    try {
+      const draft1 = draftStore.save({
+        sessionId: 'sess_h7_a',
+        fingerprint: 'h7_shared_fp',
+        preview: { errorName: 'Error', errorMessage: 'Concurrent crash', actionType: 'MOVE', floor: 1, turn: 1, sealedManifest: [] },
+        sealed: { errorName: 'Error', errorMessage: 'Concurrent crash' },
+      });
+      const draft2 = draftStore.save({
+        sessionId: 'sess_h7_b',
+        fingerprint: 'h7_shared_fp',
+        preview: { errorName: 'Error', errorMessage: 'Concurrent crash', actionType: 'MOVE', floor: 1, turn: 1, sealedManifest: [] },
+        sealed: { errorName: 'Error', errorMessage: 'Concurrent crash' },
+      });
+
+      const [res1, res2] = await Promise.all([
+        POST(
+          new NextRequest('http://localhost:3000/api/reports/crash', {
+            method: 'POST',
+            body: JSON.stringify({ source: 'SERVER_TURN', draftId: draft1.draftId, sessionId: 'sess_h7_a' }),
+          })
+        ),
+        POST(
+          new NextRequest('http://localhost:3000/api/reports/crash', {
+            method: 'POST',
+            body: JSON.stringify({ source: 'SERVER_TURN', draftId: draft2.draftId, sessionId: 'sess_h7_b' }),
+          })
+        ),
+      ]);
+
+      expect(res1.status).toBe(200);
+      expect(res2.status).toBe(200);
+      const data1 = await res1.json();
+      const data2 = await res2.json();
+      expect(issueCreateCount).toBe(1);
+      expect([data1.status, data2.status].sort()).toEqual(['commented', 'created']);
+      expect(fingerprintIndex.get('h7_shared_fp')?.count).toBe(2);
+    } finally {
+      globalThis.fetch = origFetch;
+    }
   });
 });

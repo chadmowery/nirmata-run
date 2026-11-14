@@ -210,7 +210,7 @@ export class ReportOutbox {
    * Processes due items in the outbox once.
    */
   async processOutboxOnce(now = Date.now()): Promise<{ processed: number; success: number; failed: number }> {
-    if (this.state === 'blocked-auth') {
+    if (this.state === 'running' || this.state === 'blocked-auth') {
       return { processed: 0, success: 0, failed: 0 };
     }
 
@@ -224,69 +224,71 @@ export class ReportOutbox {
     let failed = 0;
     const client = this.getClient();
 
-    for (const item of items) {
-      try {
-        if (item.action === 'create-issue') {
-          const issueLabels = item.labels || ['ai-ready', 'source:in-game'];
-          await client.ensureLabels(issueLabels);
-          const res = await client.createIssue({
-            title: item.title || '[Bug] Report',
-            body: item.body,
-            labels: issueLabels,
-          });
-          if (item.fingerprint) {
-            fingerprintIndex.recordNewIssue(item.fingerprint, res.number);
+    try {
+      for (const item of items) {
+        try {
+          if (item.action === 'create-issue') {
+            const issueLabels = item.labels || ['ai-ready', 'source:in-game'];
+            await client.ensureLabels(issueLabels);
+            const res = await client.createIssue({
+              title: item.title || '[Bug] Report',
+              body: item.body,
+              labels: issueLabels,
+            });
+            if (item.fingerprint) {
+              fingerprintIndex.recordNewIssue(item.fingerprint, res.number);
+            }
+          } else if (item.action === 'add-comment') {
+            if (!item.issueNumber) {
+              failed++;
+              item.attempts += 1;
+              item.lastError = 'Invalid add-comment item: missing issueNumber';
+              this.moveToFailed(item);
+              continue;
+            }
+            await client.addComment(item.issueNumber, item.body);
           }
-        } else if (item.action === 'add-comment') {
-          if (!item.issueNumber) {
-            failed++;
-            item.attempts += 1;
-            item.lastError = 'Invalid add-comment item: missing issueNumber';
+
+          this.deleteItem(item.ref);
+          success++;
+        } catch (err) {
+          failed++;
+          item.attempts += 1;
+          item.lastError = String(err);
+
+          if (err instanceof GitHubAuthError) {
+            this.state = 'blocked-auth';
+            logger.error('CRITICAL: GitHub credentials rejected; outbox worker paused (blocked-auth)', 'REPORTS', {
+              err: String(err),
+            });
+            this.saveItem(item);
+            break; // Stop further processing until credentials update
+          }
+
+          const isPermanent4xx =
+            err instanceof GitHubApiError &&
+            !(err instanceof GitHubRateLimitError) &&
+            err.status >= 400 &&
+            err.status < 500;
+
+          if (isPermanent4xx || item.attempts >= MAX_ATTEMPTS) {
             this.moveToFailed(item);
             continue;
           }
-          await client.addComment(item.issueNumber, item.body);
-        }
 
-        this.deleteItem(item.ref);
-        success++;
-      } catch (err) {
-        failed++;
-        item.attempts += 1;
-        item.lastError = String(err);
+          let delayMs = BACKOFF_SCHEDULE_MS[Math.min(item.attempts - 1, BACKOFF_SCHEDULE_MS.length - 1)];
+          if (err instanceof GitHubRateLimitError && err.retryAfterSeconds > 0) {
+            delayMs = Math.max(delayMs, err.retryAfterSeconds * 1000);
+          }
 
-        if (err instanceof GitHubAuthError) {
-          this.state = 'blocked-auth';
-          logger.error('CRITICAL: GitHub credentials rejected; outbox worker paused (blocked-auth)', 'REPORTS', {
-            err: String(err),
-          });
+          item.nextAttemptAt = now + delayMs;
           this.saveItem(item);
-          break; // Stop further processing until credentials update
         }
-
-        const isPermanent4xx =
-          err instanceof GitHubApiError &&
-          !(err instanceof GitHubRateLimitError) &&
-          err.status >= 400 &&
-          err.status < 500;
-
-        if (isPermanent4xx || item.attempts >= MAX_ATTEMPTS) {
-          this.moveToFailed(item);
-          continue;
-        }
-
-        let delayMs = BACKOFF_SCHEDULE_MS[Math.min(item.attempts - 1, BACKOFF_SCHEDULE_MS.length - 1)];
-        if (err instanceof GitHubRateLimitError && err.retryAfterSeconds > 0) {
-          delayMs = Math.max(delayMs, err.retryAfterSeconds * 1000);
-        }
-
-        item.nextAttemptAt = now + delayMs;
-        this.saveItem(item);
       }
-    }
-
-    if (this.state !== 'blocked-auth') {
-      this.state = 'idle';
+    } finally {
+      if (this.state === 'running') {
+        this.state = 'idle';
+      }
     }
 
     return { processed: items.length, success, failed };

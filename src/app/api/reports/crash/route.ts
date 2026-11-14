@@ -1,49 +1,43 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { CrashApproveRequestSchema, type ReportResult } from '@/shared/reports/schemas';
-import { getLabelsForKind } from '@/shared/reports/labels';
-import { computeCrashFingerprint } from '@/shared/reports/fingerprint';
-import { getReportsStatus, getReportsServerConfig } from '@/server/reports/config';
-import { reportsRateLimiter } from '@/server/reports/rate-limiter';
+import { CrashApproveRequestSchema } from '@shared/reports/schemas';
+import { getLabelsForKind } from '@shared/reports/labels';
+import { computeCrashFingerprint } from '@shared/reports/fingerprint';
+import { getReportsStatus, getReportsServerConfig } from '@server/reports/config';
+import { reportsRateLimiter } from '@server/reports/rate-limiter';
 import {
   generateRefId,
   composeTitle,
-  composeIssueBody,
-  composeDedupeComment,
   type IssueComposeParams,
-} from '@/server/reports/composer';
-import { writeDryRunReport } from '@/server/reports/dry-run';
-import { getGitHubClient, GitHubApiError } from '@/server/reports/github-client';
-import { getReportOutbox } from '@/server/reports/outbox';
-import { readJsonBodyWithLimit } from '@/server/reports/body-limit';
-import { draftStore } from '@/server/reports/draft-store';
-import { buildAllowListedIssueSnapshot } from '@/server/utils/turn-snapshot';
-import { fingerprintIndex } from '@/server/reports/fingerprint-index';
-import { logger } from '@/engine/utils/logger';
+} from '@server/reports/composer';
+import { getReportOutbox } from '@server/reports/outbox';
+import { readJsonBodyWithLimit } from '@server/reports/body-limit';
+import { draftStore } from '@server/reports/draft-store';
+import { buildAllowListedIssueSnapshot } from '@server/utils/turn-snapshot';
+import { deliverCrashReport } from '@server/reports/delivery';
 
 export async function POST(req: NextRequest) {
   // 1. Status check (never consume rate limit while feature is off)
   const status = getReportsStatus();
   if (status.mode === 'off' || !status.available) {
-    return NextResponse.json({ error: 'Issue reporting is currently unavailable' }, { status: 503 });
+    return NextResponse.json({ error: 'Crash reporting is currently unavailable' }, { status: 503 });
   }
 
-  // 2. Bounded JSON read (<= 128 KB) & Zod validation
-  const bodyRead = await readJsonBodyWithLimit(req);
-  if (!bodyRead.ok) {
-    return NextResponse.json({ error: bodyRead.error }, { status: bodyRead.status });
+  // 2. Bounded body read (128 KB cap) and Zod validation before consuming rate limit
+  const bodyResult = await readJsonBodyWithLimit(req);
+  if (!bodyResult.ok) {
+    return NextResponse.json({ error: bodyResult.error }, { status: bodyResult.status });
   }
 
-  const parsed = CrashApproveRequestSchema.safeParse(bodyRead.data);
+  const parsed = CrashApproveRequestSchema.safeParse(bodyResult.data);
   if (!parsed.success) {
     return NextResponse.json(
-      { error: 'Validation failed', details: parsed.error.issues },
+      { error: 'Invalid crash approval payload', details: parsed.error.issues },
       { status: 400 }
     );
   }
-
   const data = parsed.data;
 
-  // 3. Independent rate limit check (only after availability & schema validation succeed)
+  // 3. Rate limit check (crash: 40/hr)
   const rate = reportsRateLimiter.consume('crash');
   if (!rate.allowed) {
     return NextResponse.json(
@@ -59,7 +53,6 @@ export async function POST(req: NextRequest) {
   let title = '';
   let composeParams: IssueComposeParams;
   let fingerprint = '';
-  let sessionId = data.sessionId;
   let floor: number | undefined;
   let turn: number | undefined;
   let build: string | undefined;
@@ -116,7 +109,6 @@ export async function POST(req: NextRequest) {
     floor = data.diagnostics.floor;
     turn = data.diagnostics.turn;
     build = data.diagnostics.build;
-    sessionId = data.sessionId;
 
     title = composeTitle({
       kind: 'CRASH',
@@ -139,133 +131,23 @@ export async function POST(req: NextRequest) {
     };
   }
 
-  // 5. Deduplication check
-  let existingEntry = fingerprintIndex.get(fingerprint);
-  let previousIssueNumber: number | undefined;
-
-  const client = getGitHubClient({
-    token: cfg.githubToken,
-    repo: cfg.githubRepo,
+  // 5. Delegate deduplication, concurrency locking, and GitHub/dry-run delivery
+  const outcome = await deliverCrashReport({
+    cfg,
+    status,
+    ref,
+    fingerprint,
+    title,
+    labels,
+    composeParams,
+    dedupeContext: {
+      build,
+      floor,
+      turn,
+      sessionId: data.sessionId,
+      note: data.note,
+    },
   });
 
-  // Fallback search if index missed and running live
-  if (!existingEntry && status.mode === 'live') {
-    try {
-      const searchedIssue = await client.searchIssueByFingerprint(fingerprint);
-      if (searchedIssue) {
-        fingerprintIndex.recordNewIssue(fingerprint, searchedIssue);
-        existingEntry = fingerprintIndex.get(fingerprint);
-      }
-    } catch {
-      // Non-fatal search failure
-    }
-  }
-
-  // Deduplication handling if existing issue exists
-  if (existingEntry) {
-    let isOpen = true;
-    if (status.mode === 'live') {
-      try {
-        const issueState = await client.getIssue(existingEntry.issueNumber);
-        isOpen = issueState.state === 'open';
-        if (!isOpen) {
-          previousIssueNumber = existingEntry.issueNumber;
-        }
-      } catch (err) {
-        // HTTP 404 means issue is deleted/missing -> treat as closed/missing and open a new one
-        if (err instanceof GitHubApiError && err.status === 404) {
-          isOpen = false;
-          previousIssueNumber = existingEntry.issueNumber;
-        } else {
-          // If lookup fails transiently, assume open to avoid spurious duplicates
-          isOpen = true;
-        }
-      }
-    }
-
-    if (isOpen) {
-      const occurrence = fingerprintIndex.recordOccurrence(fingerprint);
-      const count = occurrence ? occurrence.count : existingEntry.count + 1;
-      const canComment = occurrence ? occurrence.canComment : true;
-
-      if (canComment) {
-        const commentBody = composeDedupeComment({
-          ref,
-          count,
-          build,
-          floor,
-          turn,
-          sessionId,
-          note: data.note,
-        });
-
-        if (status.mode === 'dry-run') {
-          writeDryRunReport({
-            ref,
-            type: 'comment',
-            body: commentBody,
-            issueNumber: existingEntry.issueNumber,
-          });
-          return NextResponse.json({ status: 'dry-run', ref } satisfies ReportResult);
-        }
-
-        try {
-          await client.addComment(existingEntry.issueNumber, commentBody);
-          return NextResponse.json({ status: 'commented', ref } satisfies ReportResult);
-        } catch (err) {
-          logger.warn(`Failed to post dedupe comment for ${ref}; queuing in outbox`, 'REPORTS', {
-            err: String(err),
-          });
-          getReportOutbox().enqueue({
-            ref,
-            action: 'add-comment',
-            issueNumber: existingEntry.issueNumber,
-            body: commentBody,
-          });
-          return NextResponse.json({ status: 'queued', ref } satisfies ReportResult);
-        }
-      }
-
-      // Throttled (commented within last 10m): local counter updated, report acknowledged
-      return NextResponse.json({ status: 'commented', ref } satisfies ReportResult);
-    }
-  }
-
-  // 6. Create new crash issue
-  const body = composeIssueBody({
-    ...composeParams,
-    previousIssueNumber,
-  });
-
-  if (status.mode === 'dry-run') {
-    fingerprintIndex.recordNewIssue(fingerprint, 99999);
-    writeDryRunReport({
-      ref,
-      type: 'issue',
-      title,
-      body,
-      labels,
-    });
-    return NextResponse.json({ status: 'dry-run', ref } satisfies ReportResult);
-  }
-
-  try {
-    await client.ensureLabels(labels);
-    const created = await client.createIssue({ title, body, labels });
-    fingerprintIndex.recordNewIssue(fingerprint, created.number);
-    return NextResponse.json({ status: 'created', ref } satisfies ReportResult);
-  } catch (err) {
-    logger.warn(`Failed to create crash issue for ${ref}; queuing in outbox`, 'REPORTS', {
-      err: String(err),
-    });
-    getReportOutbox().enqueue({
-      ref,
-      action: 'create-issue',
-      title,
-      body,
-      labels,
-      fingerprint,
-    });
-    return NextResponse.json({ status: 'queued', ref } satisfies ReportResult);
-  }
+  return NextResponse.json(outcome.payload, { status: outcome.statusCode });
 }

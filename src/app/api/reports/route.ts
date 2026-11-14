@@ -1,22 +1,14 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { ManualReportRequestSchema, type ReportResult } from '@/shared/reports/schemas';
-import { getLabelsForKind } from '@/shared/reports/labels';
-import { getReportsStatus, getReportsServerConfig } from '@/server/reports/config';
-import { reportsRateLimiter } from '@/server/reports/rate-limiter';
-import { generateRefId, composeTitle, composeIssueBody } from '@/server/reports/composer';
-import { writeDryRunReport } from '@/server/reports/dry-run';
-import {
-  getGitHubClient,
-  GitHubApiError,
-  GitHubAuthError,
-  GitHubRateLimitError,
-  GitHubNetworkError,
-} from '@/server/reports/github-client';
-import { getReportOutbox } from '@/server/reports/outbox';
-import { readJsonBodyWithLimit } from '@/server/reports/body-limit';
-import { FloorState, Actor } from '@/shared/components';
-import { sessionManager } from '@/server/session/session-manager';
-import { logger } from '@/engine/utils/logger';
+import { ManualReportRequestSchema } from '@shared/reports/schemas';
+import { getLabelsForKind } from '@shared/reports/labels';
+import { getReportsStatus, getReportsServerConfig } from '@server/reports/config';
+import { reportsRateLimiter } from '@server/reports/rate-limiter';
+import { generateRefId, composeTitle, composeIssueBody } from '@server/reports/composer';
+import { getReportOutbox } from '@server/reports/outbox';
+import { readJsonBodyWithLimit } from '@server/reports/body-limit';
+import { deliverManualReport } from '@server/reports/delivery';
+import { FloorState, Actor } from '@shared/components';
+import { sessionManager } from '@server/session/session-manager';
 
 export async function POST(req: NextRequest) {
   // 1. Status check (never consume rate limit while feature is off)
@@ -25,23 +17,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Issue reporting is currently unavailable' }, { status: 503 });
   }
 
-  // 2. Bounded JSON read (<= 128 KB) & Zod validation
-  const bodyRead = await readJsonBodyWithLimit(req);
-  if (!bodyRead.ok) {
-    return NextResponse.json({ error: bodyRead.error }, { status: bodyRead.status });
+  // 2. Bounded body read (128 KB cap) and Zod validation before consuming rate limit
+  const bodyResult = await readJsonBodyWithLimit(req);
+  if (!bodyResult.ok) {
+    return NextResponse.json({ error: bodyResult.error }, { status: bodyResult.status });
   }
 
-  const parsed = ManualReportRequestSchema.safeParse(bodyRead.data);
+  const parsed = ManualReportRequestSchema.safeParse(bodyResult.data);
   if (!parsed.success) {
     return NextResponse.json(
       { error: 'Validation failed', details: parsed.error.issues },
       { status: 400 }
     );
   }
-
   const data = parsed.data;
 
-  // 3. Independent rate limit check (only after availability & schema validation succeed)
+  // 3. Sliding window rate limit (manual: 20/hr)
   const rate = reportsRateLimiter.consume('manual');
   if (!rate.allowed) {
     return NextResponse.json(
@@ -73,7 +64,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 5. Compose title, labels, and issue body
+  // 5. Compose and delegate delivery
   const title = composeTitle({ kind: data.kind, title: data.title });
   const labels = getLabelsForKind(data.kind);
   const body = composeIssueBody({
@@ -87,70 +78,19 @@ export async function POST(req: NextRequest) {
     stateSnapshot: liveSnapshot,
   });
 
-  // 6. Delivery
-  if (status.mode === 'dry-run') {
-    const res = writeDryRunReport({
-      ref,
-      type: 'issue',
-      title,
-      body,
-      labels,
-      metadata: {
-        kind: data.kind,
-        sessionId: data.sessionId ? `${data.sessionId.slice(0, 8)}…` : undefined,
-      },
-    });
-    return NextResponse.json(res satisfies ReportResult);
-  }
-
-  // Live delivery
-  const client = getGitHubClient({
-    token: cfg.githubToken,
-    repo: cfg.githubRepo,
+  const outcome = await deliverManualReport({
+    cfg,
+    status,
+    ref,
+    title,
+    body,
+    labels,
+    dryRunMetadata: {
+      kind: data.kind,
+      sessionId: data.sessionId ? `${data.sessionId.slice(0, 8)}…` : undefined,
+      includeDiagnostics: data.includeDiagnostics,
+    },
   });
 
-  try {
-    await client.ensureLabels(labels);
-    await client.createIssue({ title, body, labels });
-    return NextResponse.json({ status: 'created', ref } satisfies ReportResult);
-  } catch (err) {
-    const isPermanentClientError =
-      err instanceof GitHubApiError &&
-      !(err instanceof GitHubAuthError) &&
-      !(err instanceof GitHubRateLimitError) &&
-      err.status >= 400 &&
-      err.status < 500;
-
-    if (isPermanentClientError) {
-      logger.error(`Permanent GitHub error for ${ref}; not queuing`, 'REPORTS', {
-        status: err.status,
-        err: String(err),
-      });
-      return NextResponse.json(
-        { error: 'Unable to submit report to upstream tracker' },
-        { status: 502 }
-      );
-    }
-
-    const reason =
-      err instanceof GitHubAuthError
-        ? 'auth'
-        : err instanceof GitHubRateLimitError
-        ? 'rate-limit'
-        : err instanceof GitHubNetworkError
-        ? 'network'
-        : 'transient';
-    logger.warn(`Direct GitHub delivery failed (${reason}) for ${ref}; queuing in outbox`, 'REPORTS', {
-      err: String(err),
-    });
-
-    getReportOutbox().enqueue({
-      ref,
-      action: 'create-issue',
-      title,
-      body,
-      labels,
-    });
-    return NextResponse.json({ status: 'queued', ref } satisfies ReportResult);
-  }
+  return NextResponse.json(outcome.payload, { status: outcome.statusCode });
 }

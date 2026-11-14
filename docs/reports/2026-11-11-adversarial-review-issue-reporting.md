@@ -108,10 +108,9 @@ The verification suite did not exercise the wiring gaps below. They were found b
 - The component also relies on Tailwind utility classes. Confirm they exist for the root error shell; the other app UI uses CSS modules and design tokens.
 - **Fix:** mount a self-contained report panel inside `global-error` that posts directly to `/api/reports/crash`, or render `<IssueReporterRoot />` inside it.
 
-#### H-4 — Dry-run pollutes the persistent fingerprint index with a fake issue #99999
-- [`crash/route.ts#L218-L219`](../../src/app/api/reports/crash/route.ts#L218-L219) calls `fingerprintIndex.recordNewIssue(fingerprint, 99999)` in dry-run mode. The index persists to `data/report-index.json`.
-- **Impact:** after flipping to live, the first matching crash finds the fake entry. `getIssue(99999)` fails, the error is swallowed, and `isOpen` stays `true` ([`#L158-L167`](../../src/app/api/reports/crash/route.ts#L158-L167)). The route then tries to comment on a nonexistent or unrelated issue, fails, and queues the comment (C-1). Real crashes never get their own issue.
-- **Fix:** never write to the persistent index in dry-run, or use a separate in-memory dry-run index. Treat a 404 from `getIssue` as "missing", which creates a new issue with `Previously: #N` per §6.4.
+#### H-4 — Dry-run pollutes the persistent fingerprint index with a fake issue #99999 ✅ Resolved
+- [`crash/route.ts#L218-L219`](../../src/app/api/reports/crash/route.ts#L218-L219) called `fingerprintIndex.recordNewIssue(fingerprint, 99999)` in dry-run mode. The index persisted to `data/report-index.json`.
+- **Resolved:** Added an isolated in-memory `dryRunFingerprintIndex` in `fingerprint-index.ts` for dry-run mode so persistent `data/report-index.json` is never polluted, and treated HTTP 404 from `getIssue` as missing/closed with `Previously: #N`.
 
 #### H-5 — No request-body size cap, and rate limit is consumed before validation ✅ Resolved
 - Spec §4: "request body ≤ 128 KB". Both routes call `req.json()` directly ([`route.ts#L27`](../../src/app/api/reports/route.ts#L27), [`crash/route.ts#L33`](../../src/app/api/reports/crash/route.ts#L33)). The per-field Zod limits (e.g. 100 logs × 500 chars + 2 × 16 KB stacks) are checked only after the full body is buffered and parsed.
@@ -127,10 +126,8 @@ The verification suite did not exercise the wiring gaps below. They were found b
 - **Impact:** every server crash is mislabeled, which breaks triage and the dedupe comment (`build` is `undefined` → `dev`).
 - **Fix:** pass `config.buildSha`, `sealed.floor`, `sealed.turn` and `sealed.phase` into the composer.
 
-#### H-7 — `ai-ready`-path dedupe can create duplicates under concurrency
-- The fingerprint lookup and the `createIssue` call are separated by network awaits with no in-flight lock ([`crash/route.ts#L135-L247`](../../src/app/api/reports/crash/route.ts#L135-L247)). The common scenario is several players hitting the same new bug at once. All miss the index and each creates an issue.
-- `processOutboxOnce` also has no re-entrancy guard ([`outbox.ts#L179-L190`](../../src/server/reports/outbox.ts#L179-L190)). A run longer than the 60 s interval (many items, slow GitHub) overlaps the next one and posts the same item twice.
-- **Fix:** keep a per-fingerprint in-flight `Map<string, Promise>` in the route, and skip `processOutboxOnce` while `state === 'running'`.
+#### H-7 — `ai-ready`-path dedupe can create duplicates under concurrency ✅ Resolved
+- **Resolved:** Added a per-fingerprint in-flight lock (`withFingerprintLock`) in [`delivery.ts`](../../src/server/reports/delivery.ts) and a `state === 'running'` re-entrancy guard + `try/finally` state cleanup in [`outbox.ts`](../../src/server/reports/outbox.ts).
 
 #### H-8 — Missing wiring/spec tests that would have caught C-1, C-2, H-1, H-2, H-4
 - Spec §11 requires route tests for "429, dedupe comment vs new, dry-run, session-mismatch rejection, single-use drafts". The crash route test has 3 tests: 404 for a missing draft, one dry-run success, and a client-origin dry-run. It has no 429, dedupe, mismatch or live path.
@@ -176,7 +173,7 @@ The verification suite did not exercise the wiring gaps below. They were found b
 - **L-9 — Crash recovery trusts `sessionStorage` JSON** without Zod validation, and only the *active* crash is persisted, not queued ones ([`collectors.ts#L107-L122`](../../src/client/reports/collectors.ts#L107-L122)).
 - **L-10 — `ReportIssueModal` rebuilds `buildClientDiagnostics()` on every render/keystroke** ([`ReportIssueModal.tsx#L204-L206`](../../src/components/ui/reports/ReportIssueModal.tsx#L204-L206)). Memoise it.
 - **L-11 — Import alias style.** The reports code uses `@/shared/...` and `@/server/...` instead of the documented layer aliases (`@shared/*`, `@server/*`). It works, but it weakens the grep-based boundary checks in `AGENTS.md`. Also, `src/client/reports/collectors.ts` imports `@/game/ui/store`. This is allowed but should be noted for the client rulebook.
-- **L-12 — Crash route is a 249-line orchestration blob in an app route**, contradicting the spec's "thin routes delegate to `@server/reports`". Extract a `deliverReport()` service shared by both routes (this would also fix M-2 and H-7).
+- **L-12 ✅ — Crash route is a 249-line orchestration blob in an app route**, contradicting the spec's "thin routes delegate to `@server/reports`". **Resolved:** Extracted shared delivery service (`deliverManualReport`, `deliverCrashReport`) into [`src/server/reports/delivery.ts`](../../src/server/reports/delivery.ts) and kept both routes thin.
 - **L-13 — `DraftStore` eviction is global FIFO (max 50).** A flood of failing turns from other sessions can evict a victim's pending draft before they approve it. Consider per-session caps.
 - **L-14 ✅ — Search-by-fingerprint trusts any open issue containing the marker string** (best-effort per spec). Player note text is fenced but still body-searchable, so a player can steer dedupe comments onto an arbitrary issue. **Resolved:** `nr-fingerprint`, `nr-ref`, `nr-report`, and `nr-comment` markers in untrusted text/stacks are neutralized by `sanitizeText`/`sanitizeStack`.
 
@@ -207,10 +204,10 @@ The verification suite did not exercise the wiring gaps below. They were found b
 - [ ] **H-1** Wire `reportableFetch`. Create a draft in the outer 500 catch. Handle `crashReport` on non-OK responses. Pass the real `SERVER_5XX` source.
 - [ ] **H-2** Buffer crashes until `fetchStatus` resolves. Do not discard recovered drafts.
 - [ ] **H-3** Give `global-error` a working, self-contained report panel.
-- [ ] **H-4** Stop writing a fake `99999` to the persistent index in dry-run. Treat a 404 as a missing issue.
+- [x] **H-4** Stop writing a fake `99999` to the persistent index in dry-run. Treat a 404 as a missing issue.
 - [x] **H-5** Enforce the 128 KB body cap. Validate before consuming the rate-limit slot.
 - [x] **H-6** Feed real build, floor, turn and phase into server-origin issue summaries.
-- [ ] **H-7** Add an in-flight per-fingerprint lock and an outbox re-entrancy guard.
+- [x] **H-7** Add an in-flight per-fingerprint lock and an outbox re-entrancy guard.
 - [ ] **H-8** Add the missing tests: 429, dedupe comment vs new, session mismatch, live-path mocks, a boot-time crash and a bundle check.
 
 **Medium**

@@ -16,18 +16,19 @@ export interface FingerprintIndexEntry {
 }
 
 export class FingerprintIndex {
-  private readonly filePath: string;
+  private readonly filePath: string | null;
   private entries: Map<string, FingerprintIndexEntry> = new Map();
   private loaded = false;
   private readonly commentThrottleMs = 10 * 60 * 1000; // 10 minutes
 
-  constructor(filePath?: string) {
-    this.filePath = filePath || path.join(process.cwd(), 'data', 'report-index.json');
+  constructor(filePath: string | null = path.join(process.cwd(), 'data', 'report-index.json')) {
+    this.filePath = filePath;
   }
 
   private ensureLoaded(): void {
     if (this.loaded) return;
     this.loaded = true;
+    if (!this.filePath) return;
 
     try {
       if (fs.existsSync(this.filePath)) {
@@ -45,6 +46,7 @@ export class FingerprintIndex {
   }
 
   private save(): void {
+    if (!this.filePath) return;
     try {
       const dir = path.dirname(this.filePath);
       if (!fs.existsSync(dir)) {
@@ -116,7 +118,7 @@ export class FingerprintIndex {
   clear(): void {
     this.entries.clear();
     this.loaded = true;
-    if (fs.existsSync(this.filePath)) {
+    if (this.filePath && fs.existsSync(this.filePath)) {
       try {
         fs.unlinkSync(this.filePath);
       } catch {
@@ -126,9 +128,16 @@ export class FingerprintIndex {
   }
 }
 
-// Global process-wide singleton
+// Global process-wide singletons
 const globalKey = Symbol.for('nirmata.fingerprintIndex');
+const dryRunGlobalKey = Symbol.for('nirmata.dryRunFingerprintIndex');
 const globalObj = globalThis as unknown as { [key: symbol]: FingerprintIndex };
 
 export const fingerprintIndex: FingerprintIndex =
   globalObj[globalKey] || (globalObj[globalKey] = new FingerprintIndex());
+
+/**
+ * Isolated in-memory fingerprint index for dry-run mode so fake issues never pollute data/report-index.json.
+ */
+export const dryRunFingerprintIndex: FingerprintIndex =
+  globalObj[dryRunGlobalKey] || (globalObj[dryRunGlobalKey] = new FingerprintIndex(null));
