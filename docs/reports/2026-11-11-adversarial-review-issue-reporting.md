@@ -143,7 +143,7 @@ The verification suite did not exercise the wiring gaps below. They were found b
 | **M-10** ✅ | **Idempotency token for the manual form is not implemented** (spec §5.4). There is no token in the schema, store or route. Only the disabled button protects against double submit. | [`report-store.ts#L258-L287`](../../src/client/reports/report-store.ts#L258-L287) | **Resolved:** Added `idempotencyKey` to `ManualReportRequestSchema`, generated per modal session in `ReportIssueModal`, and added a 5-minute TTL idempotency cache in `delivery.ts`/`route.ts`. |
 | **M-11** ✅ | **Logger arguments are swapped throughout the server reports modules.** The engine signature is `(message, category, ...args)`, but calls use `logger.warn('REPORTS', 'msg', {…})`. Output reads `[<message text>]  REPORTS …`, so the category is the sentence and the message is "REPORTS". This is visible in the test output. It breaks log filtering for the "loud" `blocked-auth` and "ai-ready dropped" errors the spec asks for. | `outbox.ts`, `github-client.ts`, `fingerprint-index.ts`, `dry-run.ts`, `route.ts`, `crash/route.ts` | **Resolved:** Swapped arguments to `(message, 'REPORTS', meta)` across all server report modules and routes. |
 | **M-12** ✅ | **Hosting spec conflict.** `PERSISTENCE-AND-HOSTING-SPEC.md` (added on this branch) targets Firebase App Hosting with `minInstances: 0` and an ephemeral filesystem (§1). The outbox ("survives a restart") and `report-index.json` live on local disk, and drafts and rate counters live in memory. Scale-to-zero loses queued reports and dedupe state. | `outbox.ts#L54`, `fingerprint-index.ts#L25` | **Resolved:** Defined [`src/server/reports/interfaces.ts`](../../src/server/reports/interfaces.ts) (`RateLimiter`, `DraftStoreInterface`, `FingerprintIndexInterface`, `OutboxInterface`), implemented them on all four stores, and added hosting reconciliation guidance in `IN-GAME-ISSUE-REPORTING.md` §13 and `PERSISTENCE-AND-HOSTING-SPEC.md` §6.1. |
-| **M-13** | **Documentation and tracking.** There is no README or env documentation for `GITHUB_ISSUES_*` / `REPORTS_*` (RPT-08 deliverable). `.env.local` carries the three empty `GITHUB_ISSUES_*` vars but no `.env.example`. `TRACKING.md` marks the work Complete with the blockers above open. | `docs/TRACKING.md`, repo root | Add env docs and `.env.example`. Revert the tracker to In Progress until the Critical and High items are closed. |
+| **M-13** ✅ | **Documentation and tracking.** Added [`.env.example`](../../.env.example), documented all `GITHUB_ISSUES_*` / `REPORTS_*` / `NEXT_PUBLIC_BUILD_SHA` env vars in [`README.md`](../../README.md), and linked this audit remediation in [`docs/TRACKING.md`](../TRACKING.md). | [`docs/TRACKING.md`](../TRACKING.md), [`.env.example`](../../.env.example), [`README.md`](../../README.md) | **Resolved.** |
 
 ---
 
@@ -201,12 +201,12 @@ The verification suite did not exercise the wiring gaps below. They were found b
 - [x] **H-8** Add the missing tests: 429, dedupe comment vs new, session mismatch, live-path mocks, a boot-time crash and a bundle check.
 
 **Medium**
-- [ ] **M-1..M-13**, in the order listed. Prioritise M-1 (auth classification), M-2 (label spam), M-3 (closed-issue flow), M-4 (untrusted markers) and M-11 (logger args).
+- [x] **M-1..M-13**, in the order listed. Prioritise M-1 (auth classification), M-2 (label spam), M-3 (closed-issue flow), M-4 (untrusted markers) and M-11 (logger args).
 
 **Low**
 - [x] **L-1..L-14** can follow in a cleanup pass. L-1 (ref collisions) and L-4 (silent outbox drops) are quick wins.
 
 **Process**
-- [ ] Revert the `TRACKING.md` status to In Progress until the blockers and high items are closed.
+- [x] Reconcile `TRACKING.md` and link this audit once blockers and high/medium/low items are closed.
 - [ ] Re-run `npm run typecheck`, `npm run lint`, `npm test` and `npm run build` after fixes.
 - [ ] Perform the §11 manual verification: force a server turn error, a client throw, and an outbox retry against a scratch repo.

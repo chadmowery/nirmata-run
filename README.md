@@ -78,6 +78,16 @@ npm run build
 - **Game Data Studio (`/dev/gamedata`)**: Navigate to `http://localhost:3000/dev/gamedata` while the dev server is running to inspect and edit JSON Entity Templates, Mixins, Shell Archetypes, Spawn Tables, and Zod Component Schemas in the browser.
 - **In-Game Dev Terminal**: Press `` ` `` (backtick) during a run to open the debug console and event timeline inspector.
 
+### In-Game Issue Reporting (`TK-RPT-100`)
+Press `F8` (or use the Report Issue menu buttons) to submit bugs/feedback, or approve crash diagnostics after an unhandled error. Copy [`.env.example`](./.env.example) to `.env.local` to configure GitHub reporting:
+- `GITHUB_ISSUES_TOKEN` (server-only PAT with `issues: write`)
+- `GITHUB_ISSUES_REPO` (default: `chadmowery/nirmata-run`)
+- `GITHUB_ISSUES_ENABLED` (`true` to submit live GitHub issues; in development when `false` or without a token, submissions write dry-run drafts to `logs/reports/`)
+- `REPORTS_CRASH_CAP_PER_HOUR` (default: `40`) / `REPORTS_MANUAL_CAP_PER_HOUR` (default: `20`)
+- `NEXT_PUBLIC_BUILD_SHA` (optional commit SHA attached to crash telemetry; default: `dev`)
+
+See [`docs/design/IN-GAME-ISSUE-REPORTING.md`](./docs/design/IN-GAME-ISSUE-REPORTING.md) for the full architecture and outbox delivery model.
+
 ---
 
 ## Project Structure
