@@ -70,7 +70,7 @@ The verification suite did not exercise the wiring gaps below. They were found b
   - Build the issue snapshot from an explicit allow-list instead of `rawSnapshot`.
   - Add a regression test: compose from a real `createServerCrashDraft` result and assert the full session ID is absent from the body.
 
-#### C-3 — Untrusted client strings reach the server-authored markdown unescaped (untrusted-input contract broken)
+#### C-3 — Untrusted client strings reach the server-authored markdown unescaped (untrusted-input contract broken) ✅ Resolved
 - **Where:** [`composer.ts#L123-L125`](../../src/server/reports/composer.ts#L123-L125) and [`#L182-L184`](../../src/server/reports/composer.ts#L182-L184). `diag.build`, `diag.mode`, `diag.route` and `diag.userAgent` are interpolated raw into table cells and backtick spans. [`composer.ts#L61`](../../src/server/reports/composer.ts#L61) puts the client `errorName` into the issue **title** unsanitised.
 - **Spec:** §7.3(1) "Only the template prose is server-authored. All variable content sits in code fences." §7.3(2) "Sanitizer applied to every player/client string."
 - **Impact:**
@@ -201,7 +201,7 @@ The verification suite did not exercise the wiring gaps below. They were found b
 **Blockers (fix before merge)**
 - [x] **C-1** Start the outbox worker (idempotent, `globalThis`-guarded). Add a test that enqueue results in delivery without a manual `processOutboxOnce()`.
 - [x] **C-2** Remove or truncate `sessionId` in the snapshot. Replace `rawSnapshot` with an allow-listed snapshot. Add a regression test from a real draft.
-- [ ] **C-3** Sanitise or fence all client-supplied values in the Summary and Environment tables, and in the title. Add hostile-input tests.
+- [x] **C-3** Sanitise or fence all client-supplied values in the Summary and Environment tables, and in the title. Add hostile-input tests.
 
 **High**
 - [ ] **H-1** Wire `reportableFetch`. Create a draft in the outer 500 catch. Handle `crashReport` on non-OK responses. Pass the real `SERVER_5XX` source.

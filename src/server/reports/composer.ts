@@ -8,6 +8,10 @@ import {
   sanitizeTitle,
   sanitizeNote,
   sanitizeStack,
+  sanitizeText,
+  sanitizeLogMessage,
+  sanitizeErrorName,
+  sanitizeInlineValue,
 } from '@/shared/reports/sanitize';
 import { getTitlePrefixForKind, type ReportKind, type CrashSource } from '@/shared/reports/labels';
 import type { ClientDiagnostics } from '@/shared/reports/schemas';
@@ -55,7 +59,7 @@ export function composeTitle(params: {
   const prefix = getTitlePrefixForKind(params.kind);
 
   if (params.kind === 'CRASH') {
-    const errorName = params.errorName || 'Error';
+    const errorName = sanitizeErrorName(params.errorName || 'Error', 48);
     const rawMsg = params.errorMessage || 'Unknown crash';
     const sanitizedMsg = sanitizeTitle(rawMsg, 80);
     return `${prefix} ${errorName}: ${sanitizedMsg}`.trim();
@@ -70,31 +74,42 @@ export function composeTitle(params: {
  * Composes the complete markdown body adhering to the untrusted-input contract and length limits.
  */
 export function composeIssueBody(params: IssueComposeParams): string {
-  const ref = params.ref;
-  const fp = params.fingerprint;
-  const sess = params.sessionId ? `${params.sessionId.slice(0, 8)}…` : 'none';
+  const ref = sanitizeInlineValue(params.ref, 32);
+  const fp = params.fingerprint ? sanitizeInlineValue(params.fingerprint, 32) : undefined;
+  const sessRaw = params.sessionId ? sanitizeInlineValue(params.sessionId.slice(0, 8), 8) : '';
+  const sess = sessRaw ? `${sessRaw}…` : 'none';
 
-  // Extract metadata
+  // Extract metadata (sanitized so untrusted client values cannot escape inline spans/tables)
   const diag = params.diagnostics;
-  const build = diag?.build || 'dev';
-  const mode = diag?.mode || 'N/A';
-  const floor = diag?.floor !== undefined ? diag.floor : 'N/A';
-  const turn = diag?.turn !== undefined ? diag.turn : 'N/A';
+  const build = sanitizeInlineValue(diag?.build || 'dev', 64) || 'dev';
+  const mode = sanitizeInlineValue(diag?.mode || 'N/A', 64) || 'N/A';
+  const floor = typeof diag?.floor === 'number' && Number.isFinite(diag.floor) ? Math.trunc(diag.floor) : 'N/A';
+  const turn = typeof diag?.turn === 'number' && Number.isFinite(diag.turn) ? Math.trunc(diag.turn) : 'N/A';
 
   const typeDesc = params.kind === 'CRASH'
-    ? `Crash (${params.crashSource || 'UNKNOWN'})`
+    ? `Crash (${sanitizeInlineValue(params.crashSource || 'UNKNOWN', 32)})`
     : params.kind;
 
   // Untrusted text sections
   const rawNote = params.note || params.description || '';
   let sanitizedNote = sanitizeNote(rawNote);
 
+  const safeErrorName = params.errorName ? sanitizeErrorName(params.errorName, 48) : '';
+  const safeErrorMessage = params.errorMessage ? sanitizeText(params.errorMessage, { singleLine: false, maxLength: 2000 }) : '';
+
   let sanitizedStack = params.stack ? sanitizeStack(params.stack) : '';
   let snapshotStr = params.stateSnapshot
     ? JSON.stringify(params.stateSnapshot, null, 2)
     : '';
   let logsStr = diag?.recentLogs && diag.recentLogs.length > 0
-    ? diag.recentLogs.map((l) => `[${new Date(l.t).toISOString()}] [${l.level}] ${l.msg}`).join('\n')
+    ? diag.recentLogs
+        .map((l) => {
+          const ts = Number.isFinite(l.t) && l.t >= 0 && l.t <= 8.64e15 ? new Date(l.t).toISOString() : 'INVALID_TIME';
+          const lvl = sanitizeInlineValue(l.level, 20);
+          const msg = sanitizeLogMessage(l.msg, 500);
+          return `[${ts}] [${lvl}] ${msg}`;
+        })
+        .join('\n')
     : '';
 
   function buildFullBody(
@@ -135,9 +150,9 @@ export function composeIssueBody(params: IssueComposeParams): string {
     }
 
     // Error details (for crash)
-    if (params.errorName || params.errorMessage) {
+    if (safeErrorName || safeErrorMessage) {
       lines.push('## Error');
-      const errHeader = `${params.errorName || 'Error'}: ${params.errorMessage || ''}`.trim();
+      const errHeader = `${safeErrorName || 'Error'}: ${safeErrorMessage}`.trim();
       lines.push(createCodeFence(errHeader, 'text'));
       lines.push('');
     }
@@ -174,14 +189,19 @@ export function composeIssueBody(params: IssueComposeParams): string {
       lines.push('');
     }
 
-    // Environment
+    // Environment (fenced & sanitized to preserve untrusted-input contract)
     if (diag) {
+      const safeRoute = sanitizeText(diag.route, { singleLine: true, maxLength: 200 });
+      const safeUa = sanitizeText(diag.userAgent, { singleLine: true, maxLength: 500 });
+      const vw = Number.isFinite(diag.viewport.w) ? Math.trunc(diag.viewport.w) : 0;
+      const vh = Number.isFinite(diag.viewport.h) ? Math.trunc(diag.viewport.h) : 0;
       lines.push('## Environment');
-      lines.push('| Key | Value |');
-      lines.push('| :-- | :-- |');
-      lines.push(`| Route | \`${diag.route}\` |`);
-      lines.push(`| Viewport | ${diag.viewport.w} x ${diag.viewport.h} |`);
-      lines.push(`| User Agent | \`${diag.userAgent}\` |`);
+      lines.push(
+        createCodeFence(
+          `Route: ${safeRoute}\nViewport: ${vw} x ${vh}\nUser Agent: ${safeUa}`,
+          'text'
+        )
+      );
       lines.push('');
     }
 
@@ -245,17 +265,22 @@ export function composeDedupeComment(params: {
   sessionId?: string;
   note?: string;
 }): string {
-  const sess = params.sessionId ? `${params.sessionId.slice(0, 8)}…` : 'none';
+  const sessRaw = params.sessionId ? sanitizeInlineValue(params.sessionId.slice(0, 8), 8) : '';
+  const sess = sessRaw ? `${sessRaw}…` : 'none';
+  const build = sanitizeInlineValue(params.build || 'dev', 64) || 'dev';
+  const floor = typeof params.floor === 'number' && Number.isFinite(params.floor) ? Math.trunc(params.floor) : 'N/A';
+  const turn = typeof params.turn === 'number' && Number.isFinite(params.turn) ? Math.trunc(params.turn) : 'N/A';
+  const ref = sanitizeInlineValue(params.ref, 32);
   const lines: string[] = [];
 
   lines.push('<!-- nr-comment v1 -->');
-  lines.push(`<!-- nr-ref: ${params.ref} -->`);
+  lines.push(`<!-- nr-ref: ${ref} -->`);
   lines.push(`### Additional Crash Occurrence (#${params.count})`);
   lines.push('| Field | Value |');
   lines.push('| :-- | :-- |');
   lines.push(`| Timestamp | ${new Date().toISOString()} |`);
-  lines.push(`| Build | \`${params.build || 'dev'}\` |`);
-  lines.push(`| Floor / Turn | Floor ${params.floor ?? 'N/A'} · Turn ${params.turn ?? 'N/A'} |`);
+  lines.push(`| Build | \`${build}\` |`);
+  lines.push(`| Floor / Turn | Floor ${floor} · Turn ${turn} |`);
   lines.push(`| Session | \`${sess}\` |`);
   lines.push('');
 

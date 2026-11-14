@@ -96,6 +96,27 @@ export function sanitizeLogMessage(msg: string, maxLength = 500): string {
   return sanitizeText(msg, { singleLine: true, maxLength });
 }
 
+/**
+ * Sanitizes an error name to a safe identifier charset and bounded length.
+ */
+export function sanitizeErrorName(name: string, maxLength = 48): string {
+  const cleaned = sanitizeText(name || '', { singleLine: true, maxLength })
+    .replace(/[^a-zA-Z0-9_.$:-]/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return cleaned.slice(0, maxLength) || 'Error';
+}
+
+/**
+ * Sanitizes untrusted inline table/backtick values so they cannot break out of
+ * markdown inline code spans or table cells.
+ */
+export function sanitizeInlineValue(input: string, maxLength = 120): string {
+  const cleaned = sanitizeText(input || '', { singleLine: true, maxLength })
+    .replace(/`/g, "'")
+    .replace(/\|/g, '/');
+  return cleaned.slice(0, maxLength);
+}
+
 export function sanitizeStack(stack: string, maxLength = 16384): string {
   if (!stack) return '';
   let sanitized = stack
