@@ -78,6 +78,32 @@ describe('Reports Composer', () => {
       expect(body.length).toBeLessThanOrEqual(60000);
       expect(body).toContain('[truncated');
     });
+
+    it('never splits UTF-16 surrogate pairs or leaves unclosed fences on hard truncation (L-3)', () => {
+      // Fill > 60k using emoji (surrogate pairs) inside an error message / note
+      const emojis = '🚀'.repeat(35000); // 70,000 UTF-16 code units
+      const body = composeIssueBody({
+        ref: 'NR-SURR',
+        kind: 'BUG',
+        title: 'Surrogate truncation test',
+        note: emojis,
+        failedAction: { type: 'MOVE', payload: 'x'.repeat(65000) },
+      });
+
+      expect(body.length).toBeLessThanOrEqual(60000);
+      // Verify no lone surrogates exist anywhere in the output
+      for (let i = 0; i < body.length; i++) {
+        const code = body.charCodeAt(i);
+        if (code >= 0xd800 && code <= 0xdbff) {
+          const next = body.charCodeAt(i + 1);
+          expect(next).toBeGreaterThanOrEqual(0xdc00);
+          expect(next).toBeLessThanOrEqual(0xdfff);
+        }
+      }
+      // Verify fences are balanced (even number of fence delimiter lines)
+      const fences = body.match(/^`{3,}.*$/gm) || [];
+      expect(fences.length % 2).toBe(0);
+    });
   });
 
   describe('composeDedupeComment', () => {

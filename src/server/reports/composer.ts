@@ -18,6 +18,42 @@ import type { ClientDiagnostics } from '@/shared/reports/schemas';
 
 const MAX_GITHUB_BODY_LENGTH = 60000;
 
+/**
+ * Slices a string to at most `maxLen` UTF-16 code units without splitting a surrogate pair.
+ */
+function safeUtf16Slice(str: string, maxLen: number): string {
+  if (maxLen <= 0) return '';
+  if (str.length <= maxLen) return str;
+  let end = maxLen;
+  const lastChar = str.charCodeAt(end - 1);
+  if (lastChar >= 0xd800 && lastChar <= 0xdbff) {
+    end -= 1;
+  }
+  return str.slice(0, end);
+}
+
+/**
+ * Ensures any unclosed markdown backtick fence in `text` is closed while staying within `maxLen`.
+ */
+function ensureClosedFenceAndMaxLength(text: string, maxLen: number): string {
+  let sliced = safeUtf16Slice(text, maxLen);
+  const fenceLines = sliced.match(/^`{3,}.*$/gm) || [];
+  let openFence: string | null = null;
+  for (const line of fenceLines) {
+    const ticks = line.match(/^`+/)?.[0] || '';
+    if (!openFence) {
+      openFence = ticks;
+    } else if (line.trim() === openFence && ticks.length >= openFence.length) {
+      openFence = null;
+    }
+  }
+  if (openFence) {
+    const suffix = `\n${openFence}`;
+    sliced = safeUtf16Slice(sliced, maxLen - suffix.length) + suffix;
+  }
+  return sliced;
+}
+
 export interface IssueComposeParams {
   ref: string;
   kind: ReportKind;
@@ -237,40 +273,36 @@ export function composeIssueBody(params: IssueComposeParams): string {
   // Hard length check: truncate in order snapshot -> logs -> stack -> note
   if (body.length > MAX_GITHUB_BODY_LENGTH) {
     const safetyBuffer = 100; // Account for truncation messages
-    let excess = body.length - MAX_GITHUB_BODY_LENGTH + safetyBuffer;
+    const truncateField = (value: string, currentBodyLen: number): string => {
+      const excess = currentBodyLen - MAX_GITHUB_BODY_LENGTH + safetyBuffer;
+      const trimAmount = Math.min(value.length, Math.max(0, excess));
+      const kept = safeUtf16Slice(value, Math.max(0, value.length - trimAmount));
+      return `${kept}\n...[truncated ${trimAmount} chars]`;
+    };
 
     if (snapshotStr.length > 0) {
-      const trimAmount = Math.min(snapshotStr.length, excess);
-      snapshotStr = snapshotStr.slice(0, Math.max(0, snapshotStr.length - trimAmount)) +
-        `\n...[truncated ${trimAmount} chars]`;
-      excess -= trimAmount;
+      snapshotStr = truncateField(snapshotStr, body.length);
       body = buildFullBody(sanitizedNote, sanitizedStack, logsStr, snapshotStr);
     }
 
     if (body.length > MAX_GITHUB_BODY_LENGTH && logsStr.length > 0) {
-      const trimAmount = Math.min(logsStr.length, body.length - MAX_GITHUB_BODY_LENGTH + safetyBuffer);
-      logsStr = logsStr.slice(0, Math.max(0, logsStr.length - trimAmount)) +
-        `\n...[truncated ${trimAmount} chars]`;
+      logsStr = truncateField(logsStr, body.length);
       body = buildFullBody(sanitizedNote, sanitizedStack, logsStr, snapshotStr);
     }
 
     if (body.length > MAX_GITHUB_BODY_LENGTH && sanitizedStack.length > 0) {
-      const trimAmount = Math.min(sanitizedStack.length, body.length - MAX_GITHUB_BODY_LENGTH + safetyBuffer);
-      sanitizedStack = sanitizedStack.slice(0, Math.max(0, sanitizedStack.length - trimAmount)) +
-        `\n...[truncated ${trimAmount} chars]`;
+      sanitizedStack = truncateField(sanitizedStack, body.length);
       body = buildFullBody(sanitizedNote, sanitizedStack, logsStr, snapshotStr);
     }
 
     if (body.length > MAX_GITHUB_BODY_LENGTH && sanitizedNote.length > 0) {
-      const trimAmount = Math.min(sanitizedNote.length, body.length - MAX_GITHUB_BODY_LENGTH + safetyBuffer);
-      sanitizedNote = sanitizedNote.slice(0, Math.max(0, sanitizedNote.length - trimAmount)) +
-        `\n...[truncated ${trimAmount} chars]`;
+      sanitizedNote = truncateField(sanitizedNote, body.length);
       body = buildFullBody(sanitizedNote, sanitizedStack, logsStr, snapshotStr);
     }
 
-    // Ultimate hard guarantee
+    // Ultimate hard guarantee (preserves surrogate pairs and closes any open code fence)
     if (body.length > MAX_GITHUB_BODY_LENGTH) {
-      body = body.slice(0, MAX_GITHUB_BODY_LENGTH);
+      body = ensureClosedFenceAndMaxLength(body, MAX_GITHUB_BODY_LENGTH);
     }
   }
 
