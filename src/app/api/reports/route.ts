@@ -6,7 +6,7 @@ import { reportsRateLimiter } from '@/server/reports/rate-limiter';
 import { generateRefId, composeTitle, composeIssueBody } from '@/server/reports/composer';
 import { writeDryRunReport } from '@/server/reports/dry-run';
 import { GitHubClient, GitHubRateLimitError, GitHubNetworkError } from '@/server/reports/github-client';
-import { reportOutbox } from '@/server/reports/outbox';
+import { getReportOutbox } from '@/server/reports/outbox';
 import { FloorState, Actor } from '@/shared/components';
 import { sessionManager } from '@/server/session/session-manager';
 import { logger } from '@/engine/utils/logger';
@@ -110,7 +110,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (err instanceof GitHubRateLimitError || err instanceof GitHubNetworkError) {
-      reportOutbox.enqueue({
+      getReportOutbox().enqueue({
         ref,
         action: 'create-issue',
         title,
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
     }
 
     // For auth or unrecoverable client errors, also queue to avoid data loss
-    reportOutbox.enqueue({
+    getReportOutbox().enqueue({
       ref,
       action: 'create-issue',
       title,

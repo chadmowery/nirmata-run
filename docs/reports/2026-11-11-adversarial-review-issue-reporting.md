@@ -41,7 +41,7 @@ The verification suite did not exercise the wiring gaps below. They were found b
 
 ### 🔴 Critical / Blocker
 
-#### C-1 — Outbox retry worker is never started; "queued" reports are never delivered
+#### C-1 — Outbox retry worker is never started; "queued" reports are never delivered ✅ Resolved
 - **Where:** [`outbox.ts#L247-L255`](../../src/server/reports/outbox.ts#L247-L255). A repo-wide search finds **zero** callers of `startWorker` outside the definition. The routes only call `reportOutbox.enqueue(...)`.
 - **Spec:** §6.5 and D16 require a process-wide worker (`setInterval` 60 s, `unref`) that retries with backoff.
 - **Impact:**
@@ -199,7 +199,7 @@ The verification suite did not exercise the wiring gaps below. They were found b
 ## 5. Actionable Remediation Plan
 
 **Blockers (fix before merge)**
-- [ ] **C-1** Start the outbox worker (idempotent, `globalThis`-guarded). Add a test that enqueue results in delivery without a manual `processOutboxOnce()`.
+- [x] **C-1** Start the outbox worker (idempotent, `globalThis`-guarded). Add a test that enqueue results in delivery without a manual `processOutboxOnce()`.
 - [ ] **C-2** Remove or truncate `sessionId` in the snapshot. Replace `rawSnapshot` with an allow-listed snapshot. Add a regression test from a real draft.
 - [ ] **C-3** Sanitise or fence all client-supplied values in the Summary and Environment tables, and in the title. Add hostile-input tests.
 

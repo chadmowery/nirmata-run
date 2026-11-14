@@ -106,6 +106,7 @@ export class ReportOutbox {
     };
 
     this.saveItem(fullItem);
+    this.startWorker();
     logger.info(`Enqueued report ${item.ref} to outbox`, 'REPORTS', { action: item.action });
     return fullItem;
   }
@@ -266,5 +267,15 @@ export class ReportOutbox {
 const globalKey = Symbol.for('nirmata.reportOutbox');
 const globalObj = globalThis as unknown as { [key: symbol]: ReportOutbox };
 
-export const reportOutbox: ReportOutbox =
-  globalObj[globalKey] || (globalObj[globalKey] = new ReportOutbox());
+/**
+ * Returns the process-wide ReportOutbox singleton and idempotently starts its background worker.
+ */
+export function getReportOutbox(): ReportOutbox {
+  if (!globalObj[globalKey]) {
+    globalObj[globalKey] = new ReportOutbox();
+  }
+  globalObj[globalKey].startWorker();
+  return globalObj[globalKey];
+}
+
+export const reportOutbox: ReportOutbox = getReportOutbox();

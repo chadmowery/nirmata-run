@@ -12,7 +12,7 @@ import {
 } from '@/server/reports/composer';
 import { writeDryRunReport } from '@/server/reports/dry-run';
 import { GitHubClient } from '@/server/reports/github-client';
-import { reportOutbox } from '@/server/reports/outbox';
+import { getReportOutbox } from '@/server/reports/outbox';
 import { draftStore } from '@/server/reports/draft-store';
 import { fingerprintIndex } from '@/server/reports/fingerprint-index';
 import { logger } from '@/engine/utils/logger';
@@ -199,7 +199,7 @@ export async function POST(req: NextRequest) {
           logger.warn(`Failed to post dedupe comment for ${ref}; queuing in outbox`, 'REPORTS', {
             err: String(err),
           });
-          reportOutbox.enqueue({
+          getReportOutbox().enqueue({
             ref,
             action: 'add-comment',
             issueNumber: existingEntry.issueNumber,
@@ -236,7 +236,7 @@ export async function POST(req: NextRequest) {
     logger.warn(`Failed to create crash issue for ${ref}; queuing in outbox`, 'REPORTS', {
       err: String(err),
     });
-    reportOutbox.enqueue({
+    getReportOutbox().enqueue({
       ref,
       action: 'create-issue',
       title,

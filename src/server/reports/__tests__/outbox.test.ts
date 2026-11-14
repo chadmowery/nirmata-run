@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import path from 'path';
 import fs from 'fs';
-import { ReportOutbox } from '../outbox';
+import { ReportOutbox, getReportOutbox } from '../outbox';
 import {
   GitHubClient,
   GitHubAuthError,
@@ -157,5 +157,39 @@ describe('ReportOutbox', () => {
     expect(outbox.listPending().length).toBe(0);
     const failedPath = path.join(testDir, 'failed', 'NR-MAX-RETRY.json');
     expect(fs.existsSync(failedPath)).toBe(true);
+  });
+
+  it('starts background worker on enqueue and delivers without manual processOutboxOnce call (C-1)', async () => {
+    vi.useFakeTimers();
+    try {
+      const createIssueSpy = vi.spyOn(mockClient, 'createIssue').mockResolvedValue({
+        number: 77,
+        html_url: 'http://example.com/77',
+        labels: ['ai-ready'],
+      });
+
+      outbox.enqueue({
+        ref: 'NR-AUTO-WORKER',
+        action: 'create-issue',
+        title: '[Bug] Auto worker test',
+        body: 'body',
+      });
+
+      expect(outbox.listPending().length).toBe(1);
+
+      // Advance past the 60s worker interval without calling processOutboxOnce manually
+      await vi.advanceTimersByTimeAsync(60_000);
+
+      expect(createIssueSpy).toHaveBeenCalledTimes(1);
+      expect(outbox.listPending().length).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('returns idempotent globalThis-guarded singleton from getReportOutbox (C-1)', () => {
+    const a = getReportOutbox();
+    const b = getReportOutbox();
+    expect(a).toBe(b);
   });
 });
