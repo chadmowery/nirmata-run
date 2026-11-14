@@ -208,5 +208,5 @@ The verification suite did not exercise the wiring gaps below. They were found b
 
 **Process**
 - [x] Reconcile `TRACKING.md` and link this audit once blockers and high/medium/low items are closed.
-- [ ] Re-run `npm run typecheck`, `npm run lint`, `npm test` and `npm run build` after fixes.
-- [ ] Perform the §11 manual verification: force a server turn error, a client throw, and an outbox retry against a scratch repo.
+- [x] Re-run `npm run typecheck`, `npm run lint`, `npm test` and `npm run build` after fixes. (`typecheck`, `lint`, `build`, and `vitest` 244/244 files, 1630/1630 tests passed)
+- [ ] Perform the §11 manual verification: force a server turn error, a client throw, and an outbox retry against a scratch repo. (Interactive/manual step left for human/scratch-repo check.)
