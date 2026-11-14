@@ -34,13 +34,13 @@ export function writeDryRunReport(payload: DryRunPayload): ReportResult {
     };
 
     fs.writeFileSync(targetPath, JSON.stringify(record, null, 2), 'utf-8');
-    logger.info('REPORTS', `[DRY-RUN] Saved report draft to ${targetPath}`, {
+    logger.info(`[DRY-RUN] Saved report draft to ${targetPath}`, 'REPORTS', {
       ref: payload.ref,
       type: payload.type,
       title: payload.title,
     });
   } catch (err) {
-    logger.error('REPORTS', 'Failed to write dry-run report to logs/', { err: String(err) });
+    logger.error('Failed to write dry-run report to logs/', 'REPORTS', { err: String(err) });
   }
 
   return {

@@ -163,7 +163,7 @@ export class GitHubClient {
           continue;
         }
         // Log non-fatal error but don't crash
-        logger.warn('REPORTS', `Could not ensure label '${label}'`, { err: String(err) });
+        logger.warn(`Could not ensure label '${label}'`, 'REPORTS', { err: String(err) });
       }
     }
     this.labelsEnsured = true;
@@ -194,12 +194,12 @@ export class GitHubClient {
 
     // Mandate: verify 'ai-ready' is present (Section 6.5)
     if (!returnedLabels.includes('ai-ready')) {
-      logger.warn('REPORTS', `'ai-ready' label dropped during creation of #${raw.number}; attempting manual attachment...`);
+      logger.warn(`'ai-ready' label dropped during creation of #${raw.number}; attempting manual attachment...`, 'REPORTS');
       try {
         const added = await this.addLabelsToIssue(raw.number, ['ai-ready']);
         returnedLabels = added;
       } catch (addErr) {
-        logger.error('REPORTS', `CRITICAL: Failed to attach 'ai-ready' label to #${raw.number}!`, { err: String(addErr) });
+        logger.error(`CRITICAL: Failed to attach 'ai-ready' label to #${raw.number}!`, 'REPORTS', { err: String(addErr) });
       }
     }
 

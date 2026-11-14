@@ -38,7 +38,7 @@ export class FingerprintIndex {
         }
       }
     } catch (err) {
-      logger.error('REPORTS', `Failed to load fingerprint index from ${this.filePath}`, {
+      logger.error(`Failed to load fingerprint index from ${this.filePath}`, 'REPORTS', {
         err: String(err),
       });
     }
@@ -60,7 +60,7 @@ export class FingerprintIndex {
       fs.writeFileSync(tempPath, JSON.stringify(obj, null, 2), 'utf-8');
       fs.renameSync(tempPath, this.filePath);
     } catch (err) {
-      logger.error('REPORTS', `Failed to save fingerprint index to ${this.filePath}`, {
+      logger.error(`Failed to save fingerprint index to ${this.filePath}`, 'REPORTS', {
         err: String(err),
       });
     }

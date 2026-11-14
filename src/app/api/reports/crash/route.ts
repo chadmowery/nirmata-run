@@ -196,7 +196,7 @@ export async function POST(req: NextRequest) {
           await client.addComment(existingEntry.issueNumber, commentBody);
           return NextResponse.json({ status: 'commented', ref } satisfies ReportResult);
         } catch (err) {
-          logger.warn('REPORTS', `Failed to post dedupe comment for ${ref}; queuing in outbox`, {
+          logger.warn(`Failed to post dedupe comment for ${ref}; queuing in outbox`, 'REPORTS', {
             err: String(err),
           });
           reportOutbox.enqueue({
@@ -233,7 +233,7 @@ export async function POST(req: NextRequest) {
     fingerprintIndex.recordNewIssue(fingerprint, created.number);
     return NextResponse.json({ status: 'created', ref } satisfies ReportResult);
   } catch (err) {
-    logger.warn('REPORTS', `Failed to create crash issue for ${ref}; queuing in outbox`, {
+    logger.warn(`Failed to create crash issue for ${ref}; queuing in outbox`, 'REPORTS', {
       err: String(err),
     });
     reportOutbox.enqueue({

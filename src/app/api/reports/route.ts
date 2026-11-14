@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
     await client.createIssue({ title, body, labels });
     return NextResponse.json({ status: 'created', ref } satisfies ReportResult);
   } catch (err) {
-    logger.warn('REPORTS', `Direct GitHub delivery failed for ${ref}; queuing in outbox`, {
+    logger.warn(`Direct GitHub delivery failed for ${ref}; queuing in outbox`, 'REPORTS', {
       err: String(err),
     });
 

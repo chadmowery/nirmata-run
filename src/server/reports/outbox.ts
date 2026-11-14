@@ -106,7 +106,7 @@ export class ReportOutbox {
     };
 
     this.saveItem(fullItem);
-    logger.info('REPORTS', `Enqueued report ${item.ref} to outbox`, { action: item.action });
+    logger.info(`Enqueued report ${item.ref} to outbox`, 'REPORTS', { action: item.action });
     return fullItem;
   }
 
@@ -124,7 +124,7 @@ export class ReportOutbox {
       try {
         fs.unlinkSync(targetPath);
       } catch (err) {
-        logger.warn('REPORTS', `Could not delete outbox file ${targetPath}`, { err: String(err) });
+        logger.warn(`Could not delete outbox file ${targetPath}`, 'REPORTS', { err: String(err) });
       }
     }
   }
@@ -134,7 +134,7 @@ export class ReportOutbox {
     this.deleteItem(item.ref);
     const failedPath = this.getFailedPath(item.ref);
     fs.writeFileSync(failedPath, JSON.stringify(item, null, 2), 'utf-8');
-    logger.error('REPORTS', `Report ${item.ref} exceeded max retries and moved to failed/`, {
+    logger.error(`Report ${item.ref} exceeded max retries and moved to failed/`, 'REPORTS', {
       attempts: item.attempts,
       lastError: item.lastError,
     });
@@ -159,7 +159,7 @@ export class ReportOutbox {
         }
       }
     } catch (err) {
-      logger.error('REPORTS', 'Failed to list outbox items', { err: String(err) });
+      logger.error('Failed to list outbox items', 'REPORTS', { err: String(err) });
     }
     return items;
   }
@@ -215,7 +215,7 @@ export class ReportOutbox {
 
         if (err instanceof GitHubAuthError) {
           this.state = 'blocked-auth';
-          logger.error('REPORTS', 'CRITICAL: GitHub credentials rejected; outbox worker paused (blocked-auth)', {
+          logger.error('CRITICAL: GitHub credentials rejected; outbox worker paused (blocked-auth)', 'REPORTS', {
             err: String(err),
           });
           this.saveItem(item);
