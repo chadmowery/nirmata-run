@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { POST } from '../route';
 import { NextRequest } from 'next/server';
 import { reportsRateLimiter } from '@/server/reports/rate-limiter';
+import { getReportOutbox } from '@/server/reports/outbox';
 
 describe('POST /api/reports', () => {
   const origEnv = { ...process.env };
@@ -102,5 +103,72 @@ describe('POST /api/reports', () => {
     });
     const okRes = await POST(okReq);
     expect(okRes.status).toBe(200);
+  });
+
+  it('queues retryable rate-limit failures and rejects permanent 4xx errors without queuing (L-5)', async () => {
+    process.env.GITHUB_ISSUES_ENABLED = 'true';
+    process.env.GITHUB_ISSUES_TOKEN = 'ghp_live_test_l5';
+    process.env.GITHUB_ISSUES_REPO = 'owner/repo-l5';
+
+    const fetchMock = vi
+      .fn()
+      // Request 1: ensureLabels succeeds (2 calls), createIssue hits 429 -> queued
+      .mockResolvedValueOnce({ ok: true, status: 201, headers: new Headers(), json: async () => ({}) })
+      .mockResolvedValueOnce({ ok: true, status: 201, headers: new Headers(), json: async () => ({}) })
+      .mockResolvedValueOnce({ ok: true, status: 201, headers: new Headers(), json: async () => ({}) })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        headers: new Headers({ 'retry-after': '30' }),
+        json: async () => ({ message: 'rate limit' }),
+      })
+      // Request 2: labels cached, createIssue hits permanent 422 -> 502, not queued
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        headers: new Headers(),
+        json: async () => ({ message: 'Validation Failed' }),
+      });
+
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    const enqueueSpy = vi.spyOn(getReportOutbox(), 'enqueue').mockImplementation((item) => ({
+      ...item,
+      attempts: 0,
+      nextAttemptAt: 0,
+      createdAt: Date.now(),
+    }));
+
+    try {
+      const req1 = new NextRequest('http://localhost:3000/api/reports', {
+        method: 'POST',
+        body: JSON.stringify({
+          kind: 'BUG',
+          title: 'Rate limit queue test',
+          description: 'Testing transient rate limit queuing behavior.',
+          includeDiagnostics: false,
+        }),
+      });
+      const res1 = await POST(req1);
+      expect(res1.status).toBe(200);
+      expect((await res1.json()).status).toBe('queued');
+      expect(enqueueSpy).toHaveBeenCalledTimes(1);
+
+      const req2 = new NextRequest('http://localhost:3000/api/reports', {
+        method: 'POST',
+        body: JSON.stringify({
+          kind: 'BUG',
+          title: 'Permanent error test',
+          description: 'Testing permanent 4xx rejection without queuing.',
+          includeDiagnostics: false,
+        }),
+      });
+      const res2 = await POST(req2);
+      expect(res2.status).toBe(502);
+      expect(enqueueSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      enqueueSpy.mockRestore();
+      globalThis.fetch = origFetch;
+    }
   });
 });

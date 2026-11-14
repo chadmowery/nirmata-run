@@ -5,7 +5,13 @@ import { getReportsStatus, getReportsServerConfig } from '@/server/reports/confi
 import { reportsRateLimiter } from '@/server/reports/rate-limiter';
 import { generateRefId, composeTitle, composeIssueBody } from '@/server/reports/composer';
 import { writeDryRunReport } from '@/server/reports/dry-run';
-import { getGitHubClient, GitHubRateLimitError, GitHubNetworkError } from '@/server/reports/github-client';
+import {
+  getGitHubClient,
+  GitHubApiError,
+  GitHubAuthError,
+  GitHubRateLimitError,
+  GitHubNetworkError,
+} from '@/server/reports/github-client';
 import { getReportOutbox } from '@/server/reports/outbox';
 import { readJsonBodyWithLimit } from '@/server/reports/body-limit';
 import { FloorState, Actor } from '@/shared/components';
@@ -108,22 +114,36 @@ export async function POST(req: NextRequest) {
     await client.createIssue({ title, body, labels });
     return NextResponse.json({ status: 'created', ref } satisfies ReportResult);
   } catch (err) {
-    logger.warn(`Direct GitHub delivery failed for ${ref}; queuing in outbox`, 'REPORTS', {
+    const isPermanentClientError =
+      err instanceof GitHubApiError &&
+      !(err instanceof GitHubAuthError) &&
+      !(err instanceof GitHubRateLimitError) &&
+      err.status >= 400 &&
+      err.status < 500;
+
+    if (isPermanentClientError) {
+      logger.error(`Permanent GitHub error for ${ref}; not queuing`, 'REPORTS', {
+        status: err.status,
+        err: String(err),
+      });
+      return NextResponse.json(
+        { error: 'Unable to submit report to upstream tracker' },
+        { status: 502 }
+      );
+    }
+
+    const reason =
+      err instanceof GitHubAuthError
+        ? 'auth'
+        : err instanceof GitHubRateLimitError
+        ? 'rate-limit'
+        : err instanceof GitHubNetworkError
+        ? 'network'
+        : 'transient';
+    logger.warn(`Direct GitHub delivery failed (${reason}) for ${ref}; queuing in outbox`, 'REPORTS', {
       err: String(err),
     });
 
-    if (err instanceof GitHubRateLimitError || err instanceof GitHubNetworkError) {
-      getReportOutbox().enqueue({
-        ref,
-        action: 'create-issue',
-        title,
-        body,
-        labels,
-      });
-      return NextResponse.json({ status: 'queued', ref } satisfies ReportResult);
-    }
-
-    // For auth or unrecoverable client errors, also queue to avoid data loss
     getReportOutbox().enqueue({
       ref,
       action: 'create-issue',
