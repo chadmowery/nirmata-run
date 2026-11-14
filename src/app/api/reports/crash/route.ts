@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   }
 
   const cfg = getReportsServerConfig();
-  const ref = generateRefId();
+  const ref = generateRefId((candidate) => getReportOutbox().hasRef(candidate));
   const labels = getLabelsForKind('CRASH');
 
   let title = '';

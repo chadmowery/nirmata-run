@@ -85,6 +85,10 @@ export class ReportOutbox {
     return path.join(this.failedDir, `${ref}.json`);
   }
 
+  hasRef(ref: string): boolean {
+    return fs.existsSync(this.getItemPath(ref)) || fs.existsSync(this.getFailedPath(ref));
+  }
+
   /**
    * Enqueues a report item to disk.
    */
@@ -98,8 +102,15 @@ export class ReportOutbox {
     fingerprint?: string;
   }, now = Date.now()): OutboxItem {
     this.ensureDirs();
+    let effectiveRef = item.ref;
+    if (this.hasRef(effectiveRef)) {
+      const suffix = crypto.randomBytes(2).toString('hex').toUpperCase();
+      effectiveRef = `${item.ref}-${suffix}`;
+      logger.warn(`Outbox ref collision for ${item.ref}; reassigned to ${effectiveRef}`, 'REPORTS');
+    }
     const fullItem: OutboxItem = {
       ...item,
+      ref: effectiveRef,
       attempts: 0,
       nextAttemptAt: 0, // Immediately eligible for processing
       createdAt: now,
@@ -107,7 +118,7 @@ export class ReportOutbox {
 
     this.saveItem(fullItem);
     this.startWorker();
-    logger.info(`Enqueued report ${item.ref} to outbox`, 'REPORTS', { action: item.action });
+    logger.info(`Enqueued report ${effectiveRef} to outbox`, 'REPORTS', { action: item.action });
     return fullItem;
   }
 

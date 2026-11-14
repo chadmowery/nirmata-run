@@ -12,6 +12,19 @@ describe('Reports Composer', () => {
     expect(ref).toMatch(/^NR-[2-9A-Z]{4}$/);
   });
 
+  it('retries when isTaken reports a collision and expands length if exhausted (L-1)', () => {
+    let calls = 0;
+    const ref = generateRefId(() => {
+      calls++;
+      return calls <= 3;
+    });
+    expect(calls).toBe(4);
+    expect(ref).toMatch(/^NR-[2-9A-Z]{4}$/);
+
+    const fallback = generateRefId(() => true);
+    expect(fallback).toMatch(/^NR-[2-9A-Z]{6}$/);
+  });
+
   describe('composeTitle', () => {
     it('composes crash titles with error name and message capped at 80 chars', () => {
       const title = composeTitle({

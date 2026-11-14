@@ -3,6 +3,7 @@
  * Strictly implements the untrusted-input contract and body truncation limits.
  */
 
+import crypto from 'crypto';
 import {
   createCodeFence,
   sanitizeTitle,
@@ -77,15 +78,27 @@ export interface IssueComposeParams {
 }
 
 /**
- * Generates a short reference ID for the player acknowledgement (e.g. NR-7K3Q).
+ * Generates a short cryptographically random reference ID for the player acknowledgement (e.g. NR-7K3Q).
+ * Accepts an optional collision predicate (e.g., checking pending/failed outbox files).
  */
-export function generateRefId(): string {
+export function generateRefId(isTaken?: (ref: string) => boolean): string {
   const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
-  let rand = '';
-  for (let i = 0; i < 4; i++) {
-    rand += chars.charAt(Math.floor(Math.random() * chars.length));
+  const buildCandidate = (len: number) => {
+    let rand = '';
+    for (let i = 0; i < len; i++) {
+      rand += chars.charAt(crypto.randomInt(0, chars.length));
+    }
+    return `NR-${rand}`;
+  };
+
+  for (let attempt = 0; attempt < 32; attempt++) {
+    const candidate = buildCandidate(4);
+    if (!isTaken?.(candidate)) {
+      return candidate;
+    }
   }
-  return `NR-${rand}`;
+
+  return buildCandidate(6);
 }
 
 /**

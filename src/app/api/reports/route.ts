@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   }
 
   const cfg = getReportsServerConfig();
-  const ref = generateRefId();
+  const ref = generateRefId((candidate) => getReportOutbox().hasRef(candidate));
 
   // 4. Optionally capture sealed live diagnostics from active session (Assumption A2)
   let liveSnapshot: Record<string, unknown> | undefined;

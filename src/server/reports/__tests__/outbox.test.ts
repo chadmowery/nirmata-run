@@ -192,4 +192,23 @@ describe('ReportOutbox', () => {
     const b = getReportOutbox();
     expect(a).toBe(b);
   });
+
+  it('detects ref collisions in pending/failed dirs and avoids overwriting on enqueue (L-1)', () => {
+    const first = outbox.enqueue({
+      ref: 'NR-DUP1',
+      action: 'create-issue',
+      body: 'first report',
+    });
+    expect(outbox.hasRef('NR-DUP1')).toBe(true);
+    expect(first.ref).toBe('NR-DUP1');
+
+    const second = outbox.enqueue({
+      ref: 'NR-DUP1',
+      action: 'create-issue',
+      body: 'second report',
+    });
+    expect(second.ref).not.toBe('NR-DUP1');
+    expect(second.ref.startsWith('NR-DUP1-')).toBe(true);
+    expect(outbox.listPending().length).toBe(2);
+  });
 });
