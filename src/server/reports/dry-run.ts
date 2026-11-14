@@ -5,8 +5,18 @@
 
 import fs from 'fs';
 import path from 'path';
-import { logger } from '@/engine/utils/logger';
-import type { ReportResult } from '@/shared/reports/schemas';
+import { logger } from '@engine/utils/logger';
+import type { ReportResult } from '@shared/reports/schemas';
+
+let dryRunReportsDirOverride: string | null = null;
+
+/**
+ * Overrides the dry-run reports output directory (primarily for test isolation).
+ * Pass `null` to restore the default `logs/reports` directory.
+ */
+export function setDryRunReportsDirForTesting(dir: string | null): void {
+  dryRunReportsDirOverride = dir;
+}
 
 export interface DryRunPayload {
   ref: string;
@@ -20,7 +30,7 @@ export interface DryRunPayload {
 
 export function writeDryRunReport(payload: DryRunPayload): ReportResult {
   try {
-    const logsDir = path.join(process.cwd(), 'logs', 'reports');
+    const logsDir = dryRunReportsDirOverride || path.join(process.cwd(), 'logs', 'reports');
     if (!fs.existsSync(logsDir)) {
       fs.mkdirSync(logsDir, { recursive: true });
     }

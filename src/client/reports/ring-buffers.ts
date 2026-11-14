@@ -3,9 +3,9 @@
  * Captures recent engine/game logs and player action intents.
  */
 
-import { logger } from '@/engine/utils/logger';
-import type { ClientLogEntry, ClientActionEntry } from '@/shared/reports/schemas';
-import { sanitizeLogMessage } from '@/shared/reports/sanitize';
+import { logger } from '@engine/utils/logger';
+import type { ClientLogEntry, ClientActionEntry } from '@shared/reports/schemas';
+import { sanitizeLogMessage } from '@shared/reports/sanitize';
 
 export class RingBuffer<T> {
   private buffer: T[] = [];

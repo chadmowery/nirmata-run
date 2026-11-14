@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import type { ClientDiagnostics, RedactedCrashPreview } from '@/shared/reports/schemas';
+import type { ClientDiagnostics, RedactedCrashPreview } from '@shared/reports/schemas';
 import styles from './ReportsModal.module.css';
 
 interface DiagnosticsPreviewProps {

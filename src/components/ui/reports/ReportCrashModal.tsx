@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useReportStore } from '@/client/reports/report-store';
+import { useReportStore } from '@client/reports/report-store';
 import { uiAudio } from '@/game/audio/ui-audio';
 import { TaikokuPlacard, BtnLever } from '../atomic';
 import { DiagnosticsPreview } from './DiagnosticsPreview';

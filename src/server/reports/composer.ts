@@ -13,9 +13,9 @@ import {
   sanitizeLogMessage,
   sanitizeErrorName,
   sanitizeInlineValue,
-} from '@/shared/reports/sanitize';
-import { getTitlePrefixForKind, type ReportKind, type CrashSource } from '@/shared/reports/labels';
-import type { ClientDiagnostics } from '@/shared/reports/schemas';
+} from '@shared/reports/sanitize';
+import { getTitlePrefixForKind, type ReportKind, type CrashSource } from '@shared/reports/labels';
+import type { ClientDiagnostics } from '@shared/reports/schemas';
 
 const MAX_GITHUB_BODY_LENGTH = 60000;
 

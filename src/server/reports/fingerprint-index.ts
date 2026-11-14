@@ -6,7 +6,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { logger } from '@/engine/utils/logger';
+import { logger } from '@engine/utils/logger';
 import type { FingerprintIndexInterface } from './interfaces';
 
 export interface FingerprintIndexEntry {
@@ -17,13 +17,22 @@ export interface FingerprintIndexEntry {
 }
 
 export class FingerprintIndex implements FingerprintIndexInterface {
-  private readonly filePath: string | null;
+  private filePath: string | null;
   private entries: Map<string, FingerprintIndexEntry> = new Map();
   private loaded = false;
   private readonly commentThrottleMs = 10 * 60 * 1000; // 10 minutes
 
   constructor(filePath: string | null = path.join(process.cwd(), 'data', 'report-index.json')) {
     this.filePath = filePath;
+  }
+
+  /**
+   * Redirects the persistent index file path (for test isolation) and resets loaded state.
+   */
+  setFilePathForTesting(filePath: string | null): void {
+    this.filePath = filePath;
+    this.entries.clear();
+    this.loaded = false;
   }
 
   private ensureLoaded(): void {

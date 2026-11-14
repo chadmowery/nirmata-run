@@ -1,19 +1,22 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { FingerprintIndex } from '../fingerprint-index';
 
 describe('FingerprintIndex', () => {
-  const testFile = path.join(process.cwd(), 'data', 'test-report-index.json');
+  let testDir: string;
+  let testFile: string;
   let index: FingerprintIndex;
 
   beforeEach(() => {
-    if (fs.existsSync(testFile)) fs.unlinkSync(testFile);
+    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nr-fp-index-'));
+    testFile = path.join(testDir, 'test-report-index.json');
     index = new FingerprintIndex(testFile);
   });
 
   afterEach(() => {
-    if (fs.existsSync(testFile)) fs.unlinkSync(testFile);
+    fs.rmSync(testDir, { recursive: true, force: true });
   });
 
   it('records new issue and saves to disk', () => {

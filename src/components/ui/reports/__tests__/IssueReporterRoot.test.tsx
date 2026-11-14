@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { IssueReporterRoot } from '../IssueReporterRoot';
-import { useReportStore } from '@/client/reports/report-store';
+import { useReportStore } from '@client/reports/report-store';
 
 describe('IssueReporterRoot', () => {
   beforeEach(() => {

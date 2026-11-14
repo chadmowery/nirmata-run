@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { RingBuffer, logRingBuffer, actionRingBuffer, initLoggerSink } from '../ring-buffers';
-import { logger } from '@/engine/utils/logger';
+import { logger } from '@engine/utils/logger';
 
 describe('Diagnostics Ring Buffers', () => {
   beforeEach(() => {

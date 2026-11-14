@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ReportCrashModal } from '../ReportCrashModal';
-import { useReportStore, DONT_ASK_AGAIN_KEY } from '@/client/reports/report-store';
+import { useReportStore, DONT_ASK_AGAIN_KEY } from '@client/reports/report-store';
 
 describe('ReportCrashModal', () => {
   beforeEach(() => {

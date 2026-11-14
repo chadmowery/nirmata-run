@@ -6,7 +6,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { logger } from '@/engine/utils/logger';
+import { logger } from '@engine/utils/logger';
 import {
   GitHubClient,
   GitHubApiError,
@@ -47,8 +47,8 @@ const BACKOFF_SCHEDULE_MS = [
 const MAX_ATTEMPTS = 8;
 
 export class ReportOutbox implements OutboxInterface {
-  private readonly outboxDir: string;
-  private readonly failedDir: string;
+  private outboxDir: string;
+  private failedDir: string;
   private state: OutboxWorkerState = 'idle';
   private timer: ReturnType<typeof setInterval> | null = null;
   private githubClient?: GitHubClient;
@@ -58,7 +58,15 @@ export class ReportOutbox implements OutboxInterface {
     this.outboxDir = root;
     this.failedDir = path.join(root, 'failed');
     this.githubClient = githubClient;
-    this.ensureDirs();
+  }
+
+  /**
+   * Redirects the outbox storage directory (for test isolation) without touching real `data/`.
+   */
+  setBaseDirForTesting(baseDir: string | null): void {
+    const root = baseDir || path.join(process.cwd(), 'data', 'report-outbox');
+    this.outboxDir = root;
+    this.failedDir = path.join(root, 'failed');
   }
 
   private ensureDirs(): void {
@@ -175,7 +183,9 @@ export class ReportOutbox implements OutboxInterface {
   }
 
   listPending(): OutboxItem[] {
-    this.ensureDirs();
+    if (!fs.existsSync(this.outboxDir)) {
+      return [];
+    }
     const items: OutboxItem[] = [];
     try {
       const files = fs.readdirSync(this.outboxDir);

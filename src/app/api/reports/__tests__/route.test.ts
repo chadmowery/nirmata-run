@@ -1,21 +1,32 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { POST } from '../route';
 import { NextRequest } from 'next/server';
-import { reportsRateLimiter } from '@/server/reports/rate-limiter';
-import { getReportOutbox } from '@/server/reports/outbox';
+import { reportsRateLimiter } from '@server/reports/rate-limiter';
+import { getReportOutbox } from '@server/reports/outbox';
+import { setDryRunReportsDirForTesting } from '@server/reports/dry-run';
 
 describe('POST /api/reports', () => {
   const origEnv = { ...process.env };
+  let tempDir: string;
 
   beforeEach(() => {
     process.env = { ...origEnv };
     (process.env as Record<string, string | undefined>).NODE_ENV = 'development';
     reportsRateLimiter.reset();
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nr-api-reports-'));
+    setDryRunReportsDirForTesting(path.join(tempDir, 'logs'));
+    getReportOutbox().setBaseDirForTesting(path.join(tempDir, 'outbox'));
   });
 
   afterEach(() => {
     process.env = origEnv;
     reportsRateLimiter.reset();
+    setDryRunReportsDirForTesting(null);
+    getReportOutbox().setBaseDirForTesting(null);
+    fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
   it('rejects invalid request payloads with 400', async () => {

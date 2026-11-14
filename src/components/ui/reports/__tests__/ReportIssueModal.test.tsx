@@ -2,7 +2,7 @@ import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ReportIssueModal } from '../ReportIssueModal';
-import { useReportStore } from '@/client/reports/report-store';
+import { useReportStore } from '@client/reports/report-store';
 
 describe('ReportIssueModal', () => {
   beforeEach(() => {
@@ -104,7 +104,7 @@ describe('ReportIssueModal', () => {
   });
 
   it('memoizes buildClientDiagnostics across keystrokes while modal is open (L-10)', async () => {
-    const collectors = await import('@/client/reports/collectors');
+    const collectors = await import('@client/reports/collectors');
     const spy = vi.spyOn(collectors, 'buildClientDiagnostics');
 
     useReportStore.getState().openManualReport();

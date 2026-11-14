@@ -3,7 +3,7 @@
  * Server-only; handles label safety, rate-limit status mapping, and authentication errors.
  */
 
-import { logger } from '@/engine/utils/logger';
+import { logger } from '@engine/utils/logger';
 
 export class GitHubApiError extends Error {
   constructor(

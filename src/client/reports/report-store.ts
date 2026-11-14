@@ -11,7 +11,7 @@ import type {
   CrashApproveRequest,
   CrashDraftOffer,
   PendingCrash,
-} from '@/shared/reports/schemas';
+} from '@shared/reports/schemas';
 
 export { type PendingCrash };
 

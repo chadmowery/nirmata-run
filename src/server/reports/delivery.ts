@@ -5,7 +5,7 @@
  */
 
 import type { ReportsStatus, ReportResult } from '@shared/reports/schemas';
-import { logger } from '@/engine/utils/logger';
+import { logger } from '@engine/utils/logger';
 import type { ReportsServerConfig } from './config';
 import {
   composeIssueBody,

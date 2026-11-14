@@ -3,7 +3,7 @@
  * Server-only module; must never be imported by client code.
  */
 
-import type { ReportsStatus } from '@/shared/reports/schemas';
+import type { ReportsStatus } from '@shared/reports/schemas';
 
 export interface ReportsServerConfig {
   githubToken?: string;

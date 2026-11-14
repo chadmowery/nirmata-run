@@ -4,6 +4,7 @@ The Client layer governs player-facing browser execution, client-side optimistic
 
 ## 1. Import Boundaries (Strictly Enforced)
 - **Allowed Imports**: `@engine/*`, `@shared/*`, `@rendering/*`, `@client/*`, and prediction-safe game modules.
+  - **Telemetry Exception**: `src/client/reports/collectors.ts` may read non-authoritative run state (status, mode, floor, turn, shellId, log messages) from `@/game/ui/store` for client diagnostic capture; it must remain strictly read-only.
 - **FORBIDDEN Imports**:
   - `@server/*`: Client never imports authoritative server simulation, session management, or database repos.
   - `@dev-tool/*`: Production client code must never bundle developer diagnostics or Gamedata Studio.

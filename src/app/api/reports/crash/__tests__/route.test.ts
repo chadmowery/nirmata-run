@@ -1,18 +1,28 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
 import { POST } from '../route';
 import { NextRequest } from 'next/server';
-import { reportsRateLimiter } from '@/server/reports/rate-limiter';
-import { draftStore } from '@/server/reports/draft-store';
-import { fingerprintIndex, dryRunFingerprintIndex } from '@/server/reports/fingerprint-index';
+import { reportsRateLimiter } from '@server/reports/rate-limiter';
+import { draftStore } from '@server/reports/draft-store';
+import { fingerprintIndex, dryRunFingerprintIndex } from '@server/reports/fingerprint-index';
+import { setDryRunReportsDirForTesting } from '@server/reports/dry-run';
+import { getReportOutbox } from '@server/reports/outbox';
 
 describe('POST /api/reports/crash', () => {
   const origEnv = { ...process.env };
+  let testTempDir: string;
+  let testLogsDir: string;
 
   beforeEach(() => {
     process.env = { ...origEnv };
     (process.env as Record<string, string | undefined>).NODE_ENV = 'development';
+    testTempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nr-api-crash-'));
+    testLogsDir = path.join(testTempDir, 'logs');
+    setDryRunReportsDirForTesting(testLogsDir);
+    fingerprintIndex.setFilePathForTesting(path.join(testTempDir, 'report-index.json'));
+    getReportOutbox().setBaseDirForTesting(path.join(testTempDir, 'outbox'));
     reportsRateLimiter.reset();
     draftStore.clear();
     fingerprintIndex.clear();
@@ -25,6 +35,10 @@ describe('POST /api/reports/crash', () => {
     draftStore.clear();
     fingerprintIndex.clear();
     dryRunFingerprintIndex.clear();
+    setDryRunReportsDirForTesting(null);
+    fingerprintIndex.setFilePathForTesting(path.join(process.cwd(), 'data', 'report-index.json'));
+    getReportOutbox().setBaseDirForTesting(null);
+    fs.rmSync(testTempDir, { recursive: true, force: true });
   });
 
   it('returns 404 when server crash draft is missing or expired', async () => {
@@ -184,7 +198,7 @@ describe('POST /api/reports/crash', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
 
-    const dryRunFile = path.join(process.cwd(), 'logs', 'reports', `report-${data.ref}.json`);
+    const dryRunFile = path.join(testLogsDir, `report-${data.ref}.json`);
     const written = JSON.parse(fs.readFileSync(dryRunFile, 'utf-8')) as { body: string };
     expect(written.body).toContain('Crash (SERVER_5XX)');
     expect(written.body).not.toContain('Crash (SERVER_TURN)');
@@ -227,7 +241,7 @@ describe('POST /api/reports/crash', () => {
     expect(res.status).toBe(200);
     const data = await res.json();
 
-    const dryRunFile = path.join(process.cwd(), 'logs', 'reports', `report-${data.ref}.json`);
+    const dryRunFile = path.join(testLogsDir, `report-${data.ref}.json`);
     const written = JSON.parse(fs.readFileSync(dryRunFile, 'utf-8')) as { body: string };
     expect(written.body).toContain('`d7770af2`');
     expect(written.body).toContain('Mode `WEEKLY`');

@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useReportStore } from '@/client/reports/report-store';
-import { buildClientDiagnostics } from '@/client/reports/collectors';
-import type { ReportKind } from '@/shared/reports/labels';
+import { useReportStore } from '@client/reports/report-store';
+import { buildClientDiagnostics } from '@client/reports/collectors';
+import type { ReportKind } from '@shared/reports/labels';
 import { uiAudio } from '@/game/audio/ui-audio';
 import { gameStore } from '@/game/ui/store';
 import { TaikokuPlacard, BtnLever } from '../atomic';

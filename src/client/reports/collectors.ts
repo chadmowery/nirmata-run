@@ -3,12 +3,12 @@
  * Captures window errors, unhandled rejections, and builds structured diagnostic snapshots.
  */
 
-import { computeCrashFingerprint } from '@/shared/reports/fingerprint';
+import { computeCrashFingerprint } from '@shared/reports/fingerprint';
 import {
   PersistedPendingCrashesSchema,
   type ClientDiagnostics,
   type CrashSource,
-} from '@/shared/reports/schemas';
+} from '@shared/reports/schemas';
 import { logRingBuffer, actionRingBuffer } from './ring-buffers';
 import { useReportStore, PENDING_CRASH_STORAGE_KEY } from './report-store';
 import { gameStore } from '@/game/ui/store';

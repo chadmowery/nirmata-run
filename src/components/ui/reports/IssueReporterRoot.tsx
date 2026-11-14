@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { useReportStore } from '@/client/reports/report-store';
-import { initLoggerSink } from '@/client/reports/ring-buffers';
-import { initErrorCollectors } from '@/client/reports/collectors';
+import { useReportStore } from '@client/reports/report-store';
+import { initLoggerSink } from '@client/reports/ring-buffers';
+import { initErrorCollectors } from '@client/reports/collectors';
 import { ReportCrashModal } from './ReportCrashModal';
 import { ReportIssueModal } from './ReportIssueModal';
 
