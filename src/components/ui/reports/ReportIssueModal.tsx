@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useReportStore } from '@/client/reports/report-store';
 import { buildClientDiagnostics } from '@/client/reports/collectors';
 import type { ReportKind } from '@/shared/reports/labels';
@@ -8,6 +8,7 @@ import { uiAudio } from '@/game/audio/ui-audio';
 import { gameStore } from '@/game/ui/store';
 import { TaikokuPlacard, BtnLever } from '../atomic';
 import { DiagnosticsPreview } from './DiagnosticsPreview';
+import { useModalFocusTrap } from './useModalFocusTrap';
 import styles from './ReportsModal.module.css';
 
 const REPORT_KINDS: Array<{ kind: Exclude<ReportKind, 'CRASH'>; label: string }> = [
@@ -31,6 +32,28 @@ export const ReportIssueModal: React.FC = () => {
   const [includeDiagnostics, setIncludeDiagnostics] = useState(true);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [idempotencyKey, setIdempotencyKey] = useState('');
+  const [confirmingDiscard, setConfirmingDiscard] = useState(false);
+
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useModalFocusTrap(isManualModalOpen, dialogRef);
+
+  const isDirty = !submissionResult && (title.trim().length > 0 || description.trim().length > 0);
+
+  const requestClose = useCallback(() => {
+    if (useReportStore.getState().isSubmitting) return;
+    if (isDirty) {
+      setConfirmingDiscard((prev) => {
+        if (prev) {
+          closeManualReport();
+          return false;
+        }
+        return true;
+      });
+      return;
+    }
+    setConfirmingDiscard(false);
+    closeManualReport();
+  }, [isDirty, closeManualReport]);
 
   useEffect(() => {
     if (!isManualModalOpen) return;
@@ -38,27 +61,39 @@ export const ReportIssueModal: React.FC = () => {
     setTitle('');
     setDescription('');
     setValidationError(null);
+    setConfirmingDiscard(false);
     setIdempotencyKey(
       typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
         ? crypto.randomUUID()
         : `manual-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
     );
+    return () => {
+      uiAudio.playModalClose();
+    };
+  }, [isManualModalOpen]);
 
+  useEffect(() => {
+    if (!isManualModalOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
         e.stopPropagation();
-        closeManualReport();
+        requestClose();
+        return;
       }
       e.stopPropagation();
     };
 
     window.addEventListener('keydown', handleKeyDown, true);
     return () => {
-      uiAudio.playModalClose();
       window.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [isManualModalOpen, closeManualReport]);
+  }, [isManualModalOpen, requestClose]);
+
+  const diagnosticsSnapshot = useMemo(
+    () => (isManualModalOpen && includeDiagnostics ? buildClientDiagnostics() : undefined),
+    [isManualModalOpen, includeDiagnostics]
+  );
 
   const handleSubmit = useCallback(async () => {
     if (title.trim().length < 5) {
@@ -80,7 +115,7 @@ export const ReportIssueModal: React.FC = () => {
 
     setValidationError(null);
 
-    const diagnostics = includeDiagnostics ? buildClientDiagnostics() : undefined;
+    const diagnostics = includeDiagnostics ? (diagnosticsSnapshot ?? buildClientDiagnostics()) : undefined;
     const activeSessionId = gameStore?.getState()?.launchConfig?.sessionId;
 
     try {
@@ -96,7 +131,7 @@ export const ReportIssueModal: React.FC = () => {
     } catch {
       // Handled in store
     }
-  }, [kind, title, description, includeDiagnostics, idempotencyKey, submitManualReport]);
+  }, [kind, title, description, includeDiagnostics, diagnosticsSnapshot, idempotencyKey, submitManualReport]);
 
   if (!isManualModalOpen) return null;
 
@@ -106,15 +141,21 @@ export const ReportIssueModal: React.FC = () => {
       role="dialog"
       aria-modal="true"
       aria-labelledby="manual-report-title"
-      onClick={closeManualReport}
+      onClick={requestClose}
     >
-      <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className={styles.modalContent}
+        onClick={(e) => e.stopPropagation()}
+      >
         <TaikokuPlacard
           kanji="問題報告"
           title="REPORT ISSUE // FIELD INTELLIGENCE & TELEMETRY"
+          titleId="manual-report-title"
           stampText="INTEL // MANUAL"
           stampVariant="cyan"
-          onClose={closeManualReport}
+          onClose={requestClose}
           closeLabel="✕ CLOSE [ESC]"
           style={{ marginBottom: 0, border: 'none', borderBottom: '2px solid var(--c-accent, #d8ff00)' }}
         />
@@ -208,10 +249,46 @@ export const ReportIssueModal: React.FC = () => {
                   <span>Attach diagnostic telemetry (build, route, recent actions)</span>
                 </label>
 
-                {includeDiagnostics && (
-                  <DiagnosticsPreview diagnostics={buildClientDiagnostics()} />
+                {includeDiagnostics && diagnosticsSnapshot && (
+                  <DiagnosticsPreview diagnostics={diagnosticsSnapshot} />
                 )}
               </div>
+
+              {confirmingDiscard && (
+                <div
+                  role="alert"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '10px',
+                    padding: '10px 12px',
+                    border: '1px solid rgba(255, 193, 7, 0.5)',
+                    background: 'rgba(255, 193, 7, 0.08)',
+                    fontSize: '11px',
+                    color: '#fcd34d',
+                  }}
+                >
+                  <span>Unsaved report text detected. Discard this draft?</span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="tool-btn"
+                      onClick={() => setConfirmingDiscard(false)}
+                    >
+                      KEEP EDITING
+                    </button>
+                    <button
+                      type="button"
+                      className="tool-btn"
+                      style={{ color: 'var(--c-danger, #ff0055)', borderColor: 'var(--c-danger, #ff0055)' }}
+                      onClick={closeManualReport}
+                    >
+                      DISCARD
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {validationError && (
                 <div id="report-error-msg" className={styles.errorText} role="alert">
@@ -235,7 +312,7 @@ export const ReportIssueModal: React.FC = () => {
             </BtnLever>
           ) : (
             <>
-              <BtnLever onClick={closeManualReport} disabled={isSubmitting}>
+              <BtnLever onClick={requestClose} disabled={isSubmitting}>
                 CANCEL [中止]
               </BtnLever>
               <BtnLever

@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useReportStore } from '@/client/reports/report-store';
 import { uiAudio } from '@/game/audio/ui-audio';
 import { TaikokuPlacard, BtnLever } from '../atomic';
 import { DiagnosticsPreview } from './DiagnosticsPreview';
+import { useModalFocusTrap } from './useModalFocusTrap';
 import styles from './ReportsModal.module.css';
 
 export const ReportCrashModal: React.FC = () => {
@@ -16,6 +17,9 @@ export const ReportCrashModal: React.FC = () => {
   const submitActiveCrash = useReportStore((s) => s.submitActiveCrash);
 
   const [note, setNote] = useState('');
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useModalFocusTrap(Boolean(activeCrash), dialogRef);
 
   useEffect(() => {
     if (!activeCrash) return;
@@ -67,12 +71,15 @@ export const ReportCrashModal: React.FC = () => {
       }}
     >
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         className={`${styles.modalContent} ${styles.dangerBorder}`}
         onClick={(e) => e.stopPropagation()}
       >
         <TaikokuPlacard
           kanji="障害報告"
           title="FAULT REPORT // TACTICAL SIMULATION EXCEPTION"
+          titleId="crash-report-title"
           stampText="FAULT // LOGGED"
           stampVariant="danger"
           onClose={() => {

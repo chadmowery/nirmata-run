@@ -125,4 +125,53 @@ describe('ReportCrashModal', () => {
 
     vi.unstubAllGlobals();
   });
+
+  it('wires aria-labelledby to crash-report-title and traps/restores focus (M-7)', () => {
+    const triggerBtn = document.createElement('button');
+    triggerBtn.textContent = 'Trigger';
+    document.body.appendChild(triggerBtn);
+    triggerBtn.focus();
+
+    useReportStore.getState().queueCrash({
+      origin: 'server',
+      source: 'SERVER_TURN',
+      draftId: 'draft-a11y',
+      sessionId: 'sess-abc',
+      fingerprint: '1234567890abcdef',
+      preview: {
+        errorName: 'Error',
+        errorMessage: 'focus trap test',
+        actionType: 'MOVE',
+        floor: 1,
+        turn: 1,
+        sealedManifest: [],
+      },
+    });
+
+    const { rerender } = render(<ReportCrashModal />);
+    const dialog = screen.getByRole('dialog');
+    const labelledBy = dialog.getAttribute('aria-labelledby');
+    expect(labelledBy).toBe('crash-report-title');
+    expect(document.getElementById('crash-report-title')?.textContent).toContain('FAULT REPORT');
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    // Shift+Tab from first focusable wraps to last button inside dialog
+    const focusables = dialog.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), textarea:not([disabled]), input:not([disabled])'
+    );
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    first.focus();
+    fireEvent.keyDown(window, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(last);
+
+    fireEvent.keyDown(window, { key: 'Tab' });
+    expect(document.activeElement).toBe(first);
+
+    // Dismissing restores focus to trigger element
+    fireEvent.click(screen.getByText(/DON'T SEND/i));
+    rerender(<ReportCrashModal />);
+    expect(document.activeElement).toBe(triggerBtn);
+    triggerBtn.remove();
+  });
 });

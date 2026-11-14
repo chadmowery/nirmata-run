@@ -24,6 +24,11 @@
   .overlay {
     animation: none !important;
   }
+
+  .input,
+  .typeButton {
+    transition: none !important;
+  }
 }
 
 .modalContent {

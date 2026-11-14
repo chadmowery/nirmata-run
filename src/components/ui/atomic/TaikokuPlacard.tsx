@@ -6,6 +6,7 @@ import { TaikokuStamp } from './TaikokuStamp';
 export interface TaikokuPlacardProps {
   kanji: string;
   title: string;
+  titleId?: string;
   tag?: string;
   stampText?: string;
   stampVariant?: 'danger' | 'cyan' | 'secured';
@@ -19,6 +20,7 @@ export interface TaikokuPlacardProps {
 export const TaikokuPlacard: React.FC<TaikokuPlacardProps> = ({
   kanji,
   title,
+  titleId,
   tag,
   stampText,
   stampVariant = 'danger',
@@ -32,7 +34,7 @@ export const TaikokuPlacard: React.FC<TaikokuPlacardProps> = ({
     <header className={`taikoku-placard ${className}`} style={style}>
       <div className="placard-title">
         <span className="placard-kanji">{kanji}</span>
-        <span>{title}</span>
+        <span id={titleId}>{title}</span>
         {tag && <span className="placard-tag">{tag}</span>}
       </div>
 
