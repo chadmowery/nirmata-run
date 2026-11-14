@@ -14,6 +14,7 @@ import { writeDryRunReport } from '@/server/reports/dry-run';
 import { GitHubClient } from '@/server/reports/github-client';
 import { getReportOutbox } from '@/server/reports/outbox';
 import { draftStore } from '@/server/reports/draft-store';
+import { buildAllowListedIssueSnapshot } from '@/server/utils/turn-snapshot';
 import { fingerprintIndex } from '@/server/reports/fingerprint-index';
 import { logger } from '@/engine/utils/logger';
 
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
       errorMessage: draft.sealed.errorMessage,
       stack: draft.sealed.stack,
       failedAction: draft.sealed.action,
-      stateSnapshot: draft.sealed.rawSnapshot,
+      stateSnapshot: buildAllowListedIssueSnapshot(draft.sealed),
       note: data.note,
       sessionId: data.sessionId,
       title,

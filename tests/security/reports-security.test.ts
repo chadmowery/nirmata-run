@@ -4,7 +4,10 @@ import path from 'path';
 import {
   buildTurnSnapshot,
   createRedactedCrashPreview,
+  createServerCrashDraft,
+  buildAllowListedIssueSnapshot,
 } from '@/server/utils/turn-snapshot';
+import { draftStore } from '@/server/reports/draft-store';
 import { composeIssueBody } from '@/server/reports/composer';
 import { World } from '@engine/ecs/world';
 import { TurnManager } from '@engine/turn/turn-manager';
@@ -95,5 +98,59 @@ describe('Reports Security & Privacy Invariants', () => {
     expect(body).toContain('UNTRUSTED PLAYER INPUT');
     expect(body).toContain('sess_123…');
     expect(body).not.toContain('sess_1234567890'); // Truncated to 8 chars
+  });
+
+  it('never leaks full sessionId or duplicated stack/action into GitHub issue body from createServerCrashDraft (C-2)', () => {
+    draftStore.clear();
+    const bus = new EventBus<EngineEvents>();
+    const world = new World<EngineEvents>(bus);
+    const turnManager = {
+      getTurnNumber: () => 12,
+      getPhase: () => 'ACTION',
+      isPaused: false,
+    } as unknown as TurnManager<EngineEvents>;
+
+    const playerId = world.createEntity();
+    world.addComponent(playerId, Position, { x: 2, y: 3 });
+    world.addComponent(playerId, Health, { current: 50, max: 100, isAlive: true });
+    world.addComponent(playerId, FloorState, {
+      currentFloor: 4,
+      maxFloor: 15,
+      runSeed: 'seed-c2-test',
+      sectorCondition: 'NOMINAL',
+    });
+
+    const fullSessionId = 'bearer_live_session_token_987654321';
+    const offer = createServerCrashDraft({
+      sessionId: fullSessionId,
+      action: { type: 'MOVE', dx: 1, dy: 0 },
+      playerId,
+      world,
+      turnManager,
+      error: new TypeError('C-2 test failure'),
+    });
+
+    const draft = draftStore.redeem(offer.draftId, fullSessionId);
+    expect(draft).not.toBeNull();
+
+    const snapshot = buildAllowListedIssueSnapshot(draft!.sealed);
+    const body = composeIssueBody({
+      ref: 'NR-C2XX',
+      kind: 'CRASH',
+      crashSource: 'SERVER_TURN',
+      fingerprint: draft!.fingerprint,
+      title: 'Server crash',
+      errorName: draft!.sealed.errorName,
+      errorMessage: draft!.sealed.errorMessage,
+      stack: draft!.sealed.stack,
+      failedAction: draft!.sealed.action,
+      stateSnapshot: snapshot,
+      sessionId: fullSessionId,
+    });
+
+    expect(body).not.toContain(fullSessionId);
+    expect(body).toContain('bearer_l…');
+    expect(body).toContain('seed-c2-test');
+    expect(JSON.stringify(snapshot)).not.toContain(fullSessionId);
   });
 });

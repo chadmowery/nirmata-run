@@ -21,10 +21,12 @@ export interface ServerCrashDraft {
     phase?: string;
     floor?: number;
     turn?: number;
+    isPaused?: boolean;
+    sectorCondition?: string;
+    timestamp?: string;
     playerComponents?: Record<string, unknown>;
     livingEnemiesCount?: number;
     livingEnemies?: Array<{ id: number; name?: string; hp?: number }>;
-    rawSnapshot?: unknown;
   };
 }
 

@@ -62,7 +62,7 @@ export async function logTurnExecutionError<TEvents extends EngineEvents = Engin
     '',
     `\x1b[31m${separator}\x1b[0m`,
     `\x1b[1;31m[CRITICAL TURN EXECUTION FAILURE] - ${snapshot.timestamp}\x1b[0m`,
-    `\x1b[33mSession ID:\x1b[0m   ${ctx.sessionId}`,
+    `\x1b[33mSession ID:\x1b[0m   ${snapshot.sessionId}`,
     `\x1b[33mAction:\x1b[0m       ${JSON.stringify(ctx.action)}`,
     `\x1b[33mTurn State:\x1b[0m   Turn #${snapshot.turn} | Phase: ${snapshot.phase} | Paused: ${snapshot.isPaused}`,
     `\x1b[33mFloor:\x1b[0m        ${snapshot.floor} / 15 (Seed: ${snapshot.runSeed}, Condition: ${snapshot.sectorCondition})`,

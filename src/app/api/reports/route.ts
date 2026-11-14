@@ -88,7 +88,10 @@ export async function POST(req: NextRequest) {
       title,
       body,
       labels,
-      metadata: { kind: data.kind, sessionId: data.sessionId },
+      metadata: {
+        kind: data.kind,
+        sessionId: data.sessionId ? `${data.sessionId.slice(0, 8)}…` : undefined,
+      },
     });
     return NextResponse.json(res satisfies ReportResult);
   }

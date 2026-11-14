@@ -53,7 +53,7 @@ The verification suite did not exercise the wiring gaps below. They were found b
   - Start the worker lazily and idempotently, guarded on `globalThis`. A good place is the first `enqueue`, plus module init of a shared `getReportOutbox()` used by the routes.
   - Add a test that proves enqueue results in a delivery attempt without a manual `processOutboxOnce()` call.
 
-#### C-2 — Full session ID (bearer token) is written into the GitHub issue body
+#### C-2 — Full session ID (bearer token) is written into the GitHub issue body ✅ Resolved
 - **Where:**
   - [`turn-snapshot.ts#L118`](../../src/server/utils/turn-snapshot.ts#L118) puts `sessionId: ctx.sessionId` (untruncated) in `TurnSnapshotData`.
   - [`turn-snapshot.ts#L202`](../../src/server/utils/turn-snapshot.ts#L202) stores the whole snapshot as `sealed.rawSnapshot`.
@@ -200,7 +200,7 @@ The verification suite did not exercise the wiring gaps below. They were found b
 
 **Blockers (fix before merge)**
 - [x] **C-1** Start the outbox worker (idempotent, `globalThis`-guarded). Add a test that enqueue results in delivery without a manual `processOutboxOnce()`.
-- [ ] **C-2** Remove or truncate `sessionId` in the snapshot. Replace `rawSnapshot` with an allow-listed snapshot. Add a regression test from a real draft.
+- [x] **C-2** Remove or truncate `sessionId` in the snapshot. Replace `rawSnapshot` with an allow-listed snapshot. Add a regression test from a real draft.
 - [ ] **C-3** Sanitise or fence all client-supplied values in the Summary and Environment tables, and in the title. Add hostile-input tests.
 
 **High**

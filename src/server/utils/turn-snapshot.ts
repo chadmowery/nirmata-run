@@ -113,9 +113,11 @@ export function buildTurnSnapshot<TEvents extends EngineEvents = EngineEvents>(
   const actionObj = typeof ctx.action === 'object' && ctx.action ? (ctx.action as { type?: string }) : {};
   const actionType = actionObj.type || 'UNKNOWN';
 
+  const truncatedSessionId = ctx.sessionId ? `${ctx.sessionId.slice(0, 8)}…` : 'none';
+
   return {
     timestamp,
-    sessionId: ctx.sessionId,
+    sessionId: truncatedSessionId,
     action: ctx.action,
     actionType,
     turn: ctx.turnManager.getTurnNumber(),
@@ -196,10 +198,12 @@ export function createServerCrashDraft<TEvents extends EngineEvents = EngineEven
       phase: snapshot.phase,
       floor: snapshot.floor,
       turn: snapshot.turn,
+      isPaused: snapshot.isPaused,
+      sectorCondition: snapshot.sectorCondition,
+      timestamp: snapshot.timestamp,
       playerComponents: snapshot.player as unknown as Record<string, unknown>,
       livingEnemiesCount: snapshot.livingEnemies.length,
       livingEnemies: snapshot.livingEnemies,
-      rawSnapshot: snapshot,
     },
   });
 
@@ -207,5 +211,36 @@ export function createServerCrashDraft<TEvents extends EngineEvents = EngineEven
     draftId: draft.draftId,
     fingerprint,
     preview,
+  };
+}
+
+/**
+ * Builds an allow-listed, credential-free game state snapshot from sealed draft data
+ * for inclusion in the GitHub issue Game State Snapshot section.
+ * Explicitly omits sessionId, duplicated error stack, and untrusted raw action echoes.
+ */
+export function buildAllowListedIssueSnapshot(sealed: {
+  timestamp?: string;
+  turn?: number;
+  phase?: string;
+  isPaused?: boolean;
+  floor?: number;
+  runSeed?: number | string;
+  sectorCondition?: string;
+  playerComponents?: Record<string, unknown>;
+  livingEnemiesCount?: number;
+  livingEnemies?: Array<{ id: number; name?: string; hp?: number }>;
+}): Record<string, unknown> {
+  return {
+    timestamp: sealed.timestamp,
+    turn: sealed.turn,
+    phase: sealed.phase,
+    isPaused: sealed.isPaused,
+    floor: sealed.floor,
+    runSeed: sealed.runSeed,
+    sectorCondition: sealed.sectorCondition,
+    player: sealed.playerComponents,
+    livingEnemiesCount: sealed.livingEnemiesCount,
+    livingEnemies: sealed.livingEnemies,
   };
 }
