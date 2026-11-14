@@ -31,11 +31,12 @@ describe('ReportIssueModal', () => {
     expect(screen.getByText(/Description must be at least 10 characters/i)).toBeDefined();
   });
 
-  it('submits valid report and displays reference ID', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+  it('submits valid report with idempotencyKey and displays reference ID (M-10)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ status: 'created', ref: 'NR-MAN1' }),
-    }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
 
     useReportStore.getState().openManualReport();
     render(<ReportIssueModal />);
@@ -55,6 +56,12 @@ describe('ReportIssueModal', () => {
       expect(screen.getByText('NR-MAN1')).toBeDefined();
       expect(screen.getByText(/REPORT TRANSMITTED/i)).toBeDefined();
     });
+
+    const sentBody = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body)) as {
+      idempotencyKey?: string;
+    };
+    expect(typeof sentBody.idempotencyKey).toBe('string');
+    expect(sentBody.idempotencyKey!.length).toBeGreaterThan(8);
 
     vi.unstubAllGlobals();
   });

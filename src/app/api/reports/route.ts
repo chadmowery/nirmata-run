@@ -6,7 +6,11 @@ import { reportsRateLimiter } from '@server/reports/rate-limiter';
 import { generateRefId, composeTitle, composeIssueBody } from '@server/reports/composer';
 import { getReportOutbox } from '@server/reports/outbox';
 import { readJsonBodyWithLimit } from '@server/reports/body-limit';
-import { deliverManualReport } from '@server/reports/delivery';
+import {
+  deliverManualReport,
+  getIdempotentManualOutcome,
+  runWithManualIdempotency,
+} from '@server/reports/delivery';
 import { FloorState, Actor } from '@shared/components';
 import { sessionManager } from '@server/session/session-manager';
 
@@ -32,6 +36,12 @@ export async function POST(req: NextRequest) {
   }
   const data = parsed.data;
 
+  // 2b. Return cached outcome if this idempotency key already completed or is in flight
+  const existingOutcome = await getIdempotentManualOutcome(data.idempotencyKey);
+  if (existingOutcome) {
+    return NextResponse.json(existingOutcome.payload, { status: existingOutcome.statusCode });
+  }
+
   // 3. Sliding window rate limit (manual: 20/hr)
   const rate = reportsRateLimiter.consume('manual');
   if (!rate.allowed) {
@@ -41,55 +51,57 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const cfg = getReportsServerConfig();
-  const ref = generateRefId((candidate) => getReportOutbox().hasRef(candidate));
+  const outcome = await runWithManualIdempotency(data.idempotencyKey, async () => {
+    const cfg = getReportsServerConfig();
+    const ref = generateRefId((candidate) => getReportOutbox().hasRef(candidate));
 
-  // 4. Optionally capture sealed live diagnostics from active session (Assumption A2)
-  let liveSnapshot: Record<string, unknown> | undefined;
-  if (data.includeDiagnostics && data.sessionId) {
-    try {
-      const session = sessionManager.getSession(data.sessionId);
-      if (session) {
-        const floorState = session.playerId ? session.world.getComponent(session.playerId, FloorState) : undefined;
-        liveSnapshot = {
-          runSeed: floorState?.runSeed,
-          currentFloor: floorState?.currentFloor,
-          turn: session.turnManager?.getTurnNumber(),
-          phase: session.turnManager?.getPhase(),
-          activeEntityCount: session.world?.query(Actor).length,
-        };
+    // 4. Optionally capture sealed live diagnostics from active session (Assumption A2)
+    let liveSnapshot: Record<string, unknown> | undefined;
+    if (data.includeDiagnostics && data.sessionId) {
+      try {
+        const session = sessionManager.getSession(data.sessionId);
+        if (session) {
+          const floorState = session.playerId ? session.world.getComponent(session.playerId, FloorState) : undefined;
+          liveSnapshot = {
+            runSeed: floorState?.runSeed,
+            currentFloor: floorState?.currentFloor,
+            turn: session.turnManager?.getTurnNumber(),
+            phase: session.turnManager?.getPhase(),
+            activeEntityCount: session.world?.query(Actor).length,
+          };
+        }
+      } catch {
+        // Non-fatal
       }
-    } catch {
-      // Non-fatal
     }
-  }
 
-  // 5. Compose and delegate delivery
-  const title = composeTitle({ kind: data.kind, title: data.title });
-  const labels = getLabelsForKind(data.kind);
-  const body = composeIssueBody({
-    ref,
-    kind: data.kind,
-    title: data.title,
-    description: data.description,
-    diagnostics: data.includeDiagnostics ? data.diagnostics : undefined,
-    build: data.diagnostics?.build || cfg.buildSha,
-    sessionId: data.sessionId,
-    stateSnapshot: liveSnapshot,
-  });
-
-  const outcome = await deliverManualReport({
-    cfg,
-    status,
-    ref,
-    title,
-    body,
-    labels,
-    dryRunMetadata: {
+    // 5. Compose and delegate delivery
+    const title = composeTitle({ kind: data.kind, title: data.title });
+    const labels = getLabelsForKind(data.kind);
+    const body = composeIssueBody({
+      ref,
       kind: data.kind,
-      sessionId: data.sessionId ? `${data.sessionId.slice(0, 8)}…` : undefined,
-      includeDiagnostics: data.includeDiagnostics,
-    },
+      title: data.title,
+      description: data.description,
+      diagnostics: data.includeDiagnostics ? data.diagnostics : undefined,
+      build: data.diagnostics?.build || cfg.buildSha,
+      sessionId: data.sessionId,
+      stateSnapshot: liveSnapshot,
+    });
+
+    return deliverManualReport({
+      cfg,
+      status,
+      ref,
+      title,
+      body,
+      labels,
+      dryRunMetadata: {
+        kind: data.kind,
+        sessionId: data.sessionId ? `${data.sessionId.slice(0, 8)}…` : undefined,
+        includeDiagnostics: data.includeDiagnostics,
+      },
+    });
   });
 
   return NextResponse.json(outcome.payload, { status: outcome.statusCode });

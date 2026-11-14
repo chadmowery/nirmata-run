@@ -171,4 +171,34 @@ describe('POST /api/reports', () => {
       globalThis.fetch = origFetch;
     }
   });
+
+  it('deduplicates repeated manual submissions with the same idempotencyKey without creating duplicates (M-10)', async () => {
+    const payload = {
+      kind: 'BUG',
+      title: 'Double submit protection check',
+      description: 'Clicking submit rapidly should only produce a single report reference.',
+      includeDiagnostics: false,
+      idempotencyKey: '550e8400-e29b-41d4-a716-446655440000',
+    };
+
+    const res1 = await POST(
+      new NextRequest('http://localhost:3000/api/reports', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+    );
+    const res2 = await POST(
+      new NextRequest('http://localhost:3000/api/reports', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      })
+    );
+
+    expect(res1.status).toBe(200);
+    expect(res2.status).toBe(200);
+    const body1 = await res1.json();
+    const body2 = await res2.json();
+    expect(body2.ref).toBe(body1.ref);
+    expect(body2.status).toBe(body1.status);
+  });
 });

@@ -56,7 +56,74 @@ export interface DeliverCrashParams {
 }
 
 const gLockKey = Symbol.for('nirmata.reportsFingerprintLocks');
-const gLockObj = globalThis as unknown as { [key: symbol]: Map<string, Promise<void>> };
+const gIdempotencyKey = Symbol.for('nirmata.reportsManualIdempotency');
+const gLockObj = globalThis as unknown as {
+  [gLockKey]?: Map<string, Promise<void>>;
+  [gIdempotencyKey]?: Map<string, { expiresAt: number; promise: Promise<DeliveryOutcome> }>;
+};
+
+const MANUAL_IDEMPOTENCY_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+function getIdempotencyCache(): Map<string, { expiresAt: number; promise: Promise<DeliveryOutcome> }> {
+  if (!gLockObj[gIdempotencyKey]) {
+    gLockObj[gIdempotencyKey] = new Map();
+  }
+  return gLockObj[gIdempotencyKey];
+}
+
+function pruneExpiredIdempotency(now = Date.now()): void {
+  const cache = getIdempotencyCache();
+  for (const [k, entry] of cache.entries()) {
+    if (entry.expiresAt <= now) {
+      cache.delete(k);
+    }
+  }
+}
+
+/**
+ * Looks up an active (in-flight or cached within TTL) outcome for a manual report idempotency key.
+ */
+export function getIdempotentManualOutcome(idempotencyKey?: string): Promise<DeliveryOutcome> | undefined {
+  if (!idempotencyKey) return undefined;
+  const now = Date.now();
+  pruneExpiredIdempotency(now);
+  return getIdempotencyCache().get(idempotencyKey)?.promise;
+}
+
+/**
+ * Executes a manual report delivery under a short-TTL idempotency cache so double-submits return the first outcome.
+ */
+export function runWithManualIdempotency(
+  idempotencyKey: string | undefined,
+  fn: () => Promise<DeliveryOutcome>
+): Promise<DeliveryOutcome> {
+  if (!idempotencyKey) {
+    return fn();
+  }
+  const existing = getIdempotentManualOutcome(idempotencyKey);
+  if (existing) {
+    return existing;
+  }
+
+  const cache = getIdempotencyCache();
+  const promise = fn().then(
+    (outcome) => {
+      if (outcome.statusCode !== 200) {
+        cache.delete(idempotencyKey);
+      }
+      return outcome;
+    },
+    (err) => {
+      cache.delete(idempotencyKey);
+      throw err;
+    }
+  );
+  cache.set(idempotencyKey, {
+    expiresAt: Date.now() + MANUAL_IDEMPOTENCY_TTL_MS,
+    promise,
+  });
+  return promise;
+}
 
 function getFingerprintLocks(): Map<string, Promise<void>> {
   if (!gLockObj[gLockKey]) {

@@ -30,6 +30,7 @@ export const ReportIssueModal: React.FC = () => {
   const [description, setDescription] = useState('');
   const [includeDiagnostics, setIncludeDiagnostics] = useState(true);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [idempotencyKey, setIdempotencyKey] = useState('');
 
   useEffect(() => {
     if (!isManualModalOpen) return;
@@ -37,6 +38,11 @@ export const ReportIssueModal: React.FC = () => {
     setTitle('');
     setDescription('');
     setValidationError(null);
+    setIdempotencyKey(
+      typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+        ? crypto.randomUUID()
+        : `manual-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+    );
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -84,12 +90,13 @@ export const ReportIssueModal: React.FC = () => {
         description: description.trim(),
         includeDiagnostics,
         sessionId: activeSessionId,
+        idempotencyKey: idempotencyKey || undefined,
         diagnostics,
       });
     } catch {
       // Handled in store
     }
-  }, [kind, title, description, includeDiagnostics, submitManualReport]);
+  }, [kind, title, description, includeDiagnostics, idempotencyKey, submitManualReport]);
 
   if (!isManualModalOpen) return null;
 

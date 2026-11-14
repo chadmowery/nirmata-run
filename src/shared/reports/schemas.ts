@@ -58,6 +58,7 @@ export const ManualReportRequestSchema = z.object({
   description: z.string().min(10).max(4000),
   includeDiagnostics: z.boolean(),
   sessionId: z.string().max(100).optional(),
+  idempotencyKey: z.string().min(1).max(64).optional(),
   diagnostics: ClientDiagnosticsSchema.optional(),
 });
 export type ManualReportRequest = z.infer<typeof ManualReportRequestSchema>;
