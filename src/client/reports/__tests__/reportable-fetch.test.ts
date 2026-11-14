@@ -61,4 +61,25 @@ describe('reportableFetch', () => {
     await reportableFetch('/api/reports', { method: 'POST' });
     expect(queueSpy).not.toHaveBeenCalled();
   });
+
+  it('ignores third-party /api/ URLs and strips query parameters before reporting (L-6)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      status: 500,
+      statusText: 'Internal Server Error',
+      ok: false,
+      clone: () => ({ json: async () => ({ error: 'Upstream boom' }) }),
+    }));
+
+    await reportableFetch('https://third-party.example.com/api/data?token=abc', { method: 'GET' });
+    expect(useReportStore.getState().activeCrash).toBeNull();
+
+    await reportableFetch('/api/profile?sessionId=secret_session_999', { method: 'GET' });
+    const active = useReportStore.getState().activeCrash;
+    expect(active).not.toBeNull();
+    if (active && active.origin === 'client') {
+      expect(active.error.message).toContain('/api/profile');
+      expect(active.error.message).not.toContain('secret_session_999');
+      expect(active.error.stack).not.toContain('secret_session_999');
+    }
+  });
 });

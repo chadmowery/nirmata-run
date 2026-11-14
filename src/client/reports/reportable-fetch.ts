@@ -6,6 +6,31 @@
 
 import { captureClientCrash } from './collectors';
 
+function parseSameOriginApiPath(urlStr: string): { isSameOriginApi: boolean; safePath: string } {
+  if (urlStr.startsWith('/') && !urlStr.startsWith('//')) {
+    const safePath = urlStr.split(/[?#]/)[0];
+    return {
+      isSameOriginApi: safePath.startsWith('/api/'),
+      safePath,
+    };
+  }
+
+  try {
+    const origin =
+      typeof window !== 'undefined' && window.location?.origin
+        ? window.location.origin
+        : 'http://localhost';
+    const parsed = new URL(urlStr, origin);
+    const safePath = parsed.pathname;
+    return {
+      isSameOriginApi: parsed.origin === origin && safePath.startsWith('/api/'),
+      safePath,
+    };
+  } catch {
+    return { isSameOriginApi: false, safePath: '' };
+  }
+}
+
 export async function reportableFetch(
   input: RequestInfo | URL,
   init?: RequestInit
@@ -16,8 +41,8 @@ export async function reportableFetch(
     ? input.toString()
     : input.url;
 
-  const isSameOriginApi = urlStr.startsWith('/api/') || urlStr.includes('/api/');
-  const isReportsEndpoint = urlStr.includes('/api/reports');
+  const { isSameOriginApi, safePath } = parseSameOriginApiPath(urlStr);
+  const isReportsEndpoint = safePath === '/api/reports' || safePath.startsWith('/api/reports/');
 
   try {
     const response = await fetch(input, init);
@@ -38,8 +63,8 @@ export async function reportableFetch(
       captureClientCrash(
         'API_FAILURE',
         'ApiServerError',
-        `Server failure on ${urlStr}: ${errorDetails}`,
-        `Status: ${response.status}\nEndpoint: ${urlStr}`
+        `Server failure on ${safePath}: ${errorDetails}`,
+        `Status: ${response.status}\nEndpoint: ${safePath}`
       );
     }
 
@@ -51,7 +76,7 @@ export async function reportableFetch(
       captureClientCrash(
         'API_FAILURE',
         'ApiNetworkError',
-        `Network failure connecting to ${urlStr}: ${message}`,
+        `Network failure connecting to ${safePath}: ${message}`,
         stack
       );
     }
