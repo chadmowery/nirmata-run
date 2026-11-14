@@ -14,17 +14,18 @@ const ZERO_WIDTH_REGEX = /[\u200B-\u200D\uFEFF]/g;
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHARS_REGEX = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g;
 
-// HTML comments and tags
+// HTML comments and tags (preserves single-letter uppercase generics like <T> and comparisons like a < b > c)
 const HTML_COMMENTS_REGEX = /<!--[\s\S]*?-->/g;
-const HTML_TAGS_REGEX = /<[^>]+>/g;
+const HTML_TAGS_REGEX = /<\/?(?:[a-z][a-z0-9:-]*|[A-Z][a-zA-Z0-9:-]+|[A-Z](?=\s)|![^>]*)(?:\s[^>]*)?\/?>/g;
 
 // Markdown links and images
 const MD_IMAGE_REGEX = /!\[([^\]]*)\]\([^)]*\)/g;
 const MD_LINK_REGEX = /\[([^\]]+)\]\([^)]*\)/g;
 
-// Mentions and GitHub issue/PR cross-references
+// Mentions, GitHub issue/PR cross-references, and internal nr-* markers
 const MENTION_REGEX = /@([a-zA-Z0-9_-]+)/g;
 const ISSUE_REF_REGEX = /#([0-9]+)/g;
+const NR_MARKER_REGEX = /\b(nr)-(fingerprint|ref|report|comment)\b/gi;
 
 export interface SanitizeOptions {
   maxLength?: number;
@@ -54,17 +55,22 @@ export function sanitizeText(input: string, options: SanitizeOptions = {}): stri
     result = result.replace(CONTROL_CHARS_REGEX, '');
   }
 
-  // 4. Remove HTML comments and tags
-  result = result.replace(HTML_COMMENTS_REGEX, '');
-  result = result.replace(HTML_TAGS_REGEX, '');
+  // 4 & 5. Remove HTML comments/tags and rewrite markdown images/links to plain text (loop to fixed point)
+  let prev: string;
+  let iterations = 0;
+  do {
+    prev = result;
+    result = result.replace(HTML_COMMENTS_REGEX, '');
+    result = result.replace(HTML_TAGS_REGEX, '');
+    result = result.replace(MD_IMAGE_REGEX, '$1');
+    result = result.replace(MD_LINK_REGEX, '$1');
+    iterations++;
+  } while (result !== prev && iterations < 10);
 
-  // 5. Rewrite markdown images and links to plain text
-  result = result.replace(MD_IMAGE_REGEX, '$1');
-  result = result.replace(MD_LINK_REGEX, '$1');
-
-  // 6. Neutralize @mentions and #123 cross-references by inserting zero-width space
+  // 6. Neutralize @mentions, #123 cross-references, and nr-* markers by inserting zero-width space
   result = result.replace(MENTION_REGEX, '@\u200B$1');
   result = result.replace(ISSUE_REF_REGEX, '#\u200B$1');
+  result = result.replace(NR_MARKER_REGEX, '$1\u200B-$2');
 
   // 7. Enforce maximum length
   if (options.maxLength !== undefined && result.length > options.maxLength) {
@@ -92,7 +98,12 @@ export function sanitizeLogMessage(msg: string, maxLength = 500): string {
 
 export function sanitizeStack(stack: string, maxLength = 16384): string {
   if (!stack) return '';
-  let sanitized = stack.normalize('NFC').replace(BIDI_REGEX, '').replace(CONTROL_CHARS_REGEX, '');
+  let sanitized = stack
+    .normalize('NFC')
+    .replace(BIDI_REGEX, '')
+    .replace(ZERO_WIDTH_REGEX, '')
+    .replace(CONTROL_CHARS_REGEX, '')
+    .replace(NR_MARKER_REGEX, '$1\u200B-$2');
   if (sanitized.length > maxLength) {
     sanitized = sanitized.slice(0, maxLength);
   }

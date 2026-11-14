@@ -4,6 +4,7 @@ import {
   sanitizeTitle,
   sanitizeDescription,
   sanitizeNote,
+  sanitizeStack,
   createCodeFence,
 } from '../sanitize';
 
@@ -61,6 +62,34 @@ describe('Reports Sanitizer', () => {
     const input = 'Line 1\nLine 2\n\nLine 3 with\ttab';
     const sanitized = sanitizeDescription(input);
     expect(sanitized).toBe('Line 1\nLine 2\n\nLine 3 with\ttab');
+  });
+
+  it('strips nested HTML comments to a fixed point and is idempotent (L-2)', () => {
+    const nested = '<!<!-- -->-- injected -->Hello [[text](https://x)](https://y)';
+    const first = sanitizeText(nested);
+    expect(first).not.toContain('<!--');
+    expect(first).not.toContain('-->');
+    expect(first).not.toContain('https://');
+    expect(sanitizeText(first)).toBe(first);
+  });
+
+  it('preserves legitimate generic <T> and comparison syntax while stripping HTML tags (L-2)', () => {
+    const input = 'Array<T> and Map<K, V> where x < 5 && y > 3 <b>bold</b>';
+    const sanitized = sanitizeText(input);
+    expect(sanitized).toBe('Array<T> and Map<K, V> where x < 5 && y > 3 bold');
+  });
+
+  it('strips zero-width chars in sanitizeStack and neutralizes nr-* search markers (L-2, L-14)', () => {
+    const stack = 'at fn\u200B (app.js:1:1)\nnr-fingerprint: 0123456789abcdef';
+    const sanitizedStack = sanitizeStack(stack);
+    expect(sanitizedStack).not.toContain('\u200B (');
+    expect(sanitizedStack).not.toContain('nr-fingerprint:');
+
+    const note = 'Trying to steer nr-fingerprint: deadbeef12345678 and nr-ref: NR-1111';
+    const sanitizedNote = sanitizeText(note);
+    expect(sanitizedNote).not.toContain('nr-fingerprint:');
+    expect(sanitizedNote).not.toContain('nr-ref:');
+    expect(sanitizeText(sanitizedNote)).toBe(sanitizedNote);
   });
 
   describe('createCodeFence', () => {

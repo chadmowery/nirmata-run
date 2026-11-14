@@ -163,7 +163,7 @@ The verification suite did not exercise the wiring gaps below. They were found b
 ### 🔵 Low / Code Quality & Minor
 
 - **L-1 — Ref IDs are weak.** `generateRefId` uses `Math.random` with 4 characters (~1M values). Collisions overwrite the same `data/report-outbox/<ref>.json` or `failed/<ref>.json`, silently losing a report ([`composer.ts#L37-L44`](../../src/server/reports/composer.ts#L37-L44), [`outbox.ts#L80-L86`](../../src/server/reports/outbox.ts#L80-L86)). Use `crypto.randomBytes` and check for an existing file.
-- **L-2 — Sanitizer is not idempotent.** A single-pass comment strip lets `<!<!-- -->-- x -->` re-form a comment. This is inert inside fences but live in titles. The tag regex also strips legitimate `<T>` text. `sanitizeStack` skips zero-width stripping ([`sanitize.ts#L18-L59`](../../src/shared/reports/sanitize.ts#L18-L59), [`#L93-L100`](../../src/shared/reports/sanitize.ts#L93-L100)). Loop to a fixed point.
+- **L-2 ✅ — Sanitizer is not idempotent.** A single-pass comment strip lets `<!<!-- -->-- x -->` re-form a comment. This is inert inside fences but live in titles. The tag regex also strips legitimate `<T>` text. `sanitizeStack` skips zero-width stripping ([`sanitize.ts#L18-L59`](../../src/shared/reports/sanitize.ts#L18-L59), [`#L93-L100`](../../src/shared/reports/sanitize.ts#L93-L100)). Loop to a fixed point. **Resolved:** Fixed-point loop, preserved `<T>` generics, and stripped zero-width chars in `sanitizeStack`.
 - **L-3 — Final hard truncation can split a UTF-16 surrogate pair or cut a closing fence** ([`composer.ts#L227-L230`](../../src/server/reports/composer.ts#L227-L230)).
 - **L-4 — Outbox edge cases.**
   - `add-comment` items with no `issueNumber` fall through and are deleted as "success" ([`outbox.ts#L205-L210`](../../src/server/reports/outbox.ts#L205-L210)).
@@ -178,7 +178,7 @@ The verification suite did not exercise the wiring gaps below. They were found b
 - **L-11 — Import alias style.** The reports code uses `@/shared/...` and `@/server/...` instead of the documented layer aliases (`@shared/*`, `@server/*`). It works, but it weakens the grep-based boundary checks in `AGENTS.md`. Also, `src/client/reports/collectors.ts` imports `@/game/ui/store`. This is allowed but should be noted for the client rulebook.
 - **L-12 — Crash route is a 249-line orchestration blob in an app route**, contradicting the spec's "thin routes delegate to `@server/reports`". Extract a `deliverReport()` service shared by both routes (this would also fix M-2 and H-7).
 - **L-13 — `DraftStore` eviction is global FIFO (max 50).** A flood of failing turns from other sessions can evict a victim's pending draft before they approve it. Consider per-session caps.
-- **L-14 — Search-by-fingerprint trusts any open issue containing the marker string** (best-effort per spec). Player note text is fenced but still body-searchable, so a player can steer dedupe comments onto an arbitrary issue.
+- **L-14 ✅ — Search-by-fingerprint trusts any open issue containing the marker string** (best-effort per spec). Player note text is fenced but still body-searchable, so a player can steer dedupe comments onto an arbitrary issue. **Resolved:** `nr-fingerprint`, `nr-ref`, `nr-report`, and `nr-comment` markers in untrusted text/stacks are neutralized by `sanitizeText`/`sanitizeStack`.
 
 ---
 
