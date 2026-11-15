@@ -266,6 +266,7 @@ export class DeferredLightFilter extends BaseFilter {
       format: 'rgba32float',
       scaleMode: 'nearest',
       addressMode: 'clamp-to-edge',
+      alphaMode: 'no-premultiply-alpha',
     });
 
     const microBuf = new Float32Array(MAX_MICRO_LIGHTS * 2 * 4);
@@ -276,6 +277,7 @@ export class DeferredLightFilter extends BaseFilter {
       format: 'rgba32float',
       scaleMode: 'nearest',
       addressMode: 'clamp-to-edge',
+      alphaMode: 'no-premultiply-alpha',
     });
 
     const uCameraPosBuf = new Float32Array([0, 0]);
@@ -438,6 +440,6 @@ export class DeferredLightFilter extends BaseFilter {
   public override destroy(options?: boolean): void {
     this.lightDataSource.destroy();
     this.microLightDataSource.destroy();
-    super.destroy(options);
+    super.destroy?.(options);
   }
 }

@@ -13,7 +13,9 @@ import { FloorState } from '@shared/components/floor-state';
 import { FirmwareSlots } from '@shared/components/firmware-slots';
 import { AbilityDef } from '@shared/components/ability-def';
 import { Prop } from '@shared/components/environment';
+import * as PIXI from 'pixi.js';
 import {
+  DeferredLightFilter,
   GBufferPass,
   LightingSystem,
   evaluateLightAnimation,
@@ -63,16 +65,36 @@ vi.mock('pixi.js', () => {
       destroy: vi.fn(),
     };
   });
-  const Texture = {
-    EMPTY: { width: 1, height: 1, source: { width: 1, height: 1 } },
-    WHITE: { width: 16, height: 16, source: { width: 16, height: 16 } },
-    from: vi.fn().mockReturnValue({ width: 32, height: 32 }),
-  };
+  const Texture = Object.assign(
+    vi.fn().mockImplementation(function (opts?: Record<string, unknown>) {
+      return { ...(opts ?? {}), width: 32, height: 32, destroy: vi.fn() };
+    }),
+    {
+      EMPTY: { width: 1, height: 1, source: { width: 1, height: 1 } },
+      WHITE: { width: 16, height: 16, source: { width: 16, height: 16 } },
+      from: vi.fn().mockReturnValue({ width: 32, height: 32 }),
+    },
+  );
+  const BufferImageSource = vi.fn().mockImplementation(function (opts: Record<string, unknown>) {
+    return { ...opts, update: vi.fn(), destroy: vi.fn() };
+  });
+  const UniformGroup = vi.fn().mockImplementation(function (defs: Record<string, { value: unknown }>) {
+    const uniforms: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(defs)) {
+      uniforms[k] = v.value;
+    }
+    return { uniforms, update: vi.fn() };
+  });
+  const GlProgram: { from?: unknown } = {};
   return {
     Sprite,
     Container,
     Graphics,
     Texture,
+    BufferImageSource,
+    UniformGroup,
+    GlProgram,
+    defaultFilterVert: 'void main() {}',
     Assets: {
       add: vi.fn(),
       load: vi.fn().mockResolvedValue({ textures: {} }),
@@ -369,6 +391,109 @@ describe('Deferred Lighting System & Render Integration [LIGHT-03/04/07]', () =>
       const offTelemetry = renderSystem.getRenderTelemetry().lighting!;
       expect(offTelemetry.enabled).toBe(false);
       expect(offTelemetry.primaryLightCount).toBe(0);
+    });
+
+    it('skips LightSource entities whose sprites are hidden by FOV (sprite.visible === false)', () => {
+      const hiddenEnemy = world.createEntity();
+      world.addComponent(hiddenEnemy, Position, { x: 25, y: 15 }); // Outside player FOV at (10, 10)
+      world.addComponent(hiddenEnemy, SpriteComponent, { key: 'enemy_null_pointer' });
+      world.addComponent(hiddenEnemy, LightSource, {
+        enabled: true,
+        color: '#a855f7',
+        intensity: 1.2,
+        radius: 120,
+        height: 18,
+        falloff: 1.5,
+        castsShadows: false,
+        offsetX: 0,
+        offsetY: 0,
+        animation: { type: 'STATIC', speed: 2, amplitude: 0.2 },
+      });
+
+      const visibleProp = world.createEntity();
+      world.addComponent(visibleProp, Position, { x: 11, y: 10 }); // Inside player FOV at (10, 10)
+      world.addComponent(visibleProp, SpriteComponent, { key: 'prop_workstation' });
+      world.addComponent(visibleProp, LightSource, {
+        enabled: true,
+        color: '#00f0ff',
+        intensity: 1.1,
+        radius: 88,
+        height: 18,
+        falloff: 1.8,
+        castsShadows: false,
+        offsetX: 0,
+        offsetY: 0,
+        animation: { type: 'STATIC', speed: 2, amplitude: 0.2 },
+      });
+
+      renderSystem.renderSystem();
+      const telemetry = renderSystem.getRenderTelemetry().lighting!;
+      // Only player (10,10) + visibleProp (11,10) should be active; hiddenEnemy (25,15) has sprite.visible = false
+      expect(telemetry.primaryLightCount).toBe(2);
+    });
+
+    it('configures DeferredLightFilter float data textures with alphaMode no-premultiply-alpha and exact screen coordinates', () => {
+      const bufferSourceMock = vi.mocked(PIXI.BufferImageSource);
+      bufferSourceMock.mockClear();
+      const glProg = PIXI.GlProgram as unknown as { from?: unknown };
+      glProg.from = vi.fn().mockReturnValue({});
+
+      try {
+        const dummyTex = PIXI.Texture.EMPTY;
+        const filter = new DeferredLightFilter(dummyTex, dummyTex, dummyTex);
+        expect(bufferSourceMock).toHaveBeenCalledTimes(2);
+        const primaryOpts = bufferSourceMock.mock.calls[0][0] as unknown as Record<string, unknown>;
+        const microOpts = bufferSourceMock.mock.calls[1][0] as unknown as Record<string, unknown>;
+        expect(primaryOpts.alphaMode).toBe('no-premultiply-alpha');
+        expect(microOpts.alphaMode).toBe('no-premultiply-alpha');
+
+        filter.uploadUniforms({
+          cameraX: 233,
+          cameraY: 137,
+          cameraZoom: 1.5,
+          gridWidth: 80,
+          gridHeight: 45,
+          timeSec: 1.0,
+          ambientRgb: [0.06, 0.1, 0.14],
+          ambientIntensity: 0.22,
+          shadowTintRgb: [0.05, 0.08, 0.16],
+          conditionTintRgb: [1, 1, 1],
+          floorPulseAmp: 0,
+          floorPulseRgb: [0, 0, 0],
+          primaryLights: [
+            {
+              screenX: 473,
+              screenY: 313,
+              radiusPx: 192,
+              intensity: 1.5,
+              colorRgb: [0.88, 0.97, 1.0],
+              heightPx: 22,
+              falloff: 1.8,
+              castsShadows: true,
+              isBeaconPing: false,
+            },
+          ],
+          microLights: [
+            {
+              screenX: 500,
+              screenY: 340,
+              radiusPx: 24,
+              intensity: 0.8,
+              colorRgb: [1.0, 0.5, 0.1],
+            },
+          ],
+        });
+
+        const lightBuf = primaryOpts.resource as Float32Array;
+        expect(lightBuf[0]).toBeCloseTo(473, 3);
+        expect(lightBuf[1]).toBeCloseTo(313, 3);
+        expect(lightBuf[2]).toBeCloseTo(192, 3);
+        expect(lightBuf[3]).toBeCloseTo(1.5, 3);
+
+        filter.destroy(true);
+      } finally {
+        delete glProg.from;
+      }
     });
   });
 });

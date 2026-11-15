@@ -220,6 +220,7 @@ export class LightingSystem {
 
       // Prefer visual sprite position so point lights glide seamlessly during move tweens!
       const sprite = ctx.spriteMap.get(entityId);
+      if (sprite && sprite.visible === false) continue;
       const pivotX = sprite?.pivot?.x ?? 0;
       const pivotY = sprite?.pivot?.y ?? 0;
       const worldX = sprite
