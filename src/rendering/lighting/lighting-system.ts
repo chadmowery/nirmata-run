@@ -202,6 +202,7 @@ export class LightingSystem {
 
     const baseFilters = ctx.worldScreenFilters ?? [];
     if (!ctx.enabled) {
+      ctx.worldContainer.filterArea = undefined;
       ctx.worldContainer.filters = baseFilters.length > 0 ? baseFilters : null;
       return;
     }
@@ -347,6 +348,11 @@ export class LightingSystem {
     }
 
     if (this.filterAreaRect) {
+      const invZoom = 1 / Math.max(0.05, camZoom);
+      this.filterAreaRect.x = -camX * invZoom;
+      this.filterAreaRect.y = -camY * invZoom;
+      this.filterAreaRect.width = VIEWPORT_W * invZoom;
+      this.filterAreaRect.height = VIEWPORT_H * invZoom;
       ctx.worldContainer.filterArea = this.filterAreaRect;
     }
     ctx.worldContainer.filters = pipeline;

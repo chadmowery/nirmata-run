@@ -3,7 +3,6 @@ import type {
   Buffer,
   BufferImageSource,
   Container,
-  Filter,
   Geometry,
   Mesh,
   RenderTexture,
@@ -28,7 +27,7 @@ const FLOATS_PER_VERTEX = 14;
 const VERTICES_PER_QUAD = 4;
 const INDICES_PER_QUAD = 6;
 
-const GBUFFER_VERT = /* glsl */ `
+const GBUFFER_VERT = /* glsl */ `precision highp float;
 in vec2 aPosition;
 in vec2 aUV;
 in vec2 aCosSin;
@@ -56,7 +55,7 @@ void main(void) {
 }
 `;
 
-const GBUFFER_NORMAL_FRAG = /* glsl */ `
+const GBUFFER_NORMAL_FRAG = /* glsl */ `precision highp float;
 in vec2 vUV;
 in vec2 vCosSin;
 in vec4 vMeta;
@@ -109,19 +108,19 @@ void main(void) {
     discard;
   }
 
-  vec4 packed = texture(uNormalAtlas, vUV);
+  vec4 packedNormal = texture(uNormalAtlas, vUV);
   // Decode tangent normal [-1, 1] and rotate XY by sprite.rotation (cos, sin)
-  vec3 n = vec3(packed.rg * 2.0 - 1.0, max(0.05, packed.b * 2.0 - 1.0));
+  vec3 n = vec3(packedNormal.rg * 2.0 - 1.0, max(0.05, packedNormal.b * 2.0 - 1.0));
   float c = vCosSin.x;
   float s = vCosSin.y;
   vec2 rotXY = vec2(n.x * c - n.y * s, n.x * s + n.y * c);
   n = normalize(vec3(rotXY, n.z));
 
-  finalColor = vec4(n.x * 0.5 + 0.5, n.y * 0.5 + 0.5, n.z * 0.5 + 0.5, packed.a);
+  finalColor = vec4(n.x * 0.5 + 0.5, n.y * 0.5 + 0.5, n.z * 0.5 + 0.5, packedNormal.a);
 }
 `;
 
-const GBUFFER_MATERIAL_FRAG = /* glsl */ `
+const GBUFFER_MATERIAL_FRAG = /* glsl */ `precision highp float;
 in vec2 vUV;
 in vec2 vCosSin;
 in vec4 vMeta;
@@ -328,6 +327,7 @@ export class GBufferPass {
           vertex: GBUFFER_VERT,
           fragment: GBUFFER_NORMAL_FRAG,
           name: 'gbuffer-normal-shader',
+          preferredFragmentPrecision: 'highp',
         }),
         resources: {
           gbufUniforms: gbufUniformsN,
@@ -341,6 +341,7 @@ export class GBufferPass {
           vertex: GBUFFER_VERT,
           fragment: GBUFFER_MATERIAL_FRAG,
           name: 'gbuffer-material-shader',
+          preferredFragmentPrecision: 'highp',
         }),
         resources: {
           gbufUniforms: gbufUniformsM,
@@ -460,22 +461,8 @@ export class GBufferPass {
       return;
     }
 
-    if (!this.rtAlbedo || !this.rtNormalSpec || !this.rtMaterialHeight) {
+    if (!this.rtNormalSpec || !this.rtMaterialHeight) {
       return;
-    }
-
-    // 1. Render Albedo pass directly from worldContainer (preserving filters temporarily stripped outside)
-    const savedFilters = worldContainer.filters;
-    worldContainer.filters = null;
-    try {
-      renderer.render({
-        container: worldContainer,
-        target: this.rtAlbedo,
-        clear: true,
-        clearColor: [0, 0, 0, 1],
-      });
-    } finally {
-      worldContainer.filters = savedFilters ? ([...savedFilters] as Filter[]) : null;
     }
 
     if (

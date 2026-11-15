@@ -17,7 +17,7 @@ import {
 
 const BaseFilter = resolvePixiFilterBase<typeof Filter>(PIXI);
 
-const DEFERRED_LIGHT_FRAG = /* glsl */ `
+const DEFERRED_LIGHT_FRAG = /* glsl */ `precision highp float;
 in vec2 vTextureCoord;
 out vec4 finalColor;
 
@@ -70,6 +70,8 @@ float computeHeightShadow(
   for (int i = 1; i <= STEPS; i++) {
     float t = (float(i) - 0.5 + jitter * 0.55) / float(STEPS);
     if (t >= 0.98) break;
+    // Skip samples inside the emitter entity's own 32x32 tile so an actor/prop never shadows its own light
+    if (dist * (1.0 - t) <= 18.0 * uCameraZoom) break;
     vec2 samplePx = startPx + delta * t;
     vec2 sampleUv = samplePx / uViewportSize;
     if (sampleUv.x < 0.0 || sampleUv.x > 1.0 || sampleUv.y < 0.0 || sampleUv.y > 1.0) {
@@ -128,9 +130,10 @@ void main(void) {
   for (int i = 0; i < ${MAX_PRIMARY_LIGHTS}; i++) {
     if (i >= uPrimaryLightCount) break;
 
-    vec4 p0 = texelFetch(uLightDataTex, ivec2(i, 0), 0); // x, y, radiusPx, intensity
-    vec4 p1 = texelFetch(uLightDataTex, ivec2(i, 1), 0); // r, g, b, heightPx
-    vec4 p2 = texelFetch(uLightDataTex, ivec2(i, 2), 0); // falloff, castsShadows, isBeaconPing, _
+    float lu = (float(i) + 0.5) / ${MAX_PRIMARY_LIGHTS}.0;
+    vec4 p0 = texture(uLightDataTex, vec2(lu, 0.5 / 3.0)); // x, y, radiusPx, intensity
+    vec4 p1 = texture(uLightDataTex, vec2(lu, 1.5 / 3.0)); // r, g, b, heightPx
+    vec4 p2 = texture(uLightDataTex, vec2(lu, 2.5 / 3.0)); // falloff, castsShadows, isBeaconPing, _
 
     vec2 lightPx = p0.xy;
     float radiusPx = p0.z * uCameraZoom;
@@ -173,7 +176,7 @@ void main(void) {
 
     if (specularStrength > 0.01 && nDotL > 0.0) {
       vec3 H = normalize(L + V);
-      float specTerm = pow(max(dot(N, H), 0.0), shininess) * specularStrength * 0.85;
+      float specTerm = pow(max(dot(N, H), 0.0001), shininess) * specularStrength * 0.85;
       specularAccum += contrib * specTerm;
     }
   }
@@ -183,8 +186,9 @@ void main(void) {
     for (int i = 0; i < ${MAX_MICRO_LIGHTS}; i++) {
       if (i >= uMicroLightCount) break;
 
-      vec4 m0 = texelFetch(uMicroLightDataTex, ivec2(i, 0), 0); // x, y, radiusPx, intensity
-      vec4 m1 = texelFetch(uMicroLightDataTex, ivec2(i, 1), 0); // r, g, b, _
+      float mu = (float(i) + 0.5) / ${MAX_MICRO_LIGHTS}.0;
+      vec4 m0 = texture(uMicroLightDataTex, vec2(mu, 0.25)); // x, y, radiusPx, intensity
+      vec4 m1 = texture(uMicroLightDataTex, vec2(mu, 0.75)); // r, g, b, _
       float radiusPx = m0.z * uCameraZoom;
       if (radiusPx <= 1.0 || m0.w <= 0.001) continue;
 
@@ -261,6 +265,7 @@ export class DeferredLightFilter extends BaseFilter {
       height: 3,
       format: 'rgba32float',
       scaleMode: 'nearest',
+      addressMode: 'clamp-to-edge',
     });
 
     const microBuf = new Float32Array(MAX_MICRO_LIGHTS * 2 * 4);
@@ -270,6 +275,7 @@ export class DeferredLightFilter extends BaseFilter {
       height: 2,
       format: 'rgba32float',
       scaleMode: 'nearest',
+      addressMode: 'clamp-to-edge',
     });
 
     const uCameraPosBuf = new Float32Array([0, 0]);
@@ -299,6 +305,7 @@ export class DeferredLightFilter extends BaseFilter {
       vertex: PIXI.defaultFilterVert,
       fragment: DEFERRED_LIGHT_FRAG,
       name: 'deferred-light-filter',
+      preferredFragmentPrecision: 'highp',
     });
 
     super({

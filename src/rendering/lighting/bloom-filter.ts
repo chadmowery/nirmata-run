@@ -10,7 +10,7 @@ import { GBUFFER_HEIGHT, GBUFFER_WIDTH, resolvePixiFilterBase } from './types';
 
 const BaseFilter = resolvePixiFilterBase<typeof Filter>(PIXI);
 
-const BLOOM_EXTRACT_FRAG = /* glsl */ `
+const BLOOM_EXTRACT_FRAG = /* glsl */ `precision highp float;
 in vec2 vTextureCoord;
 out vec4 finalColor;
 
@@ -33,7 +33,7 @@ void main(void) {
 }
 `;
 
-const KAWASE_DOWN_FRAG = /* glsl */ `
+const KAWASE_DOWN_FRAG = /* glsl */ `precision highp float;
 in vec2 vTextureCoord;
 out vec4 finalColor;
 
@@ -56,7 +56,7 @@ void main(void) {
 }
 `;
 
-const KAWASE_UP_FRAG = /* glsl */ `
+const KAWASE_UP_FRAG = /* glsl */ `precision highp float;
 in vec2 vTextureCoord;
 out vec4 finalColor;
 
@@ -82,24 +82,17 @@ void main(void) {
 }
 `;
 
-const BLOOM_COMPOSITE_FRAG = /* glsl */ `
+const BLOOM_COMPOSITE_FRAG = /* glsl */ `precision highp float;
 in vec2 vTextureCoord;
 out vec4 finalColor;
 
 uniform sampler2D uTexture;
 uniform sampler2D uBloomTex;
-uniform vec4 uInputSize;
-uniform vec4 uOutputFrame;
-uniform vec2 uViewportSize;
-uniform vec2 uBloomUvScale;
 uniform float uIntensity;
 
 void main(void) {
   vec4 base = texture(uTexture, vTextureCoord);
-  vec2 screenPx = vTextureCoord * uInputSize.xy + uOutputFrame.xy;
-  vec2 screenUv = clamp(screenPx / uViewportSize, vec2(0.0), vec2(1.0));
-  vec2 bloomUv = clamp(screenUv * uBloomUvScale, vec2(0.001), max(vec2(0.001), uBloomUvScale - vec2(0.002)));
-  vec3 bloom = texture(uBloomTex, bloomUv).rgb;
+  vec3 bloom = texture(uBloomTex, vTextureCoord).rgb;
   finalColor = vec4(base.rgb + bloom * uIntensity, base.a);
 }
 `;
@@ -107,7 +100,7 @@ void main(void) {
 /**
  * Dual-Kawase Selective HDR Bloom pass (Spec §3.4).
  * Isolates emissive pixels (`rtMaterialHeight.r > 0`) & bright specular glints,
- * downsamples through 1/2 -> 1/4 resolution, upsamples smoothly, and composites back.
+ * blurs via Kawase down/up passes, and composites back additively.
  */
 export class SelectiveBloomFilter extends BaseFilter {
   private readonly extractFilter: Filter;
@@ -121,8 +114,9 @@ export class SelectiveBloomFilter extends BaseFilter {
     super({
       glProgram: PIXI.GlProgram.from({
         vertex: PIXI.defaultFilterVert,
-        fragment: `in vec2 vTextureCoord; out vec4 finalColor; uniform sampler2D uTexture; void main() { finalColor = texture(uTexture, vTextureCoord); }`,
+        fragment: `precision highp float;\nin vec2 vTextureCoord; out vec4 finalColor; uniform sampler2D uTexture; void main() { finalColor = texture(uTexture, vTextureCoord); }`,
         name: 'selective-bloom-host',
+        preferredFragmentPrecision: 'highp',
       }),
       clipToViewport: true,
       resources: {},
@@ -134,8 +128,6 @@ export class SelectiveBloomFilter extends BaseFilter {
     });
 
     this.compositeUniforms = new PIXI.UniformGroup({
-      uViewportSize: { value: [GBUFFER_WIDTH, GBUFFER_HEIGHT], type: 'vec2<f32>' },
-      uBloomUvScale: { value: [1.0, 1.0], type: 'vec2<f32>' },
       uIntensity: { value: intensity, type: 'f32' },
     });
 
@@ -144,6 +136,7 @@ export class SelectiveBloomFilter extends BaseFilter {
         vertex: PIXI.defaultFilterVert,
         fragment: BLOOM_EXTRACT_FRAG,
         name: 'bloom-extract',
+        preferredFragmentPrecision: 'highp',
       }),
       resources: {
         extractUniforms: this.extractUniforms,
@@ -156,6 +149,7 @@ export class SelectiveBloomFilter extends BaseFilter {
         vertex: PIXI.defaultFilterVert,
         fragment: KAWASE_DOWN_FRAG,
         name: 'kawase-down',
+        preferredFragmentPrecision: 'highp',
       }),
       resources: {},
     });
@@ -165,6 +159,7 @@ export class SelectiveBloomFilter extends BaseFilter {
         vertex: PIXI.defaultFilterVert,
         fragment: KAWASE_UP_FRAG,
         name: 'kawase-up',
+        preferredFragmentPrecision: 'highp',
       }),
       resources: {},
     });
@@ -174,6 +169,7 @@ export class SelectiveBloomFilter extends BaseFilter {
         vertex: PIXI.defaultFilterVert,
         fragment: BLOOM_COMPOSITE_FRAG,
         name: 'bloom-composite',
+        preferredFragmentPrecision: 'highp',
       }),
       clipToViewport: true,
       resources: {
@@ -197,28 +193,20 @@ export class SelectiveBloomFilter extends BaseFilter {
     output: RenderSurface,
     clearMode: boolean,
   ): void {
-    const halfW = Math.max(1, Math.floor(input.frame.width * 0.5));
-    const halfH = Math.max(1, Math.floor(input.frame.height * 0.5));
-    const quarterW = Math.max(1, Math.floor(halfW * 0.5));
-    const quarterH = Math.max(1, Math.floor(halfH * 0.5));
-
-    const halfTex = PIXI.TexturePool.getOptimalTexture(halfW, halfH, 1, false);
-    const quarterTex = PIXI.TexturePool.getOptimalTexture(quarterW, quarterH, 1, false);
+    const brightTex = PIXI.TexturePool.getSameSizeTexture(input);
+    const bloomTex = PIXI.TexturePool.getSameSizeTexture(input);
 
     try {
-      this.extractFilter.apply(filterManager, input, halfTex, true);
-      this.kawaseDownFilter.apply(filterManager, halfTex, quarterTex, true);
-      this.kawaseUpFilter.apply(filterManager, quarterTex, halfTex, true);
+      this.extractFilter.apply(filterManager, input, brightTex, true);
+      this.kawaseDownFilter.apply(filterManager, brightTex, bloomTex, true);
+      this.kawaseUpFilter.apply(filterManager, bloomTex, brightTex, true);
 
-      const bloomUvScale = this.compositeUniforms.uniforms.uBloomUvScale as number[];
-      bloomUvScale[0] = halfTex.frame.width / Math.max(1, halfTex.source.width);
-      bloomUvScale[1] = halfTex.frame.height / Math.max(1, halfTex.source.height);
-      this.compositeFilter.resources.uBloomTex = halfTex.source;
+      this.compositeFilter.resources.uBloomTex = brightTex.source;
 
       filterManager.applyFilter(this.compositeFilter, input, output, clearMode);
     } finally {
-      PIXI.TexturePool.returnTexture(halfTex);
-      PIXI.TexturePool.returnTexture(quarterTex);
+      PIXI.TexturePool.returnTexture(brightTex);
+      PIXI.TexturePool.returnTexture(bloomTex);
     }
   }
 

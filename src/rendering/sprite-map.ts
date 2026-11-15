@@ -2,6 +2,7 @@ import { Sprite, Container, Texture, Assets } from 'pixi.js';
 import { EntityId } from '../engine/ecs/types';
 import { TILE_SIZE } from './constants';
 import {
+  getActiveAtlasKey,
   getActiveThemeId,
   getNormalAtlasTexture,
   getMaterialAtlasTexture,
@@ -19,13 +20,14 @@ const entitySpriteKeys = new Map<EntityId, string>();
  * default tileset atlas, or global cache. Supports fallback frame keys.
  */
 export function getTextureForSpriteKey(spriteKey: string, explicitFallbackKey?: string): Texture {
+  const activeAtlasKey = getActiveAtlasKey?.() ?? 'tileset';
   const activeTheme = getActiveThemeId?.() ?? 'default';
 
   const hasAssets = typeof Assets !== 'undefined' && typeof Assets?.get === 'function';
 
-  // 1. Check active themed atlas if present
-  if (hasAssets && activeTheme !== 'default') {
-    const themedAsset = Assets.get(`tileset_${activeTheme}`);
+  // 1. Check active themed atlas if present (skip when theme shares default tileset)
+  if (hasAssets && activeAtlasKey !== 'tileset' && activeTheme !== 'default') {
+    const themedAsset = Assets.get(activeAtlasKey);
     if (themedAsset && themedAsset.textures && themedAsset.textures[spriteKey]) {
       return themedAsset.textures[spriteKey];
     }
@@ -40,8 +42,8 @@ export function getTextureForSpriteKey(spriteKey: string, explicitFallbackKey?: 
   // 3. Check fallback key if provided or derived
   const fallbackKey = explicitFallbackKey ?? resolveFallbackSpriteKey(spriteKey);
   if (fallbackKey && fallbackKey !== spriteKey) {
-    if (hasAssets && activeTheme !== 'default') {
-      const themedAsset = Assets.get(`tileset_${activeTheme}`);
+    if (hasAssets && activeAtlasKey !== 'tileset' && activeTheme !== 'default') {
+      const themedAsset = Assets.get(activeAtlasKey);
       if (themedAsset && themedAsset.textures && themedAsset.textures[fallbackKey]) {
         return themedAsset.textures[fallbackKey];
       }
