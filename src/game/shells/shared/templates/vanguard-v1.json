@@ -14,5 +14,17 @@
     "maxSoftware": 2
   },
   "upgrades": [],
-  "starterLoadout": ["basic-strike", "kinetic-link"]
+  "starterLoadout": ["basic-strike", "kinetic-link"],
+  "lightSource": {
+    "color": "#e0f7ff",
+    "intensity": 1.5,
+    "radius": 192,
+    "height": 22,
+    "castsShadows": true,
+    "animation": {
+      "type": "STATIC",
+      "speed": 2.0,
+      "amplitude": 0.0
+    }
+  }
 }

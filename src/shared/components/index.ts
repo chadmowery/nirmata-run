@@ -81,6 +81,7 @@ import {
   DirectionalProp,
 } from './environment';
 import { AudioProfile, AmbientEmitter } from './audio';
+import { LightSource } from './light-source';
 
 export * from './position';
 export * from './health';
@@ -132,6 +133,7 @@ export * from './children';
 export * from './equipment-def';
 export * from './environment';
 export * from './audio';
+export * from './light-source';
 export * from './ai-tree';
 
 export const COMPONENTS_REGISTRY = [
@@ -216,4 +218,5 @@ export const COMPONENTS_REGISTRY = [
   DirectionalProp,
   AudioProfile,
   AmbientEmitter,
+  LightSource,
 ] as const;

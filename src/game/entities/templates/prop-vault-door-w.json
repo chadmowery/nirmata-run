@@ -34,6 +34,19 @@
     "blocksMovement": {},
     "sprite": {
       "key": "vault_door_locked_w"
+    },
+    "lightSource": {
+      "color": "#ff9500",
+      "intensity": 1.5,
+      "radius": 128,
+      "height": 24,
+      "castsShadows": true,
+      "animation": {
+        "type": "STROBE",
+        "speed": 3.0,
+        "amplitude": 0.35,
+        "secondaryColor": "#ef4444"
+      }
     }
   }
 }

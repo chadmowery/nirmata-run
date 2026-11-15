@@ -5,6 +5,14 @@
     "actor": { "isPlayer": false },
     "energy": { "current": 0, "speed": 90, "threshold": 1000 },
     "sprite": { "key": "enemy_logic_leaker" },
+    "lightSource": {
+      "color": "#ff0055",
+      "intensity": 1.3,
+      "radius": 112,
+      "height": 20,
+      "castsShadows": true,
+      "animation": { "type": "PULSE", "speed": 4.0, "amplitude": 0.2 }
+    },
     "hostile": {},
     "aiState": { "behavior": "idle", "sightRadius": 7, "behaviorType": "logic_leaker", "treeId": "logic_leaker" },
     "fovAwareness": { "canSeePlayer": false },

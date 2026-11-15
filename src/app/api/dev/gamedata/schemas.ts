@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LightSourceSchema } from '@shared/components/light-source';
 
 const SpawnTemplateEntry = z.object({
   name: z.string().min(1),
@@ -101,6 +102,7 @@ export const ShellTemplateSchema = z.object({
   }),
   upgrades: z.array(z.unknown()).default([]),
   starterLoadout: z.array(z.string()).optional(),
+  lightSource: LightSourceSchema.partial().optional(),
 });
 
 export const EconomyConfigSchema = z

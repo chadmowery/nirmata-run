@@ -17,6 +17,18 @@
     "sprite": {
       "key": "player"
     },
+    "lightSource": {
+      "color": "#e0f7ff",
+      "intensity": 1.5,
+      "radius": 192,
+      "height": 22,
+      "castsShadows": true,
+      "animation": {
+        "type": "STATIC",
+        "speed": 2.0,
+        "amplitude": 0.0
+      }
+    },
     "audioProfile": {
       "stepCue": "sfx_step_player",
       "attackCue": "sfx_melee_hit",

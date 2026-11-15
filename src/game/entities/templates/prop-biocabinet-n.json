@@ -32,6 +32,18 @@
     "blocksMovement": {},
     "sprite": {
       "key": "prop_biocabinet_n"
+    },
+    "lightSource": {
+      "color": "#10b981",
+      "intensity": 1.1,
+      "radius": 104,
+      "height": 20,
+      "castsShadows": true,
+      "animation": {
+        "type": "PULSE",
+        "speed": 1.8,
+        "amplitude": 0.12
+      }
     }
   }
 }

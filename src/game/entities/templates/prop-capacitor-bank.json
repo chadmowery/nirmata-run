@@ -23,6 +23,19 @@
     "blocksMovement": {},
     "sprite": {
       "key": "prop_capacitor_bank"
+    },
+    "lightSource": {
+      "color": "#00f0ff",
+      "intensity": 1.6,
+      "radius": 144,
+      "height": 22,
+      "castsShadows": true,
+      "animation": {
+        "type": "FLICKER",
+        "speed": 14.0,
+        "amplitude": 0.45,
+        "secondaryColor": "#818cf8"
+      }
     }
   }
 }

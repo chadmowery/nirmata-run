@@ -14,5 +14,17 @@
     "maxSoftware": 1
   },
   "upgrades": [],
-  "starterLoadout": ["neural-spike"]
+  "starterLoadout": ["neural-spike"],
+  "lightSource": {
+    "color": "#bae6fd",
+    "intensity": 1.6,
+    "radius": 176,
+    "height": 24,
+    "castsShadows": true,
+    "animation": {
+      "type": "STATIC",
+      "speed": 2.0,
+      "amplitude": 0.0
+    }
+  }
 }

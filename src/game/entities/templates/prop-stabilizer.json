@@ -25,6 +25,19 @@
     "blocksMovement": {},
     "sprite": {
       "key": "prop_stabilizer_active"
+    },
+    "lightSource": {
+      "color": "#00f0ff",
+      "intensity": 1.8,
+      "radius": 160,
+      "height": 22,
+      "castsShadows": true,
+      "animation": {
+        "type": "PULSE",
+        "speed": 4.0,
+        "amplitude": 0.3,
+        "secondaryColor": "#ffffff"
+      }
     }
   }
 }

@@ -23,6 +23,19 @@
     "blocksMovement": {},
     "sprite": {
       "key": "prop_cryo_vat"
+    },
+    "lightSource": {
+      "color": "#34d399",
+      "intensity": 1.4,
+      "radius": 128,
+      "height": 20,
+      "castsShadows": true,
+      "animation": {
+        "type": "PULSE",
+        "speed": 2.2,
+        "amplitude": 0.2,
+        "secondaryColor": "#059669"
+      }
     }
   }
 }
