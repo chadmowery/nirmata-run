@@ -1,14 +1,14 @@
-import {
+import * as PIXI from 'pixi.js';
+import type {
   Filter,
   FilterSystem,
-  GlProgram,
   RenderSurface,
   Texture,
-  TexturePool,
   UniformGroup,
-  defaultFilterVert,
 } from 'pixi.js';
-import { GBUFFER_HEIGHT, GBUFFER_WIDTH } from './types';
+import { GBUFFER_HEIGHT, GBUFFER_WIDTH, resolvePixiFilterBase } from './types';
+
+const BaseFilter = resolvePixiFilterBase<typeof Filter>(PIXI);
 
 const BLOOM_EXTRACT_FRAG = /* glsl */ `
 in vec2 vTextureCoord;
@@ -109,7 +109,7 @@ void main(void) {
  * Isolates emissive pixels (`rtMaterialHeight.r > 0`) & bright specular glints,
  * downsamples through 1/2 -> 1/4 resolution, upsamples smoothly, and composites back.
  */
-export class SelectiveBloomFilter extends Filter {
+export class SelectiveBloomFilter extends BaseFilter {
   private readonly extractFilter: Filter;
   private readonly kawaseDownFilter: Filter;
   private readonly kawaseUpFilter: Filter;
@@ -119,8 +119,8 @@ export class SelectiveBloomFilter extends Filter {
 
   constructor(materialHeightTex: Texture, intensity: number = 0.72, threshold: number = 0.88) {
     super({
-      glProgram: GlProgram.from({
-        vertex: defaultFilterVert,
+      glProgram: PIXI.GlProgram.from({
+        vertex: PIXI.defaultFilterVert,
         fragment: `in vec2 vTextureCoord; out vec4 finalColor; uniform sampler2D uTexture; void main() { finalColor = texture(uTexture, vTextureCoord); }`,
         name: 'selective-bloom-host',
       }),
@@ -128,20 +128,20 @@ export class SelectiveBloomFilter extends Filter {
       resources: {},
     });
 
-    this.extractUniforms = new UniformGroup({
+    this.extractUniforms = new PIXI.UniformGroup({
       uViewportSize: { value: [GBUFFER_WIDTH, GBUFFER_HEIGHT], type: 'vec2<f32>' },
       uThreshold: { value: threshold, type: 'f32' },
     });
 
-    this.compositeUniforms = new UniformGroup({
+    this.compositeUniforms = new PIXI.UniformGroup({
       uViewportSize: { value: [GBUFFER_WIDTH, GBUFFER_HEIGHT], type: 'vec2<f32>' },
       uBloomUvScale: { value: [1.0, 1.0], type: 'vec2<f32>' },
       uIntensity: { value: intensity, type: 'f32' },
     });
 
-    this.extractFilter = new Filter({
-      glProgram: GlProgram.from({
-        vertex: defaultFilterVert,
+    this.extractFilter = new PIXI.Filter({
+      glProgram: PIXI.GlProgram.from({
+        vertex: PIXI.defaultFilterVert,
         fragment: BLOOM_EXTRACT_FRAG,
         name: 'bloom-extract',
       }),
@@ -151,34 +151,34 @@ export class SelectiveBloomFilter extends Filter {
       },
     });
 
-    this.kawaseDownFilter = new Filter({
-      glProgram: GlProgram.from({
-        vertex: defaultFilterVert,
+    this.kawaseDownFilter = new PIXI.Filter({
+      glProgram: PIXI.GlProgram.from({
+        vertex: PIXI.defaultFilterVert,
         fragment: KAWASE_DOWN_FRAG,
         name: 'kawase-down',
       }),
       resources: {},
     });
 
-    this.kawaseUpFilter = new Filter({
-      glProgram: GlProgram.from({
-        vertex: defaultFilterVert,
+    this.kawaseUpFilter = new PIXI.Filter({
+      glProgram: PIXI.GlProgram.from({
+        vertex: PIXI.defaultFilterVert,
         fragment: KAWASE_UP_FRAG,
         name: 'kawase-up',
       }),
       resources: {},
     });
 
-    this.compositeFilter = new Filter({
-      glProgram: GlProgram.from({
-        vertex: defaultFilterVert,
+    this.compositeFilter = new PIXI.Filter({
+      glProgram: PIXI.GlProgram.from({
+        vertex: PIXI.defaultFilterVert,
         fragment: BLOOM_COMPOSITE_FRAG,
         name: 'bloom-composite',
       }),
       clipToViewport: true,
       resources: {
         compositeUniforms: this.compositeUniforms,
-        uBloomTex: Texture.EMPTY.source,
+        uBloomTex: PIXI.Texture.EMPTY.source,
       },
     });
   }
@@ -202,8 +202,8 @@ export class SelectiveBloomFilter extends Filter {
     const quarterW = Math.max(1, Math.floor(halfW * 0.5));
     const quarterH = Math.max(1, Math.floor(halfH * 0.5));
 
-    const halfTex = TexturePool.getOptimalTexture(halfW, halfH, 1, false);
-    const quarterTex = TexturePool.getOptimalTexture(quarterW, quarterH, 1, false);
+    const halfTex = PIXI.TexturePool.getOptimalTexture(halfW, halfH, 1, false);
+    const quarterTex = PIXI.TexturePool.getOptimalTexture(quarterW, quarterH, 1, false);
 
     try {
       this.extractFilter.apply(filterManager, input, halfTex, true);
@@ -217,8 +217,8 @@ export class SelectiveBloomFilter extends Filter {
 
       filterManager.applyFilter(this.compositeFilter, input, output, clearMode);
     } finally {
-      TexturePool.returnTexture(halfTex);
-      TexturePool.returnTexture(quarterTex);
+      PIXI.TexturePool.returnTexture(halfTex);
+      PIXI.TexturePool.returnTexture(quarterTex);
     }
   }
 

@@ -35,6 +35,7 @@ import {
   createEntitySprite,
   destroyEntitySprite,
   getEntitySprite,
+  getEntitySprites,
   clearAllSprites,
   purgeOrphanedSprites,
   getSpriteTelemetry,
@@ -74,6 +75,13 @@ import {
   disposeHeatEffects,
 } from './filters/heat-visual-effects';
 import { getHeatTier } from '../game/config/heat-tiers';
+import { loadThemedAssets } from './assets';
+import { LightSource, LightSourceData } from '@shared/components/light-source';
+import {
+  LightingSystem,
+  LightingTelemetry,
+  RenderLightDescriptor,
+} from './lighting';
 import {
   attachNeonEmitter,
   updateAllEmitters,
@@ -108,6 +116,7 @@ export interface DevRenderBisectionFlags {
   disableParticles: boolean;
   cacheStaticTilemap: boolean;
   cacheStaticFov: boolean;
+  disableDeferredLighting?: boolean;
 }
 
 export interface RenderTelemetry {
@@ -122,6 +131,7 @@ export interface RenderTelemetry {
   exploredTiles: number;
   rememberedPropsCount: number;
   rememberedItemsCount: number;
+  lighting?: LightingTelemetry;
 }
 
 export interface RenderSystem {
@@ -254,7 +264,157 @@ export function createRenderSystem(config: RenderSystemConfig) {
     disableParticles: false,
     cacheStaticTilemap: false,
     cacheStaticFov: false,
+    disableDeferredLighting: false,
   };
+
+  const lightingSystem = new LightingSystem(getGrid().width, getGrid().height);
+  const baseLightByEntity = new Map<EntityId, LightSourceData>();
+  let lastAppliedTheme = '';
+  let lastLightingSyncMs = 0;
+  let lightingDestroyed = false;
+  let lastDynamicLightKey = '';
+
+  const resolveActiveFloorState = () => {
+    const floorEntities = world.query(FloorState);
+    if (floorEntities.length > 0) {
+      return world.getComponent(floorEntities[0], FloorState);
+    }
+    const playerEntity = getPlayerEntity();
+    return world.entityExists(playerEntity) ? world.getComponent(playerEntity, FloorState) : undefined;
+  };
+
+  const syncEnvironmentTheme = () => {
+    const floor = resolveActiveFloorState();
+    const theme = floor?.factionTheme ?? 'cyberacme';
+    const condition = floor?.sectorCondition ?? 'NOMINAL';
+    lightingSystem.setEnvironmentTheme(theme, condition);
+    if (theme && theme !== lastAppliedTheme) {
+      lastAppliedTheme = theme;
+      Promise.resolve(loadThemedAssets(theme))
+        .then(() => {
+          if (!lightingDestroyed) {
+            lastTilemapKey = '';
+          }
+        })
+        .catch(() => {
+          // Graceful fallback in mocked test / offline environments
+        });
+    }
+  };
+
+  const syncDynamicEntityLights = (playerEntity: EntityId, extendedSightActive: boolean) => {
+    const heat = world.getComponent(playerEntity, Heat);
+    const stability = world.getComponent(playerEntity, Stability);
+    const pLight = world.getComponent(playerEntity, LightSource);
+    const dynamicKey = `${playerEntity}:${heat?.current ?? 0}:${stability?.current ?? 100}:${extendedSightActive ? 1 : 0}:${fovSetSizeHint()}`;
+
+    if (pLight) {
+      if (!baseLightByEntity.has(playerEntity)) {
+        baseLightByEntity.set(playerEntity, {
+          ...pLight,
+          animation: { ...(pLight.animation ?? { type: 'STATIC', speed: 2, amplitude: 0 }) },
+        });
+      }
+      if (dynamicKey !== lastDynamicLightKey) {
+        lastDynamicLightKey = dynamicKey;
+        const base = baseLightByEntity.get(playerEntity)!;
+        const heatVal = heat?.current ?? 0;
+        const stabVal = stability?.current ?? 100;
+
+        let nextColor = base.color;
+        let nextIntensity = base.intensity;
+        let nextRadius = base.radius;
+        let nextAnim = base.animation ? { ...base.animation } : { type: 'STATIC' as const, speed: 2, amplitude: 0.2 };
+
+        if (extendedSightActive) {
+          nextRadius = Math.min(512, nextRadius + 48);
+        }
+
+        if (heatVal >= 81) {
+          nextColor = '#ff4500';
+          nextIntensity = Math.min(5, base.intensity * 1.25);
+          nextRadius = Math.min(512, nextRadius * 1.25);
+          nextAnim = { type: 'FLICKER', speed: 8.0, amplitude: 0.45, secondaryColor: '#ffb020' };
+        } else if (heatVal >= 51) {
+          nextColor = '#ffb020';
+          nextIntensity = Math.min(5, base.intensity * 1.15);
+          nextAnim = { type: 'FLICKER', speed: 4.0, amplitude: 0.25, secondaryColor: base.color };
+        }
+
+        if (stabVal < 50) {
+          const stabRatio = Math.max(0.25, stabVal / 50);
+          nextRadius = Math.max(32, Math.round(nextRadius * (0.78 + 0.17 * stabRatio)));
+          if (heatVal < 51) {
+            nextAnim = { type: 'FLICKER', speed: 5.5, amplitude: 0.35, secondaryColor: nextColor };
+          }
+        }
+
+        if (
+          pLight.color !== nextColor ||
+          Math.abs(pLight.intensity - nextIntensity) > 0.01 ||
+          Math.abs(pLight.radius - nextRadius) > 0.5 ||
+          pLight.animation?.type !== nextAnim.type ||
+          pLight.animation?.speed !== nextAnim.speed ||
+          pLight.animation?.amplitude !== nextAnim.amplitude
+        ) {
+          world.patchComponent(playerEntity, LightSource, {
+            color: nextColor,
+            intensity: nextIntensity,
+            radius: nextRadius,
+            animation: nextAnim,
+          });
+        }
+      }
+    }
+
+    // Sync prop lights with safe / locked / corrupted / searched state
+    for (const propId of world.query(Prop, LightSource)) {
+      const prop = world.getComponent(propId, Prop)!;
+      const light = world.getComponent(propId, LightSource)!;
+      if (!baseLightByEntity.has(propId)) {
+        baseLightByEntity.set(propId, {
+          ...light,
+          animation: { ...(light.animation ?? { type: 'STATIC', speed: 2, amplitude: 0 }) },
+        });
+      }
+      const base = baseLightByEntity.get(propId)!;
+      const secLock = world.getComponent(propId, SecurityLock);
+      const corrupted = world.getComponent(propId, CorruptedNode);
+
+      let targetColor = base.color;
+      let targetIntensity = base.intensity;
+      let targetCastsShadows = base.castsShadows;
+      let targetAnim = base.animation ?? { type: 'STATIC' as const, speed: 2, amplitude: 0.2 };
+
+      if (prop.isSearched) {
+        targetIntensity = Number((base.intensity * 0.15).toFixed(3));
+        targetCastsShadows = false;
+        targetAnim = { type: 'STATIC', speed: 1, amplitude: 0.1 };
+      } else if (corrupted?.revealed && !corrupted.isDisarmed) {
+        targetColor = '#ff0055';
+        targetAnim = { type: 'STROBE', speed: 4.5, amplitude: 0.65, secondaryColor: '#ff9500' };
+      } else if (secLock?.isLocked) {
+        targetColor = '#ff9500';
+        targetAnim = { type: 'PULSE', speed: 1.5, amplitude: 0.3 };
+      }
+
+      if (
+        light.color !== targetColor ||
+        Math.abs(light.intensity - targetIntensity) > 0.01 ||
+        light.castsShadows !== targetCastsShadows ||
+        light.animation?.type !== targetAnim.type
+      ) {
+        world.patchComponent(propId, LightSource, {
+          color: targetColor,
+          intensity: targetIntensity,
+          castsShadows: targetCastsShadows,
+          animation: targetAnim,
+        });
+      }
+    }
+  };
+
+  const fovSetSizeHint = () => currentFovSet.size;
 
   const latestStageTimings: RenderStageTimings = {
     fovMs: 0,
@@ -551,6 +711,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
   };
 
   const handleEntityDestroyed = (payload: { entityId: EntityId }) => {
+    baseLightByEntity.delete(payload.entityId);
     const sprite = getEntitySprite(payload.entityId);
     if (sprite) {
       spriteAnimator.triggerState(payload.entityId, 'death');
@@ -751,9 +912,28 @@ export function createRenderSystem(config: RenderSystemConfig) {
     }
   };
 
-  const handleFirmwareActivated = (payload: { entityId?: EntityId }) => {
+  const handleFirmwareActivated = (payload: {
+    entityId?: EntityId;
+    abilityName?: string;
+    targetX?: number;
+    targetY?: number;
+  }) => {
     if (payload.entityId && isEntityInFov(payload.entityId)) {
       spriteAnimator.triggerState(payload.entityId, 'attack');
+    }
+    if (payload.abilityName === 'GHOST_PULSE.exe' && payload.entityId !== undefined) {
+      const pos = world.getComponent(payload.entityId, Position);
+      if (pos) {
+        lightingSystem.spawnTransientLight({
+          worldX: pos.x * TILE_SIZE + TILE_SIZE * 0.5,
+          worldY: pos.y * TILE_SIZE + TILE_SIZE * 0.5,
+          color: '#00f0ff',
+          intensity: 2.8,
+          radiusPx: 256,
+          durationMs: 1200,
+          castsShadows: false,
+        });
+      }
     }
   };
 
@@ -913,16 +1093,18 @@ export function createRenderSystem(config: RenderSystemConfig) {
       // 1. Dynamic FOV (D-15 Extended Sight Logic)
       const tFov0 = devFlags.measureTimings ? performance.now() : 0;
       let effectiveRadius = FOV_RADIUS;
-      const floorState = world.getComponent(playerEntity, FloorState);
+      const floorState = resolveActiveFloorState();
       if (floorState?.sectorCondition === 'DARK_SUBNET') {
         effectiveRadius = Math.max(2, effectiveRadius - 2);
       }
+      let extendedSightActive = false;
       const fSlots = world.getComponent(playerEntity, FirmwareSlots);
       if (fSlots) {
         for (const firmwareId of fSlots.equipped) {
           const abilityDef = world.getComponent(firmwareId, AbilityDef);
           if (abilityDef && abilityDef.effectType === 'toggle_vision' && abilityDef.isActive) {
             effectiveRadius = Math.max(effectiveRadius, abilityDef.visionRadius);
+            extendedSightActive = true;
           }
         }
       }
@@ -953,6 +1135,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
         lastFovKey = fovKey;
         lastFovResult = fovSet;
+        const gridForFov = getGrid();
+        lightingSystem.updateFovMask(gridForFov.width, gridForFov.height, fovSet, exploredSet);
         eventBus.emit('FOV_UPDATED', { visibleSet: fovSet });
       }
 
@@ -1144,6 +1328,67 @@ export function createRenderSystem(config: RenderSystemConfig) {
       if (playerSprite && playerSprite.parent) {
         playerSprite.parent.addChild(playerSprite);
       }
+
+      // 4.5. Deferred Lighting Pipeline Sync (LIGHT-04)
+      syncEnvironmentTheme();
+      syncDynamicEntityLights(playerEntity, extendedSightActive);
+
+      const gridForLight = getGrid();
+      const extraPrimaryLights: RenderLightDescriptor[] = [];
+      const activeFloor = resolveActiveFloorState();
+      if (activeFloor?.sectorCondition === 'DARK_SUBNET') {
+        const elapsedSec = performance.now() * 0.001;
+        const cycle = elapsedSec % 3.0;
+        if (cycle < 0.75) {
+          const pulseAlpha = Math.sin((cycle / 0.75) * Math.PI);
+          const camX = layers.worldContainer.x ?? 0;
+          const camY = layers.worldContainer.y ?? 0;
+          for (const propId of world.query(Prop, Position)) {
+            const p = world.getComponent(propId, Prop);
+            const pPos = world.getComponent(propId, Position);
+            if (!p || p.isSearched || !pPos) continue;
+            extraPrimaryLights.push({
+              screenX: (pPos.x * TILE_SIZE + TILE_SIZE * 0.5) * cameraZoom + camX,
+              screenY: (pPos.y * TILE_SIZE + TILE_SIZE * 0.5) * cameraZoom + camY,
+              radiusPx: 48,
+              intensity: 1.45 * pulseAlpha,
+              colorRgb: [0.0, 0.94, 1.0],
+              heightPx: 14,
+              falloff: 1.5,
+              castsShadows: false,
+              isBeaconPing: true,
+            });
+          }
+        }
+      }
+
+      const existingContainerFilters = Array.isArray(layers.worldContainer.filters)
+        ? layers.worldContainer.filters.filter(
+            (f) => f && !f.constructor?.name?.includes('DeferredLight') && !f.constructor?.name?.includes('SelectiveBloom'),
+          )
+        : [];
+
+      const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      const dtLightMs = lastLightingSyncMs > 0 ? Math.min(100, Math.max(1, nowMs - lastLightingSyncMs)) : 16.67;
+      lastLightingSyncMs = nowMs;
+
+      lightingSystem.update({
+        world,
+        worldContainer: layers.worldContainer,
+        terrainLayer: layers.terrainLayer,
+        itemLayer: layers.itemLayer,
+        entityLayer: layers.entityLayer,
+        renderer: app.renderer,
+        spriteMap: getEntitySprites(),
+        fovSet,
+        exploredSet,
+        gridWidth: gridForLight.width,
+        gridHeight: gridForLight.height,
+        deltaMs: dtLightMs,
+        enabled: !devFlags.disableDeferredLighting,
+        extraPrimaryLights,
+        worldScreenFilters: devFlags.disableWorldFilters ? [] : existingContainerFilters,
+      });
 
       if (devFlags.measureTimings) {
         latestStageTimings.spriteSyncMs = performance.now() - tSprite0;
@@ -1346,7 +1591,11 @@ export function createRenderSystem(config: RenderSystemConfig) {
       cameraZoom = 1.0;
       layers.worldContainer.scale.set(1.0);
       lastPropOutlineState.clear();
+      baseLightByEntity.clear();
+      lastDynamicLightKey = '';
       lastHoverCheckState = null;
+      lightingSystem.clearTransientLights();
+      syncEnvironmentTheme();
       lastFovKey = null;
       lastFovResult = null;
       lastTilemapKey = null;
@@ -1429,7 +1678,11 @@ export function createRenderSystem(config: RenderSystemConfig) {
       rememberedProps.clear();
       rememberedTileItems.clear();
       lastPropOutlineState.clear();
+      baseLightByEntity.clear();
+      lastDynamicLightKey = '';
       lastHoverCheckState = null;
+      lightingSystem.clearTransientLights();
+      syncEnvironmentTheme();
       clearAllSprites();
       clearAnimations();
       spriteAnimator.clear();
@@ -1437,6 +1690,9 @@ export function createRenderSystem(config: RenderSystemConfig) {
       disposeHeatEffects();
       disposeAllEmitters();
       disposeDamageTexts();
+      lightingDestroyed = true;
+      baseLightByEntity.clear();
+      lightingSystem.destroy();
       gameStore.getState().setHoveredEntity(null);
     },
 
@@ -1489,6 +1745,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
         exploredTiles: exploredSet.size,
         rememberedPropsCount: rememberedProps.size,
         rememberedItemsCount: rememberedTileItems.size,
+        lighting: lightingSystem.getTelemetry(),
       };
     },
 
@@ -1552,6 +1809,31 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
       if (flags.cacheStaticFov === false) {
         lastFovKey = '';
+      }
+
+      if (flags.disableDeferredLighting !== undefined) {
+        if (devFlags.disableDeferredLighting) {
+          lightingSystem.update({
+            world,
+            worldContainer: layers.worldContainer,
+            terrainLayer: layers.terrainLayer,
+            itemLayer: layers.itemLayer,
+            entityLayer: layers.entityLayer,
+            renderer: app.renderer,
+            spriteMap: getEntitySprites(),
+            gridWidth: getGrid().width,
+            gridHeight: getGrid().height,
+            deltaMs: 0,
+            enabled: false,
+            worldScreenFilters: devFlags.disableWorldFilters
+              ? []
+              : Array.isArray(layers.worldContainer.filters)
+                ? layers.worldContainer.filters.filter(
+                    (f) => f && !f.constructor?.name?.includes('DeferredLight') && !f.constructor?.name?.includes('SelectiveBloom'),
+                  )
+                : [],
+          });
+        }
       }
     },
   };

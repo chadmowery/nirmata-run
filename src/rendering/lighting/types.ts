@@ -248,3 +248,19 @@ export function evaluateLightAnimation(
   const mult = Math.max(0.2, 1.0 - amp * 0.5 + amp * 0.5 * sweepPulse);
   return { intensityMultiplier: mult, colorRgb: baseRgb, angleOffsetRad: angle };
 }
+
+/**
+ * Safely reads an export from `import * as PIXI from 'pixi.js'` without throwing
+ * when Vitest partial-mocks `'pixi.js'` without declaring WebGL/Filter symbols.
+ */
+export function safeGetPixiExport<T>(pixiNs: unknown, name: string): T | undefined {
+  try {
+    return (pixiNs as Record<string, unknown>)[name] as T | undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function resolvePixiFilterBase<T>(pixiNs: unknown): T {
+  return (safeGetPixiExport<T>(pixiNs, 'Filter') ?? (class {})) as T;
+}

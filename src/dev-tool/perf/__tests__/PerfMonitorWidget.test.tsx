@@ -24,6 +24,7 @@ describe('PerfMonitorWidget', () => {
           disableParticles: false,
           cacheStaticTilemap: false,
           cacheStaticFov: false,
+          disableDeferredLighting: false,
         },
       });
     });

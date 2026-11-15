@@ -1,19 +1,16 @@
-import {
+import * as PIXI from 'pixi.js';
+import type {
   Buffer,
   BufferImageSource,
-  BufferUsage,
   Container,
   Filter,
   Geometry,
-  GlProgram,
   Mesh,
   RenderTexture,
   Renderer,
   Shader,
   Sprite,
-  State,
   Texture,
-  UniformGroup,
 } from 'pixi.js';
 import { getMaterialAtlasTexture, getNormalAtlasTexture } from '../assets';
 import { TILE_SIZE } from '../constants';
@@ -22,6 +19,7 @@ import {
   GBUFFER_WIDTH,
   MAX_GBUFFER_QUADS,
   ParticleGbufferDescriptor,
+  safeGetPixiExport,
 } from './types';
 
 // Floats per vertex:
@@ -242,7 +240,15 @@ export class GBufferPass {
 
     let initializedGpu = false;
     try {
-      this.fovMaskSource = new BufferImageSource({
+      if (
+        typeof PIXI.BufferImageSource !== 'function' ||
+        typeof PIXI.RenderTexture?.create !== 'function' ||
+        typeof PIXI.Mesh !== 'function'
+      ) {
+        throw new Error('PixiJS WebGL classes unavailable in headless test mock');
+      }
+
+      this.fovMaskSource = new PIXI.BufferImageSource({
         resource: this.fovMaskData,
         width: this.fovWidth,
         height: this.fovHeight,
@@ -251,23 +257,23 @@ export class GBufferPass {
         alphaMode: 'no-premultiply-alpha',
         addressMode: 'clamp-to-edge',
       });
-      this.fovMaskTexture = new Texture({ source: this.fovMaskSource });
+      this.fovMaskTexture = new PIXI.Texture({ source: this.fovMaskSource });
 
-      this.rtAlbedo = RenderTexture.create({
+      this.rtAlbedo = PIXI.RenderTexture.create({
         width: GBUFFER_WIDTH,
         height: GBUFFER_HEIGHT,
         scaleMode: 'nearest',
         resolution: 1,
         antialias: false,
       });
-      this.rtNormalSpec = RenderTexture.create({
+      this.rtNormalSpec = PIXI.RenderTexture.create({
         width: GBUFFER_WIDTH,
         height: GBUFFER_HEIGHT,
         scaleMode: 'nearest',
         resolution: 1,
         antialias: false,
       });
-      this.rtMaterialHeight = RenderTexture.create({
+      this.rtMaterialHeight = PIXI.RenderTexture.create({
         width: GBUFFER_WIDTH,
         height: GBUFFER_HEIGHT,
         scaleMode: 'nearest',
@@ -288,17 +294,17 @@ export class GBufferPass {
         indices[ii + 5] = vi + 3;
       }
 
-      this.vertexBuffer = new Buffer({
+      this.vertexBuffer = new PIXI.Buffer({
         data: this.vertexData,
-        usage: BufferUsage.VERTEX | BufferUsage.COPY_DST,
+        usage: PIXI.BufferUsage.VERTEX | PIXI.BufferUsage.COPY_DST,
       });
-      this.indexBuffer = new Buffer({
+      this.indexBuffer = new PIXI.Buffer({
         data: indices,
-        usage: BufferUsage.INDEX,
+        usage: PIXI.BufferUsage.INDEX,
       });
 
       const stride = FLOATS_PER_VERTEX * 4;
-      this.geometry = new Geometry({
+      this.geometry = new PIXI.Geometry({
         attributes: {
           aPosition: { buffer: this.vertexBuffer, format: 'float32x2', stride, offset: 0 },
           aUV: { buffer: this.vertexBuffer, format: 'float32x2', stride, offset: 8 },
@@ -309,16 +315,16 @@ export class GBufferPass {
         indexBuffer: this.indexBuffer,
       });
 
-      const emptySrc = Texture.EMPTY.source;
-      const gbufUniformsN = new UniformGroup({
+      const emptySrc = PIXI.Texture.EMPTY.source;
+      const gbufUniformsN = new PIXI.UniformGroup({
         uTexelSize: { value: this.texelSizeN, type: 'vec2<f32>' },
       });
-      const gbufUniformsM = new UniformGroup({
+      const gbufUniformsM = new PIXI.UniformGroup({
         uTexelSize: { value: this.texelSizeM, type: 'vec2<f32>' },
       });
 
-      this.normalShader = new Shader({
-        glProgram: GlProgram.from({
+      this.normalShader = new PIXI.Shader({
+        glProgram: PIXI.GlProgram.from({
           vertex: GBUFFER_VERT,
           fragment: GBUFFER_NORMAL_FRAG,
           name: 'gbuffer-normal-shader',
@@ -330,8 +336,8 @@ export class GBufferPass {
         },
       });
 
-      this.materialShader = new Shader({
-        glProgram: GlProgram.from({
+      this.materialShader = new PIXI.Shader({
+        glProgram: PIXI.GlProgram.from({
           vertex: GBUFFER_VERT,
           fragment: GBUFFER_MATERIAL_FRAG,
           name: 'gbuffer-material-shader',
@@ -343,30 +349,31 @@ export class GBufferPass {
         },
       });
 
-      const opaqueState = State.for2d();
+      const opaqueState = PIXI.State.for2d();
       opaqueState.blend = false;
 
-      this.normalMesh = new Mesh<Geometry, Shader>({
+      this.normalMesh = new PIXI.Mesh<Geometry, Shader>({
         geometry: this.geometry,
         shader: this.normalShader,
         state: opaqueState,
       });
-      this.materialMesh = new Mesh<Geometry, Shader>({
+      this.materialMesh = new PIXI.Mesh<Geometry, Shader>({
         geometry: this.geometry,
         shader: this.materialShader,
         state: opaqueState,
       });
 
-      this.normalContainer = new Container();
+      this.normalContainer = new PIXI.Container();
       this.normalContainer.addChild(this.normalMesh);
 
-      this.materialContainer = new Container();
+      this.materialContainer = new PIXI.Container();
       this.materialContainer.addChild(this.materialMesh);
 
       initializedGpu = true;
     } catch {
       // Headless / mocked unit test environment without full PixiJS Geometry/RenderTexture
-      this.fovMaskTexture = Texture.EMPTY;
+      const texNs = safeGetPixiExport<typeof PIXI.Texture>(PIXI, 'Texture');
+      this.fovMaskTexture = texNs?.EMPTY ?? ({} as Texture);
     }
 
     this.gpuReady = initializedGpu;
@@ -401,7 +408,7 @@ export class GBufferPass {
       this.fovMaskData = new Uint8Array(w * h * 4);
       if (this.fovMaskSource && this.gpuReady) {
         this.fovMaskSource.destroy();
-        this.fovMaskSource = new BufferImageSource({
+        this.fovMaskSource = new PIXI.BufferImageSource({
           resource: this.fovMaskData,
           width: w,
           height: h,
@@ -410,7 +417,7 @@ export class GBufferPass {
           alphaMode: 'no-premultiply-alpha',
           addressMode: 'clamp-to-edge',
         });
-        this.fovMaskTexture = new Texture({ source: this.fovMaskSource });
+        this.fovMaskTexture = new PIXI.Texture({ source: this.fovMaskSource });
       }
     }
 
@@ -493,12 +500,13 @@ export class GBufferPass {
 
     const normalTex = getNormalAtlasTexture();
     const materialTex = getMaterialAtlasTexture();
-    const diffSrc = diffuseSource ?? Texture.EMPTY.source;
+    const emptySrc = safeGetPixiExport<typeof PIXI.Texture>(PIXI, 'Texture')?.EMPTY?.source;
+    const diffSrc = diffuseSource ?? emptySrc;
     const normSrc = normalTex?.source ?? diffSrc;
     const matSrc = materialTex?.source ?? diffSrc;
 
-    const invW = 1 / Math.max(1, diffSrc.width || 512);
-    const invH = 1 / Math.max(1, diffSrc.height || 512);
+    const invW = 1 / Math.max(1, diffSrc?.width || 512);
+    const invH = 1 / Math.max(1, diffSrc?.height || 512);
 
     this.normalShader.resources.uDiffuseAtlas = diffSrc;
     this.normalShader.resources.uNormalAtlas = normSrc;
@@ -556,11 +564,12 @@ export class GBufferPass {
     let quadCount = 0;
     let primaryDiffuseSource: Texture['source'] | null = null;
 
+    const emptyTex = safeGetPixiExport<typeof PIXI.Texture>(PIXI, 'Texture')?.EMPTY;
     const pushSprite = (sprite: Sprite) => {
       if (quadCount >= MAX_GBUFFER_QUADS) return;
       if (!sprite || !sprite.visible || sprite.alpha <= 0.01) return;
       const tex = sprite.texture;
-      if (!tex || tex === Texture.EMPTY) return;
+      if (!tex || (emptyTex && tex === emptyTex)) return;
 
       if (!primaryDiffuseSource && tex.source && (tex.source.width ?? 0) >= 64) {
         primaryDiffuseSource = tex.source;

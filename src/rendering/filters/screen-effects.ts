@@ -1,8 +1,15 @@
-import { ColorMatrixFilter, Container } from 'pixi.js';
+import { ColorMatrixFilter, Container, Filter } from 'pixi.js';
 
 // Cache a single filter instance to avoid memory leaks (per pitfall 4)
 let _grayscaleFilter: ColorMatrixFilter | null = null;
 let _desatFilter: ColorMatrixFilter | null = null;
+
+function getScreenEffectFilterSet(): Set<Filter> {
+  const set = new Set<Filter>();
+  if (_grayscaleFilter) set.add(_grayscaleFilter);
+  if (_desatFilter) set.add(_desatFilter);
+  return set;
+}
 
 export function createDesaturationFilter(): ColorMatrixFilter {
   const filter = new ColorMatrixFilter();
@@ -15,22 +22,38 @@ export function applyGrayscaleToContainer(container: Container): void {
   if (!_grayscaleFilter) {
     _grayscaleFilter = createDesaturationFilter();
   }
-  container.filters = [_grayscaleFilter];
+  const existing = container.filters
+    ? Array.isArray(container.filters)
+      ? [...container.filters]
+      : [container.filters]
+    : [];
+  const effectSet = getScreenEffectFilterSet();
+  const preserved = existing.filter((f) => !effectSet.has(f));
+  container.filters = [...preserved, _grayscaleFilter];
 }
 
 export function removeFiltersFromContainer(container: Container): void {
   container.filters = null;
 }
 
+export function getActiveScreenEffectFilters(): Filter[] {
+  const out: Filter[] = [];
+  if (_desatFilter) out.push(_desatFilter);
+  if (_grayscaleFilter) out.push(_grayscaleFilter);
+  return out;
+}
+
 export function applyStabilityDesaturation(container: Container, stabilityPercent: number): void {
+  const existing = container.filters
+    ? Array.isArray(container.filters)
+      ? [...container.filters]
+      : [container.filters]
+    : [];
+  const effectSet = getScreenEffectFilterSet();
+  const preserved = existing.filter((f) => !effectSet.has(f));
+
   if (stabilityPercent > 50) {
-    // No desaturation above 50%
-    if (
-      container.filters &&
-      (container.filters.includes(_desatFilter!) || container.filters.includes(_grayscaleFilter!))
-    ) {
-      container.filters = null;
-    }
+    container.filters = preserved.length > 0 ? preserved : null;
     return;
   }
   // 50% stability = 0% desaturation, 0% stability = 100% desaturation
@@ -41,7 +64,7 @@ export function applyStabilityDesaturation(container: Container, stabilityPercen
   _desatFilter.desaturate();
   // Scale by how far below 50% we are
   _desatFilter.alpha = (50 - stabilityPercent) / 50;
-  container.filters = [_desatFilter];
+  container.filters = [...preserved, _desatFilter];
 }
 
 export function disposeScreenEffects(): void {

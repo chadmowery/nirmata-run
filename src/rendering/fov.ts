@@ -123,7 +123,7 @@ export function isEntityVisible(
   }
 
   if (entityType === 'item' && exploredSet.has(key)) {
-    return { visible: true, alpha: 0.3 };
+    return { visible: true, alpha: 1.0 };
   }
 
   return { visible: false, alpha: 0 };

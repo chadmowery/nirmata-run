@@ -41,7 +41,7 @@ function computeAlpha(x: number, y: number, options?: BuildTilemapOptions): numb
   }
 
   if (options.exploredSet?.has(key)) {
-    return 0.3;
+    return 1.0;
   }
 
   return 0.0;

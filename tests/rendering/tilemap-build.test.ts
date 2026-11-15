@@ -109,7 +109,7 @@ describe('buildTilemap', () => {
     expect(sprite1.alpha).toBe(1.0);
 
     const sprite2 = (mockContainer.addChild as any).mock.calls[1][0];
-    expect(sprite2.alpha).toBe(0.3);
+    expect(sprite2.alpha).toBe(1.0);
   });
 
   it('should map terrain types to correct textures', () => {

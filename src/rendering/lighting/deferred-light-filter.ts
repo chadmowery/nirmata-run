@@ -1,10 +1,9 @@
-import {
+import * as PIXI from 'pixi.js';
+import type {
   BufferImageSource,
   Filter,
-  GlProgram,
   Texture,
   UniformGroup,
-  defaultFilterVert,
 } from 'pixi.js';
 import {
   GBUFFER_HEIGHT,
@@ -13,7 +12,10 @@ import {
   MAX_PRIMARY_LIGHTS,
   MicroLightDescriptor,
   RenderLightDescriptor,
+  resolvePixiFilterBase,
 } from './types';
+
+const BaseFilter = resolvePixiFilterBase<typeof Filter>(PIXI);
 
 const DEFERRED_LIGHT_FRAG = /* glsl */ `
 in vec2 vTextureCoord;
@@ -234,7 +236,7 @@ void main(void) {
 }
 `;
 
-export class DeferredLightFilter extends Filter {
+export class DeferredLightFilter extends BaseFilter {
   private readonly lightDataBuffer: Float32Array;
   private readonly lightDataSource: BufferImageSource;
   private readonly microLightDataBuffer: Float32Array;
@@ -253,7 +255,7 @@ export class DeferredLightFilter extends Filter {
     fovMaskTex: Texture,
   ) {
     const lightBuf = new Float32Array(MAX_PRIMARY_LIGHTS * 3 * 4);
-    const lightSrc = new BufferImageSource({
+    const lightSrc = new PIXI.BufferImageSource({
       resource: lightBuf,
       width: MAX_PRIMARY_LIGHTS,
       height: 3,
@@ -262,7 +264,7 @@ export class DeferredLightFilter extends Filter {
     });
 
     const microBuf = new Float32Array(MAX_MICRO_LIGHTS * 2 * 4);
-    const microSrc = new BufferImageSource({
+    const microSrc = new PIXI.BufferImageSource({
       resource: microBuf,
       width: MAX_MICRO_LIGHTS,
       height: 2,
@@ -277,7 +279,7 @@ export class DeferredLightFilter extends Filter {
     const uConditionTintBuf = new Float32Array([1, 1, 1]);
     const uFloorPulseColorBuf = new Float32Array([1.0, 0.3, 0.0]);
 
-    const lightingUniforms = new UniformGroup({
+    const lightingUniforms = new PIXI.UniformGroup({
       uViewportSize: { value: [GBUFFER_WIDTH, GBUFFER_HEIGHT], type: 'vec2<f32>' },
       uCameraPos: { value: uCameraPosBuf, type: 'vec2<f32>' },
       uCameraZoom: { value: 1.0, type: 'f32' },
@@ -293,8 +295,8 @@ export class DeferredLightFilter extends Filter {
       uFloorPulseColor: { value: uFloorPulseColorBuf, type: 'vec3<f32>' },
     });
 
-    const glProgram = GlProgram.from({
-      vertex: defaultFilterVert,
+    const glProgram = PIXI.GlProgram.from({
+      vertex: PIXI.defaultFilterVert,
       fragment: DEFERRED_LIGHT_FRAG,
       name: 'deferred-light-filter',
     });

@@ -1,4 +1,5 @@
-import { Container, Filter, Rectangle, Renderer, Sprite } from 'pixi.js';
+import * as PIXI from 'pixi.js';
+import type { Container, Filter, Rectangle, Renderer, Sprite } from 'pixi.js';
 import type { EntityId } from '@engine/ecs/types';
 import type { World } from '@engine/ecs/world';
 import { Position } from '@shared/components/position';
@@ -20,6 +21,7 @@ import {
   evaluateLightAnimation,
   parseHexColorNormalized,
   resolveFactionAmbientProfile,
+  safeGetPixiExport,
 } from './types';
 
 export interface TransientLightSpawnParams {
@@ -36,13 +38,14 @@ export interface TransientLightSpawnParams {
 }
 
 export interface LightingUpdateContext {
-  world: World;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  world: Pick<World<any>, 'query' | 'getComponent'>;
   worldContainer: Container;
   terrainLayer: Container;
   itemLayer: Container;
   entityLayer: Container;
   renderer?: Renderer;
-  spriteMap: Map<EntityId, Sprite>;
+  spriteMap: ReadonlyMap<EntityId, Sprite>;
   fovSet?: Set<string>;
   exploredSet?: Set<string>;
   gridWidth: number;
@@ -74,15 +77,26 @@ export class LightingSystem {
   private readonly transientLights: TransientLightInstance[] = [];
   private readonly gatheredPrimaryLights: RenderLightDescriptor[] = [];
   private readonly gatheredMicroLights: MicroLightDescriptor[] = [];
-  private readonly filterAreaRect = new Rectangle(0, 0, VIEWPORT_W, VIEWPORT_H);
+  private readonly filterAreaRect: Rectangle | null = null;
 
   private lastEnabled = true;
 
   constructor(gridWidth: number = 80, gridHeight: number = 45) {
     this.gbuffer = new GBufferPass(gridWidth, gridHeight);
+    const RectCtor = safeGetPixiExport<typeof PIXI.Rectangle>(PIXI, 'Rectangle');
+    if (typeof RectCtor === 'function') {
+      this.filterAreaRect = new RectCtor(0, 0, VIEWPORT_W, VIEWPORT_H);
+    }
 
     try {
-      if (this.gbuffer.rtNormalSpec && this.gbuffer.rtMaterialHeight) {
+      const FilterCtor = safeGetPixiExport<typeof PIXI.Filter>(PIXI, 'Filter');
+      const GlProg = safeGetPixiExport<typeof PIXI.GlProgram>(PIXI, 'GlProgram');
+      if (
+        typeof FilterCtor === 'function' &&
+        typeof GlProg?.from === 'function' &&
+        this.gbuffer.rtNormalSpec &&
+        this.gbuffer.rtMaterialHeight
+      ) {
         this.deferredFilter = new DeferredLightFilter(
           this.gbuffer.rtNormalSpec,
           this.gbuffer.rtMaterialHeight,
@@ -327,7 +341,9 @@ export class LightingSystem {
       }
     }
 
-    ctx.worldContainer.filterArea = this.filterAreaRect;
+    if (this.filterAreaRect) {
+      ctx.worldContainer.filterArea = this.filterAreaRect;
+    }
     ctx.worldContainer.filters = pipeline;
   }
 
