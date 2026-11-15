@@ -1,7 +1,11 @@
 import { Sprite, Container, Texture, Assets } from 'pixi.js';
 import { EntityId } from '../engine/ecs/types';
 import { TILE_SIZE } from './constants';
-import { getActiveThemeId } from './assets';
+import {
+  getActiveThemeId,
+  getNormalAtlasTexture,
+  getMaterialAtlasTexture,
+} from './assets';
 import { logger } from '../engine/utils/logger';
 import { resolveFallbackSpriteKey } from '../shared/tileset-types';
 
@@ -199,4 +203,39 @@ export function getSpriteTelemetry(): SpriteTelemetry {
     totalSprites: entitySprites.size,
     visibleSprites,
   };
+}
+
+export interface CompanionSpriteTextures {
+  normal: Texture | null;
+  material: Texture | null;
+}
+
+const companionFrameCache = new WeakMap<Texture, Map<string, CompanionSpriteTextures>>();
+
+/**
+ * Resolves sliced companion Normal+Specular (`_n`) and Material+Height (`_m`)
+ * textures matching a diffuse sprite `Texture`'s exact atlas frame rect.
+ */
+export function getCompanionTexturesForDiffuse(diffuseTex: Texture): CompanionSpriteTextures {
+  const normalAtlas = getNormalAtlasTexture();
+  const materialAtlas = getMaterialAtlasTexture();
+  if (!normalAtlas?.source || !materialAtlas?.source || !diffuseTex?.frame) {
+    return { normal: null, material: null };
+  }
+
+  const key = `${diffuseTex.frame.x},${diffuseTex.frame.y},${diffuseTex.frame.width},${diffuseTex.frame.height}`;
+  let themeCache = companionFrameCache.get(normalAtlas);
+  if (!themeCache) {
+    themeCache = new Map();
+    companionFrameCache.set(normalAtlas, themeCache);
+  }
+  const cached = themeCache.get(key);
+  if (cached) return cached;
+
+  const pair: CompanionSpriteTextures = {
+    normal: new Texture({ source: normalAtlas.source, frame: diffuseTex.frame }),
+    material: new Texture({ source: materialAtlas.source, frame: diffuseTex.frame }),
+  };
+  themeCache.set(key, pair);
+  return pair;
 }

@@ -4,11 +4,8 @@ const { createCanvas, loadImage } = require('canvas');
 
 const TILE_SIZE = 32;
 
-function drawDropShadow(ctx, cx, cy, rx, ry, alpha = 0.5) {
-  ctx.fillStyle = `rgba(2, 6, 18, ${alpha})`;
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-  ctx.fill();
+function drawDropShadow(_ctx, _cx, _cy, _rx, _ry, _alpha = 0.5) {
+  // Intentionally disabled for LIGHT-02: shadows are cast dynamically by the deferred lighting raymarcher.
 }
 
 function setPixel(ctx, x, y, color) {

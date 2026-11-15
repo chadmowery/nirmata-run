@@ -27,11 +27,7 @@ function drawRect(ctx, x, y, w, h, color) {
 function renderBastion(ctx) {
   ctx.clearRect(0, 0, 32, 32);
 
-  // Soft grounding drop shadow (alpha ~170)
-  ctx.fillStyle = 'rgba(2, 6, 18, 0.65)';
-  ctx.beginPath();
-  ctx.ellipse(16, 29, 10, 2.5, 0, 0, Math.PI * 2);
-  ctx.fill();
+  // Drop shadow omitted for LIGHT-02 dynamic 2.5D raymarched shadows
 
   // Heavy blast collar behind head (y: 3-7, x: 9-22)
   drawRect(ctx, 10, 4, 12, 4, '#1e293b'); // base collar
@@ -148,11 +144,7 @@ function renderBastion(ctx) {
 function renderGhost(ctx) {
   ctx.clearRect(0, 0, 32, 32);
 
-  // Soft delicate grounding drop shadow
-  ctx.fillStyle = 'rgba(2, 6, 18, 0.55)';
-  ctx.beginPath();
-  ctx.ellipse(16, 29, 8, 2, 0, 0, Math.PI * 2);
-  ctx.fill();
+  // Drop shadow omitted for LIGHT-02 dynamic 2.5D raymarched shadows
 
   // Head & Neck (x: 12-19, y: 3-10)
   // Synthetic cranial dome
@@ -258,11 +250,7 @@ function renderGhost(ctx) {
 function renderVanguard(ctx) {
   ctx.clearRect(0, 0, 32, 32);
 
-  // Grounding drop shadow
-  ctx.fillStyle = 'rgba(2, 6, 18, 0.65)';
-  ctx.beginPath();
-  ctx.ellipse(16, 29, 9, 2.5, 0, 0, Math.PI * 2);
-  ctx.fill();
+  // Drop shadow omitted for LIGHT-02 dynamic 2.5D raymarched shadows
 
   // High-Collar Armored Tactical Jacket (Collar wings rising at x: 7-10 & 21-24, y: 5-13)
   // Left collar wing (white outer, dark lining)

@@ -1,7 +1,8 @@
-import { Assets } from 'pixi.js';
+import { Assets, Texture } from 'pixi.js';
 
 let assetsRegistered = false;
 let activeThemeId: string = 'default';
+const registeredCompanions = new Set<string>();
 
 export const THEME_MANIFEST_MAP: Record<string, string> = {
   default: 'assets/tileset.json',
@@ -24,11 +25,99 @@ export function getActiveThemeId(): string {
 }
 
 /**
+ * Resolves the asset bundle key for the currently active tileset.
+ */
+export function getActiveAtlasKey(): string {
+  const manifestSrc = THEME_MANIFEST_MAP[activeThemeId];
+  const isDedicated = Boolean(manifestSrc && manifestSrc !== 'assets/tileset.json');
+  return isDedicated ? `tileset_${activeThemeId}` : 'tileset';
+}
+
+function resolveCompanionAlias(themeId?: string): string {
+  const target = themeId || activeThemeId;
+  const manifestSrc = THEME_MANIFEST_MAP[target];
+  const isDedicated = Boolean(manifestSrc && manifestSrc !== 'assets/tileset.json');
+  return isDedicated ? `tileset_${target}` : 'tileset';
+}
+
+/**
+ * Returns the loaded companion Normal+Specular (_n.png) atlas Texture for the
+ * active or specified theme, falling back to base `tileset_n`.
+ */
+export function getNormalAtlasTexture(themeId?: string): Texture | null {
+  if (typeof Assets === 'undefined' || typeof Assets?.get !== 'function') return null;
+  const key = resolveCompanionAlias(themeId);
+  const themed = Assets.get<Texture>(`${key}_n`);
+  if (themed && themed.source) return themed;
+  const base = Assets.get<Texture>('tileset_n');
+  return base && base.source ? base : null;
+}
+
+/**
+ * Returns the loaded companion Material+Height (_m.png) atlas Texture for the
+ * active or specified theme, falling back to base `tileset_m`.
+ */
+export function getMaterialAtlasTexture(themeId?: string): Texture | null {
+  if (typeof Assets === 'undefined' || typeof Assets?.get !== 'function') return null;
+  const key = resolveCompanionAlias(themeId);
+  const themed = Assets.get<Texture>(`${key}_m`);
+  if (themed && themed.source) return themed;
+  const base = Assets.get<Texture>('tileset_m');
+  return base && base.source ? base : null;
+}
+
+async function loadCompanionMaps(alias: string, manifestSrc: string): Promise<void> {
+  if (!manifestSrc.endsWith('.json')) return;
+  const baseSrc = manifestSrc.replace(/\.json$/, '');
+  const suffixes: Array<'_n' | '_m'> = ['_n', '_m'];
+
+  for (const suffix of suffixes) {
+    const companionAlias = `${alias}${suffix}`;
+    const companionSrc = `${baseSrc}${suffix}.png`;
+    try {
+      if (!registeredCompanions.has(companionAlias)) {
+        Assets.add({
+          alias: companionAlias,
+          src: companionSrc,
+          data: {
+            alphaMode: 'no-premultiply-alpha',
+            scaleMode: 'nearest',
+          },
+        });
+        registeredCompanions.add(companionAlias);
+      }
+      const tex = await Assets.load<Texture>(companionAlias);
+      if (tex?.source) {
+        tex.source.alphaMode = 'no-premultiply-alpha';
+        tex.source.scaleMode = 'nearest';
+      }
+    } catch {
+      // Non-fatal in test mocks or when custom dev manifest omits companions
+    }
+  }
+}
+
+async function unloadCompanionMaps(alias: string): Promise<void> {
+  for (const suffix of ['_n', '_m'] as const) {
+    const companionAlias = `${alias}${suffix}`;
+    registeredCompanions.delete(companionAlias);
+    try {
+      if (typeof Assets.unload === 'function') {
+        await Assets.unload(companionAlias);
+      }
+    } catch {
+      // Ignore unload errors
+    }
+  }
+}
+
+/**
  * Resets asset tracking state (for testing).
  */
 export function _resetAssetsForTesting(): void {
   assetsRegistered = false;
   activeThemeId = 'default';
+  registeredCompanions.clear();
 }
 
 /**
@@ -46,6 +135,7 @@ export async function loadAssets(): Promise<void> {
 
   // Load the tileset
   await Assets.load('tileset');
+  await loadCompanionMaps('tileset', 'assets/tileset.json');
   activeThemeId = 'default';
 }
 
@@ -71,6 +161,7 @@ export async function loadThemedAssets(themeId: string = 'default'): Promise<voi
       if (typeof Assets.unload === 'function') {
         await Assets.unload(`tileset_${previousThemeId}`);
       }
+      await unloadCompanionMaps(`tileset_${previousThemeId}`);
     } catch {
       // Ignore unload errors
     }
@@ -89,6 +180,7 @@ export async function loadThemedAssets(themeId: string = 'default'): Promise<voi
       src: manifestSrc!,
     });
     await Assets.load(alias);
+    await loadCompanionMaps(alias, manifestSrc!);
     activeThemeId = targetThemeId;
   } catch {
     activeThemeId = 'default';
