@@ -1,6 +1,8 @@
 'use client';
 import { useState, useRef, useMemo, useEffect } from 'react';
+import type { LightSourceSubEditorValues } from '../editors/subeditors/LightSourceSubEditor';
 import { tilesetAtlasCache } from './tileset-atlas-cache';
+import { InspectorLitTilePreview } from './InspectorLitTilePreview';
 import { AnimationStateKey } from '@shared/tileset-types';
 import styles from './telemetry.module.css';
 
@@ -201,6 +203,13 @@ export function ResolvedPreviewPanel({
     ((overrides?.sprite as { key?: string })?.key) ||
     (typeof effObj?.sprite === 'string' ? effObj.sprite : null);
 
+  const effectiveLightSource =
+    ((effComps?.lightSource as LightSourceSubEditorValues) ||
+      (ownComps?.lightSource as LightSourceSubEditorValues) ||
+      (overrides?.lightSource as LightSourceSubEditorValues) ||
+      (effObj?.lightSource as LightSourceSubEditorValues)) ??
+    null;
+
   const handleCopy = () => {
     navigator.clipboard.writeText(formattedJson);
     setCopied(true);
@@ -260,6 +269,14 @@ export function ResolvedPreviewPanel({
       {/* Live Visual Sprite & Animation Preview Badge */}
       {spriteKey && (
         <InspectorSpritePreview spriteKey={spriteKey} />
+      )}
+
+      {/* Interactive 192x192 3x3 Deferred Lighting / Normal / Shadow Preview */}
+      {(spriteKey || effectiveLightSource) && (
+        <InspectorLitTilePreview
+          spriteKey={spriteKey ?? 'floor'}
+          lightSource={effectiveLightSource}
+        />
       )}
 
       {/* Validation Status Card */}

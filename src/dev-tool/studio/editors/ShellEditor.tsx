@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { ShellTemplate, ShellUpgrade } from '@/game/shells/server/types';
 import { useGamedataStore } from '../store';
 import { SpritePicker } from '../shared/SpritePicker';
+import { LightSourceSubEditor, type LightSourceSubEditorValues } from './subeditors/LightSourceSubEditor';
 import styles from './editors.module.css';
 
 interface Props {
@@ -295,6 +296,79 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Light Source Emitter Override */}
+      <div className={styles.fieldGroup}>
+        <div className={styles.fieldGroupHeader}>
+          <span className={styles.fieldGroupTitle}>Light Source Emitter (Optional)</span>
+          {shellData.lightSource ? (
+            <button
+              type="button"
+              className={styles.removeButton}
+              onClick={() => {
+                const rest = { ...shellData };
+                delete rest.lightSource;
+                setShellData(rest);
+                setDirty(true);
+              }}
+            >
+              REMOVE
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={styles.addComponentButton}
+              onClick={() => {
+                setShellData({
+                  ...shellData,
+                  lightSource: {
+                    enabled: true,
+                    color: '#00f0ff',
+                    intensity: 1.5,
+                    radius: 224,
+                    height: 20,
+                    falloff: 1.35,
+                    castsShadows: true,
+                    offsetX: 0,
+                    offsetY: 0,
+                    animation: { type: 'STATIC', speed: 2.0, amplitude: 0.2 },
+                  },
+                });
+                setDirty(true);
+              }}
+            >
+              + Attach Light Source
+            </button>
+          )}
+        </div>
+        {shellData.lightSource && (
+          <LightSourceSubEditor
+            values={shellData.lightSource as LightSourceSubEditorValues}
+            onFieldChange={(fieldKey, val) => {
+              const current = shellData.lightSource ?? {
+                enabled: true,
+                color: '#00f0ff',
+                intensity: 1.5,
+                radius: 224,
+                height: 20,
+                falloff: 1.35,
+                castsShadows: true,
+                offsetX: 0,
+                offsetY: 0,
+                animation: { type: 'STATIC', speed: 2.0, amplitude: 0.2 },
+              };
+              setShellData({
+                ...shellData,
+                lightSource: {
+                  ...current,
+                  [fieldKey]: val,
+                },
+              });
+              setDirty(true);
+            }}
+          />
+        )}
       </div>
 
       {/* Starter Loadout */}
