@@ -197,13 +197,21 @@ export class LightingSystem {
     // 2. Gather primary lights from ECS entities with LightSource + Position
     const primary = this.gatheredPrimaryLights;
     primary.length = 0;
+    const micro = this.gatheredMicroLights;
+    micro.length = 0;
+
+    const baseFilters = ctx.worldScreenFilters ?? [];
+    if (!ctx.enabled) {
+      ctx.worldContainer.filters = baseFilters.length > 0 ? baseFilters : null;
+      return;
+    }
 
     const entities = ctx.world.query(Position, LightSource);
     for (let i = 0; i < entities.length && primary.length < MAX_PRIMARY_LIGHTS; i++) {
       const entityId = entities[i];
       const light = ctx.world.getComponent(entityId, LightSource);
       const pos = ctx.world.getComponent(entityId, Position);
-      if (!light || !pos || light.intensity <= 0 || light.radius <= 0) continue;
+      if (!light || light.enabled === false || !pos || light.intensity <= 0 || light.radius <= 0) continue;
 
       const evalResult = evaluateLightAnimation(light, this.elapsedTimeSec, (entityId % 17) * 0.19);
       const effectiveIntensity = light.intensity * evalResult.intensityMultiplier;
@@ -278,16 +286,13 @@ export class LightingSystem {
     }
 
     // 3. Gather clustered particle micro-lights (LIGHT-05)
-    const micro = this.gatheredMicroLights;
-    micro.length = 0;
     if (ctx.microLights) {
       for (let i = 0; i < ctx.microLights.length && micro.length < MAX_MICRO_LIGHTS; i++) {
         micro.push(ctx.microLights[i]);
       }
     }
 
-    const baseFilters = ctx.worldScreenFilters ?? [];
-    if (!ctx.enabled || !this.deferredFilter) {
+    if (!this.deferredFilter) {
       ctx.worldContainer.filters = baseFilters.length > 0 ? baseFilters : null;
       return;
     }

@@ -138,7 +138,7 @@ async function stripLegacyShadows(rootDir) {
 
 async function compileAllAtlases(rootDir) {
   const assetsDir = path.join(rootDir, 'public/assets');
-  const previewDir = path.join(rootDir, 'public/assets/tiles/previews');
+  const previewDir = path.join(rootDir, 'docs/visual-design/previews');
   if (!fs.existsSync(previewDir)) {
     fs.mkdirSync(previewDir, { recursive: true });
   }
