@@ -338,19 +338,30 @@ describe('Deferred Lighting System & Render Integration [LIGHT-03/04/07]', () =>
       renderSystem?.destroy();
     });
 
-    it('modulates player LightSource for Heat tier, Low Stability (<50), and Extended_Sight.sys', () => {
-      // Overload heat tier (>= 80) shifts light toward orange/red with flicker
+    it('modulates player LightSource for Heat tier, Low Stability (<50), and Extended_Sight.sys without mutating ECS World', () => {
+      // Overload heat tier (>= 80) shifts effective light toward orange/red with flicker
       world.patchComponent(playerId, Heat, { current: 85 });
       renderSystem.renderSystem();
-      const hotLight = world.getComponent(playerId, LightSource)!;
+      const hotLight = renderSystem.getEffectiveEntityLight(playerId)!;
       expect(hotLight.color).toBe('#ff4500');
       expect(hotLight.animation.type).toBe('FLICKER');
+      // ECS LightSource component on World remains immutable (read-only renderer mandate)
+      expect(world.getComponent(playerId, LightSource)!.color).toBe('#00f0ff');
+      expect(world.getComponent(playerId, LightSource)!.animation.type).toBe('STATIC');
 
-      // Cool down & drop stability < 50 -> shrinks radius & flickers
+      // Floor transition while overheated, followed by cooling down, preserves clean baseline
+      renderSystem.onDungeonGenerated();
       world.patchComponent(playerId, Heat, { current: 0 });
+      renderSystem.renderSystem();
+      const cooledLight = renderSystem.getEffectiveEntityLight(playerId)!;
+      expect(cooledLight.color).toBe('#00f0ff');
+      expect(cooledLight.radius).toBe(200);
+      expect(cooledLight.animation.type).toBe('STATIC');
+
+      // Drop stability < 50 -> shrinks radius & flickers
       world.patchComponent(playerId, Stability, { current: 30 });
       renderSystem.renderSystem();
-      const unstableLight = world.getComponent(playerId, LightSource)!;
+      const unstableLight = renderSystem.getEffectiveEntityLight(playerId)!;
       expect(unstableLight.radius).toBeLessThan(200);
       expect(unstableLight.animation.type).toBe('FLICKER');
 
@@ -372,7 +383,7 @@ describe('Deferred Lighting System & Render Integration [LIGHT-03/04/07]', () =>
       );
       world.addComponent(playerId, FirmwareSlots, { equipped: [fwId] });
       renderSystem.renderSystem();
-      const boostedLight = world.getComponent(playerId, LightSource)!;
+      const boostedLight = renderSystem.getEffectiveEntityLight(playerId)!;
       expect(boostedLight.radius).toBe(248);
     });
 
@@ -466,6 +477,103 @@ describe('Deferred Lighting System & Render Integration [LIGHT-03/04/07]', () =>
       const telemetry = renderSystem.getRenderTelemetry().lighting!;
       // Only player (10,10) + visibleProp (11,10) should be active; hiddenEnemy (25,15) has sprite.visible = false
       expect(telemetry.primaryLightCount).toBe(2);
+    });
+
+    it('skips explored out-of-FOV props so they cannot starve MAX_PRIMARY_LIGHTS and keeps prop overrides U1-compliant (HIGH-01)', () => {
+      const lighting = new LightingSystem(30, 20);
+      const spriteMap = new Map<number, PIXI.Sprite>();
+      const makeVisibleSprite = (x: number, y: number) =>
+        ({
+          visible: true,
+          alpha: 1,
+          x: x * 32,
+          y: y * 32,
+          pivot: { x: 0, y: 0 },
+        }) as unknown as PIXI.Sprite;
+
+      spriteMap.set(playerId, makeVisibleSprite(10, 10));
+
+      // Create 70 explored out-of-FOV props with visible=true sprites (Fog-of-War behavior)
+      for (let i = 0; i < 70; i++) {
+        const outProp = world.createEntity();
+        const px = 2 + (i % 10);
+        const py = 2 + Math.floor(i / 10);
+        world.addComponent(outProp, Position, { x: px, y: py });
+        world.addComponent(
+          outProp,
+          LightSource,
+          LightSource.schema.parse({ color: '#00f0ff', intensity: 1.0, radius: 96 }),
+        );
+        spriteMap.set(outProp, makeVisibleSprite(px, py));
+      }
+
+      // Create 1 in-FOV prop with higher entity ID than all 70 out-of-FOV props
+      const inFovProp = world.createEntity();
+      world.addComponent(inFovProp, Position, { x: 11, y: 10 });
+      world.addComponent(
+        inFovProp,
+        LightSource,
+        LightSource.schema.parse({ color: '#10b981', intensity: 1.3, radius: 120 }),
+      );
+      spriteMap.set(inFovProp, makeVisibleSprite(11, 10));
+
+      // Spawn a transient flash
+      lighting.spawnTransientLight({
+        worldX: 10 * 32 + 16,
+        worldY: 10 * 32 + 16,
+        color: '#ff9500',
+        intensity: 2.0,
+        radiusPx: 140,
+        durationMs: 300,
+      });
+
+      const fovSet = new Set(['10,10', '11,10']);
+      lighting.update({
+        world,
+        worldContainer: { x: 0, y: 0, scale: { x: 1, y: 1 }, filters: null } as never,
+        terrainLayer: { children: [] } as never,
+        itemLayer: { children: [] } as never,
+        entityLayer: { children: [] } as never,
+        spriteMap,
+        fovSet,
+        gridWidth: 30,
+        gridHeight: 20,
+        deltaMs: 16,
+        enabled: true,
+        playerEntityId: playerId,
+      });
+
+      // Out-of-FOV props are culled; only player + transient + in-FOV prop remain
+      expect(lighting.getPrimaryLights()).toHaveLength(3);
+      lighting.destroy();
+
+      // U1 Anti-cheat: out-of-FOV prop light overrides reflect rememberedProps, not live unseen World state
+      const memProp = world.createEntity();
+      world.addComponent(memProp, Position, { x: 11, y: 10 }); // initially in FOV
+      world.addComponent(memProp, SpriteComponent, { key: 'prop_workstation' });
+      world.addComponent(
+        memProp,
+        Prop,
+        Prop.schema.parse({
+          propId: 'ws_mem',
+          faction: 'cyberacme',
+          propClass: 'workstation',
+          isSearched: false,
+        }),
+      );
+      world.addComponent(
+        memProp,
+        LightSource,
+        LightSource.schema.parse({ color: '#00f0ff', intensity: 1.5, radius: 96 }),
+      );
+      renderSystem.renderSystem();
+      expect(renderSystem.getEffectiveEntityLight(memProp)!.intensity).toBe(1.5);
+
+      // Move prop out of FOV and mutate live isSearched=true -> override still reflects remembered unsearched state
+      world.patchComponent(memProp, Position, { x: 26, y: 16 });
+      world.patchComponent(memProp, Prop, { isSearched: true });
+      renderSystem.renderSystem();
+      expect(renderSystem.getEffectiveEntityLight(memProp)!.intensity).toBe(1.5);
     });
 
     it('configures DeferredLightFilter float data textures with alphaMode no-premultiply-alpha and exact screen coordinates', () => {

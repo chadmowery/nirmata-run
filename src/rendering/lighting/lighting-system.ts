@@ -3,7 +3,7 @@ import type { Container, Filter, Rectangle, Renderer, Sprite } from 'pixi.js';
 import type { EntityId } from '@engine/ecs/types';
 import type { World } from '@engine/ecs/world';
 import { Position } from '@shared/components/position';
-import { LightSource } from '@shared/components/light-source';
+import { LightSource, type LightSourceData } from '@shared/components/light-source';
 import type { FactionTheme, SectorCondition } from '@shared/components/environment';
 import { TILE_SIZE, VIEWPORT_H, VIEWPORT_W } from '../constants';
 import { SelectiveBloomFilter } from './bloom-filter';
@@ -56,6 +56,8 @@ export interface LightingUpdateContext {
   microLights?: MicroLightDescriptor[];
   extraPrimaryLights?: RenderLightDescriptor[];
   worldScreenFilters?: Filter[];
+  playerEntityId?: EntityId;
+  lightOverrides?: ReadonlyMap<EntityId, LightSourceData>;
 }
 
 /**
@@ -77,6 +79,7 @@ export class LightingSystem {
   private readonly transientLights: TransientLightInstance[] = [];
   private readonly gatheredPrimaryLights: RenderLightDescriptor[] = [];
   private readonly gatheredMicroLights: MicroLightDescriptor[] = [];
+  private readonly entityLightCandidates: Array<{ descriptor: RenderLightDescriptor; distSq: number }> = [];
   private readonly filterAreaRect: Rectangle | null = null;
 
   private lastEnabled = true;
@@ -207,20 +210,43 @@ export class LightingSystem {
       return;
     }
 
+    const invZoom = 1 / Math.max(0.05, camZoom);
+    const playerPos =
+      ctx.playerEntityId !== undefined
+        ? ctx.world.getComponent(ctx.playerEntityId, Position)
+        : undefined;
+    const refWorldX = playerPos
+      ? playerPos.x * TILE_SIZE + TILE_SIZE * 0.5
+      : (VIEWPORT_W * 0.5 - camX) * invZoom;
+    const refWorldY = playerPos
+      ? playerPos.y * TILE_SIZE + TILE_SIZE * 0.5
+      : (VIEWPORT_H * 0.5 - camY) * invZoom;
+
+    let playerDescriptor: RenderLightDescriptor | null = null;
+    const candidates = this.entityLightCandidates;
+    candidates.length = 0;
+
     const entities = ctx.world.query(Position, LightSource);
-    for (let i = 0; i < entities.length && primary.length < MAX_PRIMARY_LIGHTS; i++) {
+    for (let i = 0; i < entities.length; i++) {
       const entityId = entities[i];
-      const light = ctx.world.getComponent(entityId, LightSource);
+      const light = ctx.lightOverrides?.get(entityId) ?? ctx.world.getComponent(entityId, LightSource);
       const pos = ctx.world.getComponent(entityId, Position);
       if (!light || light.enabled === false || !pos || light.intensity <= 0 || light.radius <= 0) continue;
+
+      const isPlayer = ctx.playerEntityId !== undefined && entityId === ctx.playerEntityId;
+      const sprite = ctx.spriteMap.get(entityId);
+      if (sprite && sprite.visible === false && !isPlayer) continue;
+
+      // Skip explored out-of-FOV props/entities so they do not starve MAX_PRIMARY_LIGHTS (HIGH-01)
+      if (!isPlayer && ctx.fovSet && ctx.fovSet.size > 0 && !ctx.fovSet.has(`${pos.x},${pos.y}`)) {
+        continue;
+      }
 
       const evalResult = evaluateLightAnimation(light, this.elapsedTimeSec, (entityId % 17) * 0.19);
       const effectiveIntensity = light.intensity * evalResult.intensityMultiplier;
       if (effectiveIntensity <= 0.005) continue;
 
       // Prefer visual sprite position so point lights glide seamlessly during move tweens!
-      const sprite = ctx.spriteMap.get(entityId);
-      if (sprite && sprite.visible === false) continue;
       const pivotX = sprite?.pivot?.x ?? 0;
       const pivotY = sprite?.pivot?.y ?? 0;
       const worldX = sprite
@@ -244,7 +270,7 @@ export class LightingSystem {
         continue;
       }
 
-      primary.push({
+      const descriptor: RenderLightDescriptor = {
         screenX,
         screenY,
         radiusPx: light.radius,
@@ -254,10 +280,23 @@ export class LightingSystem {
         falloff: light.falloff,
         castsShadows: light.castsShadows,
         isBeaconPing: false,
-      });
+      };
+
+      if (isPlayer) {
+        playerDescriptor = descriptor;
+      } else {
+        const dx = worldX - refWorldX;
+        const dy = worldY - refWorldY;
+        candidates.push({ descriptor, distSq: dx * dx + dy * dy });
+      }
     }
 
-    // Add transient dynamic lights
+    // Priority order within MAX_PRIMARY_LIGHTS:
+    // 1. Player Shell aura, 2. Transient VFX lights, 3. Closest in-FOV entity lights, 4. Beacons
+    if (playerDescriptor && primary.length < MAX_PRIMARY_LIGHTS) {
+      primary.push(playerDescriptor);
+    }
+
     for (let i = 0; i < this.transientLights.length && primary.length < MAX_PRIMARY_LIGHTS; i++) {
       const tl = this.transientLights[i];
       const fade = Math.max(0, Math.min(1, tl.remainingMs / tl.durationMs));
@@ -274,6 +313,13 @@ export class LightingSystem {
         castsShadows: tl.castsShadows,
         isBeaconPing: Boolean(tl.isBeaconPing),
       });
+    }
+
+    if (primary.length + candidates.length > MAX_PRIMARY_LIGHTS) {
+      candidates.sort((a, b) => a.distSq - b.distSq);
+    }
+    for (let i = 0; i < candidates.length && primary.length < MAX_PRIMARY_LIGHTS; i++) {
+      primary.push(candidates[i].descriptor);
     }
 
     // Add system-injected extra primary lights (e.g. DARK_SUBNET unsearched prop beacons)
@@ -357,6 +403,10 @@ export class LightingSystem {
       ctx.worldContainer.filterArea = this.filterAreaRect;
     }
     ctx.worldContainer.filters = pipeline;
+  }
+
+  public getPrimaryLights(): readonly RenderLightDescriptor[] {
+    return this.gatheredPrimaryLights;
   }
 
   public getTelemetry(): LightingTelemetry {

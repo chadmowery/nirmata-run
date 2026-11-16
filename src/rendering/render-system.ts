@@ -143,6 +143,7 @@ export interface RenderSystem {
   getStageTimings(): Readonly<RenderStageTimings>;
   getRenderTelemetry(): RenderTelemetry;
   setDevRenderFlags(flags: Partial<DevRenderBisectionFlags>): void;
+  getEffectiveEntityLight(entityId: EntityId): LightSourceData | undefined;
 }
 
 /**
@@ -264,11 +265,10 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
   const lightingSystem = new LightingSystem(getGrid().width, getGrid().height);
   const particleSystem = new ParticleSystem();
-  const baseLightByEntity = new Map<EntityId, LightSourceData>();
+  const dynamicLightOverrides = new Map<EntityId, LightSourceData>();
   let lastAppliedTheme = '';
   let lastLightingSyncMs = 0;
   let lightingDestroyed = false;
-  let lastDynamicLightKey = '';
   let hasRenderedLightingFrame = false;
   let lastExtraPrimaryLights: RenderLightDescriptor[] = [];
   let onThemeLoadedRefresh: (() => void) | null = null;
@@ -305,119 +305,117 @@ export function createRenderSystem(config: RenderSystemConfig) {
     }
   };
 
-  const syncDynamicEntityLights = (playerEntity: EntityId, extendedSightActive: boolean) => {
+  const syncDynamicEntityLights = (
+    playerEntity: EntityId,
+    extendedSightActive: boolean,
+    fovSet: Set<string>,
+  ) => {
     const heat = world.getComponent(playerEntity, Heat);
     const stability = world.getComponent(playerEntity, Stability);
     const pLight = world.getComponent(playerEntity, LightSource);
-    const dynamicKey = `${playerEntity}:${heat?.current ?? 0}:${stability?.current ?? 100}:${extendedSightActive ? 1 : 0}:${fovSetSizeHint()}`;
 
     if (pLight) {
-      if (!baseLightByEntity.has(playerEntity)) {
-        baseLightByEntity.set(playerEntity, {
-          ...pLight,
-          animation: { ...(pLight.animation ?? { type: 'STATIC', speed: 2, amplitude: 0 }) },
-        });
+      const heatVal = heat?.current ?? 0;
+      const stabVal = stability?.current ?? 100;
+
+      let nextColor = pLight.color;
+      let nextIntensity = pLight.intensity;
+      let nextRadius = pLight.radius;
+      let nextAnim = pLight.animation
+        ? { ...pLight.animation }
+        : { type: 'STATIC' as const, speed: 2, amplitude: 0.2 };
+
+      if (extendedSightActive) {
+        nextRadius = Math.min(512, nextRadius + 48);
       }
-      if (dynamicKey !== lastDynamicLightKey) {
-        lastDynamicLightKey = dynamicKey;
-        const base = baseLightByEntity.get(playerEntity)!;
-        const heatVal = heat?.current ?? 0;
-        const stabVal = stability?.current ?? 100;
 
-        let nextColor = base.color;
-        let nextIntensity = base.intensity;
-        let nextRadius = base.radius;
-        let nextAnim = base.animation ? { ...base.animation } : { type: 'STATIC' as const, speed: 2, amplitude: 0.2 };
+      if (heatVal >= 81) {
+        nextColor = '#ff4500';
+        nextIntensity = Math.min(5, pLight.intensity * 1.25);
+        nextRadius = Math.min(512, nextRadius * 1.25);
+        nextAnim = { type: 'FLICKER', speed: 8.0, amplitude: 0.45, secondaryColor: '#ffb020' };
+      } else if (heatVal >= 51) {
+        nextColor = '#ffb020';
+        nextIntensity = Math.min(5, pLight.intensity * 1.15);
+        nextAnim = { type: 'FLICKER', speed: 4.0, amplitude: 0.25, secondaryColor: pLight.color };
+      }
 
-        if (extendedSightActive) {
-          nextRadius = Math.min(512, nextRadius + 48);
-        }
-
-        if (heatVal >= 81) {
-          nextColor = '#ff4500';
-          nextIntensity = Math.min(5, base.intensity * 1.25);
-          nextRadius = Math.min(512, nextRadius * 1.25);
-          nextAnim = { type: 'FLICKER', speed: 8.0, amplitude: 0.45, secondaryColor: '#ffb020' };
-        } else if (heatVal >= 51) {
-          nextColor = '#ffb020';
-          nextIntensity = Math.min(5, base.intensity * 1.15);
-          nextAnim = { type: 'FLICKER', speed: 4.0, amplitude: 0.25, secondaryColor: base.color };
-        }
-
-        if (stabVal < 50) {
-          const stabRatio = Math.max(0.25, stabVal / 50);
-          nextRadius = Math.max(32, Math.round(nextRadius * (0.78 + 0.17 * stabRatio)));
-          if (heatVal < 51) {
-            nextAnim = { type: 'FLICKER', speed: 5.5, amplitude: 0.35, secondaryColor: nextColor };
-          }
-        }
-
-        if (
-          pLight.color !== nextColor ||
-          Math.abs(pLight.intensity - nextIntensity) > 0.01 ||
-          Math.abs(pLight.radius - nextRadius) > 0.5 ||
-          pLight.animation?.type !== nextAnim.type ||
-          pLight.animation?.speed !== nextAnim.speed ||
-          pLight.animation?.amplitude !== nextAnim.amplitude
-        ) {
-          world.patchComponent(playerEntity, LightSource, {
-            color: nextColor,
-            intensity: nextIntensity,
-            radius: nextRadius,
-            animation: nextAnim,
-          });
+      if (stabVal < 50) {
+        const stabRatio = Math.max(0.25, stabVal / 50);
+        nextRadius = Math.max(32, Math.round(nextRadius * (0.78 + 0.17 * stabRatio)));
+        if (heatVal < 51) {
+          nextAnim = { type: 'FLICKER', speed: 5.5, amplitude: 0.35, secondaryColor: nextColor };
         }
       }
+
+      dynamicLightOverrides.set(playerEntity, {
+        ...pLight,
+        color: nextColor,
+        intensity: nextIntensity,
+        radius: nextRadius,
+        animation: nextAnim,
+      });
+    } else {
+      dynamicLightOverrides.delete(playerEntity);
     }
 
-    // Sync prop lights with safe / locked / corrupted / searched state
+    // Sync prop lights with safe / locked / corrupted / searched state (strictly read-only on World,
+    // using client-remembered memory when outside active FOV for U1 anti-cheat compliance)
     for (const propId of world.query(Prop, LightSource)) {
       const prop = world.getComponent(propId, Prop)!;
-      const light = world.getComponent(propId, LightSource)!;
-      if (!baseLightByEntity.has(propId)) {
-        baseLightByEntity.set(propId, {
-          ...light,
-          animation: { ...(light.animation ?? { type: 'STATIC', speed: 2, amplitude: 0 }) },
-        });
+      const base = world.getComponent(propId, LightSource)!;
+      const pos = world.getComponent(propId, Position);
+      const inFov = isMapRevealed || (pos ? fovSet.has(`${pos.x},${pos.y}`) : false);
+
+      let isSearched = false;
+      let isLocked = false;
+      let isCorruptedActive = false;
+
+      if (inFov) {
+        const secLock = world.getComponent(propId, SecurityLock);
+        const corrupted = world.getComponent(propId, CorruptedNode);
+        isSearched = Boolean(prop.isSearched);
+        isLocked = Boolean(secLock?.isLocked);
+        isCorruptedActive = Boolean(corrupted?.revealed && !corrupted.isDisarmed);
+      } else {
+        const mem = rememberedProps.get(propId);
+        if (!mem) {
+          dynamicLightOverrides.delete(propId);
+          continue;
+        }
+        isSearched = Boolean(mem.isSearched);
+        isLocked = Boolean(mem.isLocked);
+        isCorruptedActive = Boolean(mem.corruptedRevealed && !mem.corruptedDisarmed);
       }
-      const base = baseLightByEntity.get(propId)!;
-      const secLock = world.getComponent(propId, SecurityLock);
-      const corrupted = world.getComponent(propId, CorruptedNode);
 
       let targetColor = base.color;
       let targetIntensity = base.intensity;
       let targetCastsShadows = base.castsShadows;
-      let targetAnim = base.animation ?? { type: 'STATIC' as const, speed: 2, amplitude: 0.2 };
+      let targetAnim = base.animation
+        ? { ...base.animation }
+        : { type: 'STATIC' as const, speed: 2, amplitude: 0.2 };
 
-      if (prop.isSearched) {
+      if (isSearched) {
         targetIntensity = Number((base.intensity * 0.15).toFixed(3));
         targetCastsShadows = false;
         targetAnim = { type: 'STATIC', speed: 1, amplitude: 0.1 };
-      } else if (corrupted?.revealed && !corrupted.isDisarmed) {
+      } else if (isCorruptedActive) {
         targetColor = '#ff0055';
         targetAnim = { type: 'STROBE', speed: 4.5, amplitude: 0.65, secondaryColor: '#ff9500' };
-      } else if (secLock?.isLocked) {
+      } else if (isLocked) {
         targetColor = '#ff9500';
         targetAnim = { type: 'PULSE', speed: 1.5, amplitude: 0.3 };
       }
 
-      if (
-        light.color !== targetColor ||
-        Math.abs(light.intensity - targetIntensity) > 0.01 ||
-        light.castsShadows !== targetCastsShadows ||
-        light.animation?.type !== targetAnim.type
-      ) {
-        world.patchComponent(propId, LightSource, {
-          color: targetColor,
-          intensity: targetIntensity,
-          castsShadows: targetCastsShadows,
-          animation: targetAnim,
-        });
-      }
+      dynamicLightOverrides.set(propId, {
+        ...base,
+        color: targetColor,
+        intensity: targetIntensity,
+        castsShadows: targetCastsShadows,
+        animation: targetAnim,
+      });
     }
   };
-
-  const fovSetSizeHint = () => currentFovSet.size;
 
   const latestStageTimings: RenderStageTimings = {
     fovMs: 0,
@@ -755,7 +753,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
   };
 
   const handleEntityDestroyed = (payload: { entityId: EntityId }) => {
-    baseLightByEntity.delete(payload.entityId);
+    dynamicLightOverrides.delete(payload.entityId);
     const sprite = getEntitySprite(payload.entityId);
     if (sprite) {
       spriteAnimator.triggerState(payload.entityId, 'death');
@@ -1090,6 +1088,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
         microLights: particleInputs.microLights,
         extraPrimaryLights: lastExtraPrimaryLights,
         worldScreenFilters: devFlags.disableWorldFilters ? [] : existingFilters,
+        playerEntityId: getPlayerEntity(),
+        lightOverrides: dynamicLightOverrides,
       });
     }
 
@@ -1455,7 +1455,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
       // 4.5. Deferred Lighting Pipeline Sync (LIGHT-04)
       syncEnvironmentTheme();
-      syncDynamicEntityLights(playerEntity, extendedSightActive);
+      syncDynamicEntityLights(playerEntity, extendedSightActive, fovSet);
 
       const gridForLight = getGrid();
       const extraPrimaryLights: RenderLightDescriptor[] = [];
@@ -1520,6 +1520,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
         microLights: particleInputs.microLights,
         extraPrimaryLights,
         worldScreenFilters: devFlags.disableWorldFilters ? [] : existingContainerFilters,
+        playerEntityId: playerEntity,
+        lightOverrides: dynamicLightOverrides,
       });
 
       if (devFlags.measureTimings) {
@@ -1723,8 +1725,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       cameraZoom = 1.0;
       layers.worldContainer.scale.set(1.0);
       lastPropOutlineState.clear();
-      baseLightByEntity.clear();
-      lastDynamicLightKey = '';
+      dynamicLightOverrides.clear();
       lastHoverCheckState = null;
       lightingSystem.clearTransientLights();
       syncEnvironmentTheme();
@@ -1812,8 +1813,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       rememberedProps.clear();
       rememberedTileItems.clear();
       lastPropOutlineState.clear();
-      baseLightByEntity.clear();
-      lastDynamicLightKey = '';
+      dynamicLightOverrides.clear();
       lastHoverCheckState = null;
       lightingSystem.clearTransientLights();
       syncEnvironmentTheme();
@@ -1827,7 +1827,6 @@ export function createRenderSystem(config: RenderSystemConfig) {
       lightingDestroyed = true;
       hasRenderedLightingFrame = false;
       onThemeLoadedRefresh = null;
-      baseLightByEntity.clear();
       lightingSystem.destroy();
       gameStore.getState().setHoveredEntity(null);
     },
@@ -1883,6 +1882,10 @@ export function createRenderSystem(config: RenderSystemConfig) {
         rememberedItemsCount: rememberedTileItems.size,
         lighting: lightingSystem.getTelemetry(),
       };
+    },
+
+    getEffectiveEntityLight(entityId: EntityId): LightSourceData | undefined {
+      return dynamicLightOverrides.get(entityId) ?? world.getComponent(entityId, LightSource);
     },
 
     setDevRenderFlags(flags: Partial<DevRenderBisectionFlags>) {
