@@ -82,6 +82,7 @@ import {
   LightingSystem,
   LightingTelemetry,
   RenderLightDescriptor,
+  lerpHexColor,
 } from './lighting';
 import { ParticleSystem, ParticleTelemetry } from './particles';
 import {
@@ -307,7 +308,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
   const syncDynamicEntityLights = (
     playerEntity: EntityId,
-    extendedSightActive: boolean,
+    extendedSightVisionRadius: number | null,
     fovSet: Set<string>,
   ) => {
     const heat = world.getComponent(playerEntity, Heat);
@@ -321,30 +322,37 @@ export function createRenderSystem(config: RenderSystemConfig) {
       let nextColor = pLight.color;
       let nextIntensity = pLight.intensity;
       let nextRadius = pLight.radius;
+      let nextHeight = pLight.height;
       let nextAnim = pLight.animation
         ? { ...pLight.animation }
         : { type: 'STATIC' as const, speed: 2, amplitude: 0.2 };
 
-      if (extendedSightActive) {
-        nextRadius = Math.min(512, nextRadius + 48);
+      // Spec §5.3.A.3: Extended_Sight.sys expands radius to visionRadius * TILE_SIZE & boosts height to 28px
+      if (extendedSightVisionRadius !== null && extendedSightVisionRadius > 0) {
+        nextRadius = Math.min(512, Math.max(nextRadius, extendedSightVisionRadius * TILE_SIZE));
+        nextHeight = Math.max(nextHeight, 28);
       }
 
-      if (heatVal >= 81) {
-        nextColor = '#ff4500';
+      // Spec §5.3.A.1: Neural Heat Shift (0-60% Nominal, 61-99% smooth amber pulse, >=100% crimson/UV flicker)
+      if (heatVal >= 100) {
+        nextColor = '#ff0055';
         nextIntensity = Math.min(5, pLight.intensity * 1.25);
-        nextRadius = Math.min(512, nextRadius * 1.25);
-        nextAnim = { type: 'FLICKER', speed: 8.0, amplitude: 0.45, secondaryColor: '#ffb020' };
-      } else if (heatVal >= 51) {
-        nextColor = '#ffb020';
-        nextIntensity = Math.min(5, pLight.intensity * 1.15);
-        nextAnim = { type: 'FLICKER', speed: 4.0, amplitude: 0.25, secondaryColor: pLight.color };
+        nextAnim = { type: 'FLICKER', speed: 14.0, amplitude: 0.45, secondaryColor: '#a855f7' };
+      } else if (heatVal >= 61) {
+        const heatT = Math.max(0, Math.min(1, (heatVal - 60) / 40));
+        nextColor = lerpHexColor(pLight.color, '#ff9500', heatT);
+        nextIntensity = Math.min(5, pLight.intensity * (1 + 0.15 * heatT));
+        nextAnim = { type: 'PULSE', speed: 3.0, amplitude: 0.15 };
       }
 
+      // Spec §5.3.A.2: Reality Stability Drain (<50% contracts radius mix(0.75, 1.0, stability/50) + UV pulse)
       if (stabVal < 50) {
-        const stabRatio = Math.max(0.25, stabVal / 50);
-        nextRadius = Math.max(32, Math.round(nextRadius * (0.78 + 0.17 * stabRatio)));
-        if (heatVal < 51) {
-          nextAnim = { type: 'FLICKER', speed: 5.5, amplitude: 0.35, secondaryColor: nextColor };
+        const stabT = Math.max(0, Math.min(1, stabVal / 50));
+        nextRadius = Math.max(32, Math.round(nextRadius * (0.75 + 0.25 * stabT)));
+        if (heatVal < 61) {
+          nextAnim = { type: 'PULSE', speed: 1.5, amplitude: 0.25, secondaryColor: '#a855f7' };
+        } else if (heatVal < 100) {
+          nextAnim = { ...nextAnim, secondaryColor: '#a855f7' };
         }
       }
 
@@ -353,6 +361,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
         color: nextColor,
         intensity: nextIntensity,
         radius: nextRadius,
+        height: nextHeight,
         animation: nextAnim,
       });
     } else {
@@ -376,7 +385,9 @@ export function createRenderSystem(config: RenderSystemConfig) {
         const corrupted = world.getComponent(propId, CorruptedNode);
         isSearched = Boolean(prop.isSearched);
         isLocked = Boolean(secLock?.isLocked);
-        isCorruptedActive = Boolean(corrupted?.revealed && !corrupted.isDisarmed);
+        isCorruptedActive = Boolean(
+          corrupted?.revealed && !corrupted.isDisarmed && !corrupted.triggered,
+        );
       } else {
         const mem = rememberedProps.get(propId);
         if (!mem) {
@@ -385,7 +396,9 @@ export function createRenderSystem(config: RenderSystemConfig) {
         }
         isSearched = Boolean(mem.isSearched);
         isLocked = Boolean(mem.isLocked);
-        isCorruptedActive = Boolean(mem.corruptedRevealed && !mem.corruptedDisarmed);
+        isCorruptedActive = Boolean(
+          mem.corruptedRevealed && !mem.corruptedDisarmed && !mem.corruptedTriggered,
+        );
       }
 
       let targetColor = base.color;
@@ -401,7 +414,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
         targetAnim = { type: 'STATIC', speed: 1, amplitude: 0.1 };
       } else if (isCorruptedActive) {
         targetColor = '#ff0055';
-        targetAnim = { type: 'STROBE', speed: 4.5, amplitude: 0.65, secondaryColor: '#ff9500' };
+        targetAnim = { type: 'FLICKER', speed: 12.0, amplitude: 0.4 };
       } else if (isLocked) {
         targetColor = '#ff9500';
         targetAnim = { type: 'PULSE', speed: 1.5, amplitude: 0.3 };
@@ -997,8 +1010,9 @@ export function createRenderSystem(config: RenderSystemConfig) {
           worldY: pos.y * TILE_SIZE + TILE_SIZE * 0.5,
           color: '#00f0ff',
           intensity: 2.8,
-          radiusPx: 256,
-          durationMs: 1200,
+          startRadiusPx: 32,
+          radiusPx: 320,
+          durationMs: 650,
           castsShadows: false,
         });
       }
@@ -1221,14 +1235,17 @@ export function createRenderSystem(config: RenderSystemConfig) {
       if (floorState?.sectorCondition === 'DARK_SUBNET') {
         effectiveRadius = Math.max(2, effectiveRadius - 2);
       }
-      let extendedSightActive = false;
+      let extendedSightVisionRadius: number | null = null;
       const fSlots = world.getComponent(playerEntity, FirmwareSlots);
       if (fSlots) {
         for (const firmwareId of fSlots.equipped) {
           const abilityDef = world.getComponent(firmwareId, AbilityDef);
           if (abilityDef && abilityDef.effectType === 'toggle_vision' && abilityDef.isActive) {
             effectiveRadius = Math.max(effectiveRadius, abilityDef.visionRadius);
-            extendedSightActive = true;
+            extendedSightVisionRadius = Math.max(
+              extendedSightVisionRadius ?? 0,
+              abilityDef.visionRadius,
+            );
           }
         }
       }
@@ -1455,7 +1472,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
       // 4.5. Deferred Lighting Pipeline Sync (LIGHT-04)
       syncEnvironmentTheme();
-      syncDynamicEntityLights(playerEntity, extendedSightActive, fovSet);
+      syncDynamicEntityLights(playerEntity, extendedSightVisionRadius, fovSet);
 
       const gridForLight = getGrid();
       const extraPrimaryLights: RenderLightDescriptor[] = [];

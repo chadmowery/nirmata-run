@@ -30,6 +30,7 @@ export interface TransientLightSpawnParams {
   color: string;
   intensity: number;
   radiusPx: number;
+  startRadiusPx?: number;
   durationMs: number;
   heightPx?: number;
   falloff?: number;
@@ -162,6 +163,7 @@ export class LightingSystem {
       colorRgb: parseHexColorNormalized(params.color),
       intensity: params.intensity,
       radiusPx: params.radiusPx,
+      ...(params.startRadiusPx !== undefined ? { startRadiusPx: params.startRadiusPx } : {}),
       heightPx: params.heightPx ?? 16,
       falloff: params.falloff ?? 1.4,
       castsShadows: params.castsShadows ?? false,
@@ -305,12 +307,17 @@ export class LightingSystem {
     for (let i = 0; i < this.transientLights.length && primary.length < MAX_PRIMARY_LIGHTS; i++) {
       const tl = this.transientLights[i];
       const fade = Math.max(0, Math.min(1, tl.remainingMs / tl.durationMs));
+      const progress = 1 - fade;
+      const effectiveRadiusPx =
+        tl.startRadiusPx !== undefined
+          ? tl.startRadiusPx + (tl.radiusPx - tl.startRadiusPx) * progress
+          : tl.radiusPx;
       const screenX = tl.worldX * camZoom + camX;
       const screenY = tl.worldY * camZoom + camY;
       primary.push({
         screenX,
         screenY,
-        radiusPx: tl.radiusPx,
+        radiusPx: effectiveRadiusPx,
         intensity: tl.intensity * fade,
         colorRgb: tl.colorRgb,
         heightPx: tl.heightPx,

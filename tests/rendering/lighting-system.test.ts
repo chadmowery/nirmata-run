@@ -12,7 +12,7 @@ import { Stability } from '@shared/components/stability';
 import { FloorState } from '@shared/components/floor-state';
 import { FirmwareSlots } from '@shared/components/firmware-slots';
 import { AbilityDef } from '@shared/components/ability-def';
-import { Prop } from '@shared/components/environment';
+import { Prop, CorruptedNode } from '@shared/components/environment';
 import * as PIXI from 'pixi.js';
 import {
   DeferredLightFilter,
@@ -342,16 +342,29 @@ describe('Deferred Lighting System & Render Integration [LIGHT-03/04/07]', () =>
       renderSystem?.destroy();
     });
 
-    it('modulates player LightSource for Heat tier, Low Stability (<50), and Extended_Sight.sys without mutating ECS World', () => {
-      // Overload heat tier (>= 80) shifts effective light toward orange/red with flicker
-      world.patchComponent(playerId, Heat, { current: 85 });
+    it('modulates player LightSource per Spec §5.3 (Heat tiers, Low Stability, Extended_Sight.sys) without mutating ECS World', () => {
+      // Heat 61-99% smoothly interpolates toward Safety Amber (#ff9500) with 3 Hz PULSE (amp 0.15)
+      world.patchComponent(playerId, Heat, { current: 80 });
       renderSystem.renderSystem();
-      const hotLight = renderSystem.getEffectiveEntityLight(playerId)!;
-      expect(hotLight.color).toBe('#ff4500');
-      expect(hotLight.animation.type).toBe('FLICKER');
+      const warmLight = renderSystem.getEffectiveEntityLight(playerId)!;
+      expect(warmLight.color).not.toBe('#00f0ff');
+      expect(warmLight.color).not.toBe('#ff9500'); // mid-interpolation at 80%
+      expect(warmLight.animation).toEqual({ type: 'PULSE', speed: 3.0, amplitude: 0.15 });
       // ECS LightSource component on World remains immutable (read-only renderer mandate)
       expect(world.getComponent(playerId, LightSource)!.color).toBe('#00f0ff');
       expect(world.getComponent(playerId, LightSource)!.animation.type).toBe('STATIC');
+
+      // Heat >= 100% shifts to Electric Crimson (#ff0055) with 14 Hz FLICKER + #a855f7 secondary
+      world.patchComponent(playerId, Heat, { current: 105 });
+      renderSystem.renderSystem();
+      const panicLight = renderSystem.getEffectiveEntityLight(playerId)!;
+      expect(panicLight.color).toBe('#ff0055');
+      expect(panicLight.animation).toEqual({
+        type: 'FLICKER',
+        speed: 14.0,
+        amplitude: 0.45,
+        secondaryColor: '#a855f7',
+      });
 
       // Floor transition while overheated, followed by cooling down, preserves clean baseline
       renderSystem.onDungeonGenerated();
@@ -360,16 +373,17 @@ describe('Deferred Lighting System & Render Integration [LIGHT-03/04/07]', () =>
       const cooledLight = renderSystem.getEffectiveEntityLight(playerId)!;
       expect(cooledLight.color).toBe('#00f0ff');
       expect(cooledLight.radius).toBe(200);
+      expect(cooledLight.height).toBe(20);
       expect(cooledLight.animation.type).toBe('STATIC');
 
-      // Drop stability < 50 -> shrinks radius & flickers
-      world.patchComponent(playerId, Stability, { current: 30 });
+      // Drop stability < 50 -> radius * mix(0.75, 1.0, stability/50) + ultraviolet (#a855f7) pulse
+      world.patchComponent(playerId, Stability, { current: 25 });
       renderSystem.renderSystem();
       const unstableLight = renderSystem.getEffectiveEntityLight(playerId)!;
-      expect(unstableLight.radius).toBeLessThan(200);
-      expect(unstableLight.animation.type).toBe('FLICKER');
+      expect(unstableLight.radius).toBe(175); // 200 * (0.75 + 0.25 * 0.5)
+      expect(unstableLight.animation.secondaryColor).toBe('#a855f7');
 
-      // Restore stability & grant Extended_Sight.sys firmware -> boosts radius by +48px
+      // Restore stability & grant Extended_Sight.sys firmware -> visionRadius * 32 (384px) & height 28px
       world.patchComponent(playerId, Stability, { current: 100 });
       const fwId = world.createEntity();
       world.addComponent(
@@ -388,7 +402,8 @@ describe('Deferred Lighting System & Render Integration [LIGHT-03/04/07]', () =>
       world.addComponent(playerId, FirmwareSlots, { equipped: [fwId] });
       renderSystem.renderSystem();
       const boostedLight = renderSystem.getEffectiveEntityLight(playerId)!;
-      expect(boostedLight.radius).toBe(248);
+      expect(boostedLight.radius).toBe(384);
+      expect(boostedLight.height).toBe(28);
     });
 
     it('emits GHOST_PULSE transient flare and DARK_SUBNET unsearched prop beacon pings', () => {
@@ -925,6 +940,82 @@ describe('Deferred Lighting System & Render Integration [LIGHT-03/04/07]', () =>
       } finally {
         delete glProg.from;
       }
+    });
+
+    it('aligns GHOST_PULSE expanding wave (320px/650ms) and corrupted prop !triggered FLICKER 12Hz with Spec §5.3 (HIGH-03)', () => {
+      const lighting = new LightingSystem(20, 15);
+      lighting.spawnTransientLight({
+        worldX: 160,
+        worldY: 160,
+        color: '#00f0ff',
+        intensity: 2.8,
+        startRadiusPx: 32,
+        radiusPx: 320,
+        durationMs: 650,
+      });
+
+      const dummyCtx = {
+        world,
+        worldContainer: { x: 0, y: 0, scale: { x: 1, y: 1 }, filters: null } as never,
+        terrainLayer: { children: [] } as never,
+        itemLayer: { children: [] } as never,
+        entityLayer: { children: [] } as never,
+        spriteMap: new Map(),
+        gridWidth: 20,
+        gridHeight: 15,
+        enabled: true,
+        playerEntityId: playerId,
+      };
+
+      lighting.update({ ...dummyCtx, deltaMs: 0 });
+      const rStart = lighting.getPrimaryLights().find((l) => !l.castsShadows)!.radiusPx;
+      lighting.update({ ...dummyCtx, deltaMs: 325 });
+      const rMid = lighting.getPrimaryLights().find((l) => !l.castsShadows)!.radiusPx;
+      expect(rStart).toBeCloseTo(32, 1);
+      expect(rMid).toBeCloseTo(176, 1);
+      lighting.update({ ...dummyCtx, deltaMs: 400 });
+      expect(lighting.getPrimaryLights().some((l) => !l.castsShadows)).toBe(false);
+      lighting.destroy();
+
+      // Corrupted prop modulation: FLICKER 12Hz amp 0.4 while untriggered, stops when triggered
+      const cProp = world.createEntity();
+      world.addComponent(cProp, Position, { x: 11, y: 10 });
+      world.addComponent(cProp, SpriteComponent, { key: 'prop_workstation' });
+      world.addComponent(
+        cProp,
+        Prop,
+        Prop.schema.parse({
+          propId: 'ws_corr',
+          faction: 'cyberacme',
+          propClass: 'workstation',
+          isSearched: false,
+        }),
+      );
+      world.addComponent(
+        cProp,
+        CorruptedNode,
+        CorruptedNode.schema.parse({
+          corruptionLevel: 2,
+          revealed: true,
+          isDisarmed: false,
+          triggered: false,
+        }),
+      );
+      world.addComponent(
+        cProp,
+        LightSource,
+        LightSource.schema.parse({ color: '#00f0ff', intensity: 1.0, radius: 96 }),
+      );
+
+      renderSystem.renderSystem();
+      const activeCorr = renderSystem.getEffectiveEntityLight(cProp)!;
+      expect(activeCorr.color).toBe('#ff0055');
+      expect(activeCorr.animation).toEqual({ type: 'FLICKER', speed: 12.0, amplitude: 0.4 });
+
+      world.patchComponent(cProp, CorruptedNode, { triggered: true });
+      renderSystem.renderSystem();
+      const detonatedCorr = renderSystem.getEffectiveEntityLight(cProp)!;
+      expect(detonatedCorr.color).toBe('#00f0ff');
     });
   });
 });

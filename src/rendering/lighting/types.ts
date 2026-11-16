@@ -66,6 +66,7 @@ export interface TransientLightInstance {
   colorRgb: [number, number, number];
   intensity: number;
   radiusPx: number;
+  startRadiusPx?: number;
   heightPx: number;
   falloff: number;
   castsShadows: boolean;
@@ -101,6 +102,20 @@ export function parseHexColorNormalized(hex: string): [number, number, number] {
   const n = Number.parseInt(cleaned, 16);
   if (Number.isNaN(n)) return [1, 1, 1];
   return [((n >> 16) & 0xff) / 255, ((n >> 8) & 0xff) / 255, (n & 0xff) / 255];
+}
+
+/**
+ * Linearly interpolates between two `#RRGGBB` hex colors and returns `#rrggbb`.
+ */
+export function lerpHexColor(hexA: string, hexB: string, t: number): string {
+  const k = Math.max(0, Math.min(1, t));
+  const [r1, g1, b1] = parseHexColorNormalized(hexA);
+  const [r2, g2, b2] = parseHexColorNormalized(hexB);
+  const toHex = (v: number) =>
+    Math.max(0, Math.min(255, Math.round(v * 255)))
+      .toString(16)
+      .padStart(2, '0');
+  return `#${toHex(r1 + (r2 - r1) * k)}${toHex(g1 + (g2 - g1) * k)}${toHex(b1 + (b2 - b1) * k)}`;
 }
 
 const DEFAULT_CYBERACME_PROFILE: FactionAmbientProfile = {
