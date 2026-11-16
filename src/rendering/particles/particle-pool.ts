@@ -494,7 +494,7 @@ export class ParticlePool {
       this.microLightDescriptors.push({
         screenX: wx * cameraZoom + cameraX,
         screenY: wy * cameraZoom + cameraY,
-        radiusPx: cluster.maxRadiusPx * cameraZoom,
+        radiusPx: cluster.maxRadiusPx,
         intensity: cluster.intensitySum,
         colorRgb: [r, g, b],
       });

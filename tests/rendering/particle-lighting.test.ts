@@ -170,6 +170,14 @@ describe('Pooled Dual-Mode Lit Particle & Micro-Light System [LIGHT-05/07]', () 
     expect(merged.particles).toHaveLength(4);
     expect(merged.microLights).toHaveLength(1);
     expect(merged.microLights[0].intensity).toBeGreaterThan(1.0);
+    const baseScreenX = merged.microLights[0].screenX;
+    const baseScreenY = merged.microLights[0].screenY;
+
+    // MED-01: radiusPx stays in world pixels under non-unit cameraZoom so shader doesn't multiply by zoom^2
+    const zoomed = pool.collectRenderDescriptors(10, 20, 1.5);
+    expect(zoomed.microLights[0].radiusPx).toBe(40);
+    expect(zoomed.microLights[0].screenX).toBeCloseTo(baseScreenX * 1.5 + 10, 3);
+    expect(zoomed.microLights[0].screenY).toBeCloseTo(baseScreenY * 1.5 + 20, 3);
 
     pool.clearAll();
 
