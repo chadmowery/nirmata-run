@@ -1,8 +1,27 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGamedataStore } from '../store';
 import { AudioCuePicker } from '../shared/AudioCuePicker';
+import { EnvironmentOverrideBar } from '../shared/EnvironmentOverrideBar';
+import { LightingConfigPanel, FovConfigPanel } from './LightingFovConfigPanels';
+import {
+  postHotloadCommit,
+  postHotloadPreview,
+  postHotloadRevert,
+} from '@dev-tool/hotload/studio-sync';
+import type { HotloadDomain } from '@dev-tool/hotload/types';
+import type { LightingConfig } from '@shared/lighting-config';
+import type { FovConfig } from '@shared/fov-config';
 import styles from './editors.module.css';
+
+const CONFIG_DOMAIN_MAP: Record<string, HotloadDomain> = {
+  ambiance: 'config:ambiance',
+  lighting: 'config:lighting',
+  fov: 'config:fov',
+  economy: 'config:economy',
+  'depth-config': 'config:depth',
+  'loot-distribution': 'config:loot',
+};
 
 interface Props {
   name: string;
@@ -61,32 +80,61 @@ interface AmbianceDuckingItemConfig {
 }
 
 export function ConfigEditor({ name, onRefresh }: Props) {
-  const { setDirty, setActiveEffectiveData, setActiveValidationStatus } = useGamedataStore();
+  const { setDirty, setActiveEffectiveData, setActiveValidationStatus, liveSyncEnabled, isDirty } =
+    useGamedataStore();
   const [data, setData] = useState<Record<string, unknown> | null>(null);
+  const baselineRef = useRef<Record<string, unknown> | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [editMode, setEditMode] = useState<'structured' | 'raw'>('structured');
   const [rawText, setRawText] = useState('');
   const [rawError, setRawError] = useState<string | null>(null);
 
+  const hotloadDomain = CONFIG_DOMAIN_MAP[name];
+
   useEffect(() => {
     fetch(`/api/dev/gamedata/configs/${name}`)
       .then((r) => r.json())
       .then((d) => {
         setData(d);
+        baselineRef.current = structuredClone(d);
         setRawText(JSON.stringify(d, null, 2));
         setDirty(false);
       })
       .catch(() => setErrors(['Failed to load config']));
   }, [name, setDirty]);
 
-  // Sync to store
+  // Sync to store & LIVE_SYNC presentation preview
   useEffect(() => {
     if (data) {
       setActiveEffectiveData(data);
       setActiveValidationStatus({ zodValid: true });
+      if (
+        isDirty &&
+        liveSyncEnabled &&
+        (name === 'ambiance' || name === 'lighting' || name === 'fov') &&
+        hotloadDomain
+      ) {
+        postHotloadPreview(hotloadDomain, name, data, 16);
+      }
     }
-  }, [data, setActiveEffectiveData, setActiveValidationStatus]);
+  }, [data, isDirty, liveSyncEnabled, name, hotloadDomain, setActiveEffectiveData, setActiveValidationStatus]);
+
+  // Listen for Studio REVERT button
+  useEffect(() => {
+    const onRevert = () => {
+      if (!baselineRef.current) return;
+      const restored = structuredClone(baselineRef.current);
+      setData(restored);
+      setRawText(JSON.stringify(restored, null, 2));
+      setDirty(false);
+      if (hotloadDomain) {
+        postHotloadRevert(hotloadDomain, name, restored);
+      }
+    };
+    window.addEventListener('gamedata-revert', onRevert);
+    return () => window.removeEventListener('gamedata-revert', onRevert);
+  }, [hotloadDomain, name, setDirty]);
 
   const handleSave = useCallback(async () => {
     if (!data) return;
@@ -117,15 +165,19 @@ export function ConfigEditor({ name, onRefresh }: Props) {
       }
 
       setData(payload);
+      baselineRef.current = structuredClone(payload);
       setRawText(JSON.stringify(payload, null, 2));
       setSaveStatus('success');
       setDirty(false);
+      if (hotloadDomain) {
+        postHotloadCommit(hotloadDomain, name, payload);
+      }
       onRefresh?.();
     } catch (err) {
       setErrors([err instanceof Error ? err.message : 'Save failed']);
       setSaveStatus('error');
     }
-  }, [data, editMode, rawText, name, setDirty, onRefresh]);
+  }, [data, editMode, rawText, name, hotloadDomain, setDirty, onRefresh]);
 
   useEffect(() => {
     const onSaveKey = () => handleSave();
@@ -1007,6 +1059,35 @@ export function ConfigEditor({ name, onRefresh }: Props) {
                   </div>
                 </div>
               </div>
+              <EnvironmentOverrideBar />
+            </>
+          )}
+
+          {/* Lighting Config Editor */}
+          {name === 'lighting' && (
+            <>
+              <EnvironmentOverrideBar />
+              <LightingConfigPanel
+                data={data as unknown as LightingConfig}
+                onChange={(next) => {
+                  setData(next as unknown as Record<string, unknown>);
+                  setDirty(true);
+                }}
+              />
+            </>
+          )}
+
+          {/* FOV & Fog-of-War Config Editor */}
+          {name === 'fov' && (
+            <>
+              <EnvironmentOverrideBar />
+              <FovConfigPanel
+                data={data as unknown as FovConfig}
+                onChange={(next) => {
+                  setData(next as unknown as Record<string, unknown>);
+                  setDirty(true);
+                }}
+              />
             </>
           )}
         </div>

@@ -45,7 +45,16 @@ uniform float uAmbientIntensity;
 uniform vec3 uShadowTint;
 uniform vec3 uConditionTint;
 uniform float uFloorPulseAmp;
+uniform float uFloorPulseHz;
 uniform vec3 uFloorPulseColor;
+
+uniform vec2 uFovLightGate;
+uniform vec2 uFovActiveBlend;
+uniform vec2 uFowRevealEdge;
+uniform vec4 uFowParams;
+uniform float uFowEmissiveRetention;
+uniform vec3 uFowTint;
+uniform vec3 uVoidColor;
 
 float interleavedGradientNoise(vec2 px) {
   vec3 magic = vec3(0.06711056, 0.00583715, 52.9829189);
@@ -116,7 +125,7 @@ void main(void) {
     ? texture(uFovMaskTex, fovUv).r
     : 0.0;
 
-  float lightFovGate = smoothstep(0.25, 0.60, fovMask);
+  float lightFovGate = smoothstep(uFovLightGate.x, uFovLightGate.y, fovMask);
   float jitter = interleavedGradientNoise(screenPx);
 
   // Preserve faction chromaticity without crushing already-dark pixel art to black in Active FOV
@@ -166,7 +175,7 @@ void main(void) {
     vec3 lightCol = p1.rgb;
     float isBeacon = p2.z;
 
-    if (isBeacon > 0.5 && fovMask < 0.25) {
+    if (isBeacon > 0.5 && fovMask < uFovLightGate.x) {
       // DARK_SUBNET unsearched prop radar ping visible through unexplored fog (Spec §4.1)
       float pingRing = smoothstep(0.45, 0.0, abs(dNorm - 0.55));
       beaconAccum += lightCol * atten * (0.5 + pingRing * 0.75);
@@ -229,23 +238,24 @@ void main(void) {
   vec3 emissiveRgb = albedoSample.rgb * emissive * mix(0.08, 1.35, lightFovGate);
   litRgb += emissiveRgb;
 
-  // THERMAL_SURGE 0.8 Hz floor thermal vein pulse (Spec §4.2)
-  if (uFloorPulseAmp > 0.001 && pixelZ < 2.0) {
-    float wave = 0.5 + 0.5 * sin(uTime * 0.8 * 6.2831853 + (worldPx.x + worldPx.y) * 0.025);
+  // THERMAL_SURGE / condition floor vein pulse
+  if (uFloorPulseAmp > 0.001 && uFloorPulseHz > 0.001 && pixelZ < 2.0) {
+    float wave = 0.5 + 0.5 * sin(uTime * uFloorPulseHz * 6.2831853 + (worldPx.x + worldPx.y) * 0.025);
     litRgb += uFloorPulseColor * (wave * uFloorPulseAmp * lightFovGate);
   }
 
-  // Explored Memory state: strictly dimmer, cold 65%-desaturated silhouette (#0b1324 family)
-  if (fovMask > 0.02 && fovMask < 0.92) {
+  // Explored Memory state: desaturated & tinted silhouette + smooth void reveal
+  if (fovMask > uFowRevealEdge.x && fovMask < 0.98) {
     float lum = dot(albedoSample.rgb, vec3(0.2126, 0.7152, 0.0722));
-    vec3 desaturated = mix(albedoSample.rgb, vec3(lum), 0.65);
-    float memoryScale = clamp(uAmbientIntensity * 3.8, 0.35, 1.0);
-    vec3 memoryColor = (desaturated * vec3(0.09, 0.13, 0.21) + albedoSample.rgb * emissive * 0.06) * memoryScale;
-    float blendActive = smoothstep(0.25, 0.72, fovMask);
-    float revealMask = smoothstep(0.01, 0.18, fovMask);
-    litRgb = mix(memoryColor * revealMask, litRgb, blendActive);
-  } else if (fovMask <= 0.02) {
-    litRgb = vec3(0.0);
+    vec3 desaturated = mix(albedoSample.rgb, vec3(lum), uFowParams.x);
+    float memoryScale = clamp(uAmbientIntensity * 3.8 * uFowParams.y, uFowParams.z, uFowParams.w);
+    vec3 memoryColor = (desaturated * uFowTint + albedoSample.rgb * emissive * uFowEmissiveRetention) * memoryScale;
+    float blendActive = smoothstep(uFovActiveBlend.x, uFovActiveBlend.y, fovMask);
+    float revealMask = smoothstep(uFowRevealEdge.x, uFowRevealEdge.y, fovMask);
+    vec3 shrouded = mix(uVoidColor, memoryColor, revealMask);
+    litRgb = mix(shrouded, litRgb, blendActive);
+  } else if (fovMask <= uFowRevealEdge.x) {
+    litRgb = uVoidColor;
   }
 
   // Add unsearched DARK_SUBNET prop beacon pulses above shroud
@@ -267,6 +277,12 @@ export class DeferredLightFilter extends BaseFilter {
   private readonly uShadowTintBuf = new Float32Array([0.05, 0.08, 0.16]);
   private readonly uConditionTintBuf = new Float32Array([1, 1, 1]);
   private readonly uFloorPulseColorBuf = new Float32Array([1.0, 0.3, 0.0]);
+  private readonly uFovLightGateBuf = new Float32Array([0.25, 0.6]);
+  private readonly uFovActiveBlendBuf = new Float32Array([0.25, 0.72]);
+  private readonly uFowRevealEdgeBuf = new Float32Array([0.01, 0.18]);
+  private readonly uFowParamsBuf = new Float32Array([0.65, 1.0, 0.35, 1.0]);
+  private readonly uFowTintBuf = new Float32Array([0.09, 0.13, 0.21]);
+  private readonly uVoidColorBuf = new Float32Array([0.0, 0.0, 0.0]);
 
   constructor(
     normalSpecTex: Texture,
@@ -301,6 +317,12 @@ export class DeferredLightFilter extends BaseFilter {
     const uShadowTintBuf = new Float32Array([0.05, 0.08, 0.16]);
     const uConditionTintBuf = new Float32Array([1, 1, 1]);
     const uFloorPulseColorBuf = new Float32Array([1.0, 0.3, 0.0]);
+    const uFovLightGateBuf = new Float32Array([0.25, 0.6]);
+    const uFovActiveBlendBuf = new Float32Array([0.25, 0.72]);
+    const uFowRevealEdgeBuf = new Float32Array([0.01, 0.18]);
+    const uFowParamsBuf = new Float32Array([0.65, 1.0, 0.35, 1.0]);
+    const uFowTintBuf = new Float32Array([0.09, 0.13, 0.21]);
+    const uVoidColorBuf = new Float32Array([0.0, 0.0, 0.0]);
 
     const lightingUniforms = new PIXI.UniformGroup({
       uViewportSize: { value: [GBUFFER_WIDTH, GBUFFER_HEIGHT], type: 'vec2<f32>' },
@@ -315,7 +337,15 @@ export class DeferredLightFilter extends BaseFilter {
       uShadowTint: { value: uShadowTintBuf, type: 'vec3<f32>' },
       uConditionTint: { value: uConditionTintBuf, type: 'vec3<f32>' },
       uFloorPulseAmp: { value: 0.0, type: 'f32' },
+      uFloorPulseHz: { value: 0.8, type: 'f32' },
       uFloorPulseColor: { value: uFloorPulseColorBuf, type: 'vec3<f32>' },
+      uFovLightGate: { value: uFovLightGateBuf, type: 'vec2<f32>' },
+      uFovActiveBlend: { value: uFovActiveBlendBuf, type: 'vec2<f32>' },
+      uFowRevealEdge: { value: uFowRevealEdgeBuf, type: 'vec2<f32>' },
+      uFowParams: { value: uFowParamsBuf, type: 'vec4<f32>' },
+      uFowEmissiveRetention: { value: 0.06, type: 'f32' },
+      uFowTint: { value: uFowTintBuf, type: 'vec3<f32>' },
+      uVoidColor: { value: uVoidColorBuf, type: 'vec3<f32>' },
     });
 
     const glProgram = PIXI.GlProgram.from({
@@ -349,6 +379,12 @@ export class DeferredLightFilter extends BaseFilter {
     this.uShadowTintBuf = uShadowTintBuf;
     this.uConditionTintBuf = uConditionTintBuf;
     this.uFloorPulseColorBuf = uFloorPulseColorBuf;
+    this.uFovLightGateBuf = uFovLightGateBuf;
+    this.uFovActiveBlendBuf = uFovActiveBlendBuf;
+    this.uFowRevealEdgeBuf = uFowRevealEdgeBuf;
+    this.uFowParamsBuf = uFowParamsBuf;
+    this.uFowTintBuf = uFowTintBuf;
+    this.uVoidColorBuf = uVoidColorBuf;
   }
 
   public updateTextures(
@@ -373,7 +409,15 @@ export class DeferredLightFilter extends BaseFilter {
     shadowTintRgb: [number, number, number];
     conditionTintRgb: [number, number, number];
     floorPulseAmp: number;
+    floorPulseHz?: number;
     floorPulseRgb: [number, number, number];
+    fovLightGate?: [number, number];
+    fovActiveBlend?: [number, number];
+    fowRevealEdge?: [number, number];
+    fowParams?: [number, number, number, number];
+    fowEmissiveRetention?: number;
+    fowTintRgb?: [number, number, number];
+    voidColorRgb?: [number, number, number];
     primaryLights: RenderLightDescriptor[];
     microLights: MicroLightDescriptor[];
   }): void {
@@ -399,9 +443,42 @@ export class DeferredLightFilter extends BaseFilter {
     this.uConditionTintBuf[2] = params.conditionTintRgb[2];
 
     u.uFloorPulseAmp = params.floorPulseAmp;
+    u.uFloorPulseHz = params.floorPulseHz ?? 0.8;
     this.uFloorPulseColorBuf[0] = params.floorPulseRgb[0];
     this.uFloorPulseColorBuf[1] = params.floorPulseRgb[1];
     this.uFloorPulseColorBuf[2] = params.floorPulseRgb[2];
+
+    if (params.fovLightGate) {
+      this.uFovLightGateBuf[0] = params.fovLightGate[0];
+      this.uFovLightGateBuf[1] = params.fovLightGate[1];
+    }
+    if (params.fovActiveBlend) {
+      this.uFovActiveBlendBuf[0] = params.fovActiveBlend[0];
+      this.uFovActiveBlendBuf[1] = params.fovActiveBlend[1];
+    }
+    if (params.fowRevealEdge) {
+      this.uFowRevealEdgeBuf[0] = params.fowRevealEdge[0];
+      this.uFowRevealEdgeBuf[1] = params.fowRevealEdge[1];
+    }
+    if (params.fowParams) {
+      this.uFowParamsBuf[0] = params.fowParams[0];
+      this.uFowParamsBuf[1] = params.fowParams[1];
+      this.uFowParamsBuf[2] = params.fowParams[2];
+      this.uFowParamsBuf[3] = params.fowParams[3];
+    }
+    if (typeof params.fowEmissiveRetention === 'number') {
+      u.uFowEmissiveRetention = params.fowEmissiveRetention;
+    }
+    if (params.fowTintRgb) {
+      this.uFowTintBuf[0] = params.fowTintRgb[0];
+      this.uFowTintBuf[1] = params.fowTintRgb[1];
+      this.uFowTintBuf[2] = params.fowTintRgb[2];
+    }
+    if (params.voidColorRgb) {
+      this.uVoidColorBuf[0] = params.voidColorRgb[0];
+      this.uVoidColorBuf[1] = params.voidColorRgb[1];
+      this.uVoidColorBuf[2] = params.voidColorRgb[2];
+    }
 
     const primaryCount = Math.min(MAX_PRIMARY_LIGHTS, params.primaryLights.length);
     u.uPrimaryLightCount = primaryCount;

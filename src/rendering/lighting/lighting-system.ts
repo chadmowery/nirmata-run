@@ -16,13 +16,15 @@ import {
   MicroLightDescriptor,
   ParticleGbufferDescriptor,
   RenderLightDescriptor,
-  SECTOR_CONDITION_VISUAL_PROFILES,
   TransientLightInstance,
   evaluateLightAnimation,
   parseHexColorNormalized,
   resolveFactionAmbientProfile,
+  resolveSectorConditionProfile,
   safeGetPixiExport,
 } from './types';
+import { getActiveLightingConfig } from '@shared/lighting-config';
+import { getActiveFovConfig } from '@shared/fov-config';
 
 export interface TransientLightSpawnParams {
   worldX: number;
@@ -226,7 +228,7 @@ export class LightingSystem {
 
     const factionProfile = resolveFactionAmbientProfile(this.activeFactionTheme);
     const condProfile = this.activeSectorCondition
-      ? SECTOR_CONDITION_VISUAL_PROFILES[this.activeSectorCondition]
+      ? (resolveSectorConditionProfile(this.activeSectorCondition) ?? null)
       : null;
     const roomJitter = condProfile?.jitter ?? 0;
 
@@ -387,10 +389,17 @@ export class LightingSystem {
       this.elapsedTimeSec,
     );
 
-    const baseBloomIntensity = 0.72;
+    const lightingCfg = getActiveLightingConfig();
+    const fovCfg = getActiveFovConfig();
+
+    const baseBloomIntensity = lightingCfg.bloom.enabled ? lightingCfg.bloom.baseIntensity : 0;
     this.bloomFilter?.setIntensity(
       baseBloomIntensity * factionProfile.bloomMultiplier * (condProfile?.bloomMultiplier ?? 1.0),
     );
+    this.bloomFilter?.setThreshold(lightingCfg.bloom.threshold);
+
+    const floorPulseHz = condProfile?.floorPulseHz ?? 0;
+    const floorPulseAmp = floorPulseHz > 0 ? 0.28 : 0.0;
 
     this.deferredFilter.uploadUniforms({
       cameraX: camX,
@@ -403,8 +412,21 @@ export class LightingSystem {
       ambientIntensity: factionProfile.intensity * (condProfile?.ambientScale ?? 1.0),
       shadowTintRgb: condProfile?.shadowTintRgb ?? factionProfile.rgb,
       conditionTintRgb: condProfile?.tintRgb ?? [1, 1, 1],
-      floorPulseAmp: this.activeSectorCondition === 'THERMAL_SURGE' ? 0.28 : 0.0,
+      floorPulseAmp,
+      floorPulseHz: floorPulseHz > 0 ? floorPulseHz : 0.8,
       floorPulseRgb: condProfile?.floorPulseRgb ?? [1.0, 0.3, 0.0],
+      fovLightGate: [fovCfg.fov.activeLightGateMin, fovCfg.fov.activeLightGateMax],
+      fovActiveBlend: [fovCfg.fov.activeBlendMin, fovCfg.fov.activeBlendMax],
+      fowRevealEdge: [fovCfg.fow.voidRevealMin, fovCfg.fow.voidRevealMax],
+      fowParams: [
+        fovCfg.fow.desaturation,
+        fovCfg.fow.brightnessMultiplier,
+        fovCfg.fow.minMemoryScale,
+        fovCfg.fow.maxMemoryScale,
+      ],
+      fowEmissiveRetention: fovCfg.fow.emissiveRetention,
+      fowTintRgb: parseHexColorNormalized(fovCfg.fow.tintHex),
+      voidColorRgb: parseHexColorNormalized(fovCfg.fow.voidColorHex),
       primaryLights: primary,
       microLights: micro,
     });

@@ -1,0 +1,30 @@
+{
+  "version": "1.0.0",
+  "fov": {
+    "baseRadius": 8,
+    "minRadius": 2,
+    "darkSubnetRadiusPenalty": 2,
+    "filterMode": "linear",
+    "activeLightGateMin": 0.25,
+    "activeLightGateMax": 0.6,
+    "activeBlendMin": 0.25,
+    "activeBlendMax": 0.72
+  },
+  "fow": {
+    "exploredMaskValue": 0.25,
+    "desaturation": 0.65,
+    "tintHex": "#172136",
+    "brightnessMultiplier": 1.0,
+    "minMemoryScale": 0.35,
+    "maxMemoryScale": 1.0,
+    "emissiveRetention": 0.06,
+    "voidRevealMin": 0.01,
+    "voidRevealMax": 0.18,
+    "voidColorHex": "#000000"
+  },
+  "entities": {
+    "rememberedPropAlpha": 1.0,
+    "searchedPropAlphaMultiplier": 0.6,
+    "unlitFallbackFowAlpha": 0.35
+  }
+}

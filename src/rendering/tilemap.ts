@@ -14,6 +14,7 @@ export interface BuildTilemapOptions {
   fovSet?: Set<string>;
   exploredSet?: Set<string>;
   playerPos?: { x: number; y: number };
+  unlitFallbackFowAlpha?: number;
 }
 
 function tileTerrainToFrame(terrain: string): string {
@@ -41,7 +42,7 @@ function computeAlpha(x: number, y: number, options?: BuildTilemapOptions): numb
   }
 
   if (options.exploredSet?.has(key)) {
-    return 1.0;
+    return options.unlitFallbackFowAlpha ?? 1.0;
   }
 
   return 0.0;

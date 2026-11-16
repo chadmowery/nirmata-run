@@ -280,12 +280,14 @@ export class ClientHotloadBridge {
       }
 
       case 'config:lighting': {
-        // Wired in HOTLOAD-04 via lighting config registry
+        const { setLightingConfig } = await import('@/game/config/lighting');
+        setLightingConfig(envelope.payload as import('@/game/config/lighting').LightingConfig);
         break;
       }
 
       case 'config:fov': {
-        // Wired in HOTLOAD-04 via fov config registry
+        const { setFovConfig } = await import('@/game/config/fov');
+        setFovConfig(envelope.payload as import('@/game/config/fov').FovConfig);
         const rsExt = rs as (RenderSystem & {
           invalidateFov?: () => void;
           invalidateTilemap?: () => void;

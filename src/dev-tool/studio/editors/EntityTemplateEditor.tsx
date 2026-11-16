@@ -1,10 +1,15 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { validateEcsRules, RUNTIME_INTENT_OR_TAG_KEYS } from '@/app/api/dev/gamedata/ecs-rules';
 import type { FieldMeta } from '@/app/api/dev/gamedata/schema-introspect';
 import { useGamedataStore } from '../store';
 import { buildDefaultComponentData } from '../shared/default-values';
 import { ComponentFieldGroup } from './shared/ComponentFieldGroup';
+import {
+  postHotloadCommit,
+  postHotloadPreview,
+  postHotloadRevert,
+} from '@dev-tool/hotload/studio-sync';
 import styles from './editors.module.css';
 
 interface Props {
@@ -43,9 +48,12 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
     setDirty,
     setActiveEffectiveData,
     setActiveValidationStatus,
+    liveSyncEnabled,
+    isDirty,
   } = useGamedataStore();
 
   const [templateData, setTemplateData] = useState<TemplateData | null>(null);
+  const baselineRef = useRef<{ template: TemplateData; effectiveComponents: Record<string, Record<string, unknown>> } | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
@@ -106,7 +114,12 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
       fetch(`/api/dev/gamedata/entities/${name}`)
         .then((r) => r.json())
         .then((data) => {
-          setTemplateData(normalizeTemplate(data));
+          const norm = normalizeTemplate(data);
+          setTemplateData(norm);
+          baselineRef.current = {
+            template: structuredClone(norm),
+            effectiveComponents: structuredClone(norm.components ?? {}),
+          };
           setDirty(false);
         })
         .catch(() => setErrors(['Failed to load template']));
@@ -173,6 +186,10 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
   useEffect(() => {
     if (!templateData) return;
 
+    if (!isDirty && baselineRef.current && baselineRef.current.template.name === templateData.name) {
+      baselineRef.current.effectiveComponents = structuredClone(effectiveComponents);
+    }
+
     const ecsResult = validateEcsRules(effectiveComponents);
 
     setActiveEffectiveData({
@@ -184,7 +201,24 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
       zodValid: Boolean(templateData.name.trim()),
       ecsResult,
     });
-  }, [templateData, effectiveComponents, setActiveEffectiveData, setActiveValidationStatus]);
+
+    if (isDirty && liveSyncEnabled && !isNew && name) {
+      postHotloadPreview('entity', name, { components: effectiveComponents }, 16);
+    }
+  }, [templateData, effectiveComponents, isDirty, liveSyncEnabled, isNew, name, setActiveEffectiveData, setActiveValidationStatus]);
+
+  useEffect(() => {
+    const onRevert = () => {
+      if (!baselineRef.current || isNew || !name) return;
+      const restored = structuredClone(baselineRef.current.template);
+      const restoredEffective = structuredClone(baselineRef.current.effectiveComponents);
+      setTemplateData(restored);
+      setDirty(false);
+      postHotloadRevert('entity', name, { components: restoredEffective });
+    };
+    window.addEventListener('gamedata-revert', onRevert);
+    return () => window.removeEventListener('gamedata-revert', onRevert);
+  }, [isNew, name, setDirty]);
 
   const handleSave = useCallback(async () => {
     if (!templateData) return;
@@ -224,7 +258,15 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
       }
 
       setSaveStatus('success');
+      baselineRef.current = {
+        template: structuredClone(templateData),
+        effectiveComponents: structuredClone(effectiveComponents),
+      };
       setDirty(false);
+      postHotloadCommit('entity', templateData.name, {
+        ...templateData,
+        effectiveComponents,
+      });
       onRefresh?.();
 
       if (isNew) {

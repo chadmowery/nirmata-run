@@ -1,0 +1,72 @@
+{
+  "version": "1.0.0",
+  "bloom": {
+    "enabled": true,
+    "baseIntensity": 0.72,
+    "threshold": 0.88
+  },
+  "factionThemes": {
+    "cyberacme": {
+      "colorHex": "#0d1528",
+      "intensity": 0.24,
+      "bloomMultiplier": 1.0
+    },
+    "traxus_foundry": {
+      "colorHex": "#261109",
+      "intensity": 0.26,
+      "bloomMultiplier": 1.15
+    },
+    "sekiguchi_biolabs": {
+      "colorHex": "#091e20",
+      "intensity": 0.25,
+      "bloomMultiplier": 1.1
+    },
+    "dark_subnet": {
+      "colorHex": "#03050a",
+      "intensity": 0.07,
+      "bloomMultiplier": 1.25
+    },
+    "nucaloric": {
+      "colorHex": "#1a0d1e",
+      "intensity": 0.18,
+      "bloomMultiplier": 1.1
+    }
+  },
+  "sectorConditions": {
+    "NOMINAL": {
+      "ambientScale": 1.0,
+      "bloomMultiplier": 1.0,
+      "floorPulseHz": 0,
+      "floorPulseHex": "#000000",
+      "tintHex": "#ffffff",
+      "shadowTintHex": "#0d1528"
+    },
+    "THERMAL_SURGE": {
+      "ambientScale": 1.0,
+      "bloomMultiplier": 1.35,
+      "floorPulseHz": 0.8,
+      "floorPulseHex": "#ff4d00",
+      "tintHex": "#ff7733",
+      "shadowTintHex": "#3a0d05"
+    },
+    "DARK_SUBNET": {
+      "ambientScale": 0.35,
+      "bloomMultiplier": 1.5,
+      "floorPulseHz": 0,
+      "floorPulseHex": "#000000",
+      "tintHex": "#4da6ff",
+      "shadowTintHex": "#03050a",
+      "fogHex": "#020409",
+      "propBeaconIntervalSec": 3.0
+    },
+    "OVERCLOCKED_GRID": {
+      "ambientScale": 0.85,
+      "bloomMultiplier": 1.4,
+      "floorPulseHz": 0,
+      "floorPulseHex": "#000000",
+      "tintHex": "#a855f7",
+      "shadowTintHex": "#180828",
+      "jitter": 0.25
+    }
+  }
+}

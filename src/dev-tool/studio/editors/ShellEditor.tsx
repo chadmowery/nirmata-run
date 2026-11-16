@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { ShellTemplate, ShellUpgrade } from '@/game/shells/server/types';
 import {
   CARDINAL_DIRECTIONS,
@@ -11,6 +11,11 @@ import {
 import { useGamedataStore } from '../store';
 import { SpritePicker } from '../shared/SpritePicker';
 import { LightSourceSubEditor, type LightSourceSubEditorValues } from './subeditors/LightSourceSubEditor';
+import {
+  postHotloadCommit,
+  postHotloadPreview,
+  postHotloadRevert,
+} from '@dev-tool/hotload/studio-sync';
 import styles from './editors.module.css';
 
 const DIRECTION_ROWS: readonly { key: CardinalDirectionSuffix; label: string }[] = [
@@ -35,12 +40,15 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
     setDirty,
     setActiveEffectiveData,
     setActiveValidationStatus,
+    liveSyncEnabled,
+    isDirty,
   } = useGamedataStore();
   const [shellData, setShellData] = useState<ShellTemplate | null>(null);
+  const baselineRef = useRef<ShellTemplate | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
-  // Sync to telemetry store
+  // Sync to telemetry store & LIVE_SYNC presentation preview
   useEffect(() => {
     if (shellData) {
       setActiveEffectiveData(shellData);
@@ -48,8 +56,23 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
       setActiveValidationStatus({
         zodValid: valid,
       });
+      if (isDirty && liveSyncEnabled && !isNew && id) {
+        postHotloadPreview('shell', id, shellData, 16);
+      }
     }
-  }, [shellData, setActiveEffectiveData, setActiveValidationStatus]);
+  }, [shellData, isDirty, liveSyncEnabled, isNew, id, setActiveEffectiveData, setActiveValidationStatus]);
+
+  useEffect(() => {
+    const onRevert = () => {
+      if (!baselineRef.current || isNew || !id) return;
+      const restored = structuredClone(baselineRef.current);
+      setShellData(restored);
+      setDirty(false);
+      postHotloadRevert('shell', id, restored);
+    };
+    window.addEventListener('gamedata-revert', onRevert);
+    return () => window.removeEventListener('gamedata-revert', onRevert);
+  }, [isNew, id, setDirty]);
 
   useEffect(() => {
     if (isNew && cloneFrom) {
@@ -65,6 +88,7 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
         .then((r) => r.json())
         .then((data: ShellTemplate) => {
           setShellData(data);
+          baselineRef.current = structuredClone(data);
           setDirty(false);
         })
         .catch(() => setErrors(['Failed to load shell']));
@@ -119,8 +143,10 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
       }
 
       setShellData(payload);
+      baselineRef.current = structuredClone(payload);
       setSaveStatus('success');
       setDirty(false);
+      postHotloadCommit('shell', payload.id, payload);
       onRefresh?.();
 
       if (isNew) {

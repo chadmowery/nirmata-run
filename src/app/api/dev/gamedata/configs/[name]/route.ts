@@ -10,7 +10,13 @@ import {
   AmbianceConfigSchema,
 } from '../../schemas';
 import { setAmbianceConfig } from '@/game/config/ambiance';
+import { setLightingConfig } from '@/game/config/lighting';
+import { setFovConfig } from '@/game/config/fov';
+import { LightingConfigSchema } from '@shared/lighting-config';
+import { FovConfigSchema } from '@shared/fov-config';
 import { registerSoundCue } from '@/game/audio/cue-registry';
+import { hotloadBus } from '@/server/dev/hotload-bus';
+import type { HotloadDomain } from '@dev-tool/hotload/types';
 import { SoundCueDef } from '@engine/audio';
 import { z } from 'zod';
 
@@ -19,6 +25,17 @@ const CONFIG_PATHS: Record<string, string> = {
   'depth-config': path.join(process.cwd(), 'src/game/generation/depth-config.json'),
   'loot-distribution': path.join(process.cwd(), 'src/game/generation/loot-distribution.json'),
   ambiance: path.join(process.cwd(), 'src/game/config/ambiance.json'),
+  lighting: path.join(process.cwd(), 'src/game/config/lighting.json'),
+  fov: path.join(process.cwd(), 'src/game/config/fov.json'),
+};
+
+const CONFIG_HOTLOAD_DOMAINS: Record<string, HotloadDomain> = {
+  economy: 'config:economy',
+  'depth-config': 'config:depth',
+  'loot-distribution': 'config:loot',
+  ambiance: 'config:ambiance',
+  lighting: 'config:lighting',
+  fov: 'config:fov',
 };
 
 const CUES_FILE_PATH = path.join(process.cwd(), 'src/game/audio/sound-cues.json');
@@ -174,9 +191,25 @@ export async function PUT(req: Request, props: { params: Promise<{ name: string 
       }
       setAmbianceConfig(parsed.data);
       await syncSoundCues(parsed.data);
+    } else if (name === 'lighting') {
+      const parsed = LightingConfigSchema.safeParse(body);
+      if (!parsed.success) {
+        return errorResponse(`Invalid lighting config: ${parsed.error.message}`, 400);
+      }
+      setLightingConfig(parsed.data);
+    } else if (name === 'fov') {
+      const parsed = FovConfigSchema.safeParse(body);
+      if (!parsed.success) {
+        return errorResponse(`Invalid fov config: ${parsed.error.message}`, 400);
+      }
+      setFovConfig(parsed.data);
     }
 
     await atomicWrite(filePath, body);
+    const domain = CONFIG_HOTLOAD_DOMAINS[name];
+    if (domain) {
+      hotloadBus.publishCommit(domain, name, body);
+    }
     return NextResponse.json({ success: true, name });
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Internal server error', 500);
