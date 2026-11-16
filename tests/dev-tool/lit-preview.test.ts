@@ -152,4 +152,40 @@ describe('CRIT-01: InspectorLitTilePreview PNG decoding & 2.5D BRDF', () => {
     const unshadowedIdx = (56 * PREVIEW_LOGICAL_SIZE + 54) * 4;
     expect(outSouth[shadowedIdx]).toBeLessThan(outSouth[unshadowedIdx] * 0.5);
   });
+
+  it('rejects cleanly without unhandled writer rejections on corrupt IDAT zlib data (RES-02)', async () => {
+    const chunk = (type: string, payload: number[]) => {
+      const out = new Uint8Array(12 + payload.length);
+      const dv = new DataView(out.buffer);
+      dv.setUint32(0, payload.length, false);
+      for (let i = 0; i < 4; i++) out[4 + i] = type.charCodeAt(i);
+      out.set(payload, 8);
+      return out;
+    };
+
+    const sig = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+    const ihdr = chunk('IHDR', [0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0]);
+    const idat = chunk('IDAT', [0xff, 0xff, 0x00, 0x01, 0x02]);
+    const iend = chunk('IEND', []);
+
+    const png = new Uint8Array(sig.length + ihdr.length + idat.length + iend.length);
+    let offset = 0;
+    for (const part of [sig, ihdr, idat, iend]) {
+      png.set(part, offset);
+      offset += part.length;
+    }
+
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => {
+      unhandled.push(reason);
+    };
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      await expect(decodePngUnpremultiplied(png.buffer)).rejects.toThrow();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(unhandled).toHaveLength(0);
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+  });
 });

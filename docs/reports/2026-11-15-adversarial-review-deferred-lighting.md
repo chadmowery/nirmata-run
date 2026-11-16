@@ -22,7 +22,7 @@ An adversarial code and architecture audit was conducted across the 12 commits o
   - **Theme Transition BindGroup Safety**: [`GBufferPass.capture()`](../../src/rendering/lighting/gbuffer-pass.ts#L545-L554) unbinds transient sector atlas sources back to `PIXI.Texture.EMPTY.source` in a `finally` block so unloading previous themed atlases does not corrupt WebGL `BindGroup` listeners.
   - **Zero-Allocation Pooled Particle & Micro-Light Clustering**: [`ParticlePool`](../../src/rendering/particles/particle-pool.ts) pre-allocates 512 particle slots and 128 cluster buckets, spatially hashing emissive particles into `12 × 12 px` cells capped to `MAX_MICRO_LIGHTS = 64` without per-frame heap allocations.
   - **Strict Layer Import Hygiene**: `@shared`, `@rendering`, `@client`, `@server`, and `@dev-tool` respect all import boundaries in [`AGENTS.md`](../../AGENTS.md).
-- **Verdict**: **ALL 11 FINDINGS RESOLVED** (Remediation verified on branch `fix/deferred-lighting-issues`: `249` test files / `1,676` tests passing, `npm run typecheck` `0` errors, `npm run lint` `0` errors/warnings). Initially, the audit uncovered **2 Critical (`P0`) blockers**, **3 High (`P1`) architectural/spec violations**, **5 Medium (`P2`) spec/shader gaps**, and **1 Low (`P3`) minor issue**, all of which have now been resolved and verified.
+- **Verdict**: **ALL 11 FINDINGS RESOLVED** (Remediation verified on branch `fix/deferred-lighting-issues`: `249` test files / `1,677` tests passing, `npm run typecheck` `0` errors, `npm run lint` `0` errors/warnings). Initially, the audit uncovered **2 Critical (`P0`) blockers**, **3 High (`P1`) architectural/spec violations**, **5 Medium (`P2`) spec/shader gaps**, and **1 Low (`P3`) minor issue**, all of which (along with the two residual `P3` notes in Section 5.3) have now been resolved and verified.
 
 ### Adversarial Findings Scorecard
 
@@ -378,7 +378,7 @@ An adversarial follow-up review was performed across the 12 remediation commits 
 ### 5.1 Automated Verification Gate Results
 - **`npm run typecheck`**: **PASS** (`0` errors)
 - **`npm run lint`**: **PASS** (`0` warnings/errors)
-- **`npm test -- --run`**: **PASS** (`249` test files, `1,676` tests passing — `+1` new test file [`tests/dev-tool/lit-preview.test.ts`](../../tests/dev-tool/lit-preview.test.ts) and `+14` new assertions across rendering & studio test suites)
+- **`npm test -- --run`**: **PASS** (`249` test files, `1,677` tests passing — `+1` new test file [`tests/dev-tool/lit-preview.test.ts`](../../tests/dev-tool/lit-preview.test.ts) and `+15` new tests/assertions across rendering & studio test suites)
 
 ### 5.2 Finding-by-Finding Verification Matrix
 
@@ -398,13 +398,14 @@ An adversarial follow-up review was performed across the 12 remediation commits 
 
 ### 5.3 Residual Low-Severity (`P3`) Polish Notes (Non-Blocking)
 
-No `P0`, `P1`, or `P2` issues remain. Two minor `P3` observations were noted during re-inspection and may be addressed opportunistically if desired:
+No `P0`, `P1`, or `P2` issues remain. Both minor `P3` observations noted during re-inspection have now been resolved and regression-tested:
 
 1. **`RES-01` (`P3` Low — `@rendering` [`src/rendering/lighting/bloom-filter.ts:41-45, 64-68`](../../src/rendering/lighting/bloom-filter.ts#L41-L68)): `KAWASE_DOWN_FRAG` and `KAWASE_UP_FRAG` Step by Logical `uInputSize.zw` Instead of Physical `uInputPixel.zw` — RESOLVED**
    - In PixiJS 8, `PIXI.TexturePool.getOptimalTexture(960, 640, resolution, false)` allocates a physical texture of size `pixelWidth = nextPow2(ceil(960 * resolution))` (`512×512` at `0.5x`, `256×256` at `0.25x`), but sets logical `source.width = pixelWidth / resolution = 1024`.
    - `FilterSystem` populates `uInputSize.zw` with `1 / source.width` (`1 / 1024` for both `halfTex` and `quarterTex`) and `uInputPixel.zw` with `1 / source.pixelWidth` (`1 / 512` for `halfTex`, `1 / 256` for `quarterTex`).
    - Because `KAWASE_DOWN_FRAG` and `KAWASE_UP_FRAG` used `uInputSize.zw` instead of `uInputPixel.zw`, the Kawase sample offset stepped by `0.75` physical texels in `halfTex` and `0.5` physical texels in `quarterTex` rather than `1.5` and `2.0` physical texels. (Note: `uBloomUvScale` and `uOutputFrame` remain 100% aligned, so there was no UV offset bug—only a tighter bloom blur radius.)
    - **Resolution**: Updated `KAWASE_DOWN_FRAG` and `KAWASE_UP_FRAG` in [`src/rendering/lighting/bloom-filter.ts`](../../src/rendering/lighting/bloom-filter.ts#L41-L68) to use `uInputPixel.zw` and added regression assertions in [`tests/rendering/lighting-system.test.ts`](../../tests/rendering/lighting-system.test.ts#L1049-L1057).
-2. **`RES-02` (`P3` Low — `@dev-tool` [`src/dev-tool/studio/shared/png-decode.ts:36-37`](../../src/dev-tool/studio/shared/png-decode.ts#L36-L37)): Uncaught Floating Promises on `writer.write` / `writer.close` Fallback**
+2. **`RES-02` (`P3` Low — `@dev-tool` [`src/dev-tool/studio/shared/png-decode.ts:36-37`](../../src/dev-tool/studio/shared/png-decode.ts#L36-L37)): Uncaught Floating Promises on `writer.write` / `writer.close` Fallback — RESOLVED**
    - In `inflateZlib()`, `void writer.write(copy); void writer.close();` are invoked without `.catch(() => {})`. If `DecompressionStream('deflate-raw')` rejects on `writer.write` or `writer.close` before falling back to `'deflate'`, the detached writer promises could trigger an `unhandledrejection` warning in the console.
+   - **Resolution**: Verified [`src/dev-tool/studio/shared/png-decode.ts:34-37`](../../src/dev-tool/studio/shared/png-decode.ts#L34-L37) uses `new DecompressionStream('deflate')` directly and already attaches `.catch(() => {})` to both `writer.write(copy)` and `writer.close()`. Added a regression test in [`tests/dev-tool/lit-preview.test.ts`](../../tests/dev-tool/lit-preview.test.ts#L156-L190) confirming corrupt `IDAT` zlib payloads reject cleanly without `unhandledRejection` events.
 
