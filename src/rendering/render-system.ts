@@ -37,6 +37,7 @@ import {
   getEntitySprite,
   getEntitySprites,
   clearAllSprites,
+  refreshEntitySpriteTextures,
   purgeOrphanedSprites,
   getSpriteTelemetry,
   SpriteTelemetry,
@@ -270,6 +271,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
   let lastDynamicLightKey = '';
   let hasRenderedLightingFrame = false;
   let lastExtraPrimaryLights: RenderLightDescriptor[] = [];
+  let onThemeLoadedRefresh: (() => void) | null = null;
 
   const resolveActiveFloorState = () => {
     const floorEntities = world.query(FloorState);
@@ -290,7 +292,11 @@ export function createRenderSystem(config: RenderSystemConfig) {
       Promise.resolve(loadThemedAssets(theme))
         .then(() => {
           if (!lightingDestroyed) {
+            refreshEntitySpriteTextures();
             lastTilemapKey = '';
+            if (hasRenderedLightingFrame && onThemeLoadedRefresh && world.entityExists(getPlayerEntity())) {
+              onThemeLoadedRefresh();
+            }
           }
         })
         .catch(() => {
@@ -1159,6 +1165,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       }
 
       // Initial render pass to populate viewport, FOV, and textures
+      onThemeLoadedRefresh = () => this.renderSystem();
       this.renderSystem();
     },
 
@@ -1819,6 +1826,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       disposeDamageTexts();
       lightingDestroyed = true;
       hasRenderedLightingFrame = false;
+      onThemeLoadedRefresh = null;
       baseLightByEntity.clear();
       lightingSystem.destroy();
       gameStore.getState().setHoveredEntity(null);

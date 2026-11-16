@@ -94,7 +94,8 @@ export function createEntitySprite(
   const existing = entitySprites.get(entityId);
   if (existing) {
     const prevKey = entitySpriteKeys.get(entityId);
-    if (prevKey !== spriteKey) {
+    const existingSrc = existing.texture?.source as (Texture['source'] & { destroyed?: boolean }) | undefined;
+    if (prevKey !== spriteKey || existingSrc?.destroyed === true) {
       entitySpriteKeys.set(entityId, spriteKey);
       const texture = getTextureForSpriteKey(spriteKey);
       if (texture && texture !== Texture.EMPTY) {
@@ -184,6 +185,20 @@ export function clearAllSprites(): void {
     destroyEntitySprite(entityId);
   }
   entitySpriteKeys.clear();
+}
+
+/**
+ * Re-resolves textures for all active entity sprites against the currently active theme atlas.
+ */
+export function refreshEntitySpriteTextures(): void {
+  for (const [entityId, sprite] of entitySprites) {
+    const key = entitySpriteKeys.get(entityId);
+    if (!key) continue;
+    const texture = getTextureForSpriteKey(key);
+    if (texture && texture !== Texture.EMPTY) {
+      sprite.texture = texture;
+    }
+  }
 }
 
 export interface SpriteTelemetry {

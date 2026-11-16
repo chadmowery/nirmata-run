@@ -492,12 +492,19 @@ export class GBufferPass {
     const normalTex = getNormalAtlasTexture();
     const materialTex = getMaterialAtlasTexture();
     const emptySrc = safeGetPixiExport<typeof PIXI.Texture>(PIXI, 'Texture')?.EMPTY?.source;
-    const diffSrc = diffuseSource ?? emptySrc;
-    const normSrc = normalTex?.source ?? diffSrc;
-    const matSrc = materialTex?.source ?? diffSrc;
+    const isUsableSource = (
+      src: (Texture['source'] & { destroyed?: boolean }) | null | undefined,
+    ): src is Texture['source'] => Boolean(src && !src.destroyed);
 
-    const invW = 1 / Math.max(1, diffSrc?.width || 512);
-    const invH = 1 / Math.max(1, diffSrc?.height || 512);
+    const diffSrc = isUsableSource(diffuseSource) ? diffuseSource : emptySrc;
+    if (!isUsableSource(diffSrc)) {
+      return;
+    }
+    const normSrc = isUsableSource(normalTex?.source) ? normalTex!.source : diffSrc;
+    const matSrc = isUsableSource(materialTex?.source) ? materialTex!.source : diffSrc;
+
+    const invW = 1 / Math.max(1, diffSrc.width || 512);
+    const invH = 1 / Math.max(1, diffSrc.height || 512);
 
     this.normalShader.resources.uDiffuseAtlas = diffSrc;
     this.normalShader.resources.uNormalAtlas = normSrc;
@@ -521,19 +528,30 @@ export class GBufferPass {
 
     this.geometry.topology = 'triangle-list';
 
-    renderer.render({
-      container: this.normalContainer,
-      target: this.rtNormalSpec,
-      clear: true,
-      clearColor: [0.5, 0.5, 1.0, 0.0],
-    });
+    try {
+      renderer.render({
+        container: this.normalContainer,
+        target: this.rtNormalSpec,
+        clear: true,
+        clearColor: [0.5, 0.5, 1.0, 0.0],
+      });
 
-    renderer.render({
-      container: this.materialContainer,
-      target: this.rtMaterialHeight,
-      clear: true,
-      clearColor: [0.0, 0.0, 0.86, 0.0],
-    });
+      renderer.render({
+        container: this.materialContainer,
+        target: this.rtMaterialHeight,
+        clear: true,
+        clearColor: [0.0, 0.0, 0.86, 0.0],
+      });
+    } finally {
+      // Unbind transient sector atlas sources back to Texture.EMPTY.source between frames so
+      // unloading a previous theme atlas cannot trigger PixiJS BindGroup destruction on destroy().
+      if (isUsableSource(emptySrc)) {
+        this.normalShader.resources.uDiffuseAtlas = emptySrc;
+        this.normalShader.resources.uNormalAtlas = emptySrc;
+        this.materialShader.resources.uDiffuseAtlas = emptySrc;
+        this.materialShader.resources.uMaterialAtlas = emptySrc;
+      }
+    }
   }
 
   private zeroUnusedTailVertices(activeQuads: number): void {
@@ -560,10 +578,11 @@ export class GBufferPass {
       if (quadCount >= MAX_GBUFFER_QUADS) return;
       if (!sprite || !sprite.visible || sprite.alpha <= 0.01) return;
       const tex = sprite.texture;
-      if (!tex || (emptyTex && tex === emptyTex)) return;
+      const texSrc = tex?.source as (Texture['source'] & { destroyed?: boolean }) | null | undefined;
+      if (!tex || !texSrc || texSrc.destroyed || (emptyTex && tex === emptyTex)) return;
 
-      if (!primaryDiffuseSource && tex.source && (tex.source.width ?? 0) >= 64) {
-        primaryDiffuseSource = tex.source;
+      if (!primaryDiffuseSource && (texSrc.width ?? 0) >= 64) {
+        primaryDiffuseSource = texSrc;
       }
 
       const frameW = tex.frame?.width ?? tex.width ?? TILE_SIZE;

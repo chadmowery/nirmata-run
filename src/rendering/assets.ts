@@ -204,20 +204,22 @@ export async function loadThemedAssets(themeId: string = 'default'): Promise<voi
   const previousManifestSrc = THEME_MANIFEST_MAP[previousThemeId];
   const previousWasDedicated = Boolean(previousManifestSrc && previousManifestSrc !== 'assets/tileset.json');
 
-  // Unload previous dedicated non-default theme atlas if transitioning between sectors
-  if (previousWasDedicated && previousThemeId !== targetThemeId && previousManifestSrc !== manifestSrc) {
-    try {
-      if (typeof Assets.unload === 'function') {
-        await Assets.unload(`tileset_${previousThemeId}`);
+  const unloadPreviousTheme = async () => {
+    if (previousWasDedicated && previousThemeId !== targetThemeId && previousManifestSrc !== manifestSrc) {
+      try {
+        if (typeof Assets.unload === 'function') {
+          await Assets.unload(`tileset_${previousThemeId}`);
+        }
+        await unloadCompanionMaps(`tileset_${previousThemeId}`);
+      } catch {
+        // Ignore unload errors
       }
-      await unloadCompanionMaps(`tileset_${previousThemeId}`);
-    } catch {
-      // Ignore unload errors
     }
-  }
+  };
 
   if (!isDedicatedTheme) {
     activeThemeId = targetThemeId;
+    await unloadPreviousTheme();
     return;
   }
 
@@ -231,7 +233,9 @@ export async function loadThemedAssets(themeId: string = 'default'): Promise<voi
     await Assets.load(alias);
     await loadCompanionMaps(alias, manifestSrc!);
     activeThemeId = targetThemeId;
+    await unloadPreviousTheme();
   } catch {
     activeThemeId = 'default';
+    await unloadPreviousTheme();
   }
 }

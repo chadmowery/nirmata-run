@@ -47,6 +47,9 @@ vi.mock('pixi.js', () => {
     return {
       x: 0,
       y: 0,
+      visible: true,
+      rotation: 0,
+      position: { set: vi.fn() },
       scale: { x: 1, y: 1, set: vi.fn() },
       pivot: { x: 0, y: 0, set: vi.fn() },
       filters: null,
@@ -568,6 +571,69 @@ describe('Deferred Lighting System & Render Integration [LIGHT-03/04/07]', () =>
         expect(frag).toContain('memoryScale');
         expect(frag).not.toContain('+ vec3(0.015, 0.026, 0.052)');
         filter.destroy(true);
+      } finally {
+        delete glProg.from;
+      }
+    });
+
+    it('skips sprites with destroyed TextureSource and unbinds atlas resources back to Texture.EMPTY.source after capture', () => {
+      const glProg = PIXI.GlProgram as unknown as { from?: unknown };
+      glProg.from = vi.fn().mockReturnValue({});
+
+      try {
+        const gbuffer = new GBufferPass(10, 8);
+        const destroyedSrc = { width: 512, height: 512, destroyed: true };
+        const validSrc = { width: 512, height: 512, destroyed: false };
+
+        const makeSprite = (source: Record<string, unknown>) =>
+          ({
+            visible: true,
+            alpha: 1,
+            x: 32,
+            y: 32,
+            width: 32,
+            height: 32,
+            scale: { x: 1, y: 1 },
+            pivot: { x: 0, y: 0 },
+            rotation: 0,
+            filters: null,
+            texture: {
+              source,
+              frame: { x: 0, y: 0, width: 32, height: 32 },
+            },
+          }) as unknown as PIXI.Sprite;
+
+        const boundSourcesDuringRender: Array<unknown> = [];
+        const gbInternal = gbuffer as unknown as {
+          normalShader: { resources: Record<string, unknown> };
+          materialShader: { resources: Record<string, unknown> };
+        };
+        const fakeRenderer = {
+          render: vi.fn(() => {
+            boundSourcesDuringRender.push(gbInternal.normalShader.resources.uDiffuseAtlas);
+          }),
+        } as unknown as PIXI.Renderer;
+
+        const wc = new PIXI.Container();
+        const terrain = new PIXI.Container();
+        const items = new PIXI.Container();
+        const entities = new PIXI.Container();
+        (terrain.children as unknown[]).push(makeSprite(destroyedSrc), makeSprite(validSrc));
+
+        gbuffer.capture(fakeRenderer, wc, {
+          terrainLayer: terrain,
+          itemLayer: items,
+          entityLayer: entities,
+        });
+
+        expect(gbuffer.quadCount).toBe(1);
+        expect(boundSourcesDuringRender[0]).toBe(validSrc);
+        expect(gbInternal.normalShader.resources.uDiffuseAtlas).toBe(PIXI.Texture.EMPTY.source);
+        expect(gbInternal.normalShader.resources.uNormalAtlas).toBe(PIXI.Texture.EMPTY.source);
+        expect(gbInternal.materialShader.resources.uDiffuseAtlas).toBe(PIXI.Texture.EMPTY.source);
+        expect(gbInternal.materialShader.resources.uMaterialAtlas).toBe(PIXI.Texture.EMPTY.source);
+
+        gbuffer.destroy();
       } finally {
         delete glProg.from;
       }

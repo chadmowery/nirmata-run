@@ -120,5 +120,14 @@ describe('Companion Normal/Material Atlas Loading (Unpremultiplied)', () => {
 
     const sekiN = getNormalAtlasTexture('sekiguchi_biolabs');
     expect(sekiN?.source.alphaMode).toBe('no-premultiply-alpha');
+
+    // New theme must finish loading before previous theme is unloaded
+    const loadSekiOrder = mockLoad.mock.invocationCallOrder[
+      mockLoad.mock.calls.findIndex((c) => c[0] === 'tileset_sekiguchi_biolabs')
+    ];
+    const unloadTraxusOrder = mockUnload.mock.invocationCallOrder[
+      mockUnload.mock.calls.findIndex((c) => c[0] === 'tileset_traxus_foundry')
+    ];
+    expect(loadSekiOrder).toBeLessThan(unloadTraxusOrder);
   });
 });
