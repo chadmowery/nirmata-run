@@ -54,6 +54,9 @@ When extending or refactoring systems, preserve these established constraints (s
   - Configure `@vitest/coverage-v8` with enforceability thresholds for `@engine`, `@shared`, and `@server`.
 
 ### 3.2 Planned Feature Specifications
+- [ ] **Gamedata Studio Real-Time Hotload & Live Sync (`HOTLOAD-01..06`)**:
+  - Specification: [`docs/design/GAMEDATA-HOTLOAD-SPEC.md`](./design/GAMEDATA-HOTLOAD-SPEC.md).
+  - Target: Dual-path `BroadcastChannel` + SSE hotload pipeline, `[ ● LIVE SYNC ]` real-time scrub preview + `Cmd+S` commit/revert, sprite/animation clip editor & `public/assets/` GPU texture hot-reload, new `lighting.json` and `fov.json` (FOV/FOW) System Configs + live environment theme/condition overrides, real-time Web Audio synth voice morphing, smart ECS entity/shell reconciliation, and dev session auto-resume on browser reload.
 - [ ] **Cloud Persistence, Accounts, Auth & Three-Tier Progression (`v3.3`)**:
   - Specifications: [`docs/architecture/PERSISTENCE-AND-HOSTING-SPEC.md`](./architecture/PERSISTENCE-AND-HOSTING-SPEC.md), [`docs/design/ACCOUNTS-AUTH-AND-PROGRESSION-SPEC.md`](./design/ACCOUNTS-AUTH-AND-PROGRESSION-SPEC.md) (approved, ready to implement).
   - Target: Firebase App Hosting (Cloud Run with sticky sessions), 100% server-only Cloud Firestore persistence (local Emulator Suite in dev, replacing `FSProfileRepository`), Firebase Auth (Anonymous-first + Google/Email binding for ranked modes), `CALLSIGN#1234` discriminator identity, in-memory `SessionManager` with milestone/debounced gzipped checkpoints & lazy hydration, and 3-tier progression (Permanent Account + Multi-Week Seasons + Weekly Reset) with data-driven Awards and Claimable Commendations.

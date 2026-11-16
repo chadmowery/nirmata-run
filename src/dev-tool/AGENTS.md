@@ -34,5 +34,6 @@ The Dev Tool layer houses the developer-facing content authoring environment (Ga
    - Commands: `/perf [toggle|mini|standard|full|off|ghost|snap|export]`.
 
 ## 3. Related Documentation
+- [`GAMEDATA-HOTLOAD-SPEC.md`](../../docs/design/GAMEDATA-HOTLOAD-SPEC.md) — Real-time hotload, live scrub sync, asset texture reload, and session auto-resume specification.
 - [`GAMEDATA-DESIGN-TOOL.md`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/docs/design/GAMEDATA-DESIGN-TOOL.md) — Comprehensive functional and technical specification for Gamedata Studio.
 - [`PERFORMANCE-MONITOR-SPEC.md`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/docs/design/PERFORMANCE-MONITOR-SPEC.md) — Technical and visual specification for TK-PERF-900 Telemetry Monitor.
