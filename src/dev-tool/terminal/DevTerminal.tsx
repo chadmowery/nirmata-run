@@ -5,6 +5,8 @@ import { gameStore } from '@/game/ui/store';
 import type { DebugAPI } from '../debug/debug-api';
 import { usePerfStore } from '../perf/perf-store';
 import { perfCollector } from '../perf/perf-collector';
+import { useHotloadToastStore } from '../hotload/toast-store';
+import type { SectorCondition } from '@shared/components/environment';
 
 declare global {
   interface Window {
@@ -362,6 +364,172 @@ export function DevTerminal() {
           }
           break;
         }
+        case '/shell': {
+          const shellId = args[1];
+          if (!shellId) {
+            setHistory((prev) => [
+              ...prev,
+              { text: '[ERROR] Usage: /shell <archetypeId> (e.g. vanguard-v1, bastion-v1, ghost-v1)', type: 'error' },
+            ]);
+            break;
+          }
+          if (!window.__DEBUG__) {
+            setHistory((prev) => [
+              ...prev,
+              { text: '[WARN] /shell requires an active run session.', type: 'error' },
+            ]);
+            break;
+          }
+          await window.__DEBUG__.setShell(shellId);
+          setHistory((prev) => [
+            ...prev,
+            { text: `[OK] Hot-swapped player Shell to '${shellId}'`, type: 'output' },
+          ]);
+          break;
+        }
+        case '/theme': {
+          const rawTheme = args[1]?.toLowerCase();
+          if (!rawTheme) {
+            setHistory((prev) => [
+              ...prev,
+              {
+                text: '[ERROR] Usage: /theme <cyberacme|traxus|sekiguchi|dark_subnet|nucaloric|reset>',
+                type: 'error',
+              },
+            ]);
+            break;
+          }
+          const themeMap: Record<string, string> = {
+            cyberacme: 'cyberacme',
+            traxus: 'traxus_foundry',
+            traxus_foundry: 'traxus_foundry',
+            sekiguchi: 'sekiguchi_biolabs',
+            sekiguchi_biolabs: 'sekiguchi_biolabs',
+            dark_subnet: 'dark_subnet',
+            nucaloric: 'nucaloric',
+          };
+          const resolvedTheme = rawTheme === 'reset' ? null : (themeMap[rawTheme] ?? rawTheme);
+          const runtime = (globalThis as unknown as {
+            __NIRMATA_DEV_RUNTIME__?: {
+              renderSystem?: {
+                setEnvironmentOverride?: (o: { factionTheme?: string | null }) => void;
+              };
+            };
+          }).__NIRMATA_DEV_RUNTIME__;
+          runtime?.renderSystem?.setEnvironmentOverride?.({ factionTheme: resolvedTheme });
+          if (window.__DEBUG__ && resolvedTheme) {
+            await window.__DEBUG__.setTheme(resolvedTheme);
+          }
+          setHistory((prev) => [
+            ...prev,
+            {
+              text: resolvedTheme
+                ? `[OK] Faction theme switched to '${resolvedTheme}'`
+                : '[OK] Faction theme override cleared (following floor)',
+              type: 'output',
+            },
+          ]);
+          break;
+        }
+        case '/condition': {
+          const rawCond = args[1]?.toUpperCase();
+          if (!rawCond) {
+            setHistory((prev) => [
+              ...prev,
+              {
+                text: '[ERROR] Usage: /condition <nominal|thermal_surge|dark_subnet|overclocked_grid|reset>',
+                type: 'error',
+              },
+            ]);
+            break;
+          }
+          const resolvedCond = rawCond === 'RESET' ? null : (rawCond as SectorCondition);
+          const runtime = (globalThis as unknown as {
+            __NIRMATA_DEV_RUNTIME__?: {
+              renderSystem?: {
+                setEnvironmentOverride?: (o: { sectorCondition?: SectorCondition | null }) => void;
+              };
+              gameAudioSystem?: { updateAmbianceForFloor?: (n: number) => void };
+            };
+          }).__NIRMATA_DEV_RUNTIME__;
+          runtime?.renderSystem?.setEnvironmentOverride?.({ sectorCondition: resolvedCond });
+          if (window.__DEBUG__ && resolvedCond) {
+            await window.__DEBUG__.setCondition(resolvedCond);
+          }
+          runtime?.gameAudioSystem?.updateAmbianceForFloor?.(1);
+          setHistory((prev) => [
+            ...prev,
+            {
+              text: resolvedCond
+                ? `[OK] Sector condition switched to '${resolvedCond}'`
+                : '[OK] Sector condition override cleared (following floor)',
+              type: 'output',
+            },
+          ]);
+          break;
+        }
+        case '/spawn': {
+          const templateName = args[1];
+          if (!templateName) {
+            setHistory((prev) => [
+              ...prev,
+              { text: '[ERROR] Usage: /spawn <templateName> [dx] [dy]', type: 'error' },
+            ]);
+            break;
+          }
+          if (!window.__DEBUG__) {
+            setHistory((prev) => [
+              ...prev,
+              { text: '[WARN] /spawn requires an active run session.', type: 'error' },
+            ]);
+            break;
+          }
+          const dx = args[2] !== undefined ? Number(args[2]) : 1;
+          const dy = args[3] !== undefined ? Number(args[3]) : 0;
+          await window.__DEBUG__.spawnEntity(templateName, dx, dy);
+          setHistory((prev) => [
+            ...prev,
+            { text: `[OK] Spawned '${templateName}' at offset (${dx}, ${dy})`, type: 'output' },
+          ]);
+          break;
+        }
+        case '/hotload': {
+          const sub = args[1]?.toLowerCase() || 'status';
+          if (sub === 'reload-assets') {
+            const { hotReloadThemeAssets, getActiveThemeId } = await import('@/rendering/assets');
+            const theme = getActiveThemeId();
+            const ok = await hotReloadThemeAssets(theme, Date.now());
+            const runtime = (globalThis as unknown as {
+              __NIRMATA_DEV_RUNTIME__?: {
+                renderSystem?: {
+                  invalidateTilemap?: () => void;
+                  syncHotloadedSprites?: () => void;
+                };
+              };
+            }).__NIRMATA_DEV_RUNTIME__;
+            runtime?.renderSystem?.invalidateTilemap?.();
+            runtime?.renderSystem?.syncHotloadedSprites?.();
+            setHistory((prev) => [
+              ...prev,
+              {
+                text: ok
+                  ? `[OK] Hot-reloaded atlas & companion maps for theme '${theme}'`
+                  : `[WARN] Asset reload returned false for theme '${theme}'`,
+                type: ok ? 'output' : 'error',
+              },
+            ]);
+          } else {
+            const hl = useHotloadToastStore.getState();
+            setHistory((prev) => [
+              ...prev,
+              {
+                text: `[HOTLOAD] SSE: ${hl.sseConnected ? 'CONNECTED' : 'DISCONNECTED'} | LIVE_SYNC: ${hl.liveSyncActive ? 'ACTIVE' : 'IDLE'} | LAST: ${hl.activeToast ? `${hl.activeToast.domain}//${hl.activeToast.targetId}` : 'NONE'}`,
+                type: 'output',
+              },
+            ]);
+          }
+          break;
+        }
         case '/close':
           setIsVisible(false);
           break;
@@ -393,6 +561,11 @@ export function DevTerminal() {
             { text: '  /show-map - Reveal the entire floor map and clear fog of war', type: 'output' },
             { text: '  /debug-ai [mapType] - Toggle AI Dijkstra heatmap and telemetry overlay', type: 'output' },
             { text: '  /perf [toggle|mini|standard|full|off|ghost|snap|export] - Telemetry oscilloscope controls', type: 'output' },
+            { text: '  /shell <archetypeId> - Hot-swap active player Shell mid-run', type: 'output' },
+            { text: '  /theme <cyberacme|traxus|sekiguchi|dark_subnet|nucaloric|reset> - Preview faction theme', type: 'output' },
+            { text: '  /condition <nominal|thermal_surge|dark_subnet|overclocked_grid|reset> - Preview sector condition', type: 'output' },
+            { text: '  /spawn <templateName> [dx] [dy] - Spawn entity template adjacent to player', type: 'output' },
+            { text: '  /hotload [status|reload-assets] - Hotload connection status or force atlas reload', type: 'output' },
             { text: '  /clearsessions - Clear all server sessions', type: 'output' },
             { text: '  /close - Close this terminal', type: 'output' },
             { text: '  /list - Show this list', type: 'output' },

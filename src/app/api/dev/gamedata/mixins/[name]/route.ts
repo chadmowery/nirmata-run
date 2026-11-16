@@ -4,6 +4,9 @@ import path from 'path';
 import { checkNonProductionOnly } from '@/server/security/env-gate';
 import { resolveFilePath, atomicWrite, errorResponse, regenerateTemplateIndex } from '../../utils';
 import { RawTemplateSchema } from '../../schemas';
+import { hotloadBus } from '@/server/dev/hotload-bus';
+import { reconcileMixinAcrossSessions } from '@/server/dev/hotload-reconciler';
+import type { RawTemplate } from '@engine/entity/types';
 
 const DIR = path.join(process.cwd(), 'src/game/entities/templates/mixins');
 
@@ -44,7 +47,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ name: st
     }
 
     await atomicWrite(filePath, body);
-    return NextResponse.json({ success: true });
+    const sessionPatches = reconcileMixinAcrossSessions(name, body as RawTemplate);
+    hotloadBus.publishCommit('mixin', name, body, sessionPatches);
+    return NextResponse.json({ success: true, sessionPatches });
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Internal server error', 500);
   }

@@ -225,6 +225,54 @@ export class DebugAPI {
   }
 
   /**
+   * Hot-swaps the player's active Shell archetype in the running session.
+   */
+  async setShell(shellId: string): Promise<void> {
+    await this.sendAction({
+      type: 'DEBUG_COMMAND',
+      command: 'SET_SHELL',
+      args: { shellId },
+    });
+    logger.info(`DEBUG: Switched Shell to ${shellId}`, 'DEBUG');
+  }
+
+  /**
+   * Sets or resets the active floor's faction theme on the server session.
+   */
+  async setTheme(theme: string): Promise<void> {
+    await this.sendAction({
+      type: 'DEBUG_COMMAND',
+      command: 'SET_THEME',
+      args: { theme },
+    });
+    logger.info(`DEBUG: Set floor theme to ${theme}`, 'DEBUG');
+  }
+
+  /**
+   * Sets or resets the active floor's sector condition on the server session.
+   */
+  async setCondition(condition: string): Promise<void> {
+    await this.sendAction({
+      type: 'DEBUG_COMMAND',
+      command: 'SET_CONDITION',
+      args: { condition },
+    });
+    logger.info(`DEBUG: Set sector condition to ${condition}`, 'DEBUG');
+  }
+
+  /**
+   * Spawns an entity template adjacent to the player.
+   */
+  async spawnEntity(templateName: string, dx = 1, dy = 0): Promise<void> {
+    await this.sendAction({
+      type: 'DEBUG_COMMAND',
+      command: 'SPAWN_ENTITY',
+      args: { templateName, dx, dy },
+    });
+    logger.info(`DEBUG: Spawned ${templateName} at offset (${dx}, ${dy})`, 'DEBUG');
+  }
+
+  /**
    * TK-PERF-900 Telemetry Monitor Controls
    */
   readonly perf = {

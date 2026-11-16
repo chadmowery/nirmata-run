@@ -5,6 +5,7 @@ import { checkNonProductionOnly } from '@/server/security/env-gate';
 import { resolveFilePath, atomicWrite, errorResponse, regenerateTemplateIndex } from '../../utils';
 import { RoomPrefabTemplateSchema } from '../../schemas';
 import { validatePrefabRules } from '../../prefab-validator';
+import { hotloadBus } from '@/server/dev/hotload-bus';
 
 const DIR = path.join(process.cwd(), 'src/game/generation/prefabs');
 
@@ -53,6 +54,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ name: st
     }
 
     await atomicWrite(filePath, body);
+    hotloadBus.publishCommit('prefab', name, body);
     return NextResponse.json({ success: true });
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Internal server error', 500);

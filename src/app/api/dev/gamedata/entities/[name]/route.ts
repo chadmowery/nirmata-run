@@ -6,6 +6,9 @@ import { resolveFilePath, atomicWrite, errorResponse, regenerateTemplateIndex } 
 import { RawTemplateSchema } from '../../schemas';
 import { validateEcsRules } from '../../ecs-rules';
 import { COMPONENTS_REGISTRY } from '@shared/components';
+import { hotloadBus } from '@/server/dev/hotload-bus';
+import { reconcileEntityTemplateAcrossSessions } from '@/server/dev/hotload-reconciler';
+import type { RawTemplate } from '@engine/entity/types';
 
 const DIR = path.join(process.cwd(), 'src/game/entities/templates');
 
@@ -66,7 +69,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ name: st
     }
 
     await atomicWrite(filePath, body);
-    return NextResponse.json({ success: true });
+    const sessionPatches = reconcileEntityTemplateAcrossSessions(name, body as RawTemplate);
+    hotloadBus.publishCommit('entity', name, body, sessionPatches);
+    return NextResponse.json({ success: true, sessionPatches });
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Internal server error', 500);
   }

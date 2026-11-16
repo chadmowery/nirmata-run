@@ -18,6 +18,19 @@ import { addHealIntent } from '@/game/systems/combat';
 import { GameplayEvents } from '@shared/events/types';
 import * as InventoryUtil from '@shared/utils/inventory-util';
 import { sessionManager } from '@server/session/session-manager';
+import { switchPlayerShellInSession } from '@/server/dev/hotload-reconciler';
+import type { FactionTheme, SectorCondition } from '@shared/components/environment';
+import { COMPONENTS_REGISTRY } from '@shared/components';
+import type { ComponentDef } from '@engine/ecs/types';
+import type { ComponentRegistry } from '@engine/entity/types';
+
+const componentsMap: Record<string, ComponentDef<unknown>> = Object.fromEntries(
+  COMPONENTS_REGISTRY.map((c) => [c.key, c as ComponentDef<unknown>]),
+);
+const sharedComponentRegistry: ComponentRegistry = {
+  get: (key: string) => componentsMap[key],
+  has: (key: string) => !!componentsMap[key],
+};
 
 export interface ServerDebugCommandArgs {
   amount?: number | string;
@@ -184,6 +197,59 @@ export function handleServerDebugCommand(
 
     case 'CLEAR_SESSIONS': {
       sessionManager.clear();
+      break;
+    }
+
+    case 'SET_SHELL': {
+      const targetShellId = typeof args.shellId === 'string' ? args.shellId : '';
+      if (targetShellId && sessionId) {
+        switchPlayerShellInSession(sessionId, targetShellId);
+      }
+      break;
+    }
+
+    case 'SET_THEME': {
+      const theme = (args.theme as FactionTheme | undefined) || 'cyberacme';
+      const floorIds = world.query(FloorState);
+      if (floorIds.length > 0) {
+        world.patchComponent(floorIds[0], FloorState, { factionTheme: theme });
+      }
+      break;
+    }
+
+    case 'SET_CONDITION': {
+      const condition = (args.condition as SectorCondition | undefined) || 'NOMINAL';
+      const floorIds = world.query(FloorState);
+      if (floorIds.length > 0) {
+        world.patchComponent(floorIds[0], FloorState, { sectorCondition: condition });
+      }
+      break;
+    }
+
+    case 'SPAWN_ENTITY': {
+      const templateName = typeof args.templateName === 'string' ? args.templateName : '';
+      const session = sessionId ? sessionManager.getSession(sessionId) : undefined;
+      const pPos = world.getComponent(playerId, Position);
+      if (templateName && session?.entityFactory && pPos) {
+        const dx = Number(args.dx ?? 1);
+        const dy = Number(args.dy ?? 0);
+        const tx = Math.max(0, Math.min(session.grid.width - 1, pPos.x + (Number.isFinite(dx) ? dx : 1)));
+        const ty = Math.max(0, Math.min(session.grid.height - 1, pPos.y + (Number.isFinite(dy) ? dy : 0)));
+        try {
+          const spawnedId = session.entityFactory.create(
+            session.world,
+            templateName,
+            sharedComponentRegistry,
+            { position: { x: tx, y: ty } },
+          );
+          session.grid.addEntity(spawnedId, tx, ty);
+        } catch (err) {
+          logger.warn(
+            `SPAWN_ENTITY failed for '${templateName}': ${err instanceof Error ? err.message : String(err)}`,
+            'DEBUG',
+          );
+        }
+      }
       break;
     }
 
