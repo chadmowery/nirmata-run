@@ -249,12 +249,14 @@ export class LightingSystem {
       // Prefer visual sprite position so point lights glide seamlessly during move tweens!
       const pivotX = sprite?.pivot?.x ?? 0;
       const pivotY = sprite?.pivot?.y ?? 0;
-      const worldX = sprite
-        ? sprite.x + (pivotX === 0 ? TILE_SIZE * 0.5 : 0)
-        : pos.x * TILE_SIZE + TILE_SIZE * 0.5;
-      const worldY = sprite
-        ? sprite.y + (pivotY === 0 ? TILE_SIZE * 0.5 : 0)
-        : pos.y * TILE_SIZE + TILE_SIZE * 0.5;
+      const worldX =
+        (sprite
+          ? sprite.x + (pivotX === 0 ? TILE_SIZE * 0.5 : 0)
+          : pos.x * TILE_SIZE + TILE_SIZE * 0.5) + (light.offsetX ?? 0);
+      const worldY =
+        (sprite
+          ? sprite.y + (pivotY === 0 ? TILE_SIZE * 0.5 : 0)
+          : pos.y * TILE_SIZE + TILE_SIZE * 0.5) + (light.offsetY ?? 0);
 
       const screenX = worldX * camZoom + camX;
       const screenY = worldY * camZoom + camY;
@@ -280,6 +282,9 @@ export class LightingSystem {
         falloff: light.falloff,
         castsShadows: light.castsShadows,
         isBeaconPing: false,
+        ...(light.animation?.type === 'RADAR_SWEEP'
+          ? { sweepAngleRad: evalResult.angleOffsetRad }
+          : {}),
       };
 
       if (isPlayer) {

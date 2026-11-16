@@ -297,6 +297,55 @@ export function LightSourceSubEditor({ values, onFieldChange }: LightSourceSubEd
         </div>
       </div>
 
+      {/* Sub-tile Offset X / Offset Y */}
+      <div className={styles.fieldRow}>
+        <label className={styles.fieldLabel}>Offset X / Y (px)</label>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+          <span style={{ fontSize: '10px', color: 'var(--c-text-dim, #79889e)' }}>X:</span>
+          <input
+            type="range"
+            min={-32}
+            max={32}
+            step={1}
+            value={offsetX}
+            onChange={(e) => onFieldChange('offsetX', Number(e.target.value))}
+            style={{ flex: 1 }}
+          />
+          <input
+            type="number"
+            aria-label="Light Offset X"
+            className={styles.fieldInput}
+            style={{ width: '54px' }}
+            min={-32}
+            max={32}
+            step={1}
+            value={offsetX}
+            onChange={(e) => onFieldChange('offsetX', Number(e.target.value))}
+          />
+          <span style={{ fontSize: '10px', color: 'var(--c-text-dim, #79889e)' }}>Y:</span>
+          <input
+            type="range"
+            min={-32}
+            max={32}
+            step={1}
+            value={offsetY}
+            onChange={(e) => onFieldChange('offsetY', Number(e.target.value))}
+            style={{ flex: 1 }}
+          />
+          <input
+            type="number"
+            aria-label="Light Offset Y"
+            className={styles.fieldInput}
+            style={{ width: '54px' }}
+            min={-32}
+            max={32}
+            step={1}
+            value={offsetY}
+            onChange={(e) => onFieldChange('offsetY', Number(e.target.value))}
+          />
+        </div>
+      </div>
+
       {/* Cast Shadows Toggle */}
       <div className={styles.fieldRow}>
         <label className={styles.fieldLabel}>Casts Shadows</label>

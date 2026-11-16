@@ -301,6 +301,8 @@ export function ComponentFieldGroup({
                 'height',
                 'falloff',
                 'castsShadows',
+                'offsetX',
+                'offsetY',
                 'animation',
               ].includes(field.key)),
         )

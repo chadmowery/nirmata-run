@@ -137,7 +137,7 @@ void main(void) {
     float lu = (float(i) + 0.5) / ${MAX_PRIMARY_LIGHTS}.0;
     vec4 p0 = texture(uLightDataTex, vec2(lu, 0.5 / 3.0)); // x, y, radiusPx, intensity
     vec4 p1 = texture(uLightDataTex, vec2(lu, 1.5 / 3.0)); // r, g, b, heightPx
-    vec4 p2 = texture(uLightDataTex, vec2(lu, 2.5 / 3.0)); // falloff, castsShadows, isBeaconPing, _
+    vec4 p2 = texture(uLightDataTex, vec2(lu, 2.5 / 3.0)); // falloff, castsShadows, isBeaconPing, sweepAngleRad
 
     vec2 lightPx = p0.xy;
     float radiusPx = p0.z * uCameraZoom;
@@ -154,6 +154,14 @@ void main(void) {
     float window = clamp(1.0 - dNorm * dNorm, 0.0, 1.0);
     window *= window;
     float atten = (window / (dNorm * dNorm * max(0.2, p2.x) * 4.0 + 1.0)) * intensity;
+
+    // RADAR_SWEEP angular beam modulation (p2.w >= 0.0)
+    if (p2.w >= 0.0 && dist > 1.0) {
+      float fragAngle = atan(-delta.y, -delta.x);
+      float beamCos = cos(fragAngle - p2.w);
+      float beamFactor = mix(0.20, 1.35, smoothstep(-0.25, 0.95, beamCos));
+      atten *= beamFactor;
+    }
 
     vec3 lightCol = p1.rgb;
     float isBeacon = p2.z;
@@ -419,7 +427,7 @@ export class DeferredLightFilter extends BaseFilter {
       lb[o2] = l.falloff;
       lb[o2 + 1] = l.castsShadows ? 1.0 : 0.0;
       lb[o2 + 2] = l.isBeaconPing ? 1.0 : 0.0;
-      lb[o2 + 3] = 0.0;
+      lb[o2 + 3] = typeof l.sweepAngleRad === 'number' ? l.sweepAngleRad : -1.0;
     }
     this.lightDataSource.update();
 

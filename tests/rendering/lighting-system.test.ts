@@ -194,29 +194,33 @@ describe('Deferred Lighting System & Render Integration [LIGHT-03/04/07]', () =>
 
     const flicker: LightSourceData = {
       ...base,
-      animation: { type: 'FLICKER', speed: 3, amplitude: 0.6 },
+      animation: { type: 'FLICKER', speed: 3, amplitude: 0.6, secondaryColor: '#00ff00' },
     };
-    const fValues = new Set(
-      Array.from({ length: 10 }, (_, i) => evaluateLightAnimation(flicker, i * 0.09, 0).intensityMultiplier.toFixed(3)),
-    );
+    const fEvals = Array.from({ length: 12 }, (_, i) => evaluateLightAnimation(flicker, i * 0.09, 0));
+    const fValues = new Set(fEvals.map((e) => e.intensityMultiplier.toFixed(3)));
     expect(fValues.size).toBeGreaterThan(2);
+    expect(fEvals.some((e) => e.colorRgb[1] > 0.1)).toBe(true);
 
     const strobe: LightSourceData = {
       ...base,
-      animation: { type: 'STROBE', speed: 2, amplitude: 0.5 },
+      animation: { type: 'STROBE', speed: 2, amplitude: 0.5, secondaryColor: '#0000ff' },
     };
     const stOn = evaluateLightAnimation(strobe, 0.05, 0);
     const stOff = evaluateLightAnimation(strobe, 0.3, 0);
     expect(stOn.intensityMultiplier).toBeGreaterThan(stOff.intensityMultiplier);
+    expect(stOn.colorRgb[0]).toBeCloseTo(1, 2);
+    expect(stOff.colorRgb[2]).toBeCloseTo(1, 2);
 
     const sweep: LightSourceData = {
       ...base,
-      animation: { type: 'RADAR_SWEEP', speed: 1, amplitude: 0.5 },
+      animation: { type: 'RADAR_SWEEP', speed: 1, amplitude: 0.5, secondaryColor: '#00ff00' },
     };
     const sw0 = evaluateLightAnimation(sweep, 0, 0);
+    const swQuarter = evaluateLightAnimation(sweep, 0.25, 0);
     const swHalf = evaluateLightAnimation(sweep, 0.5, 0);
     expect(sw0.angleOffsetRad).toBe(0);
     expect(swHalf.angleOffsetRad).toBeGreaterThan(3.0);
+    expect(swQuarter.colorRgb[1]).toBeCloseTo(1, 2);
   });
 
   it('tracks transient lights, decays/expires them over deltaMs, and resolves faction themes', () => {
@@ -828,6 +832,96 @@ describe('Deferred Lighting System & Render Integration [LIGHT-03/04/07]', () =>
         );
 
         gbuffer.destroy();
+      } finally {
+        delete glProg.from;
+      }
+    });
+
+    it('applies LightSource offsetX/offsetY and uploads RADAR_SWEEP sweepAngleRad into p2.w (HIGH-02)', () => {
+      const bufferSourceMock = vi.mocked(PIXI.BufferImageSource);
+      bufferSourceMock.mockClear();
+      const glProg = PIXI.GlProgram as unknown as { from?: ReturnType<typeof vi.fn> };
+      const fromMock = vi.fn().mockReturnValue({});
+      glProg.from = fromMock;
+
+      try {
+        const lighting = new LightingSystem(20, 15);
+        const consoleEnt = world.createEntity();
+        world.addComponent(consoleEnt, Position, { x: 5, y: 5 });
+        world.addComponent(
+          consoleEnt,
+          LightSource,
+          LightSource.schema.parse({
+            color: '#10b981',
+            intensity: 1.2,
+            radius: 112,
+            offsetX: 12,
+            offsetY: -8,
+            animation: { type: 'RADAR_SWEEP', speed: 2, amplitude: 0.4, secondaryColor: '#00f0ff' },
+          }),
+        );
+
+        lighting.update({
+          world,
+          worldContainer: { x: 0, y: 0, scale: { x: 1, y: 1 }, filters: null } as never,
+          terrainLayer: { children: [] } as never,
+          itemLayer: { children: [] } as never,
+          entityLayer: { children: [] } as never,
+          spriteMap: new Map(),
+          gridWidth: 20,
+          gridHeight: 15,
+          deltaMs: 250,
+          enabled: true,
+          playerEntityId: playerId,
+        });
+
+        const lights = lighting.getPrimaryLights();
+        const sweepLight = lights.find((l) => typeof l.sweepAngleRad === 'number');
+        expect(sweepLight).toBeDefined();
+        expect(sweepLight!.screenX).toBe(5 * 32 + 16 + 12);
+        expect(sweepLight!.screenY).toBe(5 * 32 + 16 - 8);
+        expect(sweepLight!.sweepAngleRad).toBeGreaterThanOrEqual(0);
+
+        const filter = new DeferredLightFilter(
+          PIXI.Texture.EMPTY,
+          PIXI.Texture.EMPTY,
+          PIXI.Texture.EMPTY,
+        );
+        const shaderOpts = fromMock.mock.calls.find((c) =>
+          String((c[0] as { fragment?: string })?.fragment ?? '').includes('uLightDataTex'),
+        )?.[0] as { fragment?: string } | undefined;
+        expect(shaderOpts?.fragment ?? '').toContain('p2.w >= 0.0');
+
+        const lightBuf = (
+          bufferSourceMock.mock.calls.find((c) => (c[0] as { height?: number }).height === 3)?.[0] as
+            | { resource: Float32Array }
+            | undefined
+        )?.resource;
+        expect(lightBuf).toBeDefined();
+
+        filter.uploadUniforms({
+          cameraX: 0,
+          cameraY: 0,
+          cameraZoom: 1,
+          gridWidth: 20,
+          gridHeight: 15,
+          timeSec: 0.25,
+          ambientRgb: [0.05, 0.08, 0.14],
+          ambientIntensity: 0.18,
+          shadowTintRgb: [0.05, 0.08, 0.14],
+          conditionTintRgb: [1, 1, 1],
+          floorPulseAmp: 0,
+          floorPulseRgb: [0, 0, 0],
+          primaryLights: [...lights],
+          microLights: [],
+        });
+
+        // Row 2 channel W for non-sweep player light (index 0) is -1.0, and sweepLight (index 1) is >= 0
+        expect(lightBuf![64 * 4 * 2 + 0 * 4 + 3]).toBe(-1.0);
+        expect(lightBuf![64 * 4 * 2 + 1 * 4 + 3]).toBeCloseTo(sweepLight!.sweepAngleRad!, 4);
+
+        filter.destroy(true);
+        lighting.destroy();
       } finally {
         delete glProg.from;
       }

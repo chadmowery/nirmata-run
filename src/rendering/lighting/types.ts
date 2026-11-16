@@ -35,6 +35,8 @@ export interface RenderLightDescriptor {
   falloff: number;
   castsShadows: boolean;
   isBeaconPing: boolean;
+  /** Optional RADAR_SWEEP beam angle in radians `[0, 2π)`; omitted / `< 0` when inactive. */
+  sweepAngleRad?: number;
 }
 
 export interface MicroLightDescriptor {
@@ -187,6 +189,19 @@ export function resolveFactionAmbientProfile(
   return FACTION_AMBIENT_PROFILES[theme] ?? DEFAULT_CYBERACME_PROFILE;
 }
 
+function lerpRgb(
+  a: [number, number, number],
+  b: [number, number, number],
+  t: number,
+): [number, number, number] {
+  const k = Math.max(0, Math.min(1, t));
+  return [
+    a[0] * (1 - k) + b[0] * k,
+    a[1] * (1 - k) + b[1] * k,
+    a[2] * (1 - k) + b[2] * k,
+  ];
+}
+
 /**
  * Evaluates procedural waveforms (`STATIC`, `PULSE`, `FLICKER`, `STROBE`, `RADAR_SWEEP`)
  * per DEFERRED-LIGHTING-RENDERING.md §3.5 deterministically from elapsed time & entity phase offset.
@@ -206,23 +221,16 @@ export function evaluateLightAnimation(
   const amp = anim.amplitude ?? 0.25;
   const phase = timeSec * speed + entityPhaseOffset;
   const type: LightAnimationType = anim.type;
+  const secRgb = anim.secondaryColor ? parseHexColorNormalized(anim.secondaryColor) : null;
 
   if (type === 'PULSE') {
     const wave = 0.5 + 0.5 * Math.sin(phase * Math.PI * 2);
     const mult = Math.max(0.05, 1.0 - amp + amp * wave * 2.0 * 0.5);
-    if (anim.secondaryColor) {
-      const secRgb = parseHexColorNormalized(anim.secondaryColor);
-      return {
-        intensityMultiplier: mult,
-        colorRgb: [
-          baseRgb[0] * (1 - wave) + secRgb[0] * wave,
-          baseRgb[1] * (1 - wave) + secRgb[1] * wave,
-          baseRgb[2] * (1 - wave) + secRgb[2] * wave,
-        ],
-        angleOffsetRad: 0,
-      };
-    }
-    return { intensityMultiplier: mult, colorRgb: baseRgb, angleOffsetRad: 0 };
+    return {
+      intensityMultiplier: mult,
+      colorRgb: secRgb ? lerpRgb(baseRgb, secRgb, wave) : baseRgb,
+      angleOffsetRad: 0,
+    };
   }
 
   if (type === 'FLICKER') {
@@ -233,20 +241,37 @@ export function evaluateLightAnimation(
     // Occasional micro-brownout dip
     const dip = rand < 0.14 ? 0.35 : 0.72 + rand * 0.28;
     const mult = Math.max(0.1, 1.0 - amp + amp * dip);
-    return { intensityMultiplier: mult, colorRgb: baseRgb, angleOffsetRad: 0 };
+    const colorBlend = rand < 0.24 ? Math.min(1, 0.55 + amp * 0.45) : (1 - rand) * amp * 0.65;
+    return {
+      intensityMultiplier: mult,
+      colorRgb: secRgb ? lerpRgb(baseRgb, secRgb, colorBlend) : baseRgb,
+      angleOffsetRad: 0,
+    };
   }
 
   if (type === 'STROBE') {
     const frac = phase - Math.floor(phase);
-    const mult = frac < 0.22 ? 1.0 + amp * 0.8 : Math.max(0.08, 0.2 - amp * 0.1);
-    return { intensityMultiplier: mult, colorRgb: baseRgb, angleOffsetRad: 0 };
+    const isFlashPeak = frac < 0.22;
+    const mult = isFlashPeak ? 1.0 + amp * 0.8 : Math.max(0.08, 0.2 - amp * 0.1);
+    return {
+      intensityMultiplier: mult,
+      colorRgb: secRgb && !isFlashPeak ? secRgb : baseRgb,
+      angleOffsetRad: 0,
+    };
   }
 
   // RADAR_SWEEP
-  const angle = phase * Math.PI * 2;
+  const twoPi = Math.PI * 2;
+  const rawAngle = phase * twoPi;
+  const angle = ((rawAngle % twoPi) + twoPi) % twoPi;
   const sweepPulse = 0.75 + 0.25 * Math.max(0, Math.cos(angle));
   const mult = Math.max(0.2, 1.0 - amp * 0.5 + amp * 0.5 * sweepPulse);
-  return { intensityMultiplier: mult, colorRgb: baseRgb, angleOffsetRad: angle };
+  const sweepBlend = 0.5 + 0.5 * Math.sin(angle);
+  return {
+    intensityMultiplier: mult,
+    colorRgb: secRgb ? lerpRgb(baseRgb, secRgb, sweepBlend) : baseRgb,
+    angleOffsetRad: angle,
+  };
 }
 
 /**

@@ -123,7 +123,15 @@ export function renderLitPreviewFrame(
         const ndotl = Math.max(0, (nx * dx + ny * dy + nz * dz) / dist3d);
         const normD = Math.min(1, dist2d / radiusPx);
         const window = Math.pow(Math.max(0, 1 - normD * normD), 2);
-        const atten = (window / (normD * normD * Math.max(0.2, falloff) * 4.0 + 1.0)) * lIntensity;
+        let atten = (window / (normD * normD * Math.max(0.2, falloff) * 4.0 + 1.0)) * lIntensity;
+
+        if (effectiveLight.animation?.type === 'RADAR_SWEEP' && dist2d > 1) {
+          const fragAngle = Math.atan2(-dy, -dx);
+          const beamCos = Math.cos(fragAngle - animEval.angleOffsetRad);
+          const tBeam = Math.max(0, Math.min(1, (beamCos - -0.25) / (0.95 - -0.25)));
+          const smoothBeam = tBeam * tBeam * (3 - 2 * tBeam);
+          atten *= 0.2 + (1.35 - 0.2) * smoothBeam;
+        }
 
         // 8-step 2.5D shadow raymarch
         let shadow = 1.0;
