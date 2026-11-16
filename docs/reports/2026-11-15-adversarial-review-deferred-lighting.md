@@ -22,7 +22,7 @@ An adversarial code and architecture audit was conducted across the 12 commits o
   - **Theme Transition BindGroup Safety**: [`GBufferPass.capture()`](../../src/rendering/lighting/gbuffer-pass.ts#L545-L554) unbinds transient sector atlas sources back to `PIXI.Texture.EMPTY.source` in a `finally` block so unloading previous themed atlases does not corrupt WebGL `BindGroup` listeners.
   - **Zero-Allocation Pooled Particle & Micro-Light Clustering**: [`ParticlePool`](../../src/rendering/particles/particle-pool.ts) pre-allocates 512 particle slots and 128 cluster buckets, spatially hashing emissive particles into `12 × 12 px` cells capped to `MAX_MICRO_LIGHTS = 64` without per-frame heap allocations.
   - **Strict Layer Import Hygiene**: `@shared`, `@rendering`, `@client`, `@server`, and `@dev-tool` respect all import boundaries in [`AGENTS.md`](../../AGENTS.md).
-- **Verdict**: **CHANGES REQUIRED BEFORE MERGE**. Despite clean test/lint/typecheck gates, the audit uncovered **2 Critical (`P0`) blockers**, **3 High (`P1`) architectural/spec violations**, **5 Medium (`P2`) spec/shader gaps**, and **1 Low (`P3`) minor issue** that degrade visual correctness, violate renderer read-only ECS invariants, and break the Gamedata Studio 3×3 lit preview.
+- **Verdict**: **ALL 11 FINDINGS RESOLVED** (Remediation verified on branch `fix/deferred-lighting-issues`: `249` test files / `1,676` tests passing, `npm run typecheck` `0` errors, `npm run lint` `0` errors/warnings). Initially, the audit uncovered **2 Critical (`P0`) blockers**, **3 High (`P1`) architectural/spec violations**, **5 Medium (`P2`) spec/shader gaps**, and **1 Low (`P3`) minor issue**, all of which have now been resolved and verified.
 
 ### Adversarial Findings Scorecard
 
@@ -365,6 +365,6 @@ Prioritized checklist to resolve all findings before merging `feature/deferred-l
   - Remove unused `rtAlbedo` allocation, scale Mode 0 shadow opacity by `vColor.a` (or exclude heat ghost sprites), and sync `GlitchFilter` horizontal slice offsets (`MED-04`).
   - Update `surface-compiler.cjs` heights (`wall = 32px`, `door` laser beam `O = 0, Z = 16px, E = 255`, `prop_dead_drop = 14px`, `prop_locker` / `prop_safe_locked = 24px`), recompile `_n.png` / `_m.png` atlases, and update master preview sheets (`MED-05`).
   - Replace `Math.random()` in `ParticleSystem` with a deterministic PRNG and destroy `sharedParticleSystem` on `disposeAllEmitters()` (`LOW-01`).
-- [ ] **7. Expand Regression Tests & Re-verify (`LIGHT-07`)**
+- [x] **7. Expand Regression Tests & Re-verify (`LIGHT-07`)**
   - Add unit tests covering `offsetX`/`offsetY`, `STROBE`/`FLICKER`/`RADAR_SWEEP` `secondaryColor` and angular sweep, floor-transition player light baseline preservation, `Extended_Sight.sys` `visionRadius * TILE_SIZE` + `height = 28`, `Heat >= 100%` `#ff0055` modulation, unscaled `MicroLightDescriptor.radiusPx` under zoom, and `InspectorLitTilePreview` channel decoding.
   - Run `npm test`, `npm run typecheck`, and `npm run lint`.
