@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   SoundCueDef,
   SynthPatchConfig,
@@ -11,6 +11,11 @@ import {
 import { useGamedataStore } from '../store';
 import soundCuesRaw from '@/game/audio/sound-cues.json';
 import { getAmbianceConfig } from '@/game/config/ambiance';
+import {
+  postHotloadCommit,
+  postHotloadPreview,
+  postHotloadRevert,
+} from '@dev-tool/hotload/studio-sync';
 import styles from './editors.module.css';
 
 interface Props {
@@ -61,9 +66,12 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
     setDirty,
     setActiveEffectiveData,
     setActiveValidationStatus,
+    liveSyncEnabled,
+    isDirty,
   } = useGamedataStore();
 
   const [cueData, setCueData] = useState<SoundCueDef | null>(null);
+  const baselineRef = useRef<SoundCueDef | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [isPlayingCue, setIsPlayingCue] = useState<boolean>(false);
@@ -100,6 +108,7 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
         .then((r) => r.json())
         .then((data: SoundCueDef) => {
           setCueData(data);
+          baselineRef.current = structuredClone(data);
           setDirty(false);
         })
         .catch(() => setErrors(['Failed to load sound cue']));
@@ -109,14 +118,33 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
     }
   }, [name, isNew, cloneFrom, setDirty]);
 
-  // Sync to Gamedata Inspector
+  // Sync to Gamedata Inspector & LIVE_SYNC synth voice morphing
   useEffect(() => {
     if (cueData) {
       setActiveEffectiveData(cueData);
       const valid = Boolean(cueData.id && cueData.bus && cueData.mode);
       setActiveValidationStatus({ zodValid: valid });
+      if (isDirty) {
+        getAudioEngine().hotUpdateCue?.(cueData);
+        if (liveSyncEnabled && !isNew && cueData.id) {
+          postHotloadPreview('audioCue', cueData.id, cueData, 16);
+        }
+      }
     }
-  }, [cueData, setActiveEffectiveData, setActiveValidationStatus]);
+  }, [cueData, isDirty, liveSyncEnabled, isNew, setActiveEffectiveData, setActiveValidationStatus]);
+
+  useEffect(() => {
+    const onRevert = () => {
+      if (!baselineRef.current || isNew) return;
+      const restored = structuredClone(baselineRef.current);
+      setCueData(restored);
+      setDirty(false);
+      getAudioEngine().hotUpdateCue?.(restored);
+      postHotloadRevert('audioCue', restored.id || name, restored);
+    };
+    window.addEventListener('gamedata-revert', onRevert);
+    return () => window.removeEventListener('gamedata-revert', onRevert);
+  }, [isNew, name, setDirty]);
 
   // Spatial calculations preview
   const spatialMetrics = useMemo(() => {
@@ -405,7 +433,9 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
       }
 
       setSaveStatus('success');
+      baselineRef.current = structuredClone(payload);
       setDirty(false);
+      postHotloadCommit('audioCue', payload.id, payload);
       onRefresh?.();
 
       if (isNew) {

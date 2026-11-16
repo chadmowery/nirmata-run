@@ -32,6 +32,7 @@ export interface GameAudioSystemOptions {
 export interface GameAudioSystem {
   destroy(): void;
   updateAmbianceForFloor(floorNumber: number): void;
+  refreshHotloadedAudio(): void;
 }
 
 export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudioSystem {
@@ -200,7 +201,23 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
         } else {
           // Dynamically update stereo panning, distance attenuation, and occlusion while inside radius
           const active = activeEmitters.get(entityId)!;
-          if (active.voiceId !== undefined && spatial) {
+          if (active.cueId !== emitter.cueId) {
+            if (active.voiceId !== undefined) {
+              audioEngine.stopVoice(active.voiceId, 0.15);
+            } else {
+              audioEngine.stopCue(active.cueId, 0.15);
+            }
+            const nextCue = getSoundCue(emitter.cueId);
+            if (nextCue) {
+              const voiceId = audioEngine.playCue(nextCue, {
+                spatial,
+                volumeMultiplier: emitter.baseVolume,
+              });
+              activeEmitters.set(entityId, { cueId: emitter.cueId, voiceId });
+            } else {
+              activeEmitters.delete(entityId);
+            }
+          } else if (active.voiceId !== undefined && spatial) {
             audioEngine.updateVoiceSpatial(active.voiceId, spatial, emitter.baseVolume);
           }
         }
@@ -674,5 +691,12 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
       });
     },
     updateAmbianceForFloor,
+    refreshHotloadedAudio: () => {
+      audioProfileCache.clear();
+      positionCache.clear();
+      surfaceCache.clear();
+      syncEntityCaches();
+      updateAmbientEmitters();
+    },
   };
 }

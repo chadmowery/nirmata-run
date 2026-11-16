@@ -104,6 +104,7 @@ export interface ActiveVoice {
   pannerNode?: StereoPannerNode;
   occlusionFilter?: BiquadFilterNode;
   updateSpatial?(spatial: SpatialAudioResult, volumeMultiplier?: number): void;
+  updatePatch?(newPatch: SynthPatchConfig, newBaseVolume: number): boolean;
 }
 
 /**
@@ -159,6 +160,7 @@ export function playSynthVoice(
 
   // 2. Waveshaper / Distortion if requested
   let preDistortionTail: AudioNode = voiceGain;
+  let shaperNode: WaveShaperNode | null = null;
   if (patch.distortion && patch.distortion > 0) {
     const shaper = ctx.createWaveShaper();
     shaper.curve = makeDistortionCurve(patch.distortion);
@@ -166,6 +168,7 @@ export function playSynthVoice(
     shaper.connect(voiceGain);
     preDistortionTail = shaper;
     nodesToClean.push(shaper);
+    shaperNode = shaper;
   }
 
   // 3. Optional Biquad Filter
@@ -193,6 +196,8 @@ export function playSynthVoice(
 
   // 4. LFO modulation for filter cutoff (e.g. ambient drones)
   const sourcesToStop: AudioScheduledSourceNode[] = [];
+  let lfoOsc: OscillatorNode | null = null;
+  let lfoGainNode: GainNode | null = null;
   if (patch.lfoFreq && patch.lfoFilterDepth && filterNode) {
     const lfo = ctx.createOscillator();
     const lfoGain = ctx.createGain();
@@ -203,11 +208,18 @@ export function playSynthVoice(
     lfo.start(now);
     sourcesToStop.push(lfo);
     nodesToClean.push(lfo, lfoGain);
+    lfoOsc = lfo;
+    lfoGainNode = lfoGain;
   }
 
   // 5. Sound Generators: Primary Oscillator or Noise Buffer
   const isNoise = patch.waveform.startsWith('noise_');
   let primarySource: AudioScheduledSourceNode;
+  let primaryOsc: OscillatorNode | null = null;
+  let fmOscNode: OscillatorNode | null = null;
+  let fmGainNode: GainNode | null = null;
+  let subOscNode: OscillatorNode | null = null;
+  let subGainNode: GainNode | null = null;
 
   const baseFreq = patch.freqStart * pitchMultiplier;
   const targetEndFreq = (patch.freqEnd ?? patch.freqStart) * pitchMultiplier;
@@ -224,6 +236,7 @@ export function playSynthVoice(
     const osc = ctx.createOscillator();
     osc.type = patch.waveform as OscillatorType;
     osc.frequency.setValueAtTime(Math.max(10, baseFreq), now);
+    primaryOsc = osc;
 
     if (patch.freqEnd !== undefined && patch.freqEnd !== patch.freqStart) {
       const sweepDuration = Math.max(0.01, patch.attack + patch.decay);
@@ -251,6 +264,8 @@ export function playSynthVoice(
       fmOsc.start(now);
       sourcesToStop.push(fmOsc);
       nodesToClean.push(fmOsc, fmGain);
+      fmOscNode = fmOsc;
+      fmGainNode = fmGain;
     }
 
     // Optional Sub-Oscillator / Sub-Noise
@@ -259,6 +274,7 @@ export function playSynthVoice(
       const subGain = ctx.createGain();
       subGain.gain.setValueAtTime(patch.subMix, now);
       subGain.connect(preFilterTail);
+      subGainNode = subGain;
 
       if (isSubNoise) {
         const noiseType = (patch.subWaveform.split('_')[1] || 'white') as
@@ -285,6 +301,7 @@ export function playSynthVoice(
         subOsc.start(now);
         sourcesToStop.push(subOsc);
         nodesToClean.push(subOsc, subGain);
+        subOscNode = subOsc;
       }
     }
 
@@ -361,8 +378,12 @@ export function playSynthVoice(
     }
   };
 
+  let activePatch = patch;
+  let activeSpatialGain = spatial ? spatial.gain : 1.0;
+
   const updateSpatial = (newSpatial: SpatialAudioResult, newVolumeMultiplier = 1.0) => {
     if (isStopped) return;
+    activeSpatialGain = newSpatial.gain;
     const updateTime = ctx.currentTime;
     if (pannerNode) {
       pannerNode.pan.setValueAtTime(newSpatial.pan, updateTime);
@@ -372,8 +393,67 @@ export function playSynthVoice(
       occlusionFilterNode.frequency.setValueAtTime(cutoff, updateTime);
     }
     const currentPeak = Math.max(0, Math.min(1.0, newSpatial.gain * newVolumeMultiplier));
-    const currentSustain = currentPeak * Math.max(0, Math.min(1.0, patch.sustain));
+    const currentSustain = currentPeak * Math.max(0, Math.min(1.0, activePatch.sustain));
     voiceGain.gain.setValueAtTime(loop ? currentSustain : currentPeak, updateTime);
+  };
+
+  const updatePatch = (newPatch: SynthPatchConfig, newBaseVolume: number): boolean => {
+    if (isStopped) return false;
+    // Topology check: waveform, subWaveform, or optional node presence changes require crossfade respawn
+    if (
+      newPatch.waveform !== activePatch.waveform ||
+      newPatch.subWaveform !== activePatch.subWaveform ||
+      Boolean(newPatch.filterType) !== Boolean(filterNode) ||
+      Boolean(newPatch.lfoFreq && newPatch.lfoFilterDepth && newPatch.filterType) !==
+        Boolean(lfoOsc) ||
+      Boolean(newPatch.fmFreq && newPatch.fmDepth) !== Boolean(fmOscNode) ||
+      Boolean(newPatch.distortion && newPatch.distortion > 0) !== Boolean(shaperNode) ||
+      Boolean(newPatch.subWaveform && newPatch.subMix && newPatch.subMix > 0) !==
+        Boolean(subGainNode)
+    ) {
+      return false;
+    }
+
+    const t = ctx.currentTime;
+    const tc = 0.02;
+
+    if (primaryOsc) {
+      primaryOsc.frequency.setTargetAtTime(Math.max(10, newPatch.freqStart * pitchMultiplier), t, tc);
+    }
+    if (subOscNode) {
+      subOscNode.frequency.setTargetAtTime(
+        Math.max(10, (newPatch.freqStart * pitchMultiplier) / 2),
+        t,
+        tc,
+      );
+      subOscNode.detune.setTargetAtTime(newPatch.subDetuneCents ?? 0, t, tc);
+    }
+    if (subGainNode && newPatch.subMix !== undefined) {
+      subGainNode.gain.setTargetAtTime(Math.max(0, Math.min(1, newPatch.subMix)), t, tc);
+    }
+    if (fmOscNode && fmGainNode) {
+      fmOscNode.frequency.setTargetAtTime((newPatch.fmFreq ?? 0) * pitchMultiplier, t, tc);
+      fmGainNode.gain.setTargetAtTime(newPatch.fmDepth ?? 0, t, tc);
+    }
+    if (filterNode && newPatch.filterType) {
+      filterNode.type = newPatch.filterType;
+      filterNode.frequency.setTargetAtTime(Math.max(20, newPatch.filterCutoffStart ?? 2000), t, tc);
+      filterNode.Q.setTargetAtTime(newPatch.filterQ ?? 1, t, tc);
+    }
+    if (lfoOsc && lfoGainNode) {
+      lfoOsc.frequency.setTargetAtTime(newPatch.lfoFreq ?? 0, t, tc);
+      lfoGainNode.gain.setTargetAtTime(newPatch.lfoFilterDepth ?? 0, t, tc);
+    }
+    if (shaperNode && newPatch.distortion && newPatch.distortion > 0) {
+      shaperNode.curve = makeDistortionCurve(newPatch.distortion);
+    }
+
+    const targetPeak = Math.max(0, Math.min(1.0, activeSpatialGain * newBaseVolume));
+    const targetSustain = Math.max(0.0001, targetPeak * Math.max(0, Math.min(1.0, newPatch.sustain)));
+    voiceGain.gain.setTargetAtTime(loop ? targetSustain : Math.max(0.0001, targetPeak), t, tc);
+
+    activePatch = newPatch;
+    return true;
   };
 
   return {
@@ -382,6 +462,7 @@ export function playSynthVoice(
     pannerNode,
     occlusionFilter: occlusionFilterNode,
     updateSpatial,
+    updatePatch,
   };
 }
 
