@@ -190,6 +190,7 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
       maxFloor: 15,
       runSeed: config.seed,
       sectorCondition: dungeonResult.sectorCondition,
+      factionTheme: dungeonResult.factionTheme,
       accessKeysHeld: 0,
       vaultsBreached: 0,
       trapsDisarmed: 0,
@@ -406,6 +407,9 @@ export function createEngineInstance(config: EngineInitConfig): EngineInstance<G
       spriteKey = shellRecord.sprite;
     }
     playerOverrides['sprite'] = { key: spriteKey };
+    if (config.shellRecord.lightSource) {
+      playerOverrides['lightSource'] = { ...config.shellRecord.lightSource };
+    }
   }
 
   const placement = placeEntities(

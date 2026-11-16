@@ -5,6 +5,14 @@
     "actor": { "isPlayer": false },
     "energy": { "current": 0, "speed": 60, "threshold": 1000 },
     "sprite": { "key": "enemy_fragmenter" },
+    "lightSource": {
+      "color": "#ff0055",
+      "intensity": 1.3,
+      "radius": 112,
+      "height": 20,
+      "castsShadows": true,
+      "animation": { "type": "PULSE", "speed": 4.0, "amplitude": 0.2 }
+    },
     "hostile": {},
     "aiState": { "behavior": "idle", "sightRadius": 5, "behaviorType": "fragmenter", "treeId": "fragmenter" },
     "fovAwareness": { "canSeePlayer": false },

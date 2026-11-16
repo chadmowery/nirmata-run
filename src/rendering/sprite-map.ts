@@ -1,7 +1,12 @@
 import { Sprite, Container, Texture, Assets } from 'pixi.js';
 import { EntityId } from '../engine/ecs/types';
 import { TILE_SIZE } from './constants';
-import { getActiveThemeId } from './assets';
+import {
+  getActiveAtlasKey,
+  getActiveThemeId,
+  getNormalAtlasTexture,
+  getMaterialAtlasTexture,
+} from './assets';
 import { logger } from '../engine/utils/logger';
 import { resolveFallbackSpriteKey } from '../shared/tileset-types';
 
@@ -15,13 +20,14 @@ const entitySpriteKeys = new Map<EntityId, string>();
  * default tileset atlas, or global cache. Supports fallback frame keys.
  */
 export function getTextureForSpriteKey(spriteKey: string, explicitFallbackKey?: string): Texture {
+  const activeAtlasKey = getActiveAtlasKey?.() ?? 'tileset';
   const activeTheme = getActiveThemeId?.() ?? 'default';
 
   const hasAssets = typeof Assets !== 'undefined' && typeof Assets?.get === 'function';
 
-  // 1. Check active themed atlas if present
-  if (hasAssets && activeTheme !== 'default') {
-    const themedAsset = Assets.get(`tileset_${activeTheme}`);
+  // 1. Check active themed atlas if present (skip when theme shares default tileset)
+  if (hasAssets && activeAtlasKey !== 'tileset' && activeTheme !== 'default') {
+    const themedAsset = Assets.get(activeAtlasKey);
     if (themedAsset && themedAsset.textures && themedAsset.textures[spriteKey]) {
       return themedAsset.textures[spriteKey];
     }
@@ -36,8 +42,8 @@ export function getTextureForSpriteKey(spriteKey: string, explicitFallbackKey?: 
   // 3. Check fallback key if provided or derived
   const fallbackKey = explicitFallbackKey ?? resolveFallbackSpriteKey(spriteKey);
   if (fallbackKey && fallbackKey !== spriteKey) {
-    if (hasAssets && activeTheme !== 'default') {
-      const themedAsset = Assets.get(`tileset_${activeTheme}`);
+    if (hasAssets && activeAtlasKey !== 'tileset' && activeTheme !== 'default') {
+      const themedAsset = Assets.get(activeAtlasKey);
       if (themedAsset && themedAsset.textures && themedAsset.textures[fallbackKey]) {
         return themedAsset.textures[fallbackKey];
       }
@@ -88,7 +94,8 @@ export function createEntitySprite(
   const existing = entitySprites.get(entityId);
   if (existing) {
     const prevKey = entitySpriteKeys.get(entityId);
-    if (prevKey !== spriteKey) {
+    const existingSrc = existing.texture?.source as (Texture['source'] & { destroyed?: boolean }) | undefined;
+    if (prevKey !== spriteKey || existingSrc?.destroyed === true) {
       entitySpriteKeys.set(entityId, spriteKey);
       const texture = getTextureForSpriteKey(spriteKey);
       if (texture && texture !== Texture.EMPTY) {
@@ -180,6 +187,20 @@ export function clearAllSprites(): void {
   entitySpriteKeys.clear();
 }
 
+/**
+ * Re-resolves textures for all active entity sprites against the currently active theme atlas.
+ */
+export function refreshEntitySpriteTextures(): void {
+  for (const [entityId, sprite] of entitySprites) {
+    const key = entitySpriteKeys.get(entityId);
+    if (!key) continue;
+    const texture = getTextureForSpriteKey(key);
+    if (texture && texture !== Texture.EMPTY) {
+      sprite.texture = texture;
+    }
+  }
+}
+
 export interface SpriteTelemetry {
   totalSprites: number;
   visibleSprites: number;
@@ -199,4 +220,39 @@ export function getSpriteTelemetry(): SpriteTelemetry {
     totalSprites: entitySprites.size,
     visibleSprites,
   };
+}
+
+export interface CompanionSpriteTextures {
+  normal: Texture | null;
+  material: Texture | null;
+}
+
+const companionFrameCache = new WeakMap<Texture, Map<string, CompanionSpriteTextures>>();
+
+/**
+ * Resolves sliced companion Normal+Specular (`_n`) and Material+Height (`_m`)
+ * textures matching a diffuse sprite `Texture`'s exact atlas frame rect.
+ */
+export function getCompanionTexturesForDiffuse(diffuseTex: Texture): CompanionSpriteTextures {
+  const normalAtlas = getNormalAtlasTexture();
+  const materialAtlas = getMaterialAtlasTexture();
+  if (!normalAtlas?.source || !materialAtlas?.source || !diffuseTex?.frame) {
+    return { normal: null, material: null };
+  }
+
+  const key = `${diffuseTex.frame.x},${diffuseTex.frame.y},${diffuseTex.frame.width},${diffuseTex.frame.height}`;
+  let themeCache = companionFrameCache.get(normalAtlas);
+  if (!themeCache) {
+    themeCache = new Map();
+    companionFrameCache.set(normalAtlas, themeCache);
+  }
+  const cached = themeCache.get(key);
+  if (cached) return cached;
+
+  const pair: CompanionSpriteTextures = {
+    normal: new Texture({ source: normalAtlas.source, frame: diffuseTex.frame }),
+    material: new Texture({ source: materialAtlas.source, frame: diffuseTex.frame }),
+  };
+  themeCache.set(key, pair);
+  return pair;
 }

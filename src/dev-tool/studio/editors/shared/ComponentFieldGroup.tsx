@@ -6,6 +6,7 @@ import type { BehaviorTreeNode } from '@/shared/components/ai-tree';
 import { FormField } from './FormField';
 import { AugmentASTBuilder } from './AugmentASTBuilder';
 import { BehaviorTreeEditor } from '../subeditors/BehaviorTreeEditor';
+import { LightSourceSubEditor, type LightSourceSubEditorValues } from '../subeditors/LightSourceSubEditor';
 import styles from '../editors.module.css';
 
 interface Props {
@@ -33,6 +34,7 @@ export function ComponentFieldGroup({
 }: Props) {
   const isAugment = componentKey === 'augmentData';
   const isAIState = componentKey === 'aiState';
+  const isLightSource = componentKey === 'lightSource';
   const [editingInlineTree, setEditingInlineTree] = useState(Boolean(values.inlineTree));
   const [availableTrees, setAvailableTrees] = useState<string[]>([]);
   const [availableSubtrees, setAvailableSubtrees] = useState<string[]>([]);
@@ -112,6 +114,21 @@ export function ComponentFieldGroup({
               }}
             >
               BEHAVIOR TREE v3.0
+            </span>
+          )}
+          {componentKey === 'lightSource' && (
+            <span
+              style={{
+                fontSize: '10px',
+                fontFamily: 'var(--font-mono, monospace)',
+                color: 'var(--c-accent, #d8ff00)',
+                background: 'rgba(216, 255, 0, 0.08)',
+                padding: '1px 6px',
+                borderRadius: '2px',
+                border: '1px solid rgba(216, 255, 0, 0.25)',
+              }}
+            >
+              DEFERRED LIGHT EMITTER
             </span>
           )}
           {isInherited && (
@@ -263,11 +280,31 @@ export function ComponentFieldGroup({
         </div>
       )}
 
+      {isLightSource && (
+        <LightSourceSubEditor
+          values={values as LightSourceSubEditorValues}
+          onFieldChange={(fieldKey, val) => onChange(componentKey, String(fieldKey), val)}
+        />
+      )}
+
       {fields
         .filter(
           (field) =>
             (!isAugment || (field.key !== 'trigger' && field.key !== 'payloads')) &&
-            (!isAIState || (field.key !== 'treeId' && field.key !== 'inlineTree')),
+            (!isAIState || (field.key !== 'treeId' && field.key !== 'inlineTree')) &&
+            (!isLightSource ||
+              ![
+                'enabled',
+                'color',
+                'intensity',
+                'radius',
+                'height',
+                'falloff',
+                'castsShadows',
+                'offsetX',
+                'offsetY',
+                'animation',
+              ].includes(field.key)),
         )
         .map((field) => (
           <FormField

@@ -5,6 +5,14 @@
     "actor": { "isPlayer": false },
     "energy": { "current": 0, "speed": 35, "threshold": 1000 },
     "sprite": { "key": "enemy_system_admin" },
+    "lightSource": {
+      "color": "#ffffff",
+      "intensity": 1.9,
+      "radius": 160,
+      "height": 24,
+      "castsShadows": true,
+      "animation": { "type": "FLICKER", "speed": 12.0, "amplitude": 0.35, "secondaryColor": "#ff0055" }
+    },
     "attack": { "power": 999 },
     "hostile": {},
     "aiState": { "behavior": "idle", "sightRadius": 20, "behaviorType": "system_admin", "treeId": "system_admin" },

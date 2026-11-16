@@ -2088,6 +2088,15 @@ function renderAuditTab(
         <span>Cache Static Tilemap (Dirty Check)</span>
       </label>
 
+      <label className={styles.bisectionItem}>
+        <input
+          type="checkbox"
+          checked={Boolean(bisectionFlags.disableDeferredLighting)}
+          onChange={(e) => handleToggle('disableDeferredLighting', e.target.checked)}
+        />
+        <span>Disable Deferred 2.5D Lighting</span>
+      </label>
+
       <label className={styles.bisectionItem} {...getPerfTooltipAttrs('bisectCacheFov')}>
         <input
           type="checkbox"

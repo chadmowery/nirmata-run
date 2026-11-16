@@ -41,7 +41,7 @@ function computeAlpha(x: number, y: number, options?: BuildTilemapOptions): numb
   }
 
   if (options.exploredSet?.has(key)) {
-    return 0.3;
+    return 1.0;
   }
 
   return 0.0;
@@ -95,8 +95,12 @@ export function resolveTerrainTile(grid: Grid, x: number, y: number): ResolvedTe
 
   if (tile.terrain === 'door') {
     const doorAutotile = AutotileSolver.resolveDoorTile(grid, x, y);
+    const frameKey =
+      tile.transparent && tile.walkable
+        ? doorAutotile.frameKey.replace('_closed', '_open')
+        : doorAutotile.frameKey;
     return {
-      frameKey: doorAutotile.frameKey,
+      frameKey,
       fallbackFrame: 'door',
       angleDegrees: doorAutotile.angleDegrees,
       isDirectional: true,

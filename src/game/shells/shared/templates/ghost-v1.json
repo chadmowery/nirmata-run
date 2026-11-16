@@ -14,5 +14,17 @@
     "maxSoftware": 3
   },
   "upgrades": [],
-  "starterLoadout": ["ghost-pulse", "logic-jam"]
+  "starterLoadout": ["ghost-pulse", "logic-jam"],
+  "lightSource": {
+    "color": "#a7f3d0",
+    "intensity": 1.4,
+    "radius": 208,
+    "height": 20,
+    "castsShadows": true,
+    "animation": {
+      "type": "STATIC",
+      "speed": 2.0,
+      "amplitude": 0.0
+    }
+  }
 }

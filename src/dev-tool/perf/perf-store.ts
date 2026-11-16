@@ -170,6 +170,7 @@ export const usePerfStore = create<PerfStoreState>((set, get) => {
     disableParticles: false,
     cacheStaticTilemap: false,
     cacheStaticFov: false,
+    disableDeferredLighting: false,
   },
   throttledData: initialThrottledData,
 

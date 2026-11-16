@@ -130,6 +130,27 @@ describe('Directional Tilemaps & Themed Rendering (Milestone 4)', () => {
       expect(doorTile.frameKey).toBe('door_h_closed');
       expect(doorTile.fallbackFrame).toBe('door');
     });
+
+    it('resolves open door frames for transparent walkable doorways so G-Buffer thresholds remain light-transmissive', () => {
+      const grid = new Grid(3, 3);
+      for (let y = 0; y < 3; y++) {
+        for (let x = 0; x < 3; x++) {
+          grid.setTile(x, y, { terrain: 'floor', walkable: true, transparent: true });
+        }
+      }
+      grid.setTile(0, 1, { terrain: 'wall', walkable: false, transparent: false });
+      grid.setTile(1, 1, { terrain: 'door', walkable: true, transparent: true });
+      grid.setTile(2, 1, { terrain: 'wall', walkable: false, transparent: false });
+
+      expect(resolveTerrainTile(grid, 1, 1).frameKey).toBe('door_h_open');
+
+      // Flip walls to North/South for vertical open doorway
+      grid.setTile(0, 1, { terrain: 'floor', walkable: true, transparent: true });
+      grid.setTile(2, 1, { terrain: 'floor', walkable: true, transparent: true });
+      grid.setTile(1, 0, { terrain: 'wall', walkable: false, transparent: false });
+      grid.setTile(1, 2, { terrain: 'wall', walkable: false, transparent: false });
+      expect(resolveTerrainTile(grid, 1, 1).frameKey).toBe('door_v_open');
+    });
   });
 
   describe('updateEntitySpriteOrientation', () => {

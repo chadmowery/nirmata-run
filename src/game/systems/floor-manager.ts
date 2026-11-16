@@ -172,6 +172,7 @@ export function createFloorManagerSystem<T extends GameplayEvents = GameEvents>(
       world.patchComponent(playerId, FloorState, {
         currentFloor: newFloor,
         sectorCondition: dungeonResult.sectorCondition,
+        factionTheme: dungeonResult.factionTheme,
         accessKeysHeld: 0,
       });
       world.addComponent(playerId, FloorTransitioned, { floorNumber: newFloor });

@@ -5,6 +5,14 @@
     "actor": { "isPlayer": false },
     "energy": { "current": 0, "speed": 120, "threshold": 1000 },
     "sprite": { "key": "enemy_null_pointer" },
+    "lightSource": {
+      "color": "#00f0ff",
+      "intensity": 1.1,
+      "radius": 88,
+      "height": 18,
+      "castsShadows": false,
+      "animation": { "type": "FLICKER", "speed": 9.0, "amplitude": 0.25 }
+    },
     "hostile": {},
     "aiState": { "behavior": "idle", "sightRadius": 8, "behaviorType": "null_pointer", "treeId": "null_pointer" },
     "fovAwareness": { "canSeePlayer": false },

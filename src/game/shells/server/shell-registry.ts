@@ -42,6 +42,7 @@ export class ShellRegistry {
       portConfig: { ...template.basePorts },
       starterLoadout: template.starterLoadout ? [...template.starterLoadout] : undefined,
       sprite: template.sprite,
+      lightSource: template.lightSource ? { ...template.lightSource } : undefined,
     };
 
     this.records.set(id, record);
@@ -103,6 +104,7 @@ export class ShellRegistry {
         portConfig: { ...t.basePorts },
         starterLoadout: t.starterLoadout ? [...t.starterLoadout] : undefined,
         sprite: t.sprite,
+        lightSource: t.lightSource ? { ...t.lightSource } : undefined,
       }));
     }
 
@@ -132,6 +134,7 @@ export class ShellRegistry {
       portConfig: { ...t.basePorts },
       starterLoadout: t.starterLoadout ? [...t.starterLoadout] : undefined,
       sprite: t.sprite,
+      lightSource: t.lightSource ? { ...t.lightSource } : undefined,
     }));
   }
 }

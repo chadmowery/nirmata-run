@@ -362,7 +362,7 @@ The `SurfaceCompiler` provides both **explicit semantic drawing primitives** (`d
    - **Cylindrical Vats & Canisters (`prop_cryo_vat`, `prop_biocabinet`)**: Horizontal normal $N_x = (x - x_{\text{center}}) / r_{\text{cyl}}$ smoothly curves across the glass body with $S = 0.95$ and $R_g = 0.12$.
    - **Boxy Lockers, Safes & Crates (`prop_locker`, `prop_safe_locked`, `prop_crate_cover`)**: Automatic 1px edge-bevel normal generation along outer sprite contours and internal panel seams, with safety-orange latches and status LEDs flagged in `Emissive`.
    - **Playable Shells & Enemies**: Spherical/domed chassis normals derived from distance to the sprite silhouette boundary + luminance gradient, with visors, cores, and weapon barrels flagged with `Emissive = 1.0` and `Specular = 0.90`.
-4. **Upgraded Multi-View Inspection Sheets (`public/assets/tiles/previews/`)**:
+4. **Upgraded Multi-View Inspection Sheets (`docs/visual-design/previews/`)**:
    - Updates the `780 × 410` themed master review sheets and `600 × 300` tile inspection sheets to render 4 diagnostic views: **Unlit Albedo**, **Tangent Normal Map (`_n.png`)**, **Emissive/Height Map (`_m.png`)**, and **Lit Composite Preview** (simulated point light orbiting the 9×9 mock room).
 
 ---
@@ -396,28 +396,33 @@ Phase 4: /dev/gamedata Lit Preview Widget & Regression Suite
 ```
 
 ### Phase 1: ECS `LightSource` Component & Procedural Atlas Pipeline
-- [ ] **[LIGHT-01] Create `LightSource` Component Schema (`src/shared/components/light-source.ts`)**
+- [x] **[LIGHT-01] Create `LightSource` Component Schema (`src/shared/components/light-source.ts`)**
   - Define `LightSource`, `LightAnimationTypeSchema`, and `LightAnimationSchema`; register `LightSource` in [`COMPONENTS_REGISTRY`](../../src/shared/components/index.ts).
   - Populate canonical `lightSource` configurations across player, shell, enemy, prop, anchor, staircase, and hazard JSON templates in `src/game/entities/templates/`.
-- [ ] **[LIGHT-02] Build Multi-Plane Surface Compiler & Companion Atlases (`scripts/`)**
+- [x] **[LIGHT-02] Build Multi-Plane Surface Compiler & Companion Atlases (`scripts/`)**
   - Create `scripts/lib/surface-compiler.cjs` and update `build-environment-tiles.cjs`, `build-shell-tiles.cjs`, and `generate-themed-tilesets.cjs` to remove baked drop-shadow ovals from diffuse sprites and generate `tileset_n.png` and `tileset_m.png` (plus all 3 themed `_n.png` and `_m.png` atlases).
   - Update [`src/rendering/assets.ts`](../../src/rendering/assets.ts) to load the companion normal and material/height textures alongside each tileset.
 
 ### Phase 2: G-Buffer Renderer, 2.5D Shadow Raymarcher & Selective Bloom
-- [ ] **[LIGHT-03] Implement G-Buffer & Uber-Lighting Shader (`src/rendering/lighting/`)**
+- [x] **[LIGHT-03] Implement G-Buffer & Uber-Lighting Shader (`src/rendering/lighting/`)**
   - Create `src/rendering/lighting/lighting-system.ts`, `gbuffer-pass.ts`, `deferred-light-filter.ts`, and `bloom-filter.ts`.
   - Implement 16-step per-pixel 2.5D height shadow raymarching, Lambertian diffuse + Blinn-Phong specular BRDF, and procedural animation modulators (`STATIC`, `PULSE`, `FLICKER`, `STROBE`, `RADAR_SWEEP`).
-- [ ] **[LIGHT-04] Replace Uniform FOV Alpha Dimming & Wire Dynamic Telemetry (`src/rendering/render-system.ts`, `tilemap.ts`, `fov.ts`)**
+- [x] **[LIGHT-04] Replace Uniform FOV Alpha Dimming & Wire Dynamic Telemetry (`src/rendering/render-system.ts`, `tilemap.ts`, `fov.ts`)**
   - Replace `sprite.alpha = 0.3 / 1.0` in `tilemap.ts` and `render-system.ts` with the bilinearly filtered `80 × 45` `fovMaskTexture` while preserving `ARCH-12 / U1` fog-of-war anti-cheat culling.
   - Wire dynamic player light color/radius/flicker shifts to `HEAT_CHANGED`, `STABILITY_CHANGED`, and active vision Firmware, and sync prop light states (`safe`, `locked`, `corrupted`, `searched`) in `render-system.ts`.
 
 ### Phase 3: Expanded Dual-Mode Lit Particle System
-- [ ] **[LIGHT-05] Build Pooled Sprite Particle & Micro-Light System (`src/rendering/particles/`)**
+- [x] **[LIGHT-05] Build Pooled Sprite Particle & Micro-Light System (`src/rendering/particles/`)**
   - Replace `src/rendering/filters/particle-emitters.ts` with a pooled sprite particle manager supporting `EMISSIVE_LIGHT` (feeding `uMicroLights[64]`) and `NORMAL_LIT` (writing hemispherical puff normals into the G-Buffer).
   - Implement emitter presets for enemy archetypes, cooling vents, capacitor arcs, combat hit sparks, cryo-vat shatters, EMP shockwaves, and thermal venting.
 
 ### Phase 4: Gamedata Studio Integration & Quality Gates
-- [ ] **[LIGHT-06] Add `lightSource` Sub-Editor & Live Lit Preview in `/dev/gamedata`**
-  - Add specialized `lightSource` controls and a 3×3 interactive normal/shadow preview canvas in `src/app/dev/gamedata/`.
-- [ ] **[LIGHT-07] Unit, Shader & Visual Regression Tests (`tests/rendering/`)**
+- [x] **[LIGHT-06] Add `lightSource` Sub-Editor & Live Lit Preview in `/dev/gamedata`**
+  - Add specialized `lightSource` controls and a 3×3 interactive normal/shadow preview canvas in `src/app/dev/gamedata/` and `src/dev-tool/studio/`.
+- [x] **[LIGHT-07] Unit, Shader & Visual Regression Tests (`tests/rendering/`)**
   - Add unit tests for `LightSource` schema validation, atlas companion completeness (`_n.png` / `_m.png`), G-Buffer allocation/disposal, FOV mask encoding, and dynamic Heat/Stability/Prop light state transitions.
+
+### Implementation Alignment Notes
+- **Companion Atlas Dimensions & Raw Data Integrity**: All 4 companion `_n.png` and `_m.png` atlases match the `512 × 512` master tileset atlas grid (`tileset`, `tileset_traxus_foundry`, `tileset_sekiguchi_biolabs`, `tileset_dark_subnet`). Companion PNGs are written via an un-premultiplied pure-`zlib` RGBA writer in `scripts/lib/surface-compiler.cjs` and loaded with `alphaMode: 'no-premultiply-alpha'` so zero-alpha texels preserve height (`B`) and specular (`A`) channels cleanly.
+- **Faction Theme & Shell Overrides**: Added optional `factionTheme` onto `FloorState` (`src/shared/components/floor-state.ts`) and optional `lightSource` onto `ShellTemplate` (`vanguard-v1.json`, `bastion-v1.json`, `ghost-v1.json`) so newly spawned player actors inherit shell-specific lighting profiles and themed sector atlases load dynamically.
+- **Sector Condition `DARK_SUBNET` Beacon Pulse**: Unsearched props emit a periodic localized floor-ring pulse even outside active FOV (`isBeaconPing: true`), respecting `ARCH-12 / U1` redaction of enemies and loot contents.

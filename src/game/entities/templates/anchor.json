@@ -8,6 +8,19 @@
     },
     "sprite": {
       "key": "anchor"
+    },
+    "lightSource": {
+      "color": "#00f0ff",
+      "intensity": 2.2,
+      "radius": 224,
+      "height": 26,
+      "castsShadows": true,
+      "animation": {
+        "type": "PULSE",
+        "speed": 2.5,
+        "amplitude": 0.25,
+        "secondaryColor": "#a855f7"
+      }
     }
   }
 }

@@ -25,6 +25,18 @@
     "blocksMovement": {},
     "sprite": {
       "key": "prop_cooling_vent_ready"
+    },
+    "lightSource": {
+      "color": "#00f0ff",
+      "intensity": 1.2,
+      "radius": 96,
+      "height": 8,
+      "castsShadows": false,
+      "animation": {
+        "type": "PULSE",
+        "speed": 3.0,
+        "amplitude": 0.2
+      }
     }
   }
 }

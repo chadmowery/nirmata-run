@@ -6,7 +6,7 @@ import {
   ThemedTilesetManifest,
 } from '@shared/tileset-types';
 import { getTextureForSpriteKey, resolveFallbackSpriteKey } from './sprite-map';
-import { getActiveThemeId } from './assets';
+import { getActiveAtlasKey, getActiveThemeId } from './assets';
 import baseTilesetJson from '../../public/assets/tileset.json';
 
 export interface EntityAnimRuntimeState {
@@ -188,10 +188,11 @@ export class SpriteAnimator {
     if (this.customManifest) return this.customManifest;
 
     const hasAssets = typeof Assets !== 'undefined' && typeof Assets.get === 'function';
+    const activeAtlasKey = getActiveAtlasKey?.() ?? 'tileset';
     const activeTheme = getActiveThemeId?.() ?? 'default';
 
-    if (hasAssets && activeTheme !== 'default') {
-      const themed = Assets.get(`tileset_${activeTheme}`);
+    if (hasAssets && activeAtlasKey !== 'tileset' && activeTheme !== 'default') {
+      const themed = Assets.get(activeAtlasKey);
       if (themed?.data?.animations) return themed.data;
     }
 

@@ -43,9 +43,9 @@ describe('Entity Visibility Gating Rules', () => {
         .toEqual({ visible: true, alpha: 1.0 });
     });
 
-    it('should be visible on explored tiles dimmed (0.3)', () => {
+    it('should be visible on explored tiles with unlit albedo (1.0)', () => {
       expect(isEntityVisible({ x: 5, y: 5 }, 'item', fovSet, exploredSet))
-        .toEqual({ visible: true, alpha: 0.3 });
+        .toEqual({ visible: true, alpha: 1.0 });
     });
 
     it('should be hidden if neither in FOV nor explored', () => {

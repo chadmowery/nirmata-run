@@ -1,6 +1,6 @@
 import { defineComponent } from '@engine/ecs/types';
 import { z } from 'zod';
-import { SectorConditionSchema } from './environment';
+import { SectorConditionSchema, FactionThemeSchema } from './environment';
 
 export const FloorState = defineComponent(
   'floorState',
@@ -10,6 +10,7 @@ export const FloorState = defineComponent(
     runSeed: z.string(),
     turnNumber: z.number().int().min(0).default(0).optional(),
     sectorCondition: SectorConditionSchema.default('NOMINAL').optional(),
+    factionTheme: FactionThemeSchema.default('cyberacme').optional(),
     accessKeysHeld: z.number().int().min(0).default(0).optional(),
     vaultsBreached: z.number().int().min(0).default(0).optional(),
     trapsDisarmed: z.number().int().min(0).default(0).optional(),

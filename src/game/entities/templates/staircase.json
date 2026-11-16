@@ -4,6 +4,18 @@
   "components": {
     "sprite": {
       "key": "staircase"
+    },
+    "lightSource": {
+      "color": "#38bdf8",
+      "intensity": 1.1,
+      "radius": 112,
+      "height": 12,
+      "castsShadows": true,
+      "animation": {
+        "type": "PULSE",
+        "speed": 1.5,
+        "amplitude": 0.15
+      }
     }
   }
 }

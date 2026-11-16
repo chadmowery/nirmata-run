@@ -1,3 +1,23 @@
+import type { LightAnimationType, LightSourceData } from '@shared/components/light-source';
+
+export interface ShellLightSourceOverride {
+  enabled?: boolean;
+  color?: string;
+  intensity?: number;
+  radius?: number;
+  height?: number;
+  falloff?: number;
+  castsShadows?: boolean;
+  offsetX?: number;
+  offsetY?: number;
+  animation?: {
+    type?: LightAnimationType | string;
+    speed?: number;
+    amplitude?: number;
+    secondaryColor?: string;
+  };
+}
+
 /**
  * Base stats for a Shell.
  */
@@ -37,6 +57,7 @@ export interface ShellTemplate {
   upgrades: ShellUpgrade[];
   starterLoadout?: string[];
   sprite?: string;
+  lightSource?: ShellLightSourceOverride | Partial<LightSourceData>;
 }
 
 /**
@@ -50,4 +71,5 @@ export interface ShellRecord {
   portConfig: PortConfig;
   starterLoadout?: string[];
   sprite?: string;
+  lightSource?: ShellLightSourceOverride | Partial<LightSourceData>;
 }

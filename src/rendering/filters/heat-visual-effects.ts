@@ -110,6 +110,7 @@ export function updateSpriteGhosting(
   if (!state) {
     // Create new ghost sprite
     const ghost = new Sprite(playerSprite.texture);
+    ghost.label = 'heatGhost';
     ghost.anchor.copyFrom(playerSprite.anchor);
     ghost.alpha = 0.4;
 

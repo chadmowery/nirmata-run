@@ -7,6 +7,18 @@
     },
     "sprite": {
       "key": "dead_zone"
+    },
+    "lightSource": {
+      "color": "#ff0055",
+      "intensity": 0.9,
+      "radius": 64,
+      "height": 6,
+      "castsShadows": false,
+      "animation": {
+        "type": "PULSE",
+        "speed": 5.0,
+        "amplitude": 0.3
+      }
     }
   }
 }

@@ -36,6 +36,7 @@ import {
   destroyEntitySprite,
   getSpriteCount,
   clearAllSprites,
+  refreshEntitySpriteTextures,
 } from '../../src/rendering/sprite-map';
 
 describe('Entity Sprite Map & Lifecycle Cleanup', () => {
@@ -107,6 +108,25 @@ describe('Entity Sprite Map & Lifecycle Cleanup', () => {
       const updatedSprite = createEntitySprite(entityId, 'prop_vault_door', mockContainer);
       expect(updatedSprite).toBe(sprite);
       expect(getEntitySprite(entityId)).toBe(sprite);
+    });
+
+    it('refreshes texture when existing texture source is destroyed and on refreshEntitySpriteTextures', () => {
+      const mockContainer = new Container();
+      const entityId = 1;
+
+      const sprite = createEntitySprite(entityId, 'player', mockContainer);
+      const staleTexture: any = { label: 'stale_player', source: { destroyed: true } };
+      sprite.texture = staleTexture;
+
+      const freshTexture: any = { label: 'fresh_player', source: { destroyed: false } };
+      (Texture.from as any).mockReturnValueOnce(freshTexture);
+      const sameSprite = createEntitySprite(entityId, 'player', mockContainer);
+      expect(sameSprite.texture).toBe(freshTexture);
+
+      const secondFreshTexture: any = { label: 'second_fresh_player', source: { destroyed: false } };
+      (Texture.from as any).mockReturnValueOnce(secondFreshTexture);
+      refreshEntitySpriteTextures();
+      expect(sprite.texture).toBe(secondFreshTexture);
     });
   });
 

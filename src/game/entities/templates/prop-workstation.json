@@ -19,6 +19,18 @@
     "blocksMovement": {},
     "sprite": {
       "key": "prop_workstation_active"
+    },
+    "lightSource": {
+      "color": "#00f0ff",
+      "intensity": 1.0,
+      "radius": 96,
+      "height": 16,
+      "castsShadows": true,
+      "animation": {
+        "type": "FLICKER",
+        "speed": 6.0,
+        "amplitude": 0.08
+      }
     }
   }
 }
