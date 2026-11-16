@@ -318,8 +318,9 @@ function getCategory(frameKey) {
   if (frameKey.includes('workstation')) return 'workstation';
   if (frameKey.includes('subnet_console')) return 'subnet_console';
   if (frameKey.includes('crate_cover')) return 'crate_cover';
-  if (frameKey.includes('safe') || frameKey.includes('locker') || frameKey.includes('dead_drop')) {
-    return 'box_prop';
+  if (frameKey.includes('dead_drop')) return 'dead_drop';
+  if (frameKey.includes('safe') || frameKey.includes('locker')) {
+    return 'tall_box_prop';
   }
   if (frameKey.startsWith('anchor')) return 'anchor';
   if (frameKey.startsWith('staircase')) return 'staircase';
@@ -477,7 +478,7 @@ function compileFrameSurface(buffers, diffusePixels, atlasWidth, ox, oy, frameKe
         let nx = 0;
         let ny = 0;
         let nz = 1.0;
-        let heightPx = 28;
+        const heightPx = 32;
 
         // Only walls with an exposed southern bottom edge (or base full wall tile) have a South front skirt.
         const hasSouthSkirt = isFullWall || !solid[31 * 32 + 16];
@@ -488,11 +489,9 @@ function compileFrameSurface(buffers, diffusePixels, atlasWidth, ox, oy, frameKe
         if (isFullWall && ly >= 24) {
           ny = 0.9;
           nz = 0.44;
-          heightPx = Math.max(8, 28 - (ly - 23) * 2.5);
         } else if (isFrontSkirtRow) {
           ny = 0.9;
           nz = 0.44;
-          heightPx = 18;
         } else {
           if (wEmpty) nx = -0.7;
           else if (eEmpty) nx = 0.7;
@@ -530,12 +529,40 @@ function compileFrameSurface(buffers, diffusePixels, atlasWidth, ox, oy, frameKe
         }
       }
     }
-  } else if (cat === 'door_closed' || cat === 'vault_door') {
-    const heightPx = cat === 'vault_door' ? 26 : 24;
+  } else if (cat === 'door_closed') {
+    // Spec §7.2.2: Side jambs at Z = 32px (O = 255); central laser barrier beam sets Emissive = 255, Z = 16px, O = 0
+    const isVertical = frameKey.includes('_v_') || frameKey.includes('vertical');
+    for (let ly = 0; ly < 32; ly++) {
+      for (let lx = 0; lx < 32; lx++) {
+        const ax = ox + lx;
+        const ay = oy + ly;
+        const inJamb = isVertical ? ly <= 6 || ly >= 25 : lx <= 6 || lx >= 25;
+        const inLaserBeam = isVertical
+          ? lx >= 14 && lx <= 18 && !inJamb
+          : ly >= 14 && ly <= 18 && !inJamb;
+
+        if (inJamb) {
+          const nx = isVertical ? 0 : lx <= 6 ? 0.45 : -0.45;
+          const ny = isVertical ? (ly <= 6 ? 0.45 : -0.45) : 0.25;
+          buffers.setNormal(ax, ay, nx, ny, 0.85, 165);
+          buffers.setMaterial(ax, ay, 0, 255, 80, 32);
+        } else if (inLaserBeam) {
+          buffers.setNormal(ax, ay, 0, isVertical ? 0 : 0.2, 0.98, 210);
+          buffers.setMaterial(ax, ay, 255, 0, 38, 16);
+        } else if (isDarkVoidColor(diffusePixels, atlasWidth, ax, ay)) {
+          buffers.setNormal(ax, ay, 0, 0, 1.0, 26);
+          buffers.setMaterial(ax, ay, 0, 0, 210, 0);
+        } else {
+          buffers.setNormal(ax, ay, 0, 0.4, 0.9, 145);
+          buffers.setMaterial(ax, ay, 0, 255, 85, 24);
+        }
+      }
+    }
+  } else if (cat === 'vault_door') {
     buffers.drawBevelBox(ox, oy, 2, 2, 28, 28, {
-      heightPx,
+      heightPx: 32,
       bevelPx: 3,
-      spec: cat === 'vault_door' ? 195 : 155,
+      spec: 195,
       roughness: 80,
       shadowOpacity: 255,
       frontSkirtRows: 4,
@@ -666,12 +693,23 @@ function compileFrameSurface(buffers, diffusePixels, atlasWidth, ox, oy, frameKe
       diffusePixels,
       atlasWidth,
     });
-  } else if (cat === 'box_prop') {
-    buffers.drawBevelBox(ox, oy, 4, 4, 24, 25, {
-      heightPx: 18,
+  } else if (cat === 'dead_drop') {
+    buffers.drawBevelBox(ox, oy, 4, 6, 24, 22, {
+      heightPx: 14,
       bevelPx: 2,
       spec: 72,
       roughness: 145,
+      shadowOpacity: 245,
+      frontSkirtRows: 3,
+      diffusePixels,
+      atlasWidth,
+    });
+  } else if (cat === 'tall_box_prop') {
+    buffers.drawBevelBox(ox, oy, 4, 4, 24, 25, {
+      heightPx: 24,
+      bevelPx: 2,
+      spec: 84,
+      roughness: 135,
       shadowOpacity: 255,
       frontSkirtRows: 3,
       diffusePixels,

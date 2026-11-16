@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { createCanvas, loadImage } = require('canvas');
+const { compileAtlasSurfaces } = require('./lib/surface-compiler.cjs');
 
 // Helper to convert RGB to HSL and back for intelligent palette mapping
 function rgbToHsl(r, g, b) {
@@ -636,10 +637,45 @@ function recolorSprite(sourceCtx, destCtx, x, y, w, h, themeType) {
 // ============================================================================
 // MASTER REVIEW INSPECTION SHEET (780x410)
 // ============================================================================
-async function generateThemedMasterSheet(tilesetCanvas, themeName, themeTitle, themeAccentColor) {
+async function generateThemedMasterSheet(
+  tilesetCanvas,
+  themedJson,
+  themeName,
+  themeTitle,
+  themeAccentColor
+) {
   const sheet = createCanvas(780, 410);
   const sCtx = sheet.getContext('2d');
   sCtx.imageSmoothingEnabled = false;
+
+  const atlasW = tilesetCanvas.width;
+  const atlasH = tilesetCanvas.height;
+  const diffuseData = tilesetCanvas.getContext('2d').getImageData(0, 0, atlasW, atlasH).data;
+  const surfaceBuffers = compileAtlasSurfaces(tilesetCanvas, themedJson, themeName);
+
+  // Build helper offscreen canvases for _n and _m diagnostic views
+  const makeDiagnosticCanvas = (mode) => {
+    const c = createCanvas(atlasW, atlasH);
+    const cCtx = c.getContext('2d');
+    const imgData = cCtx.createImageData(atlasW, atlasH);
+    for (let i = 0; i < imgData.data.length; i += 4) {
+      if (mode === 'normal') {
+        imgData.data[i] = surfaceBuffers.normal[i];
+        imgData.data[i + 1] = surfaceBuffers.normal[i + 1];
+        imgData.data[i + 2] = surfaceBuffers.normal[i + 2];
+        imgData.data[i + 3] = 255;
+      } else {
+        imgData.data[i] = surfaceBuffers.material[i];
+        imgData.data[i + 1] = Math.round(surfaceBuffers.material[i + 1] * 0.45);
+        imgData.data[i + 2] = surfaceBuffers.material[i + 3];
+        imgData.data[i + 3] = 255;
+      }
+    }
+    cCtx.putImageData(imgData, 0, 0);
+    return c;
+  };
+  const normalAtlasCanvas = makeDiagnosticCanvas('normal');
+  const materialAtlasCanvas = makeDiagnosticCanvas('material');
 
   // Dark background with subtle theme tint
   sCtx.fillStyle = '#05070d';
@@ -658,107 +694,218 @@ async function generateThemedMasterSheet(tilesetCanvas, themeName, themeTitle, t
   // --- HEADER TITLE BAR ---
   sCtx.fillStyle = themeAccentColor;
   sCtx.font = 'bold 13px monospace';
-  sCtx.fillText(`[NIRMATA RUN] THEMED ATLAS REVIEW // ${themeTitle.toUpperCase()}`, 24, 25);
+  sCtx.fillText(`[NIRMATA RUN] 4-VIEW G-BUFFER REVIEW // ${themeTitle.toUpperCase()}`, 24, 25);
 
   // Column Headers above panels
   sCtx.fillStyle = '#94a3b8';
   sCtx.font = '10px monospace';
-  sCtx.fillText(`SPRITESHEET ATLAS (${tilesetCanvas.width}x${tilesetCanvas.height} RGBA8888)`, 24, 46);
-  sCtx.fillText('SECTOR GAMEPLAY MOCKUP (9x9 TILES)', 420, 46);
+  sCtx.fillText('1. ALBEDO   2. NORMAL (_n)', 24, 46);
+  sCtx.fillText('3. MAT (_m) 4. UNLIT 9x9', 24, 198);
+  sCtx.fillText('LIT 2.5D COMPOSITE (9x9 + SHADOW RAYMARCH)', 420, 46);
 
-  // --- PANEL 1: LEFT ATLAS PREVIEW (x: 24, y: 56) ---
-  const p1X = 24, p1Y = 56, p1W = 256, p1H = 256;
-  // Checkerboard for alpha transparency inspection (#0a0d1c and #12162a)
-  const checkSize = 16;
-  for (let cy = 0; cy < p1H; cy += checkSize) {
-    for (let cx = 0; cx < p1W; cx += checkSize) {
-      const isAlt = ((cx / checkSize) + (cy / checkSize)) % 2 === 0;
-      sCtx.fillStyle = isAlt ? '#0a0d1c' : '#12162a';
-      sCtx.fillRect(p1X + cx, p1Y + cy, checkSize, checkSize);
-    }
-  }
-  // Draw atlas
-  sCtx.drawImage(tilesetCanvas, 0, 0, tilesetCanvas.width, tilesetCanvas.height, p1X, p1Y, p1W, p1H);
-  // Border box
-  sCtx.strokeStyle = themeAccentColor;
-  sCtx.lineWidth = 1;
-  sCtx.strokeRect(p1X - 0.5, p1Y - 0.5, p1W + 1, p1H + 1);
-
-  // Subtitle under Atlas
-  sCtx.fillStyle = '#64748b';
-  sCtx.font = '9px monospace';
-  sCtx.fillText('TexturePacker JSON Hash | RGBA8888 Lossless PNG', 24, 330);
-
-  // --- PANEL 2: RIGHT 288x288 MOCK DUNGEON ROOM (x: 420, y: 56) ---
-  // A 9x9 room of 32x32 tiles (9*32 = 288 px)
-  const p2X = 420, p2Y = 56;
-
-  // Helper to draw a specific frame from the tileset into the mock room
-  const drawTile = (srcX, srcY, gridX, gridY) => {
-    sCtx.drawImage(tilesetCanvas, srcX, srcY, 32, 32, p2X + gridX * 32, p2Y + gridY * 32, 32, 32);
+  const drawPanelBox = (px, py, size) => {
+    sCtx.strokeStyle = themeAccentColor;
+    sCtx.lineWidth = 1;
+    sCtx.strokeRect(px - 0.5, py - 0.5, size + 1, size + 1);
   };
 
-  // 1. Draw floor everywhere first
-  for (let gy = 0; gy < 9; gy++) {
-    for (let gx = 0; gx < 9; gx++) {
-      drawTile(0, 0, gx, gy); // floor at (0, 0)
+  // --- PANEL 1: UNLIT ALBEDO ATLAS (x: 24, y: 54, 132x132) ---
+  const boxSize = 132;
+  for (let cy = 0; cy < boxSize; cy += 11) {
+    for (let cx = 0; cx < boxSize; cx += 11) {
+      const isAlt = ((cx / 11) + (cy / 11)) % 2 === 0;
+      sCtx.fillStyle = isAlt ? '#0a0d1c' : '#12162a';
+      sCtx.fillRect(24 + cx, 54 + cy, 11, 11);
     }
   }
+  sCtx.drawImage(tilesetCanvas, 0, 0, atlasW, atlasH, 24, 54, boxSize, boxSize);
+  drawPanelBox(24, 54, boxSize);
 
-  // 2. Draw surrounding walls
+  // --- PANEL 2: TANGENT NORMAL ATLAS (_n.png) (x: 174, y: 54, 132x132) ---
+  sCtx.drawImage(normalAtlasCanvas, 0, 0, atlasW, atlasH, 174, 54, boxSize, boxSize);
+  drawPanelBox(174, 54, boxSize);
+
+  // --- PANEL 3: MATERIAL/HEIGHT ATLAS (_m.png) (x: 24, y: 206, 132x132) ---
+  sCtx.drawImage(materialAtlasCanvas, 0, 0, atlasW, atlasH, 24, 206, boxSize, boxSize);
+  drawPanelBox(24, 206, boxSize);
+
+  // --- BUILD 288x288 MOCK DUNGEON ROOM G-BUFFER ---
+  const roomW = 288;
+  const roomH = 288;
+  const roomDiff = new Uint8ClampedArray(roomW * roomH * 4);
+  const roomNorm = new Uint8ClampedArray(roomW * roomH * 4);
+  const roomMat = new Uint8ClampedArray(roomW * roomH * 4);
+
+  const blitTile = (srcX, srcY, gridX, gridY) => {
+    const dx0 = gridX * 32;
+    const dy0 = gridY * 32;
+    for (let py = 0; py < 32; py++) {
+      for (let px = 0; px < 32; px++) {
+        const si = ((srcY + py) * atlasW + (srcX + px)) * 4;
+        const a = diffuseData[si + 3];
+        if (a < 10) continue;
+        const di = ((dy0 + py) * roomW + (dx0 + px)) * 4;
+        roomDiff[di] = diffuseData[si];
+        roomDiff[di + 1] = diffuseData[si + 1];
+        roomDiff[di + 2] = diffuseData[si + 2];
+        roomDiff[di + 3] = 255;
+
+        roomNorm[di] = surfaceBuffers.normal[si];
+        roomNorm[di + 1] = surfaceBuffers.normal[si + 1];
+        roomNorm[di + 2] = surfaceBuffers.normal[si + 2];
+        roomNorm[di + 3] = surfaceBuffers.normal[si + 3];
+
+        roomMat[di] = surfaceBuffers.material[si];
+        roomMat[di + 1] = surfaceBuffers.material[si + 1];
+        roomMat[di + 2] = surfaceBuffers.material[si + 2];
+        roomMat[di + 3] = surfaceBuffers.material[si + 3];
+      }
+    }
+  };
+
+  for (let gy = 0; gy < 9; gy++) {
+    for (let gx = 0; gx < 9; gx++) {
+      blitTile(0, 0, gx, gy);
+    }
+  }
   for (let gx = 0; gx < 9; gx++) {
-    drawTile(32, 0, gx, 0); // top wall at (32, 0)
-    drawTile(32, 0, gx, 8); // bottom wall
+    blitTile(32, 0, gx, 0);
+    blitTile(32, 0, gx, 8);
   }
   for (let gy = 1; gy < 8; gy++) {
-    drawTile(32, 0, 0, gy); // left wall
-    drawTile(32, 0, 8, gy); // right wall
+    blitTile(32, 0, 0, gy);
+    blitTile(32, 0, 8, gy);
   }
+  blitTile(64, 0, 4, 0);
+  blitTile(128, 0, 1, 2);
+  blitTile(160, 0, 7, 2);
+  blitTile(192, 0, 7, 5);
+  blitTile(224, 0, 1, 5);
+  blitTile(160, 32, 4, 7);
+  blitTile(160, 64, 6, 6);
+  blitTile(224, 64, 2, 6);
+  blitTile(224, 32, 4, 2);
+  blitTile(64, 64, 7, 7);
+  blitTile(96, 64, 1, 7);
+  blitTile(0, 64, 3, 5);
+  blitTile(128, 96, 5, 5);
+  blitTile(192, 96, 4, 6);
+  blitTile(96, 0, 2, 3);
+  blitTile(96, 32, 6, 3);
+  blitTile(96, 96, 4, 4);
+  blitTile(0, 224, 3, 4);
 
-  // 3. Draw door at top center (4, 0)
-  drawTile(64, 0, 4, 0);
+  // --- PANEL 4: UNLIT 9x9 MINI ROOM (x: 174, y: 206, 132x132) ---
+  const unlitRoomCanvas = createCanvas(roomW, roomH);
+  const uCtx = unlitRoomCanvas.getContext('2d');
+  const uImg = uCtx.createImageData(roomW, roomH);
+  uImg.data.set(roomDiff);
+  uCtx.putImageData(uImg, 0, 0);
+  sCtx.drawImage(unlitRoomCanvas, 0, 0, roomW, roomH, 174, 206, boxSize, boxSize);
+  drawPanelBox(174, 206, boxSize);
 
-  // 4. Place interactive props around room
-  drawTile(128, 0, 1, 2);  // prop_workstation at (1, 2)
-  drawTile(160, 0, 7, 2);  // prop_locker at (7, 2)
-  drawTile(192, 0, 7, 5);  // prop_biocabinet at (7, 5)
-  drawTile(224, 0, 1, 5);  // prop_safe at (1, 5)
-  drawTile(160, 32, 4, 7); // prop_cooling_vent at (4, 7)
-  drawTile(160, 64, 6, 6); // prop_crate_cover at (6, 6)
-  drawTile(224, 64, 2, 6); // prop_capacitor_bank at (2, 6)
-  drawTile(224, 32, 4, 2); // prop_stabilizer at (4, 2)
+  // --- RIGHT PANEL: LIT 2.5D COMPOSITE (9x9 @ 288x288 at x: 420, y: 56) ---
+  const p2X = 420;
+  const p2Y = 56;
+  const litRoomCanvas = createCanvas(roomW, roomH);
+  const lCtx = litRoomCanvas.getContext('2d');
+  const litImg = lCtx.createImageData(roomW, roomH);
 
-  // 5. Place Staircase & Anchor
-  drawTile(64, 64, 7, 7);  // staircase at (7, 7)
-  drawTile(96, 64, 1, 7);  // anchor at (1, 7)
+  // Simulated operative point light near center (3.5, 4.5) @ Lz = 22px
+  const lx = 3.5 * 32 + 16;
+  const ly = 4.5 * 32 + 16;
+  const lz = 22;
+  const radius = 175;
+  const accentNorm = parseInt(themeAccentColor.slice(1), 16) || 0x00f0ff;
+  const cr = 0.65 + (((accentNorm >> 16) & 255) / 255) * 0.45;
+  const cg = 0.65 + (((accentNorm >> 8) & 255) / 255) * 0.45;
+  const cb = 0.65 + ((accentNorm & 255) / 255) * 0.45;
 
-  // 6. Place Loot Items
-  drawTile(0, 64, 3, 5);   // item_potion at (3, 5)
-  drawTile(128, 96, 5, 5); // item_access_key at (5, 5)
-  drawTile(192, 96, 4, 6); // item_kinetic_breacher at (4, 6)
+  for (let py = 0; py < roomH; py++) {
+    for (let px = 0; px < roomW; px++) {
+      const i = (py * roomW + px) * 4;
+      const ar = roomDiff[i] / 255;
+      const ag = roomDiff[i + 1] / 255;
+      const ab = roomDiff[i + 2] / 255;
+      const nx = (roomNorm[i] / 255) * 2 - 1;
+      const ny = (roomNorm[i + 1] / 255) * 2 - 1;
+      const nz = Math.max(0.05, (roomNorm[i + 2] / 255) * 2 - 1);
+      const spec = roomNorm[i + 3] / 255;
+      const emissive = roomMat[i] / 255;
+      const roughness = Math.max(0.08, roomMat[i + 2] / 255);
+      const pz = (roomMat[i + 3] / 255) * 32;
 
-  // 7. Place Hostiles / Enemies
-  drawTile(96, 0, 2, 3);   // enemy_logic_leaker at (2, 3)
-  drawTile(96, 32, 6, 3);  // enemy_fragmenter at (6, 3)
-  drawTile(96, 96, 4, 4);  // enemy_system_admin at (4, 4)
+      let outR = ar * 0.16;
+      let outG = ag * 0.18;
+      let outB = ab * 0.22;
 
-  // 8. Place Player Operative Shell in active center-left
-  drawTile(0, 224, 3, 4);  // player_bastion at (3, 4)
+      const dx = lx - px;
+      const dy = ly - py;
+      const dz = lz - pz;
+      const d2 = Math.hypot(dx, dy);
+      if (d2 < radius) {
+        const d3 = Math.max(1, Math.hypot(d2, dz));
+        const ndotl = Math.max(0, (nx * dx + ny * dy + nz * dz) / d3);
+        const nd = d2 / radius;
+        const win = Math.pow(Math.max(0, 1 - nd * nd), 2);
+        const atten = (win / (1 + nd * nd * 3.5)) * 1.45;
 
-  // Border around mock dungeon room
-  sCtx.strokeStyle = themeAccentColor;
-  sCtx.lineWidth = 1;
-  sCtx.strokeRect(p2X - 0.5, p2Y - 0.5, 288 + 1, 288 + 1);
+        let shadow = 1.0;
+        if (d2 > 3) {
+          for (let s = 1; s <= 10; s++) {
+            const t = s / 11;
+            const sx = Math.round(px + dx * t);
+            const sy = Math.round(py + dy * t);
+            const si = (sy * roomW + sx) * 4;
+            const occOp = roomMat[si + 1] / 255;
+            const occZ = (roomMat[si + 3] / 255) * 32;
+            const rayZ = pz + dz * t;
+            if (occOp > 0.05 && occZ > rayZ + 0.65 && occZ > pz + 0.85) {
+              shadow -= occOp * 0.62;
+              if (shadow <= 0.08) {
+                shadow = 0.08;
+                break;
+              }
+            }
+          }
+        }
+
+        const shininess = 48 + (6 - 48) * roughness;
+        const hx = dx / d3;
+        const hy = dy / d3;
+        const hz = dz / d3 + 1;
+        const hLen = Math.max(0.001, Math.hypot(hx, hy, hz));
+        const ndoth = Math.max(0, (nx * hx + ny * hy + nz * hz) / hLen);
+        const specPow = Math.pow(ndoth, shininess) * spec * 0.85;
+        const f = atten * shadow;
+        outR += (ar * ndotl + specPow) * cr * f;
+        outG += (ag * ndotl + specPow) * cg * f;
+        outB += (ab * ndotl + specPow) * cb * f;
+      }
+
+      outR += ar * emissive * 1.4;
+      outG += ag * emissive * 1.4;
+      outB += ab * emissive * 1.4;
+
+      litImg.data[i] = Math.min(255, Math.round((outR / (1 + outR * 0.35)) * 255));
+      litImg.data[i + 1] = Math.min(255, Math.round((outG / (1 + outG * 0.35)) * 255));
+      litImg.data[i + 2] = Math.min(255, Math.round((outB / (1 + outB * 0.35)) * 255));
+      litImg.data[i + 3] = 255;
+    }
+  }
+  lCtx.putImageData(litImg, 0, 0);
+  sCtx.drawImage(litRoomCanvas, p2X, p2Y);
+  drawPanelBox(p2X, p2Y, roomW);
 
   // Subtitle under mock room
   sCtx.fillStyle = '#64748b';
   sCtx.font = '9px monospace';
-  sCtx.fillText('Context: 3/4 Elevated Walls, Seamless Floor, Doors, Props, & Chassis', 420, 360);
+  sCtx.fillText('Simulated Point Light @ Center: N·L Relief, Specular Glints & 2.5D Shadows', 420, 360);
 
-  // Bottom caption
+  // Bottom caption (Spec §7.2.4)
   sCtx.fillStyle = '#94a3b8';
   sCtx.font = '10px monospace';
-  sCtx.fillText('Alpha Verification: Dimmed to 30% under Fog-of-War | Opaque Floor (a=255) | Transparent Sprites', 24, 386);
+  sCtx.fillText('G-Buffer Verification: 1. Albedo | 2. Normal (_n.png) | 3. Material/Height (_m.png) | 4. Lit 2.5D Composite', 24, 386);
 
   return sheet;
 }
@@ -875,6 +1022,7 @@ async function main() {
     console.log(`- Generating master inspection preview sheet...`);
     const masterSheet = await generateThemedMasterSheet(
       themedCanvas,
+      themedJson,
       theme.id,
       theme.title,
       theme.accentColor

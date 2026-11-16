@@ -180,4 +180,53 @@ describe('LightSource Schema, Companion Atlases (_n/_m), and Un-Premultiplied In
     expect(paths.png.replace('.png', '_n.png')).toBe('assets/tileset_traxus_foundry_n.png');
     expect(paths.png.replace('.png', '_m.png')).toBe('assets/tileset_traxus_foundry_m.png');
   });
+
+  it('encodes Spec §3.3 & §7.2 heights for walls (32px), laser door beams (Z=16px, O=0, E=255), dead drops (14px), and lockers/safes (24px) (MED-05)', () => {
+    const manifest = JSON.parse(fs.readFileSync(path.join(ASSETS_DIR, 'tileset.json'), 'utf-8'));
+    const matImg = decodePngRgba(path.join(ASSETS_DIR, 'tileset_m.png'));
+    const readPixel = (x: number, y: number) => {
+      const idx = (y * matImg.width + x) * 4;
+      return {
+        emissive: matImg.pixels[idx],
+        shadowOpacity: matImg.pixels[idx + 1],
+        roughness: matImg.pixels[idx + 2],
+        heightByte: matImg.pixels[idx + 3],
+      };
+    };
+
+    // Structural wall (including south front skirt row ly=28) encodes 32px (255) & O=255
+    const wallRect = manifest.frames['wall'].frame;
+    const wallRoof = readPixel(wallRect.x + 16, wallRect.y + 4);
+    const wallSkirt = readPixel(wallRect.x + 16, wallRect.y + 28);
+    expect(wallRoof.heightByte).toBe(255);
+    expect(wallRoof.shadowOpacity).toBe(255);
+    expect(wallSkirt.heightByte).toBe(255);
+    expect(wallSkirt.shadowOpacity).toBe(255);
+
+    // Closed laser door: side jamb at Z=32px (255), O=255; central laser beam at E=255, O=0, Z=16px (128)
+    const doorRect = manifest.frames['door'].frame;
+    const doorJamb = readPixel(doorRect.x + 2, doorRect.y + 16);
+    const doorLaser = readPixel(doorRect.x + 16, doorRect.y + 16);
+    expect(doorJamb.heightByte).toBe(255);
+    expect(doorJamb.shadowOpacity).toBe(255);
+    expect(doorLaser.emissive).toBe(255);
+    expect(doorLaser.shadowOpacity).toBe(0);
+    expect(doorLaser.heightByte).toBe(Math.round((16 / 32) * 255));
+
+    // Dead drop (low-cover 14px) vs locker & safe_locked (tall prop 24px)
+    const maxFrameHeightByte = (key: string) => {
+      const rect = manifest.frames[key].frame;
+      let maxH = 0;
+      for (let py = 0; py < rect.h; py++) {
+        for (let px = 0; px < rect.w; px++) {
+          const p = readPixel(rect.x + px, rect.y + py);
+          if (p.heightByte > maxH) maxH = p.heightByte;
+        }
+      }
+      return maxH;
+    };
+    expect(maxFrameHeightByte('prop_dead_drop')).toBe(Math.round((14 / 32) * 255));
+    expect(maxFrameHeightByte('prop_locker')).toBe(Math.round((24 / 32) * 255));
+    expect(maxFrameHeightByte('prop_safe_locked')).toBe(Math.round((24 / 32) * 255));
+  });
 });
