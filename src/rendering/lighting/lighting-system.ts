@@ -370,6 +370,11 @@ export class LightingSystem {
       ? SECTOR_CONDITION_VISUAL_PROFILES[this.activeSectorCondition]
       : null;
 
+    const baseBloomIntensity = 0.72;
+    this.bloomFilter?.setIntensity(
+      baseBloomIntensity * factionProfile.bloomMultiplier * (condProfile?.bloomMultiplier ?? 1.0),
+    );
+
     this.deferredFilter.uploadUniforms({
       cameraX: camX,
       cameraY: camY,

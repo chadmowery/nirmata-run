@@ -89,10 +89,11 @@ out vec4 finalColor;
 uniform sampler2D uTexture;
 uniform sampler2D uBloomTex;
 uniform float uIntensity;
+uniform vec2 uBloomUvScale;
 
 void main(void) {
   vec4 base = texture(uTexture, vTextureCoord);
-  vec3 bloom = texture(uBloomTex, vTextureCoord).rgb;
+  vec3 bloom = texture(uBloomTex, vTextureCoord * uBloomUvScale).rgb;
   finalColor = vec4(base.rgb + bloom * uIntensity, base.a);
 }
 `;
@@ -129,6 +130,7 @@ export class SelectiveBloomFilter extends BaseFilter {
 
     this.compositeUniforms = new PIXI.UniformGroup({
       uIntensity: { value: intensity, type: 'f32' },
+      uBloomUvScale: { value: new Float32Array([1, 1]), type: 'vec2<f32>' },
     });
 
     this.extractFilter = new PIXI.Filter({
@@ -187,26 +189,37 @@ export class SelectiveBloomFilter extends BaseFilter {
     this.compositeUniforms.uniforms.uIntensity = intensity;
   }
 
+  public getIntensity(): number {
+    return Number(this.compositeUniforms.uniforms.uIntensity ?? 0);
+  }
+
   public override apply(
     filterManager: FilterSystem,
     input: Texture,
     output: RenderSurface,
     clearMode: boolean,
   ): void {
-    const brightTex = PIXI.TexturePool.getSameSizeTexture(input);
-    const bloomTex = PIXI.TexturePool.getSameSizeTexture(input);
+    // Dual-Kawase pyramid: 1/2 (480x320) -> 1/4 (240x160) -> 1/2 (480x320) using PixiJS resolution scaling
+    // so logical frame bounds (uOutputFrame / uInputSize) remain aligned with worldContainer.filterArea.
+    const halfTex = PIXI.TexturePool.getOptimalTexture(input.width, input.height, 0.5, false);
+    const quarterTex = PIXI.TexturePool.getOptimalTexture(input.width, input.height, 0.25, false);
 
     try {
-      this.extractFilter.apply(filterManager, input, brightTex, true);
-      this.kawaseDownFilter.apply(filterManager, brightTex, bloomTex, true);
-      this.kawaseUpFilter.apply(filterManager, bloomTex, brightTex, true);
+      this.extractFilter.apply(filterManager, input, halfTex, true);
+      this.kawaseDownFilter.apply(filterManager, halfTex, quarterTex, true);
+      this.kawaseUpFilter.apply(filterManager, quarterTex, halfTex, true);
 
-      this.compositeFilter.resources.uBloomTex = brightTex.source;
+      const scaleBuf = this.compositeUniforms.uniforms.uBloomUvScale as Float32Array | undefined;
+      if (scaleBuf) {
+        scaleBuf[0] = input.source.width / Math.max(1, halfTex.source.width);
+        scaleBuf[1] = input.source.height / Math.max(1, halfTex.source.height);
+      }
+      this.compositeFilter.resources.uBloomTex = halfTex.source;
 
       filterManager.applyFilter(this.compositeFilter, input, output, clearMode);
     } finally {
-      PIXI.TexturePool.returnTexture(brightTex);
-      PIXI.TexturePool.returnTexture(bloomTex);
+      PIXI.TexturePool.returnTexture(halfTex);
+      PIXI.TexturePool.returnTexture(quarterTex);
     }
   }
 

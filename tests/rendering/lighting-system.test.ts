@@ -18,6 +18,7 @@ import {
   DeferredLightFilter,
   GBufferPass,
   LightingSystem,
+  SelectiveBloomFilter,
   evaluateLightAnimation,
   resolveFactionAmbientProfile,
 } from '../../src/rendering/lighting';
@@ -114,12 +115,30 @@ vi.mock('pixi.js', () => {
     }
     return { uniforms, update: vi.fn() };
   });
+  const Filter = class {
+    public resources: Record<string, unknown>;
+    constructor(opts?: Record<string, unknown>) {
+      this.resources = (opts?.resources as Record<string, unknown>) ?? {};
+    }
+    public apply(..._args: unknown[]): void {}
+    public destroy(_options?: boolean): void {}
+  };
+  const TexturePool = {
+    getOptimalTexture: vi.fn((w: number, h: number, resolution: number) => ({
+      width: w,
+      height: h,
+      source: { width: w / resolution, height: h / resolution, _resolution: resolution },
+    })),
+    returnTexture: vi.fn(),
+  };
   const GlProgram: { from?: unknown } = {};
   return {
     Sprite,
     Container,
     Graphics,
     Texture,
+    TexturePool,
+    Filter,
     BufferImageSource,
     UniformGroup,
     GlProgram,
@@ -1016,6 +1035,51 @@ describe('Deferred Lighting System & Render Integration [LIGHT-03/04/07]', () =>
       renderSystem.renderSystem();
       const detonatedCorr = renderSystem.getEffectiveEntityLight(cProp)!;
       expect(detonatedCorr.color).toBe('#00f0ff');
+    });
+
+    it('downsamples SelectiveBloomFilter via 0.5x/0.25x optimal textures and wires faction/condition bloom multipliers (MED-02)', () => {
+      const glProg = PIXI.GlProgram as unknown as { from?: unknown };
+      glProg.from = vi.fn().mockReturnValue({});
+      const getOptMock = vi.mocked(PIXI.TexturePool.getOptimalTexture);
+      const returnMock = vi.mocked(PIXI.TexturePool.returnTexture);
+      getOptMock.mockClear();
+      returnMock.mockClear();
+
+      try {
+        const bloom = new SelectiveBloomFilter(PIXI.Texture.EMPTY);
+        const inputTex = { width: 960, height: 640, source: { width: 1024, height: 1024 } } as unknown as PIXI.Texture;
+        const fakeFilterManager = { applyFilter: vi.fn() } as unknown as PIXI.FilterSystem;
+
+        bloom.apply(fakeFilterManager, inputTex, PIXI.Texture.EMPTY, true);
+        expect(getOptMock).toHaveBeenNthCalledWith(1, 960, 640, 0.5, false);
+        expect(getOptMock).toHaveBeenNthCalledWith(2, 960, 640, 0.25, false);
+        expect(returnMock).toHaveBeenCalledTimes(2);
+        bloom.destroy(true);
+
+        const lighting = new LightingSystem(20, 15);
+        lighting.setEnvironmentTheme('traxus', 'THERMAL_SURGE');
+        lighting.update({
+          world,
+          worldContainer: { x: 0, y: 0, scale: { x: 1, y: 1 }, filters: null } as never,
+          terrainLayer: { children: [] } as never,
+          itemLayer: { children: [] } as never,
+          entityLayer: { children: [] } as never,
+          spriteMap: new Map(),
+          gridWidth: 20,
+          gridHeight: 15,
+          deltaMs: 16,
+          enabled: true,
+        });
+
+        const internalBloom = (lighting as unknown as { bloomFilter: SelectiveBloomFilter | null })
+          .bloomFilter;
+        expect(internalBloom).not.toBeNull();
+        // 0.72 base * 1.15 (Traxus) * 1.35 (THERMAL_SURGE) = 1.1178
+        expect(internalBloom!.getIntensity()).toBeCloseTo(0.72 * 1.15 * 1.35, 4);
+        lighting.destroy();
+      } finally {
+        delete glProg.from;
+      }
     });
   });
 });

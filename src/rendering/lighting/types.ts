@@ -12,10 +12,12 @@ export interface FactionAmbientProfile {
   colorHex: string;
   rgb: [number, number, number];
   intensity: number;
+  bloomMultiplier: number;
 }
 
 export interface SectorConditionVisualProfile {
   ambientScale: number;
+  bloomMultiplier: number;
   floorPulseHz: number;
   floorPulseRgb: [number, number, number];
   tintRgb: [number, number, number];
@@ -122,30 +124,35 @@ const DEFAULT_CYBERACME_PROFILE: FactionAmbientProfile = {
   colorHex: '#0d1528',
   rgb: parseHexColorNormalized('#0d1528'),
   intensity: 0.24,
+  bloomMultiplier: 1.0,
 };
 
 const TRAXUS_PROFILE: FactionAmbientProfile = {
   colorHex: '#261109',
   rgb: parseHexColorNormalized('#261109'),
   intensity: 0.26,
+  bloomMultiplier: 1.15,
 };
 
 const SEKIGUCHI_PROFILE: FactionAmbientProfile = {
   colorHex: '#091e20',
   rgb: parseHexColorNormalized('#091e20'),
   intensity: 0.25,
+  bloomMultiplier: 1.10,
 };
 
 const DARK_SUBNET_PROFILE: FactionAmbientProfile = {
   colorHex: '#03050a',
   rgb: parseHexColorNormalized('#03050a'),
   intensity: 0.07,
+  bloomMultiplier: 1.25,
 };
 
 const NUCALORIC_PROFILE: FactionAmbientProfile = {
   colorHex: '#101b24',
   rgb: parseHexColorNormalized('#101b24'),
   intensity: 0.22,
+  bloomMultiplier: 1.10,
 };
 
 export const FACTION_AMBIENT_PROFILES: Record<string, FactionAmbientProfile> = {
@@ -166,6 +173,7 @@ export const SECTOR_CONDITION_VISUAL_PROFILES: Record<
 > = {
   NOMINAL: {
     ambientScale: 1.0,
+    bloomMultiplier: 1.0,
     floorPulseHz: 0,
     floorPulseRgb: [0, 0, 0],
     tintRgb: [1, 1, 1],
@@ -173,6 +181,7 @@ export const SECTOR_CONDITION_VISUAL_PROFILES: Record<
   },
   THERMAL_SURGE: {
     ambientScale: 1.0,
+    bloomMultiplier: 1.35,
     floorPulseHz: 0.8,
     floorPulseRgb: parseHexColorNormalized('#ff4d00'),
     tintRgb: parseHexColorNormalized('#ff7733'),
@@ -180,6 +189,7 @@ export const SECTOR_CONDITION_VISUAL_PROFILES: Record<
   },
   DARK_SUBNET: {
     ambientScale: 0.35,
+    bloomMultiplier: 1.50,
     floorPulseHz: 0,
     floorPulseRgb: [0, 0, 0],
     tintRgb: parseHexColorNormalized('#4da6ff'),
@@ -189,6 +199,7 @@ export const SECTOR_CONDITION_VISUAL_PROFILES: Record<
   },
   OVERCLOCKED_GRID: {
     ambientScale: 0.85,
+    bloomMultiplier: 1.40,
     floorPulseHz: 0,
     floorPulseRgb: [0, 0, 0],
     tintRgb: parseHexColorNormalized('#a855f7'),
