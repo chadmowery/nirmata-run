@@ -119,7 +119,11 @@ void main(void) {
   float lightFovGate = smoothstep(0.25, 0.60, fovMask);
   float jitter = interleavedGradientNoise(screenPx);
 
-  vec3 diffuseAccum = uAmbientColor * uAmbientIntensity * uConditionTint;
+  // Preserve faction chromaticity without crushing already-dark pixel art to black in Active FOV
+  float ambMax = max(max(uAmbientColor.r, uAmbientColor.g), max(uAmbientColor.b, 0.001));
+  vec3 ambientTint = mix(vec3(1.0), uAmbientColor / ambMax, 0.72);
+  float activeAmbientLevel = clamp(uAmbientIntensity * 1.65, 0.03, 0.65);
+  vec3 diffuseAccum = ambientTint * activeAmbientLevel * uConditionTint;
   vec3 specularAccum = vec3(0.0);
   vec3 beaconAccum = vec3(0.0);
 
@@ -207,12 +211,14 @@ void main(void) {
   }
 
   // Subtle colored bounce into shadowed pockets
-  vec3 ambientFloor = max(diffuseAccum, uShadowTint * 0.35 * lightFovGate);
+  float shadowMax = max(max(uShadowTint.r, uShadowTint.g), max(uShadowTint.b, 0.001));
+  vec3 shadowTintNorm = mix(vec3(1.0), uShadowTint / shadowMax, 0.72);
+  vec3 ambientFloor = max(diffuseAccum, shadowTintNorm * activeAmbientLevel * 0.85 * lightFovGate);
 
   vec3 litRgb = albedoSample.rgb * ambientFloor + specularAccum;
 
   // Emissive self-illumination bypasses shadows
-  vec3 emissiveRgb = albedoSample.rgb * emissive * mix(0.28, 1.35, lightFovGate);
+  vec3 emissiveRgb = albedoSample.rgb * emissive * mix(0.08, 1.35, lightFovGate);
   litRgb += emissiveRgb;
 
   // THERMAL_SURGE 0.8 Hz floor thermal vein pulse (Spec §4.2)
@@ -221,11 +227,12 @@ void main(void) {
     litRgb += uFloorPulseColor * (wave * uFloorPulseAmp * lightFovGate);
   }
 
-  // Explored Memory state: 65% desaturated memory navy wash (#0b1324)
+  // Explored Memory state: strictly dimmer, cold 65%-desaturated silhouette (#0b1324 family)
   if (fovMask > 0.02 && fovMask < 0.92) {
     float lum = dot(albedoSample.rgb, vec3(0.2126, 0.7152, 0.0722));
     vec3 desaturated = mix(albedoSample.rgb, vec3(lum), 0.65);
-    vec3 memoryColor = desaturated * vec3(0.22, 0.30, 0.46) + vec3(0.015, 0.026, 0.052) + albedoSample.rgb * emissive * 0.28;
+    float memoryScale = clamp(uAmbientIntensity * 3.8, 0.35, 1.0);
+    vec3 memoryColor = (desaturated * vec3(0.09, 0.13, 0.21) + albedoSample.rgb * emissive * 0.06) * memoryScale;
     float blendActive = smoothstep(0.25, 0.72, fovMask);
     float revealMask = smoothstep(0.01, 0.18, fovMask);
     litRgb = mix(memoryColor * revealMask, litRgb, blendActive);

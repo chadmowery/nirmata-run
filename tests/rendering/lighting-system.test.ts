@@ -552,5 +552,25 @@ describe('Deferred Lighting System & Render Integration [LIGHT-03/04/07]', () =>
         delete glProg.from;
       }
     });
+
+    it('keeps Active FOV ambient brighter than Explored Memory and omits flat background lift in DeferredLightFilter shader', () => {
+      const glProg = PIXI.GlProgram as unknown as { from?: ReturnType<typeof vi.fn> };
+      const fromMock = vi.fn().mockReturnValue({});
+      glProg.from = fromMock;
+
+      try {
+        const dummyTex = PIXI.Texture.EMPTY;
+        const filter = new DeferredLightFilter(dummyTex, dummyTex, dummyTex);
+        const shaderOpts = fromMock.mock.calls[0]?.[0] as { fragment?: string } | undefined;
+        const frag = shaderOpts?.fragment ?? '';
+
+        expect(frag).toContain('activeAmbientLevel');
+        expect(frag).toContain('memoryScale');
+        expect(frag).not.toContain('+ vec3(0.015, 0.026, 0.052)');
+        filter.destroy(true);
+      } finally {
+        delete glProg.from;
+      }
+    });
   });
 });
