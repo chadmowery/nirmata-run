@@ -3,6 +3,7 @@ import { Grid } from '@engine/grid/grid';
 import { EventBus } from '@engine/events/event-bus';
 import { GameplayEvents } from '@shared/events/types';
 import { createMovementSystem } from '@game/systems/movement';
+import { createShellDirectionSystem } from '@game/systems/shell-direction';
 import { createAugmentSystem } from '@game/systems/augment';
 import { createTagCleanupSystem } from '@game/systems/tag-cleanup';
 import { createEquipmentSystem } from '@game/systems/equipment';
@@ -13,6 +14,7 @@ import { createTeleportSystem } from '@game/systems/teleport';
 import { createFirmwareSystem } from '@game/systems/firmware';
 
 export interface ClientSystems<T extends GameplayEvents = GameplayEvents> {
+  shellDirection: ReturnType<typeof createShellDirectionSystem<T>>;
   movement: ReturnType<typeof createMovementSystem<T>>;
   augment: ReturnType<typeof createAugmentSystem<T>>;
   tagCleanup: ReturnType<typeof createTagCleanupSystem<T>>;
@@ -34,6 +36,7 @@ export function registerClientSystems<T extends GameplayEvents>(
   eventBus: EventBus<T>,
 ): ClientSystems<T> {
   const shellStats = createShellStatsSystem(world);
+  const shellDirection = createShellDirectionSystem(world);
   const teleport = createTeleportSystem(world, grid, eventBus);
   const movement = createMovementSystem(world, grid, eventBus, true);
   const equipment = createEquipmentSystem(world, eventBus);
@@ -45,6 +48,7 @@ export function registerClientSystems<T extends GameplayEvents>(
 
   // Initialize prediction-safe systems into their phase slots
   shellStats.init();
+  shellDirection.init();
   teleport.init();
   movement.init();
   equipment.init();
@@ -56,6 +60,7 @@ export function registerClientSystems<T extends GameplayEvents>(
 
   return {
     shellStats,
+    shellDirection,
     teleport,
     movement,
     equipment,

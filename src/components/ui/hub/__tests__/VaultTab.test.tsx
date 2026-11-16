@@ -359,4 +359,129 @@ describe('VaultTab UI', () => {
     // Profile wallet should have been updated optimistically: 500 + 15 = 515
     expect(gameStore.getState().playerProfile?.wallet.scrap).toBe(515);
   });
+
+  it('sells all overflow items from VaultOverflowBanner', async () => {
+    mockProfile.overflow = [
+      {
+        vaultItemId: 'ov-1',
+        entityId: 401,
+        templateId: 'rifle-v1',
+        itemType: 'weapon',
+        rarityTier: 'common', // 15 CR
+        extractedAtFloor: 1,
+        extractedAtTimestamp: 1000,
+      },
+      {
+        vaultItemId: 'ov-2',
+        entityId: 402,
+        templateId: 'armor-v3',
+        itemType: 'armor',
+        rarityTier: 'rare', // 60 CR
+        extractedAtFloor: 2,
+        extractedAtTimestamp: 1000,
+      },
+    ];
+    gameStore.getState().setPlayerProfile(mockProfile);
+
+    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(async (url: string | URL | Request) => {
+      if (url.toString().includes('/api/vault/sell')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            soldCount: 2,
+            scrapGained: 75,
+            totalScrap: 575,
+          }),
+        } as unknown as Response;
+      }
+      return { ok: true, json: async () => ({}) } as unknown as Response;
+    });
+
+    render(<VaultTab />);
+
+    const sellAllBtn = screen.getByRole('button', { name: /Sell all overflow items/i });
+    expect(sellAllBtn.textContent).toContain('SELL ALL');
+    expect(sellAllBtn.textContent).toContain('75 CR');
+
+    await act(async () => {
+      fireEvent.click(sellAllBtn);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/vault/sell',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId: 'test-session',
+          all: true,
+        }),
+      }),
+    );
+
+    expect(gameStore.getState().playerProfile?.overflow).toHaveLength(0);
+    expect(gameStore.getState().playerProfile?.wallet.scrap).toBe(575);
+    expect(gameStore.getState().hasOverflow).toBe(false);
+  });
+
+  it('discards all overflow items from VaultOverflowBanner without changing scrap', async () => {
+    mockProfile.overflow = [
+      {
+        vaultItemId: 'ov-3',
+        entityId: 403,
+        templateId: 'bleed-v1',
+        itemType: 'software',
+        rarityTier: 'uncommon',
+        extractedAtFloor: 1,
+        extractedAtTimestamp: 1000,
+      },
+      {
+        vaultItemId: 'ov-4',
+        entityId: 404,
+        templateId: 'phase-shift',
+        itemType: 'firmware',
+        rarityTier: 'common',
+        extractedAtFloor: 1,
+        extractedAtTimestamp: 1000,
+      },
+    ];
+    gameStore.getState().setPlayerProfile(mockProfile);
+
+    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(async (url: string | URL | Request) => {
+      if (url.toString().includes('/api/vault/discard')) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            discardedCount: 2,
+          }),
+        } as unknown as Response;
+      }
+      return { ok: true, json: async () => ({}) } as unknown as Response;
+    });
+
+    render(<VaultTab />);
+
+    const discardAllBtn = screen.getByRole('button', { name: /Discard all overflow items/i });
+    expect(discardAllBtn.textContent).toContain('DISCARD ALL');
+
+    await act(async () => {
+      fireEvent.click(discardAllBtn);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/vault/discard',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId: 'test-session',
+          all: true,
+        }),
+      }),
+    );
+
+    expect(gameStore.getState().playerProfile?.overflow).toHaveLength(0);
+    expect(gameStore.getState().playerProfile?.wallet.scrap).toBe(500);
+    expect(gameStore.getState().hasOverflow).toBe(false);
+  });
 });

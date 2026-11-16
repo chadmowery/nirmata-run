@@ -151,7 +151,9 @@ export function resolveClipFromManifest(
   if (!animations) return null;
 
   let entry = animations[animSetKey];
-  if (!entry) {
+  // Only fall back to canonical sprite animations when the manifest lacks a dedicated frame for animSetKey.
+  // Otherwise directional/custom frames without clips (e.g. bastion-v1-south) would be overwritten by base animations.
+  if (!entry && !typedManifest.frames?.[animSetKey]) {
     const fallbackKey = resolveFallbackSpriteKey(animSetKey);
     if (fallbackKey && animations[fallbackKey]) {
       entry = animations[fallbackKey];

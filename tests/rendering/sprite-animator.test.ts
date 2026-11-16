@@ -384,6 +384,33 @@ describe('SpriteAnimator & Runtime Engine ([ANIM-03])', () => {
       expect(clip?.frames).toEqual(['prop_workstation', 'prop_workstation_glow']);
     });
 
+    it('holds dedicated static frame when present in frames without falling back to legacy fallback animation', () => {
+      const manifestWithDedicatedShellFrames: any = {
+        frames: {
+          player_bastion: { frame: { x: 0, y: 224, w: 32, h: 32 } },
+          'bastion-v1-south': { frame: { x: 64, y: 480, w: 32, h: 32 } },
+          'bastion-v1-north': { frame: { x: 0, y: 480, w: 32, h: 32 } },
+        },
+        animations: {
+          player_bastion: {
+            idle: {
+              frames: ['player_bastion', 'player_bastion_idle_1'],
+              fps: 4,
+              loop: 'loop',
+            },
+          },
+        },
+      };
+      animator.setCustomManifest(manifestWithDedicatedShellFrames);
+
+      expect(animator.getClip('bastion-v1-south', 'idle')).toBeNull();
+      expect(animator.getClip('bastion-v1-north', 'idle')).toBeNull();
+
+      animator.registerEntity(42, { baseSpriteKey: 'bastion-v1-south', desyncPhase: false });
+      animator.tick(500);
+      expect(animator.getEntityState(42)?.lastRenderedFrameKey).toBe('bastion-v1-south');
+    });
+
     it('resets animation state and clock when baseSpriteKey changes on entity re-registration', () => {
       animator.registerEntity(1, { baseSpriteKey: 'player', desyncPhase: false });
       animator.tick(350);

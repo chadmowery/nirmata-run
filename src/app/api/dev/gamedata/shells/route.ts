@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import path from 'path';
 import { access } from 'fs/promises';
 import { checkNonProductionOnly } from '@/server/security/env-gate';
-import { listJsonFiles, atomicWrite, resolveFilePath, errorResponse, regenerateTemplateIndex } from '../utils';
+import { globalShellRegistry } from '@/game/shells/server';
+import type { ShellTemplate } from '@/game/shells/server/types';
+import { normalizeDirectionalSprites } from '@shared/utils/shell-sprite-util';
+import { listJsonFiles, atomicWrite, resolveFilePath, errorResponse, regenerateShellTemplateIndex } from '../utils';
 import { ShellTemplateSchema } from '../schemas';
 
 const DIR = path.join(process.cwd(), 'src/game/shells/shared/templates');
@@ -37,8 +40,20 @@ export async function POST(req: Request) {
       /* file doesn't exist — good */
     }
 
-    await atomicWrite(filePath, body);
-    await regenerateTemplateIndex();
+    const normalizedDirectional = normalizeDirectionalSprites(parseResult.data.directionalSprites);
+    const sanitizedBody: ShellTemplate = {
+      ...(parseResult.data as ShellTemplate),
+      directionalSprites: normalizedDirectional,
+      defaultDirection: normalizedDirectional ? parseResult.data.defaultDirection : undefined,
+    };
+    if (!normalizedDirectional) {
+      delete sanitizedBody.directionalSprites;
+      delete sanitizedBody.defaultDirection;
+    }
+
+    await atomicWrite(filePath, sanitizedBody);
+    globalShellRegistry.upsertTemplate(sanitizedBody);
+    await regenerateShellTemplateIndex();
 
     return NextResponse.json({ success: true, id: body.id }, { status: 201 });
   } catch (error) {

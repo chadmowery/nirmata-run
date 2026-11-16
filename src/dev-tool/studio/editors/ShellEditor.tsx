@@ -1,10 +1,24 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import type { ShellTemplate, ShellUpgrade } from '@/game/shells/server/types';
+import {
+  CARDINAL_DIRECTIONS,
+  type CardinalDirectionSuffix,
+  hasConfiguredDirectionalSprites,
+  normalizeCardinalDirection,
+  normalizeDirectionalSprites,
+} from '@shared/utils/shell-sprite-util';
 import { useGamedataStore } from '../store';
 import { SpritePicker } from '../shared/SpritePicker';
 import { LightSourceSubEditor, type LightSourceSubEditorValues } from './subeditors/LightSourceSubEditor';
 import styles from './editors.module.css';
+
+const DIRECTION_ROWS: readonly { key: CardinalDirectionSuffix; label: string }[] = [
+  { key: 'north', label: 'North (↑)' },
+  { key: 'east', label: 'East (→)' },
+  { key: 'south', label: 'South (↓)' },
+  { key: 'west', label: 'West (←)' },
+];
 
 interface Props {
   id: string;
@@ -82,10 +96,21 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
     try {
       const method = isNew ? 'POST' : 'PUT';
       const url = isNew ? '/api/dev/gamedata/shells' : `/api/dev/gamedata/shells/${id}`;
+      const normalizedDirectional = normalizeDirectionalSprites(shellData.directionalSprites);
+      const payload: ShellTemplate = {
+        ...shellData,
+        directionalSprites: normalizedDirectional,
+        defaultDirection: normalizedDirectional ? (shellData.defaultDirection ?? 'south') : undefined,
+      };
+      if (!normalizedDirectional) {
+        delete payload.directionalSprites;
+        delete payload.defaultDirection;
+      }
+
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(shellData),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -93,6 +118,7 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
         throw new Error(err.error || 'Failed to save shell');
       }
 
+      setShellData(payload);
       setSaveStatus('success');
       setDirty(false);
       onRefresh?.();
@@ -181,7 +207,71 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
     setDirty(true);
   };
 
+  const handleDirectionalSpriteChange = (dir: CardinalDirectionSuffix, val: string) => {
+    if (!shellData) return;
+    const nextDefault = normalizeCardinalDirection(shellData.defaultDirection) ?? 'south';
+    const nextDirectional = {
+      ...(shellData.directionalSprites ?? {}),
+      [dir]: val,
+    };
+    const nextData: ShellTemplate = {
+      ...shellData,
+      directionalSprites: nextDirectional,
+      defaultDirection: hasConfiguredDirectionalSprites(nextDirectional) ? nextDefault : shellData.defaultDirection,
+    };
+    if (dir === nextDefault && val.trim()) {
+      nextData.sprite = val.trim();
+    }
+    setShellData(nextData);
+    setDirty(true);
+  };
+
+  const handleDefaultDirectionChange = (nextDefault: CardinalDirectionSuffix) => {
+    if (!shellData) return;
+    const syncedSprite = shellData.directionalSprites?.[nextDefault]?.trim();
+    setShellData({
+      ...shellData,
+      defaultDirection: nextDefault,
+      ...(syncedSprite ? { sprite: syncedSprite } : {}),
+    });
+    setDirty(true);
+  };
+
+  const handleAutoFillDirectional = () => {
+    if (!shellData) return;
+    const prefix = (shellData.id || id || 'shell').trim();
+    const defaultDir = normalizeCardinalDirection(shellData.defaultDirection) ?? 'south';
+    const autoSprites = {
+      north: `${prefix}-north`,
+      east: `${prefix}-east`,
+      south: `${prefix}-south`,
+      west: `${prefix}-west`,
+    };
+    setShellData({
+      ...shellData,
+      defaultDirection: defaultDir,
+      directionalSprites: autoSprites,
+      sprite: autoSprites[defaultDir],
+    });
+    setDirty(true);
+  };
+
+  const handleClearDirectional = () => {
+    if (!shellData) return;
+    const rest = { ...shellData };
+    delete rest.directionalSprites;
+    delete rest.defaultDirection;
+    setShellData(rest);
+    setDirty(true);
+  };
+
   if (!shellData) return <div>Loading...</div>;
+
+  const hasDirections =
+    hasConfiguredDirectionalSprites(shellData.directionalSprites) ||
+    Boolean(shellData.defaultDirection);
+  const activeDefaultDirection: CardinalDirectionSuffix =
+    normalizeCardinalDirection(shellData.defaultDirection) ?? 'south';
 
   return (
     <div className={styles.editor}>
@@ -236,7 +326,7 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
       </div>
 
       <div className={styles.fieldRow}>
-        <label className={styles.fieldLabel}>Sprite</label>
+        <label className={styles.fieldLabel}>Base Sprite</label>
         <div style={{ flex: 1 }}>
           <SpritePicker
             value={shellData.sprite || ''}
@@ -245,6 +335,83 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
               setDirty(true);
             }}
           />
+        </div>
+      </div>
+
+      {/* Cardinal Direction Sprites */}
+      <div className={styles.fieldGroup}>
+        <div className={styles.fieldGroupHeader}>
+          <span className={styles.fieldGroupTitle}>Cardinal Direction Sprites (N / E / S / W)</span>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+            <button
+              type="button"
+              className={styles.addComponentButton}
+              style={{ marginTop: 0 }}
+              onClick={handleAutoFillDirectional}
+              title="Populate <shell-id>-{north,east,south,west} sprite keys"
+            >
+              Auto-Fill {shellData.id || id || 'shell'}-&#123;dir&#125;
+            </button>
+            {hasDirections && (
+              <button
+                type="button"
+                className={styles.removeButton}
+                onClick={handleClearDirectional}
+              >
+                CLEAR
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className={styles.fieldRow}>
+          <label className={styles.fieldLabel} htmlFor="shell-default-direction">
+            Default Facing
+          </label>
+          <select
+            id="shell-default-direction"
+            className={styles.fieldSelect}
+            value={activeDefaultDirection}
+            onChange={(e) =>
+              handleDefaultDirectionChange(e.target.value as CardinalDirectionSuffix)
+            }
+          >
+            {CARDINAL_DIRECTIONS.map((dir) => (
+              <option key={dir} value={dir}>
+                {dir.toUpperCase()}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+          {DIRECTION_ROWS.map((dir) => {
+            const isDefault = activeDefaultDirection === dir.key;
+            return (
+              <div key={dir.key} className={styles.fieldRow} style={{ alignItems: 'flex-start' }}>
+                <label className={styles.fieldLabel} style={{ paddingTop: '10px' }}>
+                  {dir.label}
+                  {isDefault && (
+                    <span
+                      style={{
+                        marginLeft: '6px',
+                        fontSize: '9px',
+                        color: 'var(--c-accent-secondary, #00f0ff)',
+                      }}
+                    >
+                      [DEFAULT]
+                    </span>
+                  )}
+                </label>
+                <div style={{ flex: 1 }}>
+                  <SpritePicker
+                    value={shellData.directionalSprites?.[dir.key] || ''}
+                    onChange={(val) => handleDirectionalSpriteChange(dir.key, val)}
+                  />
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

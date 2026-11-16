@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 import { checkNonProductionOnly } from '@/server/security/env-gate';
-import { resolveFilePath, atomicWrite, errorResponse, regenerateTemplateIndex } from '../../utils';
+import { globalShellRegistry } from '@/game/shells/server';
+import type { ShellTemplate } from '@/game/shells/server/types';
+import { normalizeDirectionalSprites } from '@shared/utils/shell-sprite-util';
+import { resolveFilePath, atomicWrite, errorResponse, regenerateShellTemplateIndex } from '../../utils';
 import { ShellTemplateSchema } from '../../schemas';
 
 const DIR = path.join(process.cwd(), 'src/game/shells/shared/templates');
@@ -43,7 +46,19 @@ export async function PUT(req: Request, { params }: { params: Promise<{ name: st
       return errorResponse(`Invalid shell template schema: ${parseResult.error.message}`, 400);
     }
 
-    await atomicWrite(filePath, body);
+    const normalizedDirectional = normalizeDirectionalSprites(parseResult.data.directionalSprites);
+    const sanitizedBody: ShellTemplate = {
+      ...(parseResult.data as ShellTemplate),
+      directionalSprites: normalizedDirectional,
+      defaultDirection: normalizedDirectional ? parseResult.data.defaultDirection : undefined,
+    };
+    if (!normalizedDirectional) {
+      delete sanitizedBody.directionalSprites;
+      delete sanitizedBody.defaultDirection;
+    }
+
+    await atomicWrite(filePath, sanitizedBody);
+    globalShellRegistry.upsertTemplate(sanitizedBody);
     return NextResponse.json({ success: true });
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Internal server error', 500);
@@ -60,7 +75,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ name
 
   try {
     await fs.unlink(filePath);
-    await regenerateTemplateIndex();
+    globalShellRegistry.removeTemplate(name);
+    await regenerateShellTemplateIndex();
     return NextResponse.json({ success: true });
   } catch {
     return errorResponse('Not found', 404);

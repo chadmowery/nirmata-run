@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { VaultItem } from '@/shared/profile';
+import { getVaultItemValue } from '@/shared/vault';
 import { BtnLever } from '../atomic';
 import { ItemTooltip } from './ItemTooltip';
 import { ItemMetadata, resolveItemMetadata } from './item-metadata';
@@ -11,12 +12,16 @@ interface VaultOverflowBannerProps {
   overflowItems: VaultItem[];
   onSell: (itemIdentifier: string | number, item?: VaultItem) => void;
   onDiscard: (itemIdentifier: string | number, item?: VaultItem) => void;
+  onSellAll?: () => void;
+  onDiscardAll?: () => void;
 }
 
 const VaultOverflowBanner: React.FC<VaultOverflowBannerProps> = ({
   overflowItems,
   onSell,
   onDiscard,
+  onSellAll,
+  onDiscardAll,
 }) => {
   const [hoveredItem, setHoveredItem] = useState<{
     metadata: ItemMetadata;
@@ -26,18 +31,7 @@ const VaultOverflowBanner: React.FC<VaultOverflowBannerProps> = ({
 
   if (overflowItems.length === 0) return null;
 
-  const getSellPrice = (rarity: string) => {
-    switch (rarity.toLowerCase()) {
-      case 'uncommon':
-        return 25;
-      case 'rare':
-        return 50;
-      case 'legendary':
-        return 150;
-      default:
-        return 10;
-    }
-  };
+  const totalSellValue = overflowItems.reduce((sum, item) => sum + getVaultItemValue(item), 0);
 
   const handleFocus = (metadata: ItemMetadata, e: React.FocusEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -50,7 +44,42 @@ const VaultOverflowBanner: React.FC<VaultOverflowBannerProps> = ({
 
   return (
     <div className={styles.banner}>
-      <h3 className={styles.heading}>OVERFLOW: {overflowItems.length} IN_LIMBO</h3>
+      <div className={styles.headerRow}>
+        <h3 className={styles.heading}>OVERFLOW: {overflowItems.length} IN_LIMBO</h3>
+        {(onDiscardAll || onSellAll) && (
+          <div className={styles.bulkActions}>
+            {onDiscardAll && (
+              <BtnLever
+                variant="danger"
+                holdToConfirm={true}
+                aria-label="Discard all overflow items"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDiscardAll();
+                }}
+                style={{ padding: '3px 10px', fontSize: '10px' }}
+              >
+                DISCARD ALL
+              </BtnLever>
+            )}
+            {onSellAll && (
+              <BtnLever
+                variant="cyan"
+                holdToConfirm={true}
+                aria-label="Sell all overflow items"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSellAll();
+                }}
+                style={{ padding: '3px 10px', fontSize: '10px' }}
+                rightSlot={`${totalSellValue} CR`}
+              >
+                SELL ALL
+              </BtnLever>
+            )}
+          </div>
+        )}
+      </div>
       <div className={styles.itemList}>
         {overflowItems.map((item, idx) => {
           const meta = resolveItemMetadata({
@@ -101,7 +130,7 @@ const VaultOverflowBanner: React.FC<VaultOverflowBannerProps> = ({
                     onSell(item.vaultItemId, item);
                   }}
                   style={{ padding: '3px 8px', fontSize: '10px' }}
-                  rightSlot={`${getSellPrice(item.rarityTier)} CR`}
+                  rightSlot={`${getVaultItemValue(item)} CR`}
                 >
                   SELL
                 </BtnLever>

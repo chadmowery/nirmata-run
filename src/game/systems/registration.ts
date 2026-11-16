@@ -5,6 +5,7 @@ import { EntityFactory } from '@engine/entity/factory';
 import { ComponentRegistry } from '@engine/entity/types';
 import { GameplayEvents } from '@shared/events/types';
 import { createMovementSystem } from './movement';
+import { createShellDirectionSystem } from './shell-direction';
 import { createCombatSystem, createHealSystem } from './combat';
 import { createItemPickupSystem } from './item-pickup';
 import { createGravediggerSystem } from './gravedigger';
@@ -41,6 +42,7 @@ export function registerCoreSystems<T extends GameplayEvents>(
   componentRegistry: ComponentRegistry,
   options: { skipLoot?: boolean; runMode?: RunMode; isClient?: boolean } = {},
 ) {
+  const shellDirection = createShellDirectionSystem(world);
   const teleport = createTeleportSystem(world, grid, eventBus);
   const movement = createMovementSystem(world, grid, eventBus, options.isClient === true);
   const combat = createCombatSystem(
@@ -103,6 +105,7 @@ export function registerCoreSystems<T extends GameplayEvents>(
   shellStats.init();
 
   // Action / Reaction
+  shellDirection.init();
   teleport.init();
   movement.init();
   if (!isClient) {
@@ -154,6 +157,7 @@ export function registerCoreSystems<T extends GameplayEvents>(
   tagCleanup.init();
 
   return {
+    shellDirection,
     movement,
     combat,
     itemPickup,

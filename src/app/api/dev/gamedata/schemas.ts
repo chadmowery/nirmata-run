@@ -89,6 +89,15 @@ export const ShellTemplateSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/),
   name: z.string().min(1),
   sprite: z.string().optional(),
+  defaultDirection: z.enum(['north', 'east', 'south', 'west']).optional(),
+  directionalSprites: z
+    .object({
+      north: z.string().optional(),
+      east: z.string().optional(),
+      south: z.string().optional(),
+      west: z.string().optional(),
+    })
+    .optional(),
   baseStats: z.object({
     speed: z.number().int().min(0),
     stability: z.number().int().min(0),

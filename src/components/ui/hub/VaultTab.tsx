@@ -190,6 +190,55 @@ export const VaultTab: React.FC = () => {
     }
   };
 
+  const handleSellAllOverflow = async () => {
+    try {
+      const response = await reportableFetch('/api/vault/sell', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: profile.sessionId,
+          all: true,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        updateProfileOptimistic((p) => ({
+          ...p,
+          wallet: {
+            ...p.wallet,
+            scrap: typeof data.totalScrap === 'number' ? data.totalScrap : p.wallet.scrap + (data.scrapGained || 0),
+          },
+          overflow: [],
+        }));
+      }
+    } catch (error) {
+      logger.error('Sell all overflow failed:', 'UI', error);
+    }
+  };
+
+  const handleDiscardAllOverflow = async () => {
+    try {
+      const response = await reportableFetch('/api/vault/discard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: profile.sessionId,
+          all: true,
+        }),
+      });
+
+      if (response.ok) {
+        updateProfileOptimistic((p) => ({
+          ...p,
+          overflow: [],
+        }));
+      }
+    } catch (error) {
+      logger.error('Discard all overflow failed:', 'UI', error);
+    }
+  };
+
   const handleSocketSoftware = async (
     targetGear: { entityId?: number; vaultItemId?: string; templateId?: string },
     software: { entityId?: number; vaultItemId?: string; templateId?: string },
@@ -333,6 +382,8 @@ export const VaultTab: React.FC = () => {
           overflowItems={profile.overflow}
           onSell={handleSell}
           onDiscard={handleDiscard}
+          onSellAll={handleSellAllOverflow}
+          onDiscardAll={handleDiscardAllOverflow}
         />
       )}
 

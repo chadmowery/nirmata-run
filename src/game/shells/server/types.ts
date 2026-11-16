@@ -1,4 +1,7 @@
 import type { LightAnimationType, LightSourceData } from '@shared/components/light-source';
+import type { CardinalDirectionSuffix, ShellDirectionalSprites } from '@shared/utils/shell-sprite-util';
+
+export type { CardinalDirectionSuffix, ShellDirectionalSprites };
 
 export interface ShellLightSourceOverride {
   enabled?: boolean;
@@ -57,6 +60,8 @@ export interface ShellTemplate {
   upgrades: ShellUpgrade[];
   starterLoadout?: string[];
   sprite?: string;
+  directionalSprites?: ShellDirectionalSprites;
+  defaultDirection?: CardinalDirectionSuffix | string;
   lightSource?: ShellLightSourceOverride | Partial<LightSourceData>;
 }
 
@@ -71,5 +76,7 @@ export interface ShellRecord {
   portConfig: PortConfig;
   starterLoadout?: string[];
   sprite?: string;
+  directionalSprites?: ShellDirectionalSprites;
+  defaultDirection?: CardinalDirectionSuffix | string;
   lightSource?: ShellLightSourceOverride | Partial<LightSourceData>;
 }

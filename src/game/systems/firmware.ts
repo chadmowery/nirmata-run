@@ -22,6 +22,7 @@ import {
 import { GameplayEvents } from '@shared/events/types';
 import { GameEvents } from '../events/types';
 import { getLegacyHeatCost } from './legacy-code';
+import { applyDirectionalShellFacing } from './shell-direction';
 import { logger } from '@engine/utils/logger';
 
 /**
@@ -79,8 +80,10 @@ export function createFirmwareSystem<T extends GameplayEvents>(
       const pos = world.getComponent(entityId, Position);
       if (!pos) return false;
 
-      const dx = Math.abs(targetX - pos.x);
-      const dy = Math.abs(targetY - pos.y);
+      const rawDx = targetX - pos.x;
+      const rawDy = targetY - pos.y;
+      const dx = Math.abs(rawDx);
+      const dy = Math.abs(rawDy);
       const distance = dx + dy; // Manhattan distance
 
       if (abilityDef.effectType === 'dash' || abilityDef.effectType === 'dash_attack') {
@@ -127,6 +130,7 @@ export function createFirmwareSystem<T extends GameplayEvents>(
       }
 
       // 2. Heat cost
+      applyDirectionalShellFacing(world, entityId, rawDx, rawDy);
       const effectiveHeatCost = getLegacyHeatCost(abilityDef.heatCost, abilityDef.isLegacy);
       // 2. Submit HeatIntent instead of direct patching
       world.addComponent(entityId, HeatIntent, {

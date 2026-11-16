@@ -14,6 +14,8 @@ const path = require('path');
 const { createCanvas, loadImage } = require('canvas');
 const {
   writeRgbaPng,
+  decodeRgbaPng,
+  blitRgbaTile,
   compileAtlasSurfaces,
   render4PanelPreviewStrip,
 } = require('./lib/surface-compiler.cjs');
@@ -66,6 +68,10 @@ const KEY_SPRITE_GROUPS = [
     keys: [
       'player_vanguard',
       'player_bastion',
+      'bastion-v1-north',
+      'bastion-v1-east',
+      'bastion-v1-south',
+      'bastion-v1-west',
       'player_ghost',
       'enemy_null_pointer',
       'enemy_buffer_overflow',
@@ -100,7 +106,14 @@ async function stripLegacyShadows(rootDir) {
   let pixelsRemoved = 0;
 
   for (const [key, frameDef] of Object.entries(tilesetJson.frames)) {
-    if (key === 'floor' || key === 'wall' || key.startsWith('wall_') || key === 'door' || key.startsWith('door_')) {
+    if (
+      key === 'floor' ||
+      key === 'wall' ||
+      key.startsWith('wall_') ||
+      key === 'door' ||
+      key.startsWith('door_') ||
+      fs.existsSync(path.join(rootDir, 'public/assets/tiles/shells', `${key}.png`))
+    ) {
       continue;
     }
     const { x: ox, y: oy, w, h } = frameDef.frame;
@@ -159,6 +172,20 @@ async function compileAllAtlases(rootDir) {
     ctx.drawImage(img, 0, 0);
 
     const buffers = compileAtlasSurfaces(canvas, tilesetJson, def.id);
+    const shellsDir = path.join(rootDir, 'public/assets/tiles/shells');
+    for (const [key, frameDef] of Object.entries(tilesetJson.frames)) {
+      const { x, y } = frameDef.frame;
+      const customNormalPath = path.join(shellsDir, `${key}_n.png`);
+      const customMatPath = path.join(shellsDir, `${key}_m.png`);
+      if (fs.existsSync(customNormalPath)) {
+        const nTile = decodeRgbaPng(customNormalPath);
+        blitRgbaTile(buffers.normal, canvas.width, nTile.rgba, nTile.width, nTile.height, x, y);
+      }
+      if (fs.existsSync(customMatPath)) {
+        const mTile = decodeRgbaPng(customMatPath);
+        blitRgbaTile(buffers.material, canvas.width, mTile.rgba, mTile.width, mTile.height, x, y);
+      }
+    }
     const baseName = def.img.replace(/\.png$/, '');
     const normalPath = path.join(assetsDir, `${baseName}_n.png`);
     const materialPath = path.join(assetsDir, `${baseName}_m.png`);

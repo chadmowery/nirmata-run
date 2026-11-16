@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { discardOverflowItem } from '@/game/systems/vault-manager';
+import { discardAllOverflowItems, discardOverflowItem } from '@/game/systems/vault-manager';
 import { profileRepository } from '@/app/persistence/fs-profile-repository';
 import { logger } from '@engine/utils/logger';
 
@@ -9,14 +9,18 @@ const VaultDiscardRequestSchema = z
     sessionId: z.string().min(1),
     vaultItemId: z.string().optional(),
     entityId: z.coerce.number().int().optional(),
+    all: z.boolean().optional(),
   })
-  .refine((data) => data.vaultItemId !== undefined || data.entityId !== undefined, {
-    message: 'Missing vaultItemId or entityId',
-  });
+  .refine(
+    (data) => data.all === true || data.vaultItemId !== undefined || data.entityId !== undefined,
+    {
+      message: 'Missing vaultItemId, entityId, or all',
+    },
+  );
 
 /**
  * POST /api/vault/discard
- * Discards an item from the overflow limbo.
+ * Discards an item (or all overflow items when `all: true`) from overflow limbo.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -29,7 +33,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { sessionId, vaultItemId, entityId } = parsed.data;
+    const { sessionId, vaultItemId, entityId, all } = parsed.data;
+
+    if (all) {
+      const bulkResult = await discardAllOverflowItems(profileRepository, sessionId);
+      if (!bulkResult.success) {
+        return NextResponse.json({ error: 'No items found in overflow' }, { status: 404 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Discarded ${bulkResult.discardedCount} overflow items`,
+        discardedCount: bulkResult.discardedCount,
+      });
+    }
 
     const success = await discardOverflowItem(
       profileRepository,

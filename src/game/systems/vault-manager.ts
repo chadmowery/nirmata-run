@@ -105,6 +105,58 @@ export async function sellOverflowItem(
 }
 
 /**
+ * Discards all items currently in overflow without touching the persistent vault.
+ */
+export async function discardAllOverflowItems(
+  repo: ProfileRepository,
+  sessionId: string,
+): Promise<{ success: boolean; discardedCount: number }> {
+  const profile = await repo.load(sessionId);
+  if (!profile || !profile.overflow || profile.overflow.length === 0) {
+    return { success: false, discardedCount: 0 };
+  }
+
+  const discardedCount = profile.overflow.length;
+  profile.overflow = [];
+
+  await repo.save(profile);
+  logger.info(
+    `Vault Manager: Discarded all ${discardedCount} overflow items for session ${sessionId}`,
+    'SYSTEM',
+  );
+  return { success: true, discardedCount };
+}
+
+/**
+ * Sells all items currently in overflow for Scrap, respecting the economy scrap cap.
+ */
+export async function sellAllOverflowItems(
+  repo: ProfileRepository,
+  sessionId: string,
+): Promise<{ success: boolean; soldCount: number; scrapGained: number; totalScrap: number }> {
+  const profile = await repo.load(sessionId);
+  if (!profile || !profile.overflow || profile.overflow.length === 0) {
+    return { success: false, soldCount: 0, scrapGained: 0, totalScrap: profile?.wallet.scrap ?? 0 };
+  }
+
+  const soldCount = profile.overflow.length;
+  const totalValue = profile.overflow.reduce((sum, item) => sum + getVaultItemValue(item), 0);
+  profile.overflow = [];
+
+  const maxScrap = economy.caps.scrap;
+  const nextScrap = Math.min(profile.wallet.scrap + totalValue, maxScrap);
+  const scrapGained = nextScrap - profile.wallet.scrap;
+  profile.wallet.scrap = nextScrap;
+
+  await repo.save(profile);
+  logger.info(
+    `Vault Manager: Sold all ${soldCount} overflow items for ${scrapGained} scrap for session ${sessionId}`,
+    'SYSTEM',
+  );
+  return { success: true, soldCount, scrapGained, totalScrap: nextScrap };
+}
+
+/**
  * Moves items from overflow to vault up to VAULT_MAX_SLOTS.
  */
 export async function moveOverflowToVault(

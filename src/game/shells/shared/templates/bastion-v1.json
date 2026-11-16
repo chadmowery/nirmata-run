@@ -1,7 +1,14 @@
 {
   "id": "bastion-v1",
   "name": "BASTION-v1",
-  "sprite": "player_bastion",
+  "sprite": "bastion-v1-south",
+  "defaultDirection": "south",
+  "directionalSprites": {
+    "north": "bastion-v1-north",
+    "east": "bastion-v1-east",
+    "south": "bastion-v1-south",
+    "west": "bastion-v1-west"
+  },
   "baseStats": {
     "speed": 80,
     "stability": 10,
@@ -14,17 +21,23 @@
     "maxSoftware": 1
   },
   "upgrades": [],
-  "starterLoadout": ["neural-spike"],
+  "starterLoadout": [
+    "neural-spike"
+  ],
   "lightSource": {
+    "enabled": true,
     "color": "#bae6fd",
     "intensity": 1.6,
-    "radius": 176,
-    "height": 24,
+    "radius": 32,
+    "height": 64,
+    "falloff": 1.8,
     "castsShadows": true,
+    "offsetX": 0,
+    "offsetY": 0,
     "animation": {
       "type": "STATIC",
-      "speed": 2.0,
-      "amplitude": 0.0
+      "speed": 2,
+      "amplitude": 0
     }
   }
 }

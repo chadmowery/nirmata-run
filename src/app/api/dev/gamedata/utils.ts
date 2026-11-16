@@ -43,6 +43,28 @@ function toIdentifier(name: string): string {
   return name.replace(/[^a-zA-Z0-9]/g, '_');
 }
 
+export async function regenerateShellTemplateIndex(): Promise<void> {
+  const root = process.cwd();
+  const shellDir = path.join(root, 'src/game/shells/shared/templates');
+  const shellIndexPath = path.join(root, 'src/game/shells/client/index.ts');
+  const shellFiles = (await listJsonFiles(shellDir)).sort();
+
+  const shellImports: string[] = [
+    `import { ShellRegistry } from '../server/shell-registry';`,
+  ];
+  for (const s of shellFiles) {
+    shellImports.push(`import ${toIdentifier(s)} from '../shared/templates/${s}.json';`);
+  }
+  shellImports.push('');
+  shellImports.push(`export const globalShellRegistry = new ShellRegistry();`);
+  for (const s of shellFiles) {
+    shellImports.push(`globalShellRegistry.register(${toIdentifier(s)});`);
+  }
+  shellImports.push('');
+
+  await fs.writeFile(shellIndexPath, shellImports.join('\n'), 'utf-8');
+}
+
 export async function regenerateTemplateIndex(): Promise<void> {
   const root = process.cwd();
 

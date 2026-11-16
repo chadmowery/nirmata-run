@@ -84,6 +84,100 @@ function writeRgbaPng(filePath, width, height, rgba) {
   fs.writeFileSync(filePath, encodeRgbaPng(width, height, rgba));
 }
 
+function paethPredictor(a, b, c) {
+  const p = a + b - c;
+  const pa = Math.abs(p - a);
+  const pb = Math.abs(p - b);
+  const pc = Math.abs(p - c);
+  return pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+}
+
+/**
+ * Decodes an 8-bit RGBA PNG buffer into raw un-premultiplied RGBA bytes without Cairo premultiplication.
+ */
+function decodeRgbaPngBuffer(buf, sourceLabel = 'buffer') {
+  const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+  for (let i = 0; i < 8; i++) {
+    if (buf[i] !== signature[i]) {
+      throw new Error(`Invalid PNG signature in ${sourceLabel}`);
+    }
+  }
+
+  let pos = 8;
+  let width = 0;
+  let height = 0;
+  let bitDepth = 0;
+  let colorType = 0;
+  const idats = [];
+
+  while (pos < buf.length) {
+    const len = buf.readUInt32BE(pos);
+    const type = buf.toString('ascii', pos + 4, pos + 8);
+    const data = buf.subarray(pos + 8, pos + 8 + len);
+    if (type === 'IHDR') {
+      width = data.readUInt32BE(0);
+      height = data.readUInt32BE(4);
+      bitDepth = data[8];
+      colorType = data[9];
+    } else if (type === 'IDAT') {
+      idats.push(data);
+    } else if (type === 'IEND') {
+      break;
+    }
+    pos += 12 + len;
+  }
+
+  if (bitDepth !== 8 || colorType !== 6) {
+    throw new Error(`Unsupported PNG format in ${sourceLabel}: depth=${bitDepth}, colorType=${colorType}`);
+  }
+
+  const raw = zlib.inflateSync(Buffer.concat(idats));
+  const bpp = 4;
+  const stride = width * bpp;
+  const rgba = new Uint8ClampedArray(width * height * 4);
+
+  for (let y = 0; y < height; y++) {
+    const rowIn = y * (stride + 1);
+    const filterType = raw[rowIn];
+    const rowOut = y * stride;
+    for (let x = 0; x < stride; x++) {
+      const val = raw[rowIn + 1 + x];
+      const a = x >= bpp ? rgba[rowOut + x - bpp] : 0;
+      const b = y > 0 ? rgba[rowOut - stride + x] : 0;
+      const c = x >= bpp && y > 0 ? rgba[rowOut - stride + x - bpp] : 0;
+      let recon = val;
+      if (filterType === 1) recon = (val + a) & 0xff;
+      else if (filterType === 2) recon = (val + b) & 0xff;
+      else if (filterType === 3) recon = (val + ((a + b) >> 1)) & 0xff;
+      else if (filterType === 4) recon = (val + paethPredictor(a, b, c)) & 0xff;
+      else if (filterType !== 0) {
+        throw new Error(`Unsupported PNG filter ${filterType} in ${sourceLabel}`);
+      }
+      rgba[rowOut + x] = recon;
+    }
+  }
+
+  return { width, height, rgba };
+}
+
+/**
+ * Decodes an 8-bit RGBA PNG file into raw un-premultiplied RGBA bytes without Cairo premultiplication.
+ */
+function decodeRgbaPng(filePath) {
+  return decodeRgbaPngBuffer(fs.readFileSync(filePath), filePath);
+}
+
+/**
+ * Copies a raw un-premultiplied RGBA tile buffer into a larger atlas RGBA buffer at (destX, destY).
+ */
+function blitRgbaTile(dstRgba, dstWidth, srcRgba, srcWidth, srcHeight, destX, destY) {
+  for (let ly = 0; ly < srcHeight; ly++) {
+    const srcOffset = ly * srcWidth * 4;
+    const dstOffset = ((destY + ly) * dstWidth + destX) * 4;
+    dstRgba.set(srcRgba.subarray(srcOffset, srcOffset + srcWidth * 4), dstOffset);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Color Helpers
 // ---------------------------------------------------------------------------
@@ -976,6 +1070,9 @@ function render4PanelPreviewStrip(createCanvasFn, diffuseData, atlasBuffers, atl
 
 module.exports = {
   encodeRgbaPng,
+  decodeRgbaPng,
+  decodeRgbaPngBuffer,
+  blitRgbaTile,
   writeRgbaPng,
   SurfaceAtlasBuffers,
   compileAtlasSurfaces,

@@ -17,12 +17,27 @@
   50% { opacity: 0.85; }
 }
 
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .heading {
   font-family: var(--font-display);
   font-size: 13px;
   font-weight: 900;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.bulkActions {
   display: flex;
   align-items: center;
   gap: 8px;

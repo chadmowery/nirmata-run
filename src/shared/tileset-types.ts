@@ -130,6 +130,7 @@ export const STUDIO_THEMES = [
  * Resolves a canonical fallback frame key for a directional or variant sprite key.
  */
 export function resolveFallbackSpriteKey(spriteKey: string): string | undefined {
+  if (spriteKey.startsWith('bastion-v1-')) return 'player_bastion';
   if (spriteKey.startsWith('prop_workstation_')) return 'prop_workstation';
   if (spriteKey.startsWith('prop_locker_')) return 'prop_locker';
   if (spriteKey.startsWith('prop_biocabinet_')) return 'prop_biocabinet';

@@ -1,7 +1,13 @@
 const fs = require('fs');
 const path = require('path');
 const { createCanvas, loadImage } = require('canvas');
-const { compileAtlasSurfaces } = require('./lib/surface-compiler.cjs');
+const {
+  compileAtlasSurfaces,
+  decodeRgbaPng,
+  decodeRgbaPngBuffer,
+  blitRgbaTile,
+  encodeRgbaPng,
+} = require('./lib/surface-compiler.cjs');
 
 // Helper to convert RGB to HSL and back for intelligent palette mapping
 function rgbToHsl(r, g, b) {
@@ -989,6 +995,7 @@ async function main() {
     // 2. Intelligently recolor & adapt all remaining frames from base tileset
     console.log(`- Processing and adapting all entity, prop, item, and shell frames...`);
     const processedSlots = new Set(['0,0', '32,0', '64,0']);
+    const shellsDir = path.join(rootDir, 'public/assets/tiles/shells');
 
     for (const [frameKey, frameDef] of Object.entries(baseJson.frames)) {
       const { x, y, w, h } = frameDef.frame;
@@ -996,12 +1003,26 @@ async function main() {
       if (processedSlots.has(slotKey)) continue;
       processedSlots.add(slotKey);
 
-      recolorSprite(baseCtx, themedCtx, x, y, w, h, theme.id);
+      if (fs.existsSync(path.join(shellsDir, `${frameKey}.png`))) {
+        themedCtx.clearRect(x, y, w, h);
+        themedCtx.drawImage(baseTilesetImg, x, y, w, h, x, y, w, h);
+      } else {
+        recolorSprite(baseCtx, themedCtx, x, y, w, h, theme.id);
+      }
     }
 
-    // 3. Save themed tileset PNG
+    // 3. Save themed tileset PNG (preserving exact un-premultiplied pixels for custom shell tiles)
     const outPngPath = path.join(rootDir, 'public/assets', theme.filename);
-    const pngBuffer = themedCanvas.toBuffer('image/png');
+    const decodedThemed = decodeRgbaPngBuffer(themedCanvas.toBuffer('image/png'), theme.filename);
+    for (const [frameKey, frameDef] of Object.entries(baseJson.frames)) {
+      const shellTilePath = path.join(shellsDir, `${frameKey}.png`);
+      if (fs.existsSync(shellTilePath)) {
+        const { x, y } = frameDef.frame;
+        const shellDecoded = decodeRgbaPng(shellTilePath);
+        blitRgbaTile(decodedThemed.rgba, decodedThemed.width, shellDecoded.rgba, shellDecoded.width, shellDecoded.height, x, y);
+      }
+    }
+    const pngBuffer = encodeRgbaPng(decodedThemed.width, decodedThemed.height, decodedThemed.rgba);
     fs.writeFileSync(outPngPath, pngBuffer);
     console.log(`- Saved tileset image to ${outPngPath} (${pngBuffer.length} bytes)`);
 

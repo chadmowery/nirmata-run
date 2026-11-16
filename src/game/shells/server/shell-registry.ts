@@ -23,6 +23,41 @@ export class ShellRegistry {
   }
 
   /**
+   * Register or update a Shell archetype template (used by dev tools for live reload).
+   */
+  upsertTemplate(template: ShellTemplate): void {
+    this.templates.set(template.id, template);
+    for (const [recordId, record] of this.records.entries()) {
+      if (record.archetypeId === template.id) {
+        this.records.set(recordId, {
+          ...record,
+          currentStats: { ...template.baseStats },
+          portConfig: { ...template.basePorts },
+          starterLoadout: template.starterLoadout ? [...template.starterLoadout] : undefined,
+          sprite: template.sprite,
+          directionalSprites: template.directionalSprites
+            ? { ...template.directionalSprites }
+            : undefined,
+          defaultDirection: template.defaultDirection,
+          lightSource: template.lightSource ? { ...template.lightSource } : undefined,
+        });
+      }
+    }
+  }
+
+  /**
+   * Remove a Shell archetype template and any derived cached records.
+   */
+  removeTemplate(id: string): void {
+    this.templates.delete(id);
+    for (const [recordId, record] of this.records.entries()) {
+      if (record.archetypeId === id) {
+        this.records.delete(recordId);
+      }
+    }
+  }
+
+  /**
    * Instantiate a new Shell record from a template.
    */
   createRecord(id: string, archetypeId: string): ShellRecord {
@@ -42,6 +77,10 @@ export class ShellRegistry {
       portConfig: { ...template.basePorts },
       starterLoadout: template.starterLoadout ? [...template.starterLoadout] : undefined,
       sprite: template.sprite,
+      directionalSprites: template.directionalSprites
+        ? { ...template.directionalSprites }
+        : undefined,
+      defaultDirection: template.defaultDirection,
       lightSource: template.lightSource ? { ...template.lightSource } : undefined,
     };
 
@@ -104,6 +143,8 @@ export class ShellRegistry {
         portConfig: { ...t.basePorts },
         starterLoadout: t.starterLoadout ? [...t.starterLoadout] : undefined,
         sprite: t.sprite,
+        directionalSprites: t.directionalSprites ? { ...t.directionalSprites } : undefined,
+        defaultDirection: t.defaultDirection,
         lightSource: t.lightSource ? { ...t.lightSource } : undefined,
       }));
     }
@@ -134,6 +175,8 @@ export class ShellRegistry {
       portConfig: { ...t.basePorts },
       starterLoadout: t.starterLoadout ? [...t.starterLoadout] : undefined,
       sprite: t.sprite,
+      directionalSprites: t.directionalSprites ? { ...t.directionalSprites } : undefined,
+      defaultDirection: t.defaultDirection,
       lightSource: t.lightSource ? { ...t.lightSource } : undefined,
     }));
   }

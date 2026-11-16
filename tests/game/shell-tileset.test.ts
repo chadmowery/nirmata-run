@@ -26,6 +26,10 @@ describe('Shell Tileset and In-Game Launch Integration', () => {
       'player_ghost',
       'player_vanguard',
       'bastion-v1',
+      'bastion-v1-north',
+      'bastion-v1-east',
+      'bastion-v1-south',
+      'bastion-v1-west',
       'ghost-v1',
       'vanguard-v1',
     ];
@@ -60,7 +64,15 @@ describe('Shell Tileset and In-Game Launch Integration', () => {
     const raw = fs.readFileSync(tilesetJsonPath, 'utf-8');
     const json = JSON.parse(raw);
 
-    for (const shellKey of ['player_bastion', 'player_ghost', 'player_vanguard']) {
+    for (const shellKey of [
+      'player_bastion',
+      'bastion-v1-north',
+      'bastion-v1-east',
+      'bastion-v1-south',
+      'bastion-v1-west',
+      'player_ghost',
+      'player_vanguard',
+    ]) {
       const { x, y, w, h } = json.frames[shellKey].frame;
       const imageData = ctx.getImageData(x, y, w, h).data;
 
@@ -79,7 +91,7 @@ describe('Shell Tileset and In-Game Launch Integration', () => {
 
   it('createGame spawns player entity with specified shell sprite', () => {
     const shells = [
-      { shellId: 'bastion-v1', expectedKey: 'player_bastion' },
+      { shellId: 'bastion-v1', expectedKey: 'bastion-v1-south' },
       { shellId: 'ghost-v1', expectedKey: 'player_ghost' },
       { shellId: 'vanguard-v1', expectedKey: 'player_vanguard' },
     ];

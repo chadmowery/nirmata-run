@@ -262,6 +262,145 @@ describe('Vault & Economy Transactions API', () => {
       const res = await sellRoute(req as any);
       expect(res.status).toBe(404);
     });
+
+    it('sells all items in overflow when all=true, summing scrap and preserving vault', async () => {
+      const vaultKeep: VaultItem = {
+        vaultItemId: 'vault-keep-1',
+        entityId: 1,
+        templateId: 'rifle-v1',
+        rarityTier: 'common',
+        itemType: 'weapon',
+        extractedAtFloor: 1,
+        extractedAtTimestamp: Date.now(),
+      };
+      const overflowItems: VaultItem[] = [
+        {
+          vaultItemId: 'ov-1',
+          entityId: 101,
+          templateId: 'bleed-v1',
+          rarityTier: 'common', // 15 CR
+          itemType: 'software',
+          extractedAtFloor: 1,
+          extractedAtTimestamp: Date.now(),
+        },
+        {
+          vaultItemId: 'ov-2',
+          entityId: 102,
+          templateId: 'armor-v2',
+          rarityTier: 'rare', // 60 CR
+          itemType: 'armor',
+          extractedAtFloor: 2,
+          extractedAtTimestamp: Date.now(),
+        },
+      ];
+
+      const profile = createMockProfile({
+        wallet: { scrap: 100, flux: 0 },
+        vault: [vaultKeep],
+        overflow: overflowItems,
+      });
+      vi.mocked(profileRepository.load).mockResolvedValue(profile);
+
+      const req = new Request('http://localhost/api/vault/sell', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          all: true,
+        }),
+      });
+
+      const res = await sellRoute(req as any);
+      expect(res.status).toBe(200);
+      const data = await res.json();
+
+      expect(data.success).toBe(true);
+      expect(data.soldCount).toBe(2);
+      expect(data.scrapGained).toBe(75);
+      expect(data.totalScrap).toBe(175);
+      expect(profile.overflow).toHaveLength(0);
+      expect(profile.vault).toHaveLength(1);
+      expect(profile.wallet.scrap).toBe(175);
+      expect(profileRepository.save).toHaveBeenCalledWith(profile);
+    });
+
+    it('discards all items in overflow when all=true without changing scrap or vault', async () => {
+      const vaultKeep: VaultItem = {
+        vaultItemId: 'vault-keep-2',
+        entityId: 2,
+        templateId: 'rifle-v2',
+        rarityTier: 'uncommon',
+        itemType: 'weapon',
+        extractedAtFloor: 1,
+        extractedAtTimestamp: Date.now(),
+      };
+      const overflowItems: VaultItem[] = [
+        {
+          vaultItemId: 'ov-3',
+          entityId: 103,
+          templateId: 'junk-a',
+          rarityTier: 'common',
+          itemType: 'software',
+          extractedAtFloor: 1,
+          extractedAtTimestamp: Date.now(),
+        },
+        {
+          vaultItemId: 'ov-4',
+          entityId: 104,
+          templateId: 'junk-b',
+          rarityTier: 'uncommon',
+          itemType: 'augment',
+          extractedAtFloor: 1,
+          extractedAtTimestamp: Date.now(),
+        },
+      ];
+
+      const profile = createMockProfile({
+        wallet: { scrap: 200, flux: 0 },
+        vault: [vaultKeep],
+        overflow: overflowItems,
+      });
+      vi.mocked(profileRepository.load).mockResolvedValue(profile);
+
+      const req = new Request('http://localhost/api/vault/discard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          all: true,
+        }),
+      });
+
+      const res = await discardRoute(req as any);
+      expect(res.status).toBe(200);
+      const data = await res.json();
+
+      expect(data.success).toBe(true);
+      expect(data.discardedCount).toBe(2);
+      expect(profile.overflow).toHaveLength(0);
+      expect(profile.vault).toHaveLength(1);
+      expect(profile.wallet.scrap).toBe(200);
+      expect(profileRepository.save).toHaveBeenCalledWith(profile);
+    });
+
+    it('returns 404 when selling or discarding all from empty overflow', async () => {
+      const profile = createMockProfile({ overflow: [] });
+      vi.mocked(profileRepository.load).mockResolvedValue(profile);
+
+      const sellReq = new Request('http://localhost/api/vault/sell', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, all: true }),
+      });
+      expect((await sellRoute(sellReq as any)).status).toBe(404);
+
+      const discardReq = new Request('http://localhost/api/vault/discard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, all: true }),
+      });
+      expect((await discardRoute(discardReq as any)).status).toBe(404);
+    });
   });
 
   describe('GET /api/vault/overflow', () => {

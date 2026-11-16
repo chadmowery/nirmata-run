@@ -106,7 +106,7 @@ describe('Shell To Player Integration', () => {
 
   it('assigns correct shell sprite when player launches with specified shell types', () => {
     const testCases = [
-      { archetypeId: 'bastion-v1', expectedSprite: 'player_bastion' },
+      { archetypeId: 'bastion-v1', expectedSprite: 'bastion-v1-south' },
       { archetypeId: 'ghost-v1', expectedSprite: 'player_ghost' },
       { archetypeId: 'vanguard-v1', expectedSprite: 'player_vanguard' },
     ];

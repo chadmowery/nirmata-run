@@ -6,10 +6,12 @@ import { GameTurnAdapter } from '@game/turn/game-turn-adapter';
 import { EntityRegistry } from '@engine/entity/registry';
 import { EntityFactory } from '@engine/entity/factory';
 import { COMPONENTS_REGISTRY } from '@shared/components';
+import { resolveShellSpawnSprite } from '@shared/utils/shell-sprite-util';
 import { ComponentRegistry } from '@engine/entity/types';
 import { ComponentDef } from '@engine/ecs/types';
 import { registerGameTemplates } from '@game/entities';
 import { createMovementSystem } from '@game/systems/movement';
+import { ShellDirectionSystem } from '@game/systems/shell-direction';
 import {
   MoveIntent,
   VentIntent,
@@ -74,6 +76,7 @@ export interface ServerEngineInstance<T extends GameplayEvents = GameEvents> {
   playerId: number;
   sessionId?: string;
   systems: {
+    shellDirection?: ShellDirectionSystem<T>;
     movement: ReturnType<typeof createMovementSystem<T>>;
     combat: ReturnType<typeof createCombatSystem<T>>;
     ai: ReturnType<typeof createAISystem<T>>;
@@ -357,6 +360,10 @@ export function createServerEngine(config: ServerEngineInitConfig): ServerEngine
     playerOverrides['shell'] = {
       archetypeId: config.shellRecord.archetypeId,
       ...currentStats,
+      ...(shellRecord.directionalSprites
+        ? { directionalSprites: { ...shellRecord.directionalSprites } }
+        : {}),
+      ...(shellRecord.defaultDirection ? { defaultDirection: shellRecord.defaultDirection } : {}),
     } as unknown as Record<string, unknown>;
     playerOverrides['portConfig'] = portConfig as unknown as Record<string, unknown>;
 
@@ -365,23 +372,7 @@ export function createServerEngine(config: ServerEngineInitConfig): ServerEngine
       baseDissipation: 5 + currentStats.stability * 0.1,
     };
 
-    const shellKey = (
-      shellRecord.sprite ||
-      shellRecord.archetypeId ||
-      shellRecord.id ||
-      ''
-    ).toLowerCase();
-    let spriteKey = 'player_vanguard';
-    if (shellKey.includes('bastion')) {
-      spriteKey = 'player_bastion';
-    } else if (shellKey.includes('ghost')) {
-      spriteKey = 'player_ghost';
-    } else if (shellKey.includes('vanguard')) {
-      spriteKey = 'player_vanguard';
-    } else if (shellRecord.sprite) {
-      spriteKey = shellRecord.sprite;
-    }
-    playerOverrides['sprite'] = { key: spriteKey };
+    playerOverrides['sprite'] = { key: resolveShellSpawnSprite(shellRecord) };
     if (config.shellRecord.lightSource) {
       playerOverrides['lightSource'] = { ...config.shellRecord.lightSource };
     }
