@@ -1123,5 +1123,80 @@ describe('Deferred Lighting System & Render Integration [LIGHT-03/04/07]', () =>
       expect(intensities.size).toBeGreaterThan(2);
       lighting.destroy();
     });
+
+    it('omits unused rtAlbedo, skips heat-ghost shadow casters, and packs GlitchFilter slice offsets into G-Buffer quads (MED-04)', () => {
+      const rtCreateMock = vi.mocked(PIXI.RenderTexture.create);
+      rtCreateMock.mockClear();
+      const glProg = PIXI.GlProgram as unknown as { from?: ReturnType<typeof vi.fn> };
+      const fromMock = vi.fn().mockReturnValue({});
+      glProg.from = fromMock;
+
+      try {
+        const gbuffer = new GBufferPass(10, 8);
+        // Only rtNormalSpec and rtMaterialHeight allocated (no unused rtAlbedo)
+        expect(rtCreateMock).toHaveBeenCalledTimes(2);
+        expect((gbuffer as unknown as Record<string, unknown>).rtAlbedo).toBeUndefined();
+
+        const validSrc = { width: 512, height: 512, destroyed: false };
+        const ghostSprite = {
+          label: 'heatGhost',
+          visible: true,
+          alpha: 0.4,
+          x: 32,
+          y: 32,
+          width: 32,
+          height: 32,
+          scale: { x: 1, y: 1 },
+          pivot: { x: 0, y: 0 },
+          rotation: 0,
+          filters: null,
+          texture: { source: validSrc, frame: { x: 0, y: 0, width: 32, height: 32 } },
+        } as unknown as PIXI.Sprite;
+
+        const glitchedEnemy = {
+          visible: true,
+          alpha: 1.0,
+          x: 64,
+          y: 64,
+          width: 32,
+          height: 32,
+          scale: { x: 1, y: 1 },
+          pivot: { x: 0, y: 0 },
+          rotation: 0,
+          filters: [{ slices: 8, offset: 10 }],
+          texture: { source: validSrc, frame: { x: 32, y: 0, width: 32, height: 32 } },
+        } as unknown as PIXI.Sprite;
+
+        const entityLayer = new PIXI.Container();
+        (entityLayer.children as unknown[]).push(ghostSprite, glitchedEnemy);
+
+        gbuffer.capture(
+          { render: vi.fn() } as unknown as PIXI.Renderer,
+          new PIXI.Container(),
+          {
+            terrainLayer: new PIXI.Container(),
+            itemLayer: new PIXI.Container(),
+            entityLayer,
+          },
+          1.25,
+        );
+
+        // Only glitchedEnemy should be packed (heatGhost skipped)
+        expect(gbuffer.quadCount).toBe(1);
+        const vdata = (gbuffer as unknown as { vertexData: Float32Array }).vertexData;
+        expect(vdata[8]).toBe(8); // aMeta.z = glitchSlices
+        expect(vdata[9]).toBe(10); // aMeta.w = glitchOffsetPx
+
+        const shaderFrags = fromMock.mock.calls.map(
+          (c) => (c[0] as { fragment?: string })?.fragment ?? '',
+        );
+        expect(shaderFrags.some((f) => f.includes('applyGlitchSliceUV'))).toBe(true);
+        expect(shaderFrags.some((f) => f.includes('mat.g * vColor.a'))).toBe(true);
+
+        gbuffer.destroy();
+      } finally {
+        delete glProg.from;
+      }
+    });
   });
 });

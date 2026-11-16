@@ -56,6 +56,21 @@ void main(void) {
 }
 `;
 
+const GLSL_GLITCH_UV_FN = /* glsl */ `
+vec2 applyGlitchSliceUV(vec2 uv, vec4 meta, vec2 texelSize, float timeSec) {
+  if (meta.z <= 0.5 || meta.w <= 0.001) return uv;
+  float tileW = texelSize.x * 32.0;
+  float tileH = texelSize.y * 32.0;
+  float localY = fract(uv.y / max(0.0001, tileH));
+  float sliceIdx = floor(localY * meta.z);
+  float h = fract(sin(sliceIdx * 127.1 + floor(timeSec * 12.0) * 311.7) * 43758.5453);
+  if (h <= 0.55) return uv;
+  float shiftU = (h - 0.775) * 2.0 * meta.w * texelSize.x;
+  float tileMinU = floor(uv.x / max(0.0001, tileW)) * tileW;
+  return vec2(clamp(uv.x + shiftU, tileMinU, tileMinU + tileW - texelSize.x), uv.y);
+}
+`;
+
 const GBUFFER_NORMAL_FRAG = /* glsl */ `precision highp float;
 in vec2 vUV;
 in vec2 vCosSin;
@@ -67,18 +82,22 @@ out vec4 finalColor;
 uniform sampler2D uDiffuseAtlas;
 uniform sampler2D uNormalAtlas;
 uniform vec2 uTexelSize;
+uniform float uTime;
+
+${GLSL_GLITCH_UV_FN}
 
 void main(void) {
-  // Mode 0: Solid sprite from atlas
-  vec4 diff = texture(uDiffuseAtlas, vUV);
+  // Mode 0: Solid sprite from atlas (with optional GlitchFilter slice offset lockstep)
+  vec2 sampleUV = applyGlitchSliceUV(vUV, vMeta, uTexelSize, uTime);
+  vec4 diff = texture(uDiffuseAtlas, sampleUV);
   if (diff.a < 0.08) {
     if (vMeta.x > 0.5) {
       // Outline halo pixel for props with OutlineFilter
       float maxNeighbor = 0.0;
-      maxNeighbor = max(maxNeighbor, texture(uDiffuseAtlas, vUV + vec2(uTexelSize.x, 0.0)).a);
-      maxNeighbor = max(maxNeighbor, texture(uDiffuseAtlas, vUV - vec2(uTexelSize.x, 0.0)).a);
-      maxNeighbor = max(maxNeighbor, texture(uDiffuseAtlas, vUV + vec2(0.0, uTexelSize.y)).a);
-      maxNeighbor = max(maxNeighbor, texture(uDiffuseAtlas, vUV - vec2(0.0, uTexelSize.y)).a);
+      maxNeighbor = max(maxNeighbor, texture(uDiffuseAtlas, sampleUV + vec2(uTexelSize.x, 0.0)).a);
+      maxNeighbor = max(maxNeighbor, texture(uDiffuseAtlas, sampleUV - vec2(uTexelSize.x, 0.0)).a);
+      maxNeighbor = max(maxNeighbor, texture(uDiffuseAtlas, sampleUV + vec2(0.0, uTexelSize.y)).a);
+      maxNeighbor = max(maxNeighbor, texture(uDiffuseAtlas, sampleUV - vec2(0.0, uTexelSize.y)).a);
       if (maxNeighbor >= 0.08) {
         finalColor = vec4(0.5, 0.5, 1.0, 0.3);
         return;
@@ -87,7 +106,7 @@ void main(void) {
     discard;
   }
 
-  vec4 packedNormal = texture(uNormalAtlas, vUV);
+  vec4 packedNormal = texture(uNormalAtlas, sampleUV);
   // Decode tangent normal [-1, 1] and rotate XY by sprite.rotation (cos, sin)
   vec3 n = vec3(packedNormal.rg * 2.0 - 1.0, max(0.05, packedNormal.b * 2.0 - 1.0));
   float c = vCosSin.x;
@@ -110,17 +129,21 @@ out vec4 finalColor;
 uniform sampler2D uDiffuseAtlas;
 uniform sampler2D uMaterialAtlas;
 uniform vec2 uTexelSize;
+uniform float uTime;
+
+${GLSL_GLITCH_UV_FN}
 
 void main(void) {
-  // Mode 0: Solid sprite from atlas
-  vec4 diff = texture(uDiffuseAtlas, vUV);
+  // Mode 0: Solid sprite from atlas (with optional GlitchFilter slice offset lockstep)
+  vec2 sampleUV = applyGlitchSliceUV(vUV, vMeta, uTexelSize, uTime);
+  vec4 diff = texture(uDiffuseAtlas, sampleUV);
   if (diff.a < 0.08) {
     if (vMeta.x > 0.5) {
       float maxNeighbor = 0.0;
-      maxNeighbor = max(maxNeighbor, texture(uDiffuseAtlas, vUV + vec2(uTexelSize.x, 0.0)).a);
-      maxNeighbor = max(maxNeighbor, texture(uDiffuseAtlas, vUV - vec2(uTexelSize.x, 0.0)).a);
-      maxNeighbor = max(maxNeighbor, texture(uDiffuseAtlas, vUV + vec2(0.0, uTexelSize.y)).a);
-      maxNeighbor = max(maxNeighbor, texture(uDiffuseAtlas, vUV - vec2(0.0, uTexelSize.y)).a);
+      maxNeighbor = max(maxNeighbor, texture(uDiffuseAtlas, sampleUV + vec2(uTexelSize.x, 0.0)).a);
+      maxNeighbor = max(maxNeighbor, texture(uDiffuseAtlas, sampleUV - vec2(uTexelSize.x, 0.0)).a);
+      maxNeighbor = max(maxNeighbor, texture(uDiffuseAtlas, sampleUV + vec2(0.0, uTexelSize.y)).a);
+      maxNeighbor = max(maxNeighbor, texture(uDiffuseAtlas, sampleUV - vec2(0.0, uTexelSize.y)).a);
       if (maxNeighbor >= 0.08) {
         // Spec §2.3: Prop OutlineFilter border tagged Emissive = 1.0
         finalColor = vec4(1.0, 0.0, 0.2, 0.45);
@@ -130,8 +153,9 @@ void main(void) {
     discard;
   }
 
-  vec4 mat = texture(uMaterialAtlas, vUV);
-  finalColor = mat;
+  vec4 mat = texture(uMaterialAtlas, sampleUV);
+  // Scale shadow-caster opacity by sprite alpha (translucent sprites cast proportional shadows)
+  finalColor = vec4(mat.r, mat.g * vColor.a, mat.b, mat.a);
 }
 `;
 
@@ -219,12 +243,11 @@ export interface LayerCollectionInput {
 }
 
 /**
- * Manages the 3x 960x640 G-Buffer RenderTextures (`albedo`, `normalSpec`, `materialHeight`),
+ * Manages the 2x 960x640 G-Buffer RenderTextures (`normalSpec`, `materialHeight`),
  * the linear 80x45 (or grid.width x grid.height) FOV visibility mask texture, and batched
  * companion G-Buffer geometry extraction.
  */
 export class GBufferPass {
-  public readonly rtAlbedo: RenderTexture | null = null;
   public readonly rtNormalSpec: RenderTexture | null = null;
   public readonly rtMaterialHeight: RenderTexture | null = null;
 
@@ -259,6 +282,8 @@ export class GBufferPass {
   private readonly texelSizeN = new Float32Array([1 / 512, 1 / 512]);
   private readonly texelSizeM = new Float32Array([1 / 512, 1 / 512]);
   private readonly viewportSize = new Float32Array([GBUFFER_WIDTH, GBUFFER_HEIGHT]);
+  private gbufUniformsN: { uniforms: Record<string, unknown> } | null = null;
+  private gbufUniformsM: { uniforms: Record<string, unknown> } | null = null;
 
   private readonly gpuReady: boolean;
   private lastQuadCount = 0;
@@ -306,13 +331,6 @@ export class GBufferPass {
       });
       this.fovMaskTexture = new PIXI.Texture({ source: this.fovMaskSource });
 
-      this.rtAlbedo = PIXI.RenderTexture.create({
-        width: GBUFFER_WIDTH,
-        height: GBUFFER_HEIGHT,
-        scaleMode: 'nearest',
-        resolution: 1,
-        antialias: false,
-      });
       this.rtNormalSpec = PIXI.RenderTexture.create({
         width: GBUFFER_WIDTH,
         height: GBUFFER_HEIGHT,
@@ -375,10 +393,14 @@ export class GBufferPass {
       const emptySrc = PIXI.Texture.EMPTY.source;
       const gbufUniformsN = new PIXI.UniformGroup({
         uTexelSize: { value: this.texelSizeN, type: 'vec2<f32>' },
+        uTime: { value: 0, type: 'f32' },
       });
       const gbufUniformsM = new PIXI.UniformGroup({
         uTexelSize: { value: this.texelSizeM, type: 'vec2<f32>' },
+        uTime: { value: 0, type: 'f32' },
       });
+      this.gbufUniformsN = gbufUniformsN;
+      this.gbufUniformsM = gbufUniformsM;
       const particleUniformsN = new PIXI.UniformGroup({
         uViewportSize: { value: this.viewportSize, type: 'vec2<f32>' },
       });
@@ -558,13 +580,14 @@ export class GBufferPass {
   }
 
   /**
-   * Captures all 3 G-Buffer targets (`rtAlbedo`, `rtNormalSpec`, `rtMaterialHeight`)
+   * Captures both G-Buffer targets (`rtNormalSpec`, `rtMaterialHeight`)
    * from the live scene layers and optional particle descriptors.
    */
   public capture(
     renderer: Renderer | undefined,
     worldContainer: Container,
     layers: LayerCollectionInput,
+    timeSec: number = 0,
   ): void {
     const { solidQuadCount, particleQuadCount, diffuseSource } = this.packQuads(layers);
     const totalQuads = solidQuadCount + particleQuadCount;
@@ -634,11 +657,17 @@ export class GBufferPass {
     this.normalShader.resources.uNormalAtlas = normSrc;
     this.texelSizeN[0] = invW;
     this.texelSizeN[1] = invH;
+    if (this.gbufUniformsN) {
+      this.gbufUniformsN.uniforms.uTime = timeSec;
+    }
 
     this.materialShader.resources.uDiffuseAtlas = diffSrc;
     this.materialShader.resources.uMaterialAtlas = matSrc;
     this.texelSizeM[0] = invW;
     this.texelSizeM[1] = invH;
+    if (this.gbufUniformsM) {
+      this.gbufUniformsM.uniforms.uTime = timeSec;
+    }
 
     // Sync world camera transform onto G-Buffer mesh containers
     const syncTransform = (c: Container | null) => {
@@ -736,7 +765,7 @@ export class GBufferPass {
     const emptyTex = safeGetPixiExport<typeof PIXI.Texture>(PIXI, 'Texture')?.EMPTY;
     const pushSprite = (sprite: Sprite) => {
       if (solidQuadCount >= MAX_GBUFFER_QUADS) return;
-      if (!sprite || !sprite.visible || sprite.alpha <= 0.01) return;
+      if (!sprite || !sprite.visible || sprite.alpha < 0.5 || sprite.label === 'heatGhost') return;
       const tex = sprite.texture;
       const texSrc = tex?.source as (Texture['source'] & { destroyed?: boolean }) | null | undefined;
       if (!tex || !texSrc || texSrc.destroyed || (emptyTex && tex === emptyTex)) return;
@@ -789,16 +818,34 @@ export class GBufferPass {
       const u3 = uvs ? uvs.x3 : (tex.frame?.x ?? 0) / srcW;
       const v3 = uvs ? uvs.y3 : ((tex.frame?.y ?? 0) + frameH) / srcH;
 
-      const hasOutline = Array.isArray(sprite.filters)
-        ? sprite.filters.some(
-            (f) =>
-              f &&
-              (f.constructor?.name?.includes('Outline') ||
-                typeof (f as { thickness?: number }).thickness === 'number'),
-          )
-          ? 1.0
-          : 0.0
-        : 0.0;
+      let hasOutline = 0.0;
+      let glitchSlices = 0.0;
+      let glitchOffsetPx = 0.0;
+      if (Array.isArray(sprite.filters)) {
+        for (let fi = 0; fi < sprite.filters.length; fi++) {
+          const f = sprite.filters[fi] as
+            | {
+                constructor?: { name?: string };
+                thickness?: number;
+                slices?: number;
+                offset?: number;
+              }
+            | null
+            | undefined;
+          if (!f) continue;
+          if (f.constructor?.name?.includes('Outline') || typeof f.thickness === 'number') {
+            hasOutline = 1.0;
+          }
+          if (
+            (f.constructor?.name?.includes('Glitch') || typeof f.slices === 'number') &&
+            typeof f.offset === 'number' &&
+            f.offset > 0
+          ) {
+            glitchSlices = Math.max(glitchSlices, f.slices ?? 4);
+            glitchOffsetPx = Math.max(glitchOffsetPx, f.offset);
+          }
+        }
+      }
 
       this.writeQuad(
         this.vertexData,
@@ -823,8 +870,8 @@ export class GBufferPass {
         sinR,
         hasOutline,
         0,
-        0,
-        0,
+        glitchSlices,
+        glitchOffsetPx,
         1,
         1,
         1,
@@ -947,7 +994,6 @@ export class GBufferPass {
   }
 
   public destroy(): void {
-    this.rtAlbedo?.destroy(true);
     this.rtNormalSpec?.destroy(true);
     this.rtMaterialHeight?.destroy(true);
     this.fovMaskSource?.destroy();

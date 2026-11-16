@@ -375,12 +375,17 @@ export class LightingSystem {
     }
 
     // 4. Capture G-Buffer passes & bind screen filter chain: [DeferredLight, Bloom, ...screenEffects]
-    this.gbuffer.capture(ctx.renderer, ctx.worldContainer, {
-      terrainLayer: ctx.terrainLayer,
-      itemLayer: ctx.itemLayer,
-      entityLayer: ctx.entityLayer,
-      particles: ctx.particles,
-    });
+    this.gbuffer.capture(
+      ctx.renderer,
+      ctx.worldContainer,
+      {
+        terrainLayer: ctx.terrainLayer,
+        itemLayer: ctx.itemLayer,
+        entityLayer: ctx.entityLayer,
+        particles: ctx.particles,
+      },
+      this.elapsedTimeSec,
+    );
 
     const baseBloomIntensity = 0.72;
     this.bloomFilter?.setIntensity(
