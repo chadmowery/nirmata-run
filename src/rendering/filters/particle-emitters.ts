@@ -59,7 +59,8 @@ export function cleanupEmitter(sprite: Sprite): void {
  */
 export function disposeAllEmitters(): void {
   if (sharedParticleSystem) {
-    sharedParticleSystem.disposeAllEmitters();
+    sharedParticleSystem.destroy();
+    sharedParticleSystem = null;
   }
 }
 

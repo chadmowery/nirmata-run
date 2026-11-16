@@ -38,7 +38,7 @@ An adversarial code and architecture audit was conducted across the 12 commits o
 | **`MED-03`** | **P2 (Medium)** | `@rendering` | **`OVERCLOCKED_GRID` Harmonic Light Jitter (`jitter: 0.25`) Is Dead Code & `NuCaloric` Ambient Color Mismatch (Spec §4.2)**: `SECTOR_CONDITION_VISUAL_PROFILES.OVERCLOCKED_GRID.jitter` is defined but never read; `NUCALORIC_PROFILE` uses `#101b24` instead of `#1a0d1e`. | **RESOLVED** |
 | **`MED-04`** | **P2 (Medium)** | `@rendering` | **Unused `rtAlbedo` (`960×640` RenderTexture) VRAM Allocation, Enemy `GlitchFilter` Slice Desync (Spec §2.3), and Heat Ghost Shadow Casting**: `GBufferPass` allocates an unused `960×640` `rtAlbedo` texture (~2.45 MB VRAM), does not displace enemy G-Buffer quads during `GlitchFilter` tears, and renders translucent player heat-ghost trails (`alpha = 0.35`) as solid shadow casters. | **RESOLVED** |
 | **`MED-05`** | **P2 (Medium)** | `scripts/` | **Surface Compiler Elevation Heights ($Z$) for Walls (`18–28px` vs `32px`), Closed Laser Doors, and Box Props & Legacy Master Sheets Diverge from Spec §3.3 & §7.2**: Wall skirts (`18px`) sit below `22–26px` lights; closed laser doors (`door`) block light across the transparent laser beam (`shadowOpacity = 255`); `prop_dead_drop` shares `18px` height with tall lockers/safes; and `780×410` themed master sheets were not updated to the 4-view diagnostic layout. | **RESOLVED** |
-| **`LOW-01`** | **P3 (Low)** | `@rendering` | **Unseeded `Math.random()` in `ParticleSystem` & Incomplete `disposeAllEmitters()` Cleanup in Legacy Wrapper**: `ParticleSystem` uses `Math.random()` rather than a deterministic PRNG, and `src/rendering/filters/particle-emitters.ts` leaves `sharedParticleSystem` allocated on `disposeAllEmitters()`. | **OPEN** |
+| **`LOW-01`** | **P3 (Low)** | `@rendering` | **Unseeded `Math.random()` in `ParticleSystem` & Incomplete `disposeAllEmitters()` Cleanup in Legacy Wrapper**: `ParticleSystem` uses `Math.random()` rather than a deterministic PRNG, and `src/rendering/filters/particle-emitters.ts` leaves `sharedParticleSystem` allocated on `disposeAllEmitters()`. | **RESOLVED** |
 
 ---
 
@@ -358,7 +358,7 @@ Prioritized checklist to resolve all findings before merging `feature/deferred-l
   - Implement Spec §5.3.A Heat tiers (`0–60%` Nominal, `61–99%` smooth lerp to `#ff9500` with `3 Hz` `PULSE`, `>= 100%` `#ff0055` with `14 Hz` `FLICKER` and `#a855f7` secondary).
   - Implement Spec §5.3.A Stability drain (`< 50%` `radius * mix(0.75, 1.0, stability / 50)` + `#a855f7` pulse), `Extended_Sight.sys` (`visionRadius * TILE_SIZE` radius + `height = 28px`), and `GHOST_PULSE.exe` (`radiusPx: 320, durationMs: 650` expanding wave).
   - Check `!corrupted.triggered` and use `FLICKER` (`speed: 12.0, amplitude: 0.4`) for revealed corrupted props (`Spec §5.3.B`).
-- [ ] **6. Fix Micro-Light Zoom Scaling, Bloom Pyramid/Multipliers, `OVERCLOCKED_GRID` Jitter, and G-Buffer Polish (`MED-01`..`MED-05`, `LOW-01`)**
+- [x] **6. Fix Micro-Light Zoom Scaling, Bloom Pyramid/Multipliers, `OVERCLOCKED_GRID` Jitter, and G-Buffer Polish (`MED-01`..`MED-05`, `LOW-01`)**
   - Pass unscaled world `maxRadiusPx` in `ParticlePool.collectRenderDescriptors()` (`MED-01`).
   - Wire Faction Theme and Sector Condition bloom multipliers into `SelectiveBloomFilter.setIntensity()` and downsample bloom buffers (`MED-02`).
   - Apply `OVERCLOCKED_GRID` harmonic jitter (`jitter: 0.25`) and set `NUCALORIC_PROFILE` to `#1a0d1e` (`MED-03`).

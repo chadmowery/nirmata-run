@@ -339,4 +339,21 @@ describe('Pooled Dual-Mode Lit Particle & Micro-Light System [LIGHT-05/07]', () 
     const centerIdx = (8 * 16 + 8) * 4;
     expect(buf[centerIdx + 3]).toBeGreaterThan(220);
   });
+
+  it('produces deterministic seeded particle bursts across identical ParticleSystem instances (LOW-01)', () => {
+    const psA = new ParticleSystem(64, 12345);
+    const psB = new ParticleSystem(64, 12345);
+
+    psA.emitDamageBurst(100, 100, 0.5);
+    psB.emitDamageBurst(100, 100, 0.5);
+    psA.update(50);
+    psB.update(50);
+
+    const outA = psA.getLightingInputs(0, 0, 1);
+    const outB = psB.getLightingInputs(0, 0, 1);
+    expect(outA.particles).toEqual(outB.particles);
+
+    psA.destroy();
+    psB.destroy();
+  });
 });

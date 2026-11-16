@@ -38,11 +38,24 @@ export class ParticleSystem {
   private readonly emitters = new WeakMap<Sprite, AttachedEmitter>();
   private readonly activeSprites = new Set<Sprite>();
   private nextEmitterId = 1;
+  private rngState: number;
   private latestGbufferParticles: ParticleGbufferDescriptor[] = [];
   private latestMicroLights: MicroLightDescriptor[] = [];
 
-  constructor(capacity: number = DEFAULT_PARTICLE_POOL_CAPACITY) {
+  constructor(
+    capacity: number = DEFAULT_PARTICLE_POOL_CAPACITY,
+    seed: number = 0x5f3759df,
+  ) {
     this.pool = new ParticlePool(capacity);
+    this.rngState = seed >>> 0;
+  }
+
+  /** Fast deterministic Mulberry32 PRNG in [0, 1). */
+  private nextRandom(): number {
+    let t = (this.rngState += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   }
 
   public attachBehaviorEmitter(
@@ -150,35 +163,35 @@ export class ParticleSystem {
     const useSecondary =
       preset.secondaryMode !== undefined &&
       preset.secondaryChance !== undefined &&
-      Math.random() < preset.secondaryChance;
+      this.nextRandom() < preset.secondaryChance;
     const mode = useSecondary && preset.secondaryMode ? preset.secondaryMode : preset.mode;
 
     let colorHex = preset.colorHex;
-    if (preset.secondaryColorHex !== undefined && (useSecondary || Math.random() < 0.35)) {
+    if (preset.secondaryColorHex !== undefined && (useSecondary || this.nextRandom() < 0.35)) {
       colorHex = preset.secondaryColorHex;
     }
 
-    const angle = Math.random() * Math.PI * 2;
-    const speed = preset.speedMin + Math.random() * (preset.speedMax - preset.speedMin);
-    const maxLifeMs = preset.lifeMinMs + Math.random() * (preset.lifeMaxMs - preset.lifeMinMs);
-    const size = preset.sizeMin + Math.random() * (preset.sizeMax - preset.sizeMin);
+    const angle = this.nextRandom() * Math.PI * 2;
+    const speed = preset.speedMin + this.nextRandom() * (preset.speedMax - preset.speedMin);
+    const maxLifeMs = preset.lifeMinMs + this.nextRandom() * (preset.lifeMaxMs - preset.lifeMinMs);
+    const size = preset.sizeMin + this.nextRandom() * (preset.sizeMax - preset.sizeMin);
 
-    let spawnX = centerX + (Math.random() - 0.5) * preset.horizontalSpanPx;
-    let spawnY = centerY + preset.verticalOffsetPx + (Math.random() - 0.5) * 10;
+    let spawnX = centerX + (this.nextRandom() - 0.5) * preset.horizontalSpanPx;
+    let spawnY = centerY + preset.verticalOffsetPx + (this.nextRandom() - 0.5) * 10;
     let vx = Math.cos(angle) * speed;
     let vy = Math.sin(angle) * speed + preset.upwardBias;
 
     // Special horizontal crackling between ceramic anode towers for capacitor bank
     if (preset.id === 'prop_capacitor_bank') {
-      const fromLeft = Math.random() < 0.5;
-      spawnX = centerX + (fromLeft ? -7 : 6) + (Math.random() - 0.5) * 2;
-      spawnY = centerY + preset.verticalOffsetPx + (Math.random() - 0.5) * 3;
-      vx = (fromLeft ? 1 : -1) * (0.045 + Math.random() * 0.03);
-      vy = (Math.random() - 0.5) * 0.025;
+      const fromLeft = this.nextRandom() < 0.5;
+      spawnX = centerX + (fromLeft ? -7 : 6) + (this.nextRandom() - 0.5) * 2;
+      spawnY = centerY + preset.verticalOffsetPx + (this.nextRandom() - 0.5) * 3;
+      vx = (fromLeft ? 1 : -1) * (0.045 + this.nextRandom() * 0.03);
+      vy = (this.nextRandom() - 0.5) * 0.025;
     }
 
     const orbitAngleRad =
-      preset.orbitRadiusPx > 0 ? state.phaseOffsetRad + Math.random() * Math.PI * 2 : 0;
+      preset.orbitRadiusPx > 0 ? state.phaseOffsetRad + this.nextRandom() * Math.PI * 2 : 0;
 
     this.pool.spawn({
       emitterId: state.id,
@@ -217,21 +230,21 @@ export class ParticleSystem {
     const scatter = config.scatterRadiusPx ?? 6;
     for (let i = 0; i < config.count; i++) {
       const t = config.count > 1 ? i / config.count : 0.5;
-      const jitter = (Math.random() - 0.5) * 0.25;
+      const jitter = (this.nextRandom() - 0.5) * 0.25;
       const angle = config.baseAngleRad + (t - 0.5 + jitter) * config.spreadRad;
-      const speed = config.speedMin + Math.random() * (config.speedMax - config.speedMin);
-      const maxLifeMs = config.lifeMinMs + Math.random() * (config.lifeMaxMs - config.lifeMinMs);
-      const size = config.sizeMin + Math.random() * (config.sizeMax - config.sizeMin);
+      const speed = config.speedMin + this.nextRandom() * (config.speedMax - config.speedMin);
+      const maxLifeMs = config.lifeMinMs + this.nextRandom() * (config.lifeMaxMs - config.lifeMinMs);
+      const size = config.sizeMin + this.nextRandom() * (config.sizeMax - config.sizeMin);
       const colorHex =
-        config.secondaryColorHex !== undefined && Math.random() < 0.4
+        config.secondaryColorHex !== undefined && this.nextRandom() < 0.4
           ? config.secondaryColorHex
           : config.colorHex;
 
       this.pool.spawn({
         emitterId: 0,
         mode: config.mode,
-        worldX: worldX + (Math.random() - 0.5) * scatter,
-        worldY: worldY + (Math.random() - 0.5) * scatter,
+        worldX: worldX + (this.nextRandom() - 0.5) * scatter,
+        worldY: worldY + (this.nextRandom() - 0.5) * scatter,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         gravity: config.gravity,
