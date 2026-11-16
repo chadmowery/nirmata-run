@@ -1,9 +1,15 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import type { LightAnimationType, LightSourceData } from '@shared/components/light-source';
-import { evaluateLightAnimation, parseHexColorNormalized } from '@rendering/lighting/types';
 import type { LightSourceSubEditorValues } from '../editors/subeditors/LightSourceSubEditor';
 import { tilesetAtlasCache } from './tileset-atlas-cache';
+import { decodePngUnpremultiplied, type RawRgbaImage } from './png-decode';
+import {
+  PREVIEW_DISPLAY_SIZE,
+  PREVIEW_LOGICAL_SIZE,
+  PREVIEW_TILE_PX,
+  renderLitPreviewFrame,
+} from './lit-preview-math';
 
 interface Props {
   spriteKey: string;
@@ -12,9 +18,9 @@ interface Props {
 
 type DiagnosticViewMode = 'lit' | 'normal' | 'material';
 
-const LOGICAL_SIZE = 96; // 3 x 3 tiles @ 32px
-const DISPLAY_SIZE = 192; // 2x crisp pixel preview
-const TILE_PX = 32;
+const LOGICAL_SIZE = PREVIEW_LOGICAL_SIZE;
+const DISPLAY_SIZE = PREVIEW_DISPLAY_SIZE;
+const TILE_PX = PREVIEW_TILE_PX;
 
 function loadImageAsync(src: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
@@ -29,14 +35,29 @@ function loadImageAsync(src: string): Promise<HTMLImageElement | null> {
   });
 }
 
-function readAtlasPixels(img: HTMLImageElement): ImageData | null {
+function readCanvasPixelsFallback(img: HTMLImageElement): RawRgbaImage | null {
   const c = document.createElement('canvas');
   c.width = img.width;
   c.height = img.height;
   const ctx = c.getContext('2d');
   if (!ctx) return null;
   ctx.drawImage(img, 0, 0);
-  return ctx.getImageData(0, 0, img.width, img.height);
+  const imgData = ctx.getImageData(0, 0, img.width, img.height);
+  return { width: imgData.width, height: imgData.height, data: imgData.data };
+}
+
+async function loadRawAtlasUnpremultiplied(src: string): Promise<RawRgbaImage | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    const res = await fetch(src);
+    if (!res.ok) return null;
+    const buf = await res.arrayBuffer();
+    return await decodePngUnpremultiplied(buf);
+  } catch {
+    // Fallback only if DecompressionStream/fetch fails (e.g. non-standard PNG)
+    const img = await loadImageAsync(src);
+    return img ? readCanvasPixelsFallback(img) : null;
+  }
 }
 
 export function InspectorLitTilePreview({ spriteKey, lightSource }: Props) {
@@ -58,32 +79,29 @@ export function InspectorLitTilePreview({ spriteKey, lightSource }: Props) {
   } | null>(null);
 
   const atlasRawRef = useRef<{
-    diffImg: ImageData;
-    normImg: ImageData | null;
-    matImg: ImageData | null;
+    diffImg: RawRgbaImage;
+    normImg: RawRgbaImage | null;
+    matImg: RawRgbaImage | null;
   } | null>(null);
 
-  // Load diffuse, _n.png, and _m.png atlases once
+  // Load diffuse, _n.png, and _m.png atlases once without 2D-canvas alpha premultiplication
   useEffect(() => {
     let active = true;
     (async () => {
       const ok = await tilesetAtlasCache.loadAtlas('default');
       if (!ok || !active) return;
 
-      const [diffImg, normImgEl, matImgEl] = await Promise.all([
-        loadImageAsync('/assets/tileset.png'),
-        loadImageAsync('/assets/tileset_n.png'),
-        loadImageAsync('/assets/tileset_m.png'),
+      const [diffData, normData, matData] = await Promise.all([
+        loadRawAtlasUnpremultiplied('/assets/tileset.png'),
+        loadRawAtlasUnpremultiplied('/assets/tileset_n.png'),
+        loadRawAtlasUnpremultiplied('/assets/tileset_m.png'),
       ]);
-      if (!active || !diffImg) return;
-
-      const diffData = readAtlasPixels(diffImg);
-      if (!diffData) return;
+      if (!active || !diffData) return;
 
       atlasRawRef.current = {
         diffImg: diffData,
-        normImg: normImgEl ? readAtlasPixels(normImgEl) : null,
-        matImg: matImgEl ? readAtlasPixels(matImgEl) : null,
+        normImg: normData,
+        matImg: matData,
       };
       setMapsReady(true);
     })();
@@ -103,7 +121,7 @@ export function InspectorLitTilePreview({ spriteKey, lightSource }: Props) {
     const normBuf = new Uint8ClampedArray(totalBytes);
     const matBuf = new Uint8ClampedArray(totalBytes);
 
-    // Initialize neutral normal & material buffers
+    // Initialize neutral normal & material buffers (R=emissive, G=shadowOp, B=roughness, A=heightZ)
     for (let i = 0; i < totalBytes; i += 4) {
       diffBuf[i] = 10;
       diffBuf[i + 1] = 14;
@@ -116,8 +134,8 @@ export function InspectorLitTilePreview({ spriteKey, lightSource }: Props) {
       normBuf[i + 3] = 0;
 
       matBuf[i] = 0;
-      matBuf[i + 1] = 180;
-      matBuf[i + 2] = 10;
+      matBuf[i + 1] = 0;
+      matBuf[i + 2] = 220;
       matBuf[i + 3] = 0;
     }
 
@@ -225,122 +243,20 @@ export function InspectorLitTilePreview({ spriteKey, lightSource }: Props) {
       }
 
       const timeSec = (nowMs - startMs) * 0.001;
-      const lx = autoOrbit
+      const baseLx = autoOrbit
         ? LOGICAL_SIZE * 0.5 + Math.cos(timeSec * 1.15) * 26
         : lightPosLogical.x;
-      const ly = autoOrbit
+      const baseLy = autoOrbit
         ? LOGICAL_SIZE * 0.5 + Math.sin(timeSec * 1.15) * 22
         : lightPosLogical.y;
 
-      const animEval = evaluateLightAnimation(effectiveLight, timeSec, 0);
-      const lIntensity = effectiveLight.enabled ? effectiveLight.intensity * animEval.intensityMultiplier : 0;
-      const [lr, lg, lb] = parseHexColorNormalized(effectiveLight.color);
-      const cr = animEval.colorRgb[0] ?? lr;
-      const cg = animEval.colorRgb[1] ?? lg;
-      const cb = animEval.colorRgb[2] ?? lb;
-      const radiusPx = Math.max(24, effectiveLight.radius * 0.55);
-      const lz = Math.max(6, effectiveLight.height);
-      const falloff = Math.max(0.5, effectiveLight.falloff);
-
-      const { diffuse, normal, material } = bufs;
-      const out = imgData.data;
-
-      for (let py = 0; py < LOGICAL_SIZE; py++) {
-        for (let px = 0; px < LOGICAL_SIZE; px++) {
-          const i = (py * LOGICAL_SIZE + px) * 4;
-
-          if (viewMode === 'normal') {
-            out[i] = normal[i];
-            out[i + 1] = normal[i + 1];
-            out[i + 2] = normal[i + 2];
-            out[i + 3] = 255;
-            continue;
-          }
-
-          if (viewMode === 'material') {
-            out[i] = material[i];
-            out[i + 1] = material[i + 1];
-            out[i + 2] = material[i + 2];
-            out[i + 3] = 255;
-            continue;
-          }
-
-          // Lit BRDF composite
-          const ar = diffuse[i] / 255;
-          const ag = diffuse[i + 1] / 255;
-          const ab = diffuse[i + 2] / 255;
-
-          const nx = (normal[i] / 255) * 2 - 1;
-          const ny = -((normal[i + 1] / 255) * 2 - 1);
-          const nz = Math.max(0.05, normal[i + 2] / 255);
-          const spec = normal[i + 3] / 255;
-
-          const emissive = material[i] / 255;
-          const pz = (material[i + 2] / 255) * 48;
-
-          const dx = lx - px;
-          const dy = ly - py;
-          const dz = lz - pz;
-          const dist2d = Math.hypot(dx, dy);
-
-          let litR = ar * 0.14;
-          let litG = ag * 0.17;
-          let litB = ab * 0.22;
-
-          if (dist2d < radiusPx) {
-            const dist3d = Math.max(1, Math.hypot(dist2d, dz));
-            const ndotl = Math.max(0, (nx * dx + ny * dy + nz * dz) / dist3d);
-            const normD = Math.min(1, dist2d / radiusPx);
-            const atten = Math.pow(1 - normD * normD, falloff) * lIntensity;
-
-            // 8-step 2.5D shadow raymarch
-            let shadow = 1.0;
-            if (effectiveLight.castsShadows && dist2d > 3) {
-              for (let s = 1; s <= 7; s++) {
-                const t = s / 8;
-                const sx = Math.round(px + dx * t);
-                const sy = Math.round(py + dy * t);
-                if (sx < 0 || sx >= LOGICAL_SIZE || sy < 0 || sy >= LOGICAL_SIZE) break;
-                const si = (sy * LOGICAL_SIZE + sx) * 4;
-                const occZ = (material[si + 2] / 255) * 48;
-                const occOp = material[si + 3] / 255;
-                const rayZ = pz + dz * t;
-                if (occOp > 0.15 && occZ > rayZ + 1.5) {
-                  shadow *= 1 - occOp * 0.85;
-                  if (shadow < 0.08) {
-                    shadow = 0.08;
-                    break;
-                  }
-                }
-              }
-            }
-
-            // Blinn-Phong specular glint
-            const hx = dx / dist3d;
-            const hy = dy / dist3d;
-            const hz = dz / dist3d + 1.0;
-            const hLen = Math.max(0.001, Math.hypot(hx, hy, hz));
-            const ndoth = Math.max(0, (nx * hx + ny * hy + nz * hz) / hLen);
-            const specPower = Math.pow(ndoth, 24) * spec * 0.75;
-
-            const factor = atten * shadow;
-            litR += (ar * ndotl + specPower) * cr * factor;
-            litG += (ag * ndotl + specPower) * cg * factor;
-            litB += (ab * ndotl + specPower) * cb * factor;
-          }
-
-          // Self-luminous emissive boost
-          litR += ar * emissive * 1.4;
-          litG += ag * emissive * 1.4;
-          litB += ab * emissive * 1.4;
-
-          // Filmic tone curve
-          out[i] = Math.min(255, Math.round((litR / (1 + litR * 0.35)) * 255));
-          out[i + 1] = Math.min(255, Math.round((litG / (1 + litG * 0.35)) * 255));
-          out[i + 2] = Math.min(255, Math.round((litB / (1 + litB * 0.35)) * 255));
-          out[i + 3] = 255;
-        }
-      }
+      const { lx, ly } = renderLitPreviewFrame(bufs, imgData.data, {
+        viewMode,
+        baseLx,
+        baseLy,
+        effectiveLight,
+        timeSec,
+      });
 
       offCtx.putImageData(imgData, 0, 0);
       ctx.imageSmoothingEnabled = false;
