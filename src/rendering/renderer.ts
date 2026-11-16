@@ -1,13 +1,21 @@
 import { Application } from 'pixi.js';
 
-let app: Application | null = null;
+const globalForRenderer = globalThis as unknown as { __nirmataPixiApp?: Application | null };
+let app: Application | null =
+  process.env.NODE_ENV === 'development' ? (globalForRenderer.__nirmataPixiApp ?? null) : null;
 
 /**
  * Initializes the PixiJS renderer singleton.
- * Uses a guard to prevent multiple initializations (e.g. React StrictMode).
+ * Uses a guard to prevent multiple initializations (e.g. React StrictMode or Dev HMR).
  */
 export async function initRenderer(canvas: HTMLCanvasElement): Promise<Application> {
-  if (app) return app;
+  if (app) {
+    if (app.canvas && app.canvas !== canvas && canvas.parentNode) {
+      app.canvas.className = canvas.className;
+      canvas.parentNode.replaceChild(app.canvas, canvas);
+    }
+    return app;
+  }
 
   app = new Application();
   await app.init({
@@ -19,6 +27,10 @@ export async function initRenderer(canvas: HTMLCanvasElement): Promise<Applicati
     resolution: 1,
     preference: 'webgl',
   });
+
+  if (process.env.NODE_ENV === 'development') {
+    globalForRenderer.__nirmataPixiApp = app;
+  }
 
   return app;
 }
@@ -34,6 +46,9 @@ export function destroyRenderer(): void {
       textureSource: false,
     });
     app = null;
+  }
+  if (process.env.NODE_ENV === 'development') {
+    globalForRenderer.__nirmataPixiApp = null;
   }
 }
 

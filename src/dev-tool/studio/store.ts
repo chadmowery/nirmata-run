@@ -1,6 +1,7 @@
 'use client';
 import { create } from 'zustand';
 import { Section, SelectedItem } from './types';
+import type { GameHeartbeatPayload } from '@dev-tool/hotload/types';
 
 interface GamedataStore {
   // Sidebar state
@@ -19,6 +20,13 @@ interface GamedataStore {
   // Editor dirty state
   isDirty: boolean;
   setDirty: (dirty: boolean) => void;
+
+  // Live Hotload Sync state
+  liveSyncEnabled: boolean;
+  setLiveSyncEnabled: (enabled: boolean) => void;
+  toggleLiveSync: () => void;
+  connectedGame: GameHeartbeatPayload | null;
+  setConnectedGame: (heartbeat: GameHeartbeatPayload | null) => void;
 
   // Clone support (D-06): editors read cloneSource on mount when isNew=true
   cloneSource: string | null;
@@ -87,6 +95,12 @@ export const useGamedataStore = create<GamedataStore>((set) => ({
 
   isDirty: false,
   setDirty: (dirty) => set({ isDirty: dirty }),
+
+  liveSyncEnabled: true,
+  setLiveSyncEnabled: (enabled) => set({ liveSyncEnabled: enabled }),
+  toggleLiveSync: () => set((state) => ({ liveSyncEnabled: !state.liveSyncEnabled })),
+  connectedGame: null,
+  setConnectedGame: (heartbeat) => set({ connectedGame: heartbeat }),
 
   // Clone support: editors check this on mount to pre-populate from existing item
   cloneSource: null,

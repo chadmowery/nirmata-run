@@ -43,6 +43,19 @@ function toIdentifier(name: string): string {
   return name.replace(/[^a-zA-Z0-9]/g, '_');
 }
 
+async function writeIfChanged(filePath: string, nextContent: string): Promise<boolean> {
+  try {
+    const existing = await fs.readFile(filePath, 'utf-8');
+    if (existing === nextContent) {
+      return false;
+    }
+  } catch {
+    // File does not exist yet
+  }
+  await fs.writeFile(filePath, nextContent, 'utf-8');
+  return true;
+}
+
 export async function regenerateShellTemplateIndex(): Promise<void> {
   const root = process.cwd();
   const shellDir = path.join(root, 'src/game/shells/shared/templates');
@@ -62,7 +75,7 @@ export async function regenerateShellTemplateIndex(): Promise<void> {
   }
   shellImports.push('');
 
-  await fs.writeFile(shellIndexPath, shellImports.join('\n'), 'utf-8');
+  await writeIfChanged(shellIndexPath, shellImports.join('\n'));
 }
 
 export async function regenerateTemplateIndex(): Promise<void> {
@@ -106,7 +119,7 @@ export async function regenerateTemplateIndex(): Promise<void> {
   entityImports.push(`}`);
   entityImports.push('');
 
-  await fs.writeFile(entityIndexPath, entityImports.join('\n'), 'utf-8');
+  await writeIfChanged(entityIndexPath, entityImports.join('\n'));
 
   // 2. Shells client index
   const shellDir = path.join(root, 'src/game/shells/shared/templates');
@@ -126,7 +139,7 @@ export async function regenerateTemplateIndex(): Promise<void> {
   }
   shellImports.push('');
 
-  await fs.writeFile(shellIndexPath, shellImports.join('\n'), 'utf-8');
+  await writeIfChanged(shellIndexPath, shellImports.join('\n'));
 
   // 3. Room Prefabs index
   const prefabDir = path.join(root, 'src/game/generation/prefabs');
@@ -169,5 +182,5 @@ export async function regenerateTemplateIndex(): Promise<void> {
   prefabImports.push(`}`);
   prefabImports.push('');
 
-  await fs.writeFile(prefabIndexPath, prefabImports.join('\n'), 'utf-8');
+  await writeIfChanged(prefabIndexPath, prefabImports.join('\n'));
 }
