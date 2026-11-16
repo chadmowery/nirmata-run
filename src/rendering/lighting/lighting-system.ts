@@ -224,6 +224,12 @@ export class LightingSystem {
       ? playerPos.y * TILE_SIZE + TILE_SIZE * 0.5
       : (VIEWPORT_H * 0.5 - camY) * invZoom;
 
+    const factionProfile = resolveFactionAmbientProfile(this.activeFactionTheme);
+    const condProfile = this.activeSectorCondition
+      ? SECTOR_CONDITION_VISUAL_PROFILES[this.activeSectorCondition]
+      : null;
+    const roomJitter = condProfile?.jitter ?? 0;
+
     let playerDescriptor: RenderLightDescriptor | null = null;
     const candidates = this.entityLightCandidates;
     candidates.length = 0;
@@ -245,7 +251,18 @@ export class LightingSystem {
       }
 
       const evalResult = evaluateLightAnimation(light, this.elapsedTimeSec, (entityId % 17) * 0.19);
-      const effectiveIntensity = light.intensity * evalResult.intensityMultiplier;
+      const harmonicJitter =
+        !isPlayer && roomJitter > 0
+          ? 1.0 +
+            roomJitter *
+              0.45 *
+              (Math.sin(this.elapsedTimeSec * 29.0 + entityId * 1.7) * 0.65 +
+                Math.cos(this.elapsedTimeSec * 47.0 + entityId * 3.1) * 0.35)
+          : 1.0;
+      const effectiveIntensity = Math.max(
+        0,
+        light.intensity * evalResult.intensityMultiplier * harmonicJitter,
+      );
       if (effectiveIntensity <= 0.005) continue;
 
       // Prefer visual sprite position so point lights glide seamlessly during move tweens!
@@ -364,11 +381,6 @@ export class LightingSystem {
       entityLayer: ctx.entityLayer,
       particles: ctx.particles,
     });
-
-    const factionProfile = resolveFactionAmbientProfile(this.activeFactionTheme);
-    const condProfile = this.activeSectorCondition
-      ? SECTOR_CONDITION_VISUAL_PROFILES[this.activeSectorCondition]
-      : null;
 
     const baseBloomIntensity = 0.72;
     this.bloomFilter?.setIntensity(

@@ -1081,5 +1081,47 @@ describe('Deferred Lighting System & Render Integration [LIGHT-03/04/07]', () =>
         delete glProg.from;
       }
     });
+
+    it('applies OVERCLOCKED_GRID harmonic light jitter and NuCaloric #1a0d1e ambient profile (MED-03)', () => {
+      expect(resolveFactionAmbientProfile('nucaloric').colorHex).toBe('#1a0d1e');
+
+      const lighting = new LightingSystem(20, 15);
+      lighting.setEnvironmentTheme('nucaloric', 'OVERCLOCKED_GRID');
+
+      const staticProp = world.createEntity();
+      world.addComponent(staticProp, Position, { x: 11, y: 10 });
+      world.addComponent(
+        staticProp,
+        LightSource,
+        LightSource.schema.parse({
+          color: '#00f0ff',
+          intensity: 1.0,
+          radius: 100,
+          animation: { type: 'STATIC', speed: 2, amplitude: 0 },
+        }),
+      );
+
+      const intensities = new Set<string>();
+      for (let i = 0; i < 6; i++) {
+        lighting.update({
+          world,
+          worldContainer: { x: 0, y: 0, scale: { x: 1, y: 1 }, filters: null } as never,
+          terrainLayer: { children: [] } as never,
+          itemLayer: { children: [] } as never,
+          entityLayer: { children: [] } as never,
+          spriteMap: new Map(),
+          gridWidth: 20,
+          gridHeight: 15,
+          deltaMs: 17,
+          enabled: true,
+          playerEntityId: playerId,
+        });
+        const propLight = lighting.getPrimaryLights()[1];
+        expect(propLight).toBeDefined();
+        intensities.add(propLight.intensity.toFixed(4));
+      }
+      expect(intensities.size).toBeGreaterThan(2);
+      lighting.destroy();
+    });
   });
 });

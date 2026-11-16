@@ -149,9 +149,9 @@ const DARK_SUBNET_PROFILE: FactionAmbientProfile = {
 };
 
 const NUCALORIC_PROFILE: FactionAmbientProfile = {
-  colorHex: '#101b24',
-  rgb: parseHexColorNormalized('#101b24'),
-  intensity: 0.22,
+  colorHex: '#1a0d1e',
+  rgb: parseHexColorNormalized('#1a0d1e'),
+  intensity: 0.18,
   bloomMultiplier: 1.10,
 };
 
