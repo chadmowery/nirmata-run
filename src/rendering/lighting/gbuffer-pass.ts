@@ -352,17 +352,21 @@ export class GBufferPass {
 
       const opaqueState = PIXI.State.for2d();
       opaqueState.blend = false;
+      opaqueState.blendMode = 'none';
 
       this.normalMesh = new PIXI.Mesh<Geometry, Shader>({
         geometry: this.geometry,
         shader: this.normalShader,
         state: opaqueState,
       });
+      this.normalMesh.blendMode = 'none';
+
       this.materialMesh = new PIXI.Mesh<Geometry, Shader>({
         geometry: this.geometry,
         shader: this.materialShader,
         state: opaqueState,
       });
+      this.materialMesh.blendMode = 'none';
 
       this.normalContainer = new PIXI.Container();
       this.normalContainer.addChild(this.normalMesh);

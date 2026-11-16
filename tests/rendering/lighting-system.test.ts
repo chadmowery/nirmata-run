@@ -56,6 +56,32 @@ vi.mock('pixi.js', () => {
       destroy: vi.fn(),
     };
   });
+  const RenderTexture = {
+    create: vi.fn().mockImplementation((opts?: Record<string, unknown>) => ({
+      ...(opts ?? {}),
+      source: { scaleMode: 'nearest', autoGenerateMipmaps: false },
+      resize: vi.fn(),
+      destroy: vi.fn(),
+    })),
+  };
+  const Buffer = vi.fn().mockImplementation(function (opts?: Record<string, unknown>) {
+    return { ...(opts ?? {}), update: vi.fn(), destroy: vi.fn() };
+  });
+  const Geometry = vi.fn().mockImplementation(function (opts?: Record<string, unknown>) {
+    return { ...(opts ?? {}), topology: 'triangle-list', destroy: vi.fn() };
+  });
+  const Shader = vi.fn().mockImplementation(function (opts?: Record<string, unknown>) {
+    return { ...(opts ?? {}), resources: opts?.resources ?? {}, destroy: vi.fn() };
+  });
+  const State = {
+    for2d: vi.fn().mockImplementation(() => ({
+      blend: true,
+      blendMode: 'normal',
+    })),
+  };
+  const Mesh = vi.fn().mockImplementation(function (opts?: Record<string, unknown>) {
+    return { ...(opts ?? {}), blendMode: 'inherit', destroy: vi.fn() };
+  });
   const Graphics = vi.fn().mockImplementation(function () {
     return {
       clear: vi.fn().mockReturnThis(),
@@ -94,6 +120,13 @@ vi.mock('pixi.js', () => {
     BufferImageSource,
     UniformGroup,
     GlProgram,
+    RenderTexture,
+    Buffer,
+    BufferUsage: { VERTEX: 1, INDEX: 2, COPY_DST: 4 },
+    Geometry,
+    Shader,
+    State,
+    Mesh,
     defaultFilterVert: 'void main() {}',
     Assets: {
       add: vi.fn(),
@@ -491,6 +524,30 @@ describe('Deferred Lighting System & Render Integration [LIGHT-03/04/07]', () =>
         expect(lightBuf[3]).toBeCloseTo(1.5, 3);
 
         filter.destroy(true);
+      } finally {
+        delete glProg.from;
+      }
+    });
+
+    it('configures GBufferPass normalMesh and materialMesh with blendMode none to preserve unblended normal/material channels', () => {
+      const glProg = PIXI.GlProgram as unknown as { from?: unknown };
+      glProg.from = vi.fn().mockReturnValue({});
+
+      try {
+        const gbuffer = new GBufferPass(10, 8) as unknown as {
+          gpuReady: boolean;
+          normalMesh?: { blendMode: string; state?: { blend: boolean; blendMode: string } };
+          materialMesh?: { blendMode: string; state?: { blend: boolean; blendMode: string } };
+          destroy: () => void;
+        };
+        expect(gbuffer.gpuReady).toBe(true);
+        expect(gbuffer.normalMesh?.blendMode).toBe('none');
+        expect(gbuffer.materialMesh?.blendMode).toBe('none');
+        expect(gbuffer.normalMesh?.state?.blend).toBe(false);
+        expect(gbuffer.normalMesh?.state?.blendMode).toBe('none');
+        expect(gbuffer.materialMesh?.state?.blend).toBe(false);
+        expect(gbuffer.materialMesh?.state?.blendMode).toBe('none');
+        gbuffer.destroy();
       } finally {
         delete glProg.from;
       }

@@ -1,4 +1,4 @@
-import { Assets, Texture } from 'pixi.js';
+import { Assets, ImageSource, Texture } from 'pixi.js';
 
 let assetsRegistered = false;
 let activeThemeId: string = 'default';
@@ -66,6 +66,35 @@ export function getMaterialAtlasTexture(themeId?: string): Texture | null {
   return base && base.source ? base : null;
 }
 
+const companionTextures = new Map<string, Texture>();
+
+async function loadUnpremultipliedCompanionTexture(companionSrc: string): Promise<Texture | null> {
+  if (
+    typeof fetch !== 'function' ||
+    typeof createImageBitmap !== 'function' ||
+    typeof ImageSource !== 'function' ||
+    typeof Texture !== 'function' ||
+    typeof Assets.cache?.set !== 'function'
+  ) {
+    return null;
+  }
+
+  const response = await fetch(companionSrc);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch companion atlas ${companionSrc}: ${response.status}`);
+  }
+  const blob = await response.blob();
+  // PixiJS 8's loadTextures parser only sets premultiplyAlpha: 'none' when alphaMode === 'premultiplied-alpha',
+  // causing browsers to premultiply normal RGB vectors by specular alpha and corrupt tangent normals.
+  const bitmap = await createImageBitmap(blob, { premultiplyAlpha: 'none' });
+  const source = new ImageSource({
+    resource: bitmap,
+    alphaMode: 'no-premultiply-alpha',
+    scaleMode: 'nearest',
+  });
+  return new Texture({ source });
+}
+
 async function loadCompanionMaps(alias: string, manifestSrc: string): Promise<void> {
   if (!manifestSrc.endsWith('.json')) return;
   const baseSrc = manifestSrc.replace(/\.json$/, '');
@@ -75,6 +104,18 @@ async function loadCompanionMaps(alias: string, manifestSrc: string): Promise<vo
     const companionAlias = `${alias}${suffix}`;
     const companionSrc = `${baseSrc}${suffix}.png`;
     try {
+      if (companionTextures.has(companionAlias)) {
+        continue;
+      }
+
+      const directTex = await loadUnpremultipliedCompanionTexture(companionSrc);
+      if (directTex) {
+        Assets.cache.set(companionAlias, directTex);
+        companionTextures.set(companionAlias, directTex);
+        registeredCompanions.add(companionAlias);
+        continue;
+      }
+
       if (!registeredCompanions.has(companionAlias)) {
         Assets.add({
           alias: companionAlias,
@@ -102,7 +143,14 @@ async function unloadCompanionMaps(alias: string): Promise<void> {
     const companionAlias = `${alias}${suffix}`;
     registeredCompanions.delete(companionAlias);
     try {
-      if (typeof Assets.unload === 'function') {
+      const directTex = companionTextures.get(companionAlias);
+      if (directTex) {
+        companionTextures.delete(companionAlias);
+        if (typeof Assets.cache?.remove === 'function' && Assets.cache.has?.(companionAlias)) {
+          Assets.cache.remove(companionAlias);
+        }
+        directTex.destroy?.(true);
+      } else if (typeof Assets.unload === 'function') {
         await Assets.unload(companionAlias);
       }
     } catch {
@@ -118,6 +166,7 @@ export function _resetAssetsForTesting(): void {
   assetsRegistered = false;
   activeThemeId = 'default';
   registeredCompanions.clear();
+  companionTextures.clear();
 }
 
 /**
