@@ -102,6 +102,40 @@ export class TilesetAtlasCache {
     }
   }
 
+  public invalidateTheme(themeId?: string): void {
+    if (!themeId) {
+      this.manifests.clear();
+      this.images.clear();
+      this.loadPromises.clear();
+      return;
+    }
+    this.manifests.delete(themeId);
+    this.images.delete(themeId);
+    this.loadPromises.delete(themeId);
+  }
+
+  public getRawAnimations(
+    themeId: string = 'default',
+  ): Record<string, EntityAnimationSet | AnimationClipDef> {
+    const manifest = this.manifests.get(themeId) || this.manifests.get('default');
+    return manifest?.animations ? { ...manifest.animations } : {};
+  }
+
+  public setAnimationEntry(
+    themeId: string,
+    animSetKey: string,
+    entry: EntityAnimationSet | AnimationClipDef | null,
+  ): void {
+    const manifest = this.manifests.get(themeId);
+    if (!manifest) return;
+    if (!manifest.animations) manifest.animations = {};
+    if (entry === null) {
+      delete manifest.animations[animSetKey];
+    } else {
+      manifest.animations[animSetKey] = entry;
+    }
+  }
+
   public getFrameKeys(themeId: string = 'default'): string[] {
     const manifest = this.manifests.get(themeId) || this.manifests.get('default');
     if (!manifest) return [];

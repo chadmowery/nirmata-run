@@ -6,6 +6,7 @@ import { useGamedataStore } from './store';
 import { Section, SECTIONS } from './types';
 import { ResolvedPreviewPanel } from './shared/ResolvedPreviewPanel';
 import { subscribeStudioHeartbeats, requestShellSwitch } from '@dev-tool/hotload/studio-sync';
+import { tilesetAtlasCache } from './shared/tileset-atlas-cache';
 import {
   EntityTemplateEditor,
   MixinEditor,
@@ -46,7 +47,7 @@ export function GamedataTool({ initialData }: Props) {
   } = useGamedataStore();
   const [launchingRun, setLaunchingRun] = useState(false);
 
-  // Subscribe to running game tab heartbeats via BroadcastChannel
+  // Subscribe to running game tab heartbeats via BroadcastChannel & SSE asset updates
   useEffect(() => {
     const unsubscribe = subscribeStudioHeartbeats((hb) => {
       setConnectedGame(hb);
@@ -57,9 +58,29 @@ export function GamedataTool({ initialData }: Props) {
         setConnectedGame(null);
       }
     }, 3000);
+
+    let es: EventSource | null = null;
+    if (typeof EventSource !== 'undefined') {
+      es = new EventSource('/api/dev/hotload/stream');
+      es.addEventListener('hotload', (evt) => {
+        try {
+          const env = JSON.parse((evt as MessageEvent<string>).data) as {
+            domain?: string;
+            payload?: { themeId?: string };
+          };
+          if (env.domain === 'assets:atlas') {
+            tilesetAtlasCache.invalidateTheme(env.payload?.themeId);
+          }
+        } catch {
+          // Ignore malformed SSE event
+        }
+      });
+    }
+
     return () => {
       unsubscribe();
       window.clearInterval(staleTimer);
+      es?.close();
     };
   }, [setConnectedGame]);
 

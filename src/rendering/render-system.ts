@@ -145,6 +145,10 @@ export interface RenderSystem {
   getRenderTelemetry(): RenderTelemetry;
   setDevRenderFlags(flags: Partial<DevRenderBisectionFlags>): void;
   getEffectiveEntityLight(entityId: EntityId): LightSourceData | undefined;
+  applyHotloadSpriteUpdate(entityId: EntityId): void;
+  syncHotloadedSprites(entityIds?: EntityId[]): void;
+  invalidateTilemap(): void;
+  invalidateFov(): void;
 }
 
 /**
@@ -1903,6 +1907,43 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
     getEffectiveEntityLight(entityId: EntityId): LightSourceData | undefined {
       return dynamicLightOverrides.get(entityId) ?? world.getComponent(entityId, LightSource);
+    },
+
+    applyHotloadSpriteUpdate(entityId: EntityId) {
+      if (!world.entityExists(entityId)) {
+        destroyEntitySprite(entityId);
+        spriteAnimator.unregisterEntity(entityId);
+        return;
+      }
+      const spriteComp = world.getComponent(entityId, SpriteComponent);
+      if (!spriteComp) {
+        destroyEntitySprite(entityId);
+        spriteAnimator.unregisterEntity(entityId);
+        return;
+      }
+      const sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
+      spriteAnimator.registerEntity(entityId, spriteComp);
+      if (spriteComp.initialState) {
+        spriteAnimator.setAmbientState(entityId, spriteComp.initialState);
+      }
+      particleSystem.cleanupEmitter(sprite);
+      attachEntityParticles(entityId, sprite, spriteComp.key);
+      syncPropOutline(entityId, sprite);
+    },
+
+    syncHotloadedSprites(entityIds?: EntityId[]) {
+      const targets = entityIds ?? world.query(SpriteComponent);
+      for (const id of targets) {
+        system.applyHotloadSpriteUpdate(id);
+      }
+    },
+
+    invalidateTilemap() {
+      lastTilemapKey = '';
+    },
+
+    invalidateFov() {
+      lastFovKey = '';
     },
 
     setDevRenderFlags(flags: Partial<DevRenderBisectionFlags>) {

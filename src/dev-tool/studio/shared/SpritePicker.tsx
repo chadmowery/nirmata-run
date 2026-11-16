@@ -1,8 +1,19 @@
 'use client';
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { tilesetAtlasCache, ResolvedAnimationClip } from './tileset-atlas-cache';
-import { AnimationStateKey } from '@shared/tileset-types';
+import {
+  AnimationClipDef,
+  AnimationLoopMode,
+  AnimationStateKey,
+  AnimationStateKeySchema,
+  EntityAnimationSet,
+} from '@shared/tileset-types';
+import { useGamedataStore } from '../store';
+import { postHotloadCommit, postHotloadPreview } from '@dev-tool/hotload/studio-sync';
 import styles from '../editors/editors.module.css';
+
+const ALL_ANIM_STATES: AnimationStateKey[] = [...AnimationStateKeySchema.options];
+const EDITABLE_THEMES = ['default', 'traxus_foundry', 'sekiguchi_biolabs', 'dark_subnet'] as const;
 
 interface Props {
   value: string;
@@ -25,6 +36,22 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
   const [manualFrameIndex, setManualFrameIndex] = useState<number | null>(null);
   const [playbackFrameIndex, setPlaybackFrameIndex] = useState<number>(0);
 
+  // Clip authoring drawer state
+  const liveSyncEnabled = useGamedataStore((s) => s.liveSyncEnabled);
+  const [clipEditorOpen, setClipEditorOpen] = useState(false);
+  const [clipThemeId, setClipThemeId] = useState<string>('default');
+  const [propagateToThemes, setPropagateToThemes] = useState(true);
+  const [clipStateKey, setClipStateKey] = useState<AnimationStateKey>('idle');
+  const [draftFrames, setDraftFrames] = useState<string[]>([]);
+  const [draftFps, setDraftFps] = useState<number>(6);
+  const [draftLoop, setDraftLoop] = useState<AnimationLoopMode>('loop');
+  const [draftNextState, setDraftNextState] = useState<string>('');
+  const [draftDesyncPhase, setDraftDesyncPhase] = useState<boolean>(true);
+  const [draftDurations, setDraftDurations] = useState<Array<number | undefined>>([]);
+  const [addFrameSearch, setAddFrameSearch] = useState('');
+  const [clipSaveStatus, setClipSaveStatus] = useState<string | null>(null);
+  const [clipVersion, setClipVersion] = useState(0);
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const filmstripCanvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
   const animFrameIdRef = useRef<number | null>(null);
@@ -46,17 +73,181 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
   // Available animation states for current sprite
   const animStates = useMemo(() => {
     if (!value) return [];
-    return tilesetAtlasCache.getAnimationStates(value, 'default');
-  }, [value, frameKeys]);
+    void clipVersion;
+    return tilesetAtlasCache.getAnimationStates(value, clipThemeId);
+  }, [value, frameKeys, clipThemeId, clipVersion]);
 
   const isAnimated = animStates.length > 0;
 
   // Active clip
   const activeClip: ResolvedAnimationClip | null = useMemo(() => {
     if (!isAnimated || !value) return null;
-    return tilesetAtlasCache.getAnimationClip(value, currentState, 'default') ??
-      tilesetAtlasCache.getAnimationClip(value, 'idle', 'default');
-  }, [value, currentState, isAnimated, frameKeys]);
+    void clipVersion;
+    return tilesetAtlasCache.getAnimationClip(value, currentState, clipThemeId) ??
+      tilesetAtlasCache.getAnimationClip(value, 'idle', clipThemeId);
+  }, [value, currentState, isAnimated, frameKeys, clipThemeId, clipVersion]);
+
+  // Load theme atlas when clipThemeId changes
+  useEffect(() => {
+    tilesetAtlasCache.loadAtlas(clipThemeId).then((ok) => {
+      if (ok) {
+        setFrameKeys(tilesetAtlasCache.getFrameKeys(clipThemeId).sort());
+        setClipVersion((v) => v + 1);
+      }
+    });
+  }, [clipThemeId]);
+
+  // Hydrate draft clip fields when opening drawer or changing state/value/theme
+  useEffect(() => {
+    if (!clipEditorOpen || !value) return;
+    const clip = tilesetAtlasCache.getAnimationClip(value, clipStateKey, clipThemeId);
+    if (clip) {
+      setDraftFrames([...clip.frames]);
+      setDraftFps(clip.fps);
+      setDraftLoop(clip.loop);
+      setDraftDurations(clip.frameDurationsMs ? [...clip.frameDurationsMs] : clip.frames.map(() => undefined));
+      const rawAnims = tilesetAtlasCache.getRawAnimations(clipThemeId);
+      const rawEntry = rawAnims[value];
+      let nextSt = '';
+      let desync = true;
+      if (rawEntry && 'frames' in rawEntry && Array.isArray(rawEntry.frames)) {
+        nextSt = rawEntry.nextState ?? '';
+        desync = rawEntry.desyncPhase ?? true;
+      } else if (rawEntry) {
+        const stClip = (rawEntry as EntityAnimationSet)[clipStateKey];
+        nextSt = stClip?.nextState ?? '';
+        desync = stClip?.desyncPhase ?? true;
+      }
+      setDraftNextState(nextSt);
+      setDraftDesyncPhase(desync);
+    } else {
+      setDraftFrames(value ? [value] : []);
+      setDraftFps(6);
+      setDraftLoop(clipStateKey === 'idle' || clipStateKey === 'locked' || clipStateKey === 'corrupted' ? 'loop' : 'once');
+      setDraftDurations([undefined]);
+      setDraftNextState('');
+      setDraftDesyncPhase(true);
+    }
+  }, [clipEditorOpen, value, clipStateKey, clipThemeId]);
+
+  const buildUpdatedAnimationsEntry = useCallback(
+    (
+      nextFrames: string[],
+      nextFps: number,
+      nextLoop: AnimationLoopMode,
+      nextNextState: string,
+      nextDesync: boolean,
+      nextDurations: Array<number | undefined>,
+    ): EntityAnimationSet | AnimationClipDef => {
+      const hasCustomDurations =
+        nextDurations.length === nextFrames.length &&
+        nextDurations.some((d) => typeof d === 'number' && d > 0);
+      const clipDef: AnimationClipDef = {
+        frames: nextFrames,
+        fps: Math.max(1, Math.min(30, nextFps)),
+        loop: nextLoop,
+        desyncPhase: nextDesync,
+        ...(hasCustomDurations
+          ? {
+              frameDurationsMs: nextDurations.map((d) =>
+                typeof d === 'number' && d > 0 ? Math.round(d) : Math.round(1000 / Math.max(1, nextFps)),
+              ),
+            }
+          : {}),
+        ...(nextNextState ? { nextState: nextNextState as AnimationStateKey } : {}),
+      };
+
+      const rawAnims = tilesetAtlasCache.getRawAnimations(clipThemeId);
+      const existing = rawAnims[value];
+      let baseSet: EntityAnimationSet = {};
+      if (existing) {
+        if ('frames' in existing && Array.isArray(existing.frames)) {
+          baseSet = { idle: existing as AnimationClipDef };
+        } else {
+          baseSet = { ...(existing as EntityAnimationSet) };
+        }
+      }
+      return {
+        ...baseSet,
+        [clipStateKey]: clipDef,
+      };
+    },
+    [clipThemeId, clipStateKey, value],
+  );
+
+  const pushClipPreview = useCallback(
+    (
+      nextFrames: string[],
+      nextFps: number,
+      nextLoop: AnimationLoopMode,
+      nextNextState: string,
+      nextDesync: boolean,
+      nextDurations: Array<number | undefined>,
+    ) => {
+      if (!value || nextFrames.length === 0) return;
+      const entry = buildUpdatedAnimationsEntry(
+        nextFrames,
+        nextFps,
+        nextLoop,
+        nextNextState,
+        nextDesync,
+        nextDurations,
+      );
+      tilesetAtlasCache.setAnimationEntry(clipThemeId, value, entry);
+      setClipVersion((v) => v + 1);
+
+      if (liveSyncEnabled) {
+        const allAnims = tilesetAtlasCache.getRawAnimations(clipThemeId);
+        postHotloadPreview('tileset:animations', value, {
+          themeId: clipThemeId,
+          animSetKey: value,
+          animations: { ...allAnims, [value]: entry },
+        });
+      }
+    },
+    [value, clipThemeId, liveSyncEnabled, buildUpdatedAnimationsEntry],
+  );
+
+  const handleSaveClip = async () => {
+    if (!value || draftFrames.length === 0) return;
+    setClipSaveStatus('SAVING...');
+    const entry = buildUpdatedAnimationsEntry(
+      draftFrames,
+      draftFps,
+      draftLoop,
+      draftNextState,
+      draftDesyncPhase,
+      draftDurations,
+    );
+    try {
+      const res = await fetch('/api/dev/gamedata/tileset/animations', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          themeId: clipThemeId,
+          animSetKey: value,
+          entry,
+          propagateToThemes: clipThemeId === 'default' ? propagateToThemes : false,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setClipSaveStatus(`ERR: ${json.error || 'Failed'}`);
+        return;
+      }
+      tilesetAtlasCache.setAnimationEntry(clipThemeId, value, entry);
+      setClipVersion((v) => v + 1);
+      postHotloadCommit('tileset:animations', value, {
+        themeId: clipThemeId,
+        animSetKey: value,
+        animations: json.animations,
+      });
+      setClipSaveStatus(`SAVED (${(json.updatedThemes as string[])?.join(', ') || clipThemeId})`);
+      window.setTimeout(() => setClipSaveStatus(null), 2500);
+    } catch (err) {
+      setClipSaveStatus(`ERR: ${err instanceof Error ? err.message : 'Save failed'}`);
+    }
+  };
 
   // Reset state when sprite key value changes
   useEffect(() => {
@@ -228,6 +419,21 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
             >
               {isOpen ? '▲' : isAnimated ? `▼ PICK [ANIM • ${activeClip?.frames.length ?? animStates.length}f]` : '▼ PICK'}
             </button>
+            <button
+              type="button"
+              className={styles.toolButton}
+              onClick={() => setClipEditorOpen(!clipEditorOpen)}
+              disabled={disabled || !value}
+              style={{
+                padding: '4px 8px',
+                fontWeight: 700,
+                borderColor: clipEditorOpen ? 'var(--c-accent-secondary, #00f0ff)' : undefined,
+                color: clipEditorOpen ? 'var(--c-accent-secondary, #00f0ff)' : undefined,
+              }}
+              title="Author or edit tileset animation clips for this sprite key"
+            >
+              ✎ EDIT CLIPS
+            </button>
           </div>
 
           {/* Dropdown Menu with Filter Bar & Animation Badges */}
@@ -343,6 +549,276 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
           )}
         </div>
       </div>
+
+      {/* Interactive Animation Clip Authoring Drawer */}
+      {clipEditorOpen && value && (
+        <div
+          style={{
+            padding: '10px',
+            background: '#0b111e',
+            border: '1px solid rgba(0, 240, 255, 0.45)',
+            borderRadius: '2px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#00f0ff' }}>
+              ANIMATION CLIP AUTHOR // {value}
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <select
+                aria-label="Clip Theme Manifest"
+                className={styles.fieldInput}
+                style={{ width: 'auto', padding: '2px 6px', fontSize: '11px' }}
+                value={clipThemeId}
+                onChange={(e) => setClipThemeId(e.target.value)}
+              >
+                {EDITABLE_THEMES.map((t) => (
+                  <option key={t} value={t}>
+                    theme: {t}
+                  </option>
+                ))}
+              </select>
+              {clipThemeId === 'default' && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#a0aec0' }}>
+                  <input
+                    type="checkbox"
+                    checked={propagateToThemes}
+                    onChange={(e) => setPropagateToThemes(e.target.checked)}
+                  />
+                  Propagate to matching themes
+                </label>
+              )}
+              <button
+                type="button"
+                className={styles.saveButton}
+                style={{ padding: '2px 10px', fontSize: '11px' }}
+                onClick={handleSaveClip}
+                disabled={draftFrames.length === 0}
+              >
+                SAVE CLIP
+              </button>
+            </div>
+          </div>
+
+          {clipSaveStatus && (
+            <div style={{ fontSize: '10px', color: clipSaveStatus.startsWith('ERR') ? '#ff4d6d' : '#00f0ff' }}>
+              {clipSaveStatus}
+            </div>
+          )}
+
+          {/* State Selector */}
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: '10px', color: '#79889e' }}>CLIP STATE:</span>
+            {ALL_ANIM_STATES.map((st) => {
+              const hasClip = animStates.includes(st);
+              return (
+                <button
+                  key={st}
+                  type="button"
+                  className={styles.toolButton}
+                  onClick={() => {
+                    setClipStateKey(st);
+                    if (hasClip) setCurrentState(st);
+                  }}
+                  style={{
+                    fontSize: '10px',
+                    padding: '2px 6px',
+                    borderColor: clipStateKey === st ? '#00f0ff' : hasClip ? 'rgba(0,240,255,0.35)' : undefined,
+                    color: clipStateKey === st ? '#00f0ff' : hasClip ? '#e2e8f0' : '#64748b',
+                    background: clipStateKey === st ? 'rgba(0, 240, 255, 0.15)' : undefined,
+                  }}
+                >
+                  {st} {hasClip ? '•' : ''}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Playback Controls */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+            <div className={styles.fieldRow}>
+              <label className={styles.fieldLabel}>FPS ({draftFps})</label>
+              <input
+                type="range"
+                min={1}
+                max={30}
+                value={draftFps}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setDraftFps(val);
+                  pushClipPreview(draftFrames, val, draftLoop, draftNextState, draftDesyncPhase, draftDurations);
+                }}
+              />
+            </div>
+            <div className={styles.fieldRow}>
+              <label className={styles.fieldLabel}>Loop Mode</label>
+              <select
+                className={styles.fieldInput}
+                value={draftLoop}
+                onChange={(e) => {
+                  const val = e.target.value as AnimationLoopMode;
+                  setDraftLoop(val);
+                  pushClipPreview(draftFrames, draftFps, val, draftNextState, draftDesyncPhase, draftDurations);
+                }}
+              >
+                <option value="loop">loop</option>
+                <option value="pingpong">pingpong</option>
+                <option value="once">once</option>
+              </select>
+            </div>
+            <div className={styles.fieldRow}>
+              <label className={styles.fieldLabel}>Next State</label>
+              <select
+                className={styles.fieldInput}
+                value={draftNextState}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDraftNextState(val);
+                  pushClipPreview(draftFrames, draftFps, draftLoop, val, draftDesyncPhase, draftDurations);
+                }}
+              >
+                <option value="">(ambient)</option>
+                {ALL_ANIM_STATES.map((st) => (
+                  <option key={st} value={st}>
+                    {st}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className={styles.fieldRow} style={{ justifyContent: 'flex-end' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' }}>
+                <input
+                  type="checkbox"
+                  checked={draftDesyncPhase}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setDraftDesyncPhase(checked);
+                    pushClipPreview(draftFrames, draftFps, draftLoop, draftNextState, checked, draftDurations);
+                  }}
+                />
+                desyncPhase
+              </label>
+            </div>
+          </div>
+
+          {/* Frame Sequence Builder */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={{ fontSize: '10px', color: '#79889e' }}>
+              FRAMES ({draftFrames.length})
+            </span>
+            {draftFrames.map((fKey, idx) => (
+              <div
+                key={`${fKey}-${idx}`}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' }}
+              >
+                <span style={{ width: '24px', color: '#79889e' }}>#{idx}</span>
+                <span style={{ flex: 1, fontFamily: 'var(--font-mono, monospace)', color: '#f4f4f0' }}>
+                  {fKey}
+                </span>
+                <input
+                  type="number"
+                  min={16}
+                  placeholder="ms"
+                  className={styles.fieldInput}
+                  style={{ width: '72px', padding: '2px 4px', fontSize: '10px' }}
+                  value={draftDurations[idx] ?? ''}
+                  onChange={(e) => {
+                    const nextD = [...draftDurations];
+                    nextD[idx] = e.target.value ? Number(e.target.value) : undefined;
+                    setDraftDurations(nextD);
+                    pushClipPreview(draftFrames, draftFps, draftLoop, draftNextState, draftDesyncPhase, nextD);
+                  }}
+                  title="Optional custom frame duration (ms)"
+                />
+                <button
+                  type="button"
+                  className={styles.toolButton}
+                  disabled={idx === 0}
+                  onClick={() => {
+                    const nextF = [...draftFrames];
+                    const nextD = [...draftDurations];
+                    [nextF[idx - 1], nextF[idx]] = [nextF[idx], nextF[idx - 1]];
+                    [nextD[idx - 1], nextD[idx]] = [nextD[idx], nextD[idx - 1]];
+                    setDraftFrames(nextF);
+                    setDraftDurations(nextD);
+                    pushClipPreview(nextF, draftFps, draftLoop, draftNextState, draftDesyncPhase, nextD);
+                  }}
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  className={styles.toolButton}
+                  disabled={idx === draftFrames.length - 1}
+                  onClick={() => {
+                    const nextF = [...draftFrames];
+                    const nextD = [...draftDurations];
+                    [nextF[idx + 1], nextF[idx]] = [nextF[idx], nextF[idx + 1]];
+                    [nextD[idx + 1], nextD[idx]] = [nextD[idx], nextD[idx + 1]];
+                    setDraftFrames(nextF);
+                    setDraftDurations(nextD);
+                    pushClipPreview(nextF, draftFps, draftLoop, draftNextState, draftDesyncPhase, nextD);
+                  }}
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  className={styles.toolButton}
+                  disabled={draftFrames.length <= 1}
+                  onClick={() => {
+                    const nextF = draftFrames.filter((_, i) => i !== idx);
+                    const nextD = draftDurations.filter((_, i) => i !== idx);
+                    setDraftFrames(nextF);
+                    setDraftDurations(nextD);
+                    pushClipPreview(nextF, draftFps, draftLoop, draftNextState, draftDesyncPhase, nextD);
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+
+            {/* Add Frame */}
+            <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+              <input
+                className={styles.fieldInput}
+                placeholder="Filter frame key to add..."
+                value={addFrameSearch}
+                onChange={(e) => setAddFrameSearch(e.target.value)}
+                style={{ flex: 1, fontSize: '11px', padding: '2px 6px' }}
+              />
+              <select
+                className={styles.fieldInput}
+                style={{ flex: 1, fontSize: '11px', padding: '2px 6px' }}
+                value=""
+                onChange={(e) => {
+                  const chosen = e.target.value;
+                  if (!chosen) return;
+                  const nextF = [...draftFrames, chosen];
+                  const nextD = [...draftDurations, undefined];
+                  setDraftFrames(nextF);
+                  setDraftDurations(nextD);
+                  pushClipPreview(nextF, draftFps, draftLoop, draftNextState, draftDesyncPhase, nextD);
+                }}
+              >
+                <option value="">+ Add frame from atlas...</option>
+                {frameKeys
+                  .filter((k) => !addFrameSearch || k.toLowerCase().includes(addFrameSearch.toLowerCase()))
+                  .slice(0, 80)
+                  .map((k) => (
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Interactive Animation Workstation Bar (Only visible when sprite has animations) */}
       {isAnimated && (

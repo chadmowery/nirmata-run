@@ -1,11 +1,14 @@
 import { checkNonProductionOnly } from '@/server/security/env-gate';
 import { hotloadBus } from '@/server/dev/hotload-bus';
+import { ensureAssetWatcherStarted } from '@/server/dev/asset-watcher';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(req: Request) {
   const gate = checkNonProductionOnly();
   if (gate) return gate;
+
+  ensureAssetWatcherStarted();
 
   const encoder = new TextEncoder();
   let cleanup: (() => void) | null = null;

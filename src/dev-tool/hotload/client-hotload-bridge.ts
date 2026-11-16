@@ -198,16 +198,12 @@ export class ClientHotloadBridge {
   }
 
   private async handleReloadAssetsRequest(themeId?: string): Promise<void> {
-    const assetsMod = (await import('@/rendering/assets')) as {
-      hotReloadThemeAssets?: (theme: string, version: number) => Promise<void>;
-    };
+    const { hotReloadThemeAssets } = await import('@/rendering/assets');
     const rs = this.deps.getRenderSystem() as (RenderSystem & {
       invalidateTilemap?: () => void;
       syncHotloadedSprites?: (ids?: number[]) => void;
     }) | null;
-    if (assetsMod.hotReloadThemeAssets) {
-      await assetsMod.hotReloadThemeAssets(themeId || 'default', Date.now());
-    }
+    await hotReloadThemeAssets(themeId || 'default', Date.now());
     rs?.invalidateTilemap?.();
     rs?.syncHotloadedSprites?.();
   }
@@ -316,21 +312,17 @@ export class ClientHotloadBridge {
 
       case 'assets:atlas': {
         const payload = envelope.payload as { themeId?: string; version?: number };
-        const assetsMod = (await import('@/rendering/assets')) as {
-          hotReloadThemeAssets?: (themeId: string, version: number) => Promise<void>;
-        };
-        if (assetsMod.hotReloadThemeAssets) {
-          await assetsMod.hotReloadThemeAssets(
-            payload?.themeId || 'default',
-            payload?.version || Date.now(),
-          );
-          const rsExt = rs as (RenderSystem & {
-            invalidateTilemap?: () => void;
-            syncHotloadedSprites?: () => void;
-          }) | null;
-          rsExt?.invalidateTilemap?.();
-          rsExt?.syncHotloadedSprites?.();
-        }
+        const { hotReloadThemeAssets } = await import('@/rendering/assets');
+        await hotReloadThemeAssets(
+          payload?.themeId || 'default',
+          payload?.version || Date.now(),
+        );
+        const rsExt = rs as (RenderSystem & {
+          invalidateTilemap?: () => void;
+          syncHotloadedSprites?: () => void;
+        }) | null;
+        rsExt?.invalidateTilemap?.();
+        rsExt?.syncHotloadedSprites?.();
         break;
       }
 

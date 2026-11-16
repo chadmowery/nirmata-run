@@ -2,6 +2,7 @@ import { Assets, Sprite } from 'pixi.js';
 import { EntityId } from '../engine/ecs/types';
 import {
   AnimationClipDef,
+  AnimationManifestEntry,
   AnimationStateKey,
   ThemedTilesetManifest,
 } from '@shared/tileset-types';
@@ -181,6 +182,47 @@ export class SpriteAnimator {
    */
   public setCustomManifest(manifest: ThemedTilesetManifest | null): void {
     this.customManifest = manifest;
+  }
+
+  /**
+   * Hot-updates animation clip definitions on the active manifest and forces all
+   * registered entities to re-evaluate their frame on the next tick.
+   */
+  public hotUpdateAnimations(
+    themeId: string,
+    animations: Record<string, AnimationManifestEntry>,
+  ): void {
+    const activeTheme = getActiveThemeId?.() ?? 'default';
+    const hasAssets = typeof Assets !== 'undefined' && typeof Assets.get === 'function';
+
+    if (this.customManifest) {
+      this.customManifest = {
+        ...this.customManifest,
+        animations: { ...animations },
+      };
+    }
+
+    if (hasAssets) {
+      const targetKey = themeId && themeId !== 'default' ? `tileset_${themeId}` : 'tileset';
+      const targetAsset = Assets.get(targetKey) as { data?: Partial<ThemedTilesetManifest> } | undefined;
+      if (targetAsset?.data) {
+        targetAsset.data.animations = { ...animations };
+      }
+      if (themeId === 'default' || activeTheme === themeId) {
+        const baseAsset = Assets.get('tileset') as { data?: Partial<ThemedTilesetManifest> } | undefined;
+        if (baseAsset?.data && themeId === 'default') {
+          baseAsset.data.animations = { ...animations };
+        }
+      }
+    }
+
+    if (themeId === 'default' && baseTilesetJson) {
+      (baseTilesetJson as unknown as Partial<ThemedTilesetManifest>).animations = { ...animations };
+    }
+
+    for (const record of this.runtimeStates.values()) {
+      record.lastRenderedFrameKey = '';
+    }
   }
 
   /**
