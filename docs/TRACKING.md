@@ -1,7 +1,7 @@
 # Nirmata Runner — Project Tracking & System Index
 
-> **Current Baseline:** v3.3 (`feature/deferred-lighting-rendering`)  
-> **Last Updated:** 2026-11-15  
+> **Current Baseline:** v3.4 (`feature/gamedata-hotload`)  
+> **Last Updated:** 2026-11-16  
 > **Architecture Overview:** [`docs/architecture/SYSTEM_OVERVIEW.md`](./architecture/SYSTEM_OVERVIEW.md) | Layer Rulebooks: [`AGENTS.md`](../AGENTS.md)
 
 ---
@@ -24,6 +24,7 @@ All prior development arcs and adversarial audits are complete and passing (clea
 | **Performance & Telemetry Monitor** | [`PERFORMANCE-MONITOR-SPEC.md`](./design/PERFORMANCE-MONITOR-SPEC.md) | Complete (v2.9) | `TK-PERF-900` widget: WebGL2 probe, zero-alloc ring buffer telemetry, 4 display modes (`MINI`, `STANDARD`, `EXPANDED`, `GHOST`), sub-stage breakdown, dev hotkeys (`F3`, `Shift+F3`, `Alt+F3`). |
 | **In-Game Issue Reporting & Crash Ticketing** | [`IN-GAME-ISSUE-REPORTING.md`](./design/IN-GAME-ISSUE-REPORTING.md) | Complete (v3.2) | `TK-RPT-100`: Manual report modal (`F8`), post-crash approval dialog, GitHub issue creator (`ai-ready`), sealed turn diagnostics, client/server ring buffers, deterministic fingerprint dedupe, disk outbox with backoff retries. Audit & remediation: [`2026-11-11`](./reports/2026-11-11-adversarial-review-issue-reporting.md). |
 | **Deferred Lighting & Lit Particle System** | [`DEFERRED-LIGHTING-RENDERING.md`](./design/DEFERRED-LIGHTING-RENDERING.md) | Complete (v3.3) | `LIGHT-01..07`: `LightSource` ECS component + shell overrides, `FloorState.factionTheme`, un-premultiplied `512×512` `_n.png`/`_m.png` companion atlases, G-Buffer 2.5D shadow raymarcher + Dual-Kawase HDR bloom (`@rendering/lighting`), pooled `EMISSIVE_LIGHT`/`NORMAL_LIT` particles + `uMicroLights[64]` (`@rendering/particles`), `lightSource` sub-editor & 3×3 lit Canvas2D preview in `/dev/gamedata`. |
+| **Gamedata Studio Real-Time Hotload & Live Sync** | [`GAMEDATA-HOTLOAD-SPEC.md`](./design/GAMEDATA-HOTLOAD-SPEC.md) | Complete (v3.4) | `HOTLOAD-01..06`: Dual-path `BroadcastChannel` + SSE transport, `[ ● LIVE SYNC ]` & `[ ↺ REVERT ]` Studio controls, HMR isolation & dev session auto-resume, animation clip editor & `fs.watch` GPU atlas reload, `lighting.json` & `fov.json` System Configs + live environment overrides, real-time Web Audio synth voice morphing, live ECS/session reconciliation, and `/shell`, `/theme`, `/condition`, `/spawn`, `/hotload` terminal commands. |
 
 ---
 
@@ -54,8 +55,8 @@ When extending or refactoring systems, preserve these established constraints (s
   - Configure `@vitest/coverage-v8` with enforceability thresholds for `@engine`, `@shared`, and `@server`.
 
 ### 3.2 Planned Feature Specifications
-- [ ] **Gamedata Studio Real-Time Hotload & Live Sync (`HOTLOAD-01..06`)**:
-  - Specification: [`docs/design/GAMEDATA-HOTLOAD-SPEC.md`](./design/GAMEDATA-HOTLOAD-SPEC.md).
+- [x] **Gamedata Studio Real-Time Hotload & Live Sync (`HOTLOAD-01..06`)**:
+  - Specification: [`docs/design/GAMEDATA-HOTLOAD-SPEC.md`](./design/GAMEDATA-HOTLOAD-SPEC.md) (Complete, v3.4).
   - Target: Dual-path `BroadcastChannel` + SSE hotload pipeline, `[ ● LIVE SYNC ]` real-time scrub preview + `Cmd+S` commit/revert, sprite/animation clip editor & `public/assets/` GPU texture hot-reload, new `lighting.json` and `fov.json` (FOV/FOW) System Configs + live environment theme/condition overrides, real-time Web Audio synth voice morphing, smart ECS entity/shell reconciliation, and dev session auto-resume on browser reload.
 - [ ] **Cloud Persistence, Accounts, Auth & Three-Tier Progression (`v3.3`)**:
   - Specifications: [`docs/architecture/PERSISTENCE-AND-HOSTING-SPEC.md`](./architecture/PERSISTENCE-AND-HOSTING-SPEC.md), [`docs/design/ACCOUNTS-AUTH-AND-PROGRESSION-SPEC.md`](./design/ACCOUNTS-AUTH-AND-PROGRESSION-SPEC.md) (approved, ready to implement).

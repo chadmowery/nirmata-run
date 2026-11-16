@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import type { HotloadDomain, HotloadEnvelope, SessionHotloadPatch } from '@dev-tool/hotload/types';
+import type { HotloadDomain, HotloadEnvelope, SessionHotloadPatch } from '@shared/hotload-types';
 
 export type HotloadListener = (envelope: HotloadEnvelope) => void;
 

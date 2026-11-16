@@ -16,7 +16,7 @@ import { LightingConfigSchema } from '@shared/lighting-config';
 import { FovConfigSchema } from '@shared/fov-config';
 import { registerSoundCue } from '@/game/audio/cue-registry';
 import { hotloadBus } from '@/server/dev/hotload-bus';
-import type { HotloadDomain } from '@dev-tool/hotload/types';
+import type { HotloadDomain } from '@shared/hotload-types';
 import { SoundCueDef } from '@engine/audio';
 import { z } from 'zod';
 

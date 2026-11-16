@@ -3,20 +3,14 @@ import type { RawTemplate } from '@engine/entity/types';
 import { resolveMixins } from '@engine/entity/builder';
 import { sessionManager, type WorldState } from '@server/session/session-manager';
 import type { EngineEvents } from '@engine/events/types';
-import type { SessionHotloadPatch } from '@dev-tool/hotload/types';
+import type { SessionHotloadPatch } from '@shared/hotload-types';
 import {
   COMPONENTS_REGISTRY,
   TemplateId,
   Position,
   Health,
   Energy,
-  Heat,
-  Stability,
-  AIState,
-  Prop,
-  SecurityLock,
   CorruptedNode,
-  AbilityDef,
   Shell,
   Defense,
   PortConfig,

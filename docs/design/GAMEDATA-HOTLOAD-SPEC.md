@@ -1,6 +1,6 @@
 # Gamedata Studio Real-Time Hotload & Live Sync System — Technical Specification
 
-> **Status:** Canonical Design & Engineering Specification (v1.0)  
+> **Status:** Implemented (v1.0)  
 > **Target Engine:** Nirmata Runner (Next.js 16, React 19, PixiJS 8 WebGL2, Web Audio API, TypeScript, Zustand, Zod ECS)  
 > **Scope:** Cross-Tab & Server-Push Hotload Transport (`src/dev-tool/hotload/`, `src/server/dev/`, `src/app/api/dev/hotload/`), Live ECS World & Session Patching (`src/server/session/`, `src/game/setup.ts`), Sprite/Animation/Atlas Hot-Swap (`src/rendering/assets.ts`, `src/rendering/sprite-map.ts`, `src/rendering/sprite-animator.ts`), Real-Time Lighting, FOV/FOW & Environment Profiles (`src/rendering/lighting/`, `src/rendering/fov.ts`, `src/game/config/lighting.json`, `src/game/config/fov.json`), Real-Time Audio & Synth Voice Modulation (`src/engine/audio/`, `src/game/audio/`), and Dev Session Auto-Resume (`src/app/page.tsx`, `src/dev-tool/studio/`)  
 > **Companion Specifications:** [`GAMEDATA-DESIGN-TOOL.md`](./GAMEDATA-DESIGN-TOOL.md), [`SPRITE-ANIMATIONS.md`](./SPRITE-ANIMATIONS.md), [`DEFERRED-LIGHTING-RENDERING.md`](./DEFERRED-LIGHTING-RENDERING.md), [`AUDIO-SYSTEM.md`](./AUDIO-SYSTEM.md), [`APPLICATION_SEPARATION_SPEC.md`](../architecture/APPLICATION_SEPARATION_SPEC.md)
@@ -123,9 +123,8 @@ export interface HotloadEnvelope<T = unknown> {
 1. **Entering an Item in Studio**:
    - When an editor loads an item (`entity`, `mixin`, `shell`, `audioCue`, `config`, or `tileset:animations`), Studio snapshots the clean `baselinePayload` in memory.
 2. **While Editing with `[ ● LIVE SYNC ]` Enabled**:
-   - Any field mutation in the active editor schedules a coalesced `requestAnimationFrame` (capped at `33ms` / `30Hz` for heavy ECS diffs, `16ms` / `60Hz` for lighting/audio/sprite parameters) that posts a `mode: 'PREVIEW'` envelope over `BroadcastChannel`.
-   - For **client-side presentation domains** (`sprite`, `lightSource`, `config:lighting`, `config:ambiance`, `audioCue`, `tileset:animations`, `env:override`), the running game tab applies the preview directly in client memory with **zero server round-trip**.
-   - If the edited field affects server-authoritative gameplay stats (`health`, `attack`, `aiState`, `abilityDef`), preview mode optionally dispatches `POST /api/dev/hotload/preview` (debounced at `150ms`) to patch the active dev session in memory without writing to disk.
+   - Any field mutation in the active editor schedules a coalesced `requestAnimationFrame` (capped at `16ms` / `60Hz`) that posts a `mode: 'PREVIEW'` envelope over `BroadcastChannel`.
+   - `LIVE_SYNC` scrub is **presentation-only** (`sprite`, `lightSource`, `config:lighting`, `config:fov`, `config:ambiance`, `audioCue`, `tileset:animations`, `env:override`, Heat/Stability visual preview sliders) and applies directly in client memory with **zero server mutation**. Server-authoritative gameplay stats (`health`, `attack`, `aiState`, `abilityDef`, `FloorState`) reconcile on `Cmd+S` Save (`COMMIT`).
 3. **On `Cmd+S` Save (`COMMIT`)**:
    - The Studio editor sends its `PUT`/`POST` request to `/api/dev/gamedata/...`.
    - The API route validates the payload against Zod & ECS rules, writes atomically to disk, invokes `HotloadBus.publishCommit()`, updates `baselinePayload` to the saved state, and broadcasts `mode: 'COMMIT'` to both `BroadcastChannel` and SSE subscribers.
@@ -284,7 +283,6 @@ We promote these into a first-class System Config (`lighting`) in Gamedata Studi
      enabled: z.boolean().default(true),
      baseIntensity: z.number().min(0).max(3.0).default(0.72),
      threshold: z.number().min(0).max(2.0).default(0.88),
-     exploredMemoryAmbientScale: z.number().min(0.1).max(3.0).default(1.0),
    });
 
    export const LightingConfigSchema = z.object({
@@ -296,7 +294,7 @@ We promote these into a first-class System Config (`lighting`) in Gamedata Studi
    ```
 2. **Studio UI (`ConfigEditor.tsx` — `name === 'lighting'`)**:
    - Renders structured editors for:
-     - **Global HDR Bloom & Fog Memory**: Sliders for `baseIntensity`, luminance `threshold`, and `exploredMemoryAmbientScale`.
+     - **Global Dual-Kawase HDR Bloom**: Toggle for `enabled` and sliders for `baseIntensity` and luminance `threshold` (FOW memory brightness is consolidated in `fov.json` -> `fow.brightnessMultiplier`).
      - **Faction Ambient Profiles** (`cyberacme`, `traxus_foundry`, `sekiguchi_biolabs`, `dark_subnet`, `nucaloric`): Color picker for `colorHex`, sliders for `intensity` (`0.0–1.0`) and `bloomMultiplier` (`0.0–3.0`).
      - **Sector Condition Visual Profiles** (`NOMINAL`, `THERMAL_SURGE`, `DARK_SUBNET`, `OVERCLOCKED_GRID`): Sliders for `ambientScale`, `bloomMultiplier`, `floorPulseHz`, `jitter`, and color pickers for `tintHex`, `shadowTintHex`, and `floorPulseHex`.
 3. **Runtime Binding (`src/rendering/lighting/lighting-system.ts` & `bloom-filter.ts`)**:
