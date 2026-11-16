@@ -38,11 +38,11 @@ in vec2 vTextureCoord;
 out vec4 finalColor;
 
 uniform sampler2D uTexture;
-uniform vec4 uInputSize;
+uniform vec4 uInputPixel;
 uniform vec4 uInputClamp;
 
 void main(void) {
-  vec2 hp = uInputSize.zw * 1.5;
+  vec2 hp = uInputPixel.zw * 1.5;
   vec2 lo = uInputClamp.xy;
   vec2 hi = uInputClamp.zw;
 
@@ -61,11 +61,11 @@ in vec2 vTextureCoord;
 out vec4 finalColor;
 
 uniform sampler2D uTexture;
-uniform vec4 uInputSize;
+uniform vec4 uInputPixel;
 uniform vec4 uInputClamp;
 
 void main(void) {
-  vec2 hp = uInputSize.zw * 2.0;
+  vec2 hp = uInputPixel.zw * 2.0;
   vec2 lo = uInputClamp.xy;
   vec2 hi = uInputClamp.zw;
 

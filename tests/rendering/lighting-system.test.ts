@@ -1047,6 +1047,16 @@ describe('Deferred Lighting System & Render Integration [LIGHT-03/04/07]', () =>
 
       try {
         const bloom = new SelectiveBloomFilter(PIXI.Texture.EMPTY);
+        const kawasePrograms = vi
+          .mocked(glProg.from as (...args: unknown[]) => unknown)
+          .mock.calls.map((args) => args[0] as { name?: string; fragment?: string })
+          .filter((cfg) => cfg.name === 'kawase-down' || cfg.name === 'kawase-up');
+        expect(kawasePrograms).toHaveLength(2);
+        for (const prog of kawasePrograms) {
+          expect(prog.fragment).toContain('uInputPixel.zw');
+          expect(prog.fragment).not.toContain('uInputSize.zw');
+        }
+
         const inputTex = { width: 960, height: 640, source: { width: 1024, height: 1024 } } as unknown as PIXI.Texture;
         const fakeFilterManager = { applyFilter: vi.fn() } as unknown as PIXI.FilterSystem;
 
