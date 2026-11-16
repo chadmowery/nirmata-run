@@ -638,5 +638,91 @@ describe('Deferred Lighting System & Render Integration [LIGHT-03/04/07]', () =>
         delete glProg.from;
       }
     });
+
+    it('renders particles in a separate MAX-blend material pass & height-clipped normal pass (CRIT-02)', () => {
+      const glProg = PIXI.GlProgram as unknown as { from?: unknown };
+      glProg.from = vi.fn().mockReturnValue({});
+
+      try {
+        const gbuffer = new GBufferPass(10, 8);
+        const validSrc = { width: 512, height: 512, destroyed: false };
+        const sprite = {
+          visible: true,
+          alpha: 1,
+          x: 32,
+          y: 32,
+          width: 32,
+          height: 32,
+          scale: { x: 1, y: 1 },
+          pivot: { x: 0, y: 0 },
+          rotation: 0,
+          filters: null,
+          texture: { source: validSrc, frame: { x: 0, y: 0, width: 32, height: 32 } },
+        } as unknown as PIXI.Sprite;
+
+        const gbInternal = gbuffer as unknown as {
+          rtMaterialHeight: { source: unknown };
+          particleMaterialMesh: { blendMode: string; state: { blend: boolean; blendMode: string } };
+          particleNormalShader: { resources: Record<string, unknown> };
+          particleMaterialContainer: unknown;
+          particleNormalContainer: unknown;
+        };
+
+        expect(gbInternal.particleMaterialMesh.blendMode).toBe('max');
+        expect(gbInternal.particleMaterialMesh.state.blend).toBe(true);
+        expect(gbInternal.particleMaterialMesh.state.blendMode).toBe('max');
+
+        const renderCalls: Array<{ container: unknown; clear: boolean; boundMatHeight: unknown }> = [];
+        const fakeRenderer = {
+          render: vi.fn((opts: { container: unknown; clear: boolean }) => {
+            renderCalls.push({
+              container: opts.container,
+              clear: opts.clear,
+              boundMatHeight: gbInternal.particleNormalShader.resources.uMaterialHeight,
+            });
+          }),
+        } as unknown as PIXI.Renderer;
+
+        const wc = new PIXI.Container();
+        const terrain = new PIXI.Container();
+        (terrain.children as unknown[]).push(sprite);
+
+        gbuffer.capture(fakeRenderer, wc, {
+          terrainLayer: terrain,
+          itemLayer: new PIXI.Container(),
+          entityLayer: new PIXI.Container(),
+          particles: [
+            {
+              worldX: 48,
+              worldY: 48,
+              size: 8,
+              colorRgb: [0, 1, 1],
+              alpha: 0.9,
+              mode: 'emissive',
+              heightPx: 10,
+              shadowOpacity: 0,
+            },
+          ],
+        });
+
+        expect(gbuffer.quadCount).toBe(2);
+        expect(gbuffer.particleQuadCount).toBe(1);
+        expect(renderCalls).toHaveLength(4);
+        // Particle passes do not clear solid G-buffer targets
+        expect(renderCalls[1].container).toBe(gbInternal.particleMaterialContainer);
+        expect(renderCalls[1].clear).toBe(false);
+        expect(renderCalls[3].container).toBe(gbInternal.particleNormalContainer);
+        expect(renderCalls[3].clear).toBe(false);
+        expect(renderCalls[3].boundMatHeight).toBe(gbInternal.rtMaterialHeight.source);
+        // Unbound back to Texture.EMPTY.source after capture
+        expect(gbInternal.particleNormalShader.resources.uMaterialHeight).toBe(
+          PIXI.Texture.EMPTY.source,
+        );
+
+        gbuffer.destroy();
+      } finally {
+        delete glProg.from;
+      }
+    });
   });
 });

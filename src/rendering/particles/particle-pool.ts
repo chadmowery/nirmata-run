@@ -111,6 +111,60 @@ function createEmptySlot(index: number): PooledParticleSlot {
   };
 }
 
+export function createCircularParticleBuffer(size = 16): Uint8Array {
+  const data = new Uint8Array(size * size * 4);
+  const half = size * 0.5;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const dx = (x + 0.5 - half) / half;
+      const dy = (y + 0.5 - half) / half;
+      const d = Math.hypot(dx, dy);
+      const idx = (y * size + x) * 4;
+      if (d >= 1.0) {
+        data[idx] = 0;
+        data[idx + 1] = 0;
+        data[idx + 2] = 0;
+        data[idx + 3] = 0;
+      } else {
+        // Smooth radial falloff matching G-Buffer circular particle disc
+        const t = Math.max(0, Math.min(1, (1.0 - d) / 0.85));
+        const smooth = t * t * (3 - 2 * t);
+        const a = Math.round(smooth * 255);
+        data[idx] = 255;
+        data[idx + 1] = 255;
+        data[idx + 2] = 255;
+        data[idx + 3] = a;
+      }
+    }
+  }
+  return data;
+}
+
+function createCircularParticleTexture(): Texture | null {
+  try {
+    const BufferSourceCtor = safeGetPixiExport<typeof PIXI.BufferImageSource>(
+      PIXI,
+      'BufferImageSource',
+    );
+    const TextureCtor = safeGetPixiExport<typeof PIXI.Texture>(PIXI, 'Texture');
+    if (typeof BufferSourceCtor !== 'function' || typeof TextureCtor !== 'function') {
+      return null;
+    }
+    const size = 16;
+    const source = new BufferSourceCtor({
+      resource: createCircularParticleBuffer(size),
+      width: size,
+      height: size,
+      format: 'rgba8unorm',
+      scaleMode: 'linear',
+      addressMode: 'clamp-to-edge',
+    });
+    return new TextureCtor({ source });
+  } catch {
+    return null;
+  }
+}
+
 export class ParticlePool {
   public readonly capacity: number;
   private readonly slots: PooledParticleSlot[];
@@ -124,6 +178,7 @@ export class ParticlePool {
 
   private particleContainer: Container | null = null;
   private particleTexture: Texture | null = null;
+  private ownedParticleTexture: Texture | null = null;
   private disposed = false;
 
   constructor(capacity: number = DEFAULT_PARTICLE_POOL_CAPACITY) {
@@ -172,8 +227,14 @@ export class ParticlePool {
     }
 
     if (!this.particleTexture) {
-      const TexNs = safeGetPixiExport<typeof PIXI.Texture>(PIXI, 'Texture');
-      this.particleTexture = TexNs?.WHITE ?? TexNs?.EMPTY ?? ({ width: 4, height: 4 } as Texture);
+      const circularTex = createCircularParticleTexture();
+      if (circularTex) {
+        this.ownedParticleTexture = circularTex;
+        this.particleTexture = circularTex;
+      } else {
+        const TexNs = safeGetPixiExport<typeof PIXI.Texture>(PIXI, 'Texture');
+        this.particleTexture = TexNs?.WHITE ?? TexNs?.EMPTY ?? ({ width: 4, height: 4 } as Texture);
+      }
     }
   }
 
@@ -463,6 +524,11 @@ export class ParticlePool {
     if (this.particleContainer && !this.particleContainer.destroyed) {
       this.particleContainer.destroy({ children: true });
     }
+    if (this.ownedParticleTexture && !this.ownedParticleTexture.destroyed) {
+      this.ownedParticleTexture.destroy(true);
+    }
+    this.ownedParticleTexture = null;
+    this.particleTexture = null;
     this.particleContainer = null;
     this.clusterMap.clear();
   }

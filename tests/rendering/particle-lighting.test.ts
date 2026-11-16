@@ -11,6 +11,7 @@ import { Prop } from '@shared/components/environment';
 import {
   ParticlePool,
   ParticleSystem,
+  createCircularParticleBuffer,
 } from '../../src/rendering/particles';
 import { MAX_MICRO_LIGHTS } from '../../src/rendering/lighting/types';
 import { createRenderSystem, RenderSystem } from '../../src/rendering/render-system';
@@ -319,5 +320,15 @@ describe('Pooled Dual-Mode Lit Particle & Micro-Light System [LIGHT-05/07]', () 
       eventBus.flush();
       expect(renderSystem.getRenderTelemetry().particles.totalParticles).toBeGreaterThan(afterDmg);
     });
+  });
+
+  it('builds circular radial particle alpha buffer with zero alpha outside unit disc (CRIT-02)', () => {
+    const buf = createCircularParticleBuffer(16);
+    expect(buf.length).toBe(16 * 16 * 4);
+    // Corner pixel (0,0) is outside radius -> alpha === 0
+    expect(buf[3]).toBe(0);
+    // Center pixel (8,8) is inside radius -> high alpha
+    const centerIdx = (8 * 16 + 8) * 4;
+    expect(buf[centerIdx + 3]).toBeGreaterThan(220);
   });
 });

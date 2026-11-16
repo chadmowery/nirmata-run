@@ -26,6 +26,7 @@ import {
 const FLOATS_PER_VERTEX = 14;
 const VERTICES_PER_QUAD = 4;
 const INDICES_PER_QUAD = 6;
+const MAX_PARTICLE_QUADS = 512;
 
 const GBUFFER_VERT = /* glsl */ `precision highp float;
 in vec2 aPosition;
@@ -68,29 +69,7 @@ uniform sampler2D uNormalAtlas;
 uniform vec2 uTexelSize;
 
 void main(void) {
-  float mode = vMeta.y;
-
-  // Mode 1: Emissive plasma/spark particle (flat facing normal, zero spec)
-  if (mode > 0.5 && mode < 1.5) {
-    vec2 centered = (vUV - 0.5) * 2.0;
-    float d = length(centered);
-    if (d > 1.0) discard;
-    finalColor = vec4(0.5, 0.5, 1.0, 0.0);
-    return;
-  }
-
-  // Mode 2: Volumetric puff / cryo mist (hemispherical dome normal)
-  if (mode >= 1.5) {
-    vec2 centered = (vUV - 0.5) * 2.0;
-    float dist2 = dot(centered, centered);
-    if (dist2 > 1.0) discard;
-    float nz = sqrt(max(0.08, 1.0 - dist2));
-    vec3 n = normalize(vec3(centered.x, centered.y, nz));
-    finalColor = vec4(n.x * 0.5 + 0.5, n.y * 0.5 + 0.5, n.z * 0.5 + 0.5, 0.10);
-    return;
-  }
-
-  // Mode 0: Sprite from atlas
+  // Mode 0: Solid sprite from atlas
   vec4 diff = texture(uDiffuseAtlas, vUV);
   if (diff.a < 0.08) {
     if (vMeta.x > 0.5) {
@@ -133,32 +112,7 @@ uniform sampler2D uMaterialAtlas;
 uniform vec2 uTexelSize;
 
 void main(void) {
-  float mode = vMeta.y;
-
-  // Mode 1: Emissive particle
-  if (mode > 0.5 && mode < 1.5) {
-    vec2 centered = (vUV - 0.5) * 2.0;
-    float d = length(centered);
-    if (d > 1.0) discard;
-    float core = smoothstep(1.0, 0.1, d) * vColor.a;
-    if (core < 0.04) discard;
-    finalColor = vec4(clamp(core * 1.15, 0.0, 1.0), 0.0, 0.15, vMeta.z);
-    return;
-  }
-
-  // Mode 2: Volumetric puff / cryo mist
-  if (mode >= 1.5) {
-    vec2 centered = (vUV - 0.5) * 2.0;
-    float dist2 = dot(centered, centered);
-    if (dist2 > 1.0) discard;
-    float nz = sqrt(max(0.08, 1.0 - dist2));
-    float puffAlpha = nz * vColor.a;
-    if (puffAlpha < 0.06) discard;
-    finalColor = vec4(0.0, vMeta.w * puffAlpha, 0.85, vMeta.z * nz);
-    return;
-  }
-
-  // Mode 0: Sprite from atlas
+  // Mode 0: Solid sprite from atlas
   vec4 diff = texture(uDiffuseAtlas, vUV);
   if (diff.a < 0.08) {
     if (vMeta.x > 0.5) {
@@ -178,6 +132,82 @@ void main(void) {
 
   vec4 mat = texture(uMaterialAtlas, vUV);
   finalColor = mat;
+}
+`;
+
+/**
+ * Particle G-Buffer Normal pass:
+ * - Emissive particles (`mode < 1.5`) discard so underlying walls/actors/floors retain crisp normals.
+ * - Normal-lit vapor particles (`mode >= 1.5`) sample `uMaterialHeight` and discard wherever taller
+ *   solid geometry (`walls`, `props`, `actors`) occupies the pixel, only writing hemispherical puff
+ *   normals over floor-level pixels.
+ */
+const GBUFFER_PARTICLE_NORMAL_FRAG = /* glsl */ `precision highp float;
+in vec2 vUV;
+in vec2 vCosSin;
+in vec4 vMeta;
+in vec4 vColor;
+
+out vec4 finalColor;
+
+uniform sampler2D uMaterialHeight;
+uniform vec2 uViewportSize;
+
+void main(void) {
+  float mode = vMeta.y;
+  if (mode < 1.5) discard;
+
+  vec2 centered = (vUV - 0.5) * 2.0;
+  float dist2 = dot(centered, centered);
+  if (dist2 > 1.0) discard;
+
+  vec2 gbufUv = clamp(gl_FragCoord.xy / max(vec2(1.0), uViewportSize), vec2(0.0), vec2(1.0));
+  float existingZ = texture(uMaterialHeight, gbufUv).a;
+  if (existingZ > max(vMeta.z, 0.12) + 0.03) discard;
+
+  float nz = sqrt(max(0.08, 1.0 - dist2));
+  vec3 n = normalize(vec3(centered.x, centered.y, nz));
+  finalColor = vec4(n.x * 0.5 + 0.5, n.y * 0.5 + 0.5, n.z * 0.5 + 0.5, 0.10);
+}
+`;
+
+/**
+ * Particle G-Buffer Material pass (rendered with MAX blend mode):
+ * Preserves underlying solid wall/prop/actor Height Z (`A`) and Shadow Opacity (`G`)
+ * while compositing particle Emissive (`R`) and floor-level mist height/opacity.
+ */
+const GBUFFER_PARTICLE_MATERIAL_FRAG = /* glsl */ `precision highp float;
+in vec2 vUV;
+in vec2 vCosSin;
+in vec4 vMeta;
+in vec4 vColor;
+
+out vec4 finalColor;
+
+void main(void) {
+  float mode = vMeta.y;
+  if (mode > 0.5 && mode < 1.5) {
+    vec2 centered = (vUV - 0.5) * 2.0;
+    float d = length(centered);
+    if (d > 1.0) discard;
+    float core = smoothstep(1.0, 0.1, d) * vColor.a;
+    if (core < 0.04) discard;
+    finalColor = vec4(clamp(core * 1.15, 0.0, 1.0), 0.0, 0.0, vMeta.z);
+    return;
+  }
+
+  if (mode >= 1.5) {
+    vec2 centered = (vUV - 0.5) * 2.0;
+    float dist2 = dot(centered, centered);
+    if (dist2 > 1.0) discard;
+    float nz = sqrt(max(0.08, 1.0 - dist2));
+    float puffAlpha = nz * vColor.a;
+    if (puffAlpha < 0.06) discard;
+    finalColor = vec4(0.0, vMeta.w * puffAlpha, 0.85, vMeta.z * nz);
+    return;
+  }
+
+  discard;
 }
 `;
 
@@ -214,12 +244,27 @@ export class GBufferPass {
   private readonly materialMesh: Mesh<Geometry, Shader> | null = null;
   private readonly normalContainer: Container | null = null;
   private readonly materialContainer: Container | null = null;
+
+  private readonly particleVertexData: Float32Array;
+  private readonly particleVertexBuffer: Buffer | null = null;
+  private readonly particleIndexBuffer: Buffer | null = null;
+  private readonly particleGeometry: Geometry | null = null;
+  private readonly particleNormalShader: Shader | null = null;
+  private readonly particleMaterialShader: Shader | null = null;
+  private readonly particleNormalMesh: Mesh<Geometry, Shader> | null = null;
+  private readonly particleMaterialMesh: Mesh<Geometry, Shader> | null = null;
+  private readonly particleNormalContainer: Container | null = null;
+  private readonly particleMaterialContainer: Container | null = null;
+
   private readonly texelSizeN = new Float32Array([1 / 512, 1 / 512]);
   private readonly texelSizeM = new Float32Array([1 / 512, 1 / 512]);
+  private readonly viewportSize = new Float32Array([GBUFFER_WIDTH, GBUFFER_HEIGHT]);
 
   private readonly gpuReady: boolean;
   private lastQuadCount = 0;
+  private lastParticleQuadCount = 0;
   private prevQuadCount = 0;
+  private prevParticleQuadCount = 0;
 
   constructor(gridWidth: number = 80, gridHeight: number = 45) {
     this.fovWidth = Math.max(1, gridWidth);
@@ -227,6 +272,9 @@ export class GBufferPass {
     this.fovMaskData = new Uint8Array(this.fovWidth * this.fovHeight * 4);
     this.vertexData = new Float32Array(
       MAX_GBUFFER_QUADS * VERTICES_PER_QUAD * FLOATS_PER_VERTEX,
+    );
+    this.particleVertexData = new Float32Array(
+      MAX_PARTICLE_QUADS * VERTICES_PER_QUAD * FLOATS_PER_VERTEX,
     );
 
     // Initialize FOV mask to unexplored (R=0, A=255)
@@ -280,39 +328,49 @@ export class GBufferPass {
         antialias: false,
       });
 
-      // Build static index buffer for quads
-      const indices = new Uint16Array(MAX_GBUFFER_QUADS * INDICES_PER_QUAD);
-      for (let q = 0; q < MAX_GBUFFER_QUADS; q++) {
-        const vi = q * 4;
-        const ii = q * 6;
-        indices[ii] = vi;
-        indices[ii + 1] = vi + 1;
-        indices[ii + 2] = vi + 2;
-        indices[ii + 3] = vi;
-        indices[ii + 4] = vi + 2;
-        indices[ii + 5] = vi + 3;
-      }
+      const buildQuadBuffers = (data: Float32Array, maxQuads: number) => {
+        const indices = new Uint16Array(maxQuads * INDICES_PER_QUAD);
+        for (let q = 0; q < maxQuads; q++) {
+          const vi = q * 4;
+          const ii = q * 6;
+          indices[ii] = vi;
+          indices[ii + 1] = vi + 1;
+          indices[ii + 2] = vi + 2;
+          indices[ii + 3] = vi;
+          indices[ii + 4] = vi + 2;
+          indices[ii + 5] = vi + 3;
+        }
+        const vb = new PIXI.Buffer({
+          data,
+          usage: PIXI.BufferUsage.VERTEX | PIXI.BufferUsage.COPY_DST,
+        });
+        const ib = new PIXI.Buffer({
+          data: indices,
+          usage: PIXI.BufferUsage.INDEX,
+        });
+        const stride = FLOATS_PER_VERTEX * 4;
+        const geom = new PIXI.Geometry({
+          attributes: {
+            aPosition: { buffer: vb, format: 'float32x2', stride, offset: 0 },
+            aUV: { buffer: vb, format: 'float32x2', stride, offset: 8 },
+            aCosSin: { buffer: vb, format: 'float32x2', stride, offset: 16 },
+            aMeta: { buffer: vb, format: 'float32x4', stride, offset: 24 },
+            aColor: { buffer: vb, format: 'float32x4', stride, offset: 40 },
+          },
+          indexBuffer: ib,
+        });
+        return { vb, ib, geom };
+      };
 
-      this.vertexBuffer = new PIXI.Buffer({
-        data: this.vertexData,
-        usage: PIXI.BufferUsage.VERTEX | PIXI.BufferUsage.COPY_DST,
-      });
-      this.indexBuffer = new PIXI.Buffer({
-        data: indices,
-        usage: PIXI.BufferUsage.INDEX,
-      });
+      const solidBufs = buildQuadBuffers(this.vertexData, MAX_GBUFFER_QUADS);
+      this.vertexBuffer = solidBufs.vb;
+      this.indexBuffer = solidBufs.ib;
+      this.geometry = solidBufs.geom;
 
-      const stride = FLOATS_PER_VERTEX * 4;
-      this.geometry = new PIXI.Geometry({
-        attributes: {
-          aPosition: { buffer: this.vertexBuffer, format: 'float32x2', stride, offset: 0 },
-          aUV: { buffer: this.vertexBuffer, format: 'float32x2', stride, offset: 8 },
-          aCosSin: { buffer: this.vertexBuffer, format: 'float32x2', stride, offset: 16 },
-          aMeta: { buffer: this.vertexBuffer, format: 'float32x4', stride, offset: 24 },
-          aColor: { buffer: this.vertexBuffer, format: 'float32x4', stride, offset: 40 },
-        },
-        indexBuffer: this.indexBuffer,
-      });
+      const particleBufs = buildQuadBuffers(this.particleVertexData, MAX_PARTICLE_QUADS);
+      this.particleVertexBuffer = particleBufs.vb;
+      this.particleIndexBuffer = particleBufs.ib;
+      this.particleGeometry = particleBufs.geom;
 
       const emptySrc = PIXI.Texture.EMPTY.source;
       const gbufUniformsN = new PIXI.UniformGroup({
@@ -320,6 +378,9 @@ export class GBufferPass {
       });
       const gbufUniformsM = new PIXI.UniformGroup({
         uTexelSize: { value: this.texelSizeM, type: 'vec2<f32>' },
+      });
+      const particleUniformsN = new PIXI.UniformGroup({
+        uViewportSize: { value: this.viewportSize, type: 'vec2<f32>' },
       });
 
       this.normalShader = new PIXI.Shader({
@@ -350,9 +411,36 @@ export class GBufferPass {
         },
       });
 
+      this.particleNormalShader = new PIXI.Shader({
+        glProgram: PIXI.GlProgram.from({
+          vertex: GBUFFER_VERT,
+          fragment: GBUFFER_PARTICLE_NORMAL_FRAG,
+          name: 'gbuffer-particle-normal-shader',
+          preferredFragmentPrecision: 'highp',
+        }),
+        resources: {
+          particleUniforms: particleUniformsN,
+          uMaterialHeight: emptySrc,
+        },
+      });
+
+      this.particleMaterialShader = new PIXI.Shader({
+        glProgram: PIXI.GlProgram.from({
+          vertex: GBUFFER_VERT,
+          fragment: GBUFFER_PARTICLE_MATERIAL_FRAG,
+          name: 'gbuffer-particle-material-shader',
+          preferredFragmentPrecision: 'highp',
+        }),
+        resources: {},
+      });
+
       const opaqueState = PIXI.State.for2d();
       opaqueState.blend = false;
       opaqueState.blendMode = 'none';
+
+      const maxBlendState = PIXI.State.for2d();
+      maxBlendState.blend = true;
+      maxBlendState.blendMode = 'max';
 
       this.normalMesh = new PIXI.Mesh<Geometry, Shader>({
         geometry: this.geometry,
@@ -368,11 +456,31 @@ export class GBufferPass {
       });
       this.materialMesh.blendMode = 'none';
 
+      this.particleNormalMesh = new PIXI.Mesh<Geometry, Shader>({
+        geometry: this.particleGeometry,
+        shader: this.particleNormalShader,
+        state: opaqueState,
+      });
+      this.particleNormalMesh.blendMode = 'none';
+
+      this.particleMaterialMesh = new PIXI.Mesh<Geometry, Shader>({
+        geometry: this.particleGeometry,
+        shader: this.particleMaterialShader,
+        state: maxBlendState,
+      });
+      this.particleMaterialMesh.blendMode = 'max';
+
       this.normalContainer = new PIXI.Container();
       this.normalContainer.addChild(this.normalMesh);
 
       this.materialContainer = new PIXI.Container();
       this.materialContainer.addChild(this.materialMesh);
+
+      this.particleNormalContainer = new PIXI.Container();
+      this.particleNormalContainer.addChild(this.particleNormalMesh);
+
+      this.particleMaterialContainer = new PIXI.Container();
+      this.particleMaterialContainer.addChild(this.particleMaterialMesh);
 
       initializedGpu = true;
     } catch {
@@ -458,8 +566,10 @@ export class GBufferPass {
     worldContainer: Container,
     layers: LayerCollectionInput,
   ): void {
-    const { quadCount, diffuseSource } = this.packQuads(layers);
-    this.lastQuadCount = quadCount;
+    const { solidQuadCount, particleQuadCount, diffuseSource } = this.packQuads(layers);
+    const totalQuads = solidQuadCount + particleQuadCount;
+    this.lastQuadCount = totalQuads;
+    this.lastParticleQuadCount = particleQuadCount;
 
     if (!this.gpuReady || !renderer || typeof renderer.render !== 'function') {
       return;
@@ -478,16 +588,30 @@ export class GBufferPass {
       !this.materialContainer ||
       !this.normalShader ||
       !this.materialShader ||
-      quadCount === 0
+      totalQuads === 0
     ) {
       return;
     }
 
-    // Upload active quad batch
-    this.zeroUnusedTailVertices(quadCount);
-    this.prevQuadCount = quadCount;
+    // Upload active solid quad batch
+    this.zeroUnusedTailVertices(this.vertexData, solidQuadCount, this.prevQuadCount);
+    this.prevQuadCount = solidQuadCount;
     this.vertexBuffer.update();
     this.geometry.indexBuffer.update();
+    this.geometry.topology = 'triangle-list';
+
+    // Upload active particle quad batch
+    if (this.particleVertexBuffer && this.particleGeometry) {
+      this.zeroUnusedTailVertices(
+        this.particleVertexData,
+        particleQuadCount,
+        this.prevParticleQuadCount,
+      );
+      this.prevParticleQuadCount = particleQuadCount;
+      this.particleVertexBuffer.update();
+      this.particleGeometry.indexBuffer.update();
+      this.particleGeometry.topology = 'triangle-list';
+    }
 
     const normalTex = getNormalAtlasTexture();
     const materialTex = getMaterialAtlasTexture();
@@ -517,7 +641,8 @@ export class GBufferPass {
     this.texelSizeM[1] = invH;
 
     // Sync world camera transform onto G-Buffer mesh containers
-    const syncTransform = (c: Container) => {
+    const syncTransform = (c: Container | null) => {
+      if (!c) return;
       c.position.set(worldContainer.x, worldContainer.y);
       c.scale.set(worldContainer.scale.x, worldContainer.scale.y);
       c.pivot.set(worldContainer.pivot.x, worldContainer.pivot.y);
@@ -525,10 +650,29 @@ export class GBufferPass {
     };
     syncTransform(this.normalContainer);
     syncTransform(this.materialContainer);
-
-    this.geometry.topology = 'triangle-list';
+    syncTransform(this.particleNormalContainer);
+    syncTransform(this.particleMaterialContainer);
 
     try {
+      // 1. Render solid geometry into rtMaterialHeight first (blend = none)
+      renderer.render({
+        container: this.materialContainer,
+        target: this.rtMaterialHeight,
+        clear: true,
+        clearColor: [0.0, 0.0, 0.86, 0.0],
+      });
+
+      // 2. Composite particle material properties with MAX blend so solid occluder Height Z
+      //    and Shadow Opacity are never reduced or erased by overlapping particles (CRIT-02)
+      if (particleQuadCount > 0 && this.particleMaterialContainer) {
+        renderer.render({
+          container: this.particleMaterialContainer,
+          target: this.rtMaterialHeight,
+          clear: false,
+        });
+      }
+
+      // 3. Render solid geometry into rtNormalSpec (blend = none)
       renderer.render({
         container: this.normalContainer,
         target: this.rtNormalSpec,
@@ -536,12 +680,15 @@ export class GBufferPass {
         clearColor: [0.5, 0.5, 1.0, 0.0],
       });
 
-      renderer.render({
-        container: this.materialContainer,
-        target: this.rtMaterialHeight,
-        clear: true,
-        clearColor: [0.0, 0.0, 0.86, 0.0],
-      });
+      // 4. Render floor-level normal-lit vapor puffs into rtNormalSpec (clipped against rtMaterialHeight)
+      if (particleQuadCount > 0 && this.particleNormalContainer && this.particleNormalShader) {
+        this.particleNormalShader.resources.uMaterialHeight = this.rtMaterialHeight.source;
+        renderer.render({
+          container: this.particleNormalContainer,
+          target: this.rtNormalSpec,
+          clear: false,
+        });
+      }
     } finally {
       // Unbind transient sector atlas sources back to Texture.EMPTY.source between frames so
       // unloading a previous theme atlas cannot trigger PixiJS BindGroup destruction on destroy().
@@ -550,32 +697,45 @@ export class GBufferPass {
         this.normalShader.resources.uNormalAtlas = emptySrc;
         this.materialShader.resources.uDiffuseAtlas = emptySrc;
         this.materialShader.resources.uMaterialAtlas = emptySrc;
+        if (this.particleNormalShader) {
+          this.particleNormalShader.resources.uMaterialHeight = emptySrc;
+        }
       }
     }
   }
 
-  private zeroUnusedTailVertices(activeQuads: number): void {
+  public get particleQuadCount(): number {
+    return this.lastParticleQuadCount;
+  }
+
+  private zeroUnusedTailVertices(
+    data: Float32Array,
+    activeQuads: number,
+    prevQuads: number,
+  ): void {
     const startFloat = activeQuads * VERTICES_PER_QUAD * FLOATS_PER_VERTEX;
     const endFloat = Math.min(
-      this.vertexData.length,
-      Math.max(activeQuads, this.prevQuadCount) * VERTICES_PER_QUAD * FLOATS_PER_VERTEX,
+      data.length,
+      Math.max(activeQuads, prevQuads) * VERTICES_PER_QUAD * FLOATS_PER_VERTEX,
     );
     for (let i = startFloat; i < endFloat; i += FLOATS_PER_VERTEX) {
-      this.vertexData[i] = 0;
-      this.vertexData[i + 1] = 0;
+      data[i] = 0;
+      data[i + 1] = 0;
     }
   }
 
   private packQuads(layers: LayerCollectionInput): {
-    quadCount: number;
+    solidQuadCount: number;
+    particleQuadCount: number;
     diffuseSource: Texture['source'] | null;
   } {
-    let quadCount = 0;
+    let solidQuadCount = 0;
+    let particleQuadCount = 0;
     let primaryDiffuseSource: Texture['source'] | null = null;
 
     const emptyTex = safeGetPixiExport<typeof PIXI.Texture>(PIXI, 'Texture')?.EMPTY;
     const pushSprite = (sprite: Sprite) => {
-      if (quadCount >= MAX_GBUFFER_QUADS) return;
+      if (solidQuadCount >= MAX_GBUFFER_QUADS) return;
       if (!sprite || !sprite.visible || sprite.alpha <= 0.01) return;
       const tex = sprite.texture;
       const texSrc = tex?.source as (Texture['source'] & { destroyed?: boolean }) | null | undefined;
@@ -641,7 +801,8 @@ export class GBufferPass {
         : 0.0;
 
       this.writeQuad(
-        quadCount,
+        this.vertexData,
+        solidQuadCount,
         x0,
         y0,
         x1,
@@ -669,7 +830,7 @@ export class GBufferPass {
         1,
         sprite.alpha ?? 1,
       );
-      quadCount++;
+      solidQuadCount++;
     };
 
     const collectContainer = (container: Container | undefined) => {
@@ -684,16 +845,17 @@ export class GBufferPass {
     collectContainer(layers.itemLayer);
     collectContainer(layers.entityLayer);
 
-    // Collect procedural LIT & EMISSIVE particles (LIGHT-05)
+    // Collect procedural LIT & EMISSIVE particles into separate particle batch (CRIT-02 / LIGHT-05)
     if (layers.particles) {
-      for (let i = 0; i < layers.particles.length && quadCount < MAX_GBUFFER_QUADS; i++) {
+      for (let i = 0; i < layers.particles.length && particleQuadCount < MAX_PARTICLE_QUADS; i++) {
         const p = layers.particles[i];
         if (p.alpha <= 0.02 || p.size <= 0) continue;
         const half = p.size * 0.5;
         const modeFlag = p.mode === 'emissive' ? 1.0 : 2.0;
         const hNorm = Math.max(0, Math.min(1, p.heightPx / 32));
         this.writeQuad(
-          quadCount,
+          this.particleVertexData,
+          particleQuadCount,
           p.worldX - half,
           p.worldY - half,
           p.worldX + half,
@@ -721,14 +883,15 @@ export class GBufferPass {
           p.colorRgb[2],
           p.alpha,
         );
-        quadCount++;
+        particleQuadCount++;
       }
     }
 
-    return { quadCount, diffuseSource: primaryDiffuseSource };
+    return { solidQuadCount, particleQuadCount, diffuseSource: primaryDiffuseSource };
   }
 
   private writeQuad(
+    targetData: Float32Array,
     q: number,
     x0: number,
     y0: number,
@@ -757,7 +920,6 @@ export class GBufferPass {
     b: number,
     a: number,
   ): void {
-    const v = this.vertexData;
     const base = q * VERTICES_PER_QUAD * FLOATS_PER_VERTEX;
     const coords = [
       x0, y0, u0, v0,
@@ -767,20 +929,20 @@ export class GBufferPass {
     ];
     for (let k = 0; k < 4; k++) {
       const o = base + k * FLOATS_PER_VERTEX;
-      v[o] = coords[k * 4];
-      v[o + 1] = coords[k * 4 + 1];
-      v[o + 2] = coords[k * 4 + 2];
-      v[o + 3] = coords[k * 4 + 3];
-      v[o + 4] = cosR;
-      v[o + 5] = sinR;
-      v[o + 6] = outline;
-      v[o + 7] = mode;
-      v[o + 8] = heightNorm;
-      v[o + 9] = shadowOp;
-      v[o + 10] = r;
-      v[o + 11] = g;
-      v[o + 12] = b;
-      v[o + 13] = a;
+      targetData[o] = coords[k * 4];
+      targetData[o + 1] = coords[k * 4 + 1];
+      targetData[o + 2] = coords[k * 4 + 2];
+      targetData[o + 3] = coords[k * 4 + 3];
+      targetData[o + 4] = cosR;
+      targetData[o + 5] = sinR;
+      targetData[o + 6] = outline;
+      targetData[o + 7] = mode;
+      targetData[o + 8] = heightNorm;
+      targetData[o + 9] = shadowOp;
+      targetData[o + 10] = r;
+      targetData[o + 11] = g;
+      targetData[o + 12] = b;
+      targetData[o + 13] = a;
     }
   }
 
@@ -798,5 +960,15 @@ export class GBufferPass {
     this.geometry?.destroy(true);
     this.vertexBuffer?.destroy();
     this.indexBuffer?.destroy();
+
+    this.particleNormalShader?.destroy(true);
+    this.particleMaterialShader?.destroy(true);
+    this.particleNormalMesh?.destroy();
+    this.particleMaterialMesh?.destroy();
+    this.particleNormalContainer?.destroy({ children: false });
+    this.particleMaterialContainer?.destroy({ children: false });
+    this.particleGeometry?.destroy(true);
+    this.particleVertexBuffer?.destroy();
+    this.particleIndexBuffer?.destroy();
   }
 }
