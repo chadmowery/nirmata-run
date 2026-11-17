@@ -118,6 +118,7 @@ export async function POST(req: NextRequest) {
       systems: engine.systems,
       runMode: mode,
       shellId: shellId || undefined,
+      shellUpgrades: profile.shellUpgrades,
       seed: config.seed,
       entityRegistry: (engine as unknown as { entityRegistry?: import('@engine/entity/registry').EntityRegistry }).entityRegistry,
       entityFactory: engine.entityFactory,

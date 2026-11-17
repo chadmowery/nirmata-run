@@ -14,14 +14,18 @@ import {
   Shell,
   Defense,
   PortConfig,
+  Heat,
   SpriteComponent,
   LightSource,
   BlocksMovement,
 } from '@shared/components';
-import type { ShellTemplate } from '@/game/shells/server/types';
-import { globalShellRegistry } from '@/game/shells/server';
+import type { ShellTemplate, ShellRecord } from '@/game/shells/server/types';
+import { globalShellRegistry, applyShellUpgradesToRecord } from '@/game/shells/server';
 import { getDefaultEntityRegistry } from '@/game/entities';
-import { resolveShellSpawnSprite } from '@shared/utils/shell-sprite-util';
+import {
+  inferShellFacingDirection,
+  resolveShellSpriteForDirection,
+} from '@shared/utils/shell-sprite-util';
 
 const componentDefByKey = new Map<string, ComponentDef<unknown>>(
   COMPONENTS_REGISTRY.map((c) => [c.key, c as ComponentDef<unknown>]),
@@ -358,43 +362,71 @@ function applyShellTemplateToPlayer(
   const componentsSet: Record<string, unknown> = {};
   const componentsRemoved: string[] = [];
 
-  const nextShellData = {
+  // Preserve current facing direction from live SpriteComponent & previous Shell
+  const prevShell = world.getComponent(playerId, Shell);
+  const oldSprite = world.getComponent(playerId, SpriteComponent);
+  const currentFacing = inferShellFacingDirection(
+    oldSprite?.key,
+    prevShell?.directionalSprites,
+    prevShell?.defaultDirection ?? shellTemplate.defaultDirection,
+  );
+
+  // Recompute effective stats & port capacities with active profile upgrades
+  let effectiveRecord: ShellRecord = {
+    id: shellTemplate.id,
     archetypeId: shellTemplate.id,
-    speed: shellTemplate.baseStats.speed,
-    stability: shellTemplate.baseStats.stability,
-    armor: shellTemplate.baseStats.armor,
-    maxHealth: shellTemplate.baseStats.maxHealth,
-    directionalSprites: shellTemplate.directionalSprites,
-    defaultDirection: shellTemplate.defaultDirection as
-      | 'north'
-      | 'east'
-      | 'south'
-      | 'west'
-      | undefined,
+    level: 1,
+    currentStats: { ...shellTemplate.baseStats },
+    portConfig: { ...shellTemplate.basePorts },
+    starterLoadout: shellTemplate.starterLoadout ? [...shellTemplate.starterLoadout] : undefined,
+    sprite: shellTemplate.sprite,
+    directionalSprites: shellTemplate.directionalSprites
+      ? { ...shellTemplate.directionalSprites }
+      : undefined,
+    defaultDirection: shellTemplate.defaultDirection,
+    lightSource: shellTemplate.lightSource ? { ...shellTemplate.lightSource } : undefined,
   };
-  if (world.hasComponent(playerId, Shell)) {
-    world.patchComponent(playerId, Shell, nextShellData);
-  } else {
-    world.addComponent(playerId, Shell, nextShellData);
+  const upgradeData = state.shellUpgrades?.[shellTemplate.id];
+  if (upgradeData) {
+    effectiveRecord = applyShellUpgradesToRecord(effectiveRecord, upgradeData);
   }
+  const { currentStats, portConfig } = effectiveRecord;
+
+  const rawShellData: Record<string, unknown> = {
+    archetypeId: shellTemplate.id,
+    speed: currentStats.speed,
+    stability: currentStats.stability,
+    armor: currentStats.armor,
+    maxHealth: currentStats.maxHealth,
+  };
+  if (shellTemplate.directionalSprites !== undefined) {
+    rawShellData.directionalSprites = { ...shellTemplate.directionalSprites };
+  }
+  if (shellTemplate.defaultDirection !== undefined) {
+    rawShellData.defaultDirection = shellTemplate.defaultDirection;
+  }
+  const parsedShell = Shell.schema.safeParse(rawShellData);
+  const nextShellData = parsedShell.success ? parsedShell.data : (rawShellData as never);
+  world.addComponent(playerId, Shell, nextShellData);
   componentsSet.shell = { ...nextShellData };
 
   // Health (preserve damage taken)
   const oldHealth = world.getComponent(playerId, Health);
-  const nextMaxHp = shellTemplate.baseStats.maxHealth;
+  const nextMaxHp = currentStats.maxHealth;
   const damageTaken = oldHealth ? Math.max(0, oldHealth.max - oldHealth.current) : 0;
   const nextHealth = {
     current: Math.max(1, Math.min(nextMaxHp, nextMaxHp - damageTaken)),
     max: nextMaxHp,
     isAlive: oldHealth?.isAlive ?? true,
   };
-  world.patchComponent(playerId, Health, nextHealth);
+  world.addComponent(playerId, Health, nextHealth);
   componentsSet.health = { ...nextHealth };
 
   // Defense
   if (world.hasComponent(playerId, Defense)) {
-    world.patchComponent(playerId, Defense, { armor: shellTemplate.baseStats.armor });
-    componentsSet.defense = { armor: shellTemplate.baseStats.armor };
+    const nextDefense = { armor: currentStats.armor };
+    world.addComponent(playerId, Defense, nextDefense);
+    componentsSet.defense = nextDefense;
   }
 
   // Energy
@@ -402,35 +434,42 @@ function applyShellTemplateToPlayer(
   if (oldEnergy) {
     const nextEnergy = {
       ...oldEnergy,
-      speed: shellTemplate.baseStats.speed,
+      speed: currentStats.speed,
     };
-    world.patchComponent(playerId, Energy, nextEnergy);
+    world.addComponent(playerId, Energy, nextEnergy);
     componentsSet.energy = nextEnergy;
   }
 
   // PortConfig
   if (world.hasComponent(playerId, PortConfig)) {
-    world.patchComponent(playerId, PortConfig, { ...shellTemplate.basePorts });
-    componentsSet.portConfig = { ...shellTemplate.basePorts };
+    const nextPorts = { ...portConfig };
+    world.addComponent(playerId, PortConfig, nextPorts);
+    componentsSet.portConfig = nextPorts;
   }
 
-  // Sprite (re-resolve directional sprite)
-  const resolvedSpriteKey = resolveShellSpawnSprite(shellTemplate);
-  if (world.hasComponent(playerId, SpriteComponent)) {
-    world.patchComponent(playerId, SpriteComponent, { key: resolvedSpriteKey });
-    componentsSet.sprite = {
-      ...(world.getComponent(playerId, SpriteComponent) as Record<string, unknown>),
+  // Heat (sync baseDissipation with updated stability)
+  const oldHeat = world.getComponent(playerId, Heat);
+  if (oldHeat) {
+    const nextHeat = {
+      ...oldHeat,
+      baseDissipation: 5 + currentStats.stability * 0.1,
     };
+    world.addComponent(playerId, Heat, nextHeat);
+    componentsSet.heat = nextHeat;
+  }
+
+  // Sprite (preserve current facing direction)
+  const resolvedSpriteKey = resolveShellSpriteForDirection(shellTemplate, currentFacing);
+  if (oldSprite) {
+    const nextSprite = { ...oldSprite, key: resolvedSpriteKey };
+    world.addComponent(playerId, SpriteComponent, nextSprite);
+    componentsSet.sprite = nextSprite;
   }
 
   // LightSource
   if (shellTemplate.lightSource) {
     const parsedLight = LightSource.schema.parse(shellTemplate.lightSource);
-    if (world.hasComponent(playerId, LightSource)) {
-      world.patchComponent(playerId, LightSource, parsedLight);
-    } else {
-      world.addComponent(playerId, LightSource, parsedLight);
-    }
+    world.addComponent(playerId, LightSource, parsedLight);
     componentsSet.lightSource = { ...parsedLight };
   } else if (world.hasComponent(playerId, LightSource)) {
     world.removeComponent(playerId, LightSource);

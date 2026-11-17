@@ -124,7 +124,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
 - **Required Fix**:
   Parse `merged` through `def.schema.safeParse(merged)` in `reconcileEntityInSession()`, use `world.addComponent(entityId, def, parsedData)` (full component replacement after merging preserved runtime fields) in both `reconcileEntityInSession()` and `ClientHotloadBridge.applySessionPatch()`, preserve `securityLock.faradayBounds` and `isLegacy`, and expand removable template components to include all non-identity/non-runtime-tag components.
 
-#### [HIGH-04] Player Shell Reconciliation Ignores Profile Upgrades, `Heat.baseDissipation`, and Current Facing Direction (Spec §4.1.2 & §7.3.1 Violation)
+#### [HIGH-04] Player Shell Reconciliation Ignores Profile Upgrades, `Heat.baseDissipation`, and Current Facing Direction (Spec §4.1.2 & §7.3.1 Violation) — **[RESOLVED]**
 - **Location**: [`src/server/dev/hotload-reconciler.ts:305-410`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/server/dev/hotload-reconciler.ts#L305-L410)
 - **Vulnerability / Gap**:
   1. Spec §7.3.1 specifies: *"Recomputes effective stats and port capacities (`applyShellUpgradesToRecord`). Patches the player entity's `Shell`, `Health` (preserving damage taken), `Defense`, `Energy`, `PortConfig`, `Heat`, `SpriteComponent` (resolved for current facing direction), and `LightSource`."*
@@ -226,7 +226,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
   - Add `PUT /api/dev/gamedata/ai-trees/[treeId]` updating `AIBehaviorRegistry`; add runtime setters for `depthConfig`, `lootDistribution`, `depthDistribution`, and `ALL_PREFABS`; and upsert newly `POST`ed entities/mixins into active session registries and `getDefaultEntityRegistry()`.
 - [x] **5. Replace Shallow `patchComponent` with Schema-Validated Component Replacement in Hotload Reconciliation (`HIGH-03`)**:
   - Parse merged components with `def.schema.safeParse(merged)`, replace components via `world.addComponent()` on server and client so deleted optional fields are cleared, and preserve `SecurityLock.faradayBounds` and `isLegacy`.
-- [ ] **6. Preserve Player Shell Upgrades, `Heat.baseDissipation`, and Current Facing Direction (`HIGH-04`)**:
+- [x] **6. Preserve Player Shell Upgrades, `Heat.baseDissipation`, and Current Facing Direction (`HIGH-04`)**:
   - Update `applyShellTemplateToPlayer()` in `src/server/dev/hotload-reconciler.ts` to preserve current cardinal facing direction, apply shell upgrades, and patch `Heat.baseDissipation`.
 - [ ] **7. Unify `COMMIT` Envelope IDs and Forward `sessionPatches` on `BroadcastChannel` (`HIGH-05`)**:
   - Pass `sessionPatches` and canonical envelope IDs from API responses into `postHotloadCommit()` and avoid double-applying shell switch patches.

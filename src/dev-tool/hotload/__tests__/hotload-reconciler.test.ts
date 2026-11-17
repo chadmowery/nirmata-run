@@ -26,6 +26,7 @@ import {
   Shell,
   Energy,
   PortConfig,
+  Heat,
   LightSource,
   CorruptedNode,
   SecurityLock,
@@ -348,5 +349,69 @@ describe('Live ECS World & Server Session Reconciliation (HOTLOAD-06)', () => {
     const baseAug = entityRegistry.get('displacement-venting')!;
     reconcileEntityTemplateAcrossSessions('displacement-venting', baseAug);
     expect(world.getComponent(augId, AugmentData)?.isLegacy).toBe(true);
+  });
+
+  it('applies profile shell upgrades, updates Heat.baseDissipation, and preserves facing direction on Shell reconcile (HIGH-04)', () => {
+    const { world, playerId } = createTestSession('rec-sess-high04');
+    const bastionTpl = globalShellRegistry.getTemplates().find((t) => t.id === 'bastion-v1')!;
+
+    // Attach shellUpgrades to session state and Heat component to player
+    const sessionState = sessionManager.getSession('rec-sess-high04')!;
+    sessionState.shellUpgrades = {
+      'bastion-v1': { speed: 2, armor: 1, stability: 2, additionalPorts: 1 },
+    };
+    world.addComponent(playerId, Heat, {
+      current: 10,
+      maxSafe: 100,
+      baseDissipation: 5,
+      ventPercentage: 0.5,
+      isVenting: false,
+    });
+    world.addComponent(playerId, Shell, {
+      archetypeId: 'bastion-v1',
+      speed: bastionTpl.baseStats.speed,
+      stability: bastionTpl.baseStats.stability,
+      armor: bastionTpl.baseStats.armor,
+      maxHealth: bastionTpl.baseStats.maxHealth,
+      directionalSprites: {
+        north: 'bastion-v1-north',
+        east: 'bastion-v1-east',
+        south: 'bastion-v1-south',
+        west: 'bastion-v1-west',
+      },
+      defaultDirection: 'south',
+    });
+    // Player is currently facing north
+    world.addComponent(playerId, SpriteComponent, { key: 'bastion-v1-north' });
+
+    const patches = reconcileShellAcrossSessions({
+      ...bastionTpl,
+      baseStats: { speed: 100, armor: 3, stability: 20, maxHealth: 35 },
+      basePorts: { maxFirmware: 2, maxAugment: 2, maxSoftware: 2 },
+      directionalSprites: {
+        north: 'bastion-v1-north-v2',
+        east: 'bastion-v1-east-v2',
+        south: 'bastion-v1-south-v2',
+        west: 'bastion-v1-west-v2',
+      },
+      defaultDirection: 'south',
+    });
+
+    expect(patches['rec-sess-high04']).toBeDefined();
+    // Upgraded stats: speed = 100 + 2*5 = 110, armor = 3 + 1 = 4, stability = 20 + 2*10 = 40
+    expect(world.getComponent(playerId, Shell)?.speed).toBe(110);
+    expect(world.getComponent(playerId, Defense)?.armor).toBe(4);
+    expect(world.getComponent(playerId, Energy)?.speed).toBe(110);
+    expect(world.getComponent(playerId, PortConfig)).toEqual({
+      maxFirmware: 3,
+      maxAugment: 3,
+      maxSoftware: 3,
+    });
+    // Heat.baseDissipation = 5 + 40 * 0.1 = 9
+    expect(world.getComponent(playerId, Heat)?.baseDissipation).toBe(9);
+    // Preserved north facing direction instead of snapping to defaultDirection ('south')
+    expect(world.getComponent(playerId, SpriteComponent)?.key).toBe('bastion-v1-north-v2');
+
+    globalShellRegistry.upsertTemplate(bastionTpl);
   });
 });
