@@ -597,13 +597,26 @@ export class AudioEngine implements IAudioEngine {
 
     // 1. Update active ambiance drone if it matches cue.id
     if (this.currentAmbianceCueId === cue.id) {
-      const targetVol = this.ambianceState.baseVolume ?? cue.baseVolume ?? 0.6;
+      const prevSamplePath = this.lastRequestedAmbianceCue?.samplePath;
+      this.lastRequestedAmbianceCue = cue;
+      const targetVol = cue.baseVolume ?? this.ambianceState.baseVolume ?? 0.6;
       if (cue.mode === 'synth' && cue.synth && this.activeAmbianceVoice?.updatePatch) {
         const morphed = this.activeAmbianceVoice.updatePatch(cue.synth, targetVol);
         if (!morphed) {
           this.currentAmbianceCueId = null;
           this.playAmbianceCue(cue, { volumeMultiplier: targetVol, crossfadeDurationSec: 0.12 });
         }
+      } else if (
+        cue.mode === 'sample' &&
+        cue.samplePath &&
+        cue.samplePath === prevSamplePath &&
+        this.activeAmbianceSampleGain
+      ) {
+        this.activeAmbianceSampleGain.gain.setTargetAtTime(
+          Math.max(0.0001, targetVol),
+          this.ctx.currentTime,
+          0.02,
+        );
       } else {
         this.currentAmbianceCueId = null;
         this.playAmbianceCue(cue, { volumeMultiplier: targetVol, crossfadeDurationSec: 0.12 });
@@ -617,24 +630,30 @@ export class AudioEngine implements IAudioEngine {
     const busNode = this.getBusNode(cue.bus);
     if (!busNode) return;
 
+    const remainingVoices: ActiveVoice[] = [];
     for (let i = 0; i < voices.length; i++) {
       const voice = voices[i];
       const meta = this.voiceCueMeta.get(voice);
       const optionMult = meta?.optionVolumeMultiplier ?? 1.0;
       const newVol = optionMult * (cue.baseVolume ?? 1.0);
+      const sameBus = !meta?.bus || meta.bus === cue.bus;
 
-      if (cue.mode === 'synth' && cue.synth && voice.updatePatch) {
+      if (sameBus && cue.mode === 'synth' && cue.synth && voice.updatePatch) {
         const morphed = voice.updatePatch(cue.synth, newVol);
-        if (morphed) continue;
+        if (morphed) {
+          remainingVoices.push(voice);
+          continue;
+        }
       }
 
-      // Topology or mode changed: micro-crossfade respawn in place
+      // Topology, bus, or mode changed: micro-crossfade respawn or stop & evict
       try {
         voice.stop(0.12);
       } catch {
         // Ignore stop errors
       }
       this.allActiveVoices.delete(voice);
+      this.voiceCueMeta.delete(voice);
 
       if (cue.mode === 'synth' && cue.synth && (cue.loop || meta?.loop)) {
         const replacement = playSynthVoice(this.ctx, busNode, cue.synth, {
@@ -643,7 +662,7 @@ export class AudioEngine implements IAudioEngine {
           spatial: meta?.spatial,
           loop: true,
         });
-        voices[i] = replacement;
+        remainingVoices.push(replacement);
         this.allActiveVoices.add(replacement);
         if (meta) {
           this.voiceCueMeta.set(replacement, { ...meta, bus: cue.bus });
@@ -653,7 +672,19 @@ export class AudioEngine implements IAudioEngine {
             this.activeVoiceMap.set(vid, replacement);
           }
         }
+      } else {
+        for (const [vid, tracked] of this.activeVoiceMap.entries()) {
+          if (tracked === voice) {
+            this.activeVoiceMap.delete(vid);
+          }
+        }
       }
+    }
+
+    if (remainingVoices.length > 0) {
+      this.activeCueVoices.set(cue.id, remainingVoices);
+    } else {
+      this.activeCueVoices.delete(cue.id);
     }
   }
 
@@ -925,6 +956,27 @@ export class AudioEngine implements IAudioEngine {
       this.currentAmbianceCueId === cue.id &&
       (this.activeAmbianceVoice || this.activeAmbianceSampleSource)
     ) {
+      if (options?.volumeMultiplier !== undefined && this.ctx) {
+        const nextVol = options.volumeMultiplier;
+        if (this.activeAmbianceVoice) {
+          if (cue.mode === 'synth' && cue.synth && this.activeAmbianceVoice.updatePatch) {
+            this.activeAmbianceVoice.updatePatch(cue.synth, nextVol);
+          } else {
+            this.activeAmbianceVoice.gainNode.gain.setTargetAtTime(
+              Math.max(0.0001, nextVol),
+              this.ctx.currentTime,
+              0.02,
+            );
+          }
+        }
+        if (this.activeAmbianceSampleGain) {
+          this.activeAmbianceSampleGain.gain.setTargetAtTime(
+            Math.max(0.0001, nextVol),
+            this.ctx.currentTime,
+            0.02,
+          );
+        }
+      }
       return; // Already playing this cue
     }
 

@@ -164,7 +164,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
 - **Required Fix**:
   Track whether a live preview was sent for the current item, and on editor unmount (if still dirty/uncommitted), automatically dispatch `postHotloadRevert()` with `baselineRef.current`.
 
-#### [MED-03] `AudioEngine.hotUpdateCue()` Ignores `cue.baseVolume` on Active Ambiance & `playAmbianceCue()` Ignores Volume Updates on Same `cueId` (Spec §6.1 & §6.2 Violation)
+#### [MED-03] `AudioEngine.hotUpdateCue()` Ignores `cue.baseVolume` on Active Ambiance & `playAmbianceCue()` Ignores Volume Updates on Same `cueId` (Spec §6.1 & §6.2 Violation) — **[RESOLVED]**
 - **Location**: [`src/engine/audio/audio-engine.ts:595-658`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/engine/audio/audio-engine.ts#L595-L658), [`src/engine/audio/audio-engine.ts:918-930`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/engine/audio/audio-engine.ts#L918-L930)
 - **Vulnerability / Gap**:
   1. In `AudioEngine.hotUpdateCue()` (line 600), `const targetVol = this.ambianceState.baseVolume ?? cue.baseVolume ?? 0.6;` always evaluates to `this.ambianceState.baseVolume` when a floor drone is playing, ignoring `cue.baseVolume` changes made in `AudioCueStudio`.
@@ -232,7 +232,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
   - Pass `sessionPatches` and canonical envelope IDs from API responses into `postHotloadCommit()` and avoid double-applying shell switch patches.
 - [x] **8. Wire `MixinEditor` Hotload Hooks & Auto-Revert on Unsaved Item Switch (`MED-01`, `MED-02`)**:
   - Add `Cmd+S`, `REVERT`, and `LIVE_SYNC` preview/commit hooks to `MixinEditor.tsx`, and emit `postHotloadRevert()` when unmounting a dirty editor with uncommitted previews.
-- [ ] **9. Fix Audio Hotload Volume & Voice Cleanup (`MED-03`)**:
+- [x] **9. Fix Audio Hotload Volume & Voice Cleanup (`MED-03`)**:
   - Respect `cue.baseVolume` in `AudioEngine.hotUpdateCue()`, update active ambiance volume in `playAmbianceCue()` when `volumeMultiplier` changes on the same `cueId`, and clean up stopped voices in `activeCueVoices` / `activeVoiceMap`.
 - [ ] **10. Fix Environment Overrides, `/spawn` Item Placement, `SpritePicker` Theme Preview, and Minor Cleanup (`MED-04`, `MED-05`, `MED-06`, `LOW-01`)**:
   - Pass `sectorCondition` overrides to `GameAudioSystem`, read actual `FloorState.currentFloor` in `page.tsx` and `DevTerminal.tsx`, lift `EnvironmentOverrideBar` state to `useGamedataStore` and render in `GamedataTool.tsx`, read `propBeaconIntervalSec` from `lighting.json`, use `grid.addItem()` for spawned items in `SPAWN_ENTITY`, pass `clipThemeId` and add clip state removal in `SpritePicker.tsx`, update `__NIRMATA_DEV_RUNTIME__` perf refs in `page.tsx`, and clean up `next-env.d.ts`.
