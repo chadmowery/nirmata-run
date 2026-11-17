@@ -80,9 +80,6 @@ import '../game/config/lighting';
 import { getFovConfig } from '../game/config/fov';
 import { loadThemedAssets } from './assets';
 import { LightSource, LightSourceData } from '@shared/components/light-source';
-import { TemplateId } from '@shared/components/template-id';
-import { Shell } from '@shared/components/shell';
-import { resolveShellSpawnSprite } from '@shared/utils/shell-sprite-util';
 import type { FactionTheme, SectorCondition } from '@shared/components/environment';
 import {
   LightingSystem,
@@ -161,7 +158,6 @@ export interface RenderSystem {
     heatPercent?: number | null;
     stabilityPercent?: number | null;
   }): void;
-  applyHotloadPreview(domain: string, targetId: string, payload: unknown): void;
 }
 
 /**
@@ -2014,82 +2010,6 @@ export function createRenderSystem(config: RenderSystemConfig) {
         const pSprite = getEntitySprite(playerEntity);
         if (pSprite && !devFlags.disableSpriteFilters) {
           updateSpriteGhosting(pSprite, tier.tier, layers.entityLayer);
-        }
-      }
-    },
-
-    applyHotloadPreview(domain: string, targetId: string, payload: unknown) {
-      if (!payload || typeof payload !== 'object') return;
-      const data = payload as Record<string, unknown>;
-
-      if (domain === 'shell') {
-        const playerEntity = getPlayerEntity();
-        if (!world.entityExists(playerEntity)) return;
-        const shell = world.getComponent(playerEntity, Shell);
-        if (!shell || shell.archetypeId !== targetId) return;
-
-        const nextDirectional = data.directionalSprites as Record<string, string> | undefined;
-        const nextDefaultDir = data.defaultDirection as
-          | 'north'
-          | 'east'
-          | 'south'
-          | 'west'
-          | undefined;
-        const baseSprite = data.sprite as string | undefined;
-        world.patchComponent(playerEntity, Shell, {
-          directionalSprites: nextDirectional,
-          defaultDirection: nextDefaultDir,
-        });
-
-        const currentSprite = world.getComponent(playerEntity, SpriteComponent);
-        const resolvedKey = resolveShellSpawnSprite(
-          {
-            sprite: baseSprite ?? currentSprite?.key ?? 'player_vanguard',
-            directionalSprites: nextDirectional,
-            defaultDirection: nextDefaultDir,
-          } as Parameters<typeof resolveShellSpawnSprite>[0],
-        );
-        if (resolvedKey && currentSprite) {
-          world.patchComponent(playerEntity, SpriteComponent, { key: resolvedKey });
-          system.applyHotloadSpriteUpdate(playerEntity);
-        }
-
-        const nextLight = data.lightSource as LightSourceData | undefined;
-        if (nextLight) {
-          if (world.hasComponent(playerEntity, LightSource)) {
-            world.patchComponent(playerEntity, LightSource, nextLight);
-          } else {
-            world.addComponent(playerEntity, LightSource, nextLight);
-          }
-        }
-        return;
-      }
-
-      if (domain === 'entity' || domain === 'mixin') {
-        const comps = (data.components as Record<string, unknown> | undefined) ?? {};
-        const nextSprite = comps.sprite as Record<string, unknown> | undefined;
-        const nextLight = comps.lightSource as LightSourceData | undefined;
-
-        for (const eid of world.query(TemplateId)) {
-          const tplId = world.getComponent(eid, TemplateId);
-          if (!tplId) continue;
-          const matches =
-            domain === 'entity'
-              ? tplId.id === targetId
-              : tplId.id === targetId; // Mixin live preview applies on commit or direct match
-          if (!matches) continue;
-
-          if (nextSprite && world.hasComponent(eid, SpriteComponent)) {
-            world.patchComponent(eid, SpriteComponent, nextSprite);
-            system.applyHotloadSpriteUpdate(eid);
-          }
-          if (nextLight) {
-            if (world.hasComponent(eid, LightSource)) {
-              world.patchComponent(eid, LightSource, nextLight);
-            } else {
-              world.addComponent(eid, LightSource, nextLight);
-            }
-          }
         }
       }
     },

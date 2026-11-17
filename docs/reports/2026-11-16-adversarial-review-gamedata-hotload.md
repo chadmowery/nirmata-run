@@ -77,7 +77,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
 
 ### High / Architectural Violation
 
-#### [HIGH-01] `RenderSystem.applyHotloadPreview()` Directly Mutates ECS `World` (`src/rendering/AGENTS.md` §2.1 Violation) & Fails on Mixin Previews and `LightSource` Revert
+#### [HIGH-01] `RenderSystem.applyHotloadPreview()` Directly Mutates ECS `World` (`src/rendering/AGENTS.md` §2.1 Violation) & Fails on Mixin Previews and `LightSource` Revert — **[RESOLVED]**
 - **Location**: [`src/rendering/render-system.ts:2021-2095`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/rendering/render-system.ts#L2021-L2095), [`src/dev-tool/hotload/client-hotload-bridge.ts:383-390`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/hotload/client-hotload-bridge.ts#L383-L390)
 - **Vulnerability / Gap**:
   1. **Layer Rulebook Violation**: [`src/rendering/AGENTS.md`](../../src/rendering/AGENTS.md) §2.1 strictly mandates: *"The renderer is purely a visual subscriber. It reads components from `World` and `Grid` and listens to `EventBus` signals. Never mutate game state..."* Yet `RenderSystem.applyHotloadPreview()` directly calls `world.patchComponent()` and `world.addComponent()` on `Shell`, `SpriteComponent`, and `LightSource`.
@@ -220,7 +220,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
   - Update `src/app/api/dev/gamedata/utils.ts` to emit `registerGameTemplates`, `getDefaultEntityRegistry`, and `getTemplateSpriteKey` matching `src/game/entities/index.ts`, and add a regression test.
 - [x] **2. Fix `hotReloadThemeAssets()` Texture Disposal Order & Animator Sync (`CRIT-02`)**:
   - In `src/rendering/assets.ts`, defer `prevAsset.destroy(true)` until after all new diffuse/companion textures are cached and `refreshEntitySpriteTextures()` + `spriteAnimator` frame invalidation have run. Reload base `'default'` alongside dedicated themes on `/hotload reload-assets`.
-- [ ] **3. Decouple `RenderSystem.applyHotloadPreview()` from `World` Mutations (`HIGH-01`)**:
+- [x] **3. Decouple `RenderSystem.applyHotloadPreview()` from `World` Mutations (`HIGH-01`)**:
   - Move ECS component preview/revert patching into `ClientHotloadBridge`, remove `LightSource` when `nextLight` is `undefined` on revert, and resolve mixin-inheriting entities during mixin preview/revert.
 - [ ] **4. Implement Live Server Registry Refresh for AI Trees, Spawn Tables, Configs & Prefabs (`HIGH-02`)**:
   - Add `PUT /api/dev/gamedata/ai-trees/[treeId]` updating `AIBehaviorRegistry`; add runtime setters for `depthConfig`, `lootDistribution`, `depthDistribution`, and `ALL_PREFABS`; and upsert newly `POST`ed entities/mixins into active session registries and `getDefaultEntityRegistry()`.

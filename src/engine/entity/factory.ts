@@ -14,6 +14,10 @@ export class EntityFactory {
     private hierarchyConfig?: HierarchyConfig,
   ) {}
 
+  getRegistry(): EntityRegistry {
+    return this.registry;
+  }
+
   /**
    * Create an entity by template name.
    * @param world The World to create the entity in.

@@ -1,13 +1,28 @@
 import type { ComponentDef } from '@engine/ecs/types';
+import { EntityRegistry } from '@engine/entity/registry';
+import { resolveMixins } from '@engine/entity/builder';
+import type { RawTemplate } from '@engine/entity/types';
 import type { GameContext } from '@/game/types';
 import type { RenderSystem } from '@/rendering/render-system';
 import type { GameAudioSystem } from '@/game/audio/game-audio-system';
 import { getAudioEngine, type SoundCueDef } from '@engine/audio';
 import { registerSoundCue } from '@/game/audio/cue-registry';
 import { setAmbianceConfig, type AmbianceConfig } from '@/game/config/ambiance';
-import { COMPONENTS_REGISTRY } from '@shared/components';
-import { FloorState } from '@shared/components/floor-state';
-import { Shell } from '@shared/components/shell';
+import { getDefaultEntityRegistry } from '@/game/entities';
+import {
+  COMPONENTS_REGISTRY,
+  FloorState,
+  LightSource,
+  Shell,
+  SpriteComponent,
+  TemplateId,
+} from '@shared/components';
+import {
+  inferShellFacingDirection,
+  resolveShellSpriteForDirection,
+  type CardinalDirectionSuffix,
+  type ShellDirectionalSprites,
+} from '@shared/utils/shell-sprite-util';
 import { gameStore } from '@/game/ui/store';
 import { syncEngineToStore } from '@/game/ui/sync-bridge';
 import { GameState } from '@/game/states/types';
@@ -387,11 +402,152 @@ export class ClientHotloadBridge {
 
   private applyPresentationPreview(envelope: HotloadEnvelope): void {
     const ctx = this.deps.getContext();
+    if (!ctx || !envelope.payload || typeof envelope.payload !== 'object') return;
+    const { world } = ctx;
     const rs = this.deps.getRenderSystem() as (RenderSystem & {
-      applyHotloadPreview?: (domain: string, targetId: string, payload: unknown) => void;
+      applyHotloadSpriteUpdate?: (entityId: number) => void;
     }) | null;
-    if (!ctx || !rs?.applyHotloadPreview) return;
-    rs.applyHotloadPreview(envelope.domain, envelope.targetId, envelope.payload);
+    const data = envelope.payload as Record<string, unknown>;
+
+    if (envelope.domain === 'shell') {
+      const playerId = ctx.playerId ?? world.query(Shell)[0];
+      if (playerId === undefined || !world.entityExists(playerId)) return;
+      const shell = world.getComponent(playerId, Shell);
+      if (!shell || shell.archetypeId !== envelope.targetId) return;
+
+      const currentSprite = world.getComponent(playerId, SpriteComponent);
+      const currentFacing = inferShellFacingDirection(
+        currentSprite?.key,
+        shell.directionalSprites,
+        shell.defaultDirection,
+      );
+
+      const nextDirectional = data.directionalSprites as ShellDirectionalSprites | undefined;
+      const nextDefaultDir = data.defaultDirection as CardinalDirectionSuffix | undefined;
+      const baseSprite = data.sprite as string | undefined;
+
+      const nextShell: Record<string, unknown> = {
+        ...shell,
+        defaultDirection: nextDefaultDir,
+      };
+      if (nextDirectional !== undefined) {
+        nextShell.directionalSprites = nextDirectional;
+      } else {
+        delete nextShell.directionalSprites;
+      }
+      const parsedShell = Shell.schema.safeParse(nextShell);
+      if (parsedShell.success) {
+        world.addComponent(playerId, Shell, parsedShell.data);
+      }
+
+      const resolvedKey = resolveShellSpriteForDirection(
+        {
+          archetypeId: shell.archetypeId,
+          sprite: baseSprite ?? currentSprite?.key ?? 'player_vanguard',
+          directionalSprites: nextDirectional,
+          defaultDirection: nextDefaultDir,
+        },
+        currentFacing,
+      );
+      if (resolvedKey && currentSprite) {
+        const parsedSprite = SpriteComponent.schema.safeParse({
+          ...currentSprite,
+          key: resolvedKey,
+        });
+        if (parsedSprite.success) {
+          world.addComponent(playerId, SpriteComponent, parsedSprite.data);
+          rs?.applyHotloadSpriteUpdate?.(playerId);
+        }
+      }
+
+      const nextLight = data.lightSource;
+      if (nextLight && typeof nextLight === 'object') {
+        const parsedLight = LightSource.schema.safeParse(nextLight);
+        if (parsedLight.success) {
+          world.addComponent(playerId, LightSource, parsedLight.data);
+        }
+      } else if (world.hasComponent(playerId, LightSource)) {
+        world.removeComponent(playerId, LightSource);
+      }
+      return;
+    }
+
+    if (envelope.domain === 'entity' || envelope.domain === 'mixin') {
+      const baseRegistry = ctx.entityFactory?.getRegistry?.() ?? getDefaultEntityRegistry();
+      let previewRegistry = baseRegistry;
+
+      if (envelope.domain === 'mixin') {
+        previewRegistry = new EntityRegistry();
+        for (const tpl of baseRegistry.getAll()) {
+          previewRegistry.upsert(tpl);
+        }
+        previewRegistry.upsertMixin(envelope.targetId, data as unknown as RawTemplate);
+      }
+
+      const templateInheritsMixin = (
+        templateName: string,
+        mixinName: string,
+        seen = new Set<string>(),
+      ): boolean => {
+        if (seen.has(templateName)) return false;
+        seen.add(templateName);
+        const tpl = baseRegistry.get(templateName);
+        if (!tpl?.mixins?.length) return false;
+        if (tpl.mixins.includes(mixinName)) return true;
+        return tpl.mixins.some((m) => templateInheritsMixin(m, mixinName, seen));
+      };
+
+      for (const eid of world.query(TemplateId)) {
+        const tplId = world.getComponent(eid, TemplateId);
+        if (!tplId) continue;
+
+        let resolved: Record<string, unknown>;
+        if (envelope.domain === 'entity') {
+          if (tplId.id !== envelope.targetId) continue;
+          try {
+            resolved = resolveMixins(data as unknown as RawTemplate, baseRegistry);
+          } catch {
+            resolved = (data.components as Record<string, unknown> | undefined) ?? {};
+          }
+        } else {
+          if (
+            tplId.id !== envelope.targetId &&
+            !templateInheritsMixin(tplId.id, envelope.targetId)
+          ) {
+            continue;
+          }
+          const entityTpl = previewRegistry.get(tplId.id);
+          if (entityTpl) {
+            try {
+              resolved = resolveMixins(entityTpl, previewRegistry);
+            } catch {
+              resolved = (data.components as Record<string, unknown> | undefined) ?? {};
+            }
+          } else {
+            resolved = (data.components as Record<string, unknown> | undefined) ?? {};
+          }
+        }
+
+        const nextSprite = resolved.sprite;
+        if (nextSprite && typeof nextSprite === 'object') {
+          const parsedSprite = SpriteComponent.schema.safeParse(nextSprite);
+          if (parsedSprite.success) {
+            world.addComponent(eid, SpriteComponent, parsedSprite.data);
+            rs?.applyHotloadSpriteUpdate?.(eid);
+          }
+        }
+
+        const nextLight = resolved.lightSource;
+        if (nextLight && typeof nextLight === 'object') {
+          const parsedLight = LightSource.schema.safeParse(nextLight);
+          if (parsedLight.success) {
+            world.addComponent(eid, LightSource, parsedLight.data);
+          }
+        } else if (world.hasComponent(eid, LightSource)) {
+          world.removeComponent(eid, LightSource);
+        }
+      }
+    }
   }
 
   public applySessionPatch(ctx: GameContext, patch: SessionHotloadPatch): void {
