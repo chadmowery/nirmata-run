@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import path from 'path';
 import { access } from 'fs/promises';
 import { checkNonProductionOnly } from '@/server/security/env-gate';
-import { listJsonFiles, atomicWrite, resolveFilePath, errorResponse, regenerateTemplateIndex } from '../utils';
+import { listJsonFiles, atomicWrite, resolveFilePath, errorResponse, regeneratePrefabTemplateIndex } from '../utils';
 import { RoomPrefabTemplateSchema } from '../schemas';
 import { validatePrefabRules } from '../prefab-validator';
 
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     }
 
     await atomicWrite(filePath, body);
-    await regenerateTemplateIndex();
+    await regeneratePrefabTemplateIndex();
 
     return NextResponse.json({ success: true, id: body.id }, { status: 201 });
   } catch (error) {

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 import { checkNonProductionOnly } from '@/server/security/env-gate';
-import { resolveFilePath, atomicWrite, errorResponse, regenerateTemplateIndex } from '../../utils';
+import { resolveFilePath, atomicWrite, errorResponse, regeneratePrefabTemplateIndex } from '../../utils';
 import { RoomPrefabTemplateSchema } from '../../schemas';
 import { validatePrefabRules } from '../../prefab-validator';
 import { hotloadBus } from '@/server/dev/hotload-bus';
@@ -71,7 +71,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ name
 
   try {
     await fs.unlink(filePath);
-    await regenerateTemplateIndex();
+    await regeneratePrefabTemplateIndex();
     return NextResponse.json({ success: true });
   } catch {
     return errorResponse('Not found', 404);

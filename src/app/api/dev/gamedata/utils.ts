@@ -78,70 +78,105 @@ export async function regenerateShellTemplateIndex(): Promise<void> {
   await writeIfChanged(shellIndexPath, shellImports.join('\n'));
 }
 
-export async function regenerateTemplateIndex(): Promise<void> {
-  const root = process.cwd();
-
-  // 1. Entities & Mixins index
+export async function buildEntityIndexContent(root: string = process.cwd()): Promise<string> {
   const entityDir = path.join(root, 'src/game/entities/templates');
   const mixinDir = path.join(root, 'src/game/entities/templates/mixins');
-  const entityIndexPath = path.join(root, 'src/game/entities/index.ts');
 
   const mixinFiles = (await listJsonFiles(mixinDir)).sort();
   const entityFiles = (await listJsonFiles(entityDir)).filter((f) => f !== 'economy').sort();
 
-  const entityImports: string[] = [
+  const lines: string[] = [
     `import { EntityRegistry } from '../../engine/entity/registry';`,
     `import { RawTemplate } from '../../engine/entity/types';`,
     '',
   ];
 
   for (const m of mixinFiles) {
-    entityImports.push(`import ${toIdentifier(m)} from './templates/mixins/${m}.json';`);
+    lines.push(`import ${toIdentifier(m)} from './templates/mixins/${m}.json';`);
   }
   for (const e of entityFiles) {
-    entityImports.push(`import ${toIdentifier(e)} from './templates/${e}.json';`);
+    lines.push(`import ${toIdentifier(e)} from './templates/${e}.json';`);
   }
 
-  entityImports.push('');
-  entityImports.push(`export function registerBaseTemplates(registry: EntityRegistry): void {`);
+  lines.push('');
+  lines.push(`/**`);
+  lines.push(` * Registers all game entity templates and mixins.`);
+  lines.push(` */`);
+  lines.push(`export function registerGameTemplates(registry: EntityRegistry): void {`);
 
   for (const m of mixinFiles) {
-    entityImports.push(`  registry.registerMixin('${m}', ${toIdentifier(m)} as RawTemplate);`);
+    lines.push(`  registry.registerMixin('${m}', ${toIdentifier(m)} as unknown as RawTemplate);`);
   }
   for (const e of entityFiles) {
     const ident = toIdentifier(e);
-    entityImports.push(`  registry.register(${ident} as unknown as RawTemplate);`);
+    lines.push(`  registry.register(${ident} as unknown as RawTemplate);`);
     if (['phased-overdrive', 'neural-recursion', 'static-collapse', 'void-echo'].includes(e)) {
-      entityImports.push(`  registry.register({ ...(${ident} as unknown as RawTemplate), name: '${ident.toUpperCase()}' });`);
+      lines.push(`  registry.register({ ...(${ident} as unknown as RawTemplate), name: '${ident.toUpperCase()}' });`);
     }
   }
 
-  entityImports.push(`}`);
-  entityImports.push('');
+  lines.push(`}`);
+  lines.push('');
+  lines.push(`let defaultEntityRegistry: EntityRegistry | null = null;`);
+  lines.push('');
+  lines.push(`/**`);
+  lines.push(` * Returns a shared singleton EntityRegistry populated with all default templates.`);
+  lines.push(` */`);
+  lines.push(`export function getDefaultEntityRegistry(): EntityRegistry {`);
+  lines.push(`  if (!defaultEntityRegistry) {`);
+  lines.push(`    defaultEntityRegistry = new EntityRegistry();`);
+  lines.push(`    registerGameTemplates(defaultEntityRegistry);`);
+  lines.push(`  }`);
+  lines.push(`  return defaultEntityRegistry;`);
+  lines.push(`}`);
+  lines.push('');
+  lines.push(`/**`);
+  lines.push(` * Resolves the authoritative sprite key for an entity template, with directional variant support.`);
+  lines.push(` */`);
+  lines.push(`export function getTemplateSpriteKey(templateName: string, orientation?: string): string | null {`);
+  lines.push(`  const reg = getDefaultEntityRegistry();`);
+  lines.push(`  if (orientation) {`);
+  lines.push(`    const o = orientation.toLowerCase()[0];`);
+  lines.push(`    const directionalName = \`\${templateName}-\${o}\`;`);
+  lines.push(`    const dirTmpl = reg.get(directionalName);`);
+  lines.push(`    if (dirTmpl) {`);
+  lines.push(`      const spriteKey =`);
+  lines.push(`        (dirTmpl.components?.sprite as { key?: string } | undefined)?.key ||`);
+  lines.push(`        (dirTmpl.overrides?.sprite as { key?: string } | undefined)?.key;`);
+  lines.push(`      if (spriteKey) return spriteKey;`);
+  lines.push(`    }`);
+  lines.push(`    const hvName = \`\${templateName}-\${o === 'n' || o === 's' ? 'h' : 'v'}\`;`);
+  lines.push(`    const hvTmpl = reg.get(hvName);`);
+  lines.push(`    if (hvTmpl) {`);
+  lines.push(`      const spriteKey =`);
+  lines.push(`        (hvTmpl.components?.sprite as { key?: string } | undefined)?.key ||`);
+  lines.push(`        (hvTmpl.overrides?.sprite as { key?: string } | undefined)?.key;`);
+  lines.push(`      if (spriteKey) return spriteKey;`);
+  lines.push(`    }`);
+  lines.push(`  }`);
+  lines.push('');
+  lines.push(`  const tmpl = reg.get(templateName);`);
+  lines.push(`  if (tmpl) {`);
+  lines.push(`    const spriteKey =`);
+  lines.push(`      (tmpl.components?.sprite as { key?: string } | undefined)?.key ||`);
+  lines.push(`      (tmpl.overrides?.sprite as { key?: string } | undefined)?.key;`);
+  lines.push(`    if (spriteKey) return spriteKey;`);
+  lines.push(`  }`);
+  lines.push('');
+  lines.push(`  return null;`);
+  lines.push(`}`);
+  lines.push('');
 
-  await writeIfChanged(entityIndexPath, entityImports.join('\n'));
+  return lines.join('\n');
+}
 
-  // 2. Shells client index
-  const shellDir = path.join(root, 'src/game/shells/shared/templates');
-  const shellIndexPath = path.join(root, 'src/game/shells/client/index.ts');
-  const shellFiles = (await listJsonFiles(shellDir)).sort();
+export async function regenerateEntityTemplateIndex(root: string = process.cwd()): Promise<void> {
+  const entityIndexPath = path.join(root, 'src/game/entities/index.ts');
+  const nextEntityIndex = await buildEntityIndexContent(root);
+  await writeIfChanged(entityIndexPath, nextEntityIndex);
+}
 
-  const shellImports: string[] = [
-    `import { ShellRegistry } from '../server/shell-registry';`,
-  ];
-  for (const s of shellFiles) {
-    shellImports.push(`import ${toIdentifier(s)} from '../shared/templates/${s}.json';`);
-  }
-  shellImports.push('');
-  shellImports.push(`export const globalShellRegistry = new ShellRegistry();`);
-  for (const s of shellFiles) {
-    shellImports.push(`globalShellRegistry.register(${toIdentifier(s)});`);
-  }
-  shellImports.push('');
-
-  await writeIfChanged(shellIndexPath, shellImports.join('\n'));
-
-  // 3. Room Prefabs index
+export async function regeneratePrefabTemplateIndex(root: string = process.cwd()): Promise<void> {
   const prefabDir = path.join(root, 'src/game/generation/prefabs');
   const prefabIndexPath = path.join(root, 'src/game/generation/prefabs/index.ts');
   const prefabFiles = (await listJsonFiles(prefabDir)).sort();
@@ -183,4 +218,11 @@ export async function regenerateTemplateIndex(): Promise<void> {
   prefabImports.push('');
 
   await writeIfChanged(prefabIndexPath, prefabImports.join('\n'));
+}
+
+export async function regenerateTemplateIndex(): Promise<void> {
+  const root = process.cwd();
+  await regenerateEntityTemplateIndex(root);
+  await regenerateShellTemplateIndex();
+  await regeneratePrefabTemplateIndex(root);
 }

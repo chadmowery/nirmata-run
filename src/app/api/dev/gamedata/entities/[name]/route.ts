@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 import { checkNonProductionOnly } from '@/server/security/env-gate';
-import { resolveFilePath, atomicWrite, errorResponse, regenerateTemplateIndex } from '../../utils';
+import { resolveFilePath, atomicWrite, errorResponse, regenerateEntityTemplateIndex } from '../../utils';
 import { RawTemplateSchema } from '../../schemas';
 import { validateEcsRules } from '../../ecs-rules';
 import { COMPONENTS_REGISTRY } from '@shared/components';
@@ -87,7 +87,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ name
 
   try {
     await fs.unlink(filePath);
-    await regenerateTemplateIndex();
+    await regenerateEntityTemplateIndex();
     return NextResponse.json({ success: true });
   } catch {
     return errorResponse('Not found', 404);

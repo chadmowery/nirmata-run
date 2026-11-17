@@ -49,7 +49,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
 
 ### Critical / Blocker
 
-#### [CRIT-01] `regenerateTemplateIndex()` Emits Obsolete `registerBaseTemplates` and Wipes Out Required Exports in `src/game/entities/index.ts`
+#### [CRIT-01] `regenerateTemplateIndex()` Emits Obsolete `registerBaseTemplates` and Wipes Out Required Exports in `src/game/entities/index.ts` — **[RESOLVED]**
 - **Location**: [`src/app/api/dev/gamedata/utils.ts:81-122`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/app/api/dev/gamedata/utils.ts#L81-L122), [`src/game/entities/index.ts:98-245`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/game/entities/index.ts#L98-L245)
 - **Vulnerability / Gap**:
   In `HOTLOAD-02`, `writeIfChanged()` was added to `regenerateTemplateIndex()` to prevent unnecessary barrel file writes. However, `regenerateTemplateIndex()` generates:
@@ -216,7 +216,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
 
 ## 4. Actionable Remediation Plan
 
-- [ ] **1. Fix `regenerateTemplateIndex()` (`CRIT-01`)**:
+- [x] **1. Fix `regenerateTemplateIndex()` (`CRIT-01`)**:
   - Update `src/app/api/dev/gamedata/utils.ts` to emit `registerGameTemplates`, `getDefaultEntityRegistry`, and `getTemplateSpriteKey` matching `src/game/entities/index.ts`, and add a regression test.
 - [ ] **2. Fix `hotReloadThemeAssets()` Texture Disposal Order & Animator Sync (`CRIT-02`)**:
   - In `src/rendering/assets.ts`, defer `prevAsset.destroy(true)` until after all new diffuse/companion textures are cached and `refreshEntitySpriteTextures()` + `spriteAnimator` frame invalidation have run. Reload base `'default'` alongside dedicated themes on `/hotload reload-assets`.

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import path from 'path';
 import { access } from 'fs/promises';
 import { checkNonProductionOnly } from '@/server/security/env-gate';
-import { listJsonFiles, atomicWrite, resolveFilePath, errorResponse, regenerateTemplateIndex } from '../utils';
+import { listJsonFiles, atomicWrite, resolveFilePath, errorResponse, regenerateEntityTemplateIndex } from '../utils';
 import { RawTemplateSchema } from '../schemas';
 
 const DIR = path.join(process.cwd(), 'src/game/entities/templates/mixins');
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     }
 
     await atomicWrite(filePath, body);
-    await regenerateTemplateIndex();
+    await regenerateEntityTemplateIndex();
 
     return NextResponse.json({ success: true, name: body.name }, { status: 201 });
   } catch (error) {
