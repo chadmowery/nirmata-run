@@ -253,6 +253,17 @@ export default function GamePage() {
           };
           perfTickerCallbackRef.current = perfTicker;
           app.ticker.add(perfTicker, undefined, UPDATE_PRIORITY.UTILITY);
+
+          if (
+            globalForDevRuntime.__NIRMATA_DEV_RUNTIME__ &&
+            globalForDevRuntime.__NIRMATA_DEV_RUNTIME__.app === app
+          ) {
+            globalForDevRuntime.__NIRMATA_DEV_RUNTIME__.webglProbe = probe;
+            globalForDevRuntime.__NIRMATA_DEV_RUNTIME__.perfCollector = perfCollector;
+            globalForDevRuntime.__NIRMATA_DEV_RUNTIME__.perfTickerCallback = perfTicker;
+            globalForDevRuntime.__NIRMATA_DEV_RUNTIME__.unsubscribePerfMode =
+              unsubscribePerfModeRef.current;
+          }
         });
 
         const anyHandler = (type: string) => {

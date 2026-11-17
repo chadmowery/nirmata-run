@@ -4,7 +4,7 @@
 - **Branch Reviewed**: `feature/gamedata-hotload` (`701b6774`) against `main` (`f6a14d52`)
 - **Target Specification**: [`docs/design/GAMEDATA-HOTLOAD-SPEC.md`](../design/GAMEDATA-HOTLOAD-SPEC.md)
 - **Architectural Rulebooks**: [`AGENTS.md`](../../AGENTS.md), [`src/engine/AGENTS.md`](../../src/engine/AGENTS.md), [`src/shared/AGENTS.md`](../../src/shared/AGENTS.md), [`src/rendering/AGENTS.md`](../../src/rendering/AGENTS.md), [`src/client/AGENTS.md`](../../src/client/AGENTS.md), [`src/server/AGENTS.md`](../../src/server/AGENTS.md), [`src/dev-tool/AGENTS.md`](../../src/dev-tool/AGENTS.md)
-- **Overall Verdict**: **CHANGES REQUIRED (2 Critical Blockers, 5 High Architectural/Spec Violations, 6 Medium Spec Gaps, 1 Low Issue)**
+- **Overall Verdict**: **RESOLVED** (Previously: *CHANGES REQUIRED* — all 2 Critical, 5 High, 6 Medium, and 1 Low findings remediated on `fix/gamedata-hotload-issues`)
 
 ---
 
@@ -203,7 +203,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
 
 ### Low / Code Quality & Minor
 
-#### [LOW-01] Async Perf Probe Refs Not Synced to `__NIRMATA_DEV_RUNTIME__`, Missing `Cmd+S`/`Revert` Listeners in `SpawnTableEditor` & `PrefabEditor`, and Dirty `next-env.d.ts`
+#### [LOW-01] Async Perf Probe Refs Not Synced to `__NIRMATA_DEV_RUNTIME__`, Missing `Cmd+S`/`Revert` Listeners in `SpawnTableEditor` & `PrefabEditor`, and Dirty `next-env.d.ts` — **[RESOLVED]**
 - **Location**: [`src/app/page.tsx:206-304`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/app/page.tsx#L206-L304), [`src/dev-tool/studio/editors/SpawnTableEditor.tsx`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/studio/editors/SpawnTableEditor.tsx), [`src/dev-tool/studio/editors/PrefabEditor.tsx`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/studio/editors/PrefabEditor.tsx), [`next-env.d.ts`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/next-env.d.ts)
 - **Vulnerability / Gap**:
   1. In `src/app/page.tsx`, `globalForDevRuntime.__NIRMATA_DEV_RUNTIME__` is assigned synchronously before `Promise.all([import('@dev-tool/perf/...')])` resolves, leaving `webglProbe`, `perfCollector`, `perfTickerCallback`, and `unsubscribePerfMode` as `null` on `__NIRMATA_DEV_RUNTIME__` after a Fast Refresh re-attach.
@@ -240,5 +240,5 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
   - Use `grid.addItem()` for spawned items in `SPAWN_ENTITY` and update tile walkability when `BlocksMovement` is present.
 - [x] **10c. Fix `SpritePicker` Theme Preview & Clip Deletion (`MED-06`)**:
   - Pass `clipThemeId`, add clip state removal in `SpritePicker.tsx`, and propagate `hotUpdateAnimations()` to active theme manifests when `propagateToThemes` is true.
-- [ ] **10d. Minor Cleanup (`LOW-01`)**:
-  - Update `__NIRMATA_DEV_RUNTIME__` perf refs in `page.tsx`, add `gamedata-save` / `gamedata-revert` handlers in `SpawnTableEditor` & `PrefabEditor`, and verify `next-env.d.ts`.
+- [x] **10d. Minor Cleanup (`LOW-01`)**:
+  - Update `__NIRMATA_DEV_RUNTIME__` perf refs in `page.tsx`, add `gamedata-save` / `gamedata-revert` handlers in `SpawnTableEditor` & `PrefabEditor`, and verify `next-env.d.ts` is clean.

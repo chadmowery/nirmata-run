@@ -13,6 +13,7 @@ import {
   RoomGeneratorConfig,
 } from '@/game/generation/prefabs/room-generator';
 import { validatePrefabRules, PrefabValidationError } from '@/app/api/dev/gamedata/prefab-validator';
+import { postHotloadCommit } from '@dev-tool/hotload/studio-sync';
 import styles from './editors.module.css';
 
 interface Props {
@@ -79,6 +80,7 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
 
   const [prefabData, setPrefabData] = useState<RoomPrefabTemplate | null>(null);
   const [propSpawnsWithOrient, setPropSpawnsWithOrient] = useState<EditorPropSpawn[]>([]);
+  const baselineRef = useRef<{ prefab: RoomPrefabTemplate; propSpawns: EditorPropSpawn[] } | null>(null);
   const [selectedBrush, setSelectedBrush] = useState<BrushType>('#');
   const [brushOrientation, setBrushOrientation] = useState<CardinalOrientation>('NORTH');
   const [activeTool, setActiveTool] = useState<EditorTool>('pencil');
@@ -147,13 +149,16 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
       fetch(`/api/dev/gamedata/prefabs/${name}`)
         .then((r) => r.json())
         .then((data: RoomPrefabTemplate) => {
+          const spawns = (data.propSpawns || []).map((p) => ({
+            ...p,
+            orientation: (p as EditorPropSpawn).orientation || 'NORTH',
+          }));
           setPrefabData(data);
-          setPropSpawnsWithOrient(
-            (data.propSpawns || []).map((p) => ({
-              ...p,
-              orientation: (p as EditorPropSpawn).orientation || 'NORTH',
-            })),
-          );
+          setPropSpawnsWithOrient(spawns);
+          baselineRef.current = {
+            prefab: structuredClone(data),
+            propSpawns: structuredClone(spawns),
+          };
           setDirty(false);
         })
         .catch(() => setErrors(['Failed to load prefab']));
@@ -983,8 +988,14 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
         throw new Error(err.error || 'Failed to save prefab');
       }
 
+      const resData = await res.json().catch(() => ({}));
       setSaveStatus('success');
+      baselineRef.current = {
+        prefab: structuredClone(currentPrefab),
+        propSpawns: structuredClone(propSpawnsWithOrient),
+      };
       setDirty(false);
+      postHotloadCommit('prefab', currentPrefab.id, currentPrefab, undefined, resData.envelope?.id);
       onRefresh?.();
 
       if (isNew) {
@@ -994,14 +1005,27 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
       setErrors([err instanceof Error ? err.message : 'Save failed']);
       setSaveStatus('error');
     }
-  }, [prefabData, currentPrefab, isNew, name, setDirty, onRefresh, selectItem]);
+  }, [prefabData, propSpawnsWithOrient, currentPrefab, isNew, name, setDirty, onRefresh, selectItem]);
 
-  // Global save listener
+  // Global save & revert listeners
   useEffect(() => {
     const onSaveKey = () => handleSave();
     window.addEventListener('gamedata-save', onSaveKey);
     return () => window.removeEventListener('gamedata-save', onSaveKey);
   }, [handleSave]);
+
+  useEffect(() => {
+    const onRevert = () => {
+      if (!baselineRef.current || isNew) return;
+      setPrefabData(structuredClone(baselineRef.current.prefab));
+      setPropSpawnsWithOrient(structuredClone(baselineRef.current.propSpawns));
+      setHistory([]);
+      setRedoStack([]);
+      setDirty(false);
+    };
+    window.addEventListener('gamedata-revert', onRevert);
+    return () => window.removeEventListener('gamedata-revert', onRevert);
+  }, [isNew, setDirty]);
 
   const handleClone = () => {
     if (!currentPrefab) return;

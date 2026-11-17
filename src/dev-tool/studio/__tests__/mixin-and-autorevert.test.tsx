@@ -4,6 +4,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import * as studioSync from '@dev-tool/hotload/studio-sync';
 import { useGamedataStore } from '../store';
 import { MixinEditor } from '../editors/MixinEditor';
+import { SpawnTableEditor } from '../editors/SpawnTableEditor';
 
 describe('MixinEditor Hotload & Auto-Revert on Unmount (MED-01, MED-02)', () => {
   const origFetch = globalThis.fetch;
@@ -117,5 +118,69 @@ describe('MixinEditor Hotload & Auto-Revert on Unmount (MED-01, MED-02)', () => 
 
     unmount2();
     expect(revertSpy).not.toHaveBeenCalled();
+  });
+
+  it('SpawnTableEditor handles gamedata-save (Cmd+S) and gamedata-revert events (LOW-01)', async () => {
+    const commitSpy = vi.spyOn(studioSync, 'postHotloadCommit').mockImplementation(() => {});
+    const baselineTable = {
+      name: 'depth-distribution',
+      tables: [
+        {
+          depthRange: { min: 1, max: 3 },
+          enemiesPerRoom: { min: 1, max: 2 },
+          templates: [{ name: 'null-pointer', weight: 10 }],
+        },
+      ],
+    };
+
+    globalThis.fetch = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+      const s = String(url);
+      if (s.endsWith('/api/dev/gamedata/spawn-tables/depth-distribution') && init?.method === 'PUT') {
+        return {
+          ok: true,
+          json: async () => ({ success: true, envelope: { id: 'srv-spawn-1' } }),
+        } as unknown as Response;
+      }
+      if (s.endsWith('/api/dev/gamedata/spawn-tables/depth-distribution')) {
+        return {
+          ok: true,
+          json: async () => structuredClone(baselineTable),
+        } as unknown as Response;
+      }
+      return { ok: true, json: async () => ({}) } as unknown as Response;
+    });
+
+    render(<SpawnTableEditor name="depth-distribution" />);
+    await waitFor(() => {
+      expect(screen.getByText('Table: depth-distribution')).toBeDefined();
+    });
+
+    // Mutate by adding a band, then revert via gamedata-revert
+    fireEvent.click(screen.getByRole('button', { name: /\+ Add Depth Band/i }));
+    await waitFor(() => {
+      expect(useGamedataStore.getState().isDirty).toBe(true);
+      expect(screen.getByText(/Depth Band 2/i)).toBeDefined();
+    });
+
+    window.dispatchEvent(new CustomEvent('gamedata-revert'));
+    await waitFor(() => {
+      expect(useGamedataStore.getState().isDirty).toBe(false);
+      expect(screen.queryByText(/Depth Band 2/i)).toBeNull();
+    });
+
+    // Mutate again and save via gamedata-save
+    fireEvent.click(screen.getByRole('button', { name: /\+ Add Depth Band/i }));
+    window.dispatchEvent(new CustomEvent('gamedata-save'));
+
+    await waitFor(() => {
+      expect(commitSpy).toHaveBeenCalledWith(
+        'spawnTable',
+        'depth-distribution',
+        expect.objectContaining({ name: 'depth-distribution' }),
+        undefined,
+        'srv-spawn-1',
+      );
+      expect(useGamedataStore.getState().isDirty).toBe(false);
+    });
   });
 });
