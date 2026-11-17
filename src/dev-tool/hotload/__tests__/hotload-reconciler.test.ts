@@ -414,4 +414,42 @@ describe('Live ECS World & Server Session Reconciliation (HOTLOAD-06)', () => {
 
     globalShellRegistry.upsertTemplate(bastionTpl);
   });
+
+  it('reconciles transitive (depth >= 2) mixin inheritance across sessions (RES-02)', () => {
+    const { world, entityRegistry } = createTestSession('rec-sess-res02');
+
+    entityRegistry.upsertMixin('res02-base-mixin', {
+      name: 'res02-base-mixin',
+      components: {
+        defense: { armor: 1 },
+      },
+    });
+    entityRegistry.upsertMixin('res02-mid-mixin', {
+      name: 'res02-mid-mixin',
+      mixins: ['res02-base-mixin'],
+      components: {
+        attack: { power: 4 },
+      },
+    });
+    entityRegistry.upsert({
+      name: 'res02-deep-grunt',
+      mixins: ['res02-mid-mixin'],
+      components: {},
+    });
+
+    const gruntId = world.createEntity();
+    world.addComponent(gruntId, TemplateId, { id: 'res02-deep-grunt' });
+    world.addComponent(gruntId, Defense, { armor: 1 });
+    world.addComponent(gruntId, Attack, { power: 4 });
+
+    const patches = reconcileMixinAcrossSessions('res02-base-mixin', {
+      name: 'res02-base-mixin',
+      components: {
+        defense: { armor: 9 },
+      },
+    });
+
+    expect(patches['rec-sess-res02']).toBeDefined();
+    expect(world.getComponent(gruntId, Defense)?.armor).toBe(9);
+  });
 });

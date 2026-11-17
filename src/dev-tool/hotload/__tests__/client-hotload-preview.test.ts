@@ -191,4 +191,76 @@ describe('ClientHotloadBridge Presentation PREVIEW/REVERT (HIGH-01)', () => {
     expect(world.getComponent(player, SpriteComponent)?.key).toBe('bastion_v1_n');
     expect(world.hasComponent(player, LightSource)).toBe(false);
   });
+
+  it('upserts client EntityRegistry on entity/mixin COMMIT so subsequent mixin PREVIEW reflects updated inheritance (RES-02)', async () => {
+    const { world, ctx, bridge } = createTestContext();
+
+    // Commit a new mixin and a new entity inheriting it (neither was in initial registry)
+    await bridge.handleEnvelope({
+      id: 'commit-res02-mixin',
+      timestamp: Date.now(),
+      mode: 'COMMIT',
+      domain: 'mixin',
+      targetId: 'res02-glow-mixin',
+      payload: {
+        name: 'res02-glow-mixin',
+        components: {},
+      },
+    });
+
+    await bridge.handleEnvelope({
+      id: 'commit-res02-entity',
+      timestamp: Date.now(),
+      mode: 'COMMIT',
+      domain: 'entity',
+      targetId: 'res02-sentry',
+      payload: {
+        name: 'res02-sentry',
+        mixins: ['res02-glow-mixin'],
+        components: {
+          sprite: { key: 'enemy_null_pointer' },
+        },
+      },
+    });
+
+    const registry = ctx.entityFactory!.getRegistry();
+    expect(registry.has('res02-glow-mixin')).toBe(true);
+    expect(registry.has('res02-sentry')).toBe(true);
+
+    const sentry = world.createEntity();
+    world.addComponent(sentry, TemplateId, { id: 'res02-sentry' });
+    world.addComponent(sentry, SpriteComponent, {
+      key: 'enemy_null_pointer',
+      speedMultiplier: 1,
+      paused: false,
+      desyncPhase: false,
+    });
+
+    await bridge.handleEnvelope({
+      id: 'preview-res02-mixin',
+      timestamp: Date.now(),
+      mode: 'PREVIEW',
+      domain: 'mixin',
+      targetId: 'res02-glow-mixin',
+      payload: {
+        name: 'res02-glow-mixin',
+        components: {
+          lightSource: {
+            enabled: true,
+            color: '#00ccff',
+            intensity: 1.5,
+            radius: 128,
+            height: 18,
+            falloff: 1.8,
+            castsShadows: false,
+            offsetX: 0,
+            offsetY: 0,
+          },
+        },
+      },
+    });
+
+    expect(world.hasComponent(sentry, LightSource)).toBe(true);
+    expect(world.getComponent(sentry, LightSource)?.color).toBe('#00ccff');
+  });
 });

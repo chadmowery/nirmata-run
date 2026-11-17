@@ -1,6 +1,6 @@
 import type { ComponentDef } from '@engine/ecs/types';
 import { EntityRegistry } from '@engine/entity/registry';
-import { resolveMixins } from '@engine/entity/builder';
+import { resolveMixins, templateInheritsMixin } from '@engine/entity/builder';
 import type { RawTemplate } from '@engine/entity/types';
 import type { GameContext } from '@/game/types';
 import type { RenderSystem } from '@/rendering/render-system';
@@ -379,6 +379,22 @@ export class ClientHotloadBridge {
       case 'entity':
       case 'mixin':
       case 'shell': {
+        if (envelope.mode === 'COMMIT' && envelope.payload && typeof envelope.payload === 'object') {
+          if (envelope.domain === 'entity') {
+            const rawTpl = envelope.payload as RawTemplate;
+            if (rawTpl.name) {
+              getDefaultEntityRegistry().upsert(rawTpl);
+              ctx?.entityFactory?.getRegistry?.()?.upsert(rawTpl);
+            }
+          } else if (envelope.domain === 'mixin') {
+            const rawMixin = envelope.payload as RawTemplate;
+            const mixinName = rawMixin.name || envelope.targetId;
+            if (mixinName) {
+              getDefaultEntityRegistry().upsertMixin(mixinName, rawMixin);
+              ctx?.entityFactory?.getRegistry?.()?.upsertMixin(mixinName, rawMixin);
+            }
+          }
+        }
         // Presentation PREVIEW scrub (lights / sprites) when no server sessionPatch is present
         if (envelope.mode === 'PREVIEW' || envelope.mode === 'REVERT') {
           this.applyPresentationPreview(envelope);
@@ -495,19 +511,6 @@ export class ClientHotloadBridge {
         previewRegistry.upsertMixin(envelope.targetId, data as unknown as RawTemplate);
       }
 
-      const templateInheritsMixin = (
-        templateName: string,
-        mixinName: string,
-        seen = new Set<string>(),
-      ): boolean => {
-        if (seen.has(templateName)) return false;
-        seen.add(templateName);
-        const tpl = baseRegistry.get(templateName);
-        if (!tpl?.mixins?.length) return false;
-        if (tpl.mixins.includes(mixinName)) return true;
-        return tpl.mixins.some((m) => templateInheritsMixin(m, mixinName, seen));
-      };
-
       for (const eid of world.query(TemplateId)) {
         const tplId = world.getComponent(eid, TemplateId);
         if (!tplId) continue;
@@ -523,7 +526,7 @@ export class ClientHotloadBridge {
         } else {
           if (
             tplId.id !== envelope.targetId &&
-            !templateInheritsMixin(tplId.id, envelope.targetId)
+            !templateInheritsMixin(baseRegistry, tplId.id, envelope.targetId)
           ) {
             continue;
           }

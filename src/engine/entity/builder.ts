@@ -5,6 +5,23 @@ import { EntityId } from '../ecs/types';
 import { EngineEvents } from '../events/types';
 
 /**
+ * Checks whether a template directly or transitively inherits from a given mixin.
+ */
+export function templateInheritsMixin(
+  registry: EntityRegistry,
+  templateName: string,
+  mixinName: string,
+  seen = new Set<string>(),
+): boolean {
+  if (seen.has(templateName)) return false;
+  seen.add(templateName);
+  const tpl = registry.get(templateName);
+  if (!tpl?.mixins?.length) return false;
+  if (tpl.mixins.includes(mixinName)) return true;
+  return tpl.mixins.some((m) => templateInheritsMixin(registry, m, mixinName, seen));
+}
+
+/**
  * Resolves mixins for a template recursively.
  * @throws Error on circular references, depth limit exceeded, or conflicting components.
  */

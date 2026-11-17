@@ -1,6 +1,6 @@
 import type { ComponentDef, EntityId } from '@engine/ecs/types';
 import type { RawTemplate } from '@engine/entity/types';
-import { resolveMixins } from '@engine/entity/builder';
+import { resolveMixins, templateInheritsMixin } from '@engine/entity/builder';
 import { sessionManager, type WorldState } from '@server/session/session-manager';
 import type { EngineEvents } from '@engine/events/types';
 import type { SessionHotloadPatch } from '@shared/hotload-types';
@@ -324,7 +324,7 @@ export function reconcileMixinAcrossSessions(
 
     const matchingTemplates = new Map<string, Record<string, Record<string, unknown>>>();
     for (const tpl of registry.getAll()) {
-      if (tpl.mixins?.includes(mixinName)) {
+      if (tpl.name === mixinName || templateInheritsMixin(registry, tpl.name, mixinName)) {
         matchingTemplates.set(normalizeKey(tpl.name), resolveTemplateComponents(tpl, state));
       }
     }
