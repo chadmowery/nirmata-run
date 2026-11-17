@@ -284,4 +284,75 @@ describe('SpritePicker Studio Animation Previews & Scrubber [ANIM-04]', () => {
       expect(cancelSpy).toHaveBeenCalled();
     });
   });
+
+  describe('Theme-Aware Preview & Clip State Removal (MED-06)', () => {
+    it('passes selected clipThemeId to drawAtlasFrame and removes state clip via PUT', async () => {
+      tilesetAtlasCache.setAtlasData(
+        'traxus_foundry',
+        structuredClone(mockAtlasData),
+        new Image(),
+      );
+      const drawSpy = vi.spyOn(tilesetAtlasCache, 'drawAtlasFrame');
+      const resolveSpy = vi.spyOn(tilesetAtlasCache, 'resolveAnimatedFrameAtTime');
+
+      const origFetch = globalThis.fetch;
+      globalThis.fetch = vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          success: true,
+          animations: {
+            player_vanguard: {
+              move: { frames: ['player_vanguard_move_1'], fps: 8, loop: 'loop' },
+            },
+          },
+          envelope: { id: 'srv-anim-del' },
+        }),
+      })) as unknown as typeof fetch;
+
+      try {
+        render(<SpritePicker value="player_vanguard" onChange={vi.fn()} />);
+
+        // Open Clip Editor drawer
+        const editBtn = await screen.findByRole('button', { name: /✎ EDIT CLIPS/i });
+        fireEvent.click(editBtn);
+
+        // Switch theme selector to traxus_foundry
+        const themeSelect = screen.getByLabelText('Clip Theme Manifest');
+        fireEvent.change(themeSelect, { target: { value: 'traxus_foundry' } });
+
+        await waitFor(() => {
+          expect(drawSpy).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.any(String),
+            0,
+            0,
+            64,
+            0,
+            'traxus_foundry',
+          );
+          expect(resolveSpy).toHaveBeenCalledWith(
+            'player_vanguard',
+            expect.any(String),
+            expect.any(Number),
+            'traxus_foundry',
+          );
+        });
+
+        // Remove active state ('idle')
+        const removeBtn = screen.getByRole('button', { name: /✕ REMOVE STATE/i });
+        fireEvent.click(removeBtn);
+
+        await waitFor(() => {
+          expect(globalThis.fetch).toHaveBeenCalledWith(
+            '/api/dev/gamedata/tileset/animations',
+            expect.objectContaining({
+              method: 'PUT',
+            }),
+          );
+        });
+      } finally {
+        globalThis.fetch = origFetch;
+      }
+    });
+  });
 });

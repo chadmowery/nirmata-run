@@ -190,7 +190,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
 - **Required Fix**:
   Check `world.hasComponent(spawnedId, Item) || world.hasComponent(spawnedId, CurrencyItem)` to call `session.grid.addItem(spawnedId, tx, ty)` vs `session.grid.addEntity(spawnedId, tx, ty)`, and update tile walkability when `BlocksMovement` is present.
 
-#### [MED-06] `SpritePicker` Hardcodes `'default'` Theme in Canvas Preview & Filmstrip and Lacks Clip State Deletion
+#### [MED-06] `SpritePicker` Hardcodes `'default'` Theme in Canvas Preview & Filmstrip and Lacks Clip State Deletion — **[RESOLVED]**
 - **Location**: [`src/dev-tool/studio/shared/SpritePicker.tsx:253-355`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/studio/shared/SpritePicker.tsx#L253-L355), [`src/rendering/sprite-animator.ts:191-226`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/rendering/sprite-animator.ts#L191-L226)
 - **Vulnerability / Gap**:
   1. `SpritePicker.tsx` provides a `clipThemeId` selector in the Animation Clip Authoring Drawer, but `drawFrame()`, the `requestAnimationFrame` preview loop, and the filmstrip thumbnail renderer all hardcode `'default'` instead of passing `clipThemeId`.
@@ -238,7 +238,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
   - Pass `sectorCondition` overrides to `GameAudioSystem`, read actual `FloorState.currentFloor` in `page.tsx` and `DevTerminal.tsx`, lift `EnvironmentOverrideBar` state to `useGamedataStore` and render in `GamedataTool.tsx`, and read `propBeaconIntervalSec` from `lighting.json`.
 - [x] **10b. Fix `/spawn` Item Placement & Walkability (`MED-05`)**:
   - Use `grid.addItem()` for spawned items in `SPAWN_ENTITY` and update tile walkability when `BlocksMovement` is present.
-- [ ] **10c. Fix `SpritePicker` Theme Preview & Clip Deletion (`MED-06`)**:
+- [x] **10c. Fix `SpritePicker` Theme Preview & Clip Deletion (`MED-06`)**:
   - Pass `clipThemeId`, add clip state removal in `SpritePicker.tsx`, and propagate `hotUpdateAnimations()` to active theme manifests when `propagateToThemes` is true.
 - [ ] **10d. Minor Cleanup (`LOW-01`)**:
   - Update `__NIRMATA_DEV_RUNTIME__` perf refs in `page.tsx`, add `gamedata-save` / `gamedata-revert` handlers in `SpawnTableEditor` & `PrefabEditor`, and verify `next-env.d.ts`.

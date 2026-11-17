@@ -191,8 +191,10 @@ export class SpriteAnimator {
   public hotUpdateAnimations(
     themeId: string,
     animations: Record<string, AnimationManifestEntry>,
+    propagateToThemes: boolean = false,
   ): void {
     const activeTheme = getActiveThemeId?.() ?? 'default';
+    const activeAtlasKey = getActiveAtlasKey?.() ?? 'tileset';
     const hasAssets = typeof Assets !== 'undefined' && typeof Assets.get === 'function';
 
     if (this.customManifest) {
@@ -208,10 +210,13 @@ export class SpriteAnimator {
       if (targetAsset?.data) {
         targetAsset.data.animations = { ...animations };
       }
-      if (themeId === 'default' || activeTheme === themeId) {
-        const baseAsset = Assets.get('tileset') as { data?: Partial<ThemedTilesetManifest> } | undefined;
-        if (baseAsset?.data && themeId === 'default') {
-          baseAsset.data.animations = { ...animations };
+      if (themeId === 'default' && propagateToThemes && activeAtlasKey !== 'tileset' && activeTheme !== 'default') {
+        const activeAsset = Assets.get(activeAtlasKey) as { data?: Partial<ThemedTilesetManifest> } | undefined;
+        if (activeAsset?.data) {
+          activeAsset.data.animations = {
+            ...(activeAsset.data.animations ?? {}),
+            ...animations,
+          };
         }
       }
     }

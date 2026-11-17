@@ -4,6 +4,7 @@ import { tilesetAtlasCache, ResolvedAnimationClip } from './tileset-atlas-cache'
 import {
   AnimationClipDef,
   AnimationLoopMode,
+  AnimationManifestEntry,
   AnimationStateKey,
   AnimationStateKeySchema,
   EntityAnimationSet,
@@ -203,10 +204,11 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
           themeId: clipThemeId,
           animSetKey: value,
           animations: { ...allAnims, [value]: entry },
+          propagateToThemes: clipThemeId === 'default' ? propagateToThemes : false,
         });
       }
     },
-    [value, clipThemeId, liveSyncEnabled, buildUpdatedAnimationsEntry],
+    [value, clipThemeId, liveSyncEnabled, propagateToThemes, buildUpdatedAnimationsEntry],
   );
 
   const handleSaveClip = async () => {
@@ -245,6 +247,7 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
           themeId: clipThemeId,
           animSetKey: value,
           animations: json.animations,
+          propagateToThemes: clipThemeId === 'default' ? propagateToThemes : false,
         },
         undefined,
         json.envelope?.id,
@@ -256,16 +259,74 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
     }
   };
 
-  // Reset state when sprite key value changes
+  const handleRemoveClipState = async () => {
+    if (!value) return;
+    const rawAnims = tilesetAtlasCache.getRawAnimations(clipThemeId);
+    const existing = rawAnims[value];
+    if (!existing) return;
+
+    let nextEntry: AnimationManifestEntry | null = null;
+    if (!('frames' in existing)) {
+      const copy = { ...(existing as Record<string, AnimationClipDef>) };
+      delete copy[clipStateKey];
+      if (Object.keys(copy).length > 0) {
+        nextEntry = copy;
+      }
+    }
+
+    setClipSaveStatus('REMOVING...');
+    try {
+      const shouldPropagate = clipThemeId === 'default' ? propagateToThemes : false;
+      const res = await fetch('/api/dev/gamedata/tileset/animations', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          themeId: clipThemeId,
+          animSetKey: value,
+          entry: nextEntry,
+          propagateToThemes: shouldPropagate,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setClipSaveStatus(`ERR: ${json.error || 'Failed'}`);
+        return;
+      }
+      tilesetAtlasCache.setAnimationEntry(clipThemeId, value, nextEntry);
+      setClipVersion((v) => v + 1);
+      setDraftFrames([]);
+      setDraftDurations([]);
+      postHotloadCommit(
+        'tileset:animations',
+        value,
+        {
+          themeId: clipThemeId,
+          animSetKey: value,
+          animations: json.animations,
+          propagateToThemes: shouldPropagate,
+        },
+        undefined,
+        json.envelope?.id,
+      );
+      setClipSaveStatus(
+        nextEntry ? `REMOVED STATE '${clipStateKey}'` : `DELETED ANIMATION SET '${value}'`,
+      );
+      window.setTimeout(() => setClipSaveStatus(null), 2500);
+    } catch (err) {
+      setClipSaveStatus(`ERR: ${err instanceof Error ? err.message : 'Remove failed'}`);
+    }
+  };
+
+  // Reset state when sprite key value or theme changes
   useEffect(() => {
-    const states = tilesetAtlasCache.getAnimationStates(value, 'default');
+    const states = tilesetAtlasCache.getAnimationStates(value, clipThemeId);
     if (states.length > 0 && !states.includes(currentState)) {
       setCurrentState(states[0] ?? 'idle');
     }
     setManualFrameIndex(null);
     setIsPlaying(true);
     elapsedOffsetRef.current = 0;
-  }, [value]);
+  }, [value, clipThemeId, currentState]);
 
   // Draw main 64x64 canvas
   const drawFrame = useCallback(
@@ -276,7 +337,7 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
       if (!ctx) return;
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const drawn = tilesetAtlasCache.drawAtlasFrame(ctx, frameKey, 0, 0, 64);
+      const drawn = tilesetAtlasCache.drawAtlasFrame(ctx, frameKey, 0, 0, 64, 0, clipThemeId);
       if (!drawn) {
         ctx.fillStyle = '#1c2638';
         ctx.fillRect(0, 0, 64, 64);
@@ -285,7 +346,7 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
         ctx.fillText('NO SPRITE', 4, 34);
       }
     },
-    [],
+    [clipThemeId],
   );
 
   // Animation loop
@@ -304,7 +365,7 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
           value,
           currentState,
           elapsedOffsetRef.current,
-          'default',
+          clipThemeId,
         );
         drawFrame(resolved.frameKey);
         setPlaybackFrameIndex(resolved.frameIndex);
@@ -325,7 +386,7 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
         value,
         currentState,
         elapsedOffsetRef.current,
-        'default',
+        clipThemeId,
       );
 
       drawFrame(resolved.frameKey);
@@ -345,7 +406,7 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
         cancelAnimationFrame(animFrameIdRef.current);
       }
     };
-  }, [value, currentState, isAnimated, activeClip, isPlaying, speedMultiplier, manualFrameIndex, drawFrame]);
+  }, [value, currentState, clipThemeId, isAnimated, activeClip, isPlaying, speedMultiplier, manualFrameIndex, drawFrame]);
 
   // Draw filmstrip thumbnails
   useEffect(() => {
@@ -356,18 +417,18 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
       const ctx = c.getContext('2d');
       if (!ctx) return;
       ctx.clearRect(0, 0, 32, 32);
-      tilesetAtlasCache.drawAtlasFrame(ctx, fKey, 0, 0, 32);
+      tilesetAtlasCache.drawAtlasFrame(ctx, fKey, 0, 0, 32, 0, clipThemeId);
     });
-  }, [activeClip, value]);
+  }, [activeClip, value, clipThemeId]);
 
   // Dropdown filtering
   const filtered = useMemo(() => {
     let result = frameKeys;
 
     if (filterMode === 'ANIMATED') {
-      result = result.filter((k) => tilesetAtlasCache.isKeyAnimated(k, 'default'));
+      result = result.filter((k) => tilesetAtlasCache.isKeyAnimated(k, clipThemeId));
     } else if (filterMode === 'STATIC') {
-      result = result.filter((k) => !tilesetAtlasCache.isKeyAnimated(k, 'default'));
+      result = result.filter((k) => !tilesetAtlasCache.isKeyAnimated(k, clipThemeId));
     }
 
     if (search.trim()) {
@@ -376,7 +437,7 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
     }
 
     return result;
-  }, [frameKeys, filterMode, search]);
+  }, [frameKeys, filterMode, search, clipThemeId]);
 
   const activeFrameIndex = manualFrameIndex !== null ? manualFrameIndex : playbackFrameIndex;
 
@@ -496,9 +557,9 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
 
               <div style={{ overflowY: 'auto', flex: 1, maxHeight: '180px' }}>
                 {filtered.map((key) => {
-                  const keyAnim = tilesetAtlasCache.isKeyAnimated(key, 'default');
-                  const states = keyAnim ? tilesetAtlasCache.getAnimationStates(key, 'default') : [];
-                  const clip = keyAnim ? tilesetAtlasCache.getAnimationClip(key, 'idle', 'default') : null;
+                  const keyAnim = tilesetAtlasCache.isKeyAnimated(key, clipThemeId);
+                  const states = keyAnim ? tilesetAtlasCache.getAnimationStates(key, clipThemeId) : [];
+                  const clip = keyAnim ? tilesetAtlasCache.getAnimationClip(key, 'idle', clipThemeId) : null;
                   const fCount = clip?.frames.length ?? states.length;
 
                   return (
@@ -607,6 +668,17 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
               >
                 SAVE CLIP
               </button>
+              {animStates.includes(clipStateKey) && (
+                <button
+                  type="button"
+                  className={styles.deleteButton}
+                  style={{ padding: '2px 8px', fontSize: '11px' }}
+                  onClick={handleRemoveClipState}
+                  title={`Remove '${clipStateKey}' clip from '${value}'`}
+                >
+                  ✕ REMOVE STATE
+                </button>
+              )}
             </div>
           </div>
 

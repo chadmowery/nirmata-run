@@ -323,13 +323,22 @@ export class ClientHotloadBridge {
         const payload = envelope.payload as {
           themeId?: string;
           animations?: Record<string, unknown>;
+          propagateToThemes?: boolean;
         };
         if (payload?.animations) {
           const { spriteAnimator } = await import('@/rendering/sprite-animator');
           const animatorExt = spriteAnimator as typeof spriteAnimator & {
-            hotUpdateAnimations?: (themeId: string, anims: Record<string, unknown>) => void;
+            hotUpdateAnimations?: (
+              themeId: string,
+              anims: Record<string, unknown>,
+              propagateToThemes?: boolean,
+            ) => void;
           };
-          animatorExt.hotUpdateAnimations?.(payload.themeId || 'default', payload.animations);
+          animatorExt.hotUpdateAnimations?.(
+            payload.themeId || 'default',
+            payload.animations,
+            Boolean(payload.propagateToThemes),
+          );
         }
         break;
       }
