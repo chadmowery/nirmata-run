@@ -142,11 +142,12 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
         throw new Error(err.error || 'Failed to save shell');
       }
 
+      const resData = await res.json().catch(() => ({}));
       setShellData(payload);
       baselineRef.current = structuredClone(payload);
       setSaveStatus('success');
       setDirty(false);
-      postHotloadCommit('shell', payload.id, payload);
+      postHotloadCommit('shell', payload.id, payload, resData.sessionPatches, resData.envelope?.id);
       onRefresh?.();
 
       if (isNew) {

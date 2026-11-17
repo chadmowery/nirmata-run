@@ -238,11 +238,17 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
       }
       tilesetAtlasCache.setAnimationEntry(clipThemeId, value, entry);
       setClipVersion((v) => v + 1);
-      postHotloadCommit('tileset:animations', value, {
-        themeId: clipThemeId,
-        animSetKey: value,
-        animations: json.animations,
-      });
+      postHotloadCommit(
+        'tileset:animations',
+        value,
+        {
+          themeId: clipThemeId,
+          animSetKey: value,
+          animations: json.animations,
+        },
+        undefined,
+        json.envelope?.id,
+      );
       setClipSaveStatus(`SAVED (${(json.updatedThemes as string[])?.join(', ') || clipThemeId})`);
       window.setTimeout(() => setClipSaveStatus(null), 2500);
     } catch (err) {

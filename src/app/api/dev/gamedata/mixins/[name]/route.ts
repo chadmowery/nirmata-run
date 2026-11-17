@@ -48,8 +48,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ name: st
 
     await atomicWrite(filePath, body);
     const sessionPatches = reconcileMixinAcrossSessions(name, body as RawTemplate);
-    hotloadBus.publishCommit('mixin', name, body, sessionPatches);
-    return NextResponse.json({ success: true, sessionPatches });
+    const envelope = hotloadBus.publishCommit('mixin', name, body, sessionPatches);
+    return NextResponse.json({ success: true, sessionPatches, envelope });
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Internal server error', 500);
   }

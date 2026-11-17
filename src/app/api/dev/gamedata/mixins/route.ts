@@ -43,9 +43,9 @@ export async function POST(req: Request) {
     await atomicWrite(filePath, body);
     await regenerateEntityTemplateIndex();
     upsertMixinInRegistries(body.name, body as RawTemplate);
-    hotloadBus.publishCommit('mixin', body.name, body);
+    const envelope = hotloadBus.publishCommit('mixin', body.name, body);
 
-    return NextResponse.json({ success: true, name: body.name }, { status: 201 });
+    return NextResponse.json({ success: true, name: body.name, envelope }, { status: 201 });
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Internal server error', 500);
   }

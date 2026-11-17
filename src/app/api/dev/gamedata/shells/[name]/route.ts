@@ -61,8 +61,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ name: st
 
     await atomicWrite(filePath, sanitizedBody);
     const sessionPatches = reconcileShellAcrossSessions(sanitizedBody);
-    hotloadBus.publishCommit('shell', name, sanitizedBody, sessionPatches);
-    return NextResponse.json({ success: true, sessionPatches });
+    const envelope = hotloadBus.publishCommit('shell', name, sanitizedBody, sessionPatches);
+    return NextResponse.json({ success: true, sessionPatches, envelope });
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Internal server error', 500);
   }

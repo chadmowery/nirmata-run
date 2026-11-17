@@ -433,10 +433,11 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
         throw new Error(err.error || 'Failed to save sound cue');
       }
 
+      const resData = await res.json().catch(() => ({}));
       setSaveStatus('success');
       baselineRef.current = structuredClone(payload);
       setDirty(false);
-      postHotloadCommit('audioCue', payload.id, payload);
+      postHotloadCommit('audioCue', payload.id, payload, undefined, resData.envelope?.id);
       onRefresh?.();
 
       if (isNew) {

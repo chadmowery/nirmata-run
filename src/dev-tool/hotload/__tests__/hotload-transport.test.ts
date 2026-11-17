@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { hotloadBus } from '@/server/dev/hotload-bus';
 import { GET as getStream } from '@/app/api/dev/hotload/stream/route';
+import { postHotloadCommit } from '../studio-sync';
+import { ClientHotloadBridge } from '../client-hotload-bridge';
+import { useHotloadToastStore } from '../toast-store';
 
 describe('Hotload Transport & Bus (HOTLOAD-01)', () => {
   beforeEach(() => {
@@ -59,6 +62,63 @@ describe('Hotload Transport & Bus (HOTLOAD-01)', () => {
       expect(res.status).toBe(403);
     } finally {
       (process.env as Record<string, string>).NODE_ENV = prev;
+    }
+  });
+
+  it('unifies BroadcastChannel and SSE commit envelope IDs with sessionPatches and deduplicates delivery (HIGH-05)', async () => {
+    const postedMessages: unknown[] = [];
+    const origBC = globalThis.BroadcastChannel;
+    class MockBC {
+      addEventListener() {}
+      removeEventListener() {}
+      close() {}
+      postMessage(msg: unknown) {
+        postedMessages.push(msg);
+      }
+    }
+    globalThis.BroadcastChannel = MockBC as unknown as typeof BroadcastChannel;
+
+    try {
+      const serverEnvelope = hotloadBus.publishCommit(
+        'entity',
+        'null-pointer',
+        { name: 'null-pointer' },
+        {
+          'sess-1': {
+            updatedEntities: [
+              { entityId: 42, componentsSet: {}, componentsRemoved: [] },
+            ],
+          },
+        },
+      );
+
+      postHotloadCommit(
+        'entity',
+        'null-pointer',
+        { name: 'null-pointer' },
+        serverEnvelope.sessionPatches,
+        serverEnvelope.id,
+      );
+
+      expect(postedMessages).toHaveLength(1);
+      const bcEnvelope = (postedMessages[0] as { type: string; envelope: typeof serverEnvelope }).envelope;
+      expect(bcEnvelope.id).toBe(serverEnvelope.id);
+      expect(bcEnvelope.sessionPatches).toEqual(serverEnvelope.sessionPatches);
+
+      useHotloadToastStore.setState({ activeToast: null });
+      const pushToastSpy = vi.spyOn(useHotloadToastStore.getState(), 'pushToast');
+      const bridge = new ClientHotloadBridge({
+        getContext: () => null,
+        getRenderSystem: () => null,
+        getGameAudioSystem: () => null,
+      });
+
+      await bridge.handleEnvelope(bcEnvelope);
+      await bridge.handleEnvelope(serverEnvelope);
+      expect(pushToastSpy).toHaveBeenCalledTimes(1);
+      expect(useHotloadToastStore.getState().activeToast?.id).toBe(serverEnvelope.id);
+    } finally {
+      globalThis.BroadcastChannel = origBC;
     }
   });
 });

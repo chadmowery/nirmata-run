@@ -202,7 +202,9 @@ export class ClientHotloadBridge {
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.patch && ctx) {
+        if (data.envelope) {
+          await this.handleEnvelope(data.envelope as HotloadEnvelope);
+        } else if (data.patch && ctx) {
           this.applySessionPatch(ctx, data.patch as SessionHotloadPatch);
         }
         this.sendHeartbeatAck();

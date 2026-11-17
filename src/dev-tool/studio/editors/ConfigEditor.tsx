@@ -165,13 +165,14 @@ export function ConfigEditor({ name, onRefresh }: Props) {
         throw new Error(err.error || 'Failed to save config');
       }
 
+      const resData = await res.json().catch(() => ({}));
       setData(payload);
       baselineRef.current = structuredClone(payload);
       setRawText(JSON.stringify(payload, null, 2));
       setSaveStatus('success');
       setDirty(false);
       if (hotloadDomain) {
-        postHotloadCommit(hotloadDomain, name, payload);
+        postHotloadCommit(hotloadDomain, name, payload, undefined, resData.envelope?.id);
       }
       onRefresh?.();
     } catch (err) {

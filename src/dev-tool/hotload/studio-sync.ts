@@ -91,8 +91,12 @@ export function postHotloadCommit<T>(
   targetId: string,
   payload: T,
   sessionPatches?: HotloadEnvelope<T>['sessionPatches'],
+  envelopeId?: string,
 ): void {
   const envelope = makeEnvelope('COMMIT', domain, targetId, payload);
+  if (envelopeId) {
+    envelope.id = envelopeId;
+  }
   if (sessionPatches) {
     envelope.sessionPatches = sessionPatches;
   }

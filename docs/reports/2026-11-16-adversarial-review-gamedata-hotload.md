@@ -135,7 +135,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
 - **Required Fix**:
   Preserve the player's current cardinal facing direction (by matching existing `SpriteComponent.key` against the previous `Shell.directionalSprites` or suffix `-north`/`-east`/`-south`/`-west`), apply profile/record upgrades via `applyShellUpgradesToRecord` when available, and patch `Heat.baseDissipation`.
 
-#### [HIGH-05] Dual-Transport (`BroadcastChannel` + SSE) `COMMIT` Envelopes Use Mismatched IDs and Omit `sessionPatches` on `BroadcastChannel`
+#### [HIGH-05] Dual-Transport (`BroadcastChannel` + SSE) `COMMIT` Envelopes Use Mismatched IDs and Omit `sessionPatches` on `BroadcastChannel` — **[RESOLVED]**
 - **Location**: [`src/dev-tool/hotload/studio-sync.ts:89-100`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/hotload/studio-sync.ts#L89-L100), [`src/dev-tool/studio/editors/EntityTemplateEditor.tsx:248-270`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/studio/editors/EntityTemplateEditor.tsx#L248-L270), [`src/dev-tool/studio/editors/ShellEditor.tsx:134-150`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/studio/editors/ShellEditor.tsx#L134-L150), [`src/dev-tool/hotload/client-hotload-bridge.ts:178-198`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/hotload/client-hotload-bridge.ts#L178-L198)
 - **Vulnerability / Gap**:
   1. On `Cmd+S` save, server routes call `hotloadBus.publishCommit(...)` (generating `id: "srv-<ts>-<seq>"` with `sessionPatches`) and return `{ success: true, sessionPatches }`. However, `EntityTemplateEditor.tsx` and `ShellEditor.tsx` discard the HTTP response body and call `postHotloadCommit(domain, name, payload)` without `sessionPatches`, generating a second envelope with `id: "studio-<ts>-<seq>"`.
@@ -228,7 +228,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
   - Parse merged components with `def.schema.safeParse(merged)`, replace components via `world.addComponent()` on server and client so deleted optional fields are cleared, and preserve `SecurityLock.faradayBounds` and `isLegacy`.
 - [x] **6. Preserve Player Shell Upgrades, `Heat.baseDissipation`, and Current Facing Direction (`HIGH-04`)**:
   - Update `applyShellTemplateToPlayer()` in `src/server/dev/hotload-reconciler.ts` to preserve current cardinal facing direction, apply shell upgrades, and patch `Heat.baseDissipation`.
-- [ ] **7. Unify `COMMIT` Envelope IDs and Forward `sessionPatches` on `BroadcastChannel` (`HIGH-05`)**:
+- [x] **7. Unify `COMMIT` Envelope IDs and Forward `sessionPatches` on `BroadcastChannel` (`HIGH-05`)**:
   - Pass `sessionPatches` and canonical envelope IDs from API responses into `postHotloadCommit()` and avoid double-applying shell switch patches.
 - [ ] **8. Wire `MixinEditor` Hotload Hooks & Auto-Revert on Unsaved Item Switch (`MED-01`, `MED-02`)**:
   - Add `Cmd+S`, `REVERT`, and `LIVE_SYNC` preview/commit hooks to `MixinEditor.tsx`, and emit `postHotloadRevert()` when unmounting a dirty editor with uncommitted previews.

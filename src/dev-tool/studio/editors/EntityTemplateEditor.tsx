@@ -257,16 +257,23 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
         throw new Error(errorData.error || 'Save failed');
       }
 
+      const resData = await res.json().catch(() => ({}));
       setSaveStatus('success');
       baselineRef.current = {
         template: structuredClone(templateData),
         effectiveComponents: structuredClone(effectiveComponents),
       };
       setDirty(false);
-      postHotloadCommit('entity', templateData.name, {
-        ...templateData,
-        effectiveComponents,
-      });
+      postHotloadCommit(
+        'entity',
+        templateData.name,
+        {
+          ...templateData,
+          effectiveComponents,
+        },
+        resData.sessionPatches,
+        resData.envelope?.id,
+      );
       onRefresh?.();
 
       if (isNew) {

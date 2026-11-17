@@ -214,10 +214,8 @@ export async function PUT(req: Request, props: { params: Promise<{ name: string 
 
     await atomicWrite(filePath, body);
     const domain = CONFIG_HOTLOAD_DOMAINS[name];
-    if (domain) {
-      hotloadBus.publishCommit(domain, name, body);
-    }
-    return NextResponse.json({ success: true, name });
+    const envelope = domain ? hotloadBus.publishCommit(domain, name, body) : undefined;
+    return NextResponse.json({ success: true, name, ...(envelope ? { envelope } : {}) });
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Internal server error', 500);
   }
