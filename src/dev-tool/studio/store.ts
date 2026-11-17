@@ -3,6 +3,20 @@ import { create } from 'zustand';
 import { Section, SelectedItem } from './types';
 import type { GameHeartbeatPayload } from '@dev-tool/hotload/types';
 
+export interface EnvOverrideState {
+  factionTheme: string;
+  sectorCondition: string;
+  heatPercent: number | null;
+  stabilityPercent: number | null;
+}
+
+const DEFAULT_ENV_OVERRIDE: EnvOverrideState = {
+  factionTheme: '',
+  sectorCondition: '',
+  heatPercent: null,
+  stabilityPercent: null,
+};
+
 interface GamedataStore {
   // Sidebar state
   expandedSections: Set<Section>;
@@ -27,6 +41,9 @@ interface GamedataStore {
   toggleLiveSync: () => void;
   connectedGame: GameHeartbeatPayload | null;
   setConnectedGame: (heartbeat: GameHeartbeatPayload | null) => void;
+  envOverride: EnvOverrideState;
+  setEnvOverride: (partial: Partial<EnvOverrideState>) => void;
+  resetEnvOverride: () => void;
 
   // Clone support (D-06): editors read cloneSource on mount when isNew=true
   cloneSource: string | null;
@@ -101,6 +118,12 @@ export const useGamedataStore = create<GamedataStore>((set) => ({
   toggleLiveSync: () => set((state) => ({ liveSyncEnabled: !state.liveSyncEnabled })),
   connectedGame: null,
   setConnectedGame: (heartbeat) => set({ connectedGame: heartbeat }),
+  envOverride: { ...DEFAULT_ENV_OVERRIDE },
+  setEnvOverride: (partial) =>
+    set((state) => ({
+      envOverride: { ...state.envOverride, ...partial },
+    })),
+  resetEnvOverride: () => set({ envOverride: { ...DEFAULT_ENV_OVERRIDE } }),
 
   // Clone support: editors check this on mount to pre-populate from existing item
   cloneSource: null,

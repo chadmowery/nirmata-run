@@ -86,6 +86,7 @@ import {
   LightingTelemetry,
   RenderLightDescriptor,
   lerpHexColor,
+  resolveSectorConditionProfile,
 } from './lighting';
 import { ParticleSystem, ParticleTelemetry } from './particles';
 import {
@@ -1512,7 +1513,9 @@ export function createRenderSystem(config: RenderSystemConfig) {
       const extraPrimaryLights: RenderLightDescriptor[] = [];
       if (effectiveSectorCondition === 'DARK_SUBNET') {
         const elapsedSec = performance.now() * 0.001;
-        const cycle = elapsedSec % 3.0;
+        const beaconIntervalSec =
+          resolveSectorConditionProfile('DARK_SUBNET')?.propBeaconIntervalSec ?? 3.0;
+        const cycle = elapsedSec % Math.max(0.1, beaconIntervalSec);
         if (cycle < 0.75) {
           const pulseAlpha = Math.sin((cycle / 0.75) * Math.PI);
           const camX = layers.worldContainer.x ?? 0;

@@ -6,7 +6,7 @@ import type { DebugAPI } from '../debug/debug-api';
 import { usePerfStore } from '../perf/perf-store';
 import { perfCollector } from '../perf/perf-collector';
 import { useHotloadToastStore } from '../hotload/toast-store';
-import type { SectorCondition } from '@shared/components/environment';
+import { FloorState, type SectorCondition } from '@shared/components';
 
 declare global {
   interface Window {
@@ -417,9 +417,6 @@ export function DevTerminal() {
             };
           }).__NIRMATA_DEV_RUNTIME__;
           runtime?.renderSystem?.setEnvironmentOverride?.({ factionTheme: resolvedTheme });
-          if (window.__DEBUG__ && resolvedTheme) {
-            await window.__DEBUG__.setTheme(resolvedTheme);
-          }
           setHistory((prev) => [
             ...prev,
             {
@@ -446,17 +443,27 @@ export function DevTerminal() {
           const resolvedCond = rawCond === 'RESET' ? null : (rawCond as SectorCondition);
           const runtime = (globalThis as unknown as {
             __NIRMATA_DEV_RUNTIME__?: {
+              context?: {
+                world?: {
+                  query: (def: typeof FloorState) => number[];
+                  getComponent: (id: number, def: typeof FloorState) => { currentFloor?: number } | undefined;
+                };
+              };
               renderSystem?: {
                 setEnvironmentOverride?: (o: { sectorCondition?: SectorCondition | null }) => void;
               };
-              gameAudioSystem?: { updateAmbianceForFloor?: (n: number) => void };
+              gameAudioSystem?: {
+                updateAmbianceForFloor?: (n: number, override?: SectorCondition | null) => void;
+              };
             };
           }).__NIRMATA_DEV_RUNTIME__;
           runtime?.renderSystem?.setEnvironmentOverride?.({ sectorCondition: resolvedCond });
-          if (window.__DEBUG__ && resolvedCond) {
-            await window.__DEBUG__.setCondition(resolvedCond);
-          }
-          runtime?.gameAudioSystem?.updateAmbianceForFloor?.(1);
+          const floorIds = runtime?.context?.world?.query(FloorState) ?? [];
+          const currentFloor =
+            floorIds.length > 0
+              ? (runtime?.context?.world?.getComponent(floorIds[0], FloorState)?.currentFloor ?? 1)
+              : 1;
+          runtime?.gameAudioSystem?.updateAmbianceForFloor?.(currentFloor, resolvedCond);
           setHistory((prev) => [
             ...prev,
             {

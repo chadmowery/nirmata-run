@@ -173,7 +173,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
 - **Required Fix**:
   In `hotUpdateCue()`, apply `cue.baseVolume` when morphing the active cue; in `playAmbianceCue()`, update the active ambiance voice/sample gain when `options?.volumeMultiplier` changes even if `currentAmbianceCueId === cue.id`; and clean up `activeCueVoices` / `activeVoiceMap` when a voice is stopped and not replaced by a synth loop.
 
-#### [MED-04] Environment Override Desyncs in Audio Ambiance, `DevTerminal`, Studio Header, and `DARK_SUBNET` Beacon Interval (Spec §5.2, §5.4 Violation)
+#### [MED-04] Environment Override Desyncs in Audio Ambiance, `DevTerminal`, Studio Header, and `DARK_SUBNET` Beacon Interval (Spec §5.2, §5.4 Violation) — **[RESOLVED]**
 - **Location**: [`src/dev-tool/hotload/client-hotload-bridge.ts:331-346`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/hotload/client-hotload-bridge.ts#L331-L346), [`src/game/audio/game-audio-system.ts:595-626`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/game/audio/game-audio-system.ts#L595-L626), [`src/dev-tool/terminal/DevTerminal.tsx:390-470`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/terminal/DevTerminal.tsx#L390-L470), [`src/dev-tool/studio/GamedataTool.tsx:267-404`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/studio/GamedataTool.tsx#L267-L404), [`src/rendering/render-system.ts:1517-1520`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/rendering/render-system.ts#L1517-L1520), [`src/app/page.tsx:284`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/app/page.tsx#L284)
 - **Vulnerability / Gap**:
   1. When `EnvironmentOverrideBar` emits `env:override` with `sectorCondition`, `ClientHotloadBridge` calls `audioSys.updateAmbianceForFloor(floorNum)`, which queries `FloorState.sectorCondition` from `world` (still `'NOMINAL'`) rather than using the override condition.
@@ -234,5 +234,11 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
   - Add `Cmd+S`, `REVERT`, and `LIVE_SYNC` preview/commit hooks to `MixinEditor.tsx`, and emit `postHotloadRevert()` when unmounting a dirty editor with uncommitted previews.
 - [x] **9. Fix Audio Hotload Volume & Voice Cleanup (`MED-03`)**:
   - Respect `cue.baseVolume` in `AudioEngine.hotUpdateCue()`, update active ambiance volume in `playAmbianceCue()` when `volumeMultiplier` changes on the same `cueId`, and clean up stopped voices in `activeCueVoices` / `activeVoiceMap`.
-- [ ] **10. Fix Environment Overrides, `/spawn` Item Placement, `SpritePicker` Theme Preview, and Minor Cleanup (`MED-04`, `MED-05`, `MED-06`, `LOW-01`)**:
-  - Pass `sectorCondition` overrides to `GameAudioSystem`, read actual `FloorState.currentFloor` in `page.tsx` and `DevTerminal.tsx`, lift `EnvironmentOverrideBar` state to `useGamedataStore` and render in `GamedataTool.tsx`, read `propBeaconIntervalSec` from `lighting.json`, use `grid.addItem()` for spawned items in `SPAWN_ENTITY`, pass `clipThemeId` and add clip state removal in `SpritePicker.tsx`, update `__NIRMATA_DEV_RUNTIME__` perf refs in `page.tsx`, and clean up `next-env.d.ts`.
+- [x] **10a. Fix Environment Overrides (`MED-04`)**:
+  - Pass `sectorCondition` overrides to `GameAudioSystem`, read actual `FloorState.currentFloor` in `page.tsx` and `DevTerminal.tsx`, lift `EnvironmentOverrideBar` state to `useGamedataStore` and render in `GamedataTool.tsx`, and read `propBeaconIntervalSec` from `lighting.json`.
+- [ ] **10b. Fix `/spawn` Item Placement & Walkability (`MED-05`)**:
+  - Use `grid.addItem()` for spawned items in `SPAWN_ENTITY` and update tile walkability when `BlocksMovement` is present.
+- [ ] **10c. Fix `SpritePicker` Theme Preview & Clip Deletion (`MED-06`)**:
+  - Pass `clipThemeId`, add clip state removal in `SpritePicker.tsx`, and propagate `hotUpdateAnimations()` to active theme manifests when `propagateToThemes` is true.
+- [ ] **10d. Minor Cleanup (`LOW-01`)**:
+  - Update `__NIRMATA_DEV_RUNTIME__` perf refs in `page.tsx`, add `gamedata-save` / `gamedata-revert` handlers in `SpawnTableEditor` & `PrefabEditor`, and verify `next-env.d.ts`.

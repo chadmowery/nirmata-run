@@ -356,13 +356,13 @@ export class ClientHotloadBridge {
           setEnvironmentOverride?: (override: EnvOverridePayload) => void;
         }) | null;
         rsExt?.setEnvironmentOverride?.(payload);
-        if (payload.sectorCondition !== undefined && audioSys && ctx) {
-          const floorIds = ctx.world.query(FloorState);
+        if (payload.sectorCondition !== undefined && audioSys) {
+          const floorIds = ctx?.world?.query(FloorState) ?? [];
           const floorNum =
-            floorIds.length > 0
+            floorIds.length > 0 && ctx
               ? (ctx.world.getComponent(floorIds[0], FloorState)?.currentFloor ?? 1)
               : 1;
-          audioSys.updateAmbianceForFloor(floorNum);
+          audioSys.updateAmbianceForFloor(floorNum, payload.sectorCondition ?? null);
         }
         break;
       }
