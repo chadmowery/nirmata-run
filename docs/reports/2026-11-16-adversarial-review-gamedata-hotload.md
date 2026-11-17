@@ -183,7 +183,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
 - **Required Fix**:
   Support a sectorCondition override in `GameAudioSystem.updateAmbianceForFloor()`, read actual `FloorState.currentFloor` in `page.tsx` and `DevTerminal.tsx`, store `EnvironmentOverrideBar` state in `useGamedataStore` and render a toggle/bar in `GamedataTool.tsx`, and read `propBeaconIntervalSec` from `resolveSectorConditionProfile('DARK_SUBNET')`.
 
-#### [MED-05] `/spawn` Debug Command Uses `grid.addEntity()` for Ground Items and Ignores `BlocksMovement` Walkability
+#### [MED-05] `/spawn` Debug Command Uses `grid.addEntity()` for Ground Items and Ignores `BlocksMovement` Walkability — **[RESOLVED]**
 - **Location**: [`src/server/debug/server-debug-handler.ts:229-254`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/server/debug/server-debug-handler.ts#L229-L254)
 - **Vulnerability / Gap**:
   `handleServerDebugCommand('SPAWN_ENTITY')` unconditionally calls `session.grid.addEntity(spawnedId, tx, ty)`. If an item or currency template is spawned (e.g. `/spawn health-potion` or `/spawn rifle-v1`), it is never added to `grid.addItem(spawnedId, tx, ty)` (`tile.items`), making it impossible to pick up. If an entity with `BlocksMovement` is spawned, tile walkability is not updated.
@@ -236,7 +236,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
   - Respect `cue.baseVolume` in `AudioEngine.hotUpdateCue()`, update active ambiance volume in `playAmbianceCue()` when `volumeMultiplier` changes on the same `cueId`, and clean up stopped voices in `activeCueVoices` / `activeVoiceMap`.
 - [x] **10a. Fix Environment Overrides (`MED-04`)**:
   - Pass `sectorCondition` overrides to `GameAudioSystem`, read actual `FloorState.currentFloor` in `page.tsx` and `DevTerminal.tsx`, lift `EnvironmentOverrideBar` state to `useGamedataStore` and render in `GamedataTool.tsx`, and read `propBeaconIntervalSec` from `lighting.json`.
-- [ ] **10b. Fix `/spawn` Item Placement & Walkability (`MED-05`)**:
+- [x] **10b. Fix `/spawn` Item Placement & Walkability (`MED-05`)**:
   - Use `grid.addItem()` for spawned items in `SPAWN_ENTITY` and update tile walkability when `BlocksMovement` is present.
 - [ ] **10c. Fix `SpritePicker` Theme Preview & Clip Deletion (`MED-06`)**:
   - Pass `clipThemeId`, add clip state removal in `SpritePicker.tsx`, and propagate `hotUpdateAnimations()` to active theme manifests when `propagateToThemes` is true.
