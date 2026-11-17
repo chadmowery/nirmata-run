@@ -7,8 +7,29 @@ import { Room } from '../../engine/generation/types';
 import { validateConnectivity } from '../../engine/generation/flood-fill';
 import depthDistribution from '../entities/templates/spawn-tables/depth-distribution.json';
 import lootDistribution from './loot-distribution.json';
-import depthConfig from './depth-config.json';
-import { getDepthBand, PropAnchor, BespokeRoom, FaradayBounds } from './dungeon-generator';
+import { getDepthBand, getDepthConfig, PropAnchor, BespokeRoom, FaradayBounds } from './dungeon-generator';
+
+export type DepthDistributionData = typeof depthDistribution;
+export type LootDistributionData = typeof lootDistribution;
+
+let activeDepthDistribution: DepthDistributionData = depthDistribution;
+let activeLootDistribution: LootDistributionData = lootDistribution;
+
+export function getDepthDistributionConfig(): DepthDistributionData {
+  return activeDepthDistribution;
+}
+
+export function setDepthDistributionConfig(next: DepthDistributionData): void {
+  activeDepthDistribution = next;
+}
+
+export function getLootDistributionConfig(): LootDistributionData {
+  return activeLootDistribution;
+}
+
+export function setLootDistributionConfig(next: LootDistributionData): void {
+  activeLootDistribution = next;
+}
 import { Actor } from '@shared/components/actor';
 import { Position } from '@shared/components/position';
 import {
@@ -100,13 +121,13 @@ export interface PlacementResult {
 import { EngineEvents } from '../../engine/events/types';
 
 function getTableForDepth(depth: number): DepthTable | undefined {
-  return (depthDistribution.tables as unknown as DepthTable[]).find(
+  return (activeDepthDistribution.tables as unknown as DepthTable[]).find(
     (table) => depth >= table.depthRange.min && depth <= table.depthRange.max,
   );
 }
 
 function getLootForDepth(depth: number): LootEntry[] | undefined {
-  const band = (lootDistribution.depthBands as LootDepthBand[]).find(
+  const band = (activeLootDistribution.depthBands as LootDepthBand[]).find(
     (b) => depth >= b.depthRange.min && depth <= b.depthRange.max,
   );
   return band?.loot;
@@ -271,7 +292,7 @@ export function placeEntities<T extends EngineEvents>(
   }
 
   // Place staircase if not on last floor
-  if (depth < depthConfig.maxFloor) {
+  if (depth < getDepthConfig().maxFloor) {
     const stairPos = findSafeRoomTile(furthestRoom);
     const staircaseId = factory.create(world, 'staircase', componentRegistry, {
       position: { x: stairPos.x, y: stairPos.y },

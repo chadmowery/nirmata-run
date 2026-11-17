@@ -4,6 +4,9 @@ import { access } from 'fs/promises';
 import { checkNonProductionOnly } from '@/server/security/env-gate';
 import { listJsonFiles, atomicWrite, resolveFilePath, errorResponse, regenerateEntityTemplateIndex } from '../utils';
 import { RawTemplateSchema } from '../schemas';
+import { upsertMixinInRegistries } from '@/server/dev/hotload-reconciler';
+import { hotloadBus } from '@/server/dev/hotload-bus';
+import type { RawTemplate } from '@engine/entity/types';
 
 const DIR = path.join(process.cwd(), 'src/game/entities/templates/mixins');
 
@@ -39,6 +42,8 @@ export async function POST(req: Request) {
 
     await atomicWrite(filePath, body);
     await regenerateEntityTemplateIndex();
+    upsertMixinInRegistries(body.name, body as RawTemplate);
+    hotloadBus.publishCommit('mixin', body.name, body);
 
     return NextResponse.json({ success: true, name: body.name }, { status: 201 });
   } catch (error) {

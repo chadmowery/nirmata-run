@@ -35,3 +35,25 @@ export function getPrefabsForFloor(
   // Fallback to any prefab matching floor depth if active faction has no bespoke prefab authored yet
   return ALL_PREFABS.filter((p) => depth >= p.minFloor && depth <= p.maxFloor);
 }
+
+/**
+ * Registers or updates a room prefab template in memory (used by dev hotload).
+ */
+export function upsertPrefab(prefab: RoomPrefabTemplate): void {
+  const idx = ALL_PREFABS.findIndex((p) => p.id === prefab.id);
+  if (idx >= 0) {
+    ALL_PREFABS[idx] = prefab;
+  } else {
+    ALL_PREFABS.push(prefab);
+  }
+}
+
+/**
+ * Removes a room prefab template from the in-memory registry (used by dev hotload).
+ */
+export function removePrefab(id: string): void {
+  const idx = ALL_PREFABS.findIndex((p) => p.id === id);
+  if (idx >= 0) {
+    ALL_PREFABS.splice(idx, 1);
+  }
+}

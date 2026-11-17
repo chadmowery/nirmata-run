@@ -5,6 +5,10 @@ import { checkNonProductionOnly } from '@/server/security/env-gate';
 import { resolveFilePath, atomicWrite, errorResponse } from '../../utils';
 import { SpawnTableSchema } from '../../schemas';
 import { hotloadBus } from '@/server/dev/hotload-bus';
+import {
+  setDepthDistributionConfig,
+  type DepthDistributionData,
+} from '@/game/generation/entity-placement';
 
 const DIR = path.join(process.cwd(), 'src/game/entities/templates/spawn-tables');
 
@@ -45,8 +49,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ name: st
     }
 
     await atomicWrite(filePath, body);
-    hotloadBus.publishCommit('spawnTable', name, body);
-    return NextResponse.json({ success: true });
+    if (name === 'depth-distribution') {
+      setDepthDistributionConfig(body as DepthDistributionData);
+    }
+    const envelope = hotloadBus.publishCommit('spawnTable', name, body);
+    return NextResponse.json({ success: true, envelope });
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Internal server error', 500);
   }

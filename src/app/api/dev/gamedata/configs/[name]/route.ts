@@ -12,6 +12,11 @@ import {
 import { setAmbianceConfig } from '@/game/config/ambiance';
 import { setLightingConfig } from '@/game/config/lighting';
 import { setFovConfig } from '@/game/config/fov';
+import { setDepthConfig, type DepthConfigData } from '@/game/generation/dungeon-generator';
+import {
+  setLootDistributionConfig,
+  type LootDistributionData,
+} from '@/game/generation/entity-placement';
 import { LightingConfigSchema } from '@shared/lighting-config';
 import { FovConfigSchema } from '@shared/fov-config';
 import { registerSoundCue } from '@/game/audio/cue-registry';
@@ -179,11 +184,13 @@ export async function PUT(req: Request, props: { params: Promise<{ name: string 
       if (!parsed.success) {
         return errorResponse(`Invalid depth-config: ${parsed.error.message}`, 400);
       }
+      setDepthConfig(body as DepthConfigData);
     } else if (name === 'loot-distribution') {
       const parsed = LootDistributionSchema.safeParse(body);
       if (!parsed.success) {
         return errorResponse(`Invalid loot-distribution: ${parsed.error.message}`, 400);
       }
+      setLootDistributionConfig(body as LootDistributionData);
     } else if (name === 'ambiance') {
       const parsed = AmbianceConfigSchema.safeParse(body);
       if (!parsed.success) {

@@ -20,6 +20,7 @@ import {
 } from '@shared/components';
 import type { ShellTemplate } from '@/game/shells/server/types';
 import { globalShellRegistry } from '@/game/shells/server';
+import { getDefaultEntityRegistry } from '@/game/entities';
 import { resolveShellSpawnSprite } from '@shared/utils/shell-sprite-util';
 
 const componentDefByKey = new Map<string, ComponentDef<unknown>>(
@@ -237,12 +238,28 @@ function reconcileEntityInSession(
   }
 }
 
+export function upsertEntityTemplateInRegistries(rawTemplate: RawTemplate): void {
+  getDefaultEntityRegistry().upsert(rawTemplate);
+  for (const { state } of sessionManager.getAllSessionEntries()) {
+    state.entityRegistry?.upsert(rawTemplate);
+  }
+}
+
+export function upsertMixinInRegistries(mixinName: string, mixinTemplate: RawTemplate): void {
+  getDefaultEntityRegistry().upsertMixin(mixinName, mixinTemplate);
+  for (const { state } of sessionManager.getAllSessionEntries()) {
+    state.entityRegistry?.upsertMixin(mixinName, mixinTemplate);
+  }
+}
+
 export function reconcileEntityTemplateAcrossSessions(
   templateName: string,
   rawTemplate: RawTemplate,
 ): Record<string, SessionHotloadPatch> {
   const patches: Record<string, SessionHotloadPatch> = {};
   const targetNorm = normalizeKey(templateName);
+
+  getDefaultEntityRegistry().upsert(rawTemplate);
 
   for (const { sessionId, state } of sessionManager.getAllSessionEntries()) {
     state.entityRegistry?.upsert(rawTemplate);
@@ -270,6 +287,8 @@ export function reconcileMixinAcrossSessions(
   mixinTemplate: RawTemplate,
 ): Record<string, SessionHotloadPatch> {
   const patches: Record<string, SessionHotloadPatch> = {};
+
+  getDefaultEntityRegistry().upsertMixin(mixinName, mixinTemplate);
 
   for (const { sessionId, state } of sessionManager.getAllSessionEntries()) {
     const registry = state.entityRegistry;

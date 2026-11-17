@@ -6,6 +6,9 @@ import { listJsonFiles, atomicWrite, resolveFilePath, errorResponse, regenerateE
 import { RawTemplateSchema } from '../schemas';
 import { validateEcsRules } from '../ecs-rules';
 import { COMPONENTS_REGISTRY } from '@shared/components';
+import { upsertEntityTemplateInRegistries } from '@/server/dev/hotload-reconciler';
+import { hotloadBus } from '@/server/dev/hotload-bus';
+import type { RawTemplate } from '@engine/entity/types';
 
 const DIR = path.join(process.cwd(), 'src/game/entities/templates');
 
@@ -63,6 +66,8 @@ export async function POST(req: Request) {
 
     await atomicWrite(filePath, body);
     await regenerateEntityTemplateIndex();
+    upsertEntityTemplateInRegistries(body as RawTemplate);
+    hotloadBus.publishCommit('entity', body.name, body);
 
     return NextResponse.json({ success: true, name: body.name }, { status: 201 });
   } catch (error) {

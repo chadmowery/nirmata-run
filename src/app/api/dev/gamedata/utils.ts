@@ -216,6 +216,22 @@ export async function regeneratePrefabTemplateIndex(root: string = process.cwd()
   prefabImports.push(`  return ALL_PREFABS.filter((p) => depth >= p.minFloor && depth <= p.maxFloor);`);
   prefabImports.push(`}`);
   prefabImports.push('');
+  prefabImports.push(`export function upsertPrefab(prefab: RoomPrefabTemplate): void {`);
+  prefabImports.push(`  const idx = ALL_PREFABS.findIndex((p) => p.id === prefab.id);`);
+  prefabImports.push(`  if (idx >= 0) {`);
+  prefabImports.push(`    ALL_PREFABS[idx] = prefab;`);
+  prefabImports.push(`  } else {`);
+  prefabImports.push(`    ALL_PREFABS.push(prefab);`);
+  prefabImports.push(`  }`);
+  prefabImports.push(`}`);
+  prefabImports.push('');
+  prefabImports.push(`export function removePrefab(id: string): void {`);
+  prefabImports.push(`  const idx = ALL_PREFABS.findIndex((p) => p.id === id);`);
+  prefabImports.push(`  if (idx >= 0) {`);
+  prefabImports.push(`    ALL_PREFABS.splice(idx, 1);`);
+  prefabImports.push(`  }`);
+  prefabImports.push(`}`);
+  prefabImports.push('');
 
   await writeIfChanged(prefabIndexPath, prefabImports.join('\n'));
 }

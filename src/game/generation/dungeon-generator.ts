@@ -8,6 +8,18 @@ import { SectorCondition, FactionTheme, Orientation } from '@shared/components/e
 import { PropAnchorTag, getPrefabsForFloor } from './prefabs';
 import { AutotileSolver, AutotileResult } from './autotile-solver';
 
+export type DepthConfigData = typeof depthConfig;
+
+let activeDepthConfig: DepthConfigData = depthConfig;
+
+export function getDepthConfig(): DepthConfigData {
+  return activeDepthConfig;
+}
+
+export function setDepthConfig(next: DepthConfigData): void {
+  activeDepthConfig = next;
+}
+
 /**
  * Configuration for game-layer dungeon generation.
  * Extends engine GeneratorConfig with optional depth field.
@@ -95,7 +107,7 @@ export function createSeededRNG(seedStr: string) {
  * Get the depth band configuration for a given floor depth.
  */
 export function getDepthBand(depth: number) {
-  return depthConfig.depthBands.find((band) => depth >= band.range.min && depth <= band.range.max);
+  return activeDepthConfig.depthBands.find((band) => depth >= band.range.min && depth <= band.range.max);
 }
 
 /**
