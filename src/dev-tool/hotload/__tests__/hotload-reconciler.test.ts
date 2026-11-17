@@ -32,6 +32,7 @@ import {
   SecurityLock,
   AbilityDef,
   AugmentData,
+  AugmentState,
   FovAwareness,
 } from '@shared/components';
 import { globalShellRegistry } from '@/game/shells/server';
@@ -451,5 +452,80 @@ describe('Live ECS World & Server Session Reconciliation (HOTLOAD-06)', () => {
 
     expect(patches['rec-sess-res02']).toBeDefined();
     expect(world.getComponent(gruntId, Defense)?.armor).toBe(9);
+  });
+
+  it('preserves AbilityDef runtime state (isActive, isLegacy, currentCooldown) and AugmentState cooldowns on hotload (RES-03)', () => {
+    const { world, entityRegistry } = createTestSession('rec-sess-res03');
+
+    const fwId = world.createEntity();
+    world.addComponent(fwId, TemplateId, { id: 'phase-shift' });
+    world.addComponent(fwId, AbilityDef, {
+      name: 'Phase_Shift.sh',
+      heatCost: 25,
+      range: 0,
+      effectType: 'dash',
+      damageAmount: 0,
+      dashDistance: 5,
+      visionRadius: 0,
+      heatPerTurn: 0,
+      isToggle: false,
+      isActive: true,
+      isLegacy: true,
+      currentCooldown: 3,
+    } as never);
+
+    const baseFw = entityRegistry.get('phase-shift')!;
+    reconcileEntityTemplateAcrossSessions('phase-shift', {
+      ...baseFw,
+      components: {
+        ...(baseFw.components ?? {}),
+        abilityDef: {
+          ...((baseFw.components as Record<string, Record<string, unknown>>).abilityDef ?? {}),
+          heatCost: 40,
+        },
+      },
+    } as never);
+
+    const updatedFw = world.getComponent(fwId, AbilityDef);
+    expect(updatedFw?.heatCost).toBe(40);
+    expect(updatedFw?.isActive).toBe(true);
+    expect(updatedFw?.isLegacy).toBe(true);
+
+    // Forward-compatible currentCooldown preservation when schema fallback uses merged payload
+    world.addComponent(fwId, AbilityDef, {
+      ...(updatedFw ?? {}),
+      currentCooldown: 2,
+    } as never);
+    reconcileEntityTemplateAcrossSessions('phase-shift', {
+      ...baseFw,
+      components: {
+        abilityDef: {
+          name: 'Phase_Shift_Partial',
+          heatCost: 30,
+          currentCooldown: 0,
+        },
+      },
+    } as never);
+    expect((world.getComponent(fwId, AbilityDef) as unknown as { currentCooldown?: number })?.currentCooldown).toBe(2);
+
+    // AugmentState cooldownsRemaining remains intact across AugmentData template reconciliation
+    const augId = world.createEntity();
+    world.addComponent(augId, TemplateId, { id: 'displacement-venting' });
+    world.addComponent(augId, AugmentData, {
+      name: 'Displacement Venting',
+      trigger: 'ON_MOVE',
+      payloads: [],
+      isLegacy: true,
+    } as never);
+    world.addComponent(augId, AugmentState, {
+      activationsThisTurn: {},
+      cooldownsRemaining: { displacement_venting: 4 },
+    });
+
+    const baseAug = entityRegistry.get('displacement-venting')!;
+    reconcileEntityTemplateAcrossSessions('displacement-venting', baseAug);
+    expect(world.getComponent(augId, AugmentState)?.cooldownsRemaining).toEqual({
+      displacement_venting: 4,
+    });
   });
 });

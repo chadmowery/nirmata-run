@@ -4,7 +4,7 @@
 - **Branch Reviewed**: `fix/gamedata-hotload-issues` (`3b9f86c2`) against `feature/gamedata-hotload` (`8b6c6a0a`) and `main` (`f6a14d52`)
 - **Target Specification**: [`docs/design/GAMEDATA-HOTLOAD-SPEC.md`](../design/GAMEDATA-HOTLOAD-SPEC.md)
 - **Architectural Rulebooks**: [`AGENTS.md`](../../AGENTS.md), [`src/engine/AGENTS.md`](../../src/engine/AGENTS.md), [`src/shared/AGENTS.md`](../../src/shared/AGENTS.md), [`src/rendering/AGENTS.md`](../../src/rendering/AGENTS.md), [`src/client/AGENTS.md`](../../src/client/AGENTS.md), [`src/server/AGENTS.md`](../../src/server/AGENTS.md), [`src/dev-tool/AGENTS.md`](../../src/dev-tool/AGENTS.md)
-- **Overall Verdict**: **ALL 14 PRIOR FINDINGS RESOLVED** (Remediation verified on `fix/gamedata-hotload-issues` @ `3b9f86c2`: `264` test files / `1,737` tests passing, `npm run typecheck` `0` errors, `npm run lint` `0` errors, `npm run build` clean; 3 non-blocking `P3` Low polish notes documented in [Section 5.3](#53-residual-low-severity-p3-polish-notes-non-blocking))
+- **Overall Verdict**: **ALL 14 PRIOR FINDINGS & ALL 3 RESIDUAL `P3` NOTES RESOLVED** (Final verification on `fix/gamedata-hotload-issues`: `264` test files / `1,741` tests passing, `npm run typecheck` `0` errors, `npm run lint` `0` errors, `npm run build` clean; [Section 5.3](#53-residual-low-severity-p3-polish-notes-non-blocking) fully remediated)
 
 ---
 
@@ -252,7 +252,7 @@ An adversarial follow-up audit was performed across the 12 remediation commits (
 ### 5.1 Automated Verification Gate Results
 - **`npm run typecheck`**: **PASS** (`tsc --noEmit`, `0` errors)
 - **`npm run lint`**: **PASS** (`eslint src/`, `0` warnings/errors)
-- **`npm test -- --run`**: **PASS** (`264` test files, `1,737` tests passing — `+8` new test files and `+25` new tests added since baseline `256` files / `1,712` tests)
+- **`npm test -- --run`**: **PASS** (`264` test files, `1,741` tests passing — `+8` new test files and `+29` new tests added since baseline `256` files / `1,712` tests)
 - **`npm run build`**: **PASS** (`next build`, `0` errors; all `/api/dev/hotload/*` and `/api/dev/gamedata/*` routes compiled and gated behind `checkNonProductionOnly()`)
 - **Working Tree State (`git status`)**: Clean (`nothing to commit, working tree clean`)
 
@@ -289,7 +289,7 @@ No Critical (`P0`), High (`P1`), or Medium (`P2`) issues remain. Three minor `P3
      2. Whereas `ClientHotloadBridge.applyPresentationPreview()` resolves transitive mixin inheritance via `templateInheritsMixin()`, `reconcileMixinAcrossSessions()` in `src/server/dev/hotload-reconciler.ts:327` checks only direct inclusion (`if (tpl.mixins?.includes(mixinName))`).
    - **Resolution**: Extracted shared `templateInheritsMixin()` in [`src/engine/entity/builder.ts`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/engine/entity/builder.ts), wired it into both `ClientHotloadBridge.applyPresentationPreview()` and `reconcileMixinAcrossSessions()`, and upserted `entity`/`mixin` `COMMIT` payloads into `getDefaultEntityRegistry()` and `ctx?.entityFactory?.getRegistry?.()` in `ClientHotloadBridge.handleEnvelope()`. Verified in [`client-hotload-preview.test.ts`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/hotload/__tests__/client-hotload-preview.test.ts) and [`hotload-reconciler.test.ts`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/hotload/__tests__/hotload-reconciler.test.ts).
 
-3. **`RES-03` (`P3` Low — `@server` [`src/server/dev/hotload-reconciler.ts:212-217`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/server/dev/hotload-reconciler.ts#L212-L217)): `AbilityDef.currentCooldown` Not Preserved in `reconcileEntityInSession()` (Spec §7.2 Row 6)**
+3. **`RES-03` (`P3` Low — `@server` [`src/server/dev/hotload-reconciler.ts:212-220`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/server/dev/hotload-reconciler.ts#L212-L220)) — [RESOLVED]**: `AbilityDef.currentCooldown` Not Preserved in `reconcileEntityInSession()` (Spec §7.2 Row 6)
    - **Description**: Spec §7.2 (Category 6: Items, Abilities & Augments) states that hotloading an ability template should update static fields *"while preserving `abilityDef.currentCooldown` and `abilityDef.isActive`"*. `reconcileEntityInSession()` currently preserves `abilityDef.isActive` and `abilityDef.isLegacy`, but omits `merged.currentCooldown = existing.currentCooldown ?? 0;`.
-   - **Suggested Polish**: Add `if (existing.currentCooldown !== undefined) merged.currentCooldown = existing.currentCooldown;` inside the `compKey === 'abilityDef'` branch in `src/server/dev/hotload-reconciler.ts`.
+   - **Resolution**: Added `if (existing.currentCooldown !== undefined) { merged.currentCooldown = existing.currentCooldown; }` in the `compKey === 'abilityDef'` branch of `reconcileEntityInSession()`. (Note: [`AbilityDef.schema`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/shared/components/ability-def.ts) in this codebase currently does not define `currentCooldown` — runtime cooldowns reside on `AugmentState.cooldownsRemaining` and `AIState.cooldowns` — so `safeParse` strips unknown fields for valid schemas while `merged` preserves `currentCooldown` forward-compatibly.) Verified in [`hotload-reconciler.test.ts`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/hotload/__tests__/hotload-reconciler.test.ts).
 

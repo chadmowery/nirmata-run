@@ -215,6 +215,9 @@ function reconcileEntityInSession(
         if (existing.isLegacy !== undefined) {
           merged.isLegacy = existing.isLegacy;
         }
+        if (existing.currentCooldown !== undefined) {
+          merged.currentCooldown = existing.currentCooldown;
+        }
       } else if (compKey === 'augmentData' && existing) {
         if (existing.isLegacy !== undefined) {
           merged.isLegacy = existing.isLegacy;
