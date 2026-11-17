@@ -86,6 +86,15 @@ export function postHotloadPreview<T>(
   }
 }
 
+function clearPendingPreview(key: string): void {
+  const pendingTimer = previewTimers.get(key);
+  if (pendingTimer !== undefined && typeof window !== 'undefined') {
+    window.clearTimeout(pendingTimer);
+    previewTimers.delete(key);
+  }
+  pendingPreviewPayloads.delete(key);
+}
+
 export function postHotloadCommit<T>(
   domain: HotloadDomain,
   targetId: string,
@@ -93,6 +102,8 @@ export function postHotloadCommit<T>(
   sessionPatches?: HotloadEnvelope<T>['sessionPatches'],
   envelopeId?: string,
 ): void {
+  clearPendingPreview(`${domain}:${targetId}`);
+
   const envelope = makeEnvelope('COMMIT', domain, targetId, payload);
   if (envelopeId) {
     envelope.id = envelopeId;
@@ -108,13 +119,7 @@ export function postHotloadRevert<T>(
   targetId: string,
   baselinePayload: T,
 ): void {
-  const key = `${domain}:${targetId}`;
-  const pendingTimer = previewTimers.get(key);
-  if (pendingTimer !== undefined && typeof window !== 'undefined') {
-    window.clearTimeout(pendingTimer);
-    previewTimers.delete(key);
-  }
-  pendingPreviewPayloads.delete(key);
+  clearPendingPreview(`${domain}:${targetId}`);
 
   postHotloadMessage({
     type: 'HOTLOAD',

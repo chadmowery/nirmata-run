@@ -4,6 +4,7 @@ import { GET as getStream } from '@/app/api/dev/hotload/stream/route';
 import { postHotloadCommit } from '../studio-sync';
 import { ClientHotloadBridge } from '../client-hotload-bridge';
 import { useHotloadToastStore } from '../toast-store';
+import type { HotloadControlMessage } from '../types';
 
 describe('Hotload Transport & Bus (HOTLOAD-01)', () => {
   beforeEach(() => {
@@ -118,6 +119,48 @@ describe('Hotload Transport & Bus (HOTLOAD-01)', () => {
       expect(pushToastSpy).toHaveBeenCalledTimes(1);
       expect(useHotloadToastStore.getState().activeToast?.id).toBe(serverEnvelope.id);
     } finally {
+      globalThis.BroadcastChannel = origBC;
+    }
+  });
+
+  it('cancels pending throttled PREVIEW timers on postHotloadCommit (RES-01)', async () => {
+    vi.useFakeTimers();
+    vi.resetModules();
+
+    const postedMessages: HotloadControlMessage[] = [];
+    const origBC = globalThis.BroadcastChannel;
+    class MockBC {
+      addEventListener() {}
+      removeEventListener() {}
+      close() {}
+      postMessage(msg: HotloadControlMessage) {
+        postedMessages.push(msg);
+      }
+    }
+    globalThis.BroadcastChannel = MockBC as unknown as typeof BroadcastChannel;
+
+    try {
+      const studioSync = await import('../studio-sync');
+
+      // Case 1: PREVIEW scheduled, rAF not yet flushed -> COMMIT cancels it
+      studioSync.postHotloadPreview('config:lighting', 'default', { ambientIntensity: 0.2 }, 16);
+      studioSync.postHotloadCommit('config:lighting', 'default', { ambientIntensity: 0.8 });
+      vi.advanceTimersByTime(100);
+
+      // Case 2: PREVIEW scheduled, rAF flushed (timeout armed) -> COMMIT cancels timer
+      studioSync.postHotloadPreview('config:lighting', 'default', { ambientIntensity: 0.3 }, 16);
+      vi.advanceTimersByTime(16); // fires rAF to arm setTimeout(16)
+      studioSync.postHotloadCommit('config:lighting', 'default', { ambientIntensity: 0.9 });
+      vi.advanceTimersByTime(100);
+
+      const hotloadEnvelopes = postedMessages
+        .filter((m): m is Extract<HotloadControlMessage, { type: 'HOTLOAD' }> => m.type === 'HOTLOAD')
+        .map((m) => m.envelope);
+
+      expect(hotloadEnvelopes).toHaveLength(2);
+      expect(hotloadEnvelopes.every((e) => e.mode === 'COMMIT')).toBe(true);
+    } finally {
+      vi.useRealTimers();
       globalThis.BroadcastChannel = origBC;
     }
   });
