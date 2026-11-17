@@ -560,11 +560,7 @@ export class ClientHotloadBridge {
       for (const [compKey, compVal] of Object.entries(ent.componentsSet)) {
         const def = componentDefByKey.get(compKey);
         if (!def) continue;
-        if (world.hasComponent(ent.entityId, def)) {
-          world.patchComponent(ent.entityId, def, compVal as Record<string, unknown>);
-        } else {
-          world.addComponent(ent.entityId, def, compVal);
-        }
+        world.addComponent(ent.entityId, def, compVal);
         if (compKey === 'sprite' || compKey === 'shell') {
           touchedSpriteIds.push(ent.entityId);
         }

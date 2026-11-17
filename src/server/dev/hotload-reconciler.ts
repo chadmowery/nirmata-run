@@ -75,6 +75,18 @@ const ITEM_ABILITY_KEYS = new Set([
   'augmentData',
 ]);
 
+const REMOVABLE_TEMPLATE_KEYS: readonly string[] = [
+  ...PRESENTATION_KEYS,
+  ...INTERACTIVE_ENV_KEYS,
+  ...VITALS_COMBAT_KEYS,
+  ...AI_STATE_KEYS,
+  ...ITEM_ABILITY_KEYS,
+  'hostile',
+  'lootTable',
+  'pickupEffect',
+  'deadZone',
+];
+
 function normalizeKey(key: string): string {
   return key
     .toLowerCase()
@@ -157,6 +169,9 @@ function reconcileEntityInSession(
         merged.isSearched = existing.isSearched ?? false;
       } else if (compKey === 'securityLock' && existing) {
         merged.isLocked = existing.isLocked ?? merged.isLocked;
+        if (existing.faradayBounds !== undefined) {
+          merged.faradayBounds = existing.faradayBounds;
+        }
       } else if (compKey === 'corruptedNode' && existing) {
         merged.isDisarmed = existing.isDisarmed ?? false;
         merged.triggered = existing.triggered ?? false;
@@ -193,21 +208,27 @@ function reconcileEntityInSession(
     } else if (ITEM_ABILITY_KEYS.has(compKey)) {
       if (compKey === 'abilityDef' && existing) {
         merged.isActive = existing.isActive ?? false;
+        if (existing.isLegacy !== undefined) {
+          merged.isLegacy = existing.isLegacy;
+        }
+      } else if (compKey === 'augmentData' && existing) {
+        if (existing.isLegacy !== undefined) {
+          merged.isLegacy = existing.isLegacy;
+        }
       }
     }
 
-    if (existing) {
-      world.patchComponent(entityId, def, merged);
-    } else {
-      world.addComponent(entityId, def, merged);
-    }
+    const parsed = def.schema.safeParse(merged);
+    const nextCompData = (parsed.success ? parsed.data : merged) as Record<string, unknown>;
+    world.addComponent(entityId, def, nextCompData);
 
-    const finalComp = (world.getComponent(entityId, def) as Record<string, unknown> | undefined) ?? merged;
+    const finalComp =
+      (world.getComponent(entityId, def) as Record<string, unknown> | undefined) ?? nextCompData;
     componentsSet[compKey] = redactComponentForClientPatch(compKey, finalComp, entityId, world);
   }
 
-  // 2. Remove presentation or removable definition components that were deleted from the template
-  for (const compKey of [...PRESENTATION_KEYS, 'blocksMovement']) {
+  // 2. Remove template-authored definition components that were deleted from the template
+  for (const compKey of REMOVABLE_TEMPLATE_KEYS) {
     if (compKey in resolvedComponents) continue;
     const def = componentDefByKey.get(compKey);
     if (def && world.hasComponent(entityId, def)) {

@@ -28,6 +28,10 @@ import {
   PortConfig,
   LightSource,
   CorruptedNode,
+  SecurityLock,
+  AbilityDef,
+  AugmentData,
+  FovAwareness,
 } from '@shared/components';
 import { globalShellRegistry } from '@/game/shells/server';
 import type { EngineEvents } from '@engine/events/types';
@@ -259,5 +263,90 @@ describe('Live ECS World & Server Session Reconciliation (HOTLOAD-06)', () => {
 
     // Restore original vanguard-v1 in global registry so other tests are unaffected
     globalShellRegistry.upsertTemplate(vanguardTpl);
+  });
+
+  it('clears deleted optional fields, applies Zod defaults, removes deleted components, and preserves faradayBounds/isLegacy (HIGH-03)', () => {
+    const { world, entityRegistry } = createTestSession('rec-sess-high03');
+
+    const doorId = world.createEntity();
+    world.addComponent(doorId, TemplateId, { id: 'prop-vault-door' });
+    world.addComponent(doorId, Position, { x: 3, y: 3 });
+    world.addComponent(doorId, SpriteComponent, {
+      key: 'prop_vault_door',
+      animationSet: 'vault_pulse',
+      initialState: 'locked',
+      speedMultiplier: 1,
+      paused: false,
+      desyncPhase: false,
+    });
+    world.addComponent(doorId, SecurityLock, {
+      isLocked: true,
+      keyIdRequired: 'access-key',
+      faradayBounds: { x: 1, y: 1, width: 5, height: 5 },
+    });
+    world.addComponent(doorId, FovAwareness, { canSeePlayer: false });
+
+    const baseDoor = entityRegistry.get('prop-vault-door')!;
+    const nextDoorComps = { ...(baseDoor.components ?? {}) } as Record<string, unknown>;
+    delete nextDoorComps.fovAwareness;
+    nextDoorComps.sprite = { key: 'prop_vault_door_v2' }; // animationSet, initialState removed; speedMultiplier omitted -> Zod default 1
+    nextDoorComps.lightSource = { color: '#ff00ff' }; // enabled/radius/etc omitted -> Zod defaults populated
+
+    const patches = reconcileEntityTemplateAcrossSessions('prop-vault-door', {
+      ...baseDoor,
+      components: nextDoorComps,
+    } as never);
+
+    expect(patches['rec-sess-high03']).toBeDefined();
+    const updatedSprite = world.getComponent(doorId, SpriteComponent)!;
+    expect(updatedSprite.key).toBe('prop_vault_door_v2');
+    expect(updatedSprite.animationSet).toBeUndefined();
+    expect(updatedSprite.initialState).toBeUndefined();
+    expect(updatedSprite.speedMultiplier).toBe(1);
+
+    const updatedLight = world.getComponent(doorId, LightSource)!;
+    expect(updatedLight.enabled).toBe(true);
+    expect(updatedLight.color).toBe('#ff00ff');
+
+    expect(world.hasComponent(doorId, FovAwareness)).toBe(false);
+    expect(world.getComponent(doorId, SecurityLock)?.faradayBounds).toEqual({
+      x: 1,
+      y: 1,
+      width: 5,
+      height: 5,
+    });
+
+    // AbilityDef & AugmentData preserve runtime isLegacy flag
+    const fwId = world.createEntity();
+    world.addComponent(fwId, TemplateId, { id: 'phase-shift' });
+    world.addComponent(fwId, AbilityDef, {
+      name: 'Phase Shift',
+      heatCost: 15,
+      range: 4,
+      cooldown: 3,
+      currentCooldown: 2,
+      isActive: true,
+      isLegacy: true,
+      trigger: 'ON_ACTIVATE',
+      payloads: [],
+    } as never);
+
+    const augId = world.createEntity();
+    world.addComponent(augId, TemplateId, { id: 'displacement-venting' });
+    world.addComponent(augId, AugmentData, {
+      name: 'Displacement Venting',
+      trigger: 'ON_MOVE',
+      payloads: [],
+      isLegacy: true,
+    } as never);
+
+    const baseFw = entityRegistry.get('phase-shift')!;
+    reconcileEntityTemplateAcrossSessions('phase-shift', baseFw);
+    expect(world.getComponent(fwId, AbilityDef)?.isLegacy).toBe(true);
+    expect(world.getComponent(fwId, AbilityDef)?.isActive).toBe(true);
+
+    const baseAug = entityRegistry.get('displacement-venting')!;
+    reconcileEntityTemplateAcrossSessions('displacement-venting', baseAug);
+    expect(world.getComponent(augId, AugmentData)?.isLegacy).toBe(true);
   });
 });

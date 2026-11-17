@@ -112,7 +112,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
   2. Expose runtime setters for `depthConfig`, `lootDistribution`, `depthDistribution` (`spawn-tables`), and `ALL_PREFABS` (`upsertPrefab` / `removePrefab`), and invoke them from the respective gamedata API routes.
   3. Upsert templates into `getDefaultEntityRegistry()` and all active session `entityRegistry` instances on both `POST` and `PUT` in `/api/dev/gamedata/entities` and `/api/dev/gamedata/mixins`.
 
-#### [HIGH-03] `World.patchComponent()` Shallow Merge Retains Deleted Optional Fields, Skips Zod Defaults, and Drops `SecurityLock.faradayBounds` / `isLegacy`
+#### [HIGH-03] `World.patchComponent()` Shallow Merge Retains Deleted Optional Fields, Skips Zod Defaults, and Drops `SecurityLock.faradayBounds` / `isLegacy` — **[RESOLVED]**
 - **Location**: [`src/server/dev/hotload-reconciler.ts:150-216`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/server/dev/hotload-reconciler.ts#L150-L216), [`src/dev-tool/hotload/client-hotload-bridge.ts:399-410`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/hotload/client-hotload-bridge.ts#L399-L410)
 - **Vulnerability / Gap**:
   1. Both `reconcileEntityInSession()` (server) and `ClientHotloadBridge.applySessionPatch()` (client) call `world.patchComponent(entityId, def, merged)`. Because `patchComponent` computes `{ ...existing, ...patch }`, any optional property removed in Gamedata Studio (such as clearing `shell.directionalSprites`—where `undefined` values are stripped by `JSON.stringify` over SSE/HTTP—or deleting `sprite.animationSet`, `sprite.initialState`, `audioProfile.attackCue`, `aiState.inlineTree`) is never cleared from the live entity.
@@ -224,7 +224,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
   - Move ECS component preview/revert patching into `ClientHotloadBridge`, remove `LightSource` when `nextLight` is `undefined` on revert, and resolve mixin-inheriting entities during mixin preview/revert.
 - [x] **4. Implement Live Server Registry Refresh for AI Trees, Spawn Tables, Configs & Prefabs (`HIGH-02`)**:
   - Add `PUT /api/dev/gamedata/ai-trees/[treeId]` updating `AIBehaviorRegistry`; add runtime setters for `depthConfig`, `lootDistribution`, `depthDistribution`, and `ALL_PREFABS`; and upsert newly `POST`ed entities/mixins into active session registries and `getDefaultEntityRegistry()`.
-- [ ] **5. Replace Shallow `patchComponent` with Schema-Validated Component Replacement in Hotload Reconciliation (`HIGH-03`)**:
+- [x] **5. Replace Shallow `patchComponent` with Schema-Validated Component Replacement in Hotload Reconciliation (`HIGH-03`)**:
   - Parse merged components with `def.schema.safeParse(merged)`, replace components via `world.addComponent()` on server and client so deleted optional fields are cleared, and preserve `SecurityLock.faradayBounds` and `isLegacy`.
 - [ ] **6. Preserve Player Shell Upgrades, `Heat.baseDissipation`, and Current Facing Direction (`HIGH-04`)**:
   - Update `applyShellTemplateToPlayer()` in `src/server/dev/hotload-reconciler.ts` to preserve current cardinal facing direction, apply shell upgrades, and patch `Heat.baseDissipation`.
