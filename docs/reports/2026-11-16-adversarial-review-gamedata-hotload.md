@@ -150,14 +150,14 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
 
 ### Medium / Spec Gap
 
-#### [MED-01] `MixinEditor` Lacks `LIVE_SYNC` Preview, `Cmd+S` Save Shortcut, and `REVERT` Support (Spec §2.2, §4.1, §5.1 Violation)
+#### [MED-01] `MixinEditor` Lacks `LIVE_SYNC` Preview, `Cmd+S` Save Shortcut, and `REVERT` Support (Spec §2.2, §4.1, §5.1 Violation) — **[RESOLVED]**
 - **Location**: [`src/dev-tool/studio/editors/MixinEditor.tsx:1-240`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/studio/editors/MixinEditor.tsx#L1-L240)
 - **Vulnerability / Gap**:
   `MixinEditor.tsx` was not updated with hotload hooks: it has no `gamedata-save` (`Cmd+S`) event listener, no `gamedata-revert` (`[ ↺ REVERT ]`) listener, no `baselineRef`, no `setActiveEffectiveData` inspector sync, and does not call `postHotloadPreview`, `postHotloadCommit`, or `postHotloadRevert`.
 - **Required Fix**:
   Add `baselineRef`, `gamedata-save`, `gamedata-revert`, `setActiveEffectiveData`, and `postHotloadPreview` / `postHotloadCommit` / `postHotloadRevert` to `MixinEditor.tsx`.
 
-#### [MED-02] Unsaved Item Switch While `LIVE_SYNC` is Active Does Not Broadcast `REVERT` (Spec §2.2.4 Violation)
+#### [MED-02] Unsaved Item Switch While `LIVE_SYNC` is Active Does Not Broadcast `REVERT` (Spec §2.2.4 Violation) — **[RESOLVED]**
 - **Location**: [`src/dev-tool/studio/editors/EntityTemplateEditor.tsx:210-221`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/studio/editors/EntityTemplateEditor.tsx#L210-L221), [`src/dev-tool/studio/editors/ShellEditor.tsx:65-75`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/studio/editors/ShellEditor.tsx#L65-L75), [`src/dev-tool/studio/editors/AudioCueStudio.tsx:136-147`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/studio/editors/AudioCueStudio.tsx#L136-L147), [`src/dev-tool/studio/editors/ConfigEditor.tsx:124-137`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/dev-tool/studio/editors/ConfigEditor.tsx#L124-L137)
 - **Vulnerability / Gap**:
   Spec §2.2.4 requires that navigating away from a dirty item while `LIVE_SYNC` was active broadcasts `mode: 'REVERT'` with `baselinePayload` to restore the running game to its committed disk state. Currently, unmounting a dirty editor (by selecting another item in the sidebar) does not emit `postHotloadRevert()`, leaving uncommitted preview changes active in the game and leaving the `● LIVE SYNC ACTIVE` toast pill stuck on screen.
@@ -230,7 +230,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
   - Update `applyShellTemplateToPlayer()` in `src/server/dev/hotload-reconciler.ts` to preserve current cardinal facing direction, apply shell upgrades, and patch `Heat.baseDissipation`.
 - [x] **7. Unify `COMMIT` Envelope IDs and Forward `sessionPatches` on `BroadcastChannel` (`HIGH-05`)**:
   - Pass `sessionPatches` and canonical envelope IDs from API responses into `postHotloadCommit()` and avoid double-applying shell switch patches.
-- [ ] **8. Wire `MixinEditor` Hotload Hooks & Auto-Revert on Unsaved Item Switch (`MED-01`, `MED-02`)**:
+- [x] **8. Wire `MixinEditor` Hotload Hooks & Auto-Revert on Unsaved Item Switch (`MED-01`, `MED-02`)**:
   - Add `Cmd+S`, `REVERT`, and `LIVE_SYNC` preview/commit hooks to `MixinEditor.tsx`, and emit `postHotloadRevert()` when unmounting a dirty editor with uncommitted previews.
 - [ ] **9. Fix Audio Hotload Volume & Voice Cleanup (`MED-03`)**:
   - Respect `cue.baseVolume` in `AudioEngine.hotUpdateCue()`, update active ambiance volume in `playAmbianceCue()` when `volumeMultiplier` changes on the same `cueId`, and clean up stopped voices in `activeCueVoices` / `activeVoiceMap`.

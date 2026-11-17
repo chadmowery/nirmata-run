@@ -16,6 +16,7 @@ import {
   postHotloadPreview,
   postHotloadRevert,
 } from '@dev-tool/hotload/studio-sync';
+import { useHotloadAutoRevert } from '@dev-tool/hotload/useHotloadAutoRevert';
 import styles from './editors.module.css';
 
 const DIRECTION_ROWS: readonly { key: CardinalDirectionSuffix; label: string }[] = [
@@ -47,6 +48,12 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
   const baselineRef = useRef<ShellTemplate | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const { markPreviewSent, clearPreviewSent } = useHotloadAutoRevert(
+    'shell',
+    !isNew ? id : undefined,
+    () => (baselineRef.current ? structuredClone(baselineRef.current) : null),
+    !isNew && Boolean(id),
+  );
 
   // Sync to telemetry store & LIVE_SYNC presentation preview
   useEffect(() => {
@@ -58,21 +65,23 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
       });
       if (isDirty && liveSyncEnabled && !isNew && id) {
         postHotloadPreview('shell', id, shellData, 16);
+        markPreviewSent();
       }
     }
-  }, [shellData, isDirty, liveSyncEnabled, isNew, id, setActiveEffectiveData, setActiveValidationStatus]);
+  }, [shellData, isDirty, liveSyncEnabled, isNew, id, setActiveEffectiveData, setActiveValidationStatus, markPreviewSent]);
 
   useEffect(() => {
     const onRevert = () => {
       if (!baselineRef.current || isNew || !id) return;
       const restored = structuredClone(baselineRef.current);
       setShellData(restored);
+      clearPreviewSent();
       setDirty(false);
       postHotloadRevert('shell', id, restored);
     };
     window.addEventListener('gamedata-revert', onRevert);
     return () => window.removeEventListener('gamedata-revert', onRevert);
-  }, [isNew, id, setDirty]);
+  }, [isNew, id, setDirty, clearPreviewSent]);
 
   useEffect(() => {
     if (isNew && cloneFrom) {
@@ -145,6 +154,7 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
       const resData = await res.json().catch(() => ({}));
       setShellData(payload);
       baselineRef.current = structuredClone(payload);
+      clearPreviewSent();
       setSaveStatus('success');
       setDirty(false);
       postHotloadCommit('shell', payload.id, payload, resData.sessionPatches, resData.envelope?.id);
@@ -157,7 +167,7 @@ export function ShellEditor({ id, isNew, cloneFrom, onRefresh }: Props) {
       setErrors([err instanceof Error ? err.message : 'Save failed']);
       setSaveStatus('error');
     }
-  }, [shellData, isNew, id, setDirty, onRefresh, selectItem]);
+  }, [shellData, isNew, id, setDirty, clearPreviewSent, onRefresh, selectItem]);
 
   useEffect(() => {
     const onSaveKey = () => {

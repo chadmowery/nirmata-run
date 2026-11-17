@@ -10,6 +10,7 @@ import {
   postHotloadPreview,
   postHotloadRevert,
 } from '@dev-tool/hotload/studio-sync';
+import { useHotloadAutoRevert } from '@dev-tool/hotload/useHotloadAutoRevert';
 import type { HotloadDomain } from '@dev-tool/hotload/types';
 import type { LightingConfig } from '@shared/lighting-config';
 import type { FovConfig } from '@shared/fov-config';
@@ -92,6 +93,12 @@ export function ConfigEditor({ name, onRefresh }: Props) {
   const [rawError, setRawError] = useState<string | null>(null);
 
   const hotloadDomain = CONFIG_DOMAIN_MAP[name];
+  const { markPreviewSent, clearPreviewSent } = useHotloadAutoRevert(
+    hotloadDomain,
+    name,
+    () => (baselineRef.current ? structuredClone(baselineRef.current) : null),
+    name === 'ambiance' || name === 'lighting' || name === 'fov',
+  );
 
   useEffect(() => {
     fetch(`/api/dev/gamedata/configs/${name}`)
@@ -99,11 +106,12 @@ export function ConfigEditor({ name, onRefresh }: Props) {
       .then((d) => {
         setData(d);
         baselineRef.current = structuredClone(d);
+        clearPreviewSent();
         setRawText(JSON.stringify(d, null, 2));
         setDirty(false);
       })
       .catch(() => setErrors(['Failed to load config']));
-  }, [name, setDirty]);
+  }, [name, setDirty, clearPreviewSent]);
 
   // Sync to store & LIVE_SYNC presentation preview
   useEffect(() => {
@@ -117,9 +125,10 @@ export function ConfigEditor({ name, onRefresh }: Props) {
         hotloadDomain
       ) {
         postHotloadPreview(hotloadDomain, name, data, 16);
+        markPreviewSent();
       }
     }
-  }, [data, isDirty, liveSyncEnabled, name, hotloadDomain, setActiveEffectiveData, setActiveValidationStatus]);
+  }, [data, isDirty, liveSyncEnabled, name, hotloadDomain, setActiveEffectiveData, setActiveValidationStatus, markPreviewSent]);
 
   // Listen for Studio REVERT button
   useEffect(() => {
@@ -128,6 +137,7 @@ export function ConfigEditor({ name, onRefresh }: Props) {
       const restored = structuredClone(baselineRef.current);
       setData(restored);
       setRawText(JSON.stringify(restored, null, 2));
+      clearPreviewSent();
       setDirty(false);
       if (hotloadDomain) {
         postHotloadRevert(hotloadDomain, name, restored);
@@ -135,7 +145,7 @@ export function ConfigEditor({ name, onRefresh }: Props) {
     };
     window.addEventListener('gamedata-revert', onRevert);
     return () => window.removeEventListener('gamedata-revert', onRevert);
-  }, [hotloadDomain, name, setDirty]);
+  }, [hotloadDomain, name, setDirty, clearPreviewSent]);
 
   const handleSave = useCallback(async () => {
     if (!data) return;
@@ -168,6 +178,7 @@ export function ConfigEditor({ name, onRefresh }: Props) {
       const resData = await res.json().catch(() => ({}));
       setData(payload);
       baselineRef.current = structuredClone(payload);
+      clearPreviewSent();
       setRawText(JSON.stringify(payload, null, 2));
       setSaveStatus('success');
       setDirty(false);
@@ -179,7 +190,7 @@ export function ConfigEditor({ name, onRefresh }: Props) {
       setErrors([err instanceof Error ? err.message : 'Save failed']);
       setSaveStatus('error');
     }
-  }, [data, editMode, rawText, name, hotloadDomain, setDirty, onRefresh]);
+  }, [data, editMode, rawText, name, hotloadDomain, setDirty, clearPreviewSent, onRefresh]);
 
   useEffect(() => {
     const onSaveKey = () => handleSave();
