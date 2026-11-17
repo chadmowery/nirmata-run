@@ -62,7 +62,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
 - **Required Fix**:
   Update `regenerateTemplateIndex()` in `src/app/api/dev/gamedata/utils.ts` so its generated TypeScript output matches the canonical exports of `src/game/entities/index.ts` (`registerGameTemplates`, `getDefaultEntityRegistry`, `getTemplateSpriteKey`, and all template/mixin registrations). Add a unit test verifying that `regenerateTemplateIndex()` produces content identical to `src/game/entities/index.ts` when no templates are added or removed.
 
-#### [CRIT-02] `hotReloadThemeAssets()` Destroys Active `Spritesheet` Textures Before Rebinding Sprites and Across Async `await` Gaps
+#### [CRIT-02] `hotReloadThemeAssets()` Destroys Active `Spritesheet` Textures Before Rebinding Sprites and Across Async `await` Gaps — **[RESOLVED]**
 - **Location**: [`src/rendering/assets.ts:248-323`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/rendering/assets.ts#L248-L323), [`src/rendering/sprite-animator.ts:191-226`](file:///Users/chadmowery/personal/dev/dungeon-runner/nirmata-run/src/rendering/sprite-animator.ts#L191-L226)
 - **Vulnerability / Gap**:
   1. In `hotReloadThemeAssets()`, `prevAsset.destroy(true)` is called at line 290 *before* the asynchronous loop `for (const suffix of ['_n', '_m']) { await loadUnpremultipliedCompanionTexture(...) }` (lines 297–316) and *before* `refreshEntitySpriteTextures()` (line 319) or `invalidateTilemap()`. While those network/bitmap promises are pending, PixiJS ticker frames continue executing with live entity `Sprite`s and tilemap `spritePool` sprites pointing to destroyed GPU `TextureSource` instances.
@@ -218,7 +218,7 @@ However, an adversarial audit against [`GAMEDATA-HOTLOAD-SPEC.md`](../design/GAM
 
 - [x] **1. Fix `regenerateTemplateIndex()` (`CRIT-01`)**:
   - Update `src/app/api/dev/gamedata/utils.ts` to emit `registerGameTemplates`, `getDefaultEntityRegistry`, and `getTemplateSpriteKey` matching `src/game/entities/index.ts`, and add a regression test.
-- [ ] **2. Fix `hotReloadThemeAssets()` Texture Disposal Order & Animator Sync (`CRIT-02`)**:
+- [x] **2. Fix `hotReloadThemeAssets()` Texture Disposal Order & Animator Sync (`CRIT-02`)**:
   - In `src/rendering/assets.ts`, defer `prevAsset.destroy(true)` until after all new diffuse/companion textures are cached and `refreshEntitySpriteTextures()` + `spriteAnimator` frame invalidation have run. Reload base `'default'` alongside dedicated themes on `/hotload reload-assets`.
 - [ ] **3. Decouple `RenderSystem.applyHotloadPreview()` from `World` Mutations (`HIGH-01`)**:
   - Move ECS component preview/revert patching into `ClientHotloadBridge`, remove `LightSource` when `nextLight` is `undefined` on revert, and resolve mixin-inheriting entities during mixin preview/revert.

@@ -69,6 +69,25 @@ export function getMaterialAtlasTexture(themeId?: string): Texture | null {
 
 const companionTextures = new Map<string, Texture>();
 
+export type AssetReloadListener = (
+  themeId: string,
+  manifestJson: Record<string, unknown>,
+) => void;
+
+const assetReloadListeners = new Set<AssetReloadListener>();
+
+/**
+ * Registers a synchronous listener invoked after new atlas & companion textures
+ * are installed in `Assets.cache` and entity sprite textures are refreshed,
+ * immediately before superseded GPU texture sources are destroyed.
+ */
+export function registerAssetReloadListener(listener: AssetReloadListener): () => void {
+  assetReloadListeners.add(listener);
+  return () => {
+    assetReloadListeners.delete(listener);
+  };
+}
+
 async function loadUnpremultipliedCompanionTexture(companionSrc: string): Promise<Texture | null> {
   if (
     typeof fetch !== 'function' ||
@@ -278,22 +297,17 @@ export async function hotReloadThemeAssets(
 
     const newSheet = new Spritesheet(baseTexture, manifestJson);
     await newSheet.parse();
-
-    // Dispose superseded spritesheet textures if present
-    const prevAsset =
-      typeof Assets?.get === 'function' ? (Assets.get(alias) as Spritesheet | undefined) : undefined;
-    if (typeof Assets?.cache?.set === 'function') {
-      Assets.cache.set(alias, newSheet);
-    }
-    if (prevAsset && prevAsset !== newSheet && typeof prevAsset.destroy === 'function') {
-      try {
-        prevAsset.destroy(true);
-      } catch {
-        // Ignore teardown errors on already-freed textures
-      }
+    const sheetWithData = newSheet as unknown as { data?: unknown };
+    if (!sheetWithData.data) {
+      sheetWithData.data = manifestJson;
     }
 
-    // 3. Reload companion _n and _m textures with no-premultiply-alpha
+    // 3. Fetch & build companion _n and _m textures BEFORE swapping cache or destroying previous textures
+    const freshCompanions: Array<{
+      companionAlias: string;
+      freshTex: Texture;
+      prevTex: Texture | undefined;
+    }> = [];
     for (const suffix of ['_n', '_m'] as const) {
       const companionAlias = `${alias}${suffix}`;
       const companionSrc = `/${baseSrc}${suffix}.png?v=${version}`;
@@ -301,22 +315,55 @@ export async function hotReloadThemeAssets(
         const prevTex = companionTextures.get(companionAlias);
         const freshTex = await loadUnpremultipliedCompanionTexture(companionSrc);
         if (freshTex) {
-          if (typeof Assets?.cache?.set === 'function') {
-            Assets.cache.set(companionAlias, freshTex);
-          }
-          companionTextures.set(companionAlias, freshTex);
-          registeredCompanions.add(companionAlias);
-          if (prevTex && prevTex !== freshTex) {
-            prevTex.destroy?.(true);
-          }
+          freshCompanions.push({ companionAlias, freshTex, prevTex });
         }
       } catch {
         // Non-fatal if companion map is omitted
       }
     }
 
+    // 4. Synchronously swap cache entries, rebind sprites, and notify listeners
+    const prevAsset =
+      typeof Assets?.get === 'function' ? (Assets.get(alias) as Spritesheet | undefined) : undefined;
+    if (typeof Assets?.cache?.set === 'function') {
+      Assets.cache.set(alias, newSheet);
+    }
+
+    for (const { companionAlias, freshTex } of freshCompanions) {
+      if (typeof Assets?.cache?.set === 'function') {
+        Assets.cache.set(companionAlias, freshTex);
+      }
+      companionTextures.set(companionAlias, freshTex);
+      registeredCompanions.add(companionAlias);
+    }
+
     clearCompanionFrameCache();
     refreshEntitySpriteTextures();
+    for (const listener of assetReloadListeners) {
+      try {
+        listener(targetTheme, manifestJson as Record<string, unknown>);
+      } catch {
+        // Isolate listener failures
+      }
+    }
+
+    // 5. Only after all live sprites and animators are rebound, destroy superseded GPU textures
+    if (prevAsset && prevAsset !== newSheet && typeof prevAsset.destroy === 'function') {
+      try {
+        prevAsset.destroy(true);
+      } catch {
+        // Ignore teardown errors on already-freed textures
+      }
+    }
+    for (const { freshTex, prevTex } of freshCompanions) {
+      if (prevTex && prevTex !== freshTex) {
+        try {
+          prevTex.destroy?.(true);
+        } catch {
+          // Ignore teardown errors
+        }
+      }
+    }
     return true;
   } catch {
     return false;

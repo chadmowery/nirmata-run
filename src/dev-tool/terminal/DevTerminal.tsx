@@ -498,7 +498,12 @@ export function DevTerminal() {
           if (sub === 'reload-assets') {
             const { hotReloadThemeAssets, getActiveThemeId } = await import('@/rendering/assets');
             const theme = getActiveThemeId();
-            const ok = await hotReloadThemeAssets(theme, Date.now());
+            const version = Date.now();
+            let ok = await hotReloadThemeAssets(theme, version);
+            if (theme !== 'default') {
+              const baseOk = await hotReloadThemeAssets('default', version);
+              ok = ok && baseOk;
+            }
             const runtime = (globalThis as unknown as {
               __NIRMATA_DEV_RUNTIME__?: {
                 renderSystem?: {

@@ -198,12 +198,17 @@ export class ClientHotloadBridge {
   }
 
   private async handleReloadAssetsRequest(themeId?: string): Promise<void> {
-    const { hotReloadThemeAssets } = await import('@/rendering/assets');
+    const { hotReloadThemeAssets, getActiveThemeId } = await import('@/rendering/assets');
     const rs = this.deps.getRenderSystem() as (RenderSystem & {
       invalidateTilemap?: () => void;
       syncHotloadedSprites?: (ids?: number[]) => void;
     }) | null;
-    await hotReloadThemeAssets(themeId || 'default', Date.now());
+    const targetTheme = themeId || getActiveThemeId() || 'default';
+    const version = Date.now();
+    await hotReloadThemeAssets(targetTheme, version);
+    if (targetTheme !== 'default') {
+      await hotReloadThemeAssets('default', version);
+    }
     rs?.invalidateTilemap?.();
     rs?.syncHotloadedSprites?.();
   }

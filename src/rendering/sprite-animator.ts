@@ -7,7 +7,7 @@ import {
   ThemedTilesetManifest,
 } from '@shared/tileset-types';
 import { getTextureForSpriteKey, resolveFallbackSpriteKey } from './sprite-map';
-import { getActiveAtlasKey, getActiveThemeId } from './assets';
+import { getActiveAtlasKey, getActiveThemeId, registerAssetReloadListener } from './assets';
 import baseTilesetJson from '../../public/assets/tileset.json';
 
 export interface EntityAnimRuntimeState {
@@ -220,6 +220,14 @@ export class SpriteAnimator {
       (baseTilesetJson as unknown as Partial<ThemedTilesetManifest>).animations = { ...animations };
     }
 
+    this.invalidateFrameCache();
+  }
+
+  /**
+   * Resets cached frame keys on all registered entities so their sprite textures
+   * are re-evaluated on the next render tick.
+   */
+  public invalidateFrameCache(): void {
     for (const record of this.runtimeStates.values()) {
       record.lastRenderedFrameKey = '';
     }
@@ -519,3 +527,14 @@ export class SpriteAnimator {
 }
 
 export const spriteAnimator = new SpriteAnimator();
+
+if (typeof registerAssetReloadListener === 'function') {
+  registerAssetReloadListener((themeId, manifestJson) => {
+    const animations = manifestJson.animations as Record<string, AnimationManifestEntry> | undefined;
+    if (animations && typeof animations === 'object') {
+      spriteAnimator.hotUpdateAnimations(themeId, animations);
+    } else {
+      spriteAnimator.invalidateFrameCache();
+    }
+  });
+}
