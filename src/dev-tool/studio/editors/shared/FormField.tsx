@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import type { FieldMeta } from '@/app/api/dev/gamedata/schema-introspect';
 import { SpritePicker } from '../../shared/SpritePicker';
 import { AudioCuePicker } from '../../shared/AudioCuePicker';
+import { StudioFieldHint } from '../../shared/StudioSliderField';
 import styles from '../editors.module.css';
 
 interface FormFieldProps {
@@ -114,18 +115,28 @@ export function FormField({
           ? Number(meta.defaultVal)
           : (meta.constraints?.min ?? 0);
     const step = meta.constraints?.isInt ? 1 : 0.05;
+    const sliderTooltip = `Adjusts ${componentKey ? `${componentKey}.` : ''}${key} within schema bounds (${meta.constraints?.min}..${meta.constraints?.max}${meta.constraints?.isInt ? ', integer' : ''}).`;
 
     return (
       <div className={styles.fieldRow}>
-        <label className={styles.fieldLabel} htmlFor={`field-${key}`}>
-          {key}{' '}
+        <div className={styles.fieldLabelWithTip}>
+          <label className={styles.fieldLabelInline} htmlFor={`field-${key}`}>
+            {key}{' '}
+            {hasMinMax && (
+              <span style={{ opacity: 0.6, fontSize: '10px' }}>
+                ({meta.constraints?.min}..{meta.constraints?.max})
+              </span>
+            )}
+          </label>
           {hasMinMax && (
-            <span style={{ opacity: 0.6, fontSize: '10px' }}>
-              ({meta.constraints?.min}..{meta.constraints?.max})
-            </span>
+            <StudioFieldHint
+              label={key}
+              tooltipTag={componentKey ? componentKey.toUpperCase() : 'SCHEMA'}
+              tooltip={sliderTooltip}
+            />
           )}
-        </label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
           <input
             id={`field-${key}`}
             type="number"
@@ -148,6 +159,8 @@ export function FormField({
           {hasMinMax && (
             <input
               type="range"
+              aria-label={`${key} slider`}
+              aria-description={sliderTooltip}
               min={meta.constraints?.min}
               max={meta.constraints?.max}
               step={step}
@@ -155,7 +168,6 @@ export function FormField({
               onChange={(e) => handleChange(Number(e.target.value))}
               disabled={disabled}
               className={styles.slider}
-              style={{ flex: 1 }}
             />
           )}
         </div>

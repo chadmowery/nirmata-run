@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useGamedataStore } from '../store';
 import { AudioCuePicker } from '../shared/AudioCuePicker';
 import { EnvironmentOverrideBar } from '../shared/EnvironmentOverrideBar';
+import { StudioSliderField } from '../shared/StudioSliderField';
 import { LightingConfigPanel, FovConfigPanel } from './LightingFovConfigPanels';
 import {
   postHotloadCommit,
@@ -785,27 +786,26 @@ export function ConfigEditor({ name, onRefresh }: Props) {
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <label className={styles.fieldLabel} style={{ minWidth: '90px' }}>Base Volume</label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.05"
+                      <div className={styles.fieldGrid}>
+                        <StudioSliderField
+                          label="Base Volume"
+                          valueDisplay={`${Math.round((band.baseVolume ?? 0.6) * 100)}%`}
+                          tooltipTag="AMB"
+                          tooltip="Baseline playback volume (0–100%) for this depth band's floor ambiance track before condition filtering or pause ducking."
+                          min={0}
+                          max={1}
+                          step={0.05}
                           value={band.baseVolume ?? 0.6}
-                          onChange={(e) => {
+                          onChange={(val) => {
                             const bands = [...((data.depthBands as AmbianceDepthBandItemConfig[]) || [])];
-                            bands[idx] = { ...bands[idx], baseVolume: parseFloat(e.target.value) };
+                            bands[idx] = { ...bands[idx], baseVolume: val };
                             setData({ ...data, depthBands: bands });
                             setDirty(true);
                           }}
                         />
-                        <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono, monospace)', color: 'var(--c-accent, #d8ff00)', minWidth: '40px' }}>
-                          {Math.round((band.baseVolume ?? 0.6) * 100)}%
-                        </span>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, marginLeft: '12px' }}>
-                          <label className={styles.fieldLabel} style={{ minWidth: '80px' }}>Description</label>
+                        <div className={styles.fieldCell}>
+                          <label className={styles.fieldCellLabel}>Description</label>
                           <input
                             className={styles.fieldInput}
                             placeholder="Band description"
@@ -931,46 +931,40 @@ export function ConfigEditor({ name, onRefresh }: Props) {
                         </div>
                       </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <label className={styles.fieldLabel} style={{ minWidth: '120px' }}>Cutoff Multiplier</label>
-                          <input
-                            type="range"
-                            min="0.1"
-                            max="1.5"
-                            step="0.05"
-                            value={cond.cutoffMultiplier ?? 1.0}
-                            onChange={(e) => {
-                              const conds = [...((data.sectorConditions as AmbianceSectorConditionItemConfig[]) || [])];
-                              conds[idx] = { ...conds[idx], cutoffMultiplier: parseFloat(e.target.value) };
-                              setData({ ...data, sectorConditions: conds });
-                              setDirty(true);
-                            }}
-                          />
-                          <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono, monospace)', color: 'var(--c-accent, #d8ff00)', minWidth: '40px' }}>
-                            {(cond.cutoffMultiplier ?? 1.0).toFixed(2)}×
-                          </span>
-                        </div>
+                      <div className={styles.fieldGrid}>
+                        <StudioSliderField
+                          label="Cutoff Multiplier"
+                          valueDisplay={`${(cond.cutoffMultiplier ?? 1.0).toFixed(2)}×`}
+                          tooltipTag="FILTER"
+                          tooltip="Scales the ambiance lowpass filter cutoff frequency when this sector condition is active (<1.0× muffles high frequencies)."
+                          min={0.1}
+                          max={1.5}
+                          step={0.05}
+                          value={cond.cutoffMultiplier ?? 1.0}
+                          onChange={(val) => {
+                            const conds = [...((data.sectorConditions as AmbianceSectorConditionItemConfig[]) || [])];
+                            conds[idx] = { ...conds[idx], cutoffMultiplier: val };
+                            setData({ ...data, sectorConditions: conds });
+                            setDirty(true);
+                          }}
+                        />
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <label className={styles.fieldLabel} style={{ minWidth: '100px' }}>Resonance Q</label>
-                          <input
-                            type="range"
-                            min="0.5"
-                            max="10.0"
-                            step="0.1"
-                            value={cond.resonanceQ ?? 1.0}
-                            onChange={(e) => {
-                              const conds = [...((data.sectorConditions as AmbianceSectorConditionItemConfig[]) || [])];
-                              conds[idx] = { ...conds[idx], resonanceQ: parseFloat(e.target.value) };
-                              setData({ ...data, sectorConditions: conds });
-                              setDirty(true);
-                            }}
-                          />
-                          <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono, monospace)', color: 'var(--c-accent, #d8ff00)', minWidth: '40px' }}>
-                            {(cond.resonanceQ ?? 1.0).toFixed(1)} Q
-                          </span>
-                        </div>
+                        <StudioSliderField
+                          label="Resonance Q"
+                          valueDisplay={`${(cond.resonanceQ ?? 1.0).toFixed(1)} Q`}
+                          tooltipTag="FILTER"
+                          tooltip="Filter resonance peak (Q factor) at the cutoff frequency; higher Q creates a sharper, more metallic atmospheric sweep."
+                          min={0.5}
+                          max={10.0}
+                          step={0.1}
+                          value={cond.resonanceQ ?? 1.0}
+                          onChange={(val) => {
+                            const conds = [...((data.sectorConditions as AmbianceSectorConditionItemConfig[]) || [])];
+                            conds[idx] = { ...conds[idx], resonanceQ: val };
+                            setData({ ...data, sectorConditions: conds });
+                            setDirty(true);
+                          }}
+                        />
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

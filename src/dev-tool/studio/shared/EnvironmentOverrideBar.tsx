@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { postHotloadPreview } from '@dev-tool/hotload/studio-sync';
 import type { EnvOverridePayload } from '@dev-tool/hotload/types';
 import type { SectorCondition } from '@shared/components/environment';
+import { StudioFieldHint, StudioSliderField } from './StudioSliderField';
 import styles from '../editors/editors.module.css';
 
 const FACTION_OPTIONS = [
@@ -87,18 +88,21 @@ export function EnvironmentOverrideBar() {
         </button>
       </div>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-          gap: '8px',
-          marginTop: '8px',
-        }}
-      >
-        <div className={styles.fieldRow}>
-          <label className={styles.fieldLabel}>Faction Theme</label>
+      <div className={styles.fieldGridCompact} style={{ marginTop: '8px' }}>
+        <div className={styles.fieldCell}>
+          <div className={styles.fieldCellHeader}>
+            <label htmlFor="env-override-faction" className={styles.fieldCellLabel}>
+              Faction Theme
+            </label>
+            <StudioFieldHint
+              label="Faction Theme"
+              tooltipTag="ENV"
+              tooltip="Temporarily overrides the running floor's faction lighting and tileset theme without regenerating the floor."
+            />
+          </div>
           <select
-            className={styles.fieldInput}
+            id="env-override-faction"
+            className={styles.fieldSelect}
             value={factionTheme}
             onChange={(e) => {
               const val = e.target.value;
@@ -114,10 +118,20 @@ export function EnvironmentOverrideBar() {
           </select>
         </div>
 
-        <div className={styles.fieldRow}>
-          <label className={styles.fieldLabel}>Sector Condition</label>
+        <div className={styles.fieldCell}>
+          <div className={styles.fieldCellHeader}>
+            <label htmlFor="env-override-condition" className={styles.fieldCellLabel}>
+              Sector Condition
+            </label>
+            <StudioFieldHint
+              label="Sector Condition"
+              tooltipTag="ENV"
+              tooltip="Temporarily previews any sector condition's lighting, pulse, jitter, and audio filter profile on the live floor."
+            />
+          </div>
           <select
-            className={styles.fieldInput}
+            id="env-override-condition"
+            className={styles.fieldSelect}
             value={sectorCondition}
             onChange={(e) => {
               const val = e.target.value;
@@ -133,39 +147,35 @@ export function EnvironmentOverrideBar() {
           </select>
         </div>
 
-        <div className={styles.fieldRow}>
-          <label className={styles.fieldLabel}>
-            Heat Preview: {heatPercent === null ? 'LIVE' : `${heatPercent}%`}
-          </label>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={heatPercent ?? 0}
-            onChange={(e) => {
-              const val = Number(e.target.value);
-              setHeatPercent(val);
-              emitOverride({ factionTheme, sectorCondition, heatPercent: val, stabilityPercent });
-            }}
-          />
-        </div>
+        <StudioSliderField
+          label="Heat Preview"
+          valueDisplay={heatPercent === null ? 'LIVE' : `${heatPercent}%`}
+          tooltipTag="ENV"
+          tooltip="Overrides the client Heat shader and audio escalation tier (0–100%) in real time for visual/audio testing without mutating server gameplay."
+          min={0}
+          max={100}
+          step={1}
+          value={heatPercent ?? 0}
+          onChange={(val) => {
+            setHeatPercent(val);
+            emitOverride({ factionTheme, sectorCondition, heatPercent: val, stabilityPercent });
+          }}
+        />
 
-        <div className={styles.fieldRow}>
-          <label className={styles.fieldLabel}>
-            Stability Preview: {stabilityPercent === null ? 'LIVE' : `${stabilityPercent}%`}
-          </label>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            value={stabilityPercent ?? 100}
-            onChange={(e) => {
-              const val = Number(e.target.value);
-              setStabilityPercent(val);
-              emitOverride({ factionTheme, sectorCondition, heatPercent, stabilityPercent: val });
-            }}
-          />
-        </div>
+        <StudioSliderField
+          label="Stability Preview"
+          valueDisplay={stabilityPercent === null ? 'LIVE' : `${stabilityPercent}%`}
+          tooltipTag="ENV"
+          tooltip="Overrides the client Stability Anchor grayscale and audio lowpass ducking level (0–100%) in real time for visual/audio testing."
+          min={0}
+          max={100}
+          step={1}
+          value={stabilityPercent ?? 100}
+          onChange={(val) => {
+            setStabilityPercent(val);
+            emitOverride({ factionTheme, sectorCondition, heatPercent, stabilityPercent: val });
+          }}
+        />
       </div>
     </div>
   );

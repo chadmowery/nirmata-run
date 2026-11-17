@@ -10,6 +10,7 @@ import {
 } from '@shared/tileset-types';
 import { useGamedataStore } from '../store';
 import { postHotloadCommit, postHotloadPreview } from '@dev-tool/hotload/studio-sync';
+import { StudioFieldHint, StudioSliderField } from './StudioSliderField';
 import styles from '../editors/editors.module.css';
 
 const ALL_ANIM_STATES: AnimationStateKey[] = [...AnimationStateKeySchema.options];
@@ -638,25 +639,32 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
           </div>
 
           {/* Playback Controls */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
-            <div className={styles.fieldRow}>
-              <label className={styles.fieldLabel}>FPS ({draftFps})</label>
-              <input
-                type="range"
-                min={1}
-                max={30}
-                value={draftFps}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setDraftFps(val);
-                  pushClipPreview(draftFrames, val, draftLoop, draftNextState, draftDesyncPhase, draftDurations);
-                }}
-              />
-            </div>
-            <div className={styles.fieldRow}>
-              <label className={styles.fieldLabel}>Loop Mode</label>
+          <div className={styles.fieldGridCompact}>
+            <StudioSliderField
+              label="FPS"
+              valueDisplay={`${draftFps}`}
+              tooltipTag="ANIM"
+              tooltip="Playback frame rate (1–30 frames/sec) for this animation clip when individual frame durations are left blank."
+              min={1}
+              max={30}
+              step={1}
+              value={draftFps}
+              onChange={(val) => {
+                setDraftFps(val);
+                pushClipPreview(draftFrames, val, draftLoop, draftNextState, draftDesyncPhase, draftDurations);
+              }}
+            />
+            <div className={styles.fieldCell}>
+              <div className={styles.fieldCellHeader}>
+                <label className={styles.fieldCellLabel}>Loop Mode</label>
+                <StudioFieldHint
+                  label="Loop Mode"
+                  tooltipTag="ANIM"
+                  tooltip="Controls clip playback: loop repeats continuously, pingpong reverses at ends, once stops or transitions to Next State."
+                />
+              </div>
               <select
-                className={styles.fieldInput}
+                className={styles.fieldSelect}
                 value={draftLoop}
                 onChange={(e) => {
                   const val = e.target.value as AnimationLoopMode;
@@ -669,10 +677,17 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
                 <option value="once">once</option>
               </select>
             </div>
-            <div className={styles.fieldRow}>
-              <label className={styles.fieldLabel}>Next State</label>
+            <div className={styles.fieldCell}>
+              <div className={styles.fieldCellHeader}>
+                <label className={styles.fieldCellLabel}>Next State</label>
+                <StudioFieldHint
+                  label="Next State"
+                  tooltipTag="ANIM"
+                  tooltip="Clip state to transition into after a one-shot ('once') animation finishes playing."
+                />
+              </div>
               <select
-                className={styles.fieldInput}
+                className={styles.fieldSelect}
                 value={draftNextState}
                 onChange={(e) => {
                   const val = e.target.value;
@@ -688,19 +703,27 @@ export function SpritePicker({ value, onChange, disabled }: Props) {
                 ))}
               </select>
             </div>
-            <div className={styles.fieldRow} style={{ justifyContent: 'flex-end' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' }}>
-                <input
-                  type="checkbox"
-                  checked={draftDesyncPhase}
-                  onChange={(e) => {
-                    const checked = e.target.checked;
-                    setDraftDesyncPhase(checked);
-                    pushClipPreview(draftFrames, draftFps, draftLoop, draftNextState, checked, draftDurations);
-                  }}
+            <div className={styles.fieldCell} style={{ justifyContent: 'flex-end' }}>
+              <div className={styles.fieldCellHeader}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' }}>
+                  <input
+                    type="checkbox"
+                    className={styles.fieldCheckbox}
+                    checked={draftDesyncPhase}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setDraftDesyncPhase(checked);
+                      pushClipPreview(draftFrames, draftFps, draftLoop, draftNextState, checked, draftDurations);
+                    }}
+                  />
+                  desyncPhase
+                </label>
+                <StudioFieldHint
+                  label="desyncPhase"
+                  tooltipTag="ANIM"
+                  tooltip="Offsets each entity's starting animation frame so identical props/enemies don't animate in lockstep."
                 />
-                desyncPhase
-              </label>
+              </div>
             </div>
           </div>
 

@@ -6,6 +6,7 @@ import { AutotileSolver } from '@/game/generation/autotile-solver';
 import { getTemplateSpriteKey } from '@/game/entities';
 import { useGamedataStore } from '../store';
 import { tilesetAtlasCache } from '../shared/tileset-atlas-cache';
+import { StudioSliderField } from '../shared/StudioSliderField';
 import {
   generateRoomPrefab,
   RoomArchetype,
@@ -1321,44 +1322,44 @@ export function PrefabEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
               />
             </div>
 
-            <div className={styles.fieldRow}>
-              <label className={styles.fieldLabel}>Complexity: {genComplexity.toFixed(2)}</label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={genComplexity}
-                onChange={(e) => setGenComplexity(Number(e.target.value))}
-                style={{ flex: 1 }}
-              />
-            </div>
+            <StudioSliderField
+              layout="row"
+              label="Complexity"
+              valueDisplay={genComplexity.toFixed(2)}
+              tooltipTag="PROC"
+              tooltip="Controls procedural room partition density (0.00 = open chamber, 1.00 = dense internal walls, pillars, and alcoves)."
+              min={0}
+              max={1}
+              step={0.05}
+              value={genComplexity}
+              onChange={(val) => setGenComplexity(val)}
+            />
 
-            <div className={styles.fieldRow}>
-              <label className={styles.fieldLabel}>Props: {genPropDensity.toFixed(2)}</label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={genPropDensity}
-                onChange={(e) => setGenPropDensity(Number(e.target.value))}
-                style={{ flex: 1 }}
-              />
-            </div>
+            <StudioSliderField
+              layout="row"
+              label="Props"
+              valueDisplay={genPropDensity.toFixed(2)}
+              tooltipTag="PROC"
+              tooltip="Target density (0.00–1.00) of cover props, terminals, and decorative furnishings placed inside the generated room."
+              min={0}
+              max={1}
+              step={0.05}
+              value={genPropDensity}
+              onChange={(val) => setGenPropDensity(val)}
+            />
 
-            <div className={styles.fieldRow}>
-              <label className={styles.fieldLabel}>Hazards: {genHazardDensity.toFixed(2)}</label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={genHazardDensity}
-                onChange={(e) => setGenHazardDensity(Number(e.target.value))}
-                style={{ flex: 1 }}
-              />
-            </div>
+            <StudioSliderField
+              layout="row"
+              label="Hazards"
+              valueDisplay={genHazardDensity.toFixed(2)}
+              tooltipTag="PROC"
+              tooltip="Target density (0.00–1.00) of environmental hazards and traps spawned inside the generated room."
+              min={0}
+              max={1}
+              step={0.05}
+              value={genHazardDensity}
+              onChange={(val) => setGenHazardDensity(val)}
+            />
 
             <button
               type="button"
