@@ -1,5 +1,6 @@
 import type { FactionTheme, SectorCondition } from '@shared/components/environment';
 import type { LightAnimationType, LightSourceData } from '@shared/components/light-source';
+import { getActiveLightingConfig } from '@shared/lighting-config';
 import { VIEWPORT_H, VIEWPORT_W } from '../constants';
 
 export const GBUFFER_WIDTH = VIEWPORT_W;
@@ -211,8 +212,49 @@ export const SECTOR_CONDITION_VISUAL_PROFILES: Record<
 export function resolveFactionAmbientProfile(
   theme?: FactionTheme | string | null,
 ): FactionAmbientProfile {
+  const cfg = getActiveLightingConfig();
+  const normalized =
+    theme === 'traxus'
+      ? 'traxus_foundry'
+      : theme === 'sekiguchi'
+        ? 'sekiguchi_biolabs'
+        : theme === 'default' || theme === 'system' || !theme
+          ? 'cyberacme'
+          : theme;
+
+  const fromCfg = cfg.factionThemes[normalized] ?? cfg.factionThemes[theme ?? ''] ?? cfg.factionThemes.cyberacme;
+  if (fromCfg) {
+    return {
+      colorHex: fromCfg.colorHex,
+      rgb: parseHexColorNormalized(fromCfg.colorHex),
+      intensity: fromCfg.intensity,
+      bloomMultiplier: fromCfg.bloomMultiplier,
+    };
+  }
   if (!theme) return DEFAULT_CYBERACME_PROFILE;
   return FACTION_AMBIENT_PROFILES[theme] ?? DEFAULT_CYBERACME_PROFILE;
+}
+
+export function resolveSectorConditionProfile(
+  condition?: SectorCondition | string | null,
+): SectorConditionVisualProfile | undefined {
+  if (!condition) return undefined;
+  const cfg = getActiveLightingConfig();
+  const fromCfg = cfg.sectorConditions[condition];
+  if (fromCfg) {
+    return {
+      ambientScale: fromCfg.ambientScale,
+      bloomMultiplier: fromCfg.bloomMultiplier,
+      floorPulseHz: fromCfg.floorPulseHz,
+      floorPulseRgb: parseHexColorNormalized(fromCfg.floorPulseHex),
+      tintRgb: parseHexColorNormalized(fromCfg.tintHex),
+      shadowTintRgb: parseHexColorNormalized(fromCfg.shadowTintHex),
+      fogHex: fromCfg.fogHex,
+      propBeaconIntervalSec: fromCfg.propBeaconIntervalSec,
+      jitter: fromCfg.jitter,
+    };
+  }
+  return SECTOR_CONDITION_VISUAL_PROFILES[condition as SectorCondition];
 }
 
 function lerpRgb(

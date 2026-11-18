@@ -1,8 +1,9 @@
-import { Container, Sprite, Assets } from 'pixi.js';
+import { Container, Sprite, Assets, Texture } from 'pixi.js';
 import { Grid } from '../engine/grid/grid';
 import { TILE_SIZE } from './constants';
 import { AutotileSolver } from '../game/generation/autotile-solver';
 import { getTextureForSpriteKey } from './sprite-map';
+import { registerAssetReloadListener } from './assets';
 
 export interface BuildTilemapOptions {
   visibleRange?: {
@@ -14,6 +15,7 @@ export interface BuildTilemapOptions {
   fovSet?: Set<string>;
   exploredSet?: Set<string>;
   playerPos?: { x: number; y: number };
+  unlitFallbackFowAlpha?: number;
 }
 
 function tileTerrainToFrame(terrain: string): string {
@@ -41,7 +43,7 @@ function computeAlpha(x: number, y: number, options?: BuildTilemapOptions): numb
   }
 
   if (options.exploredSet?.has(key)) {
-    return 1.0;
+    return options.unlitFallbackFowAlpha ?? 1.0;
   }
 
   return 0.0;
@@ -205,4 +207,13 @@ export function clearTilemap(container: Container) {
   spritePool.clear();
   lastVisibleTileCount = 0;
   lastAutotileSolveCount = 0;
+}
+
+if (typeof registerAssetReloadListener === 'function') {
+  registerAssetReloadListener(() => {
+    for (const sprite of spritePool.values()) {
+      sprite.texture = Texture.EMPTY;
+      sprite.visible = false;
+    }
+  });
 }

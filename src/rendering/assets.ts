@@ -1,4 +1,5 @@
-import { Assets, ImageSource, Texture } from 'pixi.js';
+import { Assets, ImageSource, Spritesheet, Texture } from 'pixi.js';
+import { clearCompanionFrameCache, refreshEntitySpriteTextures } from './sprite-map';
 
 let assetsRegistered = false;
 let activeThemeId: string = 'default';
@@ -67,6 +68,25 @@ export function getMaterialAtlasTexture(themeId?: string): Texture | null {
 }
 
 const companionTextures = new Map<string, Texture>();
+
+export type AssetReloadListener = (
+  themeId: string,
+  manifestJson: Record<string, unknown>,
+) => void;
+
+const assetReloadListeners = new Set<AssetReloadListener>();
+
+/**
+ * Registers a synchronous listener invoked after new atlas & companion textures
+ * are installed in `Assets.cache` and entity sprite textures are refreshed,
+ * immediately before superseded GPU texture sources are destroyed.
+ */
+export function registerAssetReloadListener(listener: AssetReloadListener): () => void {
+  assetReloadListeners.add(listener);
+  return () => {
+    assetReloadListeners.delete(listener);
+  };
+}
 
 async function loadUnpremultipliedCompanionTexture(companionSrc: string): Promise<Texture | null> {
   if (
@@ -237,5 +257,115 @@ export async function loadThemedAssets(themeId: string = 'default'): Promise<voi
   } catch {
     activeThemeId = 'default';
     await unloadPreviousTheme();
+  }
+}
+
+/**
+ * Hot-reloads diffuse spritesheet and companion _n / _m GPU textures for a theme
+ * in place with cache-busting query params and explicit disposal of superseded textures.
+ */
+export async function hotReloadThemeAssets(
+  themeId: string = 'default',
+  version: number = Date.now(),
+): Promise<boolean> {
+  if (typeof fetch !== 'function' || typeof createImageBitmap !== 'function') {
+    return false;
+  }
+
+  const targetTheme = themeId || 'default';
+  const manifestSrc = THEME_MANIFEST_MAP[targetTheme] || 'assets/tileset.json';
+  const isDedicated = manifestSrc !== 'assets/tileset.json';
+  const alias = isDedicated ? `tileset_${targetTheme}` : 'tileset';
+  const baseSrc = manifestSrc.replace(/\.json$/, '');
+
+  try {
+    // 1. Fetch fresh manifest JSON
+    const manifestRes = await fetch(`/${manifestSrc}?v=${version}`, { cache: 'no-store' });
+    if (!manifestRes.ok) return false;
+    const manifestJson = await manifestRes.json();
+
+    // 2. Fetch fresh diffuse PNG and create GPU ImageSource
+    const pngRes = await fetch(`/${baseSrc}.png?v=${version}`, { cache: 'no-store' });
+    if (!pngRes.ok) return false;
+    const pngBlob = await pngRes.blob();
+    const bitmap = await createImageBitmap(pngBlob);
+    const diffuseSource = new ImageSource({
+      resource: bitmap,
+      scaleMode: 'nearest',
+    });
+    const baseTexture = new Texture({ source: diffuseSource });
+
+    const newSheet = new Spritesheet(baseTexture, manifestJson);
+    await newSheet.parse();
+    const sheetWithData = newSheet as unknown as { data?: unknown };
+    if (!sheetWithData.data) {
+      sheetWithData.data = manifestJson;
+    }
+
+    // 3. Fetch & build companion _n and _m textures BEFORE swapping cache or destroying previous textures
+    const freshCompanions: Array<{
+      companionAlias: string;
+      freshTex: Texture;
+      prevTex: Texture | undefined;
+    }> = [];
+    for (const suffix of ['_n', '_m'] as const) {
+      const companionAlias = `${alias}${suffix}`;
+      const companionSrc = `/${baseSrc}${suffix}.png?v=${version}`;
+      try {
+        const prevTex = companionTextures.get(companionAlias);
+        const freshTex = await loadUnpremultipliedCompanionTexture(companionSrc);
+        if (freshTex) {
+          freshCompanions.push({ companionAlias, freshTex, prevTex });
+        }
+      } catch {
+        // Non-fatal if companion map is omitted
+      }
+    }
+
+    // 4. Synchronously swap cache entries, rebind sprites, and notify listeners
+    const prevAsset =
+      typeof Assets?.get === 'function' ? (Assets.get(alias) as Spritesheet | undefined) : undefined;
+    if (typeof Assets?.cache?.set === 'function') {
+      Assets.cache.set(alias, newSheet);
+    }
+
+    for (const { companionAlias, freshTex } of freshCompanions) {
+      if (typeof Assets?.cache?.set === 'function') {
+        Assets.cache.set(companionAlias, freshTex);
+      }
+      companionTextures.set(companionAlias, freshTex);
+      registeredCompanions.add(companionAlias);
+    }
+
+    clearCompanionFrameCache();
+    refreshEntitySpriteTextures();
+    for (const listener of assetReloadListeners) {
+      try {
+        listener(targetTheme, manifestJson as Record<string, unknown>);
+      } catch {
+        // Isolate listener failures
+      }
+    }
+
+    // 5. Only after all live sprites and animators are rebound, destroy superseded GPU textures
+    if (prevAsset && prevAsset !== newSheet && typeof prevAsset.destroy === 'function') {
+      try {
+        prevAsset.destroy(true);
+      } catch {
+        // Ignore teardown errors on already-freed textures
+      }
+    }
+    for (const { freshTex, prevTex } of freshCompanions) {
+      if (prevTex && prevTex !== freshTex) {
+        try {
+          prevTex.destroy?.(true);
+        } catch {
+          // Ignore teardown errors
+        }
+      }
+    }
+    return true;
+  } catch {
+    return false;
   }
 }

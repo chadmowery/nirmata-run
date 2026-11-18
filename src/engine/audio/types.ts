@@ -154,4 +154,6 @@ export interface IAudioEngine {
   setSampleLoader?(loader: SampleLoader): void;
   registerUnlockListeners?(): void;
   unregisterUnlockListeners?(): void;
+  evictSampleBuffer?(samplePath: string): void;
+  hotUpdateCue?(cue: SoundCueDef): void;
 }

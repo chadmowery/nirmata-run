@@ -17,7 +17,7 @@ import {
   PredictionDeduplicator,
   SpatialCoords,
 } from '@engine/audio';
-import { Position, Shell, AudioProfile, Heat, AmbientEmitter, Prop, FloorState, CorruptedNode, InteractiveSurface } from '@shared/components';
+import { Position, Shell, AudioProfile, Heat, AmbientEmitter, Prop, FloorState, CorruptedNode, InteractiveSurface, type SectorCondition } from '@shared/components';
 import { getSoundCue } from './cue-registry';
 import { resolveAmbianceForFloor, getAmbianceConfig } from '@game/config/ambiance';
 
@@ -31,7 +31,9 @@ export interface GameAudioSystemOptions {
 
 export interface GameAudioSystem {
   destroy(): void;
-  updateAmbianceForFloor(floorNumber: number): void;
+  updateAmbianceForFloor(floorNumber: number, sectorConditionOverride?: SectorCondition | null): void;
+  setSectorConditionOverride(condition: SectorCondition | null): void;
+  refreshHotloadedAudio(): void;
 }
 
 export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudioSystem {
@@ -45,6 +47,7 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
   const dedup = new PredictionDeduplicator(2000);
   let currentFovSet = new Set<string>();
   const activeEmitters = new Map<EntityId, { cueId: string; voiceId?: number }>();
+  let sectorConditionOverride: SectorCondition | null = null;
 
   const getPlayerPosition = (): { x: number; y: number } | null => {
     const pId = getPlayerEntity();
@@ -200,7 +203,23 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
         } else {
           // Dynamically update stereo panning, distance attenuation, and occlusion while inside radius
           const active = activeEmitters.get(entityId)!;
-          if (active.voiceId !== undefined && spatial) {
+          if (active.cueId !== emitter.cueId) {
+            if (active.voiceId !== undefined) {
+              audioEngine.stopVoice(active.voiceId, 0.15);
+            } else {
+              audioEngine.stopCue(active.cueId, 0.15);
+            }
+            const nextCue = getSoundCue(emitter.cueId);
+            if (nextCue) {
+              const voiceId = audioEngine.playCue(nextCue, {
+                spatial,
+                volumeMultiplier: emitter.baseVolume,
+              });
+              activeEmitters.set(entityId, { cueId: emitter.cueId, voiceId });
+            } else {
+              activeEmitters.delete(entityId);
+            }
+          } else if (active.voiceId !== undefined && spatial) {
             audioEngine.updateVoiceSpatial(active.voiceId, spatial, emitter.baseVolume);
           }
         }
@@ -575,13 +594,24 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
   });
 
   // 11. Floor Transition & Ambiance
-  const updateAmbianceForFloor = (floorNumber: number): void => {
+  const setSectorConditionOverride = (condition: SectorCondition | null): void => {
+    sectorConditionOverride = condition;
+  };
+
+  const updateAmbianceForFloor = (
+    floorNumber: number,
+    overrideArg?: SectorCondition | null,
+  ): void => {
+    if (overrideArg !== undefined) {
+      sectorConditionOverride = overrideArg;
+    }
     // Query FloorState from world for active sector condition
     const floorEntity = world.query(FloorState)[0];
     const floorState = floorEntity ? world.getComponent(floorEntity, FloorState) : null;
+    const effectiveRaw = sectorConditionOverride ?? floorState?.sectorCondition;
     const condition =
-      floorState?.sectorCondition && floorState.sectorCondition !== 'NOMINAL'
-        ? floorState.sectorCondition
+      effectiveRaw && effectiveRaw !== 'NOMINAL'
+        ? effectiveRaw
         : null;
 
     const duckingConfig = getAmbianceConfig().ducking;
@@ -664,6 +694,7 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
       surfaceCache.clear();
       activeEmitters.clear();
       dedup.clear();
+      sectorConditionOverride = null;
       audioEngine.setAmbianceState({
         heatTier: 0,
         sectorCondition: null,
@@ -674,5 +705,13 @@ export function createGameAudioSystem(options: GameAudioSystemOptions): GameAudi
       });
     },
     updateAmbianceForFloor,
+    setSectorConditionOverride,
+    refreshHotloadedAudio: () => {
+      audioProfileCache.clear();
+      positionCache.clear();
+      surfaceCache.clear();
+      syncEntityCaches();
+      updateAmbientEmitters();
+    },
   };
 }

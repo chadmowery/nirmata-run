@@ -7,6 +7,8 @@ import type { ShellTemplate } from '@/game/shells/server/types';
 import { normalizeDirectionalSprites } from '@shared/utils/shell-sprite-util';
 import { resolveFilePath, atomicWrite, errorResponse, regenerateShellTemplateIndex } from '../../utils';
 import { ShellTemplateSchema } from '../../schemas';
+import { hotloadBus } from '@/server/dev/hotload-bus';
+import { reconcileShellAcrossSessions } from '@/server/dev/hotload-reconciler';
 
 const DIR = path.join(process.cwd(), 'src/game/shells/shared/templates');
 
@@ -58,8 +60,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ name: st
     }
 
     await atomicWrite(filePath, sanitizedBody);
-    globalShellRegistry.upsertTemplate(sanitizedBody);
-    return NextResponse.json({ success: true });
+    const sessionPatches = reconcileShellAcrossSessions(sanitizedBody);
+    const envelope = hotloadBus.publishCommit('shell', name, sanitizedBody, sessionPatches);
+    return NextResponse.json({ success: true, sessionPatches, envelope });
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Internal server error', 500);
   }

@@ -15,7 +15,27 @@ describe('Configs API Routes', () => {
     const res = await getConfigs();
     expect(res.status).toBe(200);
     const data = await res.json();
-    expect(data.items).toEqual(['economy', 'depth-config', 'loot-distribution', 'ambiance']);
+    expect(data.items).toEqual(['economy', 'depth-config', 'loot-distribution', 'ambiance', 'lighting', 'fov']);
+  });
+
+  it('reads lighting and fov configs', async () => {
+    const lightingRes = await getConfig(new Request('http://localhost/api/dev/gamedata/configs/lighting'), {
+      params: Promise.resolve({ name: 'lighting' }),
+    });
+    expect(lightingRes.status).toBe(200);
+    const lightingData = await lightingRes.json();
+    expect(lightingData.bloom).toBeDefined();
+    expect(lightingData.factionThemes).toBeDefined();
+    expect(lightingData.sectorConditions).toBeDefined();
+
+    const fovRes = await getConfig(new Request('http://localhost/api/dev/gamedata/configs/fov'), {
+      params: Promise.resolve({ name: 'fov' }),
+    });
+    expect(fovRes.status).toBe(200);
+    const fovData = await fovRes.json();
+    expect(fovData.fov).toBeDefined();
+    expect(fovData.fow).toBeDefined();
+    expect(fovData.entities).toBeDefined();
   });
 
   it('reads economy config', async () => {

@@ -72,6 +72,7 @@ export interface ServerEngineInstance<T extends GameplayEvents = GameEvents> {
   grid: Grid;
   eventBus: EventBus<T>;
   turnManager: TurnManager<T>;
+  entityRegistry: EntityRegistry;
   entityFactory: EntityFactory;
   playerId: number;
   sessionId?: string;
@@ -438,6 +439,7 @@ export function createServerEngine(config: ServerEngineInitConfig): ServerEngine
     grid,
     eventBus,
     turnManager,
+    entityRegistry,
     entityFactory,
     playerId: placement.playerId,
     sessionId: config.sessionId,

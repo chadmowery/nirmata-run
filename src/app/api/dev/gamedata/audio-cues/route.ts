@@ -4,6 +4,9 @@ import path from 'path';
 import { checkNonProductionOnly } from '@/server/security/env-gate';
 import { atomicWrite, errorResponse } from '../utils';
 import { SoundCueDefSchema, SoundCuesFileSchema } from '../schemas';
+import { registerSoundCue } from '@/game/audio/cue-registry';
+import { hotloadBus } from '@/server/dev/hotload-bus';
+import type { SoundCueDef } from '@engine/audio';
 
 const CUES_FILE_PATH = path.join(process.cwd(), 'src/game/audio/sound-cues.json');
 
@@ -57,7 +60,9 @@ export async function POST(req: Request) {
     }
 
     await atomicWrite(CUES_FILE_PATH, data);
-    return NextResponse.json({ success: true, id: body.id }, { status: 201 });
+    registerSoundCue(body as SoundCueDef);
+    const envelope = hotloadBus.publishCommit('audioCue', body.id, body);
+    return NextResponse.json({ success: true, id: body.id, envelope }, { status: 201 });
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Internal server error', 500);
   }

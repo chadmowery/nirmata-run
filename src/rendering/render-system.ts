@@ -76,13 +76,17 @@ import {
   disposeHeatEffects,
 } from './filters/heat-visual-effects';
 import { getHeatTier } from '../game/config/heat-tiers';
+import '../game/config/lighting';
+import { getFovConfig } from '../game/config/fov';
 import { loadThemedAssets } from './assets';
 import { LightSource, LightSourceData } from '@shared/components/light-source';
+import type { FactionTheme, SectorCondition } from '@shared/components/environment';
 import {
   LightingSystem,
   LightingTelemetry,
   RenderLightDescriptor,
   lerpHexColor,
+  resolveSectorConditionProfile,
 } from './lighting';
 import { ParticleSystem, ParticleTelemetry } from './particles';
 import {
@@ -145,6 +149,16 @@ export interface RenderSystem {
   getRenderTelemetry(): RenderTelemetry;
   setDevRenderFlags(flags: Partial<DevRenderBisectionFlags>): void;
   getEffectiveEntityLight(entityId: EntityId): LightSourceData | undefined;
+  applyHotloadSpriteUpdate(entityId: EntityId): void;
+  syncHotloadedSprites(entityIds?: EntityId[]): void;
+  invalidateTilemap(): void;
+  invalidateFov(): void;
+  setEnvironmentOverride(override: {
+    factionTheme?: FactionTheme | string | null;
+    sectorCondition?: SectorCondition | null;
+    heatPercent?: number | null;
+    stabilityPercent?: number | null;
+  }): void;
 }
 
 /**
@@ -273,6 +287,12 @@ export function createRenderSystem(config: RenderSystemConfig) {
   let hasRenderedLightingFrame = false;
   let lastExtraPrimaryLights: RenderLightDescriptor[] = [];
   let onThemeLoadedRefresh: (() => void) | null = null;
+  const envOverride: {
+    factionTheme?: FactionTheme | string | null;
+    sectorCondition?: SectorCondition | null;
+    heatPercent?: number | null;
+    stabilityPercent?: number | null;
+  } = {};
 
   const resolveActiveFloorState = () => {
     const floorEntities = world.query(FloorState);
@@ -285,8 +305,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
   const syncEnvironmentTheme = () => {
     const floor = resolveActiveFloorState();
-    const theme = floor?.factionTheme ?? 'cyberacme';
-    const condition = floor?.sectorCondition ?? 'NOMINAL';
+    const theme = (envOverride.factionTheme ?? floor?.factionTheme ?? 'cyberacme') as string;
+    const condition = (envOverride.sectorCondition ?? floor?.sectorCondition ?? 'NOMINAL') as SectorCondition;
     lightingSystem.setEnvironmentTheme(theme, condition);
     if (theme && theme !== lastAppliedTheme) {
       lastAppliedTheme = theme;
@@ -316,8 +336,8 @@ export function createRenderSystem(config: RenderSystemConfig) {
     const pLight = world.getComponent(playerEntity, LightSource);
 
     if (pLight) {
-      const heatVal = heat?.current ?? 0;
-      const stabVal = stability?.current ?? 100;
+      const heatVal = envOverride.heatPercent ?? heat?.current ?? 0;
+      const stabVal = envOverride.stabilityPercent ?? stability?.current ?? 100;
 
       let nextColor = pLight.color;
       let nextIntensity = pLight.intensity;
@@ -1228,12 +1248,17 @@ export function createRenderSystem(config: RenderSystemConfig) {
       const playerPos = world.getComponent(playerEntity, Position);
       if (!playerPos) return;
 
-      // 1. Dynamic FOV (D-15 Extended Sight Logic)
+      // 1. Dynamic FOV (D-15 Extended Sight Logic + fov.json)
       const tFov0 = devFlags.measureTimings ? performance.now() : 0;
-      let effectiveRadius = FOV_RADIUS;
+      const fovCfg = getFovConfig();
+      let effectiveRadius = fovCfg.fov.baseRadius ?? FOV_RADIUS;
       const floorState = resolveActiveFloorState();
-      if (floorState?.sectorCondition === 'DARK_SUBNET') {
-        effectiveRadius = Math.max(2, effectiveRadius - 2);
+      const effectiveSectorCondition = envOverride.sectorCondition ?? floorState?.sectorCondition;
+      if (effectiveSectorCondition === 'DARK_SUBNET') {
+        effectiveRadius = Math.max(
+          fovCfg.fov.minRadius,
+          effectiveRadius - fovCfg.fov.darkSubnetRadiusPenalty,
+        );
       }
       let extendedSightVisionRadius: number | null = null;
       const fSlots = world.getComponent(playerEntity, FirmwareSlots);
@@ -1251,7 +1276,7 @@ export function createRenderSystem(config: RenderSystemConfig) {
       }
 
       let fovSet: Set<string>;
-      const fovKey = `${playerPos.x},${playerPos.y},${effectiveRadius},${floorState?.sectorCondition ?? ''},${isMapRevealed}`;
+      const fovKey = `${playerPos.x},${playerPos.y},${effectiveRadius},${effectiveSectorCondition ?? ''},${isMapRevealed}`;
 
       if (devFlags.cacheStaticFov && lastFovKey === fovKey && lastFovResult) {
         fovSet = lastFovResult;
@@ -1354,6 +1379,9 @@ export function createRenderSystem(config: RenderSystemConfig) {
           fovSet,
           exploredSet,
           playerPos,
+          unlitFallbackFowAlpha: devFlags.disableDeferredLighting
+            ? fovCfg.entities.unlitFallbackFowAlpha
+            : undefined,
         });
         lastTilemapKey = tilemapKey;
       } else {
@@ -1451,9 +1479,16 @@ export function createRenderSystem(config: RenderSystemConfig) {
           playerSprite = sprite;
         }
 
+        if (!inFov && visible) {
+          alpha = alpha * fovCfg.entities.rememberedPropAlpha;
+          if (devFlags.disableDeferredLighting) {
+            alpha = alpha * fovCfg.entities.unlitFallbackFowAlpha;
+          }
+        }
+
         const isSearched = inFov ? Boolean(propComp?.isSearched) : Boolean(rememberedProps.get(entityId)?.isSearched);
         if (isSearched) {
-          alpha = alpha * 0.6;
+          alpha = alpha * fovCfg.entities.searchedPropAlphaMultiplier;
         }
 
         sprite.visible = visible;
@@ -1476,10 +1511,11 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
       const gridForLight = getGrid();
       const extraPrimaryLights: RenderLightDescriptor[] = [];
-      const activeFloor = resolveActiveFloorState();
-      if (activeFloor?.sectorCondition === 'DARK_SUBNET') {
+      if (effectiveSectorCondition === 'DARK_SUBNET') {
         const elapsedSec = performance.now() * 0.001;
-        const cycle = elapsedSec % 3.0;
+        const beaconIntervalSec =
+          resolveSectorConditionProfile('DARK_SUBNET')?.propBeaconIntervalSec ?? 3.0;
+        const cycle = elapsedSec % Math.max(0.1, beaconIntervalSec);
         if (cycle < 0.75) {
           const pulseAlpha = Math.sin((cycle / 0.75) * Math.PI);
           const camX = layers.worldContainer.x ?? 0;
@@ -1903,6 +1939,82 @@ export function createRenderSystem(config: RenderSystemConfig) {
 
     getEffectiveEntityLight(entityId: EntityId): LightSourceData | undefined {
       return dynamicLightOverrides.get(entityId) ?? world.getComponent(entityId, LightSource);
+    },
+
+    applyHotloadSpriteUpdate(entityId: EntityId) {
+      if (!world.entityExists(entityId)) {
+        destroyEntitySprite(entityId);
+        spriteAnimator.unregisterEntity(entityId);
+        return;
+      }
+      const spriteComp = world.getComponent(entityId, SpriteComponent);
+      if (!spriteComp) {
+        destroyEntitySprite(entityId);
+        spriteAnimator.unregisterEntity(entityId);
+        return;
+      }
+      const sprite = createEntitySprite(entityId, spriteComp.key, layers.entityLayer);
+      spriteAnimator.registerEntity(entityId, spriteComp);
+      if (spriteComp.initialState) {
+        spriteAnimator.setAmbientState(entityId, spriteComp.initialState);
+      }
+      particleSystem.cleanupEmitter(sprite);
+      attachEntityParticles(entityId, sprite, spriteComp.key);
+      syncPropOutline(entityId, sprite);
+    },
+
+    syncHotloadedSprites(entityIds?: EntityId[]) {
+      const targets = entityIds ?? world.query(SpriteComponent);
+      for (const id of targets) {
+        system.applyHotloadSpriteUpdate(id);
+      }
+    },
+
+    invalidateTilemap() {
+      lastTilemapKey = '';
+    },
+
+    invalidateFov() {
+      lastFovKey = '';
+    },
+
+    setEnvironmentOverride(override: {
+      factionTheme?: FactionTheme | string | null;
+      sectorCondition?: SectorCondition | null;
+      heatPercent?: number | null;
+      stabilityPercent?: number | null;
+    }) {
+      if ('factionTheme' in override) {
+        envOverride.factionTheme = override.factionTheme ?? null;
+      }
+      if ('sectorCondition' in override) {
+        envOverride.sectorCondition = override.sectorCondition ?? null;
+      }
+      if ('heatPercent' in override) {
+        envOverride.heatPercent = override.heatPercent ?? null;
+      }
+      if ('stabilityPercent' in override) {
+        envOverride.stabilityPercent = override.stabilityPercent ?? null;
+      }
+
+      syncEnvironmentTheme();
+      lastFovKey = '';
+      lastTilemapKey = '';
+
+      const playerEntity = getPlayerEntity();
+      if (world.entityExists(playerEntity) && !devFlags.disableWorldFilters) {
+        const effHeat =
+          envOverride.heatPercent ?? world.getComponent(playerEntity, Heat)?.current ?? 0;
+        const effStab =
+          envOverride.stabilityPercent ?? world.getComponent(playerEntity, Stability)?.current ?? 100;
+        const tier = getHeatTier(effHeat);
+        applyHeatTierFilters(layers.worldContainer, tier.tier);
+        applyStabilityDesaturation(layers.worldContainer, effStab);
+        const pSprite = getEntitySprite(playerEntity);
+        if (pSprite && !devFlags.disableSpriteFilters) {
+          updateSpriteGhosting(pSprite, tier.tier, layers.entityLayer);
+        }
+      }
     },
 
     setDevRenderFlags(flags: Partial<DevRenderBisectionFlags>) {

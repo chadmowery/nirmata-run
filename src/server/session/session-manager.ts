@@ -3,10 +3,13 @@ import { Grid } from '@engine/grid/grid';
 import { TurnManager } from '@engine/turn/turn-manager';
 import { EventBus } from '@engine/events/event-bus';
 import { EngineEvents } from '@engine/events/types';
+import { EntityRegistry } from '@engine/entity/registry';
+import { EntityFactory } from '@engine/entity/factory';
 import { logger } from '@engine/utils/logger';
 
 import { RunMode } from '@shared/run-mode';
 import { truncateSessionId } from '@shared/reports/sanitize';
+import type { ShellUpgrades } from '@shared/profile';
 
 /**
  * WorldState container for sessions.
@@ -20,6 +23,10 @@ export interface WorldState<T extends EngineEvents = EngineEvents, S = unknown> 
   systems?: S; // EngineInstance.systems
   runMode?: RunMode;
   shellId?: string;
+  shellUpgrades?: Record<string, Partial<ShellUpgrades>>;
+  seed?: string;
+  entityRegistry?: EntityRegistry;
+  entityFactory?: EntityFactory;
 }
 
 interface SessionEntry<T extends EngineEvents = EngineEvents, S = unknown> {
@@ -150,6 +157,40 @@ export class SessionManager {
   public listSessions(): string[] {
     this.pruneStaleSessions();
     return Array.from(this.sessions.keys());
+  }
+
+  /**
+   * Returns all active non-expired session entries without updating access timestamps.
+   */
+  public getAllSessionEntries(): Array<{ sessionId: string; state: WorldState<EngineEvents, unknown>; lastAccessedAt: number }> {
+    this.pruneStaleSessions();
+    const result: Array<{ sessionId: string; state: WorldState<EngineEvents, unknown>; lastAccessedAt: number }> = [];
+    for (const [sessionId, entry] of this.sessions.entries()) {
+      result.push({
+        sessionId,
+        state: entry.state,
+        lastAccessedAt: entry.lastAccessedAt,
+      });
+    }
+    return result;
+  }
+
+  /**
+   * Finds the most recently accessed active session matching an optional predicate.
+   */
+  public getLatestSession(
+    predicate?: (sessionId: string, state: WorldState<EngineEvents, unknown>) => boolean,
+  ): { sessionId: string; state: WorldState<EngineEvents, unknown> } | undefined {
+    this.pruneStaleSessions();
+    let best: { sessionId: string; state: WorldState<EngineEvents, unknown>; lastAccessedAt: number } | undefined;
+    for (const [sessionId, entry] of this.sessions.entries()) {
+      if (predicate && !predicate(sessionId, entry.state)) continue;
+      if (!best || entry.lastAccessedAt >= best.lastAccessedAt) {
+        best = { sessionId, state: entry.state, lastAccessedAt: entry.lastAccessedAt };
+      }
+    }
+    if (!best) return undefined;
+    return { sessionId: best.sessionId, state: best.state };
   }
 
   public hasSession(sessionId: string): boolean {

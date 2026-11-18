@@ -193,6 +193,14 @@ export class SelectiveBloomFilter extends BaseFilter {
     return Number(this.compositeUniforms.uniforms.uIntensity ?? 0);
   }
 
+  public setThreshold(threshold: number): void {
+    this.extractUniforms.uniforms.uThreshold = threshold;
+  }
+
+  public getThreshold(): number {
+    return Number(this.extractUniforms.uniforms.uThreshold ?? 0.88);
+  }
+
   public override apply(
     filterManager: FilterSystem,
     input: Texture,

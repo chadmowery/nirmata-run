@@ -13,6 +13,7 @@ import type {
 } from 'pixi.js';
 import { getMaterialAtlasTexture, getNormalAtlasTexture } from '../assets';
 import { TILE_SIZE } from '../constants';
+import { getActiveFovConfig } from '@shared/fov-config';
 import {
   GBUFFER_HEIGHT,
   GBUFFER_WIDTH,
@@ -537,6 +538,9 @@ export class GBufferPass {
     const w = Math.max(1, gridWidth);
     const h = Math.max(1, gridHeight);
 
+    const fovCfg = getActiveFovConfig();
+    const exploredByte = Math.max(0, Math.min(255, Math.round(fovCfg.fow.exploredMaskValue * 255)));
+
     if (w !== this.fovWidth || h !== this.fovHeight) {
       this.fovWidth = w;
       this.fovHeight = h;
@@ -548,12 +552,16 @@ export class GBufferPass {
           width: w,
           height: h,
           format: 'rgba8unorm',
-          scaleMode: 'linear',
+          scaleMode: fovCfg.fov.filterMode,
           alphaMode: 'no-premultiply-alpha',
           addressMode: 'clamp-to-edge',
         });
         this.fovMaskTexture = new PIXI.Texture({ source: this.fovMaskSource });
       }
+    } else if (this.fovMaskSource && this.fovMaskSource.scaleMode !== fovCfg.fov.filterMode) {
+      this.fovMaskSource.scaleMode = fovCfg.fov.filterMode;
+      this.fovMaskSource.style.scaleMode = fovCfg.fov.filterMode;
+      this.fovMaskSource.style.update();
     }
 
     const data = this.fovMaskData;
@@ -566,7 +574,7 @@ export class GBufferPass {
         } else if (fovSet?.has(key)) {
           r = 255;
         } else if (exploredSet?.has(key)) {
-          r = 64;
+          r = exploredByte;
         }
         const idx = (y * w + x) * 4;
         data[idx] = r;

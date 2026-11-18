@@ -167,3 +167,63 @@ export function resolveShellSpawnSprite(shellRecord: DirectionalShellConfig): st
   if (shellRecord.sprite) return shellRecord.sprite;
   return 'player_vanguard';
 }
+
+const DIRECTION_SUFFIX_TO_ORIENTATION: Record<CardinalDirectionSuffix, Orientation> = {
+  north: 'NORTH',
+  east: 'EAST',
+  south: 'SOUTH',
+  west: 'WEST',
+};
+
+/**
+ * Infers the current cardinal facing direction from a live SpriteComponent key
+ * and the previous Shell's directional sprite map.
+ */
+export function inferShellFacingDirection(
+  currentSpriteKey?: string,
+  prevDirectionalSprites?: ShellDirectionalSprites,
+  fallbackDirection?: string,
+): CardinalDirectionSuffix | undefined {
+  if (currentSpriteKey) {
+    if (prevDirectionalSprites) {
+      for (const dir of CARDINAL_DIRECTIONS) {
+        if (prevDirectionalSprites[dir] && prevDirectionalSprites[dir] === currentSpriteKey) {
+          return dir;
+        }
+      }
+    }
+    const lower = currentSpriteKey.toLowerCase();
+    for (const dir of CARDINAL_DIRECTIONS) {
+      const short = dir[0];
+      if (
+        lower.endsWith(`-${dir}`) ||
+        lower.endsWith(`_${dir}`) ||
+        lower.endsWith(`-${short}`) ||
+        lower.endsWith(`_${short}`)
+      ) {
+        return dir;
+      }
+    }
+  }
+  return normalizeCardinalDirection(fallbackDirection);
+}
+
+/**
+ * Resolves a shell's sprite key for a specific facing direction if available,
+ * falling back to `resolveShellSpawnSprite`.
+ */
+export function resolveShellSpriteForDirection(
+  shellConfig: DirectionalShellConfig,
+  facing?: CardinalDirectionSuffix,
+): string {
+  if (facing) {
+    const directed = resolveDirectionalShellSprite(
+      shellConfig,
+      DIRECTION_SUFFIX_TO_ORIENTATION[facing],
+    );
+    if (directed) {
+      return directed;
+    }
+  }
+  return resolveShellSpawnSprite(shellConfig);
+}

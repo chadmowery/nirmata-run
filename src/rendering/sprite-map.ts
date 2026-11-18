@@ -227,7 +227,14 @@ export interface CompanionSpriteTextures {
   material: Texture | null;
 }
 
-const companionFrameCache = new WeakMap<Texture, Map<string, CompanionSpriteTextures>>();
+let companionFrameCache = new WeakMap<Texture, Map<string, CompanionSpriteTextures>>();
+
+/**
+ * Clears the sliced companion frame cache (called when companion textures are hot-reloaded).
+ */
+export function clearCompanionFrameCache(): void {
+  companionFrameCache = new WeakMap<Texture, Map<string, CompanionSpriteTextures>>();
+}
 
 /**
  * Resolves sliced companion Normal+Specular (`_n`) and Material+Height (`_m`)

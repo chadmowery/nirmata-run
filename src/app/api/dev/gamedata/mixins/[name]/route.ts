@@ -2,8 +2,11 @@ import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
 import { checkNonProductionOnly } from '@/server/security/env-gate';
-import { resolveFilePath, atomicWrite, errorResponse, regenerateTemplateIndex } from '../../utils';
+import { resolveFilePath, atomicWrite, errorResponse, regenerateEntityTemplateIndex } from '../../utils';
 import { RawTemplateSchema } from '../../schemas';
+import { hotloadBus } from '@/server/dev/hotload-bus';
+import { reconcileMixinAcrossSessions } from '@/server/dev/hotload-reconciler';
+import type { RawTemplate } from '@engine/entity/types';
 
 const DIR = path.join(process.cwd(), 'src/game/entities/templates/mixins');
 
@@ -44,7 +47,9 @@ export async function PUT(req: Request, { params }: { params: Promise<{ name: st
     }
 
     await atomicWrite(filePath, body);
-    return NextResponse.json({ success: true });
+    const sessionPatches = reconcileMixinAcrossSessions(name, body as RawTemplate);
+    const envelope = hotloadBus.publishCommit('mixin', name, body, sessionPatches);
+    return NextResponse.json({ success: true, sessionPatches, envelope });
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Internal server error', 500);
   }
@@ -60,7 +65,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ name
 
   try {
     await fs.unlink(filePath);
-    await regenerateTemplateIndex();
+    await regenerateEntityTemplateIndex();
     return NextResponse.json({ success: true });
   } catch {
     return errorResponse('Not found', 404);

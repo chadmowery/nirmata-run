@@ -1,6 +1,7 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useGamedataStore } from '../store';
+import { postHotloadCommit } from '@dev-tool/hotload/studio-sync';
 import styles from './editors.module.css';
 
 interface Props {
@@ -33,6 +34,7 @@ interface SpawnTableData {
 export function SpawnTableEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
   const { setCloneSource, selectItem, clearSelection, setDirty } = useGamedataStore();
   const [data, setData] = useState<SpawnTableData | null>(null);
+  const baselineRef = useRef<SpawnTableData | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
@@ -42,6 +44,7 @@ export function SpawnTableEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
         .then((r) => r.json())
         .then((d) => {
           setData({ ...d, name: '' });
+          baselineRef.current = null;
           setDirty(true);
         })
         .catch(() => setErrors(['Failed to load clone source']));
@@ -49,7 +52,9 @@ export function SpawnTableEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
       fetch(`/api/dev/gamedata/spawn-tables/${name}`)
         .then((r) => r.json())
         .then((d) => {
-          setData({ name, tables: d.tables || [] });
+          const loaded = { name, tables: d.tables || [] };
+          setData(loaded);
+          baselineRef.current = structuredClone(loaded);
           setDirty(false);
         })
         .catch(() => setErrors(['Failed to load table']));
@@ -64,6 +69,7 @@ export function SpawnTableEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
           },
         ],
       });
+      baselineRef.current = null;
       setDirty(false);
     }
   }, [name, isNew, cloneFrom, setDirty]);
@@ -87,7 +93,7 @@ export function SpawnTableEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
     return warnings;
   }, [data]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (!data) return;
     setSaveStatus('saving');
     setErrors([]);
@@ -112,8 +118,11 @@ export function SpawnTableEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
         throw new Error(err.error || 'Failed to save spawn table');
       }
 
+      const resData = await res.json().catch(() => ({}));
       setSaveStatus('success');
+      baselineRef.current = structuredClone(data);
       setDirty(false);
+      postHotloadCommit('spawnTable', data.name, data, undefined, resData.envelope?.id);
       onRefresh?.();
 
       if (isNew) {
@@ -123,7 +132,25 @@ export function SpawnTableEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
       setErrors([err instanceof Error ? err.message : 'Save failed']);
       setSaveStatus('error');
     }
-  };
+  }, [data, isNew, name, setDirty, onRefresh, selectItem]);
+
+  useEffect(() => {
+    const onSaveKey = () => {
+      handleSave();
+    };
+    window.addEventListener('gamedata-save', onSaveKey);
+    return () => window.removeEventListener('gamedata-save', onSaveKey);
+  }, [handleSave]);
+
+  useEffect(() => {
+    const onRevert = () => {
+      if (!baselineRef.current || isNew) return;
+      setData(structuredClone(baselineRef.current));
+      setDirty(false);
+    };
+    window.addEventListener('gamedata-revert', onRevert);
+    return () => window.removeEventListener('gamedata-revert', onRevert);
+  }, [isNew, setDirty]);
 
   const handleClone = () => {
     if (!data) return;

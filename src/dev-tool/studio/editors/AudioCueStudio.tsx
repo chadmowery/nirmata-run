@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   SoundCueDef,
   SynthPatchConfig,
@@ -11,6 +11,13 @@ import {
 import { useGamedataStore } from '../store';
 import soundCuesRaw from '@/game/audio/sound-cues.json';
 import { getAmbianceConfig } from '@/game/config/ambiance';
+import {
+  postHotloadCommit,
+  postHotloadPreview,
+  postHotloadRevert,
+} from '@dev-tool/hotload/studio-sync';
+import { useHotloadAutoRevert } from '@dev-tool/hotload/useHotloadAutoRevert';
+import { StudioSliderField } from '../shared/StudioSliderField';
 import styles from './editors.module.css';
 
 interface Props {
@@ -61,9 +68,12 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
     setDirty,
     setActiveEffectiveData,
     setActiveValidationStatus,
+    liveSyncEnabled,
+    isDirty,
   } = useGamedataStore();
 
   const [cueData, setCueData] = useState<SoundCueDef | null>(null);
+  const baselineRef = useRef<SoundCueDef | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [isPlayingCue, setIsPlayingCue] = useState<boolean>(false);
@@ -100,6 +110,7 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
         .then((r) => r.json())
         .then((data: SoundCueDef) => {
           setCueData(data);
+          baselineRef.current = structuredClone(data);
           setDirty(false);
         })
         .catch(() => setErrors(['Failed to load sound cue']));
@@ -109,14 +120,45 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
     }
   }, [name, isNew, cloneFrom, setDirty]);
 
-  // Sync to Gamedata Inspector
+  const { markPreviewSent, clearPreviewSent } = useHotloadAutoRevert(
+    'audioCue',
+    !isNew ? name : undefined,
+    () => (baselineRef.current ? structuredClone(baselineRef.current) : null),
+    !isNew && Boolean(name),
+    (restored) => {
+      getAudioEngine().hotUpdateCue?.(restored);
+    },
+  );
+
+  // Sync to Gamedata Inspector & LIVE_SYNC synth voice morphing
   useEffect(() => {
     if (cueData) {
       setActiveEffectiveData(cueData);
       const valid = Boolean(cueData.id && cueData.bus && cueData.mode);
       setActiveValidationStatus({ zodValid: valid });
+      if (isDirty) {
+        getAudioEngine().hotUpdateCue?.(cueData);
+        if (liveSyncEnabled && !isNew && cueData.id) {
+          postHotloadPreview('audioCue', cueData.id, cueData, 16);
+          markPreviewSent();
+        }
+      }
     }
-  }, [cueData, setActiveEffectiveData, setActiveValidationStatus]);
+  }, [cueData, isDirty, liveSyncEnabled, isNew, setActiveEffectiveData, setActiveValidationStatus, markPreviewSent]);
+
+  useEffect(() => {
+    const onRevert = () => {
+      if (!baselineRef.current || isNew) return;
+      const restored = structuredClone(baselineRef.current);
+      setCueData(restored);
+      clearPreviewSent();
+      setDirty(false);
+      getAudioEngine().hotUpdateCue?.(restored);
+      postHotloadRevert('audioCue', restored.id || name, restored);
+    };
+    window.addEventListener('gamedata-revert', onRevert);
+    return () => window.removeEventListener('gamedata-revert', onRevert);
+  }, [isNew, name, setDirty, clearPreviewSent]);
 
   // Spatial calculations preview
   const spatialMetrics = useMemo(() => {
@@ -404,8 +446,12 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
         throw new Error(err.error || 'Failed to save sound cue');
       }
 
+      const resData = await res.json().catch(() => ({}));
       setSaveStatus('success');
+      baselineRef.current = structuredClone(payload);
+      clearPreviewSent();
       setDirty(false);
+      postHotloadCommit('audioCue', payload.id, payload, undefined, resData.envelope?.id);
       onRefresh?.();
 
       if (isNew) {
@@ -415,7 +461,7 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
       setErrors([err instanceof Error ? err.message : 'Save failed']);
       setSaveStatus('error');
     }
-  }, [cueData, isNew, name, setDirty, onRefresh, selectItem]);
+  }, [cueData, isNew, name, setDirty, clearPreviewSent, onRefresh, selectItem]);
 
   // Clone handler
   const handleClone = () => {
@@ -584,20 +630,17 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
             marginTop: '12px',
           }}
         >
-          <div>
-            <label className={styles.label}>
-              BASE VOLUME: {Math.round(cueData.baseVolume * 100)}%
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              className={styles.slider}
-              value={cueData.baseVolume}
-              onChange={(e) => handleFieldChange('baseVolume', parseFloat(e.target.value))}
-            />
-          </div>
+          <StudioSliderField
+            label="BASE VOLUME"
+            valueDisplay={`${Math.round(cueData.baseVolume * 100)}%`}
+            tooltipTag="AUDIO"
+            tooltip="Master output gain (0–100%) for this sound cue before audio bus, spatial distance, or anchor ducking attenuation."
+            min={0}
+            max={1}
+            step={0.01}
+            value={cueData.baseVolume}
+            onChange={(val) => handleFieldChange('baseVolume', val)}
+          />
 
           <div>
             <label className={styles.label}>COOLDOWN (MS)</label>
@@ -611,20 +654,17 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
             />
           </div>
 
-          <div>
-            <label className={styles.label}>
-              PITCH VARIANCE: ±{Math.round(cueData.pitchVariance * 100)}%
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="0.5"
-              step="0.01"
-              className={styles.slider}
-              value={cueData.pitchVariance}
-              onChange={(e) => handleFieldChange('pitchVariance', parseFloat(e.target.value))}
-            />
-          </div>
+          <StudioSliderField
+            label="PITCH VARIANCE"
+            valueDisplay={`±${Math.round(cueData.pitchVariance * 100)}%`}
+            tooltipTag="AUDIO"
+            tooltip="Random per-trigger pitch jitter (±%) applied each time this cue plays to prevent repetitive audio fatigue."
+            min={0}
+            max={0.5}
+            step={0.01}
+            value={cueData.pitchVariance}
+            onChange={(val) => handleFieldChange('pitchVariance', val)}
+          />
 
           <div style={{ display: 'flex', alignItems: 'center', marginTop: '16px' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
@@ -773,33 +813,29 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
               />
             </div>
 
-            <div>
-              <label className={styles.label}>SUB MIX: {Math.round((synth.subMix ?? 0) * 100)}%</label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                className={styles.slider}
-                value={synth.subMix ?? 0}
-                onChange={(e) => handleSynthChange('subMix', parseFloat(e.target.value))}
-              />
-            </div>
+            <StudioSliderField
+              label="SUB MIX"
+              valueDisplay={`${Math.round((synth.subMix ?? 0) * 100)}%`}
+              tooltipTag="SYNTH"
+              tooltip="Blend level (0–100%) of the secondary sub-oscillator mixed beneath the primary synth waveform."
+              min={0}
+              max={1}
+              step={0.05}
+              value={synth.subMix ?? 0}
+              onChange={(val) => handleSynthChange('subMix', val)}
+            />
 
-            <div>
-              <label className={styles.label}>
-                DISTORTION: {Math.round((synth.distortion ?? 0) * 100)}%
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                className={styles.slider}
-                value={synth.distortion ?? 0}
-                onChange={(e) => handleSynthChange('distortion', parseFloat(e.target.value))}
-              />
-            </div>
+            <StudioSliderField
+              label="DISTORTION"
+              valueDisplay={`${Math.round((synth.distortion ?? 0) * 100)}%`}
+              tooltipTag="SYNTH"
+              tooltip="Waveshaper saturation/overdrive amount (0–100%) adding grit and harmonic crunch to the oscillator output."
+              min={0}
+              max={1}
+              step={0.05}
+              value={synth.distortion ?? 0}
+              onChange={(val) => handleSynthChange('distortion', val)}
+            />
           </div>
 
           {/* Filter & FM Modulator */}
@@ -906,18 +942,17 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
               />
             </div>
 
-            <div>
-              <label className={styles.label}>SUSTAIN: {Math.round(synth.sustain * 100)}%</label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.02"
-                className={styles.slider}
-                value={synth.sustain}
-                onChange={(e) => handleSynthChange('sustain', parseFloat(e.target.value))}
-              />
-            </div>
+            <StudioSliderField
+              label="SUSTAIN"
+              valueDisplay={`${Math.round(synth.sustain * 100)}%`}
+              tooltipTag="ADSR"
+              tooltip="Envelope sustain amplitude level (0–100% of peak) held after decay until the voice enters its release stage."
+              min={0}
+              max={1}
+              step={0.02}
+              value={synth.sustain}
+              onChange={(val) => handleSynthChange('sustain', val)}
+            />
 
             <div>
               <label className={styles.label}>HOLD: {synth.hold.toFixed(3)}s</label>
@@ -970,31 +1005,29 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
               2D GRID SPATIAL PANNING & DISTANCE ATTENUATION
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '8px' }}>
-              <div>
-                <label className={styles.label}>OFFSET X (-10..+10): {spatialX}</label>
-                <input
-                  type="range"
-                  min="-10"
-                  max="10"
-                  step="1"
-                  className={styles.slider}
-                  value={spatialX}
-                  onChange={(e) => setSpatialX(parseInt(e.target.value, 10))}
-                />
-              </div>
+              <StudioSliderField
+                label="OFFSET X"
+                valueDisplay={`${spatialX} tiles`}
+                tooltipTag="SPATIAL"
+                tooltip="Simulated horizontal grid offset (-10 to +10 tiles) relative to the listener for testing stereo left/right panning and distance falloff."
+                min={-10}
+                max={10}
+                step={1}
+                value={spatialX}
+                onChange={(val) => setSpatialX(val)}
+              />
 
-              <div>
-                <label className={styles.label}>OFFSET Y (-10..+10): {spatialY}</label>
-                <input
-                  type="range"
-                  min="-10"
-                  max="10"
-                  step="1"
-                  className={styles.slider}
-                  value={spatialY}
-                  onChange={(e) => setSpatialY(parseInt(e.target.value, 10))}
-                />
-              </div>
+              <StudioSliderField
+                label="OFFSET Y"
+                valueDisplay={`${spatialY} tiles`}
+                tooltipTag="SPATIAL"
+                tooltip="Simulated vertical grid offset (-10 to +10 tiles) relative to the listener for testing distance attenuation."
+                min={-10}
+                max={10}
+                step={1}
+                value={spatialY}
+                onChange={(val) => setSpatialY(val)}
+              />
             </div>
 
             <div style={{ marginTop: '8px' }}>
@@ -1083,19 +1116,18 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
               {activeVoiceId ? '■ STOP HOLD RAMP' : '▶ START HOLD RAMP'}
             </button>
 
-            <div style={{ flex: 1 }}>
-              <label className={styles.label}>
-                HOLD PROGRESS: {Math.round(holdProgress * 100)}%
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.02"
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <StudioSliderField
+                label="HOLD PROGRESS"
+                valueDisplay={`${Math.round(holdProgress * 100)}%`}
+                tooltipTag="HOLD"
+                tooltip="Scrubs the 2-second hold-to-confirm pitch ramp (0–100%) while auditioning an active hold voice."
+                min={0}
+                max={1}
+                step={0.02}
                 disabled={!activeVoiceId}
-                className={styles.slider}
                 value={holdProgress}
-                onChange={(e) => handleUpdateHoldProgress(parseFloat(e.target.value))}
+                onChange={(val) => handleUpdateHoldProgress(val)}
               />
             </div>
           </div>
@@ -1159,18 +1191,17 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
               </select>
             </div>
 
-            <div>
-              <label className={styles.label}>HEAT TIER: {simHeatTier}</label>
-              <input
-                type="range"
-                min="0"
-                max="5"
-                step="1"
-                className={styles.slider}
-                value={simHeatTier}
-                onChange={(e) => handleHeatTierChange(parseInt(e.target.value, 10))}
-              />
-            </div>
+            <StudioSliderField
+              label="HEAT TIER"
+              valueDisplay={`Tier ${simHeatTier}`}
+              tooltipTag="AMB"
+              tooltip="Simulates player Heat tier (0–5) in the reactive ambiance preview to audition dynamic tempo and filter escalation."
+              min={0}
+              max={5}
+              step={1}
+              value={simHeatTier}
+              onChange={(val) => handleHeatTierChange(val)}
+            />
 
             <div style={{ display: 'flex', alignItems: 'center', marginTop: '16px' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>

@@ -2,11 +2,12 @@ import { Assets, Sprite } from 'pixi.js';
 import { EntityId } from '../engine/ecs/types';
 import {
   AnimationClipDef,
+  AnimationManifestEntry,
   AnimationStateKey,
   ThemedTilesetManifest,
 } from '@shared/tileset-types';
 import { getTextureForSpriteKey, resolveFallbackSpriteKey } from './sprite-map';
-import { getActiveAtlasKey, getActiveThemeId } from './assets';
+import { getActiveAtlasKey, getActiveThemeId, registerAssetReloadListener } from './assets';
 import baseTilesetJson from '../../public/assets/tileset.json';
 
 export interface EntityAnimRuntimeState {
@@ -181,6 +182,60 @@ export class SpriteAnimator {
    */
   public setCustomManifest(manifest: ThemedTilesetManifest | null): void {
     this.customManifest = manifest;
+  }
+
+  /**
+   * Hot-updates animation clip definitions on the active manifest and forces all
+   * registered entities to re-evaluate their frame on the next tick.
+   */
+  public hotUpdateAnimations(
+    themeId: string,
+    animations: Record<string, AnimationManifestEntry>,
+    propagateToThemes: boolean = false,
+  ): void {
+    const activeTheme = getActiveThemeId?.() ?? 'default';
+    const activeAtlasKey = getActiveAtlasKey?.() ?? 'tileset';
+    const hasAssets = typeof Assets !== 'undefined' && typeof Assets.get === 'function';
+
+    if (this.customManifest) {
+      this.customManifest = {
+        ...this.customManifest,
+        animations: { ...animations },
+      };
+    }
+
+    if (hasAssets) {
+      const targetKey = themeId && themeId !== 'default' ? `tileset_${themeId}` : 'tileset';
+      const targetAsset = Assets.get(targetKey) as { data?: Partial<ThemedTilesetManifest> } | undefined;
+      if (targetAsset?.data) {
+        targetAsset.data.animations = { ...animations };
+      }
+      if (themeId === 'default' && propagateToThemes && activeAtlasKey !== 'tileset' && activeTheme !== 'default') {
+        const activeAsset = Assets.get(activeAtlasKey) as { data?: Partial<ThemedTilesetManifest> } | undefined;
+        if (activeAsset?.data) {
+          activeAsset.data.animations = {
+            ...(activeAsset.data.animations ?? {}),
+            ...animations,
+          };
+        }
+      }
+    }
+
+    if (themeId === 'default' && baseTilesetJson) {
+      (baseTilesetJson as unknown as Partial<ThemedTilesetManifest>).animations = { ...animations };
+    }
+
+    this.invalidateFrameCache();
+  }
+
+  /**
+   * Resets cached frame keys on all registered entities so their sprite textures
+   * are re-evaluated on the next render tick.
+   */
+  public invalidateFrameCache(): void {
+    for (const record of this.runtimeStates.values()) {
+      record.lastRenderedFrameKey = '';
+    }
   }
 
   /**
@@ -477,3 +532,14 @@ export class SpriteAnimator {
 }
 
 export const spriteAnimator = new SpriteAnimator();
+
+if (typeof registerAssetReloadListener === 'function') {
+  registerAssetReloadListener((themeId, manifestJson) => {
+    const animations = manifestJson.animations as Record<string, AnimationManifestEntry> | undefined;
+    if (animations && typeof animations === 'object') {
+      spriteAnimator.hotUpdateAnimations(themeId, animations);
+    } else {
+      spriteAnimator.invalidateFrameCache();
+    }
+  });
+}

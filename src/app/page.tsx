@@ -29,6 +29,7 @@ import { AbortMissionDialog } from '@/components/ui/AbortMissionDialog';
 import { SystemSettingsModal } from '@/components/ui/SystemSettingsModal';
 import { HubLayout } from '@/components/ui/hub/HubLayout';
 import { GameContext } from '@/game/types';
+import { FloorState } from '@shared/components/floor-state';
 import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT, DEFAULT_SHELL_ID } from '@/shared/constants';
 
 const DevTerminal =
@@ -46,6 +47,33 @@ const PerfMonitorWidget =
         { ssr: false },
       )
     : () => null;
+
+const HotloadToastOverlay =
+  process.env.NODE_ENV === 'development'
+    ? dynamic(
+        () => import('@dev-tool/hotload/HotloadToastOverlay').then((m) => m.HotloadToastOverlay),
+        { ssr: false },
+      )
+    : () => null;
+
+interface NirmataDevRuntime {
+  app: ReturnType<typeof getApp>;
+  context: GameContext;
+  renderSystem: ReturnType<typeof createRenderSystem>;
+  gameAudioSystem: GameAudioSystem;
+  tickerCallback: () => void;
+  perfTickerCallback: (() => void) | null;
+  unsubscribePerfMode: (() => void) | null;
+  webglProbe: import('@dev-tool/perf/webgl-probe').WebGLProbe | null;
+  perfCollector: import('@dev-tool/perf/perf-collector').PerfCollector | null;
+  perfAnyHandler: ((type: string, event: unknown) => void) | null;
+  perfFloorTransitionHandler: (() => void) | null;
+  hotloadBridge: import('@dev-tool/hotload/client-hotload-bridge').ClientHotloadBridge | null;
+}
+
+const globalForDevRuntime = globalThis as unknown as {
+  __NIRMATA_DEV_RUNTIME__?: NirmataDevRuntime | null;
+};
 
 export default function GamePage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -66,6 +94,10 @@ export default function GamePage() {
   const perfCollectorRef = useRef<import('@dev-tool/perf/perf-collector').PerfCollector | null>(null);
   const perfAnyHandlerRef = useRef<((type: string, event: unknown) => void) | null>(null);
   const perfFloorTransitionHandlerRef = useRef<(() => void) | null>(null);
+  const hotloadBridgeRef = useRef<
+    import('@dev-tool/hotload/client-hotload-bridge').ClientHotloadBridge | null
+  >(null);
+  const isUnloadingRef = useRef(false);
   const [engineReady, setEngineReady] = useState(false);
 
   const showCanvas =
@@ -221,6 +253,17 @@ export default function GamePage() {
           };
           perfTickerCallbackRef.current = perfTicker;
           app.ticker.add(perfTicker, undefined, UPDATE_PRIORITY.UTILITY);
+
+          if (
+            globalForDevRuntime.__NIRMATA_DEV_RUNTIME__ &&
+            globalForDevRuntime.__NIRMATA_DEV_RUNTIME__.app === app
+          ) {
+            globalForDevRuntime.__NIRMATA_DEV_RUNTIME__.webglProbe = probe;
+            globalForDevRuntime.__NIRMATA_DEV_RUNTIME__.perfCollector = perfCollector;
+            globalForDevRuntime.__NIRMATA_DEV_RUNTIME__.perfTickerCallback = perfTicker;
+            globalForDevRuntime.__NIRMATA_DEV_RUNTIME__.unsubscribePerfMode =
+              unsubscribePerfModeRef.current;
+          }
         });
 
         const anyHandler = (type: string) => {
@@ -250,10 +293,32 @@ export default function GamePage() {
         getGrid: () => context.grid,
       });
       gameAudioSystemRef.current = gameAudioSystem;
-      gameAudioSystem.updateAmbianceForFloor(1);
+      const floorEntities = context.world.query(FloorState);
+      const initialFloor =
+        floorEntities.length > 0
+          ? (context.world.getComponent(floorEntities[0], FloorState)?.currentFloor ?? 1)
+          : 1;
+      gameAudioSystem.updateAmbianceForFloor(initialFloor);
 
       // 5. Start Game
       context.fsm.transition(GameState.Playing);
+
+      if (process.env.NODE_ENV === 'development') {
+        globalForDevRuntime.__NIRMATA_DEV_RUNTIME__ = {
+          app,
+          context,
+          renderSystem,
+          gameAudioSystem,
+          tickerCallback,
+          perfTickerCallback: perfTickerCallbackRef.current,
+          unsubscribePerfMode: unsubscribePerfModeRef.current,
+          webglProbe: webglProbeRef.current,
+          perfCollector: perfCollectorRef.current,
+          perfAnyHandler: perfAnyHandlerRef.current,
+          perfFloorTransitionHandler: perfFloorTransitionHandlerRef.current,
+          hotloadBridge: hotloadBridgeRef.current,
+        };
+      }
 
       // Focus management: ensure window is focused for input
       window.focus();
@@ -330,6 +395,7 @@ export default function GamePage() {
       }
       if (process.env.NODE_ENV === 'development') {
         setTurnTelemetryHook(null);
+        globalForDevRuntime.__NIRMATA_DEV_RUNTIME__ = null;
       }
       setEngineReady(false);
       destroyGame(contextRef.current);
@@ -351,10 +417,116 @@ export default function GamePage() {
     getAudioEngine().updateSettings(saved);
   }, []);
 
+  // Effect 0b: Development HMR runtime preservation, Hotload bridge, & Dev Session Auto-Resume
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+
+    const handleBeforeUnload = () => {
+      isUnloadingRef.current = true;
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    let cancelled = false;
+    const runtime = globalForDevRuntime.__NIRMATA_DEV_RUNTIME__;
+
+    if (runtime && runtime.context && runtime.renderSystem) {
+      contextRef.current = runtime.context;
+      renderSystemRef.current = runtime.renderSystem;
+      gameAudioSystemRef.current = runtime.gameAudioSystem;
+      tickerCallbackRef.current = runtime.tickerCallback;
+      perfTickerCallbackRef.current = runtime.perfTickerCallback;
+      unsubscribePerfModeRef.current = runtime.unsubscribePerfMode;
+      webglProbeRef.current = runtime.webglProbe;
+      perfCollectorRef.current = runtime.perfCollector;
+      perfAnyHandlerRef.current = runtime.perfAnyHandler;
+      perfFloorTransitionHandlerRef.current = runtime.perfFloorTransitionHandler;
+
+      if (
+        runtime.app?.canvas &&
+        canvasRef.current &&
+        runtime.app.canvas !== canvasRef.current &&
+        canvasRef.current.parentNode
+      ) {
+        runtime.app.canvas.className = canvasRef.current.className;
+        canvasRef.current.parentNode.replaceChild(runtime.app.canvas, canvasRef.current);
+      }
+
+      if (gameStore.getState().gameStatus === GameState.MainMenu) {
+        gameStore.getState().setGameStatus(GameState.Playing);
+      }
+      setEngineReady(true);
+      logger.info('--- RE-ATTACHED DEV RUNTIME AFTER FAST REFRESH ---', 'SYSTEM');
+    } else if (
+      gameStore.getState().gameStatus === GameState.MainMenu &&
+      !window.location.search.includes('menu=1')
+    ) {
+      const storedSessionId = window.localStorage?.getItem('nimrata_sessionId');
+      const query = storedSessionId ? `?sessionId=${encodeURIComponent(storedSessionId)}` : '';
+      fetch(`/api/session${query}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (cancelled || !data || !data.active || !data.initialState) return;
+          if (data.sessionId) {
+            window.localStorage?.setItem('nimrata_sessionId', data.sessionId);
+          }
+          gameStore.getState().setLaunchConfig({
+            mode: (data.runMode as RunMode) || RunMode.SIMULATION,
+            seed: data.seed || `resumed-${data.sessionId}`,
+            sessionId: data.sessionId,
+            shellId: data.shellId,
+            initialState: data.initialState,
+          });
+          gameStore.getState().setGameStatus(GameState.Playing);
+          logger.info(
+            `Auto-resumed active dev session: ${truncateSessionId(data.sessionId)} (Floor ${data.floorNumber ?? 1})`,
+            'NETWORK',
+          );
+        })
+        .catch(() => {
+          // Non-fatal: stay on MainMenu if session lookup fails
+        });
+    }
+
+    if (runtime?.hotloadBridge) {
+      hotloadBridgeRef.current = runtime.hotloadBridge;
+    } else {
+      import('@dev-tool/hotload/client-hotload-bridge').then(({ ClientHotloadBridge }) => {
+        if (cancelled) return;
+        const bridge = new ClientHotloadBridge({
+          getContext: () => contextRef.current,
+          getRenderSystem: () => renderSystemRef.current,
+          getGameAudioSystem: () => gameAudioSystemRef.current,
+        });
+        bridge.start();
+        hotloadBridgeRef.current = bridge;
+        if (globalForDevRuntime.__NIRMATA_DEV_RUNTIME__) {
+          globalForDevRuntime.__NIRMATA_DEV_RUNTIME__.hotloadBridge = bridge;
+        }
+      });
+    }
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
   // Effect 3: Full cleanup on component unmount
   useEffect(() => {
     return () => {
+      if (
+        process.env.NODE_ENV === 'development' &&
+        !isUnloadingRef.current &&
+        globalForDevRuntime.__NIRMATA_DEV_RUNTIME__
+      ) {
+        // Preserve live WebGL/ECS/Audio runtime across Next.js Fast Refresh
+        return;
+      }
       logger.info('--- DESTROYING ENGINE (UNMOUNT) ---', 'SYSTEM');
+      if (hotloadBridgeRef.current) {
+        hotloadBridgeRef.current.destroy();
+        hotloadBridgeRef.current = null;
+      }
       if (renderSystemRef.current) {
         renderSystemRef.current.destroy();
         renderSystemRef.current = null;
@@ -385,6 +557,7 @@ export default function GamePage() {
       perfCollectorRef.current = null;
       if (process.env.NODE_ENV === 'development') {
         setTurnTelemetryHook(null);
+        globalForDevRuntime.__NIRMATA_DEV_RUNTIME__ = null;
       }
       setEngineReady(false);
       destroyRenderer();
@@ -546,6 +719,7 @@ export default function GamePage() {
         <SystemSettingsModal />
 
         {process.env.NODE_ENV === 'development' && <DevTerminal />}
+        {process.env.NODE_ENV === 'development' && <HotloadToastOverlay />}
         {process.env.NODE_ENV === 'development' && (
           <PerfMonitorWidget
             context={engineReady ? contextRef.current : null}

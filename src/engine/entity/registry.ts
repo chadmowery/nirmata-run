@@ -37,6 +37,31 @@ export class EntityRegistry {
   }
 
   /**
+   * Register a mixin template by name.
+   */
+  registerMixin(name: string, template: RawTemplate): void {
+    const normalized: RawTemplate = template.name === name ? template : { ...template, name };
+    this.register(normalized);
+  }
+
+  /**
+   * Register or update an existing template in place (used by dev hotload).
+   */
+  upsert(template: RawTemplate): void {
+    this.templates.set(template.name, template);
+    const norm = this.normalizeKey(template.name);
+    this.normalizedIndex.set(norm, template);
+  }
+
+  /**
+   * Register or update an existing mixin template in place (used by dev hotload).
+   */
+  upsertMixin(name: string, template: RawTemplate): void {
+    const normalized: RawTemplate = template.name === name ? template : { ...template, name };
+    this.upsert(normalized);
+  }
+
+  /**
    * Get a template by name.
    */
   get(name: string): RawTemplate | undefined {

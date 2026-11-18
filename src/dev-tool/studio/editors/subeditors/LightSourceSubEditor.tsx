@@ -2,6 +2,7 @@
 import { useEffect, useRef } from 'react';
 import type { LightAnimationType, LightSourceData } from '@shared/components/light-source';
 import { evaluateLightAnimation } from '@rendering/lighting/types';
+import { StudioFieldHint, StudioSliderField } from '../../shared/StudioSliderField';
 import styles from '../editors.module.css';
 
 export interface LightSourceSubEditorValues {
@@ -198,153 +199,161 @@ export function LightSourceSubEditor({ values, onFieldChange }: LightSourceSubEd
       </div>
 
       {/* Intensity */}
-      <div className={styles.fieldRow}>
-        <label className={styles.fieldLabel}>Intensity</label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-          <input
-            type="range"
-            min={0.1}
-            max={4.0}
-            step={0.05}
-            value={intensity}
-            onChange={(e) => onFieldChange('intensity', Number(e.target.value))}
-            style={{ flex: 1 }}
-          />
-          <input
-            type="number"
-            className={styles.fieldInput}
-            style={{ width: '64px' }}
-            min={0}
-            max={10}
-            step={0.05}
-            value={intensity}
-            onChange={(e) => onFieldChange('intensity', Number(e.target.value))}
-          />
-        </div>
-      </div>
+      <StudioSliderField
+        layout="row"
+        label="Intensity"
+        tooltipTag="LIGHT"
+        tooltip="Brightness multiplier of this point light emitter. Higher values intensify diffuse and specular highlights."
+        min={0.1}
+        max={4.0}
+        step={0.05}
+        value={intensity}
+        onChange={(val) => onFieldChange('intensity', val)}
+      >
+        <input
+          type="number"
+          aria-label="Light Intensity"
+          className={styles.fieldInput}
+          style={{ width: '64px', flex: 'none' }}
+          min={0}
+          max={10}
+          step={0.05}
+          value={intensity}
+          onChange={(e) => onFieldChange('intensity', Number(e.target.value))}
+        />
+      </StudioSliderField>
 
       {/* Radius (px + tiles readout) */}
-      <div className={styles.fieldRow}>
-        <label className={styles.fieldLabel}>Radius</label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-          <input
-            type="range"
-            min={8}
-            max={512}
-            step={4}
-            value={radius}
-            onChange={(e) => onFieldChange('radius', Number(e.target.value))}
-            style={{ flex: 1 }}
-          />
-          <input
-            type="number"
-            className={styles.fieldInput}
-            style={{ width: '64px' }}
-            min={8}
-            max={512}
-            step={4}
-            value={radius}
-            onChange={(e) => onFieldChange('radius', Number(e.target.value))}
-          />
-          <span
-            style={{
-              fontSize: '10px',
-              fontFamily: 'var(--font-mono, monospace)',
-              color: 'var(--c-accent-secondary, #00f0ff)',
-              minWidth: '58px',
-              textAlign: 'right',
-            }}
-          >
-            {(radius / 32).toFixed(1)} tiles
-          </span>
-        </div>
-      </div>
+      <StudioSliderField
+        layout="row"
+        label="Radius"
+        tooltipTag="LIGHT"
+        tooltip="Maximum reach of this point light in world pixels (32 px = 1 tile); illumination attenuates smoothly to zero at the radius edge."
+        min={8}
+        max={512}
+        step={4}
+        value={radius}
+        valueText={`${radius} px (${(radius / 32).toFixed(1)} tiles)`}
+        onChange={(val) => onFieldChange('radius', val)}
+      >
+        <input
+          type="number"
+          aria-label="Light Radius"
+          className={styles.fieldInput}
+          style={{ width: '64px', flex: 'none' }}
+          min={8}
+          max={512}
+          step={4}
+          value={radius}
+          onChange={(e) => onFieldChange('radius', Number(e.target.value))}
+        />
+        <span
+          style={{
+            fontSize: '10px',
+            fontFamily: 'var(--font-mono, monospace)',
+            color: 'var(--c-accent-secondary, #00f0ff)',
+            minWidth: '58px',
+            textAlign: 'right',
+          }}
+        >
+          {(radius / 32).toFixed(1)} tiles
+        </span>
+      </StudioSliderField>
 
       {/* Height Z & Falloff */}
-      <div className={styles.fieldRow}>
-        <label className={styles.fieldLabel}>Height Z / Falloff</label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-          <span style={{ fontSize: '10px', color: 'var(--c-text-dim, #79889e)' }}>Z(px):</span>
-          <input
-            type="range"
-            min={1}
-            max={64}
-            step={1}
-            value={height}
-            onChange={(e) => onFieldChange('height', Number(e.target.value))}
-            style={{ flex: 1 }}
+      <StudioSliderField
+        layout="row"
+        label="Height Z"
+        tooltipTag="LIGHT"
+        tooltip="Virtual Z elevation (in pixels) above the floor plane. Higher Z broadens top-down illumination and softens normal-mapped shadows."
+        min={1}
+        max={64}
+        step={1}
+        value={height}
+        valueText={`${height} px`}
+        onChange={(val) => onFieldChange('height', val)}
+      >
+        <input
+          type="number"
+          aria-label="Light Height Z"
+          className={styles.fieldInput}
+          style={{ width: '54px', flex: 'none' }}
+          min={1}
+          max={64}
+          value={height}
+          onChange={(e) => onFieldChange('height', Number(e.target.value))}
+        />
+        <span style={{ fontSize: '10px', color: 'var(--c-text-dim, #79889e)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          Falloff:
+          <StudioFieldHint
+            label="Falloff"
+            tooltipTag="LIGHT"
+            tooltip="Distance attenuation exponent controlling how sharply light intensity drops off between the emitter and its outer radius."
           />
-          <input
-            type="number"
-            className={styles.fieldInput}
-            style={{ width: '54px' }}
-            min={1}
-            max={64}
-            value={height}
-            onChange={(e) => onFieldChange('height', Number(e.target.value))}
-          />
-          <span style={{ fontSize: '10px', color: 'var(--c-text-dim, #79889e)' }}>Falloff:</span>
-          <input
-            type="number"
-            className={styles.fieldInput}
-            style={{ width: '54px' }}
-            min={0.5}
-            max={4}
-            step={0.1}
-            value={falloff}
-            onChange={(e) => onFieldChange('falloff', Number(e.target.value))}
-          />
-        </div>
-      </div>
+        </span>
+        <input
+          type="number"
+          aria-label="Light Falloff"
+          className={styles.fieldInput}
+          style={{ width: '54px', flex: 'none' }}
+          min={0.5}
+          max={4}
+          step={0.1}
+          value={falloff}
+          onChange={(e) => onFieldChange('falloff', Number(e.target.value))}
+        />
+      </StudioSliderField>
 
       {/* Sub-tile Offset X / Offset Y */}
-      <div className={styles.fieldRow}>
-        <label className={styles.fieldLabel}>Offset X / Y (px)</label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
-          <span style={{ fontSize: '10px', color: 'var(--c-text-dim, #79889e)' }}>X:</span>
-          <input
-            type="range"
-            min={-32}
-            max={32}
-            step={1}
-            value={offsetX}
-            onChange={(e) => onFieldChange('offsetX', Number(e.target.value))}
-            style={{ flex: 1 }}
-          />
-          <input
-            type="number"
-            aria-label="Light Offset X"
-            className={styles.fieldInput}
-            style={{ width: '54px' }}
-            min={-32}
-            max={32}
-            step={1}
-            value={offsetX}
-            onChange={(e) => onFieldChange('offsetX', Number(e.target.value))}
-          />
-          <span style={{ fontSize: '10px', color: 'var(--c-text-dim, #79889e)' }}>Y:</span>
-          <input
-            type="range"
-            min={-32}
-            max={32}
-            step={1}
-            value={offsetY}
-            onChange={(e) => onFieldChange('offsetY', Number(e.target.value))}
-            style={{ flex: 1 }}
-          />
-          <input
-            type="number"
-            aria-label="Light Offset Y"
-            className={styles.fieldInput}
-            style={{ width: '54px' }}
-            min={-32}
-            max={32}
-            step={1}
-            value={offsetY}
-            onChange={(e) => onFieldChange('offsetY', Number(e.target.value))}
-          />
-        </div>
-      </div>
+      <StudioSliderField
+        layout="row"
+        label="Offset X (px)"
+        tooltipTag="LIGHT"
+        tooltip="Horizontal sub-tile emitter offset in pixels (-32 to +32) relative to the entity's tile center."
+        min={-32}
+        max={32}
+        step={1}
+        value={offsetX}
+        valueText={`${offsetX} px`}
+        onChange={(val) => onFieldChange('offsetX', val)}
+      >
+        <input
+          type="number"
+          aria-label="Light Offset X"
+          className={styles.fieldInput}
+          style={{ width: '54px', flex: 'none' }}
+          min={-32}
+          max={32}
+          step={1}
+          value={offsetX}
+          onChange={(e) => onFieldChange('offsetX', Number(e.target.value))}
+        />
+      </StudioSliderField>
+
+      <StudioSliderField
+        layout="row"
+        label="Offset Y (px)"
+        tooltipTag="LIGHT"
+        tooltip="Vertical sub-tile emitter offset in pixels (-32 to +32) relative to the entity's tile center."
+        min={-32}
+        max={32}
+        step={1}
+        value={offsetY}
+        valueText={`${offsetY} px`}
+        onChange={(val) => onFieldChange('offsetY', val)}
+      >
+        <input
+          type="number"
+          aria-label="Light Offset Y"
+          className={styles.fieldInput}
+          style={{ width: '54px', flex: 'none' }}
+          min={-32}
+          max={32}
+          step={1}
+          value={offsetY}
+          onChange={(e) => onFieldChange('offsetY', Number(e.target.value))}
+        />
+      </StudioSliderField>
 
       {/* Cast Shadows Toggle */}
       <div className={styles.fieldRow}>

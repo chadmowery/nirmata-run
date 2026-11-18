@@ -120,6 +120,12 @@ export class NoopAudioEngine implements IAudioEngine {
       ambianceResonanceQ: 0,
     };
   }
+  public evictSampleBuffer(_samplePath: string): void {
+    void _samplePath;
+  }
+  public hotUpdateCue(_cue: SoundCueDef): void {
+    void _cue;
+  }
 }
 
 /**
@@ -147,6 +153,17 @@ export class AudioEngine implements IAudioEngine {
   private activeSampleSources = new Set<AudioBufferSourceNode>();
   private activeCueSamples = new Map<string, AudioBufferSourceNode[]>();
   private activeVoiceMap = new Map<number, ActiveVoice>();
+  private voiceCueMeta = new WeakMap<
+    ActiveVoice,
+    {
+      cueId: string;
+      bus: Exclude<AudioBusName, 'master'>;
+      loop: boolean;
+      optionVolumeMultiplier: number;
+      pitchMultiplier: number;
+      spatial?: ReturnType<typeof calculateSpatialAudio>;
+    }
+  >();
   private nextVoiceId = 1;
 
   // Continuous Ambiance Management
@@ -447,6 +464,14 @@ export class AudioEngine implements IAudioEngine {
       if (voice) {
         const voiceId = this.nextVoiceId++;
         this.activeVoiceMap.set(voiceId, voice);
+        this.voiceCueMeta.set(voice, {
+          cueId: cue.id,
+          bus: cue.bus,
+          loop: cue.loop ?? false,
+          optionVolumeMultiplier: options.volumeMultiplier ?? 1.0,
+          pitchMultiplier,
+          spatial: spatialResult,
+        });
 
         if (!this.activeCueVoices.has(cue.id)) {
           this.activeCueVoices.set(cue.id, []);
@@ -541,7 +566,126 @@ export class AudioEngine implements IAudioEngine {
     const voice = this.activeVoiceMap.get(voiceId);
     if (!voice || !voice.updateSpatial) return;
     const result = calculateSpatialAudio(spatial);
+    const meta = this.voiceCueMeta.get(voice);
+    if (meta) {
+      meta.spatial = result;
+      meta.optionVolumeMultiplier = volumeMultiplier;
+    }
     voice.updateSpatial(result, volumeMultiplier);
+  }
+
+  /**
+   * Evicts a decoded sample AudioBuffer from the cache so modified files reload cleanly.
+   */
+  public evictSampleBuffer(samplePath: string): void {
+    let cleanPath = samplePath.trim();
+    if (cleanPath.startsWith('public/')) {
+      cleanPath = cleanPath.slice('public'.length);
+    }
+    if (!cleanPath.startsWith('/') && !cleanPath.startsWith('http')) {
+      cleanPath = '/' + cleanPath;
+    }
+    this.sampleBufferCache.delete(cleanPath);
+  }
+
+  /**
+   * Live-morphs or micro-crossfades currently playing ambiance and looping spatial voices
+   * matching `cue.id` when a SoundCueDef is edited in AudioCueStudio.
+   */
+  public hotUpdateCue(cue: SoundCueDef): void {
+    if (!this.ctx) return;
+
+    // 1. Update active ambiance drone if it matches cue.id
+    if (this.currentAmbianceCueId === cue.id) {
+      const prevSamplePath = this.lastRequestedAmbianceCue?.samplePath;
+      this.lastRequestedAmbianceCue = cue;
+      const targetVol = cue.baseVolume ?? this.ambianceState.baseVolume ?? 0.6;
+      if (cue.mode === 'synth' && cue.synth && this.activeAmbianceVoice?.updatePatch) {
+        const morphed = this.activeAmbianceVoice.updatePatch(cue.synth, targetVol);
+        if (!morphed) {
+          this.currentAmbianceCueId = null;
+          this.playAmbianceCue(cue, { volumeMultiplier: targetVol, crossfadeDurationSec: 0.12 });
+        }
+      } else if (
+        cue.mode === 'sample' &&
+        cue.samplePath &&
+        cue.samplePath === prevSamplePath &&
+        this.activeAmbianceSampleGain
+      ) {
+        this.activeAmbianceSampleGain.gain.setTargetAtTime(
+          Math.max(0.0001, targetVol),
+          this.ctx.currentTime,
+          0.02,
+        );
+      } else {
+        this.currentAmbianceCueId = null;
+        this.playAmbianceCue(cue, { volumeMultiplier: targetVol, crossfadeDurationSec: 0.12 });
+      }
+    }
+
+    // 2. Update active looping voices for this cue ID (e.g. spatial AmbientEmitters)
+    const voices = this.activeCueVoices.get(cue.id);
+    if (!voices || voices.length === 0) return;
+
+    const busNode = this.getBusNode(cue.bus);
+    if (!busNode) return;
+
+    const remainingVoices: ActiveVoice[] = [];
+    for (let i = 0; i < voices.length; i++) {
+      const voice = voices[i];
+      const meta = this.voiceCueMeta.get(voice);
+      const optionMult = meta?.optionVolumeMultiplier ?? 1.0;
+      const newVol = optionMult * (cue.baseVolume ?? 1.0);
+      const sameBus = !meta?.bus || meta.bus === cue.bus;
+
+      if (sameBus && cue.mode === 'synth' && cue.synth && voice.updatePatch) {
+        const morphed = voice.updatePatch(cue.synth, newVol);
+        if (morphed) {
+          remainingVoices.push(voice);
+          continue;
+        }
+      }
+
+      // Topology, bus, or mode changed: micro-crossfade respawn or stop & evict
+      try {
+        voice.stop(0.12);
+      } catch {
+        // Ignore stop errors
+      }
+      this.allActiveVoices.delete(voice);
+      this.voiceCueMeta.delete(voice);
+
+      if (cue.mode === 'synth' && cue.synth && (cue.loop || meta?.loop)) {
+        const replacement = playSynthVoice(this.ctx, busNode, cue.synth, {
+          volumeMultiplier: newVol,
+          pitchMultiplier: meta?.pitchMultiplier ?? 1.0,
+          spatial: meta?.spatial,
+          loop: true,
+        });
+        remainingVoices.push(replacement);
+        this.allActiveVoices.add(replacement);
+        if (meta) {
+          this.voiceCueMeta.set(replacement, { ...meta, bus: cue.bus });
+        }
+        for (const [vid, tracked] of this.activeVoiceMap.entries()) {
+          if (tracked === voice) {
+            this.activeVoiceMap.set(vid, replacement);
+          }
+        }
+      } else {
+        for (const [vid, tracked] of this.activeVoiceMap.entries()) {
+          if (tracked === voice) {
+            this.activeVoiceMap.delete(vid);
+          }
+        }
+      }
+    }
+
+    if (remainingVoices.length > 0) {
+      this.activeCueVoices.set(cue.id, remainingVoices);
+    } else {
+      this.activeCueVoices.delete(cue.id);
+    }
   }
 
   /**
@@ -812,6 +956,27 @@ export class AudioEngine implements IAudioEngine {
       this.currentAmbianceCueId === cue.id &&
       (this.activeAmbianceVoice || this.activeAmbianceSampleSource)
     ) {
+      if (options?.volumeMultiplier !== undefined && this.ctx) {
+        const nextVol = options.volumeMultiplier;
+        if (this.activeAmbianceVoice) {
+          if (cue.mode === 'synth' && cue.synth && this.activeAmbianceVoice.updatePatch) {
+            this.activeAmbianceVoice.updatePatch(cue.synth, nextVol);
+          } else {
+            this.activeAmbianceVoice.gainNode.gain.setTargetAtTime(
+              Math.max(0.0001, nextVol),
+              this.ctx.currentTime,
+              0.02,
+            );
+          }
+        }
+        if (this.activeAmbianceSampleGain) {
+          this.activeAmbianceSampleGain.gain.setTargetAtTime(
+            Math.max(0.0001, nextVol),
+            this.ctx.currentTime,
+            0.02,
+          );
+        }
+      }
       return; // Already playing this cue
     }
 

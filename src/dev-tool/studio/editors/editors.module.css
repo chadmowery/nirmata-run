@@ -119,6 +119,44 @@
   align-items: center;
   gap: var(--space-md);
   margin-bottom: var(--space-sm);
+  min-width: 0;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.fieldGridCompact {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.fieldCell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.fieldCellHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.fieldCellLabel {
+  color: var(--c-text-dim, #79889e);
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 500;
+  line-height: 1.3;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .fieldLabel {
@@ -129,8 +167,28 @@
   font-weight: 500;
 }
 
+.fieldLabelWithTip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 140px;
+  flex-shrink: 0;
+}
+
+.fieldLabelInline {
+  color: var(--c-text-dim, #79889e);
+  font-size: 11px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 500;
+  min-width: 0;
+}
+
 .fieldInput {
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 6px var(--space-sm);
   background: var(--c-surface-elevated, #111722);
   border: 1px solid var(--c-border, #1c2638);
@@ -152,6 +210,10 @@
 }
 
 .fieldSelect {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 6px var(--space-sm);
   background: var(--c-surface-elevated, #111722);
   border: 1px solid var(--c-border, #1c2638);
@@ -163,6 +225,164 @@
 .fieldSelect:focus {
   outline: none;
   border-color: var(--c-accent-secondary, #00f0ff);
+}
+
+.sliderControlWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+}
+
+.slider {
+  display: block;
+  width: 100%;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--c-accent-secondary, #00f0ff);
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.slider:focus-visible {
+  outline: 2px solid var(--c-accent-secondary, #00f0ff);
+  outline-offset: 2px;
+}
+.slider:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--c-text-dim, #79889e);
+  font-size: 10px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.input,
+.select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 6px var(--space-sm);
+  background: var(--c-surface-elevated, #111722);
+  border: 1px solid var(--c-border, #1c2638);
+  color: var(--c-text, #ffffff);
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  border-radius: 2px;
+}
+.input:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--c-accent-secondary, #00f0ff);
+}
+
+.addButton {
+  padding: 4px var(--space-sm);
+  background: transparent;
+  border: 1px solid var(--c-accent-secondary, #00f0ff);
+  color: var(--c-accent-secondary, #00f0ff);
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  transition: background var(--transition-fast, 150ms ease);
+}
+.addButton:hover {
+  background: rgba(0, 240, 255, 0.12);
+}
+
+.tooltipTrigger {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border-radius: 2px;
+  border: 1px solid var(--c-border-bright, #36445d);
+  background: rgba(0, 240, 255, 0.06);
+  color: var(--c-accent-secondary, #00f0ff);
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: help;
+  transition: all var(--transition-fast, 150ms ease);
+}
+.tooltipTrigger:hover,
+.tooltipTrigger:focus-visible {
+  background: rgba(0, 240, 255, 0.18);
+  border-color: var(--c-accent-secondary, #00f0ff);
+  outline: none;
+}
+
+.studioTooltip {
+  position: fixed;
+  z-index: 3000;
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  background: rgba(4, 6, 10, 0.96);
+  border: 1px solid var(--c-border, #1c2638);
+  border-left: 3px solid var(--c-accent-secondary, #00f0ff);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.9), 0 0 12px rgba(0, 240, 255, 0.16);
+  padding: 8px 10px;
+  pointer-events: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--c-text, #ffffff);
+  border-radius: 2px;
+  box-sizing: border-box;
+}
+
+.studioTooltipTop {
+  transform: translateY(-100%);
+}
+
+.studioTooltipHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.studioTooltipTag {
+  background: #020305;
+  color: var(--c-accent, #d8ff00);
+  border: 1px solid rgba(216, 255, 0, 0.4);
+  font-size: 8px;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 1px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.studioTooltipTitle {
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--c-text, #ffffff);
+  letter-spacing: 0.02em;
+}
+
+.studioTooltipDesc {
+  color: var(--c-text-dim, #94a3b8);
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 .errorMessage {
