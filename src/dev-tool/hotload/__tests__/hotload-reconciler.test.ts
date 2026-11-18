@@ -26,8 +26,14 @@ import {
   Shell,
   Energy,
   PortConfig,
+  Heat,
   LightSource,
   CorruptedNode,
+  SecurityLock,
+  AbilityDef,
+  AugmentData,
+  AugmentState,
+  FovAwareness,
 } from '@shared/components';
 import { globalShellRegistry } from '@/game/shells/server';
 import type { EngineEvents } from '@engine/events/types';
@@ -259,5 +265,267 @@ describe('Live ECS World & Server Session Reconciliation (HOTLOAD-06)', () => {
 
     // Restore original vanguard-v1 in global registry so other tests are unaffected
     globalShellRegistry.upsertTemplate(vanguardTpl);
+  });
+
+  it('clears deleted optional fields, applies Zod defaults, removes deleted components, and preserves faradayBounds/isLegacy (HIGH-03)', () => {
+    const { world, entityRegistry } = createTestSession('rec-sess-high03');
+
+    const doorId = world.createEntity();
+    world.addComponent(doorId, TemplateId, { id: 'prop-vault-door' });
+    world.addComponent(doorId, Position, { x: 3, y: 3 });
+    world.addComponent(doorId, SpriteComponent, {
+      key: 'prop_vault_door',
+      animationSet: 'vault_pulse',
+      initialState: 'locked',
+      speedMultiplier: 1,
+      paused: false,
+      desyncPhase: false,
+    });
+    world.addComponent(doorId, SecurityLock, {
+      isLocked: true,
+      keyIdRequired: 'access-key',
+      faradayBounds: { x: 1, y: 1, width: 5, height: 5 },
+    });
+    world.addComponent(doorId, FovAwareness, { canSeePlayer: false });
+
+    const baseDoor = entityRegistry.get('prop-vault-door')!;
+    const nextDoorComps = { ...(baseDoor.components ?? {}) } as Record<string, unknown>;
+    delete nextDoorComps.fovAwareness;
+    nextDoorComps.sprite = { key: 'prop_vault_door_v2' }; // animationSet, initialState removed; speedMultiplier omitted -> Zod default 1
+    nextDoorComps.lightSource = { color: '#ff00ff' }; // enabled/radius/etc omitted -> Zod defaults populated
+
+    const patches = reconcileEntityTemplateAcrossSessions('prop-vault-door', {
+      ...baseDoor,
+      components: nextDoorComps,
+    } as never);
+
+    expect(patches['rec-sess-high03']).toBeDefined();
+    const updatedSprite = world.getComponent(doorId, SpriteComponent)!;
+    expect(updatedSprite.key).toBe('prop_vault_door_v2');
+    expect(updatedSprite.animationSet).toBeUndefined();
+    expect(updatedSprite.initialState).toBeUndefined();
+    expect(updatedSprite.speedMultiplier).toBe(1);
+
+    const updatedLight = world.getComponent(doorId, LightSource)!;
+    expect(updatedLight.enabled).toBe(true);
+    expect(updatedLight.color).toBe('#ff00ff');
+
+    expect(world.hasComponent(doorId, FovAwareness)).toBe(false);
+    expect(world.getComponent(doorId, SecurityLock)?.faradayBounds).toEqual({
+      x: 1,
+      y: 1,
+      width: 5,
+      height: 5,
+    });
+
+    // AbilityDef & AugmentData preserve runtime isLegacy flag
+    const fwId = world.createEntity();
+    world.addComponent(fwId, TemplateId, { id: 'phase-shift' });
+    world.addComponent(fwId, AbilityDef, {
+      name: 'Phase Shift',
+      heatCost: 15,
+      range: 4,
+      cooldown: 3,
+      currentCooldown: 2,
+      isActive: true,
+      isLegacy: true,
+      trigger: 'ON_ACTIVATE',
+      payloads: [],
+    } as never);
+
+    const augId = world.createEntity();
+    world.addComponent(augId, TemplateId, { id: 'displacement-venting' });
+    world.addComponent(augId, AugmentData, {
+      name: 'Displacement Venting',
+      trigger: 'ON_MOVE',
+      payloads: [],
+      isLegacy: true,
+    } as never);
+
+    const baseFw = entityRegistry.get('phase-shift')!;
+    reconcileEntityTemplateAcrossSessions('phase-shift', baseFw);
+    expect(world.getComponent(fwId, AbilityDef)?.isLegacy).toBe(true);
+    expect(world.getComponent(fwId, AbilityDef)?.isActive).toBe(true);
+
+    const baseAug = entityRegistry.get('displacement-venting')!;
+    reconcileEntityTemplateAcrossSessions('displacement-venting', baseAug);
+    expect(world.getComponent(augId, AugmentData)?.isLegacy).toBe(true);
+  });
+
+  it('applies profile shell upgrades, updates Heat.baseDissipation, and preserves facing direction on Shell reconcile (HIGH-04)', () => {
+    const { world, playerId } = createTestSession('rec-sess-high04');
+    const bastionTpl = globalShellRegistry.getTemplates().find((t) => t.id === 'bastion-v1')!;
+
+    // Attach shellUpgrades to session state and Heat component to player
+    const sessionState = sessionManager.getSession('rec-sess-high04')!;
+    sessionState.shellUpgrades = {
+      'bastion-v1': { speed: 2, armor: 1, stability: 2, additionalPorts: 1 },
+    };
+    world.addComponent(playerId, Heat, {
+      current: 10,
+      maxSafe: 100,
+      baseDissipation: 5,
+      ventPercentage: 0.5,
+      isVenting: false,
+    });
+    world.addComponent(playerId, Shell, {
+      archetypeId: 'bastion-v1',
+      speed: bastionTpl.baseStats.speed,
+      stability: bastionTpl.baseStats.stability,
+      armor: bastionTpl.baseStats.armor,
+      maxHealth: bastionTpl.baseStats.maxHealth,
+      directionalSprites: {
+        north: 'bastion-v1-north',
+        east: 'bastion-v1-east',
+        south: 'bastion-v1-south',
+        west: 'bastion-v1-west',
+      },
+      defaultDirection: 'south',
+    });
+    // Player is currently facing north
+    world.addComponent(playerId, SpriteComponent, { key: 'bastion-v1-north' });
+
+    const patches = reconcileShellAcrossSessions({
+      ...bastionTpl,
+      baseStats: { speed: 100, armor: 3, stability: 20, maxHealth: 35 },
+      basePorts: { maxFirmware: 2, maxAugment: 2, maxSoftware: 2 },
+      directionalSprites: {
+        north: 'bastion-v1-north-v2',
+        east: 'bastion-v1-east-v2',
+        south: 'bastion-v1-south-v2',
+        west: 'bastion-v1-west-v2',
+      },
+      defaultDirection: 'south',
+    });
+
+    expect(patches['rec-sess-high04']).toBeDefined();
+    // Upgraded stats: speed = 100 + 2*5 = 110, armor = 3 + 1 = 4, stability = 20 + 2*10 = 40
+    expect(world.getComponent(playerId, Shell)?.speed).toBe(110);
+    expect(world.getComponent(playerId, Defense)?.armor).toBe(4);
+    expect(world.getComponent(playerId, Energy)?.speed).toBe(110);
+    expect(world.getComponent(playerId, PortConfig)).toEqual({
+      maxFirmware: 3,
+      maxAugment: 3,
+      maxSoftware: 3,
+    });
+    // Heat.baseDissipation = 5 + 40 * 0.1 = 9
+    expect(world.getComponent(playerId, Heat)?.baseDissipation).toBe(9);
+    // Preserved north facing direction instead of snapping to defaultDirection ('south')
+    expect(world.getComponent(playerId, SpriteComponent)?.key).toBe('bastion-v1-north-v2');
+
+    globalShellRegistry.upsertTemplate(bastionTpl);
+  });
+
+  it('reconciles transitive (depth >= 2) mixin inheritance across sessions (RES-02)', () => {
+    const { world, entityRegistry } = createTestSession('rec-sess-res02');
+
+    entityRegistry.upsertMixin('res02-base-mixin', {
+      name: 'res02-base-mixin',
+      components: {
+        defense: { armor: 1 },
+      },
+    });
+    entityRegistry.upsertMixin('res02-mid-mixin', {
+      name: 'res02-mid-mixin',
+      mixins: ['res02-base-mixin'],
+      components: {
+        attack: { power: 4 },
+      },
+    });
+    entityRegistry.upsert({
+      name: 'res02-deep-grunt',
+      mixins: ['res02-mid-mixin'],
+      components: {},
+    });
+
+    const gruntId = world.createEntity();
+    world.addComponent(gruntId, TemplateId, { id: 'res02-deep-grunt' });
+    world.addComponent(gruntId, Defense, { armor: 1 });
+    world.addComponent(gruntId, Attack, { power: 4 });
+
+    const patches = reconcileMixinAcrossSessions('res02-base-mixin', {
+      name: 'res02-base-mixin',
+      components: {
+        defense: { armor: 9 },
+      },
+    });
+
+    expect(patches['rec-sess-res02']).toBeDefined();
+    expect(world.getComponent(gruntId, Defense)?.armor).toBe(9);
+  });
+
+  it('preserves AbilityDef runtime state (isActive, isLegacy, currentCooldown) and AugmentState cooldowns on hotload (RES-03)', () => {
+    const { world, entityRegistry } = createTestSession('rec-sess-res03');
+
+    const fwId = world.createEntity();
+    world.addComponent(fwId, TemplateId, { id: 'phase-shift' });
+    world.addComponent(fwId, AbilityDef, {
+      name: 'Phase_Shift.sh',
+      heatCost: 25,
+      range: 0,
+      effectType: 'dash',
+      damageAmount: 0,
+      dashDistance: 5,
+      visionRadius: 0,
+      heatPerTurn: 0,
+      isToggle: false,
+      isActive: true,
+      isLegacy: true,
+      currentCooldown: 3,
+    } as never);
+
+    const baseFw = entityRegistry.get('phase-shift')!;
+    reconcileEntityTemplateAcrossSessions('phase-shift', {
+      ...baseFw,
+      components: {
+        ...(baseFw.components ?? {}),
+        abilityDef: {
+          ...((baseFw.components as Record<string, Record<string, unknown>>).abilityDef ?? {}),
+          heatCost: 40,
+        },
+      },
+    } as never);
+
+    const updatedFw = world.getComponent(fwId, AbilityDef);
+    expect(updatedFw?.heatCost).toBe(40);
+    expect(updatedFw?.isActive).toBe(true);
+    expect(updatedFw?.isLegacy).toBe(true);
+
+    // Forward-compatible currentCooldown preservation when schema fallback uses merged payload
+    world.addComponent(fwId, AbilityDef, {
+      ...(updatedFw ?? {}),
+      currentCooldown: 2,
+    } as never);
+    reconcileEntityTemplateAcrossSessions('phase-shift', {
+      ...baseFw,
+      components: {
+        abilityDef: {
+          name: 'Phase_Shift_Partial',
+          heatCost: 30,
+          currentCooldown: 0,
+        },
+      },
+    } as never);
+    expect((world.getComponent(fwId, AbilityDef) as unknown as { currentCooldown?: number })?.currentCooldown).toBe(2);
+
+    // AugmentState cooldownsRemaining remains intact across AugmentData template reconciliation
+    const augId = world.createEntity();
+    world.addComponent(augId, TemplateId, { id: 'displacement-venting' });
+    world.addComponent(augId, AugmentData, {
+      name: 'Displacement Venting',
+      trigger: 'ON_MOVE',
+      payloads: [],
+      isLegacy: true,
+    } as never);
+    world.addComponent(augId, AugmentState, {
+      activationsThisTurn: {},
+      cooldownsRemaining: { displacement_venting: 4 },
+    });
+
+    const baseAug = entityRegistry.get('displacement-venting')!;
+    reconcileEntityTemplateAcrossSessions('displacement-venting', baseAug);
+    expect(world.getComponent(augId, AugmentState)?.cooldownsRemaining).toEqual({
+      displacement_venting: 4,
+    });
   });
 });

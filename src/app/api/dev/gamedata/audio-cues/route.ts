@@ -61,8 +61,8 @@ export async function POST(req: Request) {
 
     await atomicWrite(CUES_FILE_PATH, data);
     registerSoundCue(body as SoundCueDef);
-    hotloadBus.publishCommit('audioCue', body.id, body);
-    return NextResponse.json({ success: true, id: body.id }, { status: 201 });
+    const envelope = hotloadBus.publishCommit('audioCue', body.id, body);
+    return NextResponse.json({ success: true, id: body.id, envelope }, { status: 201 });
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Internal server error', 500);
   }

@@ -1,10 +1,16 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { validateEcsRules, RUNTIME_INTENT_OR_TAG_KEYS } from '@/app/api/dev/gamedata/ecs-rules';
 import type { FieldMeta } from '@/app/api/dev/gamedata/schema-introspect';
 import { useGamedataStore } from '../store';
 import { buildDefaultComponentData } from '../shared/default-values';
 import { ComponentFieldGroup } from './shared/ComponentFieldGroup';
+import {
+  postHotloadCommit,
+  postHotloadPreview,
+  postHotloadRevert,
+} from '@dev-tool/hotload/studio-sync';
+import { useHotloadAutoRevert } from '@dev-tool/hotload/useHotloadAutoRevert';
 import styles from './editors.module.css';
 
 interface Props {
@@ -26,11 +32,28 @@ interface MixinData {
 }
 
 export function MixinEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
-  const { setCloneSource, selectItem, clearSelection, setDirty } = useGamedataStore();
+  const {
+    setCloneSource,
+    selectItem,
+    clearSelection,
+    setDirty,
+    setActiveEffectiveData,
+    setActiveValidationStatus,
+    liveSyncEnabled,
+    isDirty,
+  } = useGamedataStore();
   const [mixinData, setMixinData] = useState<MixinData | null>(null);
+  const baselineRef = useRef<MixinData | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [componentSchemas, setComponentSchemas] = useState<ComponentSchemaItem[]>([]);
+
+  const { markPreviewSent, clearPreviewSent } = useHotloadAutoRevert(
+    'mixin',
+    !isNew ? name : undefined,
+    () => baselineRef.current,
+    !isNew && Boolean(name),
+  );
 
   useEffect(() => {
     fetch('/api/dev/gamedata/components')
@@ -43,6 +66,7 @@ export function MixinEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
         .then((r) => r.json())
         .then((data) => {
           setMixinData({ ...data, name: '' });
+          baselineRef.current = null;
           setDirty(true);
         })
         .catch(() => setErrors(['Failed to load clone source']));
@@ -51,16 +75,59 @@ export function MixinEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
         .then((r) => r.json())
         .then((data) => {
           setMixinData(data);
+          baselineRef.current = structuredClone(data);
+          clearPreviewSent();
           setDirty(false);
         })
         .catch(() => setErrors(['Failed to load mixin']));
     } else {
       setMixinData({ name: '', components: {} });
+      baselineRef.current = null;
       setDirty(false);
     }
-  }, [name, isNew, cloneFrom, setDirty]);
+  }, [name, isNew, cloneFrom, setDirty, clearPreviewSent]);
 
-  const handleSave = async () => {
+  // Sync inspector & LIVE_SYNC presentation preview
+  useEffect(() => {
+    if (!mixinData) return;
+    const comps = (mixinData.components ?? {}) as Record<string, unknown>;
+    const ecsResult = validateEcsRules(comps);
+
+    setActiveEffectiveData(mixinData);
+    setActiveValidationStatus({
+      zodValid: Boolean(mixinData.name.trim()),
+      ecsResult,
+    });
+
+    if (isDirty && liveSyncEnabled && !isNew && name) {
+      postHotloadPreview('mixin', name, mixinData, 16);
+      markPreviewSent();
+    }
+  }, [
+    mixinData,
+    isDirty,
+    liveSyncEnabled,
+    isNew,
+    name,
+    setActiveEffectiveData,
+    setActiveValidationStatus,
+    markPreviewSent,
+  ]);
+
+  useEffect(() => {
+    const onRevert = () => {
+      if (!baselineRef.current || isNew || !name) return;
+      const restored = structuredClone(baselineRef.current);
+      setMixinData(restored);
+      clearPreviewSent();
+      setDirty(false);
+      postHotloadRevert('mixin', name, restored);
+    };
+    window.addEventListener('gamedata-revert', onRevert);
+    return () => window.removeEventListener('gamedata-revert', onRevert);
+  }, [isNew, name, setDirty, clearPreviewSent]);
+
+  const handleSave = useCallback(async () => {
     if (!mixinData) return;
     setSaveStatus('saving');
     setErrors([]);
@@ -87,8 +154,18 @@ export function MixinEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
         throw new Error(errorData.error || 'Save failed');
       }
 
+      const resData = await res.json().catch(() => ({}));
       setSaveStatus('success');
+      baselineRef.current = structuredClone(mixinData);
+      clearPreviewSent();
       setDirty(false);
+      postHotloadCommit(
+        'mixin',
+        mixinData.name,
+        mixinData,
+        resData.sessionPatches,
+        resData.envelope?.id,
+      );
       onRefresh?.();
 
       if (isNew) {
@@ -98,7 +175,16 @@ export function MixinEditor({ name, isNew, cloneFrom, onRefresh }: Props) {
       setErrors([err instanceof Error ? err.message : 'Failed to save mixin']);
       setSaveStatus('error');
     }
-  };
+  }, [mixinData, isNew, name, setDirty, clearPreviewSent, onRefresh, selectItem]);
+
+  // Global Cmd+S save shortcut listener
+  useEffect(() => {
+    const onSaveKey = () => {
+      handleSave();
+    };
+    window.addEventListener('gamedata-save', onSaveKey);
+    return () => window.removeEventListener('gamedata-save', onSaveKey);
+  }, [handleSave]);
 
   const handleClone = () => {
     if (!mixinData) return;

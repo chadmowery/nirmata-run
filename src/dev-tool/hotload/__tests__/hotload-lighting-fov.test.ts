@@ -1,4 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { World } from '@engine/ecs/world';
+import { EventBus } from '@engine/events/event-bus';
+import { Grid } from '@engine/grid/grid';
+import { FloorState } from '@shared/components';
+import type { GameEvents } from '@/game/events/types';
+import type { GameContext } from '@/game/types';
+import { ClientHotloadBridge } from '../client-hotload-bridge';
 import lightingJson from '@/game/config/lighting.json';
 import fovJson from '@/game/config/fov.json';
 import {
@@ -76,5 +83,65 @@ describe('Lighting & FOV/FOW Config Hotloading (HOTLOAD-04)', () => {
     expect(rawBuf[exploredIdx]).toBe(128);
     expect(rawBuf[voidIdx]).toBe(0);
     gbuf.destroy();
+  });
+
+  it('forwards env:override sectorCondition and currentFloor to GameAudioSystem and reads propBeaconIntervalSec (MED-04)', async () => {
+    const nextLighting = structuredClone(DEFAULT_LIGHTING_CONFIG);
+    nextLighting.sectorConditions.DARK_SUBNET = {
+      ...nextLighting.sectorConditions.DARK_SUBNET,
+      propBeaconIntervalSec: 1.25,
+    };
+    setActiveLightingConfig(nextLighting);
+    expect(resolveSectorConditionProfile('DARK_SUBNET')?.propBeaconIntervalSec).toBe(1.25);
+
+    const bus = new EventBus<GameEvents>();
+    const world = new World<GameEvents>(bus);
+    const grid = new Grid(10, 10);
+    const floorEnt = world.createEntity();
+    world.addComponent(floorEnt, FloorState, {
+      currentFloor: 4,
+      maxFloor: 15,
+      sectorCondition: 'NOMINAL',
+    } as never);
+
+    const updateAmbianceForFloor = vi.fn();
+    const setEnvironmentOverride = vi.fn();
+
+    const bridge = new ClientHotloadBridge({
+      getContext: () => ({ world, grid, eventBus: bus } as unknown as GameContext),
+      getRenderSystem: () => ({ setEnvironmentOverride } as never),
+      getGameAudioSystem: () => ({ updateAmbianceForFloor } as never),
+    });
+
+    await bridge.handleEnvelope({
+      id: 'env-override-1',
+      timestamp: Date.now(),
+      mode: 'PREVIEW',
+      domain: 'env:override',
+      targetId: 'active-floor',
+      payload: {
+        factionTheme: 'traxus_foundry',
+        sectorCondition: 'THERMAL_SURGE',
+      },
+    });
+
+    expect(setEnvironmentOverride).toHaveBeenCalledWith({
+      factionTheme: 'traxus_foundry',
+      sectorCondition: 'THERMAL_SURGE',
+    });
+    expect(updateAmbianceForFloor).toHaveBeenCalledWith(4, 'THERMAL_SURGE');
+
+    await bridge.handleEnvelope({
+      id: 'env-override-reset',
+      timestamp: Date.now(),
+      mode: 'PREVIEW',
+      domain: 'env:override',
+      targetId: 'active-floor',
+      payload: {
+        factionTheme: null,
+        sectorCondition: null,
+      },
+    });
+    expect(updateAmbianceForFloor).toHaveBeenCalledWith(4, null);
   });
 });

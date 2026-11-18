@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server';
 import path from 'path';
 import { access } from 'fs/promises';
 import { checkNonProductionOnly } from '@/server/security/env-gate';
-import { listJsonFiles, atomicWrite, resolveFilePath, errorResponse, regenerateTemplateIndex } from '../utils';
+import { listJsonFiles, atomicWrite, resolveFilePath, errorResponse, regeneratePrefabTemplateIndex } from '../utils';
 import { RoomPrefabTemplateSchema } from '../schemas';
 import { validatePrefabRules } from '../prefab-validator';
+import { upsertPrefab, type RoomPrefabTemplate } from '@/game/generation/prefabs';
+import { hotloadBus } from '@/server/dev/hotload-bus';
 
 const DIR = path.join(process.cwd(), 'src/game/generation/prefabs');
 
@@ -47,7 +49,9 @@ export async function POST(req: Request) {
     }
 
     await atomicWrite(filePath, body);
-    await regenerateTemplateIndex();
+    upsertPrefab(parseResult.data as RoomPrefabTemplate);
+    await regeneratePrefabTemplateIndex();
+    hotloadBus.publishCommit('prefab', body.id, body);
 
     return NextResponse.json({ success: true, id: body.id }, { status: 201 });
   } catch (error) {

@@ -68,6 +68,7 @@ export async function POST(req: Request) {
       systems: instance.systems,
       runMode: RunMode.SIMULATION,
       shellId,
+      shellUpgrades: profile.shellUpgrades,
       seed,
       entityRegistry: (instance as { entityRegistry?: EntityRegistry }).entityRegistry,
       entityFactory: instance.entityFactory,

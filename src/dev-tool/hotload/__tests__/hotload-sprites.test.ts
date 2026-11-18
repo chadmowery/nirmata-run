@@ -89,4 +89,36 @@ describe('Sprite, Animation & Atlas Hotloading (HOTLOAD-03)', () => {
     const data = await res.json();
     expect(data.error).toContain('Unknown frame key');
   });
+
+  it('SpriteAnimator.hotUpdateAnimations propagates default clips to active dedicated theme when propagateToThemes is true (MED-06)', async () => {
+    const { Assets } = await import('pixi.js');
+    const assetsMod = await import('@/rendering/assets');
+    const themeSpy = vi.spyOn(assetsMod, 'getActiveThemeId').mockReturnValue('traxus_foundry');
+    const atlasKeySpy = vi.spyOn(assetsMod, 'getActiveAtlasKey').mockReturnValue('tileset_traxus_foundry');
+
+    const defaultData = { animations: {} as Record<string, unknown> };
+    const traxusData = { animations: { wall_spark: { frames: ['wall_spark_1'], fps: 4, loop: 'loop' } } as Record<string, unknown> };
+    const getSpy = vi.spyOn(Assets, 'get').mockImplementation(((key: string) => {
+      if (key === 'tileset') return { data: defaultData } as never;
+      if (key === 'tileset_traxus_foundry') return { data: traxusData } as never;
+      return undefined;
+    }) as never);
+
+    const animator = new SpriteAnimator();
+    animator.hotUpdateAnimations(
+      'default',
+      {
+        hero_a: { idle: { frames: ['hero_a'], fps: 10, loop: 'loop' } },
+      },
+      true,
+    );
+
+    expect(defaultData.animations.hero_a).toBeDefined();
+    expect(traxusData.animations.hero_a).toBeDefined();
+    expect(traxusData.animations.wall_spark).toBeDefined();
+
+    getSpy.mockRestore();
+    themeSpy.mockRestore();
+    atlasKeySpy.mockRestore();
+  });
 });

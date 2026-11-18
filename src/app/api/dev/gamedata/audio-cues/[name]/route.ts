@@ -72,8 +72,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ name: st
 
     await atomicWrite(CUES_FILE_PATH, data);
     registerSoundCue(body as SoundCueDef);
-    hotloadBus.publishCommit('audioCue', body.id || name, body);
-    return NextResponse.json({ success: true, cue: body });
+    const envelope = hotloadBus.publishCommit('audioCue', body.id || name, body);
+    return NextResponse.json({ success: true, cue: body, envelope });
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Internal server error', 500);
   }

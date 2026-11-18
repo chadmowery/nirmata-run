@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import { postHotloadPreview } from '@dev-tool/hotload/studio-sync';
 import type { EnvOverridePayload } from '@dev-tool/hotload/types';
 import type { SectorCondition } from '@shared/components/environment';
+import { useGamedataStore, type EnvOverrideState } from '../store';
 import { StudioFieldHint, StudioSliderField } from './StudioSliderField';
 import styles from '../editors/editors.module.css';
 
@@ -25,17 +25,10 @@ const CONDITION_OPTIONS = [
 ];
 
 export function EnvironmentOverrideBar() {
-  const [factionTheme, setFactionTheme] = useState<string>('');
-  const [sectorCondition, setSectorCondition] = useState<string>('');
-  const [heatPercent, setHeatPercent] = useState<number | null>(null);
-  const [stabilityPercent, setStabilityPercent] = useState<number | null>(null);
+  const { envOverride, setEnvOverride, resetEnvOverride } = useGamedataStore();
+  const { factionTheme, sectorCondition, heatPercent, stabilityPercent } = envOverride;
 
-  const emitOverride = (next: {
-    factionTheme: string;
-    sectorCondition: string;
-    heatPercent: number | null;
-    stabilityPercent: number | null;
-  }) => {
+  const emitOverride = (next: EnvOverrideState) => {
     const payload: EnvOverridePayload = {
       factionTheme: next.factionTheme ? next.factionTheme : null,
       sectorCondition: next.sectorCondition ? (next.sectorCondition as SectorCondition) : null,
@@ -71,16 +64,13 @@ export function EnvironmentOverrideBar() {
           className={styles.toolButton}
           style={{ fontSize: '10px', padding: '2px 8px' }}
           onClick={() => {
-            const reset = {
+            const reset: EnvOverrideState = {
               factionTheme: '',
               sectorCondition: '',
               heatPercent: null,
               stabilityPercent: null,
             };
-            setFactionTheme('');
-            setSectorCondition('');
-            setHeatPercent(null);
-            setStabilityPercent(null);
+            resetEnvOverride();
             emitOverride(reset);
           }}
         >
@@ -106,8 +96,8 @@ export function EnvironmentOverrideBar() {
             value={factionTheme}
             onChange={(e) => {
               const val = e.target.value;
-              setFactionTheme(val);
-              emitOverride({ factionTheme: val, sectorCondition, heatPercent, stabilityPercent });
+              setEnvOverride({ factionTheme: val });
+              emitOverride({ ...envOverride, factionTheme: val });
             }}
           >
             {FACTION_OPTIONS.map((opt) => (
@@ -135,8 +125,8 @@ export function EnvironmentOverrideBar() {
             value={sectorCondition}
             onChange={(e) => {
               const val = e.target.value;
-              setSectorCondition(val);
-              emitOverride({ factionTheme, sectorCondition: val, heatPercent, stabilityPercent });
+              setEnvOverride({ sectorCondition: val });
+              emitOverride({ ...envOverride, sectorCondition: val });
             }}
           >
             {CONDITION_OPTIONS.map((opt) => (
@@ -157,8 +147,8 @@ export function EnvironmentOverrideBar() {
           step={1}
           value={heatPercent ?? 0}
           onChange={(val) => {
-            setHeatPercent(val);
-            emitOverride({ factionTheme, sectorCondition, heatPercent: val, stabilityPercent });
+            setEnvOverride({ heatPercent: val });
+            emitOverride({ ...envOverride, heatPercent: val });
           }}
         />
 
@@ -172,8 +162,8 @@ export function EnvironmentOverrideBar() {
           step={1}
           value={stabilityPercent ?? 100}
           onChange={(val) => {
-            setStabilityPercent(val);
-            emitOverride({ factionTheme, sectorCondition, heatPercent, stabilityPercent: val });
+            setEnvOverride({ stabilityPercent: val });
+            emitOverride({ ...envOverride, stabilityPercent: val });
           }}
         />
       </div>

@@ -29,6 +29,7 @@ import { AbortMissionDialog } from '@/components/ui/AbortMissionDialog';
 import { SystemSettingsModal } from '@/components/ui/SystemSettingsModal';
 import { HubLayout } from '@/components/ui/hub/HubLayout';
 import { GameContext } from '@/game/types';
+import { FloorState } from '@shared/components/floor-state';
 import { DEFAULT_GRID_WIDTH, DEFAULT_GRID_HEIGHT, DEFAULT_SHELL_ID } from '@/shared/constants';
 
 const DevTerminal =
@@ -252,6 +253,17 @@ export default function GamePage() {
           };
           perfTickerCallbackRef.current = perfTicker;
           app.ticker.add(perfTicker, undefined, UPDATE_PRIORITY.UTILITY);
+
+          if (
+            globalForDevRuntime.__NIRMATA_DEV_RUNTIME__ &&
+            globalForDevRuntime.__NIRMATA_DEV_RUNTIME__.app === app
+          ) {
+            globalForDevRuntime.__NIRMATA_DEV_RUNTIME__.webglProbe = probe;
+            globalForDevRuntime.__NIRMATA_DEV_RUNTIME__.perfCollector = perfCollector;
+            globalForDevRuntime.__NIRMATA_DEV_RUNTIME__.perfTickerCallback = perfTicker;
+            globalForDevRuntime.__NIRMATA_DEV_RUNTIME__.unsubscribePerfMode =
+              unsubscribePerfModeRef.current;
+          }
         });
 
         const anyHandler = (type: string) => {
@@ -281,7 +293,12 @@ export default function GamePage() {
         getGrid: () => context.grid,
       });
       gameAudioSystemRef.current = gameAudioSystem;
-      gameAudioSystem.updateAmbianceForFloor(1);
+      const floorEntities = context.world.query(FloorState);
+      const initialFloor =
+        floorEntities.length > 0
+          ? (context.world.getComponent(floorEntities[0], FloorState)?.currentFloor ?? 1)
+          : 1;
+      gameAudioSystem.updateAmbianceForFloor(initialFloor);
 
       // 5. Start Game
       context.fsm.transition(GameState.Playing);

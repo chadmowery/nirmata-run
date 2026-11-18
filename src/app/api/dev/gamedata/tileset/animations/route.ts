@@ -106,7 +106,7 @@ export async function PUT(req: Request) {
     assetWatcher.markSelfWrite(fileName);
     await atomicWrite(filePath, manifest);
 
-    hotloadBus.publishCommit('tileset:animations', animSetKey, {
+    const envelope = hotloadBus.publishCommit('tileset:animations', animSetKey, {
       themeId,
       animSetKey,
       animations: manifest.animations,
@@ -163,6 +163,7 @@ export async function PUT(req: Request) {
       animSetKey,
       updatedThemes,
       animations: manifest.animations,
+      envelope,
     });
   } catch (error) {
     return errorResponse(

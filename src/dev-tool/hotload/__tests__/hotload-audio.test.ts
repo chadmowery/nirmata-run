@@ -178,4 +178,89 @@ describe('Real-Time Audio Cue & Synth Voice Hotloading (HOTLOAD-05)', () => {
     expect(cache.has('/assets/audio/test.ogg')).toBe(false);
     engine.destroy();
   });
+
+  it('applies cue.baseVolume in hotUpdateCue, volumeMultiplier in playAmbianceCue on same cueId, and cleans up stopped voices (MED-03)', () => {
+    const { ctx } = createMockAudioContext();
+    const engine = new AudioEngine({ isClient: true, audioContext: ctx });
+    engine.init();
+
+    const ambCue: SoundCueDef = {
+      id: 'amb_band_1_corrupted',
+      bus: 'ambiance',
+      mode: 'synth',
+      baseVolume: 0.4,
+      cooldownMs: 0,
+      pitchVariance: 0,
+      loop: true,
+      synth: {
+        waveform: 'triangle',
+        freqStart: 55,
+        filterType: 'lowpass',
+        filterCutoffStart: 500,
+        filterQ: 1.5,
+        attack: 0.2,
+        decay: 0.2,
+        sustain: 1.0,
+        hold: 1,
+        release: 0.5,
+      },
+    };
+
+    engine.playAmbianceCue(ambCue, { volumeMultiplier: 0.4 });
+    engine.setAmbianceState({ baseVolume: 0.4 });
+
+    const activeVoice = (engine as unknown as {
+      activeAmbianceVoice: { gainNode: { gain: { setTargetAtTime: ReturnType<typeof vi.fn> } } };
+    }).activeAmbianceVoice;
+    const gainSpy = activeVoice.gainNode.gain.setTargetAtTime;
+    gainSpy.mockClear();
+
+    // 1. hotUpdateCue must use cue.baseVolume (0.9) rather than stale ambianceState.baseVolume (0.4)
+    engine.hotUpdateCue({ ...ambCue, baseVolume: 0.9 });
+    expect(gainSpy).toHaveBeenCalledWith(0.9, expect.any(Number), 0.02);
+
+    // 2. playAmbianceCue on same cueId must update gain when volumeMultiplier changes
+    gainSpy.mockClear();
+    engine.playAmbianceCue(ambCue, { volumeMultiplier: 0.25 });
+    expect(gainSpy).toHaveBeenCalledWith(0.25, expect.any(Number), 0.02);
+
+    // 3. Looping spatial cue switched from synth to sample cleans up activeCueVoices & activeVoiceMap
+    const spatialCue: SoundCueDef = {
+      id: 'amb_prop_hum',
+      bus: 'sfx',
+      mode: 'synth',
+      baseVolume: 0.5,
+      cooldownMs: 0,
+      pitchVariance: 0,
+      loop: true,
+      synth: {
+        waveform: 'sine',
+        freqStart: 120,
+        attack: 0.1,
+        decay: 0.1,
+        sustain: 0.8,
+        hold: 1,
+        release: 0.2,
+      },
+    };
+    const voiceId = engine.playCue(spatialCue);
+    expect(voiceId).toBeDefined();
+
+    const activeCueVoices = (engine as unknown as { activeCueVoices: Map<string, unknown[]> })
+      .activeCueVoices;
+    const activeVoiceMap = (engine as unknown as { activeVoiceMap: Map<number, unknown> })
+      .activeVoiceMap;
+    expect(activeCueVoices.get('amb_prop_hum')?.length).toBe(1);
+    expect(activeVoiceMap.has(voiceId!)).toBe(true);
+
+    engine.hotUpdateCue({
+      ...spatialCue,
+      mode: 'sample',
+      samplePath: '/assets/audio/hum.ogg',
+    });
+
+    expect(activeCueVoices.has('amb_prop_hum')).toBe(false);
+    expect(activeVoiceMap.has(voiceId!)).toBe(false);
+    engine.destroy();
+  });
 });

@@ -12,6 +12,9 @@ import {
   ApplyStatusEffectIntent,
   DamageIntent,
   VentIntent,
+  Item,
+  CurrencyItem,
+  BlocksMovement,
 } from '@shared/components';
 import { EntityId } from '@engine/ecs/types';
 import { addHealIntent } from '@/game/systems/combat';
@@ -242,7 +245,17 @@ export function handleServerDebugCommand(
             sharedComponentRegistry,
             { position: { x: tx, y: ty } },
           );
-          session.grid.addEntity(spawnedId, tx, ty);
+          if (
+            session.world.hasComponent(spawnedId, Item) ||
+            session.world.hasComponent(spawnedId, CurrencyItem)
+          ) {
+            session.grid.addItem(spawnedId, tx, ty);
+          } else {
+            session.grid.addEntity(spawnedId, tx, ty);
+          }
+          if (session.world.hasComponent(spawnedId, BlocksMovement) && session.grid.inBounds(tx, ty)) {
+            session.grid.setTile(tx, ty, { walkable: false });
+          }
         } catch (err) {
           logger.warn(
             `SPAWN_ENTITY failed for '${templateName}': ${err instanceof Error ? err.message : String(err)}`,

@@ -10,6 +10,7 @@ import {
   postHotloadPreview,
   postHotloadRevert,
 } from '@dev-tool/hotload/studio-sync';
+import { useHotloadAutoRevert } from '@dev-tool/hotload/useHotloadAutoRevert';
 import styles from './editors.module.css';
 
 interface Props {
@@ -54,6 +55,15 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
 
   const [templateData, setTemplateData] = useState<TemplateData | null>(null);
   const baselineRef = useRef<{ template: TemplateData; effectiveComponents: Record<string, Record<string, unknown>> } | null>(null);
+  const { markPreviewSent, clearPreviewSent } = useHotloadAutoRevert(
+    'entity',
+    !isNew ? name : undefined,
+    () =>
+      baselineRef.current
+        ? { components: structuredClone(baselineRef.current.effectiveComponents) }
+        : null,
+    !isNew && Boolean(name),
+  );
   const [errors, setErrors] = useState<string[]>([]);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
@@ -204,8 +214,9 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
 
     if (isDirty && liveSyncEnabled && !isNew && name) {
       postHotloadPreview('entity', name, { components: effectiveComponents }, 16);
+      markPreviewSent();
     }
-  }, [templateData, effectiveComponents, isDirty, liveSyncEnabled, isNew, name, setActiveEffectiveData, setActiveValidationStatus]);
+  }, [templateData, effectiveComponents, isDirty, liveSyncEnabled, isNew, name, setActiveEffectiveData, setActiveValidationStatus, markPreviewSent]);
 
   useEffect(() => {
     const onRevert = () => {
@@ -213,12 +224,13 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
       const restored = structuredClone(baselineRef.current.template);
       const restoredEffective = structuredClone(baselineRef.current.effectiveComponents);
       setTemplateData(restored);
+      clearPreviewSent();
       setDirty(false);
       postHotloadRevert('entity', name, { components: restoredEffective });
     };
     window.addEventListener('gamedata-revert', onRevert);
     return () => window.removeEventListener('gamedata-revert', onRevert);
-  }, [isNew, name, setDirty]);
+  }, [isNew, name, setDirty, clearPreviewSent]);
 
   const handleSave = useCallback(async () => {
     if (!templateData) return;
@@ -257,16 +269,24 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
         throw new Error(errorData.error || 'Save failed');
       }
 
+      const resData = await res.json().catch(() => ({}));
       setSaveStatus('success');
       baselineRef.current = {
         template: structuredClone(templateData),
         effectiveComponents: structuredClone(effectiveComponents),
       };
+      clearPreviewSent();
       setDirty(false);
-      postHotloadCommit('entity', templateData.name, {
-        ...templateData,
-        effectiveComponents,
-      });
+      postHotloadCommit(
+        'entity',
+        templateData.name,
+        {
+          ...templateData,
+          effectiveComponents,
+        },
+        resData.sessionPatches,
+        resData.envelope?.id,
+      );
       onRefresh?.();
 
       if (isNew) {
@@ -276,7 +296,7 @@ export function EntityTemplateEditor({ name, isNew, cloneFrom, onRefresh }: Prop
       setErrors([err instanceof Error ? err.message : 'Failed to save template']);
       setSaveStatus('error');
     }
-  }, [templateData, effectiveComponents, isNew, name, setDirty, onRefresh, selectItem]);
+  }, [templateData, effectiveComponents, isNew, name, setDirty, clearPreviewSent, onRefresh, selectItem]);
 
   // Global Cmd+S save shortcut listener
   useEffect(() => {

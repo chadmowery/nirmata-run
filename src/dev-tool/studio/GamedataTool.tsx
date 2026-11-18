@@ -5,6 +5,7 @@ import { Sidebar } from './Sidebar';
 import { useGamedataStore } from './store';
 import { Section, SECTIONS } from './types';
 import { ResolvedPreviewPanel } from './shared/ResolvedPreviewPanel';
+import { EnvironmentOverrideBar } from './shared/EnvironmentOverrideBar';
 import { subscribeStudioHeartbeats, requestShellSwitch } from '@dev-tool/hotload/studio-sync';
 import { tilesetAtlasCache } from './shared/tileset-atlas-cache';
 import {
@@ -44,8 +45,17 @@ export function GamedataTool({ initialData }: Props) {
     toggleLiveSync,
     connectedGame,
     setConnectedGame,
+    envOverride,
   } = useGamedataStore();
   const [launchingRun, setLaunchingRun] = useState(false);
+  const [showEnvOverride, setShowEnvOverride] = useState(false);
+
+  const hasActiveEnvOverride = Boolean(
+    envOverride.factionTheme ||
+      envOverride.sectorCondition ||
+      envOverride.heatPercent !== null ||
+      envOverride.stabilityPercent !== null,
+  );
 
   // Subscribe to running game tab heartbeats via BroadcastChannel & SSE asset updates
   useEffect(() => {
@@ -338,6 +348,22 @@ export function GamedataTool({ initialData }: Props) {
           <button
             type="button"
             className={styles.addButton}
+            onClick={() => setShowEnvOverride((v) => !v)}
+            style={{
+              margin: 0,
+              padding: '2px 8px',
+              borderColor: hasActiveEnvOverride || showEnvOverride ? '#00f0ff' : '#4a5568',
+              color: hasActiveEnvOverride || showEnvOverride ? '#00f0ff' : '#79889e',
+              background: hasActiveEnvOverride ? 'rgba(0, 240, 255, 0.12)' : 'transparent',
+            }}
+            title="Toggle global Environment Override controls (Faction Theme, Sector Condition, Heat/Stability)"
+          >
+            {hasActiveEnvOverride ? '● ENV OVERRIDE' : 'ENV OVERRIDE'}
+          </button>
+
+          <button
+            type="button"
+            className={styles.addButton}
             onClick={toggleLiveSync}
             style={{
               margin: 0,
@@ -402,6 +428,12 @@ export function GamedataTool({ initialData }: Props) {
           </button>
         </div>
       </header>
+
+      {showEnvOverride && (
+        <div style={{ padding: '6px 12px', borderBottom: '1px solid #1e293b', background: '#070b14' }}>
+          <EnvironmentOverrideBar />
+        </div>
+      )}
 
       <div className={styles.workspaceRow}>
         <Sidebar />

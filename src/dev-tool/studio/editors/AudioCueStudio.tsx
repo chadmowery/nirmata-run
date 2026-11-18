@@ -16,6 +16,7 @@ import {
   postHotloadPreview,
   postHotloadRevert,
 } from '@dev-tool/hotload/studio-sync';
+import { useHotloadAutoRevert } from '@dev-tool/hotload/useHotloadAutoRevert';
 import { StudioSliderField } from '../shared/StudioSliderField';
 import styles from './editors.module.css';
 
@@ -119,6 +120,16 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
     }
   }, [name, isNew, cloneFrom, setDirty]);
 
+  const { markPreviewSent, clearPreviewSent } = useHotloadAutoRevert(
+    'audioCue',
+    !isNew ? name : undefined,
+    () => (baselineRef.current ? structuredClone(baselineRef.current) : null),
+    !isNew && Boolean(name),
+    (restored) => {
+      getAudioEngine().hotUpdateCue?.(restored);
+    },
+  );
+
   // Sync to Gamedata Inspector & LIVE_SYNC synth voice morphing
   useEffect(() => {
     if (cueData) {
@@ -129,23 +140,25 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
         getAudioEngine().hotUpdateCue?.(cueData);
         if (liveSyncEnabled && !isNew && cueData.id) {
           postHotloadPreview('audioCue', cueData.id, cueData, 16);
+          markPreviewSent();
         }
       }
     }
-  }, [cueData, isDirty, liveSyncEnabled, isNew, setActiveEffectiveData, setActiveValidationStatus]);
+  }, [cueData, isDirty, liveSyncEnabled, isNew, setActiveEffectiveData, setActiveValidationStatus, markPreviewSent]);
 
   useEffect(() => {
     const onRevert = () => {
       if (!baselineRef.current || isNew) return;
       const restored = structuredClone(baselineRef.current);
       setCueData(restored);
+      clearPreviewSent();
       setDirty(false);
       getAudioEngine().hotUpdateCue?.(restored);
       postHotloadRevert('audioCue', restored.id || name, restored);
     };
     window.addEventListener('gamedata-revert', onRevert);
     return () => window.removeEventListener('gamedata-revert', onRevert);
-  }, [isNew, name, setDirty]);
+  }, [isNew, name, setDirty, clearPreviewSent]);
 
   // Spatial calculations preview
   const spatialMetrics = useMemo(() => {
@@ -433,10 +446,12 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
         throw new Error(err.error || 'Failed to save sound cue');
       }
 
+      const resData = await res.json().catch(() => ({}));
       setSaveStatus('success');
       baselineRef.current = structuredClone(payload);
+      clearPreviewSent();
       setDirty(false);
-      postHotloadCommit('audioCue', payload.id, payload);
+      postHotloadCommit('audioCue', payload.id, payload, undefined, resData.envelope?.id);
       onRefresh?.();
 
       if (isNew) {
@@ -446,7 +461,7 @@ export function AudioCueStudio({ name, isNew, cloneFrom, onRefresh }: Props) {
       setErrors([err instanceof Error ? err.message : 'Save failed']);
       setSaveStatus('error');
     }
-  }, [cueData, isNew, name, setDirty, onRefresh, selectItem]);
+  }, [cueData, isNew, name, setDirty, clearPreviewSent, onRefresh, selectItem]);
 
   // Clone handler
   const handleClone = () => {

@@ -2,10 +2,13 @@ import { NextResponse } from 'next/server';
 import path from 'path';
 import { access } from 'fs/promises';
 import { checkNonProductionOnly } from '@/server/security/env-gate';
-import { listJsonFiles, atomicWrite, resolveFilePath, errorResponse, regenerateTemplateIndex } from '../utils';
+import { listJsonFiles, atomicWrite, resolveFilePath, errorResponse, regenerateEntityTemplateIndex } from '../utils';
 import { RawTemplateSchema } from '../schemas';
 import { validateEcsRules } from '../ecs-rules';
 import { COMPONENTS_REGISTRY } from '@shared/components';
+import { upsertEntityTemplateInRegistries } from '@/server/dev/hotload-reconciler';
+import { hotloadBus } from '@/server/dev/hotload-bus';
+import type { RawTemplate } from '@engine/entity/types';
 
 const DIR = path.join(process.cwd(), 'src/game/entities/templates');
 
@@ -62,9 +65,11 @@ export async function POST(req: Request) {
     }
 
     await atomicWrite(filePath, body);
-    await regenerateTemplateIndex();
+    await regenerateEntityTemplateIndex();
+    upsertEntityTemplateInRegistries(body as RawTemplate);
+    const envelope = hotloadBus.publishCommit('entity', body.name, body);
 
-    return NextResponse.json({ success: true, name: body.name }, { status: 201 });
+    return NextResponse.json({ success: true, name: body.name, envelope }, { status: 201 });
   } catch (error) {
     return errorResponse(error instanceof Error ? error.message : 'Internal server error', 500);
   }

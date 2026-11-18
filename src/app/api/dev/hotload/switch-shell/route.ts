@@ -32,8 +32,8 @@ export async function POST(req: Request) {
       );
     }
 
-    hotloadBus.publishCommit('shell', shellId, { id: shellId }, { [sessionId]: patch });
-    return NextResponse.json({ success: true, sessionId, shellId, patch });
+    const envelope = hotloadBus.publishCommit('shell', shellId, { id: shellId }, { [sessionId]: patch });
+    return NextResponse.json({ success: true, sessionId, shellId, patch, envelope });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to switch shell' },

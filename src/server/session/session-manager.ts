@@ -9,6 +9,7 @@ import { logger } from '@engine/utils/logger';
 
 import { RunMode } from '@shared/run-mode';
 import { truncateSessionId } from '@shared/reports/sanitize';
+import type { ShellUpgrades } from '@shared/profile';
 
 /**
  * WorldState container for sessions.
@@ -22,6 +23,7 @@ export interface WorldState<T extends EngineEvents = EngineEvents, S = unknown> 
   systems?: S; // EngineInstance.systems
   runMode?: RunMode;
   shellId?: string;
+  shellUpgrades?: Record<string, Partial<ShellUpgrades>>;
   seed?: string;
   entityRegistry?: EntityRegistry;
   entityFactory?: EntityFactory;
